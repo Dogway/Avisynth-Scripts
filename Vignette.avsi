@@ -1,6 +1,6 @@
 # by Dogway 26/04/2019
 
-function Vignettef(clip c, float "Vignette", bool "show") {
+function Vignette(clip c, float "Vignette", bool "show") {
 
 strength = string(Default(Vignette, 0.7))
 show = Default(show, false)
