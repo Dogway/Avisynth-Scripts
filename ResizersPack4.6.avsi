@@ -211,7 +211,7 @@ function PadResize(clip c, int "width", int "height", bool "mirror", int "mod", 
     mod    = Default(mod, 2)
 c
 
- X = width-(width%mod)-w
+ X = width -(width%mod) -w
  Y = height-(height%mod)-h
 
  fh = abs(x/2.0)
