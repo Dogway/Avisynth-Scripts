@@ -1,7 +1,6 @@
 ###                                                      #
 ###                                                      #
-### Resizers Functions Pack 4.5 by Dogway (21-09-2015)   #
-### Resizers Functions Pack 4.6 by Dogway (06-03-2019)   # -> Fixed finally PadResize()
+### Resizers Functions Pack 4.6 by Dogway (06-03-2019)   #
 ###                                                      #
 ##########################################################
 ###
@@ -42,8 +41,7 @@
 ### Read Dither documentation for more information about this.
 ###
 ###############################################################################
-#debug: LinearResize(640,480,linear=false,kernel="gaussian",a1=100,fh=1.0,fv=1.0)
-# also force matrix change without relying on resize?
+
 function LinearResize(clip a, int "w", int "h", string "kernel", bool "linear", bool "TVrange", string "matrix", bool "lsb_in", bool "lsb_out", bool "NoRing", bool "interlaced", \
                       string "matrix_out", string "cplace_in", string "cplace_out", float "fh", float "fv", int "taps", float "a1", float "a2", float "a3", bool "rgb", int "mode", float "src_left", float "src_top", float "src_width", float "src_height"){
 
@@ -248,7 +246,7 @@ crop(hsl,vst,-hsr,-vsb)
 ### the clip borders are extended in a mirror way.
 ###
 ### Not exactly the same but nonetheless inspired
-### by Didée's BorderMirror() (http://forum.doom9.org/showthread.php?p=518131#post518131)
+### by DidÃ©e's BorderMirror() (http://forum.doom9.org/showthread.php?p=518131#post518131)
 ###
 ###
 
