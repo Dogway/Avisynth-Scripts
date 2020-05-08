@@ -6,7 +6,7 @@
 ###                                                                                          ###
 ###          Special Thanks: Sagekilla, Didée, cretindesalpes, Gavino and MVtools people     ###
 ###                                                                                          ###
-###                       v3.1.2d (Dogway's mod) - 21 July 2015                              ###
+###                       v3.2d (alpha) - 08 May 2020                                        ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -179,7 +179,7 @@ pref   = !GlobalR ? ( preclip        ?  prefilter                               
                                                                             StackHorizontal(StackVertical(Dither_get_msb(ConvertToY8(NL_in)),Dither_get_lsb(ConvertToY8(NL_in))).ConvertToYV12(),NL_lsb)) : \
                                                                  (!planar ? NL_in : NL_in.converttoY8())
 
-                                              Y8      = Y8.KNLMeansCL(D=1, A=1, h=7.0,lsb_inout=true,device_type="GPU")
+                                              Y8      = Y8.KNLMeansCL(D=if4?1+ceil(1-350./thSAD):1, A=if4?1+ceil(1-350/thSAD):1, h=5.0/(350./thSAD),stacked=true,device_type="GPU")
 
                                               my      = planar ? Y8.Dither_get_msb().crop(0,0,chroma?-NL_W:0,0) : nop()
                                               ly      = planar ? Y8.Dither_get_lsb().crop(0,0,chroma?-NL_W:0,0) : nop()
@@ -637,3 +637,39 @@ lsb ? (lsb_in ? Dither_lut16 (yexpr=e,expr="x 32768 - 32768 * 28672 / 32768 +",y
                 Dither_lut8  (yexpr=e,expr="x 128 - 32768 * 112 / 32768 +"    ,y=3, u=uv, v=uv))  : \
                 mt_lut       (yexpr=e,expr="x 128 - 128 * 112 / 128 +"        ,y=3, u=uv, v=uv)
 lsb_out ? last : (lsb ? Ditherpost(mode=mode,ampn=ampn,slice=slice,staticnoise=ampn!=0.0?true:false,u=uv,v=uv) : last)}
+
+
+# Helper functions by cretindesalpes for the forthcoming updates
+Function fslg_fix_dc (clip flt16, clip pref, float "thr")
+{
+	thr = Default (thr, 1.0)
+
+	lp_f = flt16.fslg_fix_dc_lowpass ()
+	lp_s = pref.fslg_fix_dc_lowpass ()
+
+	hp_f = Dither_sub16 (flt16, lp_f, dif=true)
+	(thr < 0.1) ? lp_s : lp_f.Dither_limit_dif16 (lp_s, thr=thr, elast=2.0)
+    
+    msk=SafeMotionMask(DitherPost(stacked=true,prot=false,mode=6),gam=0.6,mv=3,em=false,lm=1, motion=100,darkb=55)
+    Dither_merge16_8(flt16,Dither_add16 (hp_f, dif=true),msk,luma=true)
+}
+
+Function fslg_fix_dc_lowpass (clip src16)
+{
+	src16
+
+# Test which one is the fastest
+#	w0 = Width ()
+#	h0 = Height () / 2
+#	r = 6
+#	w1 = (((w0 + r-1) / r) + 3) / 4 * 4
+#	h1 = (((h0 + r-1) / r) + 3) / 4 * 4
+#	Dither_resize16 (w1, h1, kernel="bicubic", a1=1, a2=0)
+#	Dither_resize16 (w0, h0, kernel="bicubic", a1=1, a2=0)
+
+	w = Width ()
+	h = Height () / 2
+	r = 8.5
+	Dither_resize16 (w, h, kernel="bicubic", a1=1, a2=0, fv=-1.0/r)
+	Dither_resize16 (w, h, kernel="bicubic", a1=1, a2=0, fh=-1.0/r)
+}
