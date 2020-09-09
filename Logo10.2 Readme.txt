@@ -1,7 +1,7 @@
 ###
-### Logo 10.1  (http://doom10.org/index.php?topic=2181.0)
+### Logo 10.2  (http://doom10.org/index.php?topic=2181.0)
 ###
-###  (26-03-2012)
+###  (09-09-2020)
 ###
 ### By Dogway with help from Gavino and Didée   (http://forum.doom9.org/showthread.php?t=160285)
 ### Blending Modes adapted from:Blend_MT_alpha3 (http://forum.doom9.org/showthread.php?p=1400434#post1400434)
@@ -19,10 +19,8 @@
 ###-Report bugs or errors if you find any not listed here.
 ###
 ### Dependencies:
-###    Avisynth MT
-###    MaskTools2 ("The holy grail"):              (http://forum.doom9.org/showthread.php?t=98985)
-###    ImageSequence.dll (v.2010-11-15)            (http://forum.doom9.org/showthread.php?t=109997)
-###    Immaavs v1.51 (only if using animated gifs) (http://forum.doom9.org/showthread.php?t=135928)
+###    Avisynth+
+###    MaskTools2: http://forum.doom9.org/showthread.php?t=98985
 ###
 ### Todo / Known bugs: 
 ###   -Add YUY2 and interlaced support
@@ -39,6 +37,8 @@
 ###   -Better matte workaround
 ###
 ### Changelog:
+###
+### 10.2 -Swapped CoronaSequence for ImageSource
 ###
 ### 10.1 -Added MT support
 ###      -Defaulted FadeIn FadeOut to 1 second
