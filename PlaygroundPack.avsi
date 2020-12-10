@@ -6,7 +6,7 @@
 ###    (http://doom10.org/index.php?topic=2190.0)    #
 ######################################################
 ####
-#### BitDepth
+#### Dither_BitDepth
 ####
 #### function by cretindesalpes (http://forum.doom9.org/showthread.php?p=1516096#post1516096)
 #### wrapped by Dogway 30-08-2011
@@ -21,7 +21,7 @@
 ####
 ######################################## 
 
-function BitDepth (clip c, int "bits", int "mode"){
+function Dither_BitDepth (clip c, int "bits", int "mode"){
 
 bits = default(bits, 2)    # Valid range: 0 - 8
 mode = default(mode, 0)    # Valid modes: 0 - 8. Read Dither documentation for details
