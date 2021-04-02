@@ -248,7 +248,7 @@ crop(hsl,vst,-hsr,-vsb)
 ### the clip borders are extended in a mirror way.
 ###
 ### Not exactly the same but nonetheless inspired
-### by Didée's BorderMirror() (http://forum.doom9.org/showthread.php?p=518131#post518131)
+### by DidÃ©e's BorderMirror() (http://forum.doom9.org/showthread.php?p=518131#post518131)
 ###
 ###
 
@@ -288,7 +288,7 @@ rgh=(r  > 0) ? crop(width()-r,0,0,0).fliphorizontal()  : last
 ### "Kernel"           Kernel to use for resizing
 ###
 ### i.e.
-### DogCrop(1920,1080,thr=16.0,cropmore=true,ScanH=90,ScanH=0,mode=2)
+### DogCrop(1920,1080,thr=16.0,cropmore=true,ScanW=90,ScanH=0,mode=2)
 ###
 ###############################################################################
 
