@@ -249,7 +249,7 @@ crop(hsl,vst,-hsr,-vsb)
 ### the clip borders are extended in a mirror way.
 ###
 ### Not exactly the same but nonetheless inspired
-### by Didée's BorderMirror() (http://forum.doom9.org/showthread.php?p=518131#post518131)
+### by DidÃ©e's BorderMirror() (http://forum.doom9.org/showthread.php?p=518131#post518131)
 ###
 ###
 
@@ -372,7 +372,7 @@ Mot ? spline36resizeMT(c,MotW+MotW%2,MotH+MotH%2,src_left=x1,src_width=-x2,src_t
 
 mode == 0 ? padresize(w,h) : \
 mode == 1 ? padresize(w,h) : \
-            RatioResize(float(nw),"adjust2w", kernel=kernel).padresize(w,h,mirror=!CM)
+            RatioResize(float(w),"adjust2w", kernel=kernel).padresize(w,h,mirror=!CM)
 
 """,args="c,nw,nh,addw,addh,w,h,thr,CM,sisphbd,contoy,mode,kernel,Mot",local=true)
 padresize(nw,nh)
