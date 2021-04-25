@@ -319,7 +319,7 @@ rgh=(r  > 0) ? crop(width()-r,0,0,0).fliphorizontal()  : last
 ###
 ### Dependencies:
 ### ------------
-###   avsresizer     (http://avisynth.nl/index.php/Avsresize)
+###   avsresize      (http://avisynth.nl/index.php/Avsresize)
 ###   EdgeFixer      (http://avisynth.nl/index.php/EdgeFixer)
 ###   SCSelect_HBD   (https://forum.doom9.org/showthread.php?t=182392)
 ###   MasksPack      (https://github.com/Dogway/Avisynth-Scripts)
@@ -442,9 +442,6 @@ mode == 2 ? RatioResize(float(w),"adjust2w", kernel=kernel).PadResize(w,h,mirror
             LBox ? \
             RatioResize(float(w),"adjust2w", kernel=kernel).PadResize(w,h,mirror=false) : PadResize(w,h)
 
-
-#subtitle(string(YPlaneMax(crop( addhz ? width()-16 : 0,0,0, addwz ? -height()+16 : 0))),x=100,y=10,align=5)
-#subtitle(string(thr),x=100,y=10,align=5)
 
 """,args="s,SC,avgc,addw,addh,addwz,addhz,w,h,thr,CM,Mot,fullchr,kernel,mode",local=true)
 
