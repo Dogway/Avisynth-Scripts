@@ -347,11 +347,11 @@ nh     = Default(height,h)
 addw   = Default(ScanW,int(round((w/8))))
 addh   = Default(ScanH,int(round((h/4))))
 Mot    = Default(Moving, False)                             # If the matte is moving (sliding) this enables pixel level accuracy.
-CM     = Default(CropMore, Mot || fullchr ? True : False)  # In case of odd cropping, either crop 1 pixel out or leave 1 pixel of the border
+CM     = Default(CropMore, Mot || fullchr ? True : False)   # In case of odd cropping, either crop 1 pixel out or leave 1 pixel of the border
 thr    = Default(thr, Mot ? 16.3 : 16.0)                    # Threshold, pixel values same or below this will be considered borders
 mode   = Default(mode, 2)                                   # 0: center+pad 1: crop to minimum (WIP) 2: resize to maximum 3: hybrid 0-2 (auto)
 SC_thr = Default(SC_thr, 3.5)                               # Scene Change detection threshold
-kernel = Default(kernel, "bicubic")                        # Kernel to use when resizing (mode=2)
+kernel = Default(kernel, "bicubic")                         # Kernel to use when resizing (mode=2)
 b      = Default(b, 0.0)
 c      = Default(c, 0.75)                                   # Precise Bicubic by default (fast and HQ)
 p      = Default(p, 100.0)
@@ -360,21 +360,20 @@ addw==0 ? Assert( addh>0, "You need to scan borders for at least one of the dime
 addh==0 ? Assert( addw>0, "You need to scan borders for at least one of the dimension") : nop()
 
 thr    = thr*bdpth
-addwz   = addw > 0
-addhz   = addh > 0
+addwz  = addw > 0
+addhz  = addh > 0
 
-avgY  = contoy ? sisphbd ? converttoy() : converttoy8() : last
-avg  = avgY.RatioResize(320.0,   "adjust2w",kernel="bilinear")
+avgY = contoy ? sisphbd ? converttoy() : converttoy8() : last
+avg  = avgY.RatioResize(320.0,  "adjust2w",kernel="bilinear")
 avg  = avg.TemporalSoften(10,255,255,10,2)
 avg  = avg.TemporalSoften(10,255,255,10,2)
 avg  = avg.RatioResize(float(w),"adjust2w",kernel="bicubic")
 
-avgsc= Overlay(avgY, avg, mask=BoxMaskf(s,addw,w-addw,addh,h-addh,show=true), greymask=true, mode="blend", opacity=1.0)
+avgc = Overlay(avgY, avg, mask=BoxMaskf(s,addw,w-addw,addh,h-addh,show=true), greymask=true, mode="blend", opacity=1.0)
 
 blk_b  = s.blankclip(width=16,height=16,pixel_type="Y8",fps=framerate(s),color=$000000).killaudio()
 blk_w  = s.blankclip(width=16,height=16,pixel_type="Y8",fps=framerate(s),color=$FFFFFF).killaudio()
-
-SC   = SCSelect_HBD(avg,blk_w,blk_b,blk_b,dfactor=SC_thr,mindif=1.0)
+SC     = SCSelect_HBD(avg,blk_w,blk_b,blk_b,dfactor=SC_thr,mindif=1.0)
 
 ScriptClip("""
 
@@ -393,7 +392,7 @@ for (LB=0, 1440, 1) {
 }") : nop()
 
 
-trim(avgsc,LBF+10,-1)
+trim(avgc,LBF+10,-1)
 
 mode==3 ? Eval("
 LBox = YPlaneMax(crop( addhz ? width()-16 : 0,0,0, addwz ? -height()+16 : 0)) <= float(thr)
@@ -447,14 +446,15 @@ mode == 2 ? RatioResize(float(w),"adjust2w", kernel=kernel).PadResize(w,h,mirror
 #subtitle(string(YPlaneMax(crop( addhz ? width()-16 : 0,0,0, addwz ? -height()+16 : 0))),x=100,y=10,align=5)
 #subtitle(string(thr),x=100,y=10,align=5)
 
-""",args="s,SC,avgsc,addw,addh,addwz,addhz,w,h,thr,CM,Mot,fullchr,kernel,mode",local=true)
+""",args="s,SC,avgc,addw,addh,addwz,addhz,w,h,thr,CM,Mot,fullchr,kernel,mode",local=true)
 
 
 mode == 0 ? PadResize(nw,nh) : \
 mode == 1 ? PadResize(nw,nh) : \
             kernel == "nnedi3" ? Eval(  "nnedi3_resize16(" + String(nw) + "," + String(nh) + ")")     : \
             kernel == "gauss"  ? Eval(    "GaussResizeMT(" + String(nw) + "," + String(nh) + ",p=p)") : \
-                                 Eval(Kernel + "ResizeMT(" + String(nw) + "," + String(nh) + ",b,c)")
+            kernel == "bicubic"? Eval(  "BicubicResizeMT(" + String(nw) + "," + String(nh) + ",b,c)") : \
+                                 Eval(Kernel + "ResizeMT(" + String(nw) + "," + String(nh) + ")")
 
 
 (!CM || Mot) && mode>1 ? ContinuityFixer(left=addwz?2:0, top=addhz?2:0, right=addwz?2:0, bottom=addhz?2:0, radius=CM && w>720?0:1) : last
