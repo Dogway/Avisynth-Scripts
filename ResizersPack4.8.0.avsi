@@ -180,9 +180,6 @@ h     = default(PreH,  s.height())
 kernel= default(kernel,"spline36")
 
 assert(!IsInt(ratio) && IsFloat(ratio), "'Ratio' must be a float number")
-kernel!="bicubic" ? Assert(Defined(b)==false,   "'b' and 'c' are BicubicResize only parameters") : nop()
-kernel!="bicubic" ? Assert(Defined(c)==false,   "'b' and 'c' are BicubicResize only parameters") : nop()
-kernel!="gauss"   ? Assert(Defined(p)==false,   "'p' is a GaussResize only parameter")           : nop()
 
 v  = (mode=="adjust2w")   ? h/(w/r)
 \  : (mode=="adjust2h")   ? w/(h/r)
@@ -202,9 +199,11 @@ op = (mode=="DAR")
 \  : (mode=="adjust2h")   ? "Vmod,round(r)"
 \  :  Assert(false, "Wrong Ratio mode")
 
+
 kernel == "nnedi3" ? Eval(  "nnedi3_resize16(s," + String(op) + ")")     : \
 kernel == "gauss"  ? Eval(    "GaussResizeMT(s," + String(op) + ",p=p)") : \
-                     Eval(Kernel + "ResizeMT(s," + String(op) + ",b,c)")
+kernel == "bicubic"? Eval(  "BicubicResizeMT(s," + String(op) + ",b,c)") : \
+                     Eval(kernel + "ResizeMT(s," + String(op) + ")")
 }
 
 ##############################
@@ -438,12 +437,12 @@ Mot ? spline36resizeMT(s,fullchr?MotW:MotW+MotW%2,fullchr?MotH:MotH+MotH%2,src_l
 
 mode == 0 ? PadResize(w,h) : \
 mode == 1 ? PadResize(w,h) : \
-mode == 2 ? RatioResize(float(w),"adjust2w", kernel=kernel).PadResize(w,h,mirror=false) : \
+mode == 2 ? RatioResize(float(w),"adjust2w", kernel=kernel, b=b, c=c, p=p).PadResize(w,h,mirror=false) : \
             LBox ? \
-            RatioResize(float(w),"adjust2w", kernel=kernel).PadResize(w,h,mirror=false) : PadResize(w,h)
+            RatioResize(float(w),"adjust2w", kernel=kernel, b=b, c=c, p=p).PadResize(w,h,mirror=false) : PadResize(w,h)
 
 
-""",args="s,SC,avgc,addw,addh,addwz,addhz,w,h,thr,CM,Mot,fullchr,kernel,mode",local=true)
+""",args="s,SC,avgc,addw,addh,addwz,addhz,w,h,thr,CM,Mot,fullchr,kernel,b,c,p,mode",local=true)
 
 
 mode == 0 ? PadResize(nw,nh) : \
@@ -451,7 +450,7 @@ mode == 1 ? PadResize(nw,nh) : \
             kernel == "nnedi3" ? Eval(  "nnedi3_resize16(" + String(nw) + "," + String(nh) + ")")     : \
             kernel == "gauss"  ? Eval(    "GaussResizeMT(" + String(nw) + "," + String(nh) + ",p=p)") : \
             kernel == "bicubic"? Eval(  "BicubicResizeMT(" + String(nw) + "," + String(nh) + ",b,c)") : \
-                                 Eval(Kernel + "ResizeMT(" + String(nw) + "," + String(nh) + ")")
+                                 Eval(kernel + "ResizeMT(" + String(nw) + "," + String(nh) + ")")
 
 
 (!CM || Mot) && mode>1 ? ContinuityFixer(left=addwz?2:0, top=addhz?2:0, right=addwz?2:0, bottom=addhz?2:0, radius=CM && w>720?0:1) : last
