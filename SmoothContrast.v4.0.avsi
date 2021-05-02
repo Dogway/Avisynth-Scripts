@@ -21,12 +21,12 @@ function SmoothContrast(clip c, float "cont", int "pivot", float "sat", string "
     cont    = Default(cont, 0.0)          # [-1.0 to +1.0] can set further though
     sat     = Default(sat,  cont/1.5)     # [-1.0 to +1.0]
     range   = Default(range,  "TV")       # TV or PC. Luma range of your source
-										  # Pivot: 64 to 192 (roughly)
-    pivot   = Defined(pivot) ? range == "TV" ? (pivot-16.)/219. : pivot/255. : range == "TV" ? 0.50913 : 0.5
+                                          # Pivot: 64 to 192 (roughly)
+    range = range == "TV"
+    pivot   = Defined(pivot) ? range ? (pivot-16.)/219. : pivot/255. : range ? 0.50913 : 0.5
 
     Assert(AvsPlusVersionNumber > 2294, "Update Avisynth+ version")
 
-    range = range == "TV"
     cont    = pow(cont + sign(cont), 3.)
     sat     = sat != 0. ? (1.-max(min(sat, 1.), -1.))/2. - 0.5 : 0.
 
