@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC2  (09-05-2021)            ##
+###    Transforms Pack v1.0 RC3  (09-05-2021)            ##
 ###                                                      ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
@@ -39,37 +39,41 @@ function ColorSpace (clip clp, string "source", string "target", string "kernel_
     cd          = Default (c_down, 0.25) # Didée's Bicubic
     pd          = Default (p_down, 0.25)
 
-    source = Matrix_fuzzy_search (source)
-    target = Matrix_fuzzy_search (target)
+    src = Matrix_fuzzy_search (source)
+    tgt = Matrix_fuzzy_search (target)
 
     s_num =
-\     (source == "sRGB"      ) ? 0
-\   : (source == "Rec601"    ) ? 1
-\   : (source == "240M"      ) ? 2
-\   : (source == "470BG"     ) ? 3
-\   : (source == "Rec2020"   ) ? 4
-\   : (source == "Rec709"    ) ? 5
-\   : (source == "1886a"     ) ? 6
-\   : (source == "AdobeRGB"  ) ? 7
-\   : (source == "Display-P3") ? 0
-\   : (source == "DCI-P3"    ) ? 8
-\   : (source == "ACEScg"    ) ? 9
-\   : (source == "ACES2065"  ) ? 9
+\     (src == "sRGB"      ) ? 0
+\   : (source == "jpeg"   ) ? 0
+\   : (source == "jpg"    ) ? 0
+\   : (src == "Rec601"    ) ? 1
+\   : (src == "240M"      ) ? 2
+\   : (src == "470BG"     ) ? 3
+\   : (src == "Rec2020"   ) ? 4
+\   : (src == "Rec709"    ) ? 5
+\   : (src == "1886a"     ) ? 6
+\   : (src == "AdobeRGB"  ) ? 7
+\   : (src == "Display-P3") ? 0
+\   : (src == "DCI-P3"    ) ? 8
+\   : (src == "ACEScg"    ) ? 9
+\   : (src == "ACES2065"  ) ? 9
 \   : Assert (false, "Unsupported Color Space.")
 
     t_num =
-\     (target == "sRGB"      ) ? 0
-\   : (target == "Rec601"    ) ? 1
-\   : (target == "240M"      ) ? 2
-\   : (target == "470BG"     ) ? 3
-\   : (target == "Rec2020"   ) ? 4
-\   : (target == "Rec709"    ) ? 5
-\   : (target == "1886a"     ) ? 6
-\   : (target == "AdobeRGB"  ) ? 7
-\   : (target == "Display-P3") ? 0
-\   : (target == "DCI-P3"    ) ? 8
-\   : (target == "ACEScg"    ) ? 9
-\   : (target == "ACES2065"  ) ? 9
+\     (tgt == "sRGB"      ) ? 0
+\   : (target == "jpeg"   ) ? 0
+\   : (target == "jpg"    ) ? 0
+\   : (tgt == "Rec601"    ) ? 1
+\   : (tgt == "240M"      ) ? 2
+\   : (tgt == "470BG"     ) ? 3
+\   : (tgt == "Rec2020"   ) ? 4
+\   : (tgt == "Rec709"    ) ? 5
+\   : (tgt == "1886a"     ) ? 6
+\   : (tgt == "AdobeRGB"  ) ? 7
+\   : (tgt == "Display-P3") ? 0
+\   : (tgt == "DCI-P3"    ) ? 8
+\   : (tgt == "ACEScg"    ) ? 9
+\   : (tgt == "ACES2065"  ) ? 9
 \   : Assert (false, "Unsupported Color Space.")
 
     bdpth = BitsPerComponent(clp) > 10 ? 0.09929682680944 : 0.099
@@ -86,20 +90,20 @@ function ColorSpace (clip clp, string "source", string "target", string "kernel_
 
     clp
 
-    IsPlanarRGB(clp) ? last : \
-    YCbCrToRGB( YCbCrToRGB_mat(source, tv_range_in), kernel=kernelu, b=bu, c=cu, p=pu)
+    IsRGB(clp) ? ConvertToPlanarRGB(src) : \
+    YCbCrToRGB( YCbCrToRGB_mat(src, tv_range_in), kernel=kernelu, b=bu, c=cu, p=pu)
 
     moncurve_f(s_gamma, s_off, false)
 
     if (gamut) {
-    mata = RGB_to_XYZ(source, list=true)
-    matb = XYZ_to_RGB(target, list=true)
+    mata = RGB_to_XYZ(src, list=true)
+    matb = XYZ_to_RGB(tgt, list=true)
     MatrixClip( MatrixDot(mata, matb) ) }
 
     t_num==9 ? last : gamma ? moncurve_r(t_gamma, t_off, false) : !gamma && gamut ? moncurve_r(s_gamma, s_off, false) : last
 
-    IsPlanarRGB(clp) ? last : \
-    RGBToYCbCr( RGBToYCbCr_mat(target, tv_range_out), kernel=kerneld, pixel_type=PixelType(clp), b=bd, c=cd, p=pd)  }
+    IsRGB(clp) ? last : \
+    RGBToYCbCr( RGBToYCbCr_mat(tgt, tv_range_out), kernel=kerneld, pixel_type=PixelType(clp), b=bd, c=cd, p=pd)  }
 
 
 
@@ -118,37 +122,41 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     noop = source == disp_ref
 
-    source = Matrix_fuzzy_search (source)
-    target = Matrix_fuzzy_search (disp_ref)
+    src = Matrix_fuzzy_search (source)
+    tgt = Matrix_fuzzy_search (disp_ref)
 
     s_num =
-\     (source == "sRGB"      ) ? 0
-\   : (source == "Rec601"    ) ? 1
-\   : (source == "240M"      ) ? 2
-\   : (source == "470BG"     ) ? 3
-\   : (source == "Rec2020"   ) ? 4
-\   : (source == "Rec709"    ) ? 5
-\   : (source == "1886a"     ) ? 6
-\   : (source == "AdobeRGB"  ) ? 7
-\   : (source == "DCI-P3"    ) ? 8
-\   : (source == "Display-P3") ? 0
-\   : (source == "ACES2065"  ) ? 9
-\   : (source == "ACEScg"    ) ? 9
+\     (src == "sRGB"      ) ? 0
+\   : (source == "jpeg"   ) ? 0
+\   : (source == "jpg"    ) ? 0
+\   : (src == "Rec601"    ) ? 1
+\   : (src == "240M"      ) ? 2
+\   : (src == "470BG"     ) ? 3
+\   : (src == "Rec2020"   ) ? 4
+\   : (src == "Rec709"    ) ? 5
+\   : (src == "1886a"     ) ? 6
+\   : (src == "AdobeRGB"  ) ? 7
+\   : (src == "Display-P3") ? 0
+\   : (src == "DCI-P3"    ) ? 8
+\   : (src == "ACEScg"    ) ? 9
+\   : (src == "ACES2065"  ) ? 9
 \   : Assert (false, "Unsupported Color Space.")
 
     t_num =
-\     (target == "sRGB"      ) ? 0
-\   : (target == "Rec601"    ) ? 1
-\   : (target == "240M"      ) ? 2
-\   : (target == "470BG"     ) ? 3
-\   : (target == "Rec2020"   ) ? 4
-\   : (target == "Rec709"    ) ? 5
-\   : (target == "1886a"     ) ? 6
-\   : (target == "AdobeRGB"  ) ? 7
-\   : (target == "DCI-P3"    ) ? 8
-\   : (target == "Display-P3") ? 0
-\   : (target == "ACES2065"  ) ? 9
-\   : (target == "ACEScg"    ) ? 9
+\     (tgt == "sRGB"      ) ? 0
+\   : (disp_ref == "jpeg" ) ? 0
+\   : (disp_ref == "jpg"  ) ? 0
+\   : (tgt == "Rec601"    ) ? 1
+\   : (tgt == "240M"      ) ? 2
+\   : (tgt == "470BG"     ) ? 3
+\   : (tgt == "Rec2020"   ) ? 4
+\   : (tgt == "Rec709"    ) ? 5
+\   : (tgt == "1886a"     ) ? 6
+\   : (tgt == "AdobeRGB"  ) ? 7
+\   : (tgt == "Display-P3") ? 0
+\   : (tgt == "DCI-P3"    ) ? 8
+\   : (tgt == "ACEScg"    ) ? 9
+\   : (tgt == "ACES2065"  ) ? 9
 \   : Assert (false, "Unsupported Color Space.")
 
 
@@ -166,14 +174,14 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     clp.ConvertBits(16)
 
-    IsPlanarRGB(clp) ? last : \
-    YCbCrToRGB( YCbCrToRGB_mat(source, tv_range), kernel=kernel, b=b, c=c, p=p)
+    IsRGB(clp) ? ConvertToPlanarRGB(src) : \
+    YCbCrToRGB( YCbCrToRGB_mat(src, tv_range), kernel=kernel, b=b, c=c, p=p)
 
     !noop ? moncurve_f(s_gamma, s_off, false) : last
 
     if (gamut && !noop) {
-    mata = RGB_to_XYZ(source, list=true)
-    matb = XYZ_to_RGB(target, list=true)
+    mata = RGB_to_XYZ(src, list=true)
+    matb = XYZ_to_RGB(tgt, list=true)
     MatrixClip( MatrixDot(mata, matb) ) }
 
     Defined(LUT) || gamma ? moncurve_r(t_gamma, t_off, false) : !gamma && gamut ? moncurve_r(s_gamma, s_off, false) : last
@@ -266,6 +274,9 @@ function RGBtoYCbCr (clip rgb, float_array mat, string "pixel_type", string "ker
     h = height(rgb)
     nh = round(h/2.0)
 
+    Assert (w%2==0, "Width is not mod2.")
+    Assert (h%2==0, "Height is not mod2.")
+
     p_type4 = FindStr(pixel_type, "44")>0
     p_type2 = FindStr(pixel_type, "22")>0
 
@@ -353,33 +364,35 @@ function Matrix_coef (string matrix) {
 
     matrix = Matrix_fuzzy_search (matrix)
 
+    # Rec601 (SMPTE 170M) kept the YUV<->RGB coefficients from SMPTE 470M (NTSC 1953)
     mat_i =
-\     (matrix == "srgb"      ) ? 0
-\   : (matrix == "Rec601"    ) ? 1
-\   : (matrix == "240M"      ) ? 2
-\   : (matrix == "470BG"     ) ? 3
-\   : (matrix == "Rec2020"   ) ? 4
-\   : (matrix == "Rec709"    ) ? 0
-\   : (matrix == "1886a"     ) ? 0
-\   : (matrix == "AdobeRGB"  ) ? 5
-\   : (matrix == "Display-P3") ? 6
-\   : (matrix == "DCI-P3"    ) ? 7
-\   : (matrix == "ACEScg"    ) ? 8
-\   : (matrix == "ACES2065"  ) ? 9
+\     (matrix == "srgb"      ) ? 1
+\   : (matrix == "Rec601"    ) ? 0
+\   : (matrix == "240M"      ) ? 3
+\   : (matrix == "470BG"     ) ? 4
+\   : (matrix == "Rec2020"   ) ? 5
+\   : (matrix == "Rec709"    ) ? 1
+\   : (matrix == "1886a"     ) ? 1
+\   : (matrix == "AdobeRGB"  ) ? 6
+\   : (matrix == "Display-P3") ? 7
+\   : (matrix == "DCI-P3"    ) ? 8
+\   : (matrix == "ACEScg"    ) ? 9
+\   : (matrix == "ACES2065"  ) ? 10
 \   : Assert (false, "Unsupported Color Space.")
 
     mat_w =
-\     (matrix == "DCI-P3"         ) ? 1
-\   : (matrix == "ACES2065"       ) ? 2
-\   : (matrix == "ACEScg"         ) ? 2
-\   :                                 0
+\     (matrix == "Rec601"         ) ? 0
+\   : (matrix == "DCI-P3"         ) ? 2
+\   : (matrix == "ACES2065"       ) ? 3
+\   : (matrix == "ACEScg"         ) ? 3
+\   :                                 1
 
-    #                    IEC 61966-2-1 sRGB SMPTE-C*        Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Display-P3        DCI-P3            AP1                AP0
-    #                    ITU-R BT.709       SMPTE 170M      SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  P3-D65            DCI-P3            ACEScg             ACES2065-1
-    pr = Select (mat_i,  [0.640, 0.330],  [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
-    pg = Select (mat_i,  [0.300, 0.600],  [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
-    pb = Select (mat_i,  [0.150, 0.060],  [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
-    pw = Select (mat_w,  [0.312713, 0.329016],                                                                                                        [0.314,  0.351],  [0.32168,0.33767], [0.32168, 0.33767])
+    #                    NTSC 1953       IEC 61966-2-1 sRGB  SMPTE-C*        Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Display-P3        DCI-P3            AP1                AP0
+    #                    SMPTE 470M      ITU-R BT.709        SMPTE 170M      SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  P3-D65            DCI-P3            ACEScg             ACES2065-1
+    pr = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],  [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
+    pg = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],  [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
+    pb = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],  [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
+    pw = Select (mat_w,  [0.310,  0.316],  [0.312713, 0.329016],                                                                                                        [0.314,  0.351],  [0.32168,0.33767], [0.32168, 0.33767])
 
     pr2 = 1. - pr[0] - pr[1]
     pb2 = 1. - pb[0] - pb[1]
@@ -394,8 +407,7 @@ function Matrix_coef (string matrix) {
 
     kg = 1. - kb - kr
 
-    mat_i == 1 ? [0.299, 0.587, 0.114] : \
-                 [   kr,    kg,    kb] }
+    [kr, kg, kb] }
 
 
 
@@ -417,7 +429,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 
     matrix = Matrix_fuzzy_search (matrix)
 
-    IsPlanarRGB(c) ? c : \
+    IsRGB(c) ? ConvertToPlanarRGB(c) : \
     YCbCrToRGB(c, YCbCrToRGB_mat(matrix, tv_range), kernel=kernelu, b=bu, c=cu, p=pu)
 
 
@@ -443,10 +455,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     Expr(last,string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
     XYZ_to_RGB(matrix)
 
-    IsPlanarRGB(c) ? c : \
-    RGBToYCbCr( RGBToYCbCr_mat(matrix, tv_range), kernel=kerneld, pixel_type=PixelType(c), b=bd, c=cd, p=pd)
-
-}
+    RGBToYCbCr( RGBToYCbCr_mat(matrix, tv_range), kernel=kerneld, pixel_type=PixelType(c), b=bd, c=cd, p=pd) }
 
 
 
