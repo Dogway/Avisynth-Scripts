@@ -1,11 +1,11 @@
-##########################################################
-###                                                      #
-###                                                      #
-###    Transforms Pack v1.0 RC1  (08-05-2021)            #
-###                                                      #
-###                                                      #
-###                             by Dogway (Jose Linares) #
-##########################################################
+###########################################################
+###                                                      ##
+###                                                      ##
+###    Transforms Pack v1.0 RC2  (09-05-2021)            ##
+###                                                      ##
+###                                                      ##
+###                             by Dogway (Jose Linares) ##
+###########################################################
 ###
 ### Pack of tools for proper color managing Avisynth+.
 ### From function transforms like performant piecewise gamma functions,
@@ -36,7 +36,7 @@ function ColorSpace (clip clp, string "source", string "target", string "kernel_
     cu          = Default (c_up, 0.75)   # Precise Bicubic
     pu          = Default (p_up, 0.25)
     bd          = Default (b_down, -0.5)
-    cd          = Default (c_down, 0.25) # Didée's Bicubic
+    cd          = Default (c_down, 0.25) # DidÃ©e's Bicubic
     pd          = Default (p_down, 0.25)
 
     source = Matrix_fuzzy_search (source)
@@ -74,7 +74,7 @@ function ColorSpace (clip clp, string "source", string "target", string "kernel_
 
     bdpth = BitsPerComponent(clp) > 10 ? 0.09929682680944 : 0.099
 
-    #                                  SMPTE-C     Y’PbPr 601  PAL/SECAM BT-2020    Rec.709    BT-1886a  AdobeRGB     DCI-P3   AP1/AP0
+    #                                  SMPTE-C     Yâ€™PbPr 601  PAL/SECAM BT-2020    Rec.709    BT-1886a  AdobeRGB     DCI-P3   AP1/AP0
     #                         sRGB     SMPTE 170M  SMPTE 240M  BT-470BG  BT-2020    BT-1886    BT-1886a  AdobeRGB     DCI-P3      ACES
     t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,      6504,   6504   ,   6504   ,     6504 ,   6305  ,     6000 )
     s_off   = Select (s_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,   0      ,   0      ,   0     ,      0   )
@@ -89,14 +89,14 @@ function ColorSpace (clip clp, string "source", string "target", string "kernel_
     IsPlanarRGB(clp) ? last : \
     YCbCrToRGB( YCbCrToRGB_mat(source, tv_range_in), kernel=kernelu, b=bu, c=cu, p=pu)
 
-    moncurve_f(s_gamma, s_off)
+    moncurve_f(s_gamma, s_off, false)
 
     if (gamut) {
     mata = RGB_to_XYZ(source, list=true)
     matb = XYZ_to_RGB(target, list=true)
     MatrixClip( MatrixDot(mata, matb) ) }
 
-    t_num==9 ? last : gamma ? moncurve_r(t_gamma, t_off) : !gamma && gamut ? moncurve_r(s_gamma, s_off) : last
+    t_num==9 ? last : gamma ? moncurve_r(t_gamma, t_off, false) : !gamma && gamut ? moncurve_r(s_gamma, s_off, false) : last
 
     IsPlanarRGB(clp) ? last : \
     RGBToYCbCr( RGBToYCbCr_mat(target, tv_range_out), kernel=kerneld, pixel_type=PixelType(clp), b=bd, c=cd, p=pd)  }
@@ -154,7 +154,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     bdpth = BitsPerComponent(clp) > 10 ? 0.09929682680944 : 0.099
 
-    #                                  SMPTE-C     Y’PbPr 601  PAL/SECAM BT-2020    Rec.709    BT-1886a  AdobeRGB     DCI-P3   AP1/AP0
+    #                                  SMPTE-C     Yâ€™PbPr 601  PAL/SECAM BT-2020    Rec.709    BT-1886a  AdobeRGB     DCI-P3   AP1/AP0
     #                         sRGB     SMPTE 170M  SMPTE 240M  BT-470BG  BT-2020    BT-1886    BT-1886a  AdobeRGB     DCI-P3      ACES
     t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,      6504,   6504   ,   6504   ,     6504 ,   6305  ,     6000 )
     s_off   = Select (s_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,   0      ,   0      ,   0     ,      0   )
@@ -169,14 +169,14 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     IsPlanarRGB(clp) ? last : \
     YCbCrToRGB( YCbCrToRGB_mat(source, tv_range), kernel=kernel, b=b, c=c, p=p)
 
-    !noop ? moncurve_f(s_gamma, s_off) : last
+    !noop ? moncurve_f(s_gamma, s_off, false) : last
 
     if (gamut && !noop) {
     mata = RGB_to_XYZ(source, list=true)
     matb = XYZ_to_RGB(target, list=true)
     MatrixClip( MatrixDot(mata, matb) ) }
 
-    Defined(LUT) || gamma ? moncurve_r(t_gamma, t_off) : !gamma && gamut ? moncurve_r(s_gamma, s_off) : last
+    Defined(LUT) || gamma ? moncurve_r(t_gamma, t_off, false) : !gamma && gamut ? moncurve_r(s_gamma, s_off, false) : last
 
     Defined(LUT) ? Cube(LUT, 4, true) : last
 
@@ -189,8 +189,8 @@ function Matrix_fuzzy_search (string matrix) {
 
     matrix =
 \     (matrix == "srgb"         ) ? "sRGB"
-\   : (matrix == "jpeg"         ) ? "sRGB"
-\   : (matrix == "jpg"          ) ? "sRGB"
+\   : (matrix == "jpeg"         ) ? "Rec601"
+\   : (matrix == "jpg"          ) ? "Rec601"
 \   : (FindStr(matrix, "601")>0 ) ? "Rec601"
 \   : (FindStr(matrix, "170")>0 ) ? "Rec601"
 \   : (FindStr(matrix, "240")>0 ) ? "240M"
@@ -374,7 +374,7 @@ function Matrix_coef (string matrix) {
 \   : (matrix == "ACEScg"         ) ? 2
 \   :                                 0
 
-    #                    IEC 61966-2-1 sRGB SMPTE-C*        Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Display-P3        DCI-P3            AP1                AP0
+    #                    IEC 61966-2-1 sRGB SMPTE-C*        Yâ€™PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Display-P3        DCI-P3            AP1                AP0
     #                    ITU-R BT.709       SMPTE 170M      SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  P3-D65            DCI-P3            ACEScg             ACES2065-1
     pr = Select (mat_i,  [0.640, 0.330],  [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
     pg = Select (mat_i,  [0.300, 0.600],  [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
@@ -556,7 +556,7 @@ function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
 
 
 
-
+# Monitor Curve Functions: https://github.com/ampas/aces-dev
 function moncurve_f (clip c, float "gamma", float "offs", bool "tv_range_in", bool "tv_range_out") {
 
     gamma = Default(gamma, 2.222)  # gamma
@@ -584,6 +584,7 @@ function moncurve_f (clip c, float "gamma", float "offs", bool "tv_range_in", bo
 
 
 
+# Monitor Curve Functions: https://github.com/ampas/aces-dev
 function moncurve_r (clip c, float "gamma", float "offs", bool "tv_range_in", bool "tv_range_out") {
 
     gamma = Default(gamma, 2.222)  # gamma
@@ -613,7 +614,7 @@ function moncurve_r (clip c, float "gamma", float "offs", bool "tv_range_in", bo
 
 function MatrixClip ( clip rgb, float_array mat) {
 
-    # clip · 3x3
+    # clip Â· 3x3
     R = DotClip(rgb,[mat[0],mat[3],mat[6]])
     G = DotClip(rgb,[mat[1],mat[4],mat[7]])
     B = DotClip(rgb,[mat[2],mat[5],mat[8]])
@@ -624,7 +625,7 @@ function MatrixClip ( clip rgb, float_array mat) {
 
 function MatrixDot ( float_array mat1, \
                      float_array mat2) {
-    # 1x3 · 3x3
+    # 1x3 Â· 3x3
     if (ArraySize(mat1) == 3) {
         ar1 = Dot([mat1[0],mat1[1],mat1[2]],[mat2[0],mat2[1],mat2[2]])
         ar2 = Dot([mat1[0],mat1[1],mat1[2]],[mat2[3],mat2[4],mat2[5]])
@@ -632,7 +633,7 @@ function MatrixDot ( float_array mat1, \
 
        [ar1,ar2,ar3]
     }
-    # 3x3 · 3x3
+    # 3x3 Â· 3x3
     else if (ArraySize(mat1) == 9) {
         ar1 = Dot([mat1[0],mat1[1],mat1[2]],[mat2[0],mat2[3],mat2[6]])
         ar2 = Dot([mat1[0],mat1[1],mat1[2]],[mat2[1],mat2[4],mat2[7]])
@@ -680,7 +681,7 @@ function MatrixTranspose (float_array mat) {
 
 function Dot( float_array vec1, \
               float_array vec2) {
-    # 1x3 · 1x3
+    # 1x3 Â· 1x3
     (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]) }
 
 
@@ -688,7 +689,7 @@ function Dot( float_array vec1, \
 
 function DotClip ( clip rgb, float_array vec) {
 
-    # clip · 1x3
+    # clip Â· 1x3
     Expr(ExtractR(rgb), \
          ExtractG(rgb), \
          ExtractB(rgb), "x "+string(vec[0])+" * y "+string(vec[1])+" * + z "+string(vec[2])+" * +") }
@@ -708,5 +709,3 @@ function MatrixDiv ( float_array rgb, \
        }
 
     "["+str+"]" }
-
-
