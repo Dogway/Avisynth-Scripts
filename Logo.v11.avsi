@@ -1,7 +1,7 @@
 ###
-### Logo 11  (http://doom10.org/index.php?topic=2181.0)
+### Logo 11.0  (http://doom10.org/index.php?topic=2181.0)
 ###
-###  (12-05-2021) By Dogway
+###  (13-05-2021) By Dogway
 ###
 ### Check Readme.txt for:
 ###                       Reference credits
