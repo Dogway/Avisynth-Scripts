@@ -174,7 +174,7 @@ function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "t
 ###
 ### Dependencies: Avisynth+ r2420 and above
 ###
-### Example: SmoothLevels2(16, 1.200, 255, 0, 255)
+### Example: SmoothLevels(16, 1.200, 255, 0, 255)
 ###
 ####################################
 
