@@ -72,7 +72,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 
 Recclp         ? Eval("""
 Rc
-wRc    = width ()
+wRc    =  width()
 hRc    = height()
 padXRc = wRc%4 == 0 ? 0 : (4 - wRc%4)
 padYRc = hRc%4 == 0 ? 0 : (4 - hRc%4)
@@ -89,10 +89,10 @@ b      =  DulMod || RecMod          ? Expr(ExtractV(),  ExtractU(), Format("x ra
 
 
 msk    = (VibMod)                   ? Expr(ExtractV(),  ExtractU(), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_min range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ range_max * ? ")) : \
-         (DulMod)                   ? b                                                           : \
-         (RecMod)                   ? Expr(a,b,"x y - abs 2 *")                      : \
+         (DulMod)                   ? b                                                          : \
+         (RecMod)                   ? Expr(a,b,"x y - abs 2 *")                                  : \
           Assert(false, "Wrong Saturation Mode")
-msk    =  BicubicResize(w+padX, h+padY,0.0,0.75).crop(0,0,-padX,-padY).MatchColorFormat(c)""")                  : nop()
+msk    =  BicubicResize(w+padX, h+padY,0.0,0.75).crop(0,0,-padX,-padY).MatchColorFormat(c)""")   : nop()
 
 
 show ?  msk          :  \
@@ -100,15 +100,15 @@ show ?  msk          :  \
 ((VibMod)            ?  \
        (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > x "+
                                             \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
-                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_size /"))              : \
+                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /"))              : \
  (DulMod)            ?  \
        (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^  range_half > x "+
-                                            \+" x range_half - x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {sat} 1 - * {bias} / 1 + / range_half + ?")) : \
-                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_size /"))              : \
+                                            \+" x range_half - x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {sat} 1 - * {bias} / 1 + / range_half + ?"))                           : \
+                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /"))              : \
  (RecMod)            ?  \
        (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > x "+
                                             \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
-                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_size /")) : nop())     : c)
+                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /")) : nop())     : c)
 
 !show     &&   fmode ? crop(0,0,-padX,-padY) : last }
 
@@ -138,7 +138,7 @@ function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "t
     sat     = Default(sat,  cont/1.5)        # [-1.0 to +1.0]
 
     ptype  = IsRGB(c)
-    range   = Default(tv_range,!ptype)       # TV or PC. Luma range of your source
+    range   = Default(tv_range, !ptype)      # TV or PC. Luma range of your source
                                              # Pivot: 64 to 192 (roughly)
     pivot   = Defined(pivot) ? range ? (pivot-16.)/219. : pivot/255. : range ? 0.50913 : 0.5
 
@@ -162,7 +162,7 @@ function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "t
 
     strtn  = contoy ? ptype ? cntrst : sat != 0. ? Format(""+rangePCc+" A^ 1 {sat} - A * {sat} range_max A - * + "+rangeTVc+"") : "" : Undefined
 
-    expr(c, cntrst, strtn, strtn) }
+    Expr(c, cntrst, strtn, strtn) }
 
 
 ###
@@ -201,7 +201,7 @@ function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high",
 
     lvlgb  = contoy ? ptype ? lvl : "" : Undefined
 
-    expr(c, lvl, lvlgb, lvlgb) }
+    Expr(c, lvl, lvlgb, lvlgb) }
 
 
 ###
