@@ -111,7 +111,7 @@
 ### | USAGE |
 ### +-------+
 ###
-### LSFmod( strength, Smode, Smethod, kernel, 
+### LSFmod( strength, Smode, Smethod, kernel,
 ###         preblur, secure, source,
 ###         Szrp, Spwr, SdmpLo, SdmpHi,
 ###         Lmode, overshoot, undershoot, overshoot2, undershoot2,
@@ -135,7 +135,7 @@
 ### ----------------------
 ### Sharpen mode:
 ###    =1 : Unsharp masking (from warpsharp)
-###    =2 : Unsharp masking (from variableblur) 
+###    =2 : Unsharp masking (from variableblur)
 ###    =3 : Range sharpening
 ###    =4 : Nonlinear sharpening (original  version)
 ###    =5 : Nonlinear sharpening (corrected version)
@@ -619,8 +619,8 @@ in  = sisupscale ? input.spline36resize(dest_x,dest_y)
 \   :                                  input
 
 shrpD  = Expr(in,out,mdiff)
-shrpL  = sode ? shrpD.sh_Padding(4,4,4,4).repair(Expr(in,src,mdiff,"").sh_Padding(4,4,4,4),1,-1,-1).crop(4,4,-4,-4,true).Expr(shrpD,"x range_half - abs y range_half - abs < x y ?","") : nop()
-output = sode ? Expr(in,shrpL,mdiff,"x") : out
+shrpL  = sode ? shrpD.sh_Padding(4,4,4,4).repair(Expr(in,src,mdiff).sh_Padding(4,4,4,4),1,-1,-1).crop(4,4,-4,-4,true).Expr(shrpD,"x range_half - abs y range_half - abs < x y ?") : nop()
+output = sode ? Expr(in,shrpL,mdiff) : out
 
 output = edgemode!=-1 ? output : !sisupscale ? edge.spline36resize(dest_x,dest_y) : edge.spline36resize(dest_x,dest_y).greyscale()
 
