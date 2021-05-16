@@ -76,10 +76,10 @@ multiply  = Format("x ymin - y ymin - * ymax ymin - / {Opac} * x ymin - 1 {Opac}
 watermark = Format("ymax ymin - A^ x ymin - A / 1 {Wstr} {Opac} ^ / ^ A * ymin + ")
 
 V =
-\ (mode=="Screen")   ? Expr(V,Expr(V,logo0,screen  ,ch?"y":"x")     ,msk,"x range_max z - * y z * + range_size /")
-\:(mode=="Multiply") ? Expr(V,Expr(V,logo0,multiply,ch?"y":"x")     ,msk,"x range_max z - * y z * + range_size /")
-\:(mode=="Over")     ? Expr(V,logo0,Expr(msk,Format(" x {Opac} * ")),    "x range_max z - * y z * + range_size /")
-\:(mode=="Watermark")? Expr(V,Expr(V,watermark)                     ,msk,"x range_max z - * y z * + range_size /")
+\ (mode=="Screen")   ? Expr(V,Expr(V,logo0,screen  ,ch?"y":"x")     ,msk,"x range_max z - * y z * + range_max /")
+\:(mode=="Multiply") ? Expr(V,Expr(V,logo0,multiply,ch?"y":"x")     ,msk,"x range_max z - * y z * + range_max /")
+\:(mode=="Over")     ? Expr(V,logo0,Expr(msk,Format(" x {Opac} * ")),    "x range_max z - * y z * + range_max /")
+\:(mode=="Watermark")? Expr(V,Expr(V,watermark)                     ,msk,"x range_max z - * y z * + range_max /")
 \:Assert(false, "Unsupported Blending Mode: "+string(mode))
 
 start == 0 && (end == 0 || end == Fc) ? V :
