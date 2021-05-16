@@ -535,9 +535,9 @@ mmerge = "x range_max z - * y z * + range_max /"
 ### SHARP
 tmp  = ss_x > 1.0 || ss_y > 1.0 ? input.spline36resize(xxs,yys) : input
 pre  = preblur=="OFF" ? tmp
-\    : preblur=="ON"  ? tmp.Expr(Expr(Expr(tmp,tmp.removegrain(11,-1),mdiff,"")
-\                                    ,Expr(tmp,tmp.removegrain(4,-1) ,mdiff,"")
-\                          ,"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?",""),mdiff,"")
+\    : preblur=="ON"  ? tmp.Expr(Expr(Expr(tmp,tmp.removegrain(11,-1),mdiff)
+\                                    ,Expr(tmp,tmp.removegrain(4,-1) ,mdiff)
+\                          ,"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?"),mdiff)
 \    : Eval("tmp."+preblur)
 
 dark_limit   = pre.mt_inpand(U=1,V=1)
@@ -551,11 +551,11 @@ method = Smethod==1   ? pre.removegrain(kernel,-1)
 method = secure==true ? method.Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?")
 \      :                method
 
-method = preblur=="OFF" ? method : tmp.Expr(Expr(pre,method,mdiff,""),mdiff,"")
+method = preblur=="OFF" ? method : tmp.Expr(Expr(pre,method,mdiff),mdiff)
 
 normsharp = Smode==1 ? tmp.unsharpmask(strength=int(str*100),radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0)
 \         : Smode==2 ? tmp.unsharp(strength=str,vary=((ss_x+ss_y)/2.0),varc=1,border=3,U=1,V=1)
-\         : Smode==3 ? Expr(tmp, method, Format("x x y - {str} * +"),"")
+\         : Smode==3 ? Expr(tmp, method, Format("x x y - {str} * +"))
 \         : Smode==4 ? Expr(tmp, method, Format("x y == x x x y - abs {Szrp} scalef / 1 {Spwr} / ^ {Szrp} scalef * {str} * x y - dup * dup "
 \                                                                   +"{SdmpLo} scalef scalef + / * x y - dup abs / * 1 {SdmpHi} scalef 0 == 0 x y - abs {SdmpHi} scalef / 4 ^ ? + / + ?"))
 \         : Smode==5 ? Expr(tmp, method, Format("x y == x x x y - abs {Szrp} / 1 {Spwr} / ^ {Szrp} * {str} * x y - dup abs / * x y - dup * "
@@ -568,7 +568,7 @@ normsharp = Smode==1 ? tmp.unsharpmask(strength=int(str*100),radius=round(1.0+((
 ### LIMIT (mt_clamp)
 normal = Expr(normsharp, bright_limit, dark_limit, Format(" x z {undershoot}  scaleb - A@ < A x y {overshoot}  scaleb + B@ > B x ? ?"))
 second = Expr(normsharp, bright_limit, dark_limit, Format(" x z {undershoot2} scaleb - A@ < A x y {overshoot2} scaleb + B@ > B x ? ?"))
-zero   = Expr(normsharp, bright_limit, dark_limit,        " x z                      y                       clip"   )
+zero   = Expr(normsharp, bright_limit, dark_limit,        " x z                                 y                            clip"   )
 
 
 edge  = edgemaskHQ ? Expr(  tmp.mt_edge(thY1=0,thY2=255,"8 16 8 0 0 0 -8 -16 -8 4",U=1,V=1)
@@ -587,8 +587,8 @@ limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      :            Expr(second,    normal, edge.mt_inflate(U=1,V=1), mmerge)
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? Expr(tmp,limit1,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1), mmerge, "")
-\      :               Expr(limit1,tmp,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1), mmerge, "")
+\      : edgemode==1 ? Expr(tmp,limit1,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1), mmerge)
+\      :               Expr(limit1,tmp,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1), mmerge)
 
 
 ### SOFT
