@@ -91,9 +91,11 @@ MMask = (MT && MV) ? mt_lutxy(MotionMask, MVMask,yexpr="y x +").mtcv() : \
 Motion = (MT || MV) ? true : false
 Dark1  = LM==1 ? true : false
 Motion ? eval("""MMask.mtcv()
-BicubicResize(width/4,height/4,2,0).mtcv().mt_expand().TemporalSoften(4,255,255,0,2)
-GaussResize(width*4,height*4)
-LumaMask(last,b=15, w=80, upper=false,show=true)""") : nop()
+w=width()
+h=height()
+BicubicResize(round(w/4.),round(h/4.),2,0).mtcv().mt_expand().TemporalSoften(4,255,255,0,2)
+GaussResize(w,h)
+LumaMask(last, b=15, w=80, upper=false,show=true)""") : nop()
 
 # plus line mask
 MMask = EM ? (Motion ? mt_logic(LineMask, mode="max",th1=0,th2=0).mtcv() : \
