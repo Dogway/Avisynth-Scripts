@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC4  (14-05-2021)            ##
+###    Transforms Pack v1.0 RC5  (16-05-2021)            ##
 ###  (https://forum.doom9.org/showthread.php?t=182825)   ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
@@ -16,7 +16,7 @@
 ### color space and gamma conversion filter.
 ###
 ###
-### No Dependencies.
+### Dependencies: AviSynth+ r2724+
 ###
 ###
 ####################################
@@ -95,19 +95,19 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
     t_num==9 ? last : gamma ? moncurve_r(t_gamma, t_off, false) : !gamma && gamut ? moncurve_r(s_gamma, s_off, false) : last
 
     IsRGB(clp) ? last : \
-    RGB_to_YUV( tgt, tv_range_out=tv_range_out, kernel="Point", pixel_type=PixelType(clp))  }
+    RGB_to_YUV( tgt, tv_range_out=tv_range_out, kernel="Point", pixel_type=PixelType(clp)) }
 
 
 
 
-function Display_Referred (clip clp, string "source", string "disp_ref", string "kernel", string "LUT", bool "gamut", bool "gamma", bool "tv_range", float "b", float "c", float "p") {
+function Display_Referred (clip clp, string "source", string "disp_ref", string "kernel", bool "gamut", bool "gamma", string "LUT", bool "tv_range", float "b", float "c", float "p") {
 
     gamut      = Default (gamut, true)      # convert gamut
     gamma      = Default (gamma, true)      # convert gamma
     disp_ref   = Default (disp_ref, "sRGB") # Display Referred Color Space
+    kernel     = Default (kernel, "Bicubic")
     LUT        = Default (LUT, Undefined)   # Display LUT (the path string of your monitor 3D LUT, if calibrated)
     tv_range   = Default (tv_range, !isRGB(clp) )
-    kernel     = Default (kernel, "Bicubic")
     b          = Default (b, 0.00)
     c          = Default (c, 0.75)          # Precise Bicubic
     p          = Default (p, 0.25)
@@ -152,14 +152,14 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     bdpth = BitsPerComponent(clp) > 10 ? 0.09929682680944 : 0.099
 
-    #                                  SMPTE-C     Y’PbPr 601  PAL/SECAM BT-2020    Rec.709    BT-1886a  AdobeRGB     DCI-P3   AP1/AP0
-    #                         sRGB     SMPTE 170M  SMPTE 240M  BT-470BG  BT-2020    BT-1886    BT-1886a  AdobeRGB     DCI-P3      ACES
-    t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,      6504,   6504   ,   6504   ,     6504 ,   6305  ,     6000 )
-    s_off   = Select (s_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,   0      ,   0      ,   0     ,      0   )
-    s_gamma = Select (s_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,   2.60   ,   2.1992 ,   2.60  ,      1.0 )
+    #                                  SMPTE-C     Y’PbPr 601  PAL/SECAM BT-2020    Rec.709    AdobeRGB     DCI-P3   AP1/AP0
+    #                         sRGB     SMPTE 170M  SMPTE 240M  BT-470BG  BT-2020    BT-1886    AdobeRGB     DCI-P3      ACES
+    t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,      6504,   6504   ,      6504 ,   6305  ,     6000 )
+    s_off   = Select (s_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,    0      ,   0     ,      0   )
+    s_gamma = Select (s_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,    2.1992 ,   2.60  ,      1.0 )
 
-    t_off   = Select (t_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,   0      ,   0      ,   0     ,      0   )
-    t_gamma = Select (t_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,   2.60   ,   2.1992 ,   2.60  ,      1.0 )
+    t_off   = Select (t_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,    0      ,   0     ,      0   )
+    t_gamma = Select (t_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,    2.1992 ,   2.60  ,      1.0 )
 
 
     clp.ConvertBits(16)
@@ -189,11 +189,15 @@ function Matrix_fuzzy_search (string matrix) {
 \     (matrix == "srgb"         ) ? "sRGB"
 \   : (matrix == "jpeg"         ) ? "Rec601"
 \   : (matrix == "jpg"          ) ? "Rec601"
+\   : (matrix == "NTSC"         ) ? "Rec601"
 \   : (FindStr(matrix, "601")>0 ) ? "Rec601"
+\   : (FindStr(matrix, "525")>0 ) ? "Rec601"
 \   : (FindStr(matrix, "170")>0 ) ? "Rec601"
 \   : (FindStr(matrix, "240")>0 ) ? "240M"
 \   : (matrix == "YCC"          ) ? "240M"
-\   : (matrix == "470bg"        ) ? "470BG"
+\   : (matrix == "PAL"          ) ? "470BG"
+\   : (FindStr(matrix,"470")>0  ) ? "470BG"
+\   : (FindStr(matrix,"625")>0  ) ? "470BG"
 \   : (FindStr(matrix,"2020")>0 ) ? "Rec2020"
 \   : (FindStr(matrix,"2100")>0 ) ? "Rec2020CL"
 \   : (FindStr(matrix,"2084")>0 ) ? "Rec2020CL"
@@ -228,6 +232,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     c          = Default (c, 0.75) # Precise Bicubic
     p          = Default (p, 0.25)
 
+    Assert(AvsPlusVersionNumber > 2724, "Update Avisynth+ version")
 
     coef = Matrix_coef(matrix)
 
@@ -235,17 +240,17 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     scale_y  = tv_in ? (256. / 219.) : 1.0
     scale_uv = tv_in ? (256. / 112.) : 2.0
 
-    tn = 1. - coef[0]
-    tb = 1. - coef[2]
+    Kr = 1. - coef[0]
+    Kb = 1. - coef[2]
 
     m1 = scale_y
     m2 = 0.0
-    m3 = scale_uv * tn
+    m3 = scale_uv * Kr
     m4 = scale_y
-    m5 = scale_uv * ( -tb * coef[2] / coef[1])
-    m6 = scale_uv * ( -tn * coef[0] / coef[1])
+    m5 = scale_uv * ( -Kb * coef[2] / coef[1])
+    m6 = scale_uv * ( -Kr * coef[0] / coef[1])
     m7 = scale_y
-    m8 = scale_uv * tb
+    m8 = scale_uv * Kb
     m9 = 0.0
 
     mat = [m1,m2,m3,m4,m5,m6,m7,m8,m9]
@@ -272,8 +277,10 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     B = mat[8]==0.0 ? Expr(Y, U,    "x "+rangeY+" "+string(mat[6])+" * y range_half - "+string(mat[7])+" * + "+range_TV+"")                                        : \
                       Expr(Y, U, V, "x "+rangeY+" "+string(mat[6])+" * y range_half - "+string(mat[7])+" * + z range_half - "+string(mat[8])+" * + "+range_TV+"")
 
+    CombinePlanes(R, G, B, planes="RGB")
 
-    CombinePlanes(R, G, B, planes="RGB") }
+    # Limiting (clipping) for color excursions when gamut mapping
+    tv_out ? Expr("x ymin ymax clip") : last}
 
 
 
@@ -289,9 +296,12 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     c          = Default (c, 0.25) # Didée's Bicubic
     p          = Default (p, 0.25)
 
+    Assert(AvsPlusVersionNumber > 2724, "Update Avisynth+ version")
+
     w =  width(rgb)
     h = height(rgb)
 
+    bdpth   = BitsPerComponent(rgb)
     p_type4 = FindStr(pixel_type, "44")>0
     p_type2 = FindStr(pixel_type, "22")>0
     p_type1 = FindStr(pixel_type, "11")>0
@@ -308,24 +318,24 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     scale_y  = !tv_in && tv_out ? (219. / 256.) : 1.0
     scale_uv = !tv_in && tv_out ? (112. / 256.) : 0.5
 
-    tn = 1. - coef[0]
-    tb = 1. - coef[2]
+    Kr = 1. - coef[0]
+    Kb = 1. - coef[2]
 
     m1 = scale_y  * coef[0]
     m2 = scale_y  * coef[1]
     m3 = scale_y  * coef[2]
-    m4 = scale_uv * (-coef[0] / tb)
-    m5 = scale_uv * (-coef[1] / tb)
+    m4 = scale_uv * (-coef[0] / Kb)
+    m5 = scale_uv * (-coef[1] / Kb)
     m6 = scale_uv
     m7 = scale_uv
-    m8 = scale_uv * (-coef[1] / tn)
-    m9 = scale_uv * (-coef[2] / tn)
+    m8 = scale_uv * (-coef[1] / Kr)
+    m9 = scale_uv * (-coef[2] / Kr)
 
     mat = [m1,m2,m3,m4,m5,m6,m7,m8,m9]
 
 
     p_type = p_type4 ? "YUV444P" : p_type2 ? "YUV422P" : p_type1 ? "YUV411P" : "YUV420P"
-    p_type = p_type + string(BitsPerComponent(rgb))
+    p_type = string(bdpth) == "32" ? p_type + "S" : p_type + string(bdpth)
     nw = p_type1 ? round(w/4.0) : round(w/2.0)
     nh = round(h/2.0)
 
@@ -351,7 +361,10 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     Cb = p_type4 ? Cb : Eval("Cb." + resampler)
     Cr = p_type4 ? Cr : Eval("Cr." + resampler)
 
-    CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type=p_type) }
+    CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type=p_type)
+
+    # Limiting (clipping) for color excursions when gamut mapping
+    Limiter(min_luma=0, max_luma=255, paramscale=true) }
 
 
 # WIP
@@ -455,7 +468,7 @@ function ICtCp_to_RGB (clip ICtCp, string "matrix", bool "tv_range_in", bool "tv
 # Adapted from zimg
 function st_2084_eotf (clip c, int "MasterLevel")
 {
-    PL        = Default (MasterLevel, 40000) # Max Mastering Level in Nits (1000 - 10000)
+    PL        = Default (MasterLevel, 4000) # Max Mastering Level in Nits (1000 - 10000)
     PL        = PL / 10000.
 
     ST2084_N1 = 2610./4096 * 0.25
@@ -476,7 +489,7 @@ function st_2084_eotf (clip c, int "MasterLevel")
 # Adapted from zimg
 function st_2084_inverse_eotf (clip c, int "MasterLevel")
 {
-    PL        = Default (MasterLevel, 40000) # Max Mastering Level in Nits
+    PL        = Default (MasterLevel, 4000) # Max Mastering Level in Nits
     PL        = PL / 10000.
 
     ST2084_N1 = 2610./4096 * 0.25
@@ -492,7 +505,7 @@ function st_2084_inverse_eotf (clip c, int "MasterLevel")
 }
 
 # WIP
-# Implement Dolby Vision Profile 5 (IPTPQc2 or IPT-PQ)
+# Implement Dolby Vision Profile 5 (IPTPQc2 or IPT-PQ) (saves 10% of bitrate when encoded at 12-bits HEVC)
 function RGB_to_IPT (clip rgb, bool "IPT", string "matrix", bool "tv_range_in", bool "tv_range_out", string "pixel_type", string "kernel", string "cplace", float "b", float "c", float "p") {
 
     # to RGBPS (RGB 32-bit float)
@@ -510,7 +523,8 @@ function RGB_to_IPT (clip rgb, bool "IPT", string "matrix", bool "tv_range_in", 
 
 }
 
-
+# NTSC and PAL YCbCr share the same coefficients defined in the link below, and derived from the old NTSC 1953 standard.
+# https://poynton.ca/PDFs/coloureq.pdf - 10.4
 function Matrix_coef (string matrix) {
 
     matrix = Matrix_fuzzy_search (matrix)
@@ -520,7 +534,7 @@ function Matrix_coef (string matrix) {
 \     (matrix == "srgb"      ) ? 1
 \   : (matrix == "Rec601"    ) ? 0
 \   : (matrix == "240M"      ) ? 3
-\   : (matrix == "470BG"     ) ? 4
+\   : (matrix == "470BG"     ) ? 0
 \   : (matrix == "Rec2020"   ) ? 5
 \   : (matrix == "Rec709"    ) ? 1
 \   : (matrix == "AdobeRGB"  ) ? 6
@@ -537,7 +551,7 @@ function Matrix_coef (string matrix) {
 \   : (matrix == "ACEScg"         ) ? 3
 \   :                                 1
 
-    #                    NTSC 1953        IEC 61966-2-1/sRGB SMPTE 170M       Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Display-P3        DCI-P3            AP1                AP0
+    #                    NTSC 1953/YCbCr  IEC 61966-2-1/sRGB SMPTE 170M       Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Display-P3        DCI-P3            AP1                AP0
     #                    SMPTE 470M       ITU-R BT.709       ITU-R BT.601     SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  P3-D65            DCI-P3            ACEScg             ACES2065-1
     pr = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],  [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
     pg = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],  [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
@@ -563,25 +577,16 @@ function Matrix_coef (string matrix) {
 
 
 
-function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range", string "kernel_up", string "kernel_down" \
-                   , float "b_up", float "c_up", float "p_up", float "b_down", float "c_down", float "p_down") {
+function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range") {
 
     temp        = Default (temperature, 6504)  # Target temperature in Kelvin (Default: D65 == nop())
     matrix      = Default (matrix, "sRGB")
     tv_range    = Default (tv_range,  !isRGB(c) )
-    kernelu     = Default (kernel_up, "bicubic")
-    kerneld     = Default (kernel_down, kernelu)
-    bu          = Default (b_up, 0.00)
-    cu          = Default (c_up, 0.75)
-    pu          = Default (p_up, 0.25)
-    bd          = Default (b_down, -0.5)
-    cd          = Default (c_down, 0.25)
-    pd          = Default (p_down, 0.25)
 
     matrix = Matrix_fuzzy_search (matrix)
 
     IsRGB(c) ? ConvertToPlanarRGB(c) : \
-    YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel=kernelu, b=bu, c=cu, p=pu)
+    YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
 
 
     temp3 = 1000.       / temp
@@ -606,7 +611,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     Expr(last,string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
     XYZ_to_RGB(matrix)
 
-    RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel=kerneld, pixel_type=PixelType(c), b=bd, c=cd, p=pd) }
+    RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c)) }
 
 
 
