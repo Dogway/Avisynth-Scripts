@@ -60,18 +60,18 @@ ah = lsb_in ? a.Height()/2 : a.Height()
 
  w       = default ( w,        aw )
  h       = default ( h,        ah )
- rgba    = default ( rgb,  a.isrgb() ? true  : false)
+ rgba    = default ( rgb,  a.isrgb())
 
 !rgba ? eval("
-iHD = ah>599 || aw>1279 ? true  : false
-oHD =  h>599 ||  w>1279 ? true  : false
+iHD = ah>599 || aw>1279
+oHD =  h>599 ||  w>1279
 #SDHD = !iHD ? oHD ? true  : false
 #HDSD =  iHD ? oHD ? false : true
 ") : nop()
 
  kernel  = default ( kernel, "spline36")
  linear  = default ( linear,      false)
- TV      = default ( TVrange,   rgba ? false : true )
+ TV      = default ( TVrange,  !rgba )
  m1      = default ( matrix,    rgba || !iHD ? "601" : "709")
  m2      = default ( matrix_out, Defined(matrix) ? matrix : ( rgba || !oHD ? "601" : "709"))
  cp_in   = default ( cplace_in,   "mpeg2")
@@ -86,14 +86,14 @@ oHD =  h>599 ||  w>1279 ? true  : false
  NR      = default ( NoRing, false)
  inter   = default ( interlaced,  false)
 
-mtrx  = m1!=m2                  ? true : false
+mtrx  = m1!=m2
 rgba ? Assert(mtrx==false,   "You can't change matrix in RGB"): nop()
-Cpl   = cp_in != cp_out         ? true : false
-DOWN  = aw>=w || ah>=h          ? true : false
-UP    = aw<w  || ah<h           ? true : false
-NP    = (aw == w) && (ah == h)  ? true : false
-mdown = (mtrx &&  DOWN) || Cpl  ? true : false
-mup   = (mtrx &&    UP) || Cpl  ? true : false
+Cpl   = cp_in != cp_out
+DOWN  = aw>=w || ah>=h
+UP    = aw<w  || ah<h
+NP    = (aw == w) && (ah == h)
+mdown = (mtrx &&  DOWN) || Cpl
+mup   = (mtrx &&    UP) || Cpl
 mupm  = mup ? 4 : 2
 
 
@@ -339,23 +339,22 @@ s
 w      = width()
 h      = height()
 
-sisphbd = AvsPlusVersionNumber > 2294
-bdpth   = sisphbd ? BitLShift(1, BitsPerComponent(c)-8) : 1.
-contoy  = sisphbd ? !isy() : !isy8()
-fullchr = contoy ? sisphbd ? ExtractU().width() == w : UToY8().width() == w : true
+bdpth   = BitLShift(1, BitsPerComponent(c)-8)
+contoy  = !isy()
+fullchr = contoy ? ExtractU().width() == w : true
 
 nw     = Default(width,w)
 nh     = Default(height,h)
-addw   = Default(ScanW,int(round((w/8))))
-addh   = Default(ScanH,int(round((h/4))))
-Mot    = Default(Moving, False)                             # If the matte is moving (sliding) this enables pixel level accuracy.
-CM     = Default(CropMore, Mot || fullchr ? True : False)   # In case of odd cropping, either crop 1 pixel out or leave 1 pixel of the border
-thr    = Default(thr, Mot ? 16.3 : 16.0)                    # Threshold, pixel values same or below this will be considered borders
-mode   = Default(mode, 2)                                   # 0: center+pad 1: crop to minimum (WIP) 2: resize to maximum 3: hybrid 0-2 (auto)
-SC_thr = Default(SC_thr, 3.5)                               # Scene Change detection threshold
-kernel = Default(kernel, "bicubic")                         # Kernel to use when resizing (mode=2)
+addw   = Default(ScanW,round((w/8.)))
+addh   = Default(ScanH,round((h/4.)))
+Mot    = Default(Moving, False)                # If the matte is moving (sliding) this enables pixel level accuracy.
+CM     = Default(CropMore, Mot || fullchr)     # In case of odd cropping, either crop 1 pixel out or leave 1 pixel of the border
+thr    = Default(thr, Mot ? 16.3 : 16.0)       # Threshold, pixel values same or below this will be considered borders
+mode   = Default(mode, 2)                      # 0: center+pad 1: crop to minimum (WIP) 2: resize to maximum 3: hybrid 0-2 (auto)
+SC_thr = Default(SC_thr, 3.5)                  # Scene Change detection threshold
+kernel = Default(kernel, "bicubic")            # Kernel to use when resizing (mode=2)
 b      = Default(b, 0.0)
-c      = Default(c, 0.75)                                   # Precise Bicubic by default (fast and HQ)
+c      = Default(c, 0.75)                      # Precise Bicubic by default (fast and HQ)
 p      = Default(p, 100.0)
 
 addw==0 ? Assert( addh>0, "You need to scan borders for at least one of the dimension") : nop()
@@ -365,7 +364,7 @@ thr    = thr*bdpth
 addwz  = addw > 0
 addhz  = addh > 0
 
-avgY = contoy ? sisphbd ? converttoy() : converttoy8() : last
+avgY = contoy ? converttoy() : last
 avg  = avgY.RatioResize(320.0,  "adjust2w",kernel="bilinear")
 avg  = avg.TemporalSoften(10,255,255,10,2)
 avg  = avg.TemporalSoften(10,255,255,10,2)
