@@ -185,4 +185,4 @@ msk      = expr(raw,code,cplane,cplane,scale_inputs="floatf")
 msk      = smooth ? msk.removegrain(22,0) : msk
 msk
 
-show  ?  msk : expr(raw,filtered,msk,"x range_max z - * y z * + range_size / ","","") }
+show  ?  msk : expr(raw,filtered,msk,"x range_max z - * y z * + range_max / ","","") }
