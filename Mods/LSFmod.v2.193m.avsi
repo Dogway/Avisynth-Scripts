@@ -8,11 +8,11 @@
 ###                                                                                          ###
 ###                            another Modded Version by A.SONY.                             ###
 ###                                                                                          ###
-###                                v2.192 - 16 October 2020                                  ###
+###                                v2.193 - 17 May 2021                                      ###
 ###                                                                                          ###
-###                            Performance mod by Dogway                                     ###
+###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.192mod - 16 May 2021                                   ###
+###                                v2.193mod - 17 May 2021                                   ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,8 +20,11 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v2.192m: - Removed avs26 support.
+### v2.193m: - Removed < avs+ 2724 support.
 ###          - Replaced masktools2 with internal Expr() (except convolutions)
+###          - Replaced UnsharpMask_avsi with faster UnsharpMask_HBD
+###
+### v2.193 : - replace UnsharpMask of Warpsharp to use UnsharpMask_avsi for HBD
 ###
 ### v2.192 : - added smode=6 (CAS) from vs port
 ###
@@ -99,7 +102,7 @@
 ###
 ### -> Masktools    (v2.2.15 or up)
 ### -> Removegrain  (v1.0pre or up)
-### -> Warpsharp    (2003.11.03 or up) [for Smode=1]
+### -> UnsharpMask_HBD.avsi            [for Smode=1]
 ### -> Variableblur (v0.30 or up)      [for Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use avs+ then make sure it's the last one
@@ -553,7 +556,7 @@ method = secure==true ? method.Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scal
 
 method = preblur=="OFF" ? method : tmp.Expr(Expr(pre,method,mdiff),mdiff)
 
-normsharp = Smode==1 ? tmp.unsharpmask(strength=int(str*100),radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0)
+normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0)
 \         : Smode==2 ? tmp.unsharp(strength=str,vary=((ss_x+ss_y)/2.0),varc=1,border=3,U=1,V=1)
 \         : Smode==3 ? Expr(tmp, method, Format("x x y - {str} * +"))
 \         : Smode==4 ? Expr(tmp, method, Format("x y == x x x y - abs {Szrp} scalef / 1 {Spwr} / ^ {Szrp} scalef * {str} * x y - dup * dup "
@@ -734,3 +737,19 @@ output = sisyuy2 ? output.converttoyuy2() : output
 
 return output
 }
+
+
+function UnsharpMask_HBD(clip clp, float "strength", int "radius", float "threshold")
+{
+  str      = Default(strength,64)
+  radius   = Default(radius,3)
+  thres    = Default(threshold,8)
+
+  rd  = radius - 1
+  str = str/128.
+
+  blurclip = Expr(clp,Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[0,0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + + 9 /"))
+
+  sIsRGB=clp.IsRGB()
+  e = Format("x y - abs {thres} scalef > x y - {str} * x + x ?")
+  Expr(clp, blurclip, e, sIsRGB?e:"x") }
