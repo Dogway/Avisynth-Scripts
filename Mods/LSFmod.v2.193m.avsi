@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.193mod - 17 May 2021                                   ###
+###                                v2.193mod - 18 May 2021                                   ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,8 +20,8 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v2.193m: - Removed < avs+ 2724 support.
-###          - Replaced masktools2 with internal Expr() (except convolutions)
+### v2.193m: - Removed < AviSynth+ r2724 support
+###          - Replaced masktools2 with internal Expr() wrappers.
 ###          - Replaced UnsharpMask_avsi with faster UnsharpMask_HBD
 ###
 ### v2.193 : - replace UnsharpMask of Warpsharp to use UnsharpMask_avsi for HBD
@@ -443,12 +443,12 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod", int 
 sisphbd = AvsPlusVersionNumber > 2294
 
 ### DEFAULTS
-version  = "v2.192mod"
+version  = "v2.193mod"
 defaults = default(defaults,"fast")
 num      = defaults=="old" ? 0 : defaults=="slow" ? 1 : defaults=="fast" ? 2 : 3
 
-ox = inclip.width
-oy = inclip.height
+ox = inclip.width()
+oy = inclip.height()
 
 Assert(num         != 3      ? true : false, chr(10) + """Defaults must be "old" or "slow" or "fast" !""" + chr(10))
 
@@ -532,19 +532,17 @@ source = sode ? sisupscale || sislumaonly ? source : sisphbd ? source.converttoy
 
 Assert(!isYUY2(input), chr(10) + "LSFmod: not work with an YUY2 clip !" + chr(10))
 
-mdiff = "x y - range_half +"
-mmerge = "x range_max z - * y z * + range_max /"
 
 ### SHARP
 tmp  = ss_x > 1.0 || ss_y > 1.0 ? input.spline36resize(xxs,yys) : input
 pre  = preblur=="OFF" ? tmp
-\    : preblur=="ON"  ? tmp.Expr(Expr(Expr(tmp,tmp.removegrain(11,-1),mdiff)
-\                                    ,Expr(tmp,tmp.removegrain(4,-1) ,mdiff)
-\                          ,"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?"),mdiff)
+\    : preblur=="ON"  ? tmp.ex_makediff(Expr(ex_makediff(tmp,tmp.removegrain(11,-1))
+\                                           ,ex_makediff(tmp,tmp.removegrain(4,-1))
+\                          ,"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?"))
 \    : Eval("tmp."+preblur)
 
-dark_limit   = pre.mt_inpand(U=1,V=1)
-bright_limit = pre.mt_expand(U=1,V=1)
+dark_limit   = pre.ex_inpand(UV=1)
+bright_limit = pre.ex_expand(UV=1)
 minmaxavg    = Merge(dark_limit,bright_limit,0.5)
 
 method = Smethod==1   ? pre.removegrain(kernel,-1)
@@ -554,7 +552,7 @@ method = Smethod==1   ? pre.removegrain(kernel,-1)
 method = secure==true ? method.Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?")
 \      :                method
 
-method = preblur=="OFF" ? method : tmp.Expr(Expr(pre,method,mdiff),mdiff)
+method = preblur=="OFF" ? method : tmp.ex_makediff(ex_makediff(pre,method))
 
 normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0)
 \         : Smode==2 ? tmp.unsharp(strength=str,vary=((ss_x+ss_y)/2.0),varc=1,border=3,U=1,V=1)
@@ -564,8 +562,8 @@ normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((s
 \         : Smode==5 ? Expr(tmp, method, Format("x y == x x x y - abs {Szrp} / 1 {Spwr} / ^ {Szrp} * {str} * x y - dup abs / * x y - dup * "
 \                                                                   +"{Szrp} dup * {SdmpLo} + * x y - dup * {SdmpLo} + {Szrp} dup * * / * 1 "
 \                                                                   +"{SdmpHi} 0 == 0 {Szrp} {SdmpHi} / 4 ^ ? + 1 {SdmpHi} 0 == 0 x y - abs {SdmpHi} / 4 ^ ? + / * + ?"),scale_inputs="allf")
-\         : preblur!="OFF" && secure ? tmp.Expr(Expr(pre,pre.cas(min(Str, 1)).Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?"),mdiff),mdiff)
-\                                    : preblur!="OFF" ? tmp.Expr(Expr(pre,pre.cas(min(Str, 1)),mdiff),mdiff) : secure ? pre.cas(min(Str, 1)).Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?") : pre.cas(min(Str, 1))
+\         : preblur!="OFF" && secure ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)).Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?")))
+\         : preblur!="OFF"           ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)))) : secure ? pre.cas(min(Str, 1)).Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?") : pre.cas(min(Str, 1))
 
 
 ### LIMIT (mt_clamp)
@@ -585,29 +583,29 @@ edge  = edgemaskHQ ?  edge.Expr("x range_half / 0.86 ^ range_max *",scale_inputs
 limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      : Lmode==0 ? normsharp
 \      : Lmode==1 ? normal
-\      : Lmode==2 ? Expr(normsharp, normal, edge.mt_inflate(U=1,V=1), mmerge)
-\      : Lmode==3 ? Expr(normal,    zero,   edge.mt_inflate(U=1,V=1), mmerge)
-\      :            Expr(second,    normal, edge.mt_inflate(U=1,V=1), mmerge)
+\      : Lmode==2 ? ex_merge(normsharp, normal, edge.mt_inflate(U=1,V=1))
+\      : Lmode==3 ? ex_merge(normal,    zero,   edge.mt_inflate(U=1,V=1))
+\      :            ex_merge(second,    normal, edge.mt_inflate(U=1,V=1))
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? Expr(tmp,limit1,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1), mmerge)
-\      :               Expr(limit1,tmp,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1), mmerge)
+\      : edgemode==1 ? ex_merge(tmp,limit1,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1))
+\      :               ex_merge(limit1,tmp,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1))
 
 
 ### SOFT
-sharpdiff = Expr(tmp,limit2,mdiff)
-sharpdiff = Expr(sharpdiff,sharpdiff.removegrain(19,-1),
+sharpdiff = ex_makediff(tmp,limit2)
+sharpdiff = Expr(sharpdiff,sharpdiff.ex_boxblur(1,1),
 \                    Format("x range_half - abs y range_half - abs > y {soft} * x 100 {soft} - * + 100 / x ?"))
 
-PP1 = soft==0 ? limit2 : Expr(tmp,sharpdiff,mdiff)
+PP1 = soft==0 ? limit2 : ex_makediff(tmp,sharpdiff)
 
 
 ### SOOTHE
-diff  = Expr(tmp,PP1,mdiff)
+diff  = ex_makediff(tmp,PP1)
 diff2 = diff.temporalsoften(1,255,0,32,2)
 diff3 = Expr(diff,diff2,Format("x range_half - y range_half - * 0 < x range_half - 100 / {keep} * range_half + x range_half - abs y range_half - abs > x {keep} * y 100 {keep} - * + 100 / x ? ?"))
 
-PP2 = soothe ? Expr(tmp,diff3,mdiff) : PP1
+PP2 = soothe ? ex_makediff(tmp,diff3) : PP1
 
 
 ### OUTPUT
@@ -621,9 +619,9 @@ src = !sode      ? nop()
 in  = sisupscale ? input.spline36resize(dest_x,dest_y)
 \   :                                  input
 
-shrpD  = Expr(in,out,mdiff)
-shrpL  = sode ? shrpD.sh_Padding(4,4,4,4).repair(Expr(in,src,mdiff).sh_Padding(4,4,4,4),1,-1,-1).crop(4,4,-4,-4,true).Expr(shrpD,"x range_half - abs y range_half - abs < x y ?") : nop()
-output = sode ? Expr(in,shrpL,mdiff) : out
+shrpD  = ex_makediff(in,out)
+shrpL  = sode ? shrpD.sh_Padding(4,4,4,4).repair(ex_makediff(in,src).sh_Padding(4,4,4,4),1,-1,-1).crop(4,4,-4,-4,true).Expr(shrpD,"x range_half - abs y range_half - abs < x y ?") : nop()
+output = sode ? ex_makediff(in,shrpL) : out
 
 output = edgemode!=-1 ? output : !sisupscale ? edge.spline36resize(dest_x,dest_y) : edge.spline36resize(dest_x,dest_y).greyscale()
 
@@ -748,7 +746,7 @@ function UnsharpMask_HBD(clip clp, float "strength", int "radius", float "thresh
   rd  = radius - 1
   str = str/128.
 
-  blurclip = Expr(clp,Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[0,0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + + 9 /"))
+  blurclip = ex_boxblur(clp, rd)
 
   sIsRGB=clp.IsRGB()
   e = Format("x y - abs {thres} scalef > x y - {str} * x + x ?")
