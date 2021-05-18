@@ -38,9 +38,9 @@ anim    = default( anim,  0.0 )
 text    = default( text,  "hola" )
 
 
-mask = h ? mt_lutspa( c, mode = "relative", expr = "x 256 *", chroma = "128" ) : \
-           mt_lutspa( c, mode = "relative", expr = "x "+string(anim)+" y - < 255 0 ?", chroma = "128" )
-mask = mask.removegrain(20)
+mask = h ? ex_lutspa( c, mode = "relative", "x range_size *", 128)                                  : \
+           ex_lutspa( c, mode = "relative", "x "+string(anim)+" y - < range_max range_min ?", 128 )
+mask = mask.ex_boxblur(1)
 
 #LineSeparation=0
 #subs=subtitle(c,text,font="Verdana",lsp=LineSeparation,size=size,text_color=$ffffff,align=7,x=x,y=y,last_frame=end)
@@ -48,4 +48,4 @@ shadow ? \
 SubtitleEx(            c,text,x=x+2,y=y+2,firstframe=0, lastframe=end,font=font,effects="bsss,f(30,30)", size = size, textcolor = $20000000, halocolor = $60000000) : nop()
 SubtitleEx(shadow?last:c,text,x=x,y=y,    firstframe=0, lastframe=end,font=font,effects="b,f(30,30)"   , size = size, textcolor = color    , halocolor = $FF000000)
 
-mt_merge(c,last,mask,true) }
+ex_merge(c,last,mask) }
