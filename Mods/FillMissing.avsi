@@ -1,7 +1,7 @@
 # Based on script created by Didée
 # Modified by John Meyer on June 29, 2011/2013 (https://forum.doom9.org/showpost.php?p=1619555&postcount=3)
-# v1.1 - Updated and Sanitized by Dogway on March 05, 2019
-# v1.2 - Updated and Sanitized by Dogway on   May 15, 2021
+# v1.1  - Updated and Sanitized by Dogway on March 05, 2019
+# v1.21 - Updated and Sanitized by Dogway on   May 18, 2021
 # 
 # Dependencies:
 # FrameRateConverterMT
@@ -51,7 +51,7 @@ themask = interleave(BlankClip( source, Color_yuv=$000000 ),trim(BWMask,1,0))
 #(i.e., original frames are used except at jump points)
 
 
-Expr(interleave(source,source),double,themask,"x range_max z - * y z * + range_max /")
+ex_merge(interleave(source,source),double,themask)
 #mt_merge(double,themask,luma=true,U=3,V=3)
 
 #Decimate
