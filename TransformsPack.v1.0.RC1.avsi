@@ -337,7 +337,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     p_type = p_type4 ? "YUV444P" : p_type2 ? "YUV422P" : p_type1 ? "YUV411P" : "YUV420P"
     p_type = string(bdpth) == "32" ? p_type + "S" : p_type + string(bdpth)
     nw = p_type1 ? round(w/4.0) : round(w/2.0)
-    nh = round(h/2.0)
+    nh =                          round(h/2.0)
 
 #   rgb = rgb.ConvertToRGB32(matrix)   # There's some bitshift issue where only the tv range code works in RGB32, and not RGB64 for example
     Rx = ExtractR(rgb)
