@@ -59,6 +59,7 @@ function ex_merge(clip a, clip b, clip msk, int "UV") {
     Expr(a, b, msk, str, ch) }
 
 
+# Add undershoot and overshoot
 function ex_clamp(clip a, clip lo, clip hi, int "UV") {
 
     UV = Default(UV, 0)
@@ -75,6 +76,16 @@ function ex_binarize(clip a, int "thres", int "UV") {
     th = Default(thres, 128)
 
     str = Format("x {th} scaleb > range_max range_min ?")
+    ch = ex_UVchannel(a, str, UV)
+
+    Expr(a, str, ch) }
+
+
+function ex_invert(clip a, int "UV") {
+
+    UV = Default(UV, 0)
+
+    str = "range_max x -"
     ch = ex_UVchannel(a, str, UV)
 
     Expr(a, str, ch) }
