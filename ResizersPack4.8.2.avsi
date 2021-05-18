@@ -7,6 +7,7 @@
 ### Resizers Functions Pack 4.7.9 by Dogway (23-04-2021)   # -> Updated MatteCrop(), Ratioresize() and PadResize()
 ### Resizers Functions Pack 4.8.0 by Dogway (25-04-2021)   # -> Updated MatteCrop()
 ### Resizers Functions Pack 4.8.1 by Dogway (16-05-2021)   # -> Overall improvements
+### Resizers Functions Pack 4.8.2 by Dogway (18-05-2021)   # -> Cosmetics
 ###                                                        #
 ##########################################################
 ###
@@ -169,16 +170,15 @@ b = mup || rgba    ?        SelectEvery (3, 2)                                  
 ###
 ###############################################################################
 
-# requires avsresize
 
 function RatioResize(clip s, val "ratio", string "mode", int "PreW", int "PreH", int "mod", string "kernel", float "b", float "c", float "p")
 {
-r     = default(ratio,      0.911)
-mode  = default(mode,       "PAR")
-mod   = default(mod,      isrgb(s) ? 1 : 2)
-w     = default(PreW,  s.width ())
-h     = default(PreH,  s.height())
-kernel= default(kernel,"spline36")
+r     = Default(ratio,      0.911)
+mode  = Default(mode,       "PAR")
+mod   = Default(mod,      isrgb(s) ? 1 : 2)
+w     = Default(PreW,  s.width ())
+h     = Default(PreH,  s.height())
+kernel= Default(kernel,"spline36")
 
 assert(!IsInt(ratio) && IsFloat(ratio), "'Ratio' must be a float number")
 
@@ -201,7 +201,7 @@ op = (mode=="DAR")
 \  :  Assert(false, "Wrong Ratio mode")
 
 
-kernel == "nnedi3" ? Eval(  "nnedi3_resize16(s," + String(op) + ")"  ) : \
+kernel == "nnedi3" ? Eval("nnedi3_resize16(s," + String(op) + ")"    ) : \
 kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p)") : \
 kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c)") : \
                      Eval(kernel + "Resize(s," + String(op) + ")"    )
@@ -264,7 +264,7 @@ mirror ? PadMirror (hsl+bw1,vst+bh1,hsr+bw2,vsb+bh2)  :  \
  hsr = sign(x)>0 ? 0 : fullchr && mod == 1 ? fh2 : fh2+fh2%mod
  vsb = sign(y)>0 ? 0 : fullchr && mod == 1 ? fv2 : fv2-fv2%mod
 
-crop(hsl+bw2,vst+bh2,-hsr-bw1,-vsb-bh1,align=true) }
+crop(hsl+bw2,vst+bh2,-hsr-bw1,-vsb-bh1,true) }
 
 
 
@@ -282,20 +282,20 @@ crop(hsl+bw2,vst+bh2,-hsr-bw1,-vsb-bh1,align=true) }
 # ... is slightly faster although it doesn't mirror but extend the borders.
 function PadMirror(clip clp, int "left", int "top", int "right", int "bottom") {
 
-l = default( abs(left),   0 )
-t = default( abs(top),    0 )
-r = default( abs(right),  0 )
-b = default( abs(bottom), 0 )
+l = Default( abs(left),   0 )
+t = Default( abs(top),    0 )
+r = Default( abs(right),  0 )
+b = Default( abs(bottom), 0 )
 
 clp
 
-top=(t  > 0) ? crop(0,0,0,-height()+t,align=true).flipvertical()  : last
+top=(t  > 0) ? crop(0,0,0,-height()+t,true).flipvertical()  : last
     (t  > 0) ? stackvertical( top,clp )                : last
-bot=(b  > 0) ? crop(0,height()-b,0,0,align=true).flipvertical()   : last
+bot=(b  > 0) ? crop(0,height()-b,0,0,true).flipvertical()   : last
     (b  > 0) ? stackvertical( last,bot )               : last
-lft=(l  > 0) ? crop(0,0,-width()+l,0,align=true).fliphorizontal() : last
+lft=(l  > 0) ? crop(0,0,-width()+l,0,true).fliphorizontal() : last
     (l  > 0) ? stackhorizontal(lft,last)               : last
-rgh=(r  > 0) ? crop(width()-r,0,0,0,align=true).fliphorizontal()  : last
+rgh=(r  > 0) ? crop(width()-r,0,0,0,true).fliphorizontal()  : last
     (r  > 0) ? stackhorizontal(last,rgh)               : last }
 
 
@@ -321,7 +321,6 @@ rgh=(r  > 0) ? crop(width()-r,0,0,0,align=true).fliphorizontal()  : last
 ###
 ### Dependencies:
 ### ------------
-###   avsresize      (http://avisynth.nl/index.php/Avsresize)
 ###   EdgeFixer      (http://avisynth.nl/index.php/EdgeFixer)
 ###   SCSelect_HBD   (https://forum.doom9.org/showthread.php?t=182392)
 ###   MasksPack      (https://github.com/Dogway/Avisynth-Scripts)
@@ -343,7 +342,7 @@ bdpth   = BitLShift(1, BitsPerComponent(c)-8)
 contoy  = !isy()
 fullchr = contoy ? ExtractU().width() == w : true
 
-nw     = Default(width,w)
+nw     = Default(width, w)
 nh     = Default(height,h)
 addw   = Default(ScanW,round((w/8.)))
 addh   = Default(ScanH,round((h/4.)))
@@ -370,7 +369,7 @@ avg  = avg.TemporalSoften(10,255,255,10,2)
 avg  = avg.TemporalSoften(10,255,255,10,2)
 avg  = avg.RatioResize(float(w),"adjust2w",kernel="bicubic")
 
-avgc = Expr(avgY, avg, BoxMask(s,addw,w-addw,addh,h-addh,show=true),"x range_max z - * y z * + range_max / ")
+avgc = ex_merge(avgY, avg, BoxMask(s,addw,w-addw,addh,h-addh,show=true))
 
 blk_b  = s.blankclip(width=16,height=16,pixel_type="Y8",fps=framerate(s),color=$000000).killaudio()
 blk_w  = s.blankclip(width=16,height=16,pixel_type="Y8",fps=framerate(s),color=$FFFFFF).killaudio()
@@ -398,20 +397,20 @@ trim(avgc,LBF+10,-1)
 
 
 mode==3 ? Eval("
-LBox = YPlaneMax(crop( addhz ? width()-16 : 0,0,0, addwz ? -height()+16 : 0)) <= float(thr)
+LBox = YPlaneMax(crop( addhz ? width()-16 : 0,0,0, addwz ? -height()+16 : 0, true)) <= float(thr)
 CM   = LBox
 ") : nop()
 
 addwz ? Eval("
 for (li=step, addw, step) {
-  if (AverageLuma(crop(li-step,0,-w+li,0,align=true))>thr) {
+  if (AverageLuma(crop(li-step,0,-w+li,0,true))>thr) {
     x1= CM ? li : li-step
     li=addw
    }
 }
 
 for (ri=step, addw, step) {
-  if (AverageLuma(crop(w-ri,0,-ri+step,0,align=true))>thr) {
+  if (AverageLuma(crop(w-ri,0,-ri+step,0,true))>thr) {
     x2= CM ? ri : ri-step
     ri=addw
   }
@@ -420,14 +419,14 @@ for (ri=step, addw, step) {
 
 addhz ? Eval("
 for (ti=step, addh, step) {
-  if (AverageLuma(crop(0,ti-step,0,-h+ti,align=true))>thr) {
+  if (AverageLuma(crop(0,ti-step,0,-h+ti,true))>thr) {
     y1= CM ? ti : ti-step
     ti=addh
   }
 }
 
 for (bi=step, addh, step) {
-  if (AverageLuma(crop(0,h-bi,0 ,-bi+step,align=true))>thr) {
+  if (AverageLuma(crop(0,h-bi,0 ,-bi+step,true))>thr) {
     y2= CM ? bi : bi-step
     bi=addh
   }
@@ -437,7 +436,7 @@ for (bi=step, addh, step) {
 MotW = Mot ? round(w-x1-x2) : nop()
 MotH = Mot ? round(h-y1-y2) : nop()
 Mot ? spline36resize(s,fullchr?MotW:MotW+MotW%2,fullchr?MotH:MotH+MotH%2,src_left=x1,src_width=-x2,src_top=y1,src_height=-y2) : \
-      crop(s,x1,y1,-x2,-y2,align=true)
+      crop(s,x1,y1,-x2,-y2,true)
 
 mode == 0 ? PadResize(w,h) : \
 mode == 1 ? PadResize(w,h) : \
