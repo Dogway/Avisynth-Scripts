@@ -1,12 +1,12 @@
 # Frame Rate Converter
-# Version: 1.2.1  (May 12th 2018)
-#     mod: 1.2.1m (May 15th 2021)
+# Version: 1.3.0  (May 18th 2021)
+#
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway, mod to replace mt_lutxxx() to internal Expr() and cosmetics.
+# Dogway (1.3.0) replaced masktools2 with internal Expr() wrappers, + cosmetics. (Requires AviSynth+ r2724+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -153,7 +153,7 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     dct_pow  = !Recalculate ?  1 : DctRe==3 ? 1.09 : DctRe==2 ? 1.10 : DctRe==4 ? 1.28 : DctRe==1 ? 1.32 : 1
 
     ## jm_fps interpolation
-    superfilt = MSuper(prefilter, hpad=16, vpad=16, sharp=1, rfilter=4) # all levels for MAnalyse
+    superfilt = MSuper(prefilter.ConvertBits(8,dither=-1), hpad=16, vpad=16, sharp=1, rfilter=4) # all levels for MAnalyse
     super = CalcPrefilter ? MSuper(C, hpad=16, vpad=16, levels=1, sharp=1, rfilter=4) : superfilt # one level is enough for MRecalculate
     bak = MAnalyse(superfilt, isb=true,  mt=true, blksize=BlkSize, blksizev=BlkSizeV, overlap = BlkSize>4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=Dct)
     fwd = MAnalyse(superfilt, isb=false, mt=true, blksize=BlkSize, blksizev=BlkSizeV, overlap = BlkSize>4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=Dct)
@@ -170,7 +170,7 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
 
 
     # Mask: Occlusion (0.4 opacity lighten mode)
-    EMocc = MaskOcc > 0 ? C_luma.MMask(bak, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand() : Blank
+    EMocc = MaskOcc > 0 ? C_luma.MMask(bak, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).ex_inpand() : Blank
     EM    = MaskOcc > 0 ? Expr(EM,EMocc,"x y max 0.4 * x 0.6 * +") : EM
     EM    = dct_mult!=1 || dct_pow!=1 ? Expr(EM,Format("x {dct_mult} * {dct_pow} ^")) : EM
 
@@ -184,20 +184,20 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     # Get raw mask again
     EM2    = CalcDiff ? MaskThr > 0 ? C_luma.MMask(bak2, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank : nop()
     EMfwd2 = CalcDiff ? MaskThr > 0 ? C_luma.MMask(fwd2, ml=255, kind=1, gamma=1/gam, thSCD2=SkipOver) : EM2 : nop()
-    EM2    = CalcDiff ? MaskThr > 0 ? Expr(EM,EMfwd2,"x y max 0.6 * x 0.4 * +") : EM2 : nop()
-    EMocc2 = CalcDiff ? MaskOcc > 0 ? C_luma.MMask(bak2, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand() : Blank : nop()
+    EM2    = CalcDiff ? MaskThr > 0 ? Expr(EM,EMfwd2,"x y max 0.6 * x 0.4 * +")  : EM2 : nop()
+    EMocc2 = CalcDiff ? MaskOcc > 0 ? C_luma.MMask(bak2, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).ex_inpand() : Blank : nop()
     EM2    = CalcDiff ? MaskOcc > 0 ? Expr(EM2,EMocc2,"x y max 0.4 * x 0.6 * +") : EM2 : nop()
     # Get difference mask between two versions
     EMdiff = CalcDiff ? Expr(EM, EM2,"x y -")
     \       .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
-    \       .mt_expand(mode= mt_circle(zero=true, radius=2))
+    \       .ex_expand(2,mode="circle")
     \       .Expr("x 60 scaleb < range_min range_max ?")
     \       .FRC_GaussianBlur42(1.2)
     \       .BicubicResize(C.Width(), C.Height()) : nop()
     # Apply mask to Flow / EM
     EMdiff = CalcDiff ? OutFps ? EMdiff.ChangeFPS(NewNum, NewDen) : EMdiff : nop()
-    Flow   = CalcDiff ? Expr(Flow, Flow2, EMdiff.MatchColorFormat(Flow,"PC.601"),"x range_max z - * y z * + range_max /") : Flow
-    EM     = CalcDiff ? Expr(EM, EM2, EMdiff,"x range_max z - * y z * + range_max /") : EM
+    Flow   = CalcDiff ? ex_merge(Flow, Flow2, EMdiff.MatchColorFormat(Flow,"PC.601")) : Flow
+    EM     = CalcDiff ? ex_merge(EM, EM2, EMdiff)                                     : EM
 
 
     # Last mask frame is white. Replace with previous frame.
@@ -205,14 +205,14 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
 
     # Create skip mask
     EMskip = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
-    \       .mt_expand(mode= mt_circle(zero=true, radius=1))
+    \       .ex_expand(1,mode="circle")
     \       .Expr(Format("x {SkipThr} scaleb < range_min range_max ?"))
     OutSkip = EMskip.BicubicResize(C.Width(), C.Height())
     
     ## Create artifact correction mask
     OutRaw = EM
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
-    \       .mt_expand(mode= mt_circle(zero=true, radius=1))
+    \       .ex_expand(1,mode="circle")
     \       .Expr(Format("x {MaskThr} scaleb < range_min range_max ?"))
     \       .Blur(.6)
     \       .BicubicResize(C.Width(), C.Height())
@@ -223,8 +223,8 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     \      .ContinuousMask(22)
     EMstp = EMstp.BicubicResize(EMstp.Width()/2, EMstp.Height()/2)
     \      .Expr("x 82 scaleb < range_min range_max ?")
-    \      .mt_inpand()
-    \      .mt_expand(mode= mt_circle(zero=true, radius=8))
+    \      .ex_inpand()
+    \      .ex_expand(2,mode="circle").ex_expand(2,mode="square").ex_expand(2,mode="circle").ex_expand(1,mode="square")
     \      .FRC_GaussianBlur42(2.8)
     \      .BicubicResize(C.Width(), C.Height())
     
@@ -232,8 +232,8 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     EM     = OutFps ?     EM.ChangeFPS(NewNum, NewDen) : EM
     EMskip = OutFps ? EMskip.ChangeFPS(NewNum, NewDen) : EMskip
     EMstp  = OutFps ?  EMstp.ChangeFPS(NewNum, NewDen) : EMstp
-    M = OutFps ? Expr(Flow, B, EM.MatchColorFormat(Flow,"PC.601"),"x range_max z - * y z * + range_max /") : Flow
-    M = Stp && OutFps ? Expr(M, B, EMstp.MatchColorFormat(Flow,"PC.601"),"x range_max z - * y z * + range_max /") : M
+    M =        OutFps ? ex_merge(Flow, B, EM.MatchColorFormat(Flow,"PC.601")) : Flow
+    M = Stp && OutFps ? ex_merge(M, B, EMstp.MatchColorFormat(Flow,"PC.601")) : M
 
     ## Apply BlendOver and SkipOver
     M2 = SkipOver > 0 ? ConditionalFilterMT(EMskip, B, BHard, "AverageLuma", "<", string(SkipOver))  : B
