@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.0  (12-05-2021)              ##
+###           Grade Pack v1.1  (18-05-2021)              ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
@@ -9,7 +9,9 @@
 ###
 ### Pack of tools for grading and look tone adjustments.
 ###
-### No Dependencies.
+### Dependencies: AviSynth+ r2724+
+###               ExTools.avsi
+###               Utils-r41.avsi
 ###
 ###
 ####################################
@@ -56,7 +58,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
     RecMod = mode=="Recover"
     Recclp = Defined(Rc)
     SatC   = isclip(Sat)
-    fON    = !SatC ? (Sat!=1.0 ? true : false) : false
+    fON    = !SatC ? (Sat!=1.0) : false
     SatB   =  SatC || fON
     SatB   ? Assert   (SatC || isint(Sat) || isfloat(Sat),  "'Sat' only accepts float, integers or clip inputs")                                       : nop()
     RecMod ? Assert   (Recclp,                              "'Recover Mode' requires a clip defined in the 'Rc' parameter to recover saturation from") : nop()
@@ -64,7 +66,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 
 
     c
-    w      = Width ()
+    w      = Width()
     h      = Height()
     padX   = w%4 == 0 ? 0 : (4 - w%4)
     padY   = h%4 == 0 ? 0 : (4 - h%4)
@@ -72,7 +74,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 
 Recclp         ? Eval("""
 Rc
-wRc    =  width()
+wRc    = width()
 hRc    = height()
 padXRc = wRc%4 == 0 ? 0 : (4 - wRc%4)
 padYRc = hRc%4 == 0 ? 0 : (4 - hRc%4)
@@ -91,8 +93,8 @@ b      =  DulMod || RecMod          ? Expr(ExtractV(),  ExtractU(), Format("x ra
 msk    = (VibMod)                   ? Expr(ExtractV(),  ExtractU(), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_min range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ range_max * ? ")) : \
          (DulMod)                   ? b                                                          : \
          (RecMod)                   ? Expr(a,b,"x y - abs 2 *")                                  : \
-          Assert(false, "Wrong Saturation Mode")
-msk    =  BicubicResize(w+padX, h+padY,0.0,0.75).crop(0,0,-padX,-padY).MatchColorFormat(c)""")   : nop()
+          Assert(false, "Wrong Saturation Mode.")
+msk    =  BicubicResize(w+padX, h+padY,0.0,0.75).crop(0,0,-padX,-padY,true).MatchColorFormat(c)""")   : nop()
 
 
 show ?  msk          :  \
@@ -110,7 +112,7 @@ show ?  msk          :  \
                                             \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
                                       Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /")) : nop())     : c)
 
-!show     &&   fmode ? crop(0,0,-padX,-padY) : last }
+!show     &&   fmode ? crop(0,0,-padX,-padY,true) : last }
 
 
 
@@ -122,7 +124,7 @@ show ?  msk          :  \
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
 ###
 ###
-### Dependencies: Avisynth+ r2420 and above
+### Dependencies: > AviSynth+ r2420
 ###
 ### Performs better in gamma encoded space
 ###
@@ -172,7 +174,7 @@ function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "t
 ### Works like internal Levels() but works with HBD out of the box (using autoscaling)
 ###
 ###
-### Dependencies: Avisynth+ r2420 and above
+### Dependencies: > Avisynth+ r2420
 ###
 ### Example: SmoothLevels(16, 1.200, 255, 0, 255)
 ###
@@ -191,7 +193,7 @@ function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high",
     ptype  = IsRGB(c)
     range   = Default(tv_range,!ptype)
 
-    Assert(AvsPlusVersionNumber > 2294, "Update Avisynth+ version")
+    Assert(AvsPlusVersionNumber > 2420, "Update Avisynth+ version")
     contoy   = !isy(c)
 
     rangePC  = range ? "x ymin - ymax ymin - / range_max *" : "x"
@@ -212,6 +214,7 @@ function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high",
 ### Adds a vignette (darkening around the frame) to the source.
 ### Use show=true if you only want the mask.
 ###
+### Dependencies: > Avisynth+ r2420
 ###
 ####################################
 
@@ -225,6 +228,4 @@ function Vignette (clip c, float "Vignette", bool "show") {
                          "+ range_max - abs"), "range_half","range_half")
 
     # this is multiply blend mode
-    show ? msk : Expr(msk,c,"x y * range_max / ", "y", "y")
-
-}
+    show ? msk : Expr(msk,c,"x y * range_max / ", "y", "y") }
