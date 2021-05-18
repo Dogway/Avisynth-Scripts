@@ -1,7 +1,7 @@
 ###
-### Logo 11.0  (http://doom10.org/index.php?topic=2181.0)
+### Logo 11.1  (http://doom10.org/index.php?topic=2181.0)
 ###
-###  (13-05-2021) By Dogway
+###  (18-05-2021) By Dogway
 ###
 ### Check Readme.txt for:
 ###                       Reference credits
@@ -60,13 +60,13 @@ logo0 = gif ? ImmaRead(   path,start=start,end= end == -1 ? start : end2,animati
 
 logo0 = PAR !=  1.0  ? logo0.BicubicResize(round(logo0.Width()/par),logo0.Height(),0.0,0.75).mmod2()
 \                    : logo0.mmod2()
-logo0 = logo0.addborders(x,abs(y),w,h).crop(0,0,-logo0.Width()-x,-logo0.Height()-abs(y),align=true).Blur(min(Sblur/par,1.58),Sblur).Blur(min(Sblur/par,1.58),Sblur)
+logo0 = logo0.addborders(x,abs(y),w,h).crop(0,0,-logo0.Width()-x,-logo0.Height()-abs(y),true).Blur(min(Sblur/par,1.58),Sblur).Blur(min(Sblur/par,1.58),Sblur)
 
 lw = mat ? logo0.Width()  : nop()
 lh = mat ? logo0.Height() : nop()
 
 # Port mt_inpand() to Expr() syntax
-msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(lw*2,lh*2).mt_inpand(mode="both").mt_inpand(mode="both").BicubicResize(lw,lh,-0.5,0.25).MatchColorFormat(c)
+msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(lw*2,lh*2).ex_inpand(mode="cross").ex_inpand(mode="cross").BicubicResize(lw,lh,-0.5,0.25).MatchColorFormat(c)
 \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).MatchColorFormat(c)
 logo0 = logo0.MatchColorFormat(c).assumefps(fps)
 
@@ -76,10 +76,10 @@ multiply  = Format("x ymin - y ymin - * ymax ymin - / {Opac} * x ymin - 1 {Opac}
 watermark = Format("ymax ymin - A^ x ymin - A / 1 {Wstr} {Opac} ^ / ^ A * ymin + ")
 
 V =
-\ (mode=="Screen")   ? Expr(V,Expr(V,logo0,screen  ,ch?"y":"x")     ,msk,"x range_max z - * y z * + range_max /")
-\:(mode=="Multiply") ? Expr(V,Expr(V,logo0,multiply,ch?"y":"x")     ,msk,"x range_max z - * y z * + range_max /")
-\:(mode=="Over")     ? Expr(V,logo0,Expr(msk,Format(" x {Opac} * ")),    "x range_max z - * y z * + range_max /")
-\:(mode=="Watermark")? Expr(V,Expr(V,watermark)                     ,msk,"x range_max z - * y z * + range_max /")
+\ (mode=="Screen")   ? ex_merge(V,Expr(V,logo0,screen  ,ch?"y":"x")     ,msk)
+\:(mode=="Multiply") ? ex_merge(V,Expr(V,logo0,multiply,ch?"y":"x")     ,msk)
+\:(mode=="Over")     ? ex_merge(V,logo0,Expr(msk,Format(" x {Opac} * "))    )
+\:(mode=="Watermark")? ex_merge(V,Expr(V,watermark)                     ,msk)
 \:Assert(false, "Unsupported Blending Mode: "+string(mode))
 
 start == 0 && (end == 0 || end == Fc) ? V :
@@ -91,4 +91,4 @@ start == 0 && (end == 0 || end == Fc) ? V :
 function mmod2(clip c){
 bh = 2 - ((c.Width()-1)%2 + 1)
 bv = 2 - ((c.Height()-1)%2 + 1)
-c.crop(bh/2,bv/2,-bh,-bv,align=true)}
+c.crop(bh/2,bv/2,-bh,-bv,true)}
