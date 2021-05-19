@@ -4,10 +4,9 @@
 # v1.21 - Updated and Sanitized by Dogway on   May 18, 2021
 # 
 # Dependencies:
-# FrameRateConverterMT
-# 	avsresizers
+# FrameRateConverter
 # 	mvtools2
-# 	masktools2
+# 	RGTools
 # TIVTC
 # GrunT
 # 
@@ -28,11 +27,11 @@
 
 function FillMissing(clip source, float "JumpThresh", bool "Fast", bool "Show", bool "debug") {
 
-#Threshold for detecting jumps. Increase to catch more jumps. Should always be less than 1.0
-JumpThresh = Default(JumpThresh,0.8)
-showdot    = Default(Show, false)  # true for troubleshooting; otherwise, false
-Debug      = Default(Debug, false) # true for troubleshooting; otherwise, false
-Fast       = Default(Fast, false)  # true for troubleshooting; otherwise, false
+
+JumpThresh = Default(JumpThresh,0.8) # Threshold for detecting jumps. Increase to catch more jumps. Should always be less than 1.0
+Fast       = Default(Fast,  false)   # true for fast mode
+showdot    = Default(Show,  false)   # true for troubleshooting; otherwise, false
+Debug      = Default(Debug, false)   # true for troubleshooting; otherwise, false
 
 source
 
