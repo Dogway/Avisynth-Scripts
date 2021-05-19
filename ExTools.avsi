@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b4  (19-05-2021)               ##
+###           ExTools v1.0b5  (19-05-2021)               ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###                                                      ##
@@ -19,10 +19,9 @@
 ### 4:   copy second
 ### 128: range_half
 ###
-### * lumamask isn't needed (use UV=0 or UV=3) since now
-###    ...Expr() needs clips with same number of planes.
 ###
 ### Dependencies: AviSynth+ 3.5+
+###               Utils-r41 (for ex_merge)
 ###
 ###
 ####################################
@@ -35,8 +34,8 @@ function ex_makediff(clip a, clip b, int "UV") {
 
     str = "x y - range_half +"
 
-    UV == 0 ? Expr(a, b, str)                                                   : \
-              Expr(a, b, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, b, str)                                                : \
+              Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 function ex_adddiff(clip a, clip b, int "UV") {
@@ -45,18 +44,24 @@ function ex_adddiff(clip a, clip b, int "UV") {
 
     str = "x y + range_half -"
 
-    UV == 0 ? Expr(a, b, str)                                                   : \
-              Expr(a, b, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, b, str)                                                : \
+              Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-function ex_merge(clip a, clip b, clip msk, int "UV") {
+function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
 
     UV = Default(UV, isy(a) ? 0 : 1)
+    lm = Default(luma, false)
+    isRGBa = isRGB(a)
+    isYm = isy(msk)
 
     str = "x range_max z - * y z * + range_max /"
 
-    UV == 0 ? Expr(a, b, msk, str)                                                   : \
-              Expr(a, b, msk, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+	luma  = lm && !isRGBa ? isYm ? msk : msk.ExtractY() : nop()
+	lmmsk = lm && isYm && !isRGBa ? MatchColorFormat(CombinePlanes(luma, luma, luma, planes="YUV"),a) : msk
+
+    UV == 0 ? Expr(a, b,   msk, str)                                                : \
+              Expr(a, b, lmmsk, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 # Add undershoot and overshoot
@@ -66,8 +71,8 @@ function ex_clamp(clip a, clip lo, clip hi, int "UV") {
 
     str = Format(" x z < z x y > y x ? ?")
 
-    UV == 0 ? Expr(a, lo, hi, str)                                                   : \
-              Expr(a, lo, hi, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, lo, hi, str)                                                : \
+              Expr(a, lo, hi, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 function ex_binarize(clip a, int "thres", int "UV") {
@@ -77,8 +82,8 @@ function ex_binarize(clip a, int "thres", int "UV") {
 
     str = Format("x {th} scaleb > range_max range_min ?")
 
-    UV == 0 ? Expr(a, str)                                                   : \
-              Expr(a, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, str)                                                : \
+              Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 function ex_invert(clip a, int "UV") {
@@ -87,8 +92,8 @@ function ex_invert(clip a, int "UV") {
 
     str = "range_max x -"
 
-    UV == 0 ? Expr(a, str)                                                   : \
-              Expr(a, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, str)                                                : \
+              Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 # mt_lutspa() is x5 times faster
@@ -103,12 +108,11 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV") {
           mode=="relative" ? ReplaceStr(ReplaceStr(" "+str+" "," y "," syr "), " x ", " sxr ")  : \
                              Assert (false, "Unsupported Mode.")
 
-    UV == 0 ? Expr(a, str)                                                   : \
-              Expr(a, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, str)                                                : \
+              Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 
-# Need to fix the TV range, PC range thing
 function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool "tv_range") {
 
     mode  = Default(mode, "blend")
@@ -120,17 +124,17 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     rangePC  = range ? "ymin - ymax ymin - /" : "range_max /"
     rangeTV  = range ? "ymax ymin - * ymin +" : "range_max *"
 
-    str = Format(                                                                                                          \
-        mode == "blend"        ? "x "+rangePC+" 1 {op} / ^ "+rangeTV+""                                                  : \
-        mode == "multiply"     ? "x ymin - A@ y ymin - * ymax ymin - / {op} * A 1 {op} - * + ymin + "                    : \
+    str = Format(                                                                                                           \
+        mode == "blend"        ? "x "+rangePC+" 1 {op} / ^ "+rangeTV+""                                                   : \
+        mode == "multiply"     ? "x ymin - A@ y ymin - * ymax ymin - / {op} * A 1 {op} - * + ymin + "                     : \
         mode == "screen"       ? "1 1 x "+rangePC+" - - 1 y "+rangePC+" - * "+rangeTV+""                                  : \
         mode == "linear dodge" ? "x "+rangePC+" {op} * y "+rangePC+" 1 {op} - * + "+rangeTV+""                            : \
         mode == "add"          ? "x "+rangePC+" {op} * y "+rangePC+" 1 {op} - * + "+rangeTV+""                            : \
         mode == "softlight"    ? "1 2 y "+rangePC+" A@ * - x "+rangePC+" B@ 2 ^ * 2 B A * * + "+rangeTV+""                : \
                                  Assert (false, "Unsupported Blend Mode.") )
 
-    UV == 0 ? Expr(a, b, str)                                                   : \
-              Expr(a, b, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, b, str)                                                : \
+              Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 
@@ -148,13 +152,13 @@ function ex_boxblur(clip a, int "radius", int "UV") {
 
     str = Format("x[0,-{rd}] x[0,0] x[0,{rd}] + + 3 /")
 
-    UV == 0 ? Expr(a, str)                                                  : \
-              Expr(a, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a))
+    UV == 0 ? Expr(a, str)                                                   : \
+              Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a))
 
     str = Format("x[-{rd},0] x[0,0] x[{rd},0] + + 3 /")
 
-    UV == 0 ? Expr(last, str)                                                   : \
-              Expr(last, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(last, str)                                                : \
+              Expr(last, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 
@@ -175,8 +179,8 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
                                               +" A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                                                                                          : \
                                               Assert (false, "Unsupported Mode.") )
 
-    UV == 0 ? Expr(a, str)                                                   : \
-              Expr(a, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, str)                                                : \
+              Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 
@@ -192,8 +196,8 @@ function ex_inpand(clip a, string "mode", int "thres", int "UV") {
                                  +" A@ x[0,0] - abs {thr} scaleb > x[0,0] {thr} scaleb - A ?")                                                       : \
                                  Assert (false, "Unsupported Mode.")
 
-    UV == 0 ? Expr(a, str)                                                   : \
-              Expr(a, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, str)                                                : \
+              Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 
@@ -218,8 +222,8 @@ function ex_edge(clip a, string "kernel", string "mode", int "str", int "thres",
           kernel=="Laplace" ? "x[0,0] 8 * x[-1,1] - x[0,1] - x[1,1] - x[-1,0] - x[1,0] - x[-1,-1] - x[0,-1] - x[1,-1] - {str} *"                                                                               : \
                              Assert (false, "Unsupported Kernel.") )
 
-    UV == 0 ? Expr(a, str)                                                   : \
-              Expr(a, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, str)                                                : \
+              Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 # Use removegrain(1) as it's faster
@@ -232,15 +236,15 @@ function ex_undot(clip a, int "radius", int "UV") {
     str = Format("x x[-{rd},{rd}] x[0,{rd}] min x[{rd},{rd}] x[-{rd},0] min min x[{rd},0] x[-{rd},-{rd}] min x[0,-{rd}] x[{rd},-{rd}] min min min " \
                   +"x[-{rd},{rd}] x[0,{rd}] max x[{rd},{rd}] x[-{rd},0] max max x[{rd},0] x[-{rd},-{rd}] max x[0,-{rd}] x[{rd},-{rd}] max max max clip")
 
-    UV == 0 ? Expr(a, str)                                                   : \
-              Expr(a, str, ex_UVchannel(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 0 ? Expr(a, str)                                                : \
+              Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 
 
 # HELPER Chroma Function
 
-function ex_UVchannel(clip a, string str, int "UV") {
+function ex_UVexpr(clip a, string str, int "UV") {
 
     UV = Default(UV, 0)
 
