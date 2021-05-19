@@ -541,8 +541,8 @@ pre  = preblur=="OFF" ? tmp
 \                          ,"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?"))
 \    : Eval("tmp."+preblur)
 
-dark_limit   = pre.ex_inpand(UV=1)
-bright_limit = pre.ex_expand(UV=1)
+dark_limit   = pre.ex_inpand()
+bright_limit = pre.ex_expand()
 minmaxavg    = Merge(dark_limit,bright_limit,0.5)
 
 method = Smethod==1   ? pre.removegrain(kernel,-1)
@@ -594,7 +594,7 @@ limit2 = edgemode==0 ? limit1
 
 ### SOFT
 sharpdiff = ex_makediff(tmp,limit2)
-sharpdiff = Expr(sharpdiff,sharpdiff.ex_boxblur(1,1),
+sharpdiff = Expr(sharpdiff,sharpdiff.ex_boxblur(1),
 \                    Format("x range_half - abs y range_half - abs > y {soft} * x 100 {soft} - * + 100 / x ?"))
 
 PP1 = soft==0 ? limit2 : ex_makediff(tmp,sharpdiff)
