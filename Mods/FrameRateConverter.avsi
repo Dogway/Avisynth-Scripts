@@ -295,8 +295,8 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
 ##
 function InterpolateDoubles(clip C, float "Thr", bool "Show", string "Preset", int "BlkSize", int "BlkSizeV", int "MaskThr", int "MaskOcc", int "SkipThr", int "BlendOver", int "SkipOver", bool "Stp", int "Dct", int "DctRe")
 {
-    Thr    = default(thr, .1)
-    Show   = default(Show, false)
+    Thr    = Default(thr, .1)
+    Show   = Default(Show, false)
 
     PrevC  = C.DeleteFrame(c.FrameCount()-1).DuplicateFrame(0)
     #NextC  = C.DuplicateFrame(C.FrameCount-1).DeleteFrame(0)
