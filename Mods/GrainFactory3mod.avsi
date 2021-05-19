@@ -21,7 +21,7 @@
 ######
 ###
 ### 2021.05.18
-###      - Removed < AviSynth+ r2724 support
+###      - Removed < AviSynth+ 3.5 support
 ###      - Replaced masktools2 with internal Expr() wrappers.
 ###
 ### 2020.04.06

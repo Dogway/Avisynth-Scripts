@@ -20,7 +20,7 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v2.193m: - Removed < AviSynth+ r2724 support
+### v2.193m: - Removed < AviSynth+ 3.5 support
 ###          - Replaced masktools2 with internal Expr() wrappers.
 ###          - Replaced UnsharpMask_avsi with faster UnsharpMask_HBD
 ###

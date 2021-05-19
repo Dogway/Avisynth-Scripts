@@ -9,7 +9,7 @@
 ###
 ### Pack of tools for grading and look tone adjustments.
 ###
-### Dependencies: AviSynth+ r2724+
+### Dependencies: AviSynth+ 3.5
 ###               ExTools.avsi
 ###               Utils-r41.avsi
 ###
