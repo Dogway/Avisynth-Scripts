@@ -3,11 +3,7 @@
 ### Resizers Functions Pack 4.5   by Dogway (21-09-2015)   #
 ### Resizers Functions Pack 4.6   by Dogway (06-03-2019)   #
 ### Resizers Functions Pack 4.7.1 by Dogway (01-04-2021)   # -> Finally fixed PadResize() (for real), added nnedi3 to RatioResize, added automatic dynamic cropping function: MatteCrop()
-### Resizers Functions Pack 4.7.4 by Dogway (05-04-2021)   # -> Updated MatteCrop()
-### Resizers Functions Pack 4.7.9 by Dogway (23-04-2021)   # -> Updated MatteCrop(), Ratioresize() and PadResize()
-### Resizers Functions Pack 4.8.0 by Dogway (25-04-2021)   # -> Updated MatteCrop()
-### Resizers Functions Pack 4.8.1 by Dogway (16-05-2021)   # -> Overall improvements
-### Resizers Functions Pack 4.8.2 by Dogway (18-05-2021)   # -> Cosmetics
+### Resizers Functions Pack 4.8.2 by Dogway (18-05-2021)   # -> Updated MatteCrop(), Ratioresize() and PadResize() and Overall improvements
 ###                                                        #
 ##########################################################
 ###
