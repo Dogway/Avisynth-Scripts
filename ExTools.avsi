@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b2  (18-05-2021)               ##
+###           ExTools v1.0b3  (19-05-2021)               ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###                                                      ##
@@ -216,9 +216,6 @@ function ex_edge(clip a, string "kernel", string "mode", int "str", int "thres",
 
     UV == 0 ? Expr(a, str)                            : \ 
               Expr(a, str, ex_UVchannel(a, str, UV)) }
-    ch = ex_UVchannel(a, str, UV)
-
-    Expr(a, str, ch) }
 
 
 # Use removegrain(1) as it's faster
