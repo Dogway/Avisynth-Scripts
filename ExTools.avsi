@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b5  (19-05-2021)               ##
+###           ExTools v1.0b6  (19-05-2021)               ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###                                                      ##
@@ -120,17 +120,18 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     UV    = Default(UV, 0)
     range = Default(tv_range, true)  # TV or PC. Luma range of your source
 
+    rngmax = range ? "ymax ymin -" : "range_max"
+    srcmax = range ? "ymin -"      : ""
+    rngTV  = range ? "ymin +"      : ""
 
-    rangePC  = range ? "ymin - ymax ymin - /" : "range_max /"
-    rangeTV  = range ? "ymax ymin - * ymin +" : "range_max *"
-
-    str = Format(                                                                                                           \
-        mode == "blend"        ? "x "+rangePC+" 1 {op} / ^ "+rangeTV+""                                                   : \
-        mode == "multiply"     ? "x ymin - A@ y ymin - * ymax ymin - / {op} * A 1 {op} - * + ymin + "                     : \
-        mode == "screen"       ? "1 1 x "+rangePC+" - - 1 y "+rangePC+" - * "+rangeTV+""                                  : \
-        mode == "linear dodge" ? "x "+rangePC+" {op} * y "+rangePC+" 1 {op} - * + "+rangeTV+""                            : \
-        mode == "add"          ? "x "+rangePC+" {op} * y "+rangePC+" 1 {op} - * + "+rangeTV+""                            : \
-        mode == "softlight"    ? "1 2 y "+rangePC+" A@ * - x "+rangePC+" B@ 2 ^ * 2 B A * * + "+rangeTV+""                : \
+    str = Format(                                                                                                                                                      \
+        mode == "blend"        ? "x 1 {op} - * y {op} * +"                                                                                                           : \
+        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A 1 {op} - * + "+rngTV+""                                                       : \
+        mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" 1 {op} - * + "+rngTV+""                                : \
+        mode == "lighten"      ? "x 1 {op} - * x y max {op} * + "                                                                                                    : \
+        mode == "linear dodge" ? "x "+srcmax+" A@ 1 {op} - * A y "+srcmax+" + {op} * + "+rngTV+""                                                                    : \
+        mode == "add"          ? "x "+srcmax+" A@ 1 {op} - * A y "+srcmax+" + {op} * + "+rngTV+""                                                                    : \
+        mode == "softlight"    ? "x "+srcmax+" B@ 1 {op} - * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+rngTV+"" : \
                                  Assert (false, "Unsupported Blend Mode.") )
 
     UV == 0 ? Expr(a, b, str)                                                : \
@@ -139,8 +140,13 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 
 
 
-## Convolutions
-# Convolutions kernels have 3 aspects; kernel size, kernel shape, and weight. Only kernel size is fixed in for the moment until I code a string recursion function.
+
+
+##################
+## CONVOLUTIONS ##
+##################
+
+# Convolutions kernels have 3 aspects; kernel size, kernel shape, and weight. Only kernel size is fixed in* for the moment until I code a string recursion function.
 # * Note: radius isn't making the kernel bigger, but further apart, test results before using rad > 1
 
 # Similar but faster than: removegrain(19), blur(1.58) or mt_convolution("1 1 1","1 1 1")
