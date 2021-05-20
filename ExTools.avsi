@@ -1,9 +1,10 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b6  (19-05-2021)               ##
+###           ExTools v1.0b7  (20-05-2021)               ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
+###      https://forum.doom9.org/showthread.php?t=182881 ##
 ###                                                      ##
 ###########################################################
 ###
@@ -18,6 +19,7 @@
 ### 3:   process
 ### 4:   copy second
 ### 128: range_half
+### x:   custom value in 8-bit (bitdepth autoscaled)
 ###
 ###
 ### Dependencies: AviSynth+ 3.5+
@@ -48,6 +50,26 @@ function ex_adddiff(clip a, clip b, int "UV") {
               Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
+# WIP fix or and andn
+function ex_logic(clip a, clip b, string "mode", int "UV") {
+
+    mode = Default(mode, "and")
+    UV   = Default(UV, isy(a) ? 0 : 1)
+
+    str = Format(              \
+        mode == "and"   ? "x y * range_max /" : \
+        mode == "or"    ? "x y / range_max *" : \
+        mode == "xor"   ? "x y - abs"         : \
+        mode == "andn"  ? "x y + range_max /" : \
+        mode == "min"   ? "x y min"           : \
+        mode == "max"   ? "x y max"           : \
+                          Assert (false, "Unsupported Blend Mode.") )
+
+    UV == 0 ? Expr(a, b, str)                                                : \
+              Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
+
+
+#fix ex_merge with luma=true in 32bit
 function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
 
     UV = Default(UV, isy(a) ? 0 : 1)
@@ -112,26 +134,26 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV") {
               Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-
+# todo: process chroma (preconvert to RGB?)
 function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool "tv_range") {
 
     mode  = Default(mode, "blend")
     op    = Default(opacity, 1.0)
     UV    = Default(UV, 0)
-    range = Default(tv_range, true)  # TV or PC. Luma range of your source
+    range = Default(tv_range, !isRGB(a))  # TV or PC. Luma range of your source
 
     rngmax = range ? "ymax ymin -" : "range_max"
     srcmax = range ? "ymin -"      : ""
-    rngTV  = range ? "ymin +"      : ""
+    pdstl  = range ? "ymin +"      : ""
 
     str = Format(                                                                                                                                                      \
         mode == "blend"        ? "x 1 {op} - * y {op} * +"                                                                                                           : \
-        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A 1 {op} - * + "+rngTV+""                                                       : \
-        mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" 1 {op} - * + "+rngTV+""                                : \
+        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A 1 {op} - * + "+pdstl+""                                                       : \
+        mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" 1 {op} - * + "+pdstl+""                                : \
         mode == "lighten"      ? "x 1 {op} - * x y max {op} * + "                                                                                                    : \
-        mode == "linear dodge" ? "x "+srcmax+" A@ 1 {op} - * A y "+srcmax+" + {op} * + "+rngTV+""                                                                    : \
-        mode == "add"          ? "x "+srcmax+" A@ 1 {op} - * A y "+srcmax+" + {op} * + "+rngTV+""                                                                    : \
-        mode == "softlight"    ? "x "+srcmax+" B@ 1 {op} - * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+rngTV+"" : \
+        mode == "linear dodge" ? "x "+srcmax+" A@ 1 {op} - * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
+        mode == "add"          ? "x "+srcmax+" A@ 1 {op} - * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
+        mode == "softlight"    ? "x "+srcmax+" B@ 1 {op} - * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+pdstl+"" : \
                                  Assert (false, "Unsupported Blend Mode.") )
 
     UV == 0 ? Expr(a, b, str)                                                : \
@@ -142,9 +164,9 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 
 
 
-##################
-## CONVOLUTIONS ##
-##################
+######################
+##   CONVOLUTIONS   ##
+######################
 
 # Convolutions kernels have 3 aspects; kernel size, kernel shape, and weight. Only kernel size is fixed in* for the moment until I code a string recursion function.
 # * Note: radius isn't making the kernel bigger, but further apart, test results before using rad > 1
@@ -177,7 +199,7 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
 
     str = Format( \
-                  mode == "cross"             ? "x[0,0] x[0,-{rd}] max x[0,{rd}] max x[-{rd},0] max x[{rd},0] max A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                         : \
+                  mode == "both"              ? "x[0,0] x[0,-{rd}] max x[0,{rd}] max x[-{rd},0] max x[{rd},0] max A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                         : \
                   mode == "square"            ? "x[0,0] x[-{rd},{rd}] max x[0,{rd}] max x[{rd},{rd}] max x[-{rd},0] max x[{rd},0] max x[-{rd},-{rd}] max x[0,-{rd}] max x[{rd},-{rd}] max"                        \
                                               +" A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                                                                                          : \
                   mode == "circle" && rd == 1 ? "x[0,0] x[0,1] max x[-1,0] max x[1,0] max x[0,-1] max A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                                     : \
@@ -197,7 +219,7 @@ function ex_inpand(clip a, string "mode", int "thres", int "UV") {
     UV   = Default(UV, 0)
 
 
-    str = mode == "cross"  ? Format("x[0,0] x[0,-1] min x[0,1] min x[-1,0] min x[1,0] min A@ x[0,0] - abs {thr} scaleb > x[0,0] {thr} scaleb - A ?") : \
+    str = mode == "both"   ? Format("x[0,0] x[0,-1] min x[0,1] min x[-1,0] min x[1,0] min A@ x[0,0] - abs {thr} scaleb > x[0,0] {thr} scaleb - A ?") : \
           mode == "square" ? Format("x[0,0] x[-1,1] min x[0,1] min x[1,1] min x[-1,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min"             \
                                  +" A@ x[0,0] - abs {thr} scaleb > x[0,0] {thr} scaleb - A ?")                                                       : \
                                  Assert (false, "Unsupported Mode.")
@@ -248,7 +270,7 @@ function ex_undot(clip a, int "radius", int "UV") {
 
 
 
-# HELPER Chroma Function
+######### HELPER FUNCTIONS #########
 
 function ex_UVexpr(clip a, string str, int "UV") {
 
