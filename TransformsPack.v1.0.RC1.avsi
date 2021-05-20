@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC5  (16-05-2021)            ##
+###    Transforms Pack v1.0 RC6  (20-05-2021)            ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -235,7 +235,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     c          = Default (c, 0.75) # Precise Bicubic
     p          = Default (p, 0.25)
 
-    Assert(AvsPlusVersionNumber > 2724, "Update Avisynth+ version")
+    Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
 
     coef = Matrix_coef(matrix)
 
@@ -299,7 +299,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     c          = Default (c, 0.25) # Didée's Bicubic
     p          = Default (p, 0.25)
 
-    Assert(AvsPlusVersionNumber > 2724, "Update Avisynth+ version")
+    Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
 
     w =  width(rgb)
     h = height(rgb)
@@ -587,8 +587,11 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     tv_range    = Default (tv_range,  !isRGB(c) )
 
     matrix = Matrix_fuzzy_search (matrix)
-
-    IsRGB(c) ? ConvertToPlanarRGB(c) : \
+	
+	RGBsrc = IsRGB(c)
+	RGBpln = RGBsrc ? IsPlanar(c) : false
+	
+    RGBsrc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
     YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
 
 
@@ -614,6 +617,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     Expr(last,string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
     XYZ_to_RGB(matrix)
 
+    RGBsrc ? RGBpln : last : MatchColorFormat(c) : \
     RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c)) }
 
 
