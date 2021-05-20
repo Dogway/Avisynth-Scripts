@@ -50,7 +50,7 @@ themask = interleave(BlankClip( source, Color_yuv=$000000 ),trim(BWMask,1,0))
 #(i.e., original frames are used except at jump points)
 
 
-ex_merge(interleave(source,source),double,themask)
+ex_merge(interleave(source,source),double,themask,luma=true,UV=3)
 #mt_merge(double,themask,luma=true,U=3,V=3)
 
 #Decimate
