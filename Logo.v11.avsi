@@ -1,5 +1,5 @@
 ###
-### Logo 11.1  (http://doom10.org/index.php?topic=2181.0)
+### Logo 11.1  (https://forum.doom9.org/showthread.php?t=182881)
 ###
 ###  (18-05-2021) By Dogway
 ###

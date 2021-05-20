@@ -1,7 +1,7 @@
 ###
-### Logo v11.0  (http://doom10.org/index.php?topic=2181.0)
+### Logo v11.1  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (13-05-2020)
+###  (18-05-2020)
 ###
 ### By Dogway with help from Gavino and Didée   (http://forum.doom9.org/showthread.php?t=160285)
 ### Blending Modes adapted from:Blend_MT_alpha3 (http://forum.doom9.org/showthread.php?p=1400434#post1400434)
@@ -19,8 +19,7 @@
 ###-Report bugs or errors if you find any not listed here.
 ###
 ### Dependencies:
-###    Avisynth+
-###    MaskTools2: http://forum.doom9.org/showthread.php?t=98985
+###    AviSynth+ 3.5+
 ###
 ### Todo / Known bugs: 
 ###   -Add YUY2 and interlaced support
@@ -37,6 +36,8 @@
 ###   -Better matte workaround
 ###
 ### Changelog:
+###
+### 11.1 -Updated to ExTools wrappers, including convolutions
 ###
 ### 11.0 -Updated to internal Expr() (faster and HBD support)
 ###      -Replaced resizers to Bicubic (faster without quality loss)
