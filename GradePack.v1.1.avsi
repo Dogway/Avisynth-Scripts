@@ -2,7 +2,9 @@
 ###                                                      ##
 ###                                                      ##
 ###           Grade Pack v1.1  (18-05-2021)              ##
+###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
+###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###########################################################
@@ -10,7 +12,7 @@
 ### Pack of tools for grading and look tone adjustments.
 ###
 ### Dependencies: AviSynth+ 3.5
-###               ExTools.avsi
+###               ExTools
 ###               Utils-r41.avsi
 ###
 ###
