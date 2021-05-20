@@ -2,12 +2,15 @@
 ###                                                      ##
 ###                                                      ##
 ###    Transforms Pack v1.0 RC5  (16-05-2021)            ##
-###  (https://forum.doom9.org/showthread.php?t=182825)   ##
+###                                                      ##
+###   https://forum.doom9.org/showthread.php?t=182825    ##
+###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
+###                                                      ##
 ###########################################################
 ###
-### Pack of tools for proper color managing Avisynth+.
+### Pack of tools for proper color managing AviSynth+.
 ### From function transforms like performant piecewise gamma functions,
 ### to color gamut converters and a list of building block functions
 ### for matrix operations.
