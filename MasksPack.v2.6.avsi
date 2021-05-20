@@ -1,9 +1,9 @@
 ###                                                            ##
 ###                                                            ##
-###                     2.4           (15-04-2015)             ##
-### Mask functions Pack 2.6 By Dogway (18-05-2021)             ## Updated BoxMask and LumaMask to internal functions (faster and HBD support)
+###                     2.4            (15-04-2015)            ##
+### Mask functions Pack 2.62 By Dogway (20-05-2021)            ## Updated BoxMask() and LumaMask() to internal functions (faster and HBD support)
 ###                                                            ##
-### (http://forum.videohelp.com/threads/369143?#post2364052)   ##
+### https://forum.doom9.org/showthread.php?t=182881            ##
 ###                                                            ##
 #################################################################
 
@@ -106,7 +106,6 @@ show ? msk : mt_merge(filtered,raw,msk,luma=true, y=3, u=3, v=3)}
 ###
 ### Function by Didée, adapted by Dogway:
 ### http://forum.doom9.org/showpost.php?p=761786&postcount=3
-### http://forum.doom9.org/showthread.php?t=158954
 ###
 ###
 ### Mixes 2 versions of a source by a mask defined by luminosity (Luma Plane)
@@ -135,11 +134,6 @@ show ? msk : mt_merge(filtered,raw,msk,luma=true, y=3, u=3, v=3)}
 ### upper [default: false]
 ### -------------------
 ### Inverts the mask. By default filtered clip will be passed through the white parts of the mask.
-###
-###
-### lsb [default: false]
-### -------------------
-### The whole process is performed in high bitdepth
 ###
 ###
 ### smooth [default: false]
