@@ -1,12 +1,12 @@
 ##################################################
 ###                                            ###
-###              GrainFactoryLite              ###
+###              GrainFactory3mod              ###
 ###                                            ###
 ###      by 06_taro - astrataro@gmail.com      ###
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
-###               2020.04.06 mod               ###
-###               2021.05.18 mod by Dogway     ###
+###               2020.04.06   by A.SONY.      ###
+###               2021.05.20   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
@@ -19,6 +19,9 @@
 ### |  CHANGELOG  |
 ### +-------------+
 ######
+###
+### 2021.05.20
+###      - Cosmetics
 ###
 ### 2021.05.18
 ###      - Removed < AviSynth+ 3.5 support
@@ -61,9 +64,10 @@
 ### -> RemoveGrain      [v1.0pre]
 ### -> MaskTools2       [v2.0a48]
 ### -> f3kdb             [v1.5.0]
+### -> ExTools
 ###
 
-function GrainFactory3(clip clp,
+function GrainFactory3mod(clip clp,
  \                        float "g1str",   float "g2str",   float "g3str",
  \                        float "g1cstr",  float "g2cstr",  float "g3cstr",
  \                        int   "g1shrp",  int   "g2shrp",  int   "g3shrp",
