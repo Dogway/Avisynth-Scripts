@@ -1,14 +1,24 @@
-###                                                      #
-###                                                      #
-### Stabilization Tools Pack 2.1 by Dogway (16-09-2015)  #
-###                  mod 2.52 by A.SONY in (18-09-2020)  #
-###                  mod 3.0b by Dogway in (18-05-2021)  # Updated Stab() and FillBorder()
-###                                                      #
+###                                                        #
+###                                                        #
+###                          2.1   by Dogway  (16-09-2015) #
+###                      mod 2.533 by A.SONY  (29-11-2020) #
+### Stabilization Tools Pack 3.0b2 by Dogway  (20-05-2021) # Updated Stab() and FillBorder()
+###                                                        #
+###   https://forum.doom9.org/showthread.php?t=182881      #
+###                                                        #
+############################################################
+###
+###
+### Set of tools to work with common stabilization issues, mainly from telecine process.
+### For aggressive handheld camera shaking I still recommend vdub's Deshaker.
+###
+### Required: AviSynth+ 3.5+
+###           ExTools
+###
+###
 ##########################################################
 ###
 ### FilmGateFix()
-###
-###  (http://forum.videohelp.com/threads/371336)
 ###
 ### Function to fix frames ( by means of FreezeFrame() ) with film gate issues after a scene change.
 ### This is aimed at animation, for live footage frame interpolation should be desired.
@@ -77,7 +87,6 @@ R    = crop(((w-add)/8)*8,0,0,0, true)
 CTB  = crop(0,((add)/8)*8,0,-((add)/8)*8,true)
 CLR  = crop(round(((add*1.5)/8)*8),0,round(-((add*1.5)/8)*8),0,true)
 
-# change with Expr()
 SC2  = mt_logic(SceneChange,selectevery(SceneChange,1,-1),"max",U=3,V=3)
 
 # Here, if after SC top area changes more than "thr" compared to bottom area
@@ -115,7 +124,6 @@ eval("""stackhorizontal(scriptclip("Subtitle(c,"+Chr(34)+" Top & Bottom:"+Chr(34
 ###
 ### FillBorder()
 ###
-###  (http://forum.videohelp.com/threads/371336)
 ###
 ### Function to fill dark (use threshold) borders, in the vein of old FillMargins() function.
 ### But instead of mirroring or other approaches like resizing, this function fills/interpolates
@@ -161,11 +169,9 @@ mskonly  = Default(maskonly, false) # Show the border mask
 subsampl = Default(subsample,false)
                                 # FillBordersc, replacement clip, even for 1 or 2 pixel borders
 
-sisphbd = AvsPlusVersionNumber > 2294
-
 c
-contoy = sisphbd ? !isy() : !isy8()
-contoy ? sisphbd ? converttoy() : converttoy8() : last
+contoy = !isy()
+contoy ? converttoy() : last
 yclip=last
 w=width()
 h=height()
@@ -231,10 +237,9 @@ x2inp=cropnpad && subsampl ? round(x2o/2.0)*2 : x2
 y1inp=cropnpad && subsampl ? round(y1o/2.0)*2 : y1
 y2inp=cropnpad && subsampl ? round(y2o/2.0)*2 : y2
 
-PaCl = mskonly ? nop() : mirror && !ter ? c.crop(x1inp,y1inp,-x2inp,-y2inp,align=true)._Padding(x1inp,y1inp,x2inp,y2inp) : c
 
+PaCl = mskonly ? nop() : mirror && !ter ? c.crop(x1inp,y1inp,-x2inp,-y2inp,true).sh_Padding(x1inp,y1inp,x2inp,y2inp) : c
 
-#msk  = Boxmask(last,x1,w-x2,y1,h-y2,upper=false,show=false)
 msk  = LetterBox(BlankClip(last,1,pixel_type="Y8",color_yuv=$ffffff),y1,y2,x1,x2,color_yuv=$000000).killaudio()
 msk  = !mirror ?         msk.expr("x range_half > range_max x ?")            : msk
 msk  = !mirror && blur ? msk.ex_boxblur(2)                                   : msk
@@ -249,7 +254,7 @@ fill = mskonly ? msk : FalPos ? trim(c,0,current_frame-1)++trim(FixFalPos,curren
 debug ? ter ? subtitle(msk,"Bordered",align=3,size=round(h/20.0)) : msk : fill
 
 
-""",args="yclip,c,w,h,sisphbd,contoy,thr,thr2,L4,R4,T4,B4,pad,blur,debug,FalPos,FixFalPos,mirror,subsampl,PAR,mskonly,FillBordersc",local=true)
+""",args="yclip,c,w,h,contoy,thr,thr2,L4,R4,T4,B4,pad,blur,debug,FalPos,FixFalPos,mirror,subsampl,PAR,mskonly,FillBordersc",local=true)
 
 !debug ? Fill : \
 eval("""
@@ -268,7 +273,6 @@ eval("""
 ###
 ### FindBlackBorders()
 ###
-###  (http://forum.videohelp.com/threads/371336)
 ###
 ### Script to find sources with black borders for example as a result of bad deshaking, run on analysis pass
 ### The output file is formatted to be imported to avspmod as bookmarks
@@ -331,7 +335,6 @@ ditherpost(mode=-1) }
 ###
 ### Stab() v4.0
 ###
-###  (http://forum.videohelp.com/threads/371336)
 ###
 ### For completeness I'm going to list all the shortcomings of Depan plugin
 ### maybe a programmer realises the urge of an avisynth bug-free stabilizer:
