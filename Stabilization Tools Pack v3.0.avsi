@@ -2,7 +2,7 @@
 ###                                                        #
 ###                          2.1   by Dogway  (16-09-2015) #
 ###                      mod 2.533 by A.SONY  (29-11-2020) #
-### Stabilization Tools Pack 3.0b2 by Dogway  (20-05-2021) # Updated Stab() and FillBorder()
+### Stabilization Tools Pack 3.0b3 by Dogway  (20-05-2021) # Updated Stab() and FillBorder()
 ###                                                        #
 ###   https://forum.doom9.org/showthread.php?t=182881      #
 ###                                                        #
@@ -61,7 +61,7 @@ w=width()
 h=height()
 
 # change with StainlessS SceneSC()
-# Block for Scene Change detection and Motion Mask
+# Codeblock for Scene Change detection and Motion Mask
 kind   = 0
 gam    = 1.2 # Could probably be exposed
 mvthr  = 30  # Threshold, heavily dependent on gamma value above
@@ -266,7 +266,7 @@ eval("""
 
  horiz  = stackhorizontal(corner,corner.fliphorizontal())
  verti  = stackvertical(horiz,horiz.flipvertical())
- ex_merge(c,Fill.PointResize(w,h),verti)""") }
+ ex_merge(c,Fill.PointResize(w,h),verti,luma=true)""") }
 
 
 ####################################
