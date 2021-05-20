@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b7  (20-05-2021)               ##
+###           ExTools v1.0b8  (20-05-2021)               ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -50,19 +50,18 @@ function ex_adddiff(clip a, clip b, int "UV") {
               Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# WIP fix or and andn
 function ex_logic(clip a, clip b, string "mode", int "UV") {
 
     mode = Default(mode, "and")
     UV   = Default(UV, isy(a) ? 0 : 1)
 
-    str = Format(              \
-        mode == "and"   ? "x y * range_max /" : \
-        mode == "or"    ? "x y / range_max *" : \
-        mode == "xor"   ? "x y - abs"         : \
-        mode == "andn"  ? "x y + range_max /" : \
-        mode == "min"   ? "x y min"           : \
-        mode == "max"   ? "x y max"           : \
+    str = Format(                                            \
+        mode == "and"   ? "x y * range_max /"              : \
+        mode == "or"    ? "x y + range_min range_max clip" : \
+        mode == "xor"   ? "x y - abs"                      : \
+        mode == "andn"  ? "range_max x - y * range_max /"  : \
+        mode == "min"   ? "x y min"                        : \
+        mode == "max"   ? "x y max"                        : \
                           Assert (false, "Unsupported Blend Mode.") )
 
     UV == 0 ? Expr(a, b, str)                                                : \
@@ -241,8 +240,8 @@ function ex_edge(clip a, string "kernel", string "mode", int "str", int "thres",
     str = Format(                                                                                                                                                                                                \
           kernel=="prewitt" ? "x[-1,0] x[-1,1] + x[1,1] - x[1,0] - x[1,-1] - x[-1,-1] + 2 ^ "                                                                                                                    \
                              +"x[-1,1] x[0,1] + x[1,1] + x[1,-1] - x[0,-1] - x[-1,-1] - 2 ^ * sqrt"                                                                                                            : \
-          kernel=="sobel"   ? "x[-1,0] 2 * x[-1,1] x[1,1] x[1,0] 2 * x[1,-1] x[-1,-1] + - - - + 2 ^ "                                                                                                            \
-                             +"x[-1,0] x[-1,1] x[0,1] 2 * x[1,1] x[1,-1] x[0,-1] 2 * x[-1,-1] + + + - - - 2 ^ * sqrt"                                                                                          : \
+          kernel=="sobel"   ? "x[-1,0] 2 * x[-1,1] + x[1,1] - x[1,0] 2 * - x[1,-1] - x[-1,-1] + 2 ^ "                                                                                                            \
+                             +"x[-1,0] x[-1,1] + x[0,1] 2 * + x[1,1] + x[1,-1] - x[0,-1] 2 * - x[-1,-1] - 2 ^ * sqrt"                                                                                          : \
           kernel=="LoG"     ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * -"                                : \
           kernel=="DoG"     ? "x[0,0] 2 * x[0,1] x[-1,0] x[1,0] x[0,-1] + + + + 6 / A@ x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] x[0,0] 4 * "  \
                              +"+ + + + + + + + + + + + 20 / B@ - abs {thres} scaleb > A B - {str} * A ?"                                                                                                       : \
