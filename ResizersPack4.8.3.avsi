@@ -233,9 +233,7 @@ c
     mirror = Default(mirror, false)
     mod    = Default(mod, 2)
 
- sisphbd = AvsPlusVersionNumber > 2294
- contoy  = sisphbd ? !isy() : !isy8()
- fullchr = contoy ? sisphbd ? isRGB(c) || ExtractU().width() == w : UToY8().width() == w : true
+ fullchr = isy() ? true : isRGB(c) || ExtractU().width() == w
 
  X = width_dst-w
  Y = height_dst-h
