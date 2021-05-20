@@ -1,13 +1,17 @@
-###                                                        #
-###                                                        #
-### Resizers Functions Pack 4.5   by Dogway (21-09-2015)   #
-### Resizers Functions Pack 4.6   by Dogway (06-03-2019)   #
-### Resizers Functions Pack 4.7.1 by Dogway (01-04-2021)   # -> Finally fixed PadResize() (for real), added nnedi3 to RatioResize, added automatic dynamic cropping function: MatteCrop()
-### Resizers Functions Pack 4.8.2 by Dogway (18-05-2021)   # -> Updated MatteCrop(), Ratioresize() and PadResize() and Overall improvements
-###                                                        #
-##########################################################
+###                                                 ##
+###                                                 ##
+###                           4.5    (21-09-2015)   ##
+###                           4.6    (06-03-2019)   ##
+###                           4.7.1  (01-04-2021)   ## -> Finally fixed PadResize() (for real), added nnedi3 to RatioResize, added automatic dynamic cropping function: MatteCrop()
+###   Resizers Functions Pack 4.8.3  (20-05-2021)   ## -> Updated MatteCrop(), Ratioresize() and PadResize() and Overall improvements
+###                                                 ##
+###                      by Dogway (Jose Linares)   ##
+###                                                 ##
+### https://forum.doom9.org/showthread.php?t=182881 ##
+###                                                 ##
+######################################################
 ###
-### http://forum.videohelp.com/threads/369143
+### LinearResize()
 ###
 ### High Quality Resizer based totally on the Dither tools by cretindesalpes.
 ###             (http://forum.doom9.org/showthread.php?p=1386559#post1386559)
@@ -127,6 +131,9 @@ b = mup || rgba    ?        SelectEvery (3, 2)                                  
 
 
 ##############################
+###
+### RatioResize()
+###
 ### Resizer based on different ratios, like DAR, PAR, percentage, etc.
 ### More like a useful resize calculator than a resizer per se.
 ### The Mode parameter accepts the next ones (in quotes):
@@ -204,6 +211,9 @@ kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c)") : \
 }
 
 ##############################
+###
+### PadResize()
+###
 ### Write target size and image will crop or pad...
 ### depending on source dimensions by adding black borders or a mirror border.
 ###
@@ -266,6 +276,8 @@ crop(hsl+bw2,vst+bh2,-hsr-bw1,-vsb-bh1,true) }
 
 ##############################
 ###
+### PadMirror()
+###
 ### Similar to addborders() but instead of a fixed color
 ### the clip borders are extended in a mirror way.
 ###
@@ -297,6 +309,9 @@ rgh=(r  > 0) ? crop(width()-r,0,0,0,true).fliphorizontal()  : last
 
 
 ##############################
+###
+### MatteCrop()
+###
 ### https://forum.doom9.org/showthread.php?t=182678
 ###
 ### Automatic cropping and/or centering function.
