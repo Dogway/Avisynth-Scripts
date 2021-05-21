@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC6  (20-05-2021)            ##
+###    Transforms Pack v1.0 RC7  (21-05-2021)            ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -27,9 +27,11 @@
 
 function ColorSpace (clip clp, string "source", string "target", bool "gamut", bool "gamma", bool "tv_range_in", bool "tv_range_out") {
 
+    isRGBsrc    = isRGB(clp)
+
     gamut       = Default (gamut, true)           # convert gamut
     gamma       = Default (gamma, true)           # convert gamma
-    tv_range_in = Default (tv_range_in,  !isRGB(clp) )
+    tv_range_in = Default (tv_range_in,  !isRGBsrc )
     tv_range_out= Default (tv_range_out, tv_range_in )
 
     src = Matrix_fuzzy_search (source)
@@ -51,7 +53,7 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
 \   : (src == "DCI-P3"    ) ? 7
 \   : (src == "ACEScg"    ) ? 8
 \   : (src == "ACES2065"  ) ? 8
-\   : Assert (false, "Unsupported Color Space.")
+\   : Assert (false, "Unsupported source Color Space.")
 
     t_num =
 \     (tgt == "sRGB"      ) ? 0
@@ -69,7 +71,7 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
 \   : (tgt == "DCI-P3"    ) ? 7
 \   : (tgt == "ACEScg"    ) ? 8
 \   : (tgt == "ACES2065"  ) ? 8
-\   : Assert (false, "Unsupported Color Space.")
+\   : Assert (false, "Unsupported target Color Space.")
 
     bdpth = BitsPerComponent(clp) > 10 ? 0.09929682680944 : 0.099
 
@@ -82,10 +84,9 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
     t_off   = Select (t_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,    0      ,   0     ,      0   )
     t_gamma = Select (t_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,    2.1992 ,   2.60  ,      1.0 )
 
-
     clp
 
-    IsRGB(clp) ? ConvertToPlanarRGB(src) : \
+    isRGBsrc ? ConvertToPlanarRGB(src) : \
     YUV_to_RGB(src, tv_range_in=tv_range_in, kernel="Point")
 
     moncurve_f(s_gamma, s_off, false)
@@ -97,7 +98,7 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
 
     t_num==9 ? last : gamma ? moncurve_r(t_gamma, t_off, false) : !gamma && gamut ? moncurve_r(s_gamma, s_off, false) : last
 
-    IsRGB(clp) ? last : \
+    isRGBsrc ? last : \
     RGB_to_YUV( tgt, tv_range_out=tv_range_out, kernel="Point", pixel_type=PixelType(clp)) }
 
 
@@ -153,19 +154,20 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 \   : Assert (false, "Unsupported Color Space.")
 
 
-    bdpth = BitsPerComponent(clp) > 10 ? 0.09929682680944 : 0.099
+    bdpth  = BitsPerComponent(clp)
+    bd2020 = bdpth > 10 ? 0.09929682680944 : 0.099
 
     #                                  SMPTE-C     Y’PbPr 601  PAL/SECAM BT-2020    Rec.709    AdobeRGB     DCI-P3   AP1/AP0
     #                         sRGB     SMPTE 170M  SMPTE 240M  BT-470BG  BT-2020    BT-1886    AdobeRGB     DCI-P3      ACES
     t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,      6504,   6504   ,      6504 ,   6305  ,     6000 )
-    s_off   = Select (s_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,    0      ,   0     ,      0   )
+    s_off   = Select (s_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,    bd2020,   0      ,    0      ,   0     ,      0   )
     s_gamma = Select (s_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,    2.1992 ,   2.60  ,      1.0 )
 
-    t_off   = Select (t_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,    0      ,   0     ,      0   )
+    t_off   = Select (t_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,    bd2020,   0      ,    0      ,   0     ,      0   )
     t_gamma = Select (t_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,    2.1992 ,   2.60  ,      1.0 )
 
 
-    clp.ConvertBits(16)
+    bdpth < 32 ? clp.ConvertBits(16) : clp
 
     IsRGB(clp) ? ConvertToPlanarRGB(src) : \
     YUV_to_RGB(src, tv_range_in=tv_range, kernel=kernel, b=b, c=c, p=p)
@@ -223,7 +225,7 @@ function Matrix_fuzzy_search (string matrix) {
 
 
 
-
+# YCbCr to RGB function
 function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_range_out", string "kernel", string "cplace", float "b", float "c", float "p") {
 
     matrix     = Default (matrix, "709")
@@ -286,7 +288,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     tv_out ? Expr("x ymin ymax clip") : last}
 
 
-
+# RGB to YCbCr function
 function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_range_out", string "pixel_type", string "kernel", string "cplace", float "b", float "c", float "p") {
 
     matrix     = Default (matrix, "709")
@@ -366,7 +368,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
 
     CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type=p_type)
 
-    # Limiting (clipping) for color excursions when gamut mapping
+    # Limiting (clipping) chroma for color excursions when gamut mapping
     Limiter(min_luma=0, max_luma=255, paramscale=true) }
 
 
@@ -526,13 +528,12 @@ function RGB_to_IPT (clip rgb, bool "IPT", string "matrix", bool "tv_range_in", 
 
 }
 
-# NTSC and PAL YCbCr share the same coefficients defined in the link below, and derived from the old NTSC 1953 standard.
+# NTSC and PAL YCbCr share the same coefficients defined in the link below, and derived from the old SMPTE 470M (NTSC 1953) standard.
 # https://poynton.ca/PDFs/coloureq.pdf - 10.4
 function Matrix_coef (string matrix) {
 
     matrix = Matrix_fuzzy_search (matrix)
 
-    # Rec601 (SMPTE 170M) kept the YUV<->RGB coefficients from SMPTE 470M (NTSC 1953)
     mat_i =
 \     (matrix == "srgb"      ) ? 1
 \   : (matrix == "Rec601"    ) ? 0
@@ -576,49 +577,6 @@ function Matrix_coef (string matrix) {
     kg = 1. - kb - kr
 
     [kr, kg, kb] }
-
-
-
-
-function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range") {
-
-    temp        = Default (temperature, 6504)  # Target temperature in Kelvin (Default: D65 == nop())
-    matrix      = Default (matrix, "sRGB")
-    tv_range    = Default (tv_range,  !isRGB(c) )
-
-    matrix = Matrix_fuzzy_search (matrix)
-	
-	RGBsrc = IsRGB(c)
-	RGBpln = RGBsrc ? IsPlanar(c) : false
-	
-    RGBsrc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
-    YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
-
-
-    temp3 = 1000.       / temp
-    temp6 = 1000000.    / pow(temp, 2.)
-    temp9 = 1000000000. / pow(temp, 3.)
-
-    wpx = (temp <= 7000.) ? 0.244063 + 0.09911 * temp3 + 2.9678 * temp6 - 4.6070 * temp9 : \
-                            0.237040 + 0.24748 * temp3 + 1.9018 * temp6 - 2.0064 * temp9
-
-    wpy = -3. * pow(wpx,2.) + 2.870 * wpx - 0.275
-    wpz = 1. - wpx - wpy
-
-    CAT02 = [0.7328,  0.4296, -0.1624, \
-            -0.70360, 1.6975,  0.0061, \
-             0.003,  -0.0136,  0.9834]
-
-    fw1       = MatrixDot([wpx/wpy,1.,wpz/wpy] ,CAT02)
-    fw2       = MatrixDot([0.95045,1.,1.088917],CAT02)
-    fw_trans  = MatrixDiv(fw1,fw2)
-
-    RGB_to_XYZ(matrix)
-    Expr(last,string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
-    XYZ_to_RGB(matrix)
-
-    RGBsrc ? RGBpln : last : MatchColorFormat(c) : \
-    RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c)) }
 
 
 
