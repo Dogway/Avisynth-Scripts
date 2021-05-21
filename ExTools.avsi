@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b9  (21-05-2021)               ##
+###           ExTools v1.0b10  (21-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -61,7 +61,7 @@ function ex_logic(clip a, clip b, string "mode", int "UV") {
         mode == "andn"  ? "range_max x - y * range_max /"  : \
         mode == "min"   ? "x y min"                        : \
         mode == "max"   ? "x y max"                        : \
-                          Assert (false, "Unsupported Blend Mode.") )
+                          Assert (false, "Unsupported Mode.") )
 
     UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                          : \
                        Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
@@ -90,7 +90,7 @@ function ex_clamp(clip a, clip lo, clip hi, int "UV") {
 
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
-    str = Format(" x z < z x y > y x ? ?")
+    str = Format("x z < z x y > y x ? ?")
 
     UV == 1 ? isy(a) ? Expr(a, lo, hi, str) : Expr(a, lo, hi, str, "")                     : \
                        Expr(a, lo, hi, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
@@ -304,11 +304,11 @@ function ex_undot(clip a, int "radius", int "UV") {
 
 function ex_UVexpr(clip a, string str, int "UV") {
 
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, 1)
 
     bd = BitsPerComponent(a) == 32 ? 0.5 : 0
 
-    str = ReplaceStr(str, "ymax", "cmax")
+    str = isRGB(a) ? str : strReplaceStr(str, "ymax", "cmax")
 
     # Undefined "0" is the same as "" (when not single planed)
     str = UV == 1   ? ""          : \
