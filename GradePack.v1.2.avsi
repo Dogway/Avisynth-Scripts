@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.1  (18-05-2021)              ##
+###           Grade Pack v1.2  (21-05-2021)              ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -9,7 +9,7 @@
 ###                             by Dogway (Jose Linares) ##
 ###########################################################
 ###
-### Pack of tools for grading and look tone adjustments.
+### Look transforms pack for grading and look tone adjustments.
 ###
 ### Dependencies: AviSynth+ 3.5
 ###               ExTools
@@ -231,3 +231,129 @@ function Vignette (clip c, float "Vignette", bool "show") {
 
     # this is multiply blend mode
     show ? msk : Expr(msk,c,"x y * range_max / ", "y", "y") }
+
+
+
+function greyscale_rgb (clip rgb, string "matrix") {
+
+    Assert(isRGB(rgb) == true, "Only works on RGB.")
+
+    matrix = Default (matrix, "sRGB")
+    matrix = Matrix_fuzzy_search(matrix)
+
+    t_num =
+\     (matrix == "sRGB"      ) ? 0
+\   : (matrix == "jpeg"      ) ? 0
+\   : (matrix == "jpg"       ) ? 0
+\   : (matrix == "Rec601"    ) ? 1
+\   : (matrix == "240M"      ) ? 2
+\   : (matrix == "470BG"     ) ? 3
+\   : (matrix == "Rec2020"   ) ? 4
+\   : (matrix == "Rec2020CL" ) ? 4
+\   : (matrix == "Rec2020DVp5") ? 4
+\   : (matrix == "Rec709"    ) ? 5
+\   : (matrix == "AdobeRGB"  ) ? 6
+\   : (matrix == "Display-P3") ? 0
+\   : (matrix == "DCI-P3"    ) ? 7
+\   : (matrix == "ACEScg"    ) ? 8
+\   : (matrix == "ACES2065"  ) ? 8
+\   : Assert (false, "Unsupported Color Space.")
+
+    bdpth = BitsPerComponent(rgb) > 10 ? 0.09929682680944 : 0.099
+
+    #                                  SMPTE-C     Y’PbPr 601  PAL/SECAM BT-2020    Rec.709    AdobeRGB     DCI-P3   AP1/AP0
+    #                         sRGB     SMPTE 170M  SMPTE 240M  BT-470BG  BT-2020    BT-1886    AdobeRGB     DCI-P3      ACES
+    t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,      6504,   6504   ,      6504 ,   6305  ,     6000 )
+    t_off   = Select (t_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,    0      ,   0     ,      0   )
+    t_gamma = Select (t_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,    2.1992 ,   2.60  ,      1.0 )
+
+
+    ConvertToPlanarRGB(rgb)
+
+    moncurve_f(t_gamma, t_off, false)
+
+
+    coeffs =        matrix == "sRGB" || matrix == "Rec709"     ? \
+                                        [ 0.21264933049678802,   \
+                                          0.71516913175582890,   \
+                                          0.07218152284622192] : \
+                    matrix == "Rec601" || matrix == "240M"     ? \
+                                        [ 0.21238772571086884,   \
+                                          0.70106136798858640,   \
+                                          0.08655092865228653] : \
+                    matrix == "470BG"                          ? \
+                                        [ 0.22201462090015410,   \
+                                          0.70665508508682250,   \
+                                          0.07133013755083084] : \
+                    matrix == "DCI-P3"                         ? \
+                                        [ 0.20949168503284454,   \
+                                          0.72159516811370850,   \
+                                          0.06891304999589920] : \
+                    matrix == "Display-P3"                     ? \
+                                        [ 0.22898375988006592,   \
+                                          0.69173991680145260,   \
+                                          0.07927616685628891] : \
+                    matrix == "Rec2020"                        ? \
+                                        [ 0.24840137362480164,   \
+                                          0.67799961566925050,   \
+                                          0.03913172334432602] : \
+                    matrix == "AdobeRGB"                       ? \
+                                        [ 0.29734000563621520,   \
+                                          0.62735998630523680,   \
+                                          0.07529000192880630] : \
+                    matrix == "ACEScg"                         ? \
+                                        [ 0.27258800000000000,   \
+                                          0.67401860000000000,   \
+                                          0.05339329000000000] : \
+                    matrix == "ACES2065"                       ? \
+                                        [  0.34396082162857056,  \
+                                           0.74020814895629880,  \
+                                          -0.08416896313428879]: \
+                    Assert(false,"Unsupported Matrix.")
+
+    DotClip(last, coeffs)
+
+    moncurve_r(t_gamma, t_off, false) }
+
+
+
+
+function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range") {
+
+    temp        = Default (temperature, 6504)  # Target temperature in Kelvin (Default: D65 == nop())
+    matrix      = Default (matrix, "sRGB")
+    tv_range    = Default (tv_range,  !isRGB(c) )
+
+    matrix = Matrix_fuzzy_search (matrix)
+	
+	RGBsrc = IsRGB(c)
+	RGBpln = RGBsrc ? IsPlanar(c) : false
+	
+    RGBsrc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
+    YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
+
+
+    temp3 = 1000.       / temp
+    temp6 = 1000000.    / pow(temp, 2.)
+    temp9 = 1000000000. / pow(temp, 3.)
+
+    wpx = (temp <= 7000.) ? 0.244063 + 0.09911 * temp3 + 2.9678 * temp6 - 4.6070 * temp9 : \
+                            0.237040 + 0.24748 * temp3 + 1.9018 * temp6 - 2.0064 * temp9
+
+    wpy = -3. * pow(wpx,2.) + 2.870 * wpx - 0.275
+    wpz = 1. - wpx - wpy
+
+    CAT02 = [0.7328,  0.4296, -0.1624, \
+            -0.70360, 1.6975,  0.0061, \
+             0.003,  -0.0136,  0.9834]
+
+    fw1       = MatrixDot([wpx/wpy,1.,wpz/wpy] ,CAT02)
+    fw2       = MatrixDot([0.95045,1.,1.088917],CAT02)
+    fw_trans  = MatrixDiv(fw1,fw2)
+
+    RGB_to_XYZ(matrix)
+    Expr(last,string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
+    XYZ_to_RGB(matrix)
+
+    RGBsrc ? RGBpln ? last : MatchColorFormat(c) : \
+    RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c)) }
