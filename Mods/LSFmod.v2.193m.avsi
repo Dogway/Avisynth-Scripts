@@ -583,13 +583,13 @@ edge  = edgemaskHQ ?  edge.Expr("x range_half / 0.86 ^ range_max *",scale_inputs
 limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      : Lmode==0 ? normsharp
 \      : Lmode==1 ? normal
-\      : Lmode==2 ? ex_merge(normsharp, normal, edge.mt_inflate(U=1,V=1))
-\      : Lmode==3 ? ex_merge(normal,    zero,   edge.mt_inflate(U=1,V=1))
-\      :            ex_merge(second,    normal, edge.mt_inflate(U=1,V=1))
+\      : Lmode==2 ? ex_merge(normsharp, normal, edge.ex_inflate())
+\      : Lmode==3 ? ex_merge(normal,    zero,   edge.ex_inflate())
+\      :            ex_merge(second,    normal, edge.ex_inflate())
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? ex_merge(tmp,limit1,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1))
-\      :               ex_merge(limit1,tmp,edge.mt_inflate(U=1,V=1).mt_inflate(U=1,V=1).removegrain(11,-1))
+\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().removegrain(11,-1))
+\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().removegrain(11,-1))
 
 
 ### SOFT
