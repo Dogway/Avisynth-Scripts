@@ -63,8 +63,8 @@ function ex_logic(clip a, clip b, string "mode", int "UV") {
         mode == "max"   ? "x y max"                        : \
                           Assert (false, "Unsupported Blend Mode.") )
 
-    UV == 0 ? Expr(a, b, str)                                                : \
-              Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                          : \
+                       Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 #fix ex_merge with luma=true in 32bit
