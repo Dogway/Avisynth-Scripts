@@ -1,12 +1,12 @@
 # Frame Rate Converter
-# Version: 1.3.0  (May 18th 2021)
+# Version: 1.3.1  (May 21st 2021)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (1.3.0) replaced masktools2 with internal Expr() wrappers, + cosmetics. (Requires AviSynth+ 3.5+)
+# Dogway (1.3.1) replaced masktools2 with internal Expr() wrappers, + cosmetics. (Requires ExTools.avsi and AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -164,17 +164,15 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     ## "EM" - error or artifact mask
     # Mask: SAD
     EM    = MaskThr > 0 ? C_luma.MMask(bak, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank
-    # Mask: Temporal blending (0.6 opacity lighten mode)
+    # Mask: Temporal blending
     EMfwd = MaskThr > 0 ? C_luma.MMask(fwd, ml=255, kind=1, gamma=1/gam, thSCD2=SkipOver) : EM
     EM    = MaskThr > 0 ? ex_blend(EM,EMfwd,"lighten",0.6,UV=1,tv_range=false) : EM
 
 
     # Mask: Occlusion
     EMocc = MaskOcc > 0 ? C_luma.MMask(bak, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).ex_inpand() : Blank
-#    EM    = MaskOcc > 0 ? Expr(EM,EMocc,"x y max 0.4 * x 0.6 * +") : EM
     EM    = MaskOcc > 0 ? ex_blend(EM,EMocc,"lighten",0.4,UV=1,tv_range=false) : EM
     EM    = dct_mult!=1 || dct_pow!=1 ? Expr(EM,Format("x {dct_mult} * {dct_pow} ^")) : EM
-
 
     ## For CalcDiff, calculate a 2nd version and create mask to restore from 2nd version the areas that look better
     bak2  = CalcDiff ?          MAnalyse(superfilt, isb=true,  mt=true, blksize=BlkSize,   blksizev=BlkSizeV,  overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=0)    : nop()
