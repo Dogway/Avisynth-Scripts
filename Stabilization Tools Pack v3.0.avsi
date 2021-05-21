@@ -87,7 +87,7 @@ R    = crop(((w-add)/8)*8,0,0,0, true)
 CTB  = crop(0,((add)/8)*8,0,-((add)/8)*8,true)
 CLR  = crop(round(((add*1.5)/8)*8),0,round(-((add*1.5)/8)*8),0,true)
 
-SC2  = mt_logic(SceneChange,selectevery(SceneChange,1,-1),"max",U=3,V=3)
+SC2  = ex_logic(SceneChange,selectevery(SceneChange,1,-1),"max",UV=3)
 
 # Here, if after SC top area changes more than "thr" compared to bottom area
 # then apply one FreezeFrame() for first SC frame, and another FreezeFrame() for the 2nd one,
