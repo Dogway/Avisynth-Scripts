@@ -6,7 +6,7 @@
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (1.3.0) replaced masktools2 with internal Expr() wrappers, + cosmetics. (Requires AviSynth+ r2724+)
+# Dogway (1.3.0) replaced masktools2 with internal Expr() wrappers, + cosmetics. (Requires AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -153,51 +153,52 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     dct_pow  = !Recalculate ?  1 : DctRe==3 ? 1.09 : DctRe==2 ? 1.10 : DctRe==4 ? 1.28 : DctRe==1 ? 1.32 : 1
 
     ## jm_fps interpolation
-    superfilt = MSuper(prefilter.ConvertBits(8,dither=-1), hpad=16, vpad=16, sharp=1, rfilter=4) # all levels for MAnalyse
-    super = CalcPrefilter ? MSuper(C, hpad=16, vpad=16, levels=1, sharp=1, rfilter=4) : superfilt # one level is enough for MRecalculate
-    bak = MAnalyse(superfilt, isb=true,  mt=true, blksize=BlkSize, blksizev=BlkSizeV, overlap = BlkSize>4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=Dct)
-    fwd = MAnalyse(superfilt, isb=false, mt=true, blksize=BlkSize, blksizev=BlkSizeV, overlap = BlkSize>4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=Dct)
+    superfilt =             MSuper(prefilter.ConvertBits(8,dither=-1), hpad=16, vpad=16,           sharp=1, rfilter=4)             # all levels for MAnalyse
+    super = CalcPrefilter ? MSuper(        C.ConvertBits(8,dither=-1), hpad=16, vpad=16, levels=1, sharp=1, rfilter=4) : superfilt # one level is enough for MRecalculate
+    bak =         MAnalyse(superfilt, isb=true,  mt=true, blksize=BlkSize,  blksizev=BlkSizeV,   overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=Dct)
+    fwd =         MAnalyse(superfilt, isb=false, mt=true, blksize=BlkSize,  blksizev=BlkSizeV,   overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=Dct)
     fwd = Recalculate ? MRecalculate(super, fwd, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe) : fwd
     bak = Recalculate ? MRecalculate(super, bak, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe) : bak
-    Flow = MFlowFps(C, super, bak, fwd, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255)
+    Flow = MFlowFps(C.ConvertBits(8,dither=-1), super, bak, fwd, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255).ConvertBits(BitsPerComponent(C))
 
     ## "EM" - error or artifact mask
     # Mask: SAD
     EM    = MaskThr > 0 ? C_luma.MMask(bak, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank
     # Mask: Temporal blending (0.6 opacity lighten mode)
     EMfwd = MaskThr > 0 ? C_luma.MMask(fwd, ml=255, kind=1, gamma=1/gam, thSCD2=SkipOver) : EM
-    EM    = MaskThr > 0 ? Expr(EM,EMfwd,"x y max 0.6 * x 0.4 * +") : EM
+    EM    = MaskThr > 0 ? ex_blend(EM,EMfwd,"lighten",0.6,UV=1,tv_range=false) : EM
 
 
-    # Mask: Occlusion (0.4 opacity lighten mode)
+    # Mask: Occlusion
     EMocc = MaskOcc > 0 ? C_luma.MMask(bak, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).ex_inpand() : Blank
-    EM    = MaskOcc > 0 ? Expr(EM,EMocc,"x y max 0.4 * x 0.6 * +") : EM
+#    EM    = MaskOcc > 0 ? Expr(EM,EMocc,"x y max 0.4 * x 0.6 * +") : EM
+    EM    = MaskOcc > 0 ? ex_blend(EM,EMocc,"lighten",0.4,UV=1,tv_range=false) : EM
     EM    = dct_mult!=1 || dct_pow!=1 ? Expr(EM,Format("x {dct_mult} * {dct_pow} ^")) : EM
 
 
     ## For CalcDiff, calculate a 2nd version and create mask to restore from 2nd version the areas that look better
-    bak2  = CalcDiff ? MAnalyse(superfilt, isb=true,  mt=true, blksize=BlkSize, blksizev=BlkSizeV, overlap = BlkSize>4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=0) : nop()
-    fwd2  = CalcDiff ? MAnalyse(superfilt, isb=false, mt=true, blksize=BlkSize, blksizev=BlkSizeV, overlap = BlkSize>4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=0) : nop()
+    bak2  = CalcDiff ?          MAnalyse(superfilt, isb=true,  mt=true, blksize=BlkSize,   blksizev=BlkSizeV,  overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=0)    : nop()
+    fwd2  = CalcDiff ?          MAnalyse(superfilt, isb=false, mt=true, blksize=BlkSize,   blksizev=BlkSizeV,  overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=0)    : nop()
     fwd2  = CalcDiff ? Recalculate ? MRecalculate(super, fwd2, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100) : fwd : nop()
     bak2  = CalcDiff ? Recalculate ? MRecalculate(super, bak2, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100) : bak : nop()
-    Flow2 = CalcDiff ? MFlowFps(C, super, bak2, fwd2, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255) : nop()
+    Flow2 = CalcDiff ? MFlowFps(C.ConvertBits(8,dither=-1), super, bak2, fwd2, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255).ConvertBits(BitsPerComponent(C)) : nop()
     # Get raw mask again
     EM2    = CalcDiff ? MaskThr > 0 ? C_luma.MMask(bak2, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank : nop()
     EMfwd2 = CalcDiff ? MaskThr > 0 ? C_luma.MMask(fwd2, ml=255, kind=1, gamma=1/gam, thSCD2=SkipOver) : EM2 : nop()
-    EM2    = CalcDiff ? MaskThr > 0 ? Expr(EM,EMfwd2,"x y max 0.6 * x 0.4 * +")  : EM2 : nop()
+    EM2    = CalcDiff ? MaskThr > 0 ? ex_blend(EM,EMfwd2,"lighten",0.6,UV=1,tv_range=false)  : EM2 : nop()
     EMocc2 = CalcDiff ? MaskOcc > 0 ? C_luma.MMask(bak2, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).ex_inpand() : Blank : nop()
-    EM2    = CalcDiff ? MaskOcc > 0 ? Expr(EM2,EMocc2,"x y max 0.4 * x 0.6 * +") : EM2 : nop()
+    EM2    = CalcDiff ? MaskOcc > 0 ? ex_blend(EM2,EMocc2,"lighten",0.4,UV=1,tv_range=false) : EM2 : nop()
     # Get difference mask between two versions
     EMdiff = CalcDiff ? Expr(EM, EM2,"x y -")
     \       .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
     \       .ex_expand(2,mode="circle")
-    \       .Expr("x 60 scaleb < range_min range_max ?")
+    \       .ex_binarize(60)
     \       .FRC_GaussianBlur42(1.2)
     \       .BicubicResize(C.Width(), C.Height()) : nop()
     # Apply mask to Flow / EM
     EMdiff = CalcDiff ? OutFps ? EMdiff.ChangeFPS(NewNum, NewDen) : EMdiff : nop()
-    Flow   = CalcDiff ? ex_merge(Flow, Flow2, EMdiff.MatchColorFormat(Flow,"PC.601")) : Flow
-    EM     = CalcDiff ? ex_merge(EM, EM2, EMdiff)                                     : EM
+    Flow   = CalcDiff ? ex_merge(Flow, Flow2, EMdiff.MatchColorFormat(Flow,"PC.601"), luma=true, UV=3) : Flow
+    EM     = CalcDiff ? ex_merge(EM, EM2, EMdiff, luma=true, UV=3)                                     : EM
 
 
     # Last mask frame is white. Replace with previous frame.
@@ -206,14 +207,14 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     # Create skip mask
     EMskip = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
     \       .ex_expand(1,mode="circle")
-    \       .Expr(Format("x {SkipThr} scaleb < range_min range_max ?"))
+    \       .ex_binarize(SkipThr)
     OutSkip = EMskip.BicubicResize(C.Width(), C.Height())
     
     ## Create artifact correction mask
     OutRaw = EM
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
     \       .ex_expand(1,mode="circle")
-    \       .Expr(Format("x {MaskThr} scaleb < range_min range_max ?"))
+    \       .ex_binarize(MaskThr)
     \       .Blur(.6)
     \       .BicubicResize(C.Width(), C.Height())
 
@@ -222,7 +223,7 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     \      .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
     \      .ContinuousMask(22)
     EMstp = EMstp.BicubicResize(EMstp.Width()/2, EMstp.Height()/2)
-    \      .Expr("x 82 scaleb < range_min range_max ?")
+    \      .ex_binarize(82)
     \      .ex_inpand()
     \      .ex_expand(2,mode="circle").ex_expand(2,mode="square").ex_expand(2,mode="circle").ex_expand(1,mode="square")
     \      .FRC_GaussianBlur42(2.8)
@@ -232,17 +233,16 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     EM     = OutFps ?     EM.ChangeFPS(NewNum, NewDen) : EM
     EMskip = OutFps ? EMskip.ChangeFPS(NewNum, NewDen) : EMskip
     EMstp  = OutFps ?  EMstp.ChangeFPS(NewNum, NewDen) : EMstp
-    M =        OutFps ? ex_merge(Flow, B, EM.MatchColorFormat(Flow,"PC.601")) : Flow
-    M = Stp && OutFps ? ex_merge(M, B, EMstp.MatchColorFormat(Flow,"PC.601")) : M
+    M =        OutFps ? ex_merge(Flow, B, EM.MatchColorFormat(Flow,"PC.601"), luma=true, UV=3) : Flow
+    M = Stp && OutFps ? ex_merge(M, B, EMstp.MatchColorFormat(Flow,"PC.601"), luma=true, UV=3) : M
 
     ## Apply BlendOver and SkipOver
     M2 = SkipOver > 0 ? ConditionalFilterMT(EMskip, B, BHard, "AverageLuma", "<", string(SkipOver))  : B
     M = BlendOver > 0 ? ConditionalFilterMT(EMskip, M, M2,    "AverageLuma", "<", string(BlendOver)) : M
 
     # Prepare Output=Over: Mask(cyan), Stripes(yellow)
-    # Expr is Add Blend mode with 0.4 opacity
-    FlowOver =       Expr(Flow,    MergeRGB(Blank, EM, EM).MatchColorFormat(Flow,"PC.601"),          "x y + 0.4 * x 0.6 * +","", "")
-    FlowOver = Stp ? Expr(FlowOver,MergeRGB(EMstp, EMstp, Blank).MatchColorFormat(FlowOver,"PC.601"),"x y + 0.4 * x 0.6 * +","", "") : FlowOver
+    FlowOver =       ex_blend(Flow,    MergeRGB(Blank, EM, EM).MatchColorFormat(Flow,"PC.601"),          "add",0.4,UV=1,tv_range=false)
+    FlowOver = Stp ? ex_blend(FlowOver,MergeRGB(EMstp, EMstp, Blank).MatchColorFormat(FlowOver,"PC.601"),"add",0.4,UV=1,tv_range=false) : FlowOver
 
     # Output modes
     R= (Oput==O_AUTO)                               [** auto: artifact masking     *]
