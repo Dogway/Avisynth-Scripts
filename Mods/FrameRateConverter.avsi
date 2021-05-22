@@ -1,4 +1,4 @@
-# Frame Rate Converter
+# Frame Rate Converter ex
 # Version: 1.3.1  (May 21st 2021)
 #
 # By Etienne Charland

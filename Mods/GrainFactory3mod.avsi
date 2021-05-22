@@ -5,8 +5,8 @@
 ###      by 06_taro - astrataro@gmail.com      ###
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
-###               2020.04.06   by A.SONY.      ###
-###               2021.05.20   by Dogway       ###
+###               2020.04.06    by A.SONY.     ###
+###               2021.05.20 ex by Dogway      ###
 ###                                            ###
 ##################################################
 ###
@@ -20,10 +20,10 @@
 ### +-------------+
 ######
 ###
-### 2021.05.20
+### 2021.05.20 ex
 ###      - Cosmetics
 ###
-### 2021.05.18
+### 2021.05.18 ex
 ###      - Removed < AviSynth+ 3.5 support
 ###      - Replaced masktools2 with internal Expr() wrappers.
 ###

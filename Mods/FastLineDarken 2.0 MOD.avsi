@@ -1,11 +1,11 @@
 ##############################
-# FastLineDarken 2.0 MOD     #
+# FastLineDarken 2.0 ex MOD  #
 ##############################
 #
 # Written by Vectrangle    (http://forum.doom9.org/showthread.php?t=82125)
 # Didée: - Speed Boost, Updated: 11th May 2007
 # Dogway - added protection option. 12-May-2011
-# Dogway - 2.0. Updated to internal Expr(). 18-May-2021
+# Dogway - 2.0ex Updated to internal Expr(). 18-May-2021
 #
 #  * requires mt_masktools v2
 #  * requires yv12 input
