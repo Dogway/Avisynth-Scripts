@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b10  (21-05-2021)              ##
+###           ExTools v1.0b11  (22-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -67,19 +67,22 @@ function ex_logic(clip a, clip b, string "mode", int "UV") {
                        Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-#fix ex_merge with luma=true in 32bit
+# Consider chroma shift in msk
 function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
 
     isRGBa = isRGB(a)
-    isYm = isy(msk)
 
     lm = Default(luma, false)
     UV = Default(UV, isRGBa ? 3 : 1)
 
-    str = "x range_max z - * y z * + range_max /"
+    if (!isRGBa) {
+        lumaC = lm && isy(msk) && BitsPerComponent(a) == 32 ? Expr(msk, "x 0.5 -")                       : msk
+        lmmsk = isy(msk) && !isy(a) ? MatchColorFormat(CombinePlanes(msk, lumaC, lumaC, planes="YUV"),a) : msk
+    } else {
+        lmmsk = msk
+    }
 
-    luma  = lm && !isRGBa ? isYm ? msk : msk.ExtractY() : nop()
-    lmmsk = lm && isYm && !isRGBa ? MatchColorFormat(CombinePlanes(luma, luma, luma, planes="YUV"),a) : msk
+    str = "x range_max z - * y z * + range_max /"
 
     UV == 1 ? isy(a) ? Expr(a, b,   msk, str) : Expr(a, b, lmmsk, str, "")                   : \
                        Expr(a, b, lmmsk, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
@@ -133,7 +136,7 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# todo: process chroma (preconvert to RGB?)
+# TODO: process chroma (preconvert to RGB?)
 function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool "tv_range") {
 
     isRGBa = isRGB(a)
@@ -170,27 +173,86 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 ######################
 
 # Convolutions kernels have 3 aspects; kernel size, kernel shape, and weight. Only kernel size is fixed in* for the moment until I code a string recursion function.
-# * Note: radius isn't making the kernel bigger, but further apart, test results before using rad > 1
+# * Note: radius (except for ex_blur and ex_boxblur) isn't making the kernel bigger, but further apart, test results before using rad > 1
 
 
 
-# Similar but faster than: removegrain(19), blur(1.58) or mt_convolution("1 1 1","1 1 1")
+# ex_boxblur(1) very similar but faster than: removegrain(19), blur(1.58) or mt_convolution("1 1 1","1 1 1")
+# TODO: Compute decimals, deal with borders (dilate?) 16 bit+AVX2+non mod32 width?
 function ex_boxblur(clip a, int "radius", int "UV") {
 
     rd = Default(radius, 1)
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
+    krnlsz = 2 * rd + 1
+    krnlrd = krnlsz/2
 
-    str = Format("x[0,-{rd}] x[0,0] x[0,{rd}] + + 3 /")
+    krnv = ""
+    for (py = -krnlrd, krnlrd, 1) {
+        krnv = py == -krnlrd ? Format("x[0,{py}] ") : Format(krnv + "x[0,{py}] + ")
+       }
 
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                                : \
-                       Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a))
+    krnh = ""
+    for (px = -krnlrd, krnlrd, 1) {
+        krnh = px == -krnlrd ? Format("x[{px},0] ") : Format(krnh + "x[{px},0] + ")
+       }
 
-    str = Format("x[-{rd},0] x[0,0] x[{rd},0] + + 3 /")
+    strv = krnv + string(krnlrd*2+1) + " /"
+    strh = krnh + string(krnlrd*2+1) + " /"
 
-    UV == 1 ? isy(a) ? Expr(last, str) : Expr(last, str, "")                          : \
-                       Expr(last, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 1 ? isy(a) ? Expr(a,    strv) :    Expr(a, strv, "")                          : \
+                       Expr(a,    strv, ex_UVexpr(a, strv, UV), scale_inputs=ex_UVf(a))
 
+    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          : \
+                       Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) }
+
+
+
+
+# Variable Gaussian Blur function
+# Kernel size ideally, 9 for 16-bit integer, 11 for 32-bit float
+# ex_blur(1.15) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
+# ex_blur(0.30) same to removegrain(11) and blur(1.0)
+# TODO: Compute decimals, deal with borders (dilate?) 16 bit+AVX2+non mod32 width?
+function ex_blur(clip a, float "sigma", int "UV") {
+
+    sm = Default(sigma, 1.0)           # from 0.30 to 2.0
+    UV = Default(UV, isRGB(a) ? 3 : 1)
+
+    sm = min(sm,2.0)
+    krnlsz = 2*ceil(3*sm)
+    n_f   = factorial(krnlsz)
+
+    krnv = ""
+    for (i= 0, krnlsz, 1) {
+
+        k_f = factorial(i)*factorial(krnlsz-i)
+        wg = n_f/k_f
+        py = i - krnlsz/2
+        krnv = i == 0 ? Format("x[0,{py}] {wg} * ") : Format(krnv + "x[0,{py}] {wg} * + ")
+       }
+
+    krnh = ""
+    for (i= 0, krnlsz, 1) {
+
+        k_f = factorial(i)*factorial(krnlsz-i)
+        wg = n_f/k_f
+        px = i - krnlsz/2
+        krnh = i == 0 ? Format("x[{px},0] {wg} * ") : Format(krnh + "x[{px},0] {wg} * + ")
+       }
+
+    strv = krnv + string(pow(2,krnlsz)) + " /"
+    strh = krnh + string(pow(2,krnlsz)) + " /"
+
+    UV == 1 ? isy(a) ? Expr(a,    strv) :    Expr(a, strv, "")                          : \
+                       Expr(a,    strv, ex_UVexpr(a, strv, UV), scale_inputs=ex_UVf(a))
+
+    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          : \
+                       Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) }
+
+
+function factorial(int n) {
+    n<2?1:factorial(n-1)*n }
 
 
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
@@ -291,12 +353,11 @@ function ex_undot(clip a, int "radius", int "UV") {
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
 
-    str = Format("x x[-{rd},{rd}] x[0,{rd}] min x[{rd},{rd}] x[-{rd},0] min min x[{rd},0] x[-{rd},-{rd}] min x[0,-{rd}] x[{rd},-{rd}] min min min " \
+    str = Format("x x[-{rd},{rd}] x[0,{rd}] min x[{rd},{rd}] x[-{rd},0] min min x[{rd},0] x[-{rd},-{rd}] min x[0,-{rd}] x[{rd},-{rd}] min min min "    \
                   +"x[-{rd},{rd}] x[0,{rd}] max x[{rd},{rd}] x[-{rd},0] max max x[{rd},0] x[-{rd},-{rd}] max x[0,-{rd}] x[{rd},-{rd}] max max max clip")
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
-
 
 
 
@@ -308,7 +369,7 @@ function ex_UVexpr(clip a, string str, int "UV") {
 
     bd = BitsPerComponent(a) == 32 ? 0.5 : 0
 
-    str = isRGB(a) ? str : strReplaceStr(str, "ymax", "cmax")
+    str = isRGB(a) ? str : ReplaceStr(str, "ymax", "cmax")
 
     # Undefined "0" is the same as "" (when not single planed)
     str = UV == 1   ? ""          : \
