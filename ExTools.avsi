@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b11  (22-05-2021)              ##
+###           ExTools v1.0b12  (22-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -219,9 +219,9 @@ function ex_blur(clip a, float "sigma", int "UV") {
     sm = Default(sigma, 1.0)           # from 0.30 to 2.0
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
-    sm = min(sm,2.0)
+    sm     = min(sm,2.0)
     krnlsz = 2*ceil(3*sm)
-    n_f   = factorial(krnlsz)
+    n_f    = factorial(krnlsz)
 
     krnv = ""
     for (i= 0, krnlsz, 1) {
@@ -255,6 +255,7 @@ function factorial(int n) {
     n<2?1:factorial(n-1)*n }
 
 
+# Separable only "square" mode ("circle" rad=2 is like "both" twice but faster)
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rd   = Default(radius, 1)
@@ -264,19 +265,24 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
 
     str = Format( \
-                  mode == "both"              ? "x[0,0] x[0,-{rd}] max x[0,{rd}] max x[-{rd},0] max x[{rd},0] max A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                         : \
-                  mode == "square"            ? "x[0,0] x[-{rd},{rd}] max x[0,{rd}] max x[{rd},{rd}] max x[-{rd},0] max x[{rd},0] max x[-{rd},-{rd}] max x[0,-{rd}] max x[{rd},-{rd}] max"                        \
-                                              +" A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                                                                                          : \
-                  mode == "circle" && rd == 1 ? "x[0,0] x[0,1] max x[-1,0] max x[1,0] max x[0,-1] max A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                                     : \
-                  mode == "circle" && rd == 2 ? "x[0,0] x[-1,-1] max x[0,-1] max x[1,-1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,1] max x[0,1] max x[1,1] max x[-2,0] max x[0,2] max x[2,0] max x[0,-2] max"   \
-                                              +" A@ x[0,0] - {thr} scaleb > x[0,0] {thr} scaleb + A ?"                                                                                                          : \
+                  mode == "both"              ? "x[0,0] x[0,-{rd}] max x[0,{rd}] max x[-{rd},0] max x[{rd},0] max A^ x[0,0] {thr} scaleb + A min"                                                             : \
+                  mode == "circle" && rd == 1 ? "x[0,0] x[0,-{rd}] max x[0,{rd}] max x[-{rd},0] max x[{rd},0] max A^ x[0,0] {thr} scaleb + A min"                                                             : \
+                  mode == "circle" && rd == 2 ? "x[0,0] x[-1,-1] max x[0,-1] max x[1,-1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,1] max x[0,1] max x[1,1] max x[-2,0] max x[0,2] max x[2,0] max x[0,-2] max" \
+                                              + "A^ x[0,0] {thr} scaleb + A min"                                                                                                                              : \
+                  mode == "square"            ? "x[0,0] x[0,{rd}] max x[0,-{rd}] max A^ x[0,0] {thr} scaleb + A min"                                                                                          : \
                                               Assert (false, "Unsupported Mode.") )
 
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
-                       Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
+    strh = Format(mode == "square" ? "x[0,0] x[-{rd},0] max x[{rd},0] max A^ x[0,0] {thr} scaleb + A min" : "")
+
+    UV == 1 ? isy(a) ? Expr(a,     str) :    Expr(a,  str, "")                          : \
+                       Expr(a,     str, ex_UVexpr(a,  str, UV), scale_inputs=ex_UVf(a))
+
+                  mode == "square"                                                      ? \
+    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          : \
+                       Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) : last }
 
 
-
+# Separable only "square" mode
 function ex_inpand(clip a, string "mode", int "thres", int "UV") {
 
     mode = Default(mode, "square")
@@ -284,13 +290,18 @@ function ex_inpand(clip a, string "mode", int "thres", int "UV") {
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
 
-    str = mode == "both"   ? Format("x[0,0] x[0,-1] min x[0,1] min x[-1,0] min x[1,0] min A@ x[0,0] - abs {thr} scaleb > x[0,0] {thr} scaleb - A ?") : \
-          mode == "square" ? Format("x[0,0] x[-1,1] min x[0,1] min x[1,1] min x[-1,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min"             \
-                                 +" A@ x[0,0] - abs {thr} scaleb > x[0,0] {thr} scaleb - A ?")                                                       : \
-                                 Assert (false, "Unsupported Mode.")
+    str  =        mode == "both"   ? Format("x[0,0] x[0,-1] min x[0,1] min x[-1,0] min x[1,0] min A^ x[0,0] {thr} scaleb - A max") : \
+                  mode == "square" ? Format("x[0,0] x[0,1] min x[0,-1] min A^ x[0,0] {thr} scaleb - A max")                        : \
+                                    Assert (false, "Unsupported Mode.")
 
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
-                       Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
+    strh = Format(mode == "square" ? "x[0,0] x[-1,0] min x[1,0] min A^ x[0,0] {thr} scaleb - A max" : "")
+
+    UV == 1 ? isy(a) ? Expr(a,     str) :    Expr(a,  str, "")                          : \
+                       Expr(a,     str, ex_UVexpr(a,  str, UV), scale_inputs=ex_UVf(a))
+
+                  mode == "square"                                                      ? \
+    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          : \
+                       Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) : last }
 
 
 
@@ -300,7 +311,7 @@ function ex_inflate(clip a, int "radius", int "thres", int "UV") {
     thr  = Default(thres, 255)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
-    str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[0,0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + + 9 / A@ x[0,0] > A x[0,0] ?")
+    str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + 8 / x[0,0] max")
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
@@ -313,7 +324,7 @@ function ex_deflate(clip a, int "radius", int "thres", int "UV") {
     thr  = Default(thres, 255)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
-    str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[0,0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + + 9 / A@ x[0,0] < A x[0,0] ?")
+    str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + 8 / x[0,0] min")
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
@@ -377,6 +388,8 @@ function ex_UVexpr(clip a, string str, int "UV") {
           UV == 3   ? str         : \
           UV == 4   ? "y"         : \
           UV == 128 ? "range_half": \
+          UV == 0   ? "range_min" : \
+          UV == 255 ? "range_max" : \
           string(UV+bd)+" scaleb"
 
     return str }
