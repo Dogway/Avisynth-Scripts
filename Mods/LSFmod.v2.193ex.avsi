@@ -536,7 +536,7 @@ Assert(!isYUY2(input), chr(10) + "LSFmod: not work with an YUY2 clip !" + chr(10
 ### SHARP
 tmp  = ss_x > 1.0 || ss_y > 1.0 ? input.spline36resize(xxs,yys) : input
 pre  = preblur=="OFF" ? tmp
-\    : preblur=="ON"  ? tmp.ex_makediff(Expr(ex_makediff(tmp,tmp.removegrain(11,-1))
+\    : preblur=="ON"  ? tmp.ex_makediff(Expr(ex_makediff(tmp,tmp.ex_blur(0.30,1))
 \                                           ,ex_makediff(tmp,tmp.removegrain(4,-1))
 \                          ,"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?"))
 \    : Eval("tmp."+preblur)
@@ -588,8 +588,8 @@ limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      :            ex_merge(second,    normal, edge.ex_inflate())
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().removegrain(11,-1))
-\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().removegrain(11,-1))
+\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().ex_blur(0.30,1))
+\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().ex_blur(0.30,1))
 
 
 ### SOFT
