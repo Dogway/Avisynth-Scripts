@@ -241,7 +241,6 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
 
     coef = Matrix_coef(matrix)
 
-    # Adapted from Dither_convert_yuv_to_rgb()
     scale_y  = tv_in ? (256. / 219.) : 1.0
     scale_uv = tv_in ? (256. / 112.) : 2.0
 
@@ -309,7 +308,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     bdpth   = BitsPerComponent(rgb)
     p_type4 = FindStr(pixel_type, "44")>0
     p_type2 = FindStr(pixel_type, "22")>0
-    p_type1 = FindStr(pixel_type, "11")>0
+    p_type1 = FindStr(pixel_type, "11")>0    # uses MPEG1?
     p_type0 = FindStr(pixel_type, "20")>0
 
     p_type2 || p_type0 ? Assert (w%2==0, "Width is not mod2." ) : nop()
@@ -319,7 +318,6 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     coef   = Matrix_coef(matrix)
     matrix = Matrix_fuzzy_search (matrix)
 
-    # Adapted from Dither_convert_rgb_to_yuv()
     scale_y  = !tv_in && tv_out ? (219. / 256.) : 1.0
     scale_uv = !tv_in && tv_out ? (112. / 256.) : 0.5
 
@@ -349,7 +347,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     Gx = ExtractG(rgb)
     Bx = ExtractB(rgb)
 
-    rangeY_TV = tv_out ? tv_in ? "" : "ymin +" : tv_in ? "ymin - ymax ymin - / range_max *" : ""
+    rangeY_TV =  tv_out ?  tv_in ? "" : "ymin +" : tv_in ? "ymin - ymax ymin - / range_max *" : ""
     rangeC_TV = !tv_out && tv_in ? "range_half - cmax cmin - / range_max * range_half +" : ""
 
     Y  = Expr(Rx, Gx, Bx, "           x "+string(mat[0])+" *   y "+string(mat[1])+" * + z "+string(mat[2])+" * + "+rangeY_TV+"")
