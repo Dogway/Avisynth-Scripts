@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.193mod - 18 May 2021                                   ###
+###                                v2.194x - 23 May 2021                                     ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,7 +20,9 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v2.193m: - Removed < AviSynth+ 3.5 support
+### v2.194x: - Removed Kernel argument and replaced internally with ex_blur()
+###
+### v2.193x: - Removed < AviSynth+ 3.5 support
 ###          - Replaced masktools2 with internal Expr() wrappers.
 ###          - Replaced UnsharpMask_avsi with faster UnsharpMask_HBD
 ###
@@ -114,7 +116,7 @@
 ### | USAGE |
 ### +-------+
 ###
-### LSFmod( strength, Smode, Smethod, kernel,
+### LSFmod( strength, Smode, Smethod,
 ###         preblur, secure, source,
 ###         Szrp, Spwr, SdmpLo, SdmpHi,
 ###         Lmode, overshoot, undershoot, overshoot2, undershoot2,
@@ -150,11 +152,6 @@
 ###    =1 : 3x3 kernel
 ###    =2 : Min/Max
 ###    =3 : Min/Max + 3x3 kernel
-###
-### kernel [int: 11,12,19,20]
-### -------------------------
-### Kernel used in Smethod=1&3
-### In strength order: + 19 > 12 >> 20 > 11 -
 ###
 ###
 ###
@@ -320,7 +317,6 @@
 ### defaults="old" :  - strength    = 100
 ### ----------------  - Smode       = 3
 ###                   - Smethod     = Smode==3?2:1
-###                   - kernel      = 11
 ###
 ###                   - preblur     = "OFF"
 ###                   - secure      = false
@@ -357,7 +353,6 @@
 ### defaults="slow" : - strength    = 100
 ### ----------------- - Smode       = 5
 ###                   - Smethod     = 3
-###                   - kernel      = 11
 ###
 ###                   - preblur     = "OFF"
 ###                   - secure      = true
@@ -394,7 +389,6 @@
 ### defaults="fast" : - strength    = 100
 ### ----------------- - Smode       = 3
 ###                   - Smethod     = 2
-###                   - kernel      = 11
 ###
 ###                   - preblur     = "OFF"
 ###                   - secure      = true
@@ -429,7 +423,7 @@
 ###
 ################################################################################################
 
-function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod", int "kernel",
+function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 \                string "preblur", bool "secure", clip "source",
 \                int "Szrp", float "Spwr", float "SdmpLo", float "SdmpHi",
 \                int "Lmode", float "overshoot", float "undershoot", float "overshoot2", float "undershoot2",
@@ -455,7 +449,6 @@ Assert(num         != 3      ? true : false, chr(10) + """Defaults must be "old"
 strength    = Default( strength,    Select(num,                              100 ,                100 ,                100 ) )
 Smode       = Default( Smode,       Select(num,                                3 ,                  5 ,                  3 ) )
 Smethod     = Default( Smethod,     Select(num,                     Smode==3?2:1 ,                  3 ,                  2 ) )
-kernel      = Default( kernel,      Select(num,                               11 ,                 11 ,                 11 ) )
 
 preblur     = Default( preblur,     Select(num,                            "OFF" ,              "OFF" ,              "OFF" ) )
 secure      = Default( secure,      Select(num,                            false ,               true ,               true ) )
@@ -491,7 +484,6 @@ Assert(!isRGB(inclip), chr(10) + "LSFmod: not work with an RGB clip !" + chr(10)
 Assert( ( strength >= 0 )                                                ? true : false, chr(10) + "'strength' have not a correct value! [>=0]" + chr(10))
 Assert( ( Smode >= 1 && Smode <= 6 )                                     ? true : false, chr(10) + "'Smode' have not a correct value! [1,2,3,4,5]" + chr(10))
 Assert( ( Smethod >= 1 && Smethod <= 4 )                                 ? true : false, chr(10) + "'Smethod' have not a correct value! [1,2,3,4]" + chr(10))
-Assert( ( kernel == 19 || kernel == 20 || kernel == 11 || kernel == 12 ) ? true : false, chr(10) + "'kernel' have not a correct value! [19,20,11,12]" + chr(10))
 Assert( ( Szrp >= 1 && Szrp <= 255 )                                     ? true : false, chr(10) + "'Szrp' have not a correct value! [1...255]" + chr(10))
 Assert( ( Spwr >= 1 )                                                    ? true : false, chr(10) + "'Spwr' have not a correct value! [>=1]" + chr(10))
 Assert( ( SdmpLo >= 0 && SdmpLo <= 255 )                                 ? true : false, chr(10) + "'SdmpLo' have not a correct value! [0...255]" + chr(10))
@@ -545,9 +537,10 @@ dark_limit   = pre.ex_inpand()
 bright_limit = pre.ex_expand()
 minmaxavg    = Merge(dark_limit,bright_limit,0.5)
 
-method = Smethod==1   ? pre.removegrain(kernel,-1)
+# consider auto-increasing blur for HD/UHD
+method = Smethod==1   ? pre.ex_blur(0.30)
 \      : Smethod==2   ? minmaxavg
-\      :                minmaxavg.removegrain(kernel,-1)
+\      :                minmaxavg.ex_blur(0.30)
 
 method = secure==true ? method.Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?")
 \      :                method
@@ -628,7 +621,7 @@ output = edgemode!=-1 ? output : !sisupscale ? edge.spline36resize(dest_x,dest_y
 
 ### SHOW
    function LSFM_Show(clip input, clip output, string "version", string "defaults",
-   \                  float "strength", int "Smode", int "Smethod", int "kernel",
+   \                  float "strength", int "Smode", int "Smethod",
    \                  string "preblur", bool "secure", string "source",
    \                  float "Szrp", float "Spwr", float "SdmpLo", float "SdmpHi",
    \                  int "Lmode", float "overshoot", float "undershoot", float "overshoot2", int "undershoot2",
@@ -663,7 +656,6 @@ output = edgemode!=-1 ? output : !sisupscale ? edge.spline36resize(dest_x,dest_y
    e = e.SubTitle("strength      = " + string(strength)      ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=180)
    e = e.SubTitle("Smode         = " + string(Smode)         ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=190)
    e = e.SubTitle("Smethod       = " + string(Smethod)       ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=200)
-   e = e.SubTitle("kernel        = " + string(kernel)        ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=210)
 
    e = e.SubTitle("SPECIAL:"                                 ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=250)
    e = e.SubTitle("--------"                                 ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=260)
@@ -722,7 +714,7 @@ output = sisupscale || sislumaonly ? output : sisphbd ? CombinePlanes(output,inc
 
 output = show==false ? output
 \                    : LSFM_Show(inclip, output, version, defaults,
-\                                strength, Smode, Smethod, kernel,
+\                                strength, Smode, Smethod,
 \                                preblur, secure, sode?"defined":"undefined",
 \                                Szrp, Spwr, SdmpLo, SdmpHi,
 \                                Lmode, overshoot, undershoot, overshoot2, undershoot2,
