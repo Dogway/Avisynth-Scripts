@@ -5,7 +5,7 @@
 # Written by Vectrangle    (http://forum.doom9.org/showthread.php?t=82125)
 # Didée: - Speed Boost, Updated: 11th May 2007
 # Dogway - added protection option. 12-May-2011
-# Dogway - 2.0ex Updated to internal Expr(). 18-May-2021
+# Dogway - 2.0ex Updated to internal Expr(). 23-May-2021
 #
 #  * requires mt_masktools v2
 #  * requires yv12 input
@@ -65,5 +65,5 @@ linemask= Expr(diff.ex_inpand(),Format("x range_half - {thn} * range_max +"), sc
 thick 	= Expr(c, exin, Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? {str} * x +"), "x", scale_inputs="allf")
 thin 	= Expr(c.ex_expand(),diff,Format("x y range_half - {str} 1 + * +"), scale_inputs="allf")
 
-(thinning == 0) ? thick : ex_merge(thin,thick,linemask)
+(thinning == 0) ? thick : ex_merge(thin,thick,linemask,UV=2)
 return mergechroma(c)}
