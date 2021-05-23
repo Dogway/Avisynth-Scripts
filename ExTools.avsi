@@ -305,19 +305,6 @@ function ex_inpand(clip a, string "mode", int "thres", int "UV") {
 
 
 
-function ex_inflate(clip a, int "radius", int "thres", int "UV") {
-
-    rd   = Default(radius, 1)
-    thr  = Default(thres, 255)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
-
-    str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + 8 / x[0,0] max")
-
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
-                       Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
-
-
-
 function ex_deflate(clip a, int "radius", int "thres", int "UV") {
 
     rd   = Default(radius, 1)
@@ -325,6 +312,19 @@ function ex_deflate(clip a, int "radius", int "thres", int "UV") {
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
     str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + 8 / x[0,0] min")
+
+    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
+                       Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
+
+
+
+function ex_inflate(clip a, int "radius", int "thres", int "UV") {
+
+    rd   = Default(radius, 1)
+    thr  = Default(thres, 255)
+    UV   = Default(UV, isRGB(a) ? 3 : 1)
+
+    str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + 8 / x[0,0] max")
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
@@ -358,6 +358,7 @@ function ex_edge(clip a, string "kernel", string "mode", int "str", int "thres",
 
 
 # Use removegrain(1) as it's faster
+# TODO: make separable
 function ex_undot(clip a, int "radius", int "UV") {
 
     rd = Default(radius, 1)
