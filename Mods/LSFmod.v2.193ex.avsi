@@ -538,9 +538,9 @@ bright_limit = pre.ex_expand()
 minmaxavg    = Merge(dark_limit,bright_limit,0.5)
 
 # consider auto-increasing blur for HD/UHD
-method = Smethod==1   ? pre.ex_blur(1)
+method = Smethod==1   ? pre.ex_blur(1,1)
 \      : Smethod==2   ? minmaxavg
-\      :                minmaxavg.ex_blur(1)
+\      :                minmaxavg.ex_blur(1,1)
 
 method = secure==true ? method.Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?")
 \      :                method
