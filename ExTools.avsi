@@ -9,7 +9,7 @@
 ###########################################################
 ###
 ### Pack of masktools2 replacement functions with internal Expr()
-### Generally works faster in HBD, but slower in 8-bit.
+### Generally works faster in HBD, but slower in 8-bit. See performance notes (run on 16-bit).
 ###
 ### UV setting works similarly as in masktools2:
 ###
@@ -28,7 +28,7 @@
 ####################################
 
 
-
+# mt_makediff() is 5% slower
 function ex_makediff(clip a, clip b, int "UV") {
 
     UV = Default(UV, isRGB(a) ? 3 : 1)
@@ -39,6 +39,7 @@ function ex_makediff(clip a, clip b, int "UV") {
                        Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
+# mt_adddiff() is 5% slower
 function ex_adddiff(clip a, clip b, int "UV") {
 
     UV = Default(UV, isRGB(a) ? 3 : 1)
@@ -49,6 +50,7 @@ function ex_adddiff(clip a, clip b, int "UV") {
                        Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
+# mt_logic(mode="and") is 6% slower
 function ex_logic(clip a, clip b, string "mode", int "UV") {
 
     mode = Default(mode, "and")
@@ -67,6 +69,7 @@ function ex_logic(clip a, clip b, string "mode", int "UV") {
                        Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
+# mt_merge() is 12% faster
 # Consider chroma shift in msk
 function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
 
@@ -99,7 +102,7 @@ function ex_clamp(clip a, clip lo, clip hi, int "UV") {
                        Expr(a, lo, hi, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# mt_binarize() 30% slower but 100% faster when chained
+# mt_binarize() is 37% slower
 function ex_binarize(clip a, int "thres", int "UV") {
 
     th = Default(thres, 128)
@@ -112,6 +115,7 @@ function ex_binarize(clip a, int "thres", int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
+# mt_invert() is 10% slower
 function ex_invert(clip a, int "UV") {
 
     UV = Default(UV, isRGB(a) ? 3 : 1)
@@ -122,7 +126,7 @@ function ex_invert(clip a, int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# mt_lutspa() is x5 times faster
+# mt_lutspa() is 840% faster
 function ex_lutspa(clip a, string "mode", string "str", int "UV") {
 
     mode = Default(mode, "absolute")
@@ -175,7 +179,9 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 ######################
 
 
-# ex_boxblur(1) very similar but faster than: blur(1.58), removegrain(19), removegrain(20) or mt_convolution("1 1 1","1 1 1")
+
+# removegrain(19) is 31% faster than ex_boxblur(1) and 37% faster than blur(1.58)
+# ex_boxblur(1) is very similar but faster than: blur(1.58), removegrain(19), removegrain(20) or mt_convolution("1 1 1","1 1 1")
 function ex_boxblur(clip a, int "radius", int "UV") {
 
     rd = Default(radius, 1)
@@ -204,10 +210,8 @@ function ex_boxblur(clip a, int "radius", int "UV") {
                        Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) }
 
 
-
-
 # Variable Gaussian Blur
-# Kernel size ideally, 9 for 16-bit integer, 11 for 32-bit float
+# removegrain(12) is 31% faster than ex_blur(1) and 34% faster than blur(1.0)
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
 # ex_blur(1) same to blur(1.0), removegrain(11) and removegrain(12)
 # TODO: make radius work over 6
@@ -252,6 +256,7 @@ function factorial(int n) {
     n<2?1:factorial(n-1)*n }
 
 
+# mt_expand() is 33% faster (lower gap with bigger radius)
 # "circle" rad=2 is like "both" twice but faster
 # TODO: Need to work out shape for "circle" && rad>1
 # TODO: Implement thres
@@ -302,6 +307,7 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
                        Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) : last }
 
 
+# mt_inpand() is 33% faster (lower gap with bigger radius)
 # TODO: Implement thres
 function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
@@ -350,7 +356,7 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
                        Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) : last }
 
 
-
+# mt_deflate() is 18% faster (lower gap with bigger radius)
 # Slower for kernel 3x3 if separated (Min() x2)
 function ex_deflate(clip a, int "radius", int "UV") {
 
@@ -373,7 +379,7 @@ function ex_deflate(clip a, int "radius", int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-
+# mt_inflate() is 17% faster (lower gap with bigger radius)
 function ex_inflate(clip a, int "radius", int "UV") {
 
     rd = Default(radius, 1)
@@ -393,7 +399,6 @@ function ex_inflate(clip a, int "radius", int "UV") {
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
-
 
 
 # WIP: implement separable mats, thresholding and sharpen mode
@@ -419,7 +424,6 @@ function ex_edge(clip a, string "kernel", string "mode", int "str", int "thres",
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
-
 
 
 # Use removegrain(1) as it's faster
