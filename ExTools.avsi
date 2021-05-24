@@ -276,7 +276,6 @@ function factorial(int n) {
 # mt_expand() is 33% faster (lower gap with bigger radius)
 # "circle" rad=2 is like "both" twice but faster
 # TODO: Need to work out shape for "circle" && rad>1
-# TODO: Implement thres
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rd   = Default(radius, 1)
@@ -291,31 +290,27 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
     if (mode != "square") {
 
     for (px = -krnlrd, krnlrd, 1) {
-        for (py = -krnlrd, krnlrd, 1) {
-            skip = mode == "both"   ? py != 0 && px != 0                                       : \
-                   mode == "circle" ? (abs(py) == rd || abs(px) == rd) && (py != 0 && px != 0) : \
-                   Assert (false, "Unsupported Mode.")
-            krn = skip ? krn : Format(krn + "x[{px},{py}] max ")
-           }
+            for (py = -krnlrd, krnlrd, 1) {
+                skip = mode == "both"   ? py != 0 && px != 0                                       : \
+                       mode == "circle" ? (abs(py) == rd || abs(px) == rd) && (py != 0 && px != 0) : \
+                       Assert (false, "Unsupported Mode.")
+                krn = skip ? krn : Format(krn + "x[{px},{py}] max ")
+       }      }
+       } else {
+
+            for (py  = -krnlrd, krnlrd, 1) {
+                krn  = Format(krn  + "x[0,{py}] max ")
        }
-
-    } else {
-
-    for (py  = -krnlrd, krnlrd, 1) {
-        krn  = Format(krn  + "x[0,{py}] max ")
+            krnh = ""
+            for (px  = -krnlrd, krnlrd, 1) {
+                krnh = Format(krnh + "x[{px},0] max ")
        }
-
-    krnh = ""
-    for (px  = -krnlrd, krnlrd, 1) {
-        krnh = Format(krnh + "x[{px},0] max ")
-       }
-
     strh = ReplaceStr(krnh, "x[0,0] max ", "")
-    strh = Format("x[0,0] " + strh + "A^ x[0,0] {thr} scaleb + A min")
+    strh = Format("x[0,0] " + strh + (thr != 255 ? "A^ x[0,0] {thr} scaleb + A min" : ""))
     }
 
-    str  = ReplaceStr(krn, "x[0,0] max ", "")
-    str  = Format("x[0,0] " + str  + "A^ x[0,0] {thr} scaleb + A min")
+    str  = ReplaceStr(krn,  "x[0,0] max ", "")
+    str  = Format("x[0,0] " + str  + (thr != 255 ? "A^ x[0,0] {thr} scaleb + A min" : ""))
 
     UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                          :      \
                        Expr(a,    str,  ex_UVexpr(a, str,  UV), scale_inputs=ex_UVf(a))
@@ -325,7 +320,6 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
 
 # mt_inpand() is 33% faster (lower gap with bigger radius)
-# TODO: Implement thres
 function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rd   = Default(radius, 1)
@@ -340,31 +334,27 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
     if (mode != "square") {
 
     for (px = -krnlrd, krnlrd, 1) {
-        for (py = -krnlrd, krnlrd, 1) {
-            skip = mode == "both"   ? py != 0 && px != 0                                       : \
-                   mode == "circle" ? (abs(py) == rd || abs(px) == rd) && (py != 0 && px != 0) : \
-                   Assert (false, "Unsupported Mode.")
-            krn = skip ? krn : Format(krn + "x[{px},{py}] min ")
-           }
+            for (py = -krnlrd, krnlrd, 1) {
+                skip = mode == "both"   ? py != 0 && px != 0                                       : \
+                       mode == "circle" ? (abs(py) == rd || abs(px) == rd) && (py != 0 && px != 0) : \
+                       Assert (false, "Unsupported Mode.")
+                krn = skip ? krn : Format(krn + "x[{px},{py}] min ")
+       }      }
+       } else {
+
+            for (py  = -krnlrd, krnlrd, 1) {
+                krn  = Format(krn  + "x[0,{py}] min ")
        }
-
-    } else {
-
-    for (py  = -krnlrd, krnlrd, 1) {
-        krn  = Format(krn  + "x[0,{py}] min ")
+            krnh = ""
+            for (px = -krnlrd, krnlrd, 1) {
+                krnh = Format(krnh + "x[{px},0] min ")
        }
-
-    krnh = ""
-    for (px  = -krnlrd, krnlrd, 1) {
-        krnh = Format(krnh + "x[{px},0] min ")
-       }
-
     strh = ReplaceStr(krnh, "x[0,0] min ", "")
-    strh = Format("x[0,0] " + strh + "A^ x[0,0] {thr} scaleb - A max")
+    strh = Format("x[0,0] " + strh + (thr != 255 ? "A^ x[0,0] {thr} scaleb - A max" : ""))
     }
 
-    str  = ReplaceStr(krn, "x[0,0] min ", "")
-    str  = Format("x[0,0] " + str  + "A^ x[0,0] {thr} scaleb - A max")
+    str  = ReplaceStr(krn,  "x[0,0] min ", "")
+    str  = Format("x[0,0] " + str  + (thr != 255 ? "A^ x[0,0] {thr} scaleb - A max" : ""))
 
     UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                          :      \
                        Expr(a,    str,  ex_UVexpr(a, str,  UV), scale_inputs=ex_UVf(a))
