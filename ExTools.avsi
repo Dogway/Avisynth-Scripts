@@ -8,8 +8,12 @@
 ###                                                      ##
 ###########################################################
 ###
-### Pack of masktools2 replacement functions with internal Expr()
-### Generally works faster in HBD, but slower in 8-bit. See performance notes (run on 16-bit).
+### Pack of masktools2 replacement functions with internal Expr().
+### Generally works faster in HBD, but slower in 8-bit. 
+### See performance notes (benchmarks on 16-bit).
+###
+### *Convolutions are slower because in masktools2 they run with AVX2
+###  while Expr() uses SSSE3 max for "pixel addressing".
 ###
 ### UV setting works similarly as in masktools2:
 ###
@@ -79,7 +83,7 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
     UV = Default(UV, isRGBa ? 3 : 1)
 
     if (!isRGBa) {
-        lumaC = lm && isy(msk) && BitsPerComponent(a) == 32 ? Expr(msk, "x 0.5 -")                       : msk
+        lumaC = isy(msk) && lm && BitsPerComponent(a) == 32 ? Expr(msk, "x 0.5 -")                       : msk
         lmmsk = isy(msk) && !isy(a) ? MatchColorFormat(CombinePlanes(msk, lumaC, lumaC, planes="YUV"),a) : msk
     } else {
         lmmsk = msk
@@ -103,19 +107,22 @@ function ex_clamp(clip a, clip lo, clip hi, int "UV") {
 
 
 # mt_binarize() is 37% slower
-function ex_binarize(clip a, int "thres", int "UV") {
+function ex_binarize(clip a, int "thres", bool "invert", int "UV") {
 
     th = Default(thres, 128)
+    in = Default(invert, false)
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
-    str = Format("x {th} scaleb > range_max range_min ?")
+    str = in ? Format("x {th} scaleb < range_max range_min ?") : \
+               Format("x {th} scaleb > range_max range_min ?")
 #    str = Format("x x {th} scaleb - x {th} scaleb + clip") # slower than ternary
+#    str = Format("x x {th} scaleb - * ")                   # slower than ternary
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# mt_invert() is 10% slower
+# mt_invert() is 10% slower and invert(channels="Y") is 17% slower
 function ex_invert(clip a, int "UV") {
 
     UV = Default(UV, isRGB(a) ? 3 : 1)
@@ -126,7 +133,8 @@ function ex_invert(clip a, int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# mt_lutspa() is 840% faster
+# mt_lutspa() is 740% faster but is only spatial
+# TODO: make 1 frame and copy for clip length if there's no frameno
 function ex_lutspa(clip a, string "mode", string "str", int "UV") {
 
     mode = Default(mode, "absolute")
@@ -142,6 +150,7 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
+# Overlay(mode="multiply") is 44% slower
 # TODO: process chroma (preconvert to RGB?)
 function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool "tv_range") {
 
@@ -178,10 +187,12 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 ##   CONVOLUTIONS   ##
 ######################
 
-
-
-# removegrain(19) is 31% faster than ex_boxblur(1) and 37% faster than blur(1.58)
-# ex_boxblur(1) is very similar but faster than: blur(1.58), removegrain(19), removegrain(20) or mt_convolution("1 1 1","1 1 1")
+# Benchmark:
+# 100% removegrain(19,-1)
+#  71% ex_boxblur(1)
+#  66% blur(1.58)
+#  64% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
+#  43% mt_convolution("1 1 1","1 1 1",U=1,V=1)
 function ex_boxblur(clip a, int "radius", int "UV") {
 
     rd = Default(radius, 1)
@@ -211,10 +222,17 @@ function ex_boxblur(clip a, int "radius", int "UV") {
 
 
 # Variable Gaussian Blur
-# removegrain(12) is 31% faster than ex_blur(1) and 34% faster than blur(1.0)
+#
+# Benchmark:
+# 100% removegrain(12,-1)
+#  72% ex_blur(1)
+#  70% blur(1.00)
+#  66% generalconvolution(matrix="0 1 0 1 2 1 0 1 0",6,chroma=false) doesn't match output tho
+#  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
+#
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
 # ex_blur(1) same to blur(1.0), removegrain(11) and removegrain(12)
-# TODO: make radius work over 6
+# TODO: make radius work over 6, optimize with linear sampled gaussian
 function ex_blur(clip a, int "radius", int "UV") {
 
     sm = Default(radius, 1)           # from 1 to 6
@@ -284,12 +302,12 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     } else {
 
-    for (py = -krnlrd, krnlrd, 1) {
-        krn = Format(krn + "x[0,{py}] max ")
+    for (py  = -krnlrd, krnlrd, 1) {
+        krn  = Format(krn  + "x[0,{py}] max ")
        }
 
     krnh = ""
-    for (px = -krnlrd, krnlrd, 1) {
+    for (px  = -krnlrd, krnlrd, 1) {
         krnh = Format(krnh + "x[{px},0] max ")
        }
 
@@ -297,10 +315,10 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
     strh = Format("x[0,0] " + strh + "A^ x[0,0] {thr} scaleb + A min")
     }
 
-    str = ReplaceStr(krn, "x[0,0] max ", "")
-    str = Format("x[0,0] " + str + "A^ x[0,0] {thr} scaleb + A min")
+    str  = ReplaceStr(krn, "x[0,0] max ", "")
+    str  = Format("x[0,0] " + str  + "A^ x[0,0] {thr} scaleb + A min")
 
-    UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                          : \
+    UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                          :      \
                        Expr(a,    str,  ex_UVexpr(a, str,  UV), scale_inputs=ex_UVf(a))
     mode == "square" ?                                                                         \
     UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          :      \
@@ -333,12 +351,12 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     } else {
 
-    for (py = -krnlrd, krnlrd, 1) {
-        krn = Format(krn + "x[0,{py}] min ")
+    for (py  = -krnlrd, krnlrd, 1) {
+        krn  = Format(krn  + "x[0,{py}] min ")
        }
 
     krnh = ""
-    for (px = -krnlrd, krnlrd, 1) {
+    for (px  = -krnlrd, krnlrd, 1) {
         krnh = Format(krnh + "x[{px},0] min ")
        }
 
@@ -346,10 +364,10 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
     strh = Format("x[0,0] " + strh + "A^ x[0,0] {thr} scaleb - A max")
     }
 
-    str = ReplaceStr(krn, "x[0,0] min ", "")
-    str = Format("x[0,0] " + str + "A^ x[0,0] {thr} scaleb - A max")
+    str  = ReplaceStr(krn, "x[0,0] min ", "")
+    str  = Format("x[0,0] " + str  + "A^ x[0,0] {thr} scaleb - A max")
 
-    UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                          : \
+    UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                          :      \
                        Expr(a,    str,  ex_UVexpr(a, str,  UV), scale_inputs=ex_UVf(a))
     mode == "square" ?                                                                         \
     UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          :      \
@@ -444,9 +462,10 @@ function ex_undot(clip a, int "radius", int "UV") {
 
 ######### HELPER FUNCTIONS #########
 
-function ex_UVexpr(clip a, string str, int "UV") {
+function ex_UVexpr(clip a, string "str", int "UV") {
 
-    UV = Default(UV, 1)
+    UV  = Default(UV, 1)
+    str = Default(str, "")
 
     bd = BitsPerComponent(a) == 32 ? 0.5 : 0
 
