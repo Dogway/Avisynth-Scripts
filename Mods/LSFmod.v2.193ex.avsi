@@ -559,10 +559,10 @@ normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((s
 \         : preblur!="OFF"           ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)))) : secure ? pre.cas(min(Str, 1)).Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?") : pre.cas(min(Str, 1))
 
 
-### LIMIT (mt_clamp)
-normal = Expr(normsharp, bright_limit, dark_limit, Format(" x z {undershoot}  scaleb - A@ < A x y {overshoot}  scaleb + B@ > B x ? ?"))
-second = Expr(normsharp, bright_limit, dark_limit, Format(" x z {undershoot2} scaleb - A@ < A x y {overshoot2} scaleb + B@ > B x ? ?"))
-zero   = Expr(normsharp, bright_limit, dark_limit,        " x z                                 y                            clip"   )
+### LIMIT
+normal = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot),  round(undershoot),  UV=1)
+second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(undershoot2), UV=1)
+zero   = ex_clamp(normsharp, bright_limit, dark_limit,                 0,                  0, UV=1)
 
 
 edge  = edgemaskHQ ? Expr(  tmp.mt_edge(thY1=0,thY2=255,"8 16 8 0 0 0 -8 -16 -8 4",U=1,V=1)
