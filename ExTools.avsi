@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b14  (24-05-2021)              ##
+###           ExTools v1.0b15  (24-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -9,7 +9,7 @@
 ###########################################################
 ###
 ### Pack of masktools2 replacement functions with internal Expr().
-### Generally works faster in HBD, but slower in 8-bit. 
+### Generally works faster in HBD, but slower in 8-bit.
 ### See performance notes (benchmarks on 16-bit).
 ###
 ### *Convolutions are slower because in masktools2 they run with AVX2
@@ -95,12 +95,15 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
                        Expr(a, b, lmmsk, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# Add undershoot and overshoot
-function ex_clamp(clip a, clip lo, clip hi, int "UV") {
+# mt_clamp() is 6% slower
+function ex_clamp(clip a, clip lo, clip hi, int "overshoot", int "undershoot", int "UV") {
 
+    os = Default(overshoot, 0)
+    us = Default(undershoot, 0)
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
-    str = Format("x z < z x y > y x ? ?")
+    str = (os == 0) && (us == 0) ? Format("x y z clip")                                    : \
+                                   Format("x y {os} scaleb + min z {us} scaleb - max")
 
     UV == 1 ? isy(a) ? Expr(a, lo, hi, str) : Expr(a, lo, hi, str, "")                     : \
                        Expr(a, lo, hi, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
