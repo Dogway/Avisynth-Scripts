@@ -344,7 +344,7 @@ function FRC_GaussianBlur42(clip C,
     \         Min(Max(4, w1 + (w1 % 2)), w0), 
     \         Min(Max(4, h1 + (h1 % 2)), h0))
 
-    B = B.ex_blur(0.60)
+    B = B.ex_blur(2)
     
     return (var<0.01 && vvar<0.01)       ? C 
     \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize(w0, h0, p=p)
