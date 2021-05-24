@@ -195,7 +195,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 #  43% mt_convolution("1 1 1","1 1 1",U=1,V=1)
 function ex_boxblur(clip a, int "radius", int "UV") {
 
-    rd = Default(radius, 1)
+    rd = Default(radius, 1)            # from 1 to inf
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
     krnlsz = 2 * rd + 1
@@ -231,7 +231,6 @@ function ex_boxblur(clip a, int "radius", int "UV") {
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
 #
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
-# ex_blur(1) same to blur(1.0), removegrain(11) and removegrain(12)
 # TODO: make radius work over 6, optimize with linear sampled gaussian
 function ex_blur(clip a, int "radius", int "UV") {
 
