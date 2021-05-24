@@ -96,17 +96,17 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
 
 
 # mt_clamp() is 6% slower
-function ex_clamp(clip a, clip lo, clip hi, int "overshoot", int "undershoot", int "UV") {
+function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", int "UV") {
 
     os = Default(overshoot, 0)
     us = Default(undershoot, 0)
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
-    str = (os == 0) && (us == 0) ? Format("x y z clip")                                    : \
+    str = (os == 0) && (us == 0) ? Format("x y min z max")                                 : \
                                    Format("x y {os} scaleb + min z {us} scaleb - max")
 
-    UV == 1 ? isy(a) ? Expr(a, lo, hi, str) : Expr(a, lo, hi, str, "")                     : \
-                       Expr(a, lo, hi, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
+    UV == 1 ? isy(a) ? Expr(a, hi, lo, str) : Expr(a, hi, lo, str, "")                     : \
+                       Expr(a, hi, lo, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 # mt_binarize() is 37% slower
