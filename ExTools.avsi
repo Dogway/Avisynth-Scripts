@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b12  (22-05-2021)              ##
+###           ExTools v1.0b13  (24-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -99,12 +99,14 @@ function ex_clamp(clip a, clip lo, clip hi, int "UV") {
                        Expr(a, lo, hi, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
+# mt_binarize() 30% slower but 100% faster when chained
 function ex_binarize(clip a, int "thres", int "UV") {
 
     th = Default(thres, 128)
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
     str = Format("x {th} scaleb > range_max range_min ?")
+#    str = Format("x x {th} scaleb - x {th} scaleb + clip") # slower than ternary
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
@@ -172,13 +174,8 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 ##   CONVOLUTIONS   ##
 ######################
 
-# Convolutions kernels have 3 aspects; kernel size, kernel shape, and weight. Only kernel size is fixed in* for the moment until I code a string recursion function.
-# * Note: radius (except for ex_blur and ex_boxblur) isn't making the kernel bigger, but further apart, test results before using rad > 1
 
-
-
-# ex_boxblur(1) very similar but faster than: removegrain(19), blur(1.58) or mt_convolution("1 1 1","1 1 1")
-# TODO: Compute decimals, deal with borders (dilate?) 16 bit+AVX2+non mod32 width?
+# ex_boxblur(1) very similar but faster than: blur(1.58), removegrain(19), removegrain(20) or mt_convolution("1 1 1","1 1 1")
 function ex_boxblur(clip a, int "radius", int "UV") {
 
     rd = Default(radius, 1)
@@ -209,17 +206,17 @@ function ex_boxblur(clip a, int "radius", int "UV") {
 
 
 
-# Variable Gaussian Blur function
+# Variable Gaussian Blur
 # Kernel size ideally, 9 for 16-bit integer, 11 for 32-bit float
-# ex_blur(1.15) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
-# ex_blur(0.30) same to removegrain(11) and blur(1.0)
-# TODO: Compute decimals, deal with borders (dilate?) 16 bit+AVX2+non mod32 width?
-function ex_blur(clip a, float "sigma", int "UV") {
+# ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
+# ex_blur(1) same to blur(1.0), removegrain(11) and removegrain(12)
+# TODO: make radius work over 6
+function ex_blur(clip a, int "radius", int "UV") {
 
-    sm = Default(sigma, 1.0)           # from 0.30 to 2.0
+    sm = Default(radius, 1)           # from 1 to 6
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
-    sm     = min(sm,2.0)
+    sm     = min(sm * 0.30,2.0)
     krnlsz = 2*ceil(3*sm)
     n_f    = factorial(krnlsz)
 
@@ -255,7 +252,9 @@ function factorial(int n) {
     n<2?1:factorial(n-1)*n }
 
 
-# Separable only "square" mode ("circle" rad=2 is like "both" twice but faster)
+# "circle" rad=2 is like "both" twice but faster
+# TODO: Need to work out shape for "circle" && rad>1
+# TODO: Implement thres
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rd   = Default(radius, 1)
@@ -263,68 +262,134 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
     thr  = Default(thres, 255)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
+    krnlsz = 2 * rd + 1
+    krnlrd = krnlsz/2
 
-    str = Format( \
-                  mode == "both"              ? "x[0,0] x[0,-{rd}] max x[0,{rd}] max x[-{rd},0] max x[{rd},0] max A^ x[0,0] {thr} scaleb + A min"                                                             : \
-                  mode == "circle" && rd == 1 ? "x[0,0] x[0,-{rd}] max x[0,{rd}] max x[-{rd},0] max x[{rd},0] max A^ x[0,0] {thr} scaleb + A min"                                                             : \
-                  mode == "circle" && rd == 2 ? "x[0,0] x[-1,-1] max x[0,-1] max x[1,-1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,1] max x[0,1] max x[1,1] max x[-2,0] max x[0,2] max x[2,0] max x[0,-2] max" \
-                                              + "A^ x[0,0] {thr} scaleb + A min"                                                                                                                              : \
-                  mode == "square"            ? "x[0,0] x[0,{rd}] max x[0,-{rd}] max A^ x[0,0] {thr} scaleb + A min"                                                                                          : \
-                                              Assert (false, "Unsupported Mode.") )
+    krn = ""
+    if (mode != "square") {
 
-    strh = Format(mode == "square" ? "x[0,0] x[-{rd},0] max x[{rd},0] max A^ x[0,0] {thr} scaleb + A min" : "")
+    for (px = -krnlrd, krnlrd, 1) {
+        for (py = -krnlrd, krnlrd, 1) {
+            skip = mode == "both"   ? py != 0 && px != 0                                       : \
+                   mode == "circle" ? (abs(py) == rd || abs(px) == rd) && (py != 0 && px != 0) : \
+                   Assert (false, "Unsupported Mode.")
+            krn = skip ? krn : Format(krn + "x[{px},{py}] max ")
+           }
+       }
 
-    UV == 1 ? isy(a) ? Expr(a,     str) :    Expr(a,  str, "")                          : \
-                       Expr(a,     str, ex_UVexpr(a,  str, UV), scale_inputs=ex_UVf(a))
+    } else {
 
-                  mode == "square"                                                      ? \
-    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          : \
+    for (py = -krnlrd, krnlrd, 1) {
+        krn = Format(krn + "x[0,{py}] max ")
+       }
+
+    krnh = ""
+    for (px = -krnlrd, krnlrd, 1) {
+        krnh = Format(krnh + "x[{px},0] max ")
+       }
+
+    strh = ReplaceStr(krnh, "x[0,0] max ", "")
+    strh = Format("x[0,0] " + strh + "A^ x[0,0] {thr} scaleb + A min")
+    }
+
+    str = ReplaceStr(krn, "x[0,0] max ", "")
+    str = Format("x[0,0] " + str + "A^ x[0,0] {thr} scaleb + A min")
+
+    UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                          : \
+                       Expr(a,    str,  ex_UVexpr(a, str,  UV), scale_inputs=ex_UVf(a))
+    mode == "square" ?                                                                         \
+    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          :      \
                        Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) : last }
 
 
-# Separable only "square" mode
-function ex_inpand(clip a, string "mode", int "thres", int "UV") {
+# TODO: Implement thres
+function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
+    rd   = Default(radius, 1)
     mode = Default(mode, "square")
     thr  = Default(thres, 255)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
+    krnlsz = 2 * rd + 1
+    krnlrd = krnlsz/2
 
-    str  =        mode == "both"   ? Format("x[0,0] x[0,-1] min x[0,1] min x[-1,0] min x[1,0] min A^ x[0,0] {thr} scaleb - A max") : \
-                  mode == "square" ? Format("x[0,0] x[0,1] min x[0,-1] min A^ x[0,0] {thr} scaleb - A max")                        : \
-                                    Assert (false, "Unsupported Mode.")
+    krn = ""
+    if (mode != "square") {
 
-    strh = Format(mode == "square" ? "x[0,0] x[-1,0] min x[1,0] min A^ x[0,0] {thr} scaleb - A max" : "")
+    for (px = -krnlrd, krnlrd, 1) {
+        for (py = -krnlrd, krnlrd, 1) {
+            skip = mode == "both"   ? py != 0 && px != 0                                       : \
+                   mode == "circle" ? (abs(py) == rd || abs(px) == rd) && (py != 0 && px != 0) : \
+                   Assert (false, "Unsupported Mode.")
+            krn = skip ? krn : Format(krn + "x[{px},{py}] min ")
+           }
+       }
 
-    UV == 1 ? isy(a) ? Expr(a,     str) :    Expr(a,  str, "")                          : \
-                       Expr(a,     str, ex_UVexpr(a,  str, UV), scale_inputs=ex_UVf(a))
+    } else {
 
-                  mode == "square"                                                      ? \
-    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          : \
+    for (py = -krnlrd, krnlrd, 1) {
+        krn = Format(krn + "x[0,{py}] min ")
+       }
+
+    krnh = ""
+    for (px = -krnlrd, krnlrd, 1) {
+        krnh = Format(krnh + "x[{px},0] min ")
+       }
+
+    strh = ReplaceStr(krnh, "x[0,0] min ", "")
+    strh = Format("x[0,0] " + strh + "A^ x[0,0] {thr} scaleb - A max")
+    }
+
+    str = ReplaceStr(krn, "x[0,0] min ", "")
+    str = Format("x[0,0] " + str + "A^ x[0,0] {thr} scaleb - A max")
+
+    UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                          : \
+                       Expr(a,    str,  ex_UVexpr(a, str,  UV), scale_inputs=ex_UVf(a))
+    mode == "square" ?                                                                         \
+    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          :      \
                        Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) : last }
 
 
 
-function ex_deflate(clip a, int "radius", int "thres", int "UV") {
+# Slower for kernel 3x3 if separated (Min() x2)
+function ex_deflate(clip a, int "radius", int "UV") {
 
-    rd   = Default(radius, 1)
-    thr  = Default(thres, 255)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    rd = Default(radius, 1)
+    UV = Default(UV, isRGB(a) ? 3 : 1)
 
-    str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + 8 / x[0,0] min")
+    krnlsz = 2 * rd + 1
+    krnlrd = krnlsz/2
+
+    krn = ""
+    for (px = -krnlrd, krnlrd, 1) {
+        for (py = -krnlrd, krnlrd, 1) {
+            krn = py == -krnlrd && px == -krnlrd ? Format("x[{px},{py}] ") : Format(krn + "x[{px},{py}] + ")
+           }
+       }
+
+    str = ReplaceStr(krn, "x[0,0] + ", "") + string(krnlsz*krnlsz-1) + " / x[0,0] min"
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 
-function ex_inflate(clip a, int "radius", int "thres", int "UV") {
+function ex_inflate(clip a, int "radius", int "UV") {
 
-    rd   = Default(radius, 1)
-    thr  = Default(thres, 255)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    rd = Default(radius, 1)
+    UV = Default(UV, isRGB(a) ? 3 : 1)
 
-    str = Format("x[-{rd},-{rd}] x[0,-{rd}] x[{rd},-{rd}] x[-{rd},0] x[{rd},0] x[-{rd},{rd}] x[0,{rd}] x[{rd},{rd}] + + + + + + + 8 / x[0,0] max")
+    krnlsz = 2 * rd + 1
+    krnlrd = krnlsz/2
+
+    krn = ""
+    for (px = -krnlrd, krnlrd, 1) {
+        for (py = -krnlrd, krnlrd, 1) {
+            krn = py == -krnlrd && px == -krnlrd ? Format("x[{px},{py}] ") : Format(krn + "x[{px},{py}] + ")
+           }
+       }
+
+    str = ReplaceStr(krn, "x[0,0] + ", "") + string(krnlsz*krnlsz-1) + " / x[0,0] max"
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
