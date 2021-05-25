@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b15  (24-05-2021)              ##
+###           ExTools v1.0b15  (25-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -153,7 +153,7 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# Overlay(mode="multiply") is 44% slower
+# Overlay(mode="multiply") is 56% slower
 # TODO: process chroma (preconvert to RGB?)
 function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool "tv_range") {
 
@@ -276,7 +276,7 @@ function factorial(int n) {
     n<2?1:factorial(n-1)*n }
 
 
-# mt_expand() is 33% faster (lower gap with bigger radius)
+# mt_expand() is 25% faster (lower gap with bigger radius)
 # "circle" rad=2 is like "both" twice but faster
 # TODO: Need to work out shape for "circle" && rad>1
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
@@ -322,7 +322,7 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
                        Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) : last }
 
 
-# mt_inpand() is 33% faster (lower gap with bigger radius)
+# mt_inpand() is 25% faster (lower gap with bigger radius)
 function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rd   = Default(radius, 1)
