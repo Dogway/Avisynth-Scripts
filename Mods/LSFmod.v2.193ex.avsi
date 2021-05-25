@@ -528,7 +528,7 @@ Assert(!isYUY2(input), chr(10) + "LSFmod: not work with an YUY2 clip !" + chr(10
 ### SHARP
 tmp  = ss_x > 1.0 || ss_y > 1.0 ? input.spline36resize(xxs,yys) : input
 pre  = preblur=="OFF" ? tmp
-\    : preblur=="ON"  ? tmp.ex_makediff(Expr(ex_makediff(tmp,tmp.ex_blur(1,1))
+\    : preblur=="ON"  ? tmp.ex_makediff(Expr(ex_makediff(tmp,tmp.ex_blur(1,UV=1))
 \                                           ,ex_makediff(tmp,tmp.removegrain(4,-1))
 \                          ,"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?"))
 \    : Eval("tmp."+preblur)
@@ -538,9 +538,9 @@ bright_limit = pre.ex_expand()
 minmaxavg    = Merge(dark_limit,bright_limit,0.5)
 
 # consider auto-increasing blur for HD/UHD
-method = Smethod==1   ? pre.ex_blur(1,1)
+method = Smethod==1   ? pre.ex_blur(1,UV=1)
 \      : Smethod==2   ? minmaxavg
-\      :                minmaxavg.ex_blur(1,1)
+\      :                minmaxavg.ex_blur(1,UV=1)
 
 method = secure==true ? method.Expr(pre,"x y < x 0.51 scaleb + x y > x 0.51 scaleb - x ? ?")
 \      :                method
@@ -581,8 +581,8 @@ limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      :            ex_merge(second,    normal, edge.ex_inflate())
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().ex_blur(1,1))
-\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().ex_blur(1,1))
+\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1))
+\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1))
 
 
 ### SOFT
