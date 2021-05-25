@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b15  (25-05-2021)              ##
+###           ExTools v1.0b16  (25-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -101,6 +101,8 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
     os = Default(overshoot, 0)
     us = Default(undershoot, 0)
     UV = Default(UV, isRGB(a) ? 3 : 1)
+    os = min(max(os,0),255)
+    us = min(max(us,0),255)
 
     str = (os == 0) && (us == 0) ? Format("x y min z max")                                 : \
                                    Format("x y {os} scaleb + min z {us} scaleb - max")
@@ -115,6 +117,7 @@ function ex_binarize(clip a, int "thres", bool "invert", int "UV") {
     th = Default(thres, 128)
     in = Default(invert, false)
     UV = Default(UV, isRGB(a) ? 3 : 1)
+    th = min(max(th,0),255)
 
     str = in ? Format("x {th} scaleb < range_max range_min ?") : \
                Format("x {th} scaleb > range_max range_min ?")
@@ -136,21 +139,22 @@ function ex_invert(clip a, int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# mt_lutspa() is 740% faster but is only spatial
-# TODO: make 1 frame and copy for clip length if there's no frameno
+# mt_lutspa() is same speed (instant when spatial)
 function ex_lutspa(clip a, string "mode", string "str", int "UV") {
 
     mode = Default(mode, "absolute")
     str  = Default(str, "x")
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
+	tem = FindStr(str, "frameno")  > 0 || FindStr(str, "time") > 0
 
     str = mode=="absolute" ? ReplaceStr(ReplaceStr(" "+str+" "," y "," sy " ), " x ", " sx " )  : \
           mode=="relative" ? ReplaceStr(ReplaceStr(" "+str+" "," y "," syr "), " x ", " sxr ")  : \
                              Assert (false, "Unsupported Mode.")
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
-                       Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
+                       Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a))
+    tem     ? last :   trim(last,0,-1).Loop(FrameCount(a))                         }
 
 
 # Overlay(mode="multiply") is 56% slower
@@ -163,6 +167,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     op    = Default(opacity, 1.0)
     UV    = Default(UV, isRGBa ? 3 : 1)
     range = Default(tv_range, !isRGBa)  # TV or PC. Luma range of your source
+    op = min(max(op,0.),1.)
 
     rngmax = range ? "ymax ymin -" : "range_max"
     srcmax = range ? "ymin -"      : ""
@@ -190,16 +195,20 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 ##   CONVOLUTIONS   ##
 ######################
 
+
 # Benchmark:
 # 100% removegrain(19,-1)
+#  87% Dither_box_filter16(2,U=1,V=1) also scales up better than ex_boxblur()
 #  71% ex_boxblur(1)
 #  66% blur(1.58)
 #  64% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
 #  43% mt_convolution("1 1 1","1 1 1",U=1,V=1)
+#
 function ex_boxblur(clip a, int "radius", int "UV") {
 
     rd = Default(radius, 1)            # from 1 to inf
     UV = Default(UV, isRGB(a) ? 3 : 1)
+    rd = max(rd, 1)
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -234,13 +243,16 @@ function ex_boxblur(clip a, int "radius", int "UV") {
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
 #
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
-# TODO: make radius work over 6, optimize with linear sampled gaussian
-function ex_blur(clip a, int "radius", int "UV") {
+# ex_blur(3) same to ex_boxblur(1).ex_boxblur(1), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
+# TODO: make radius work over 6 (Expr() limit?)
+function ex_blur(clip a, int "radius", int "radiusH", int "UV") {
 
-    sm = Default(radius, 1)           # from 1 to 6
+    sm = Default(radius,   1)           # from 0 to 6
+    sh = Default(radiusH, sm)           # from 0 to 6
     UV = Default(UV, isRGB(a) ? 3 : 1)
+    sm = max(min(sm * 0.30,2.0),0)
+    sh = max(min(sh * 0.30,2.0),0)
 
-    sm     = min(sm * 0.30,2.0)
     krnlsz = 2*ceil(3*sm)
     n_f    = factorial(krnlsz)
 
@@ -253,21 +265,26 @@ function ex_blur(clip a, int "radius", int "UV") {
         krnv = i == 0 ? Format("x[0,{py}] {wg} * ") : Format(krnv + "x[0,{py}] {wg} * + ")
        }
 
-    krnh = ""
-    for (i= 0, krnlsz, 1) {
+    krnlszh = 2*ceil(3*sh)
+    n_f     = factorial(krnlszh)
 
-        k_f = factorial(i)*factorial(krnlsz-i)
+    krnh = ""
+    for (i= 0, krnlszh, 1) {
+
+        k_f = factorial(i)*factorial(krnlszh-i)
         wg = n_f/k_f
-        px = i - krnlsz/2
+        px = i - krnlszh/2
         krnh = i == 0 ? Format("x[{px},0] {wg} * ") : Format(krnh + "x[{px},0] {wg} * + ")
        }
 
-    strv = krnv + string(pow(2,krnlsz)) + " /"
-    strh = krnh + string(pow(2,krnlsz)) + " /"
+    strv = krnv + string(pow(2,krnlsz )) + " /"
+    strh = krnh + string(pow(2,krnlszh)) + " /"
 
+    sm == 0 ?     a                                                                     : \
     UV == 1 ? isy(a) ? Expr(a,    strv) :    Expr(a, strv, "")                          : \
                        Expr(a,    strv, ex_UVexpr(a, strv, UV), scale_inputs=ex_UVf(a))
 
+    sh == 0 ?   last                                                                    : \
     UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                          : \
                        Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs=ex_UVf(a)) }
 
@@ -285,6 +302,7 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
     mode = Default(mode, "square")
     thr  = Default(thres, 255)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
+    thr  = min(max(thr, 0), 255)
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -329,6 +347,7 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
     mode = Default(mode, "square")
     thr  = Default(thres, 255)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
+    thr  = min(max(thr, 0), 255)
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -412,19 +431,20 @@ function ex_inflate(clip a, int "radius", int "UV") {
 
 
 # WIP: implement separable mats, thresholding and sharpen mode
-function ex_edge(clip a, string "kernel", string "mode", int "str", int "thres", int "UV") {
+function ex_edge(clip a, string "kernel", string "mode", int "lo", int "hi", int "str", int "UV") {
 
     kernel = Default(kernel, "sobel")
     mode   = Default(mode,    "edge")    # "edge": for edge detection, or "sharpen": for sharpening
     str    = Default(str, 2)
-    thres  = Default(thres, 0.25)
+    lo     = Default(lo, 10)
+    hi     = Default(hi, 255)
     UV     = Default(UV, isRGB(a) ? 3 : 1)
 
     str = Format(                                                                                                                                                                                                \
           kernel=="prewitt" ? "x[-1,0] x[-1,1] + x[1,1] - x[1,0] - x[1,-1] - x[-1,-1] + 2 ^ "                                                                                                                    \
                              +"x[-1,1] x[0,1] + x[1,1] + x[1,-1] - x[0,-1] - x[-1,-1] - 2 ^ * sqrt"                                                                                                            : \
-          kernel=="sobel"   ? "x[-1,0] 2 * x[-1,1] + x[1,1] - x[1,0] 2 * - x[1,-1] - x[-1,-1] + 2 ^ "                                                                                                            \
-                             +"x[-1,0] x[-1,1] + x[0,1] 2 * + x[1,1] + x[1,-1] - x[0,-1] 2 * - x[-1,-1] - 2 ^ * sqrt"                                                                                          : \
+          kernel=="sobel"   ? "x[-1,0] 2 * x[-1,1] + x[1,1] - x[1,0] 2 * - x[1,-1] - x[-1,-1] + "                                                                                                            \
+                             +"x[-1,1] x[0,1] 2 * + x[1,1] + x[1,-1] - x[0,-1] 2 * - x[-1,-1] - max A@ A {lo} scaleb"                                         : \
           kernel=="LoG"     ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * -"                                : \
           kernel=="DoG"     ? "x[0,0] 2 * x[0,1] x[-1,0] x[1,0] x[0,-1] + + + + 6 / A@ x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] x[0,0] 4 * "  \
                              +"+ + + + + + + + + + + + 20 / B@ - abs {thres} scaleb > A B - {str} * A ?"                                                                                                       : \
