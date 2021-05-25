@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b16  (25-05-2021)              ##
+###           ExTools v1.0b17  (25-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -196,6 +196,8 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 ######################
 
 
+# Variable Box Blur
+#
 # Benchmark:
 # 100% removegrain(19,-1)
 #  87% Dither_box_filter16(2,U=1,V=1) also scales up better than ex_boxblur()
@@ -244,7 +246,7 @@ function ex_boxblur(clip a, int "radius", int "UV") {
 #
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
 # ex_blur(3) same to ex_boxblur(1).ex_boxblur(1), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
-# TODO: make radius work over 6 (Expr() limit?)
+# TODO: make radius work over 6 (Expr() limit?, consider FFT)
 function ex_blur(clip a, int "radius", int "radiusH", int "UV") {
 
     sm = Default(radius,   1)           # from 0 to 6
@@ -430,26 +432,27 @@ function ex_inflate(clip a, int "radius", int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# WIP: implement separable mats, thresholding and sharpen mode
-function ex_edge(clip a, string "kernel", string "mode", int "lo", int "hi", int "str", int "UV") {
+# WIP: implement separable mats (?), and Expr variables for less pixel fetching
+function ex_edge(clip a, string "kernel", string "mode", int "lo", int "hi", int "UV") {
 
     kernel = Default(kernel, "sobel")
-    mode   = Default(mode,    "edge")    # "edge": for edge detection, or "sharpen": for sharpening
-    str    = Default(str, 2)
     lo     = Default(lo, 10)
-    hi     = Default(hi, 255)
+    hi     = Default(hi, 10)
     UV     = Default(UV, isRGB(a) ? 3 : 1)
 
+    thres =  "B@ {lo} scaleb < range_min B {hi} scaleb > range_max B ? ?"
     str = Format(                                                                                                                                                                                                \
-          kernel=="prewitt" ? "x[-1,0] x[-1,1] + x[1,1] - x[1,0] - x[1,-1] - x[-1,-1] + 2 ^ "                                                                                                                    \
-                             +"x[-1,1] x[0,1] + x[1,1] + x[1,-1] - x[0,-1] - x[-1,-1] - 2 ^ * sqrt"                                                                                                            : \
-          kernel=="sobel"   ? "x[-1,0] 2 * x[-1,1] + x[1,1] - x[1,0] 2 * - x[1,-1] - x[-1,-1] + "                                                                                                            \
-                             +"x[-1,1] x[0,1] 2 * + x[1,1] + x[1,-1] - x[0,-1] 2 * - x[-1,-1] - max A@ A {lo} scaleb"                                         : \
-          kernel=="LoG"     ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * -"                                : \
-          kernel=="DoG"     ? "x[0,0] 2 * x[0,1] x[-1,0] x[1,0] x[0,-1] + + + + 6 / A@ x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] x[0,0] 4 * "  \
+          kernel=="prewitt" ? "x[1,1] x[1,0] + x[1,-1] + x[-1,1] - x[-1,0] - x[-1,-1] - x[1,1] x[0,1] + x[-1,1] + x[1,-1] - x[0,-1] - x[-1,-1] - max "                                                           \
+                             +"x[-1,-1] x[-1,0] + x[-1,1] + x[1,-1] - x[1,0] - x[1,1] - x[-1,-1] x[0,-1] + x[1,-1] + x[-1,1] - x[0,1] - x[1,1] - max max "                                                       \
+                             +"x[0,1] x[1,1] + x[1,0] + x[-1,-1] - x[0,-1] - x[-1,0] - x[-1,1] x[0,1] + x[-1,0] + x[1,-1] - x[0,-1] - x[1,0] - max "                                                             \
+                             +"x[-1,0] x[0,-1] + x[-1,-1] + x[1,0] - x[1,1] - x[0,1] - x[1,0] x[0,-1] + x[1,-1] + x[-1,0] - x[0,1] - x[-1,1] - max max max "+thres+""                                          : \
+          kernel=="hprewitt"? "x[1,1] x[1,0] 2 * + x[1,-1] + x[-1,1] - x[-1,0] 2 * - x[-1,-1] - x[1,1] x[0,1] 2 * + x[-1,1] + x[1,-1] - x[0,-1] 2 * - x[-1,-1] - max "                                           \
+                             +"x[-1,-1] x[-1,0] 2 * + x[-1,1] + x[1,-1] - x[1,0] 2 * - x[1,1] - x[-1,-1] x[0,-1] 2 * + x[1,-1] + x[-1,1] - x[0,1] 2 * - x[1,1] - max max "+thres+""                            : \
+          kernel=="sobel"   ? "x[0,-1] x[0,1] - x[1,0] - x[-1,0] + x[0,1] x[0,-1] - x[1,0] + x[-1,0] - max 2 / "+thres+""                                                                                      : \
                              +"+ + + + + + + + + + + + 20 / B@ - abs {thres} scaleb > A B - {str} * A ?"                                                                                                       : \
-          kernel=="Roberts" ? "x[0,0] x[1,-1] - 2 ^ x[1,0] x[0,-1] - 2 ^ + sqrt {str} *"                                                                                                                       : \
-          kernel=="Laplace" ? "x[0,0] 8 * x[-1,1] - x[0,1] - x[1,1] - x[-1,0] - x[1,0] - x[-1,-1] - x[0,-1] - x[1,-1] - {str} *"                                                                               : \
+          kernel=="Cartoon" ? "x[1,0] 2 * x[0,0] - x[1,-1] - "+thres+""                                                                                                                                        : \
+          kernel=="Roberts" ? "x[0,0] 2 * A@ x[-1,0] - x[0,-1] - A x[1,0] - x[0,1] - max 2 / "+thres+""                                                                                                        : \
+          kernel=="Laplace" ? "x[0,0] 8 * x[-1,1] - x[0,1] - x[1,1] - x[-1,0] - x[1,0] - x[-1,-1] - x[0,-1] - x[1,-1] - 8 / "+thres+""                                                                         : \
                              Assert (false, "Unsupported Kernel.") )
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
