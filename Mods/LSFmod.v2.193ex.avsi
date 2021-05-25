@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.194x - 23 May 2021                                     ###
+###                                v2.194ex - 24 May 2021                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -437,7 +437,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 sisphbd = AvsPlusVersionNumber > 2294
 
 ### DEFAULTS
-version  = "v2.193mod"
+version  = "v2.193ex"
 defaults = default(defaults,"fast")
 num      = defaults=="old" ? 0 : defaults=="slow" ? 1 : defaults=="fast" ? 2 : 3
 
@@ -565,10 +565,10 @@ second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(
 zero   = ex_clamp(normsharp, bright_limit, dark_limit,                 0,                  0, UV=1)
 
 
-edge  = edgemaskHQ ? Expr(  tmp.mt_edge(thY1=0,thY2=255,"8 16 8 0 0 0 -8 -16 -8 4",U=1,V=1)
-\                          ,tmp.mt_edge(thY1=0,thY2=255,"8 0 -8 16 0 -16 8 0 -8 4",U=1,V=1)
-\                          ,"x y max")
-\     :                     tmp.mt_edge(thY1=0,thY2=255,mode="min/max",U=1,V=1)
+edge  = edgemaskHQ ? ex_logic( tmp.mt_edge(thY1=0,thY2=255,"8 16 8 0 0 0 -8 -16 -8 4",U=1,V=1)
+\                             ,tmp.mt_edge(thY1=0,thY2=255,"8 0 -8 16 0 -16 8 0 -8 4",U=1,V=1)
+\                             ,"max", UV=1)
+\     :                        tmp.mt_edge(thY1=0,thY2=255,mode="min/max",U=1,V=1)
 
 edge  = edgemaskHQ ?  edge.Expr("x range_half / 0.86 ^ range_max *",scale_inputs="floatf",clamp_float=true)
 \     :               edge.Expr("x 32 scalef / 0.86 ^ range_max *" ,scale_inputs="floatf",clamp_float=true)
