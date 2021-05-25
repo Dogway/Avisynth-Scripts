@@ -432,7 +432,8 @@ function ex_inflate(clip a, int "radius", int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# WIP: implement separable mats (?), and Expr variables for less pixel fetching
+# mt_edge(mode="prewitt", U=1,V=1) is 54% faster
+# WIP: implement separable mats (?)
 function ex_edge(clip a, string "kernel", string "mode", int "lo", int "hi", int "UV") {
 
     kernel = Default(kernel, "sobel")
@@ -440,19 +441,19 @@ function ex_edge(clip a, string "kernel", string "mode", int "lo", int "hi", int
     hi     = Default(hi, 10)
     UV     = Default(UV, isRGB(a) ? 3 : 1)
 
-    thres =  "B@ {lo} scaleb < range_min B {hi} scaleb > range_max B ? ?"
-    str = Format(                                                                                                                                                                                                \
-          kernel=="prewitt" ? "x[1,1] x[1,0] + x[1,-1] + x[-1,1] - x[-1,0] - x[-1,-1] - x[1,1] x[0,1] + x[-1,1] + x[1,-1] - x[0,-1] - x[-1,-1] - max "                                                           \
-                             +"x[-1,-1] x[-1,0] + x[-1,1] + x[1,-1] - x[1,0] - x[1,1] - x[-1,-1] x[0,-1] + x[1,-1] + x[-1,1] - x[0,1] - x[1,1] - max max "                                                       \
-                             +"x[0,1] x[1,1] + x[1,0] + x[-1,-1] - x[0,-1] - x[-1,0] - x[-1,1] x[0,1] + x[-1,0] + x[1,-1] - x[0,-1] - x[1,0] - max "                                                             \
-                             +"x[-1,0] x[0,-1] + x[-1,-1] + x[1,0] - x[1,1] - x[0,1] - x[1,0] x[0,-1] + x[1,-1] + x[-1,0] - x[0,1] - x[-1,1] - max max max "+thres+""                                          : \
-          kernel=="hprewitt"? "x[1,1] x[1,0] 2 * + x[1,-1] + x[-1,1] - x[-1,0] 2 * - x[-1,-1] - x[1,1] x[0,1] 2 * + x[-1,1] + x[1,-1] - x[0,-1] 2 * - x[-1,-1] - max "                                           \
-                             +"x[-1,-1] x[-1,0] 2 * + x[-1,1] + x[1,-1] - x[1,0] 2 * - x[1,1] - x[-1,-1] x[0,-1] 2 * + x[1,-1] + x[-1,1] - x[0,1] 2 * - x[1,1] - max max "+thres+""                            : \
-          kernel=="sobel"   ? "x[0,-1] x[0,1] - x[1,0] - x[-1,0] + x[0,1] x[0,-1] - x[1,0] + x[-1,0] - max 2 / "+thres+""                                                                                      : \
-                             +"+ + + + + + + + + + + + 20 / B@ - abs {thres} scaleb > A B - {str} * A ?"                                                                                                       : \
-          kernel=="Cartoon" ? "x[1,0] 2 * x[0,0] - x[1,-1] - "+thres+""                                                                                                                                        : \
-          kernel=="Roberts" ? "x[0,0] 2 * A@ x[-1,0] - x[0,-1] - A x[1,0] - x[0,1] - max 2 / "+thres+""                                                                                                        : \
-          kernel=="Laplace" ? "x[0,0] 8 * x[-1,1] - x[0,1] - x[1,1] - x[-1,0] - x[1,0] - x[-1,-1] - x[0,-1] - x[1,-1] - 8 / "+thres+""                                                                         : \
+    thres =  "Z@ {lo} scaleb < range_min Z {hi} scaleb > range_max Z ? ?"
+    str = Format(                                                                                                                                \
+          kernel=="prewitt" ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                           \
+                             +"A B + C + D - E - F - A G + D + C - H - F - max "                                                                 \
+                             +"F E + D + C - B - A - F H + C + D - G - A - max max "                                                             \
+                             +"G A + B + F - H - E - D G + E + C - H - B - max "                                                                 \
+                             +"E H + F + B - A - G - B H + C + E - G - D - max max max "+thres+""                                              : \
+          kernel=="hprewitt"? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                  \
+                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "+thres+""  : \
+          kernel=="sobel"   ? "x[0,-1] A^ x[0,1] B^ x[1,0] C^ x[-1,0] D^ A B - C - D + B A - C + D - max 2 / "+thres+""                        : \
+          kernel=="roberts" ? "x[0,0] 2 * A@ x[-1,0] - x[0,-1] - A x[1,0] - x[0,1] - max 2 / "+thres+""                                        : \
+          kernel=="laplace" ? "x[0,0] 8 * x[-1,1] - x[0,1] - x[1,1] - x[-1,0] - x[1,0] - x[-1,-1] - x[0,-1] - x[1,-1] - 8 / "+thres+""         : \
+          kernel=="cartoon" ? "x[1,0] 2 * x[0,0] - x[1,-1] - "+thres+""                                                                        : \
                              Assert (false, "Unsupported Kernel.") )
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
