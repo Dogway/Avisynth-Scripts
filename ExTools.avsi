@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0b17  (25-05-2021)              ##
+###           ExTools v1.0b18  (26-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -146,7 +146,7 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV") {
     str  = Default(str, "x")
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
-	tem = FindStr(str, "frameno")  > 0 || FindStr(str, "time") > 0
+    tem = FindStr(str, "frameno")  > 0 || FindStr(str, "time") > 0
 
     str = mode=="absolute" ? ReplaceStr(ReplaceStr(" "+str+" "," y "," sy " ), " x ", " sx " )  : \
           mode=="relative" ? ReplaceStr(ReplaceStr(" "+str+" "," y "," syr "), " x ", " sxr ")  : \
@@ -406,7 +406,7 @@ function ex_deflate(clip a, int "radius", int "UV") {
 
     str = ReplaceStr(krn, "x[0,0] + ", "") + string(krnlsz*krnlsz-1) + " / x[0,0] min"
 
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
+    UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                          : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
@@ -428,50 +428,50 @@ function ex_inflate(clip a, int "radius", int "UV") {
 
     str = ReplaceStr(krn, "x[0,0] + ", "") + string(krnlsz*krnlsz-1) + " / x[0,0] max"
 
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
+    UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                          : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 # mt_edge(mode="prewitt", U=1,V=1) is 54% faster
-# WIP: implement separable mats (?)
-function ex_edge(clip a, string "kernel", string "mode", int "lo", int "hi", int "UV") {
+function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV") {
 
-    kernel = Default(kernel, "sobel")
-    lo     = Default(lo, 10)
-    hi     = Default(hi, 10)
-    UV     = Default(UV, isRGB(a) ? 3 : 1)
+    mode = Default(mode, "sobel")
+    lo   = Default(lo, 10)
+    hi   = Default(hi, 10)
+    UV   = Default(UV, isRGB(a) ? 3 : 1)
 
-    thres =  "Z@ {lo} scaleb < range_min Z {hi} scaleb > range_max Z ? ?"
-    str = Format(                                                                                                                                \
-          kernel=="prewitt" ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                           \
-                             +"A B + C + D - E - F - A G + D + C - H - F - max "                                                                 \
-                             +"F E + D + C - B - A - F H + C + D - G - A - max max "                                                             \
-                             +"G A + B + F - H - E - D G + E + C - H - B - max "                                                                 \
-                             +"E H + F + B - A - G - B H + C + E - G - D - max max max "+thres+""                                              : \
-          kernel=="hprewitt"? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                  \
-                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "+thres+""  : \
-          kernel=="sobel"   ? "x[0,-1] A^ x[0,1] B^ x[1,0] C^ x[-1,0] D^ A B - C - D + B A - C + D - max 2 / "+thres+""                        : \
-          kernel=="roberts" ? "x[0,0] 2 * A@ x[-1,0] - x[0,-1] - A x[1,0] - x[0,1] - max 2 / "+thres+""                                        : \
-          kernel=="laplace" ? "x[0,0] 8 * x[-1,1] - x[0,1] - x[1,1] - x[-1,0] - x[1,0] - x[-1,-1] - x[0,-1] - x[1,-1] - 8 / "+thres+""         : \
-          kernel=="cartoon" ? "x[1,0] 2 * x[0,0] - x[1,-1] - "+thres+""                                                                        : \
-                             Assert (false, "Unsupported Kernel.") )
+    th  = (lo == 0) && (hi == 255) ? "" : "T@ {lo} scaleb < range_min T {hi} scaleb > range_max T ? ?"
+    str = Format(                                                                                                                            \
+          mode=="prewitt" ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                         \
+                             +"A B + C + D - E - F - A G + D + C - H - F - max "                                                             \
+                             +"F E + D + C - B - A - F H + C + D - G - A - max max "                                                         \
+                             +"G A + B + F - H - E - D G + E + C - H - B - max "                                                             \
+                             +"E H + F + B - A - G - B H + C + E - G - D - max max max "+th+""                                             : \
+          mode=="hprewitt"? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                \
+                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "+th+"" : \
+          mode=="sobel"   ? "x[0,-1] A^ x[0,1] B^ x[1,0] C^ x[-1,0] D^ A B - C - D + B A - C + D - max 2 / "+th+""                         : \
+          mode=="roberts" ? "x[0,0] 2 * A@ x[-1,0] - x[0,-1] - A x[1,0] - x[0,1] - max 2 / "+th+""                                         : \
+          mode=="laplace" ? "x[0,0] 8 * x[-1,1] - x[0,1] - x[1,1] - x[-1,0] - x[1,0] - x[-1,-1] - x[0,-1] - x[1,-1] - 8 / "+th+""          : \
+          mode=="cartoon" ? "x[1,0] 2 * x[0,0] - x[1,-1] - "+th+""                                                                         : \
+          mode=="min/max" ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "               \
+                            +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+"": \
+                             str )
 
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
+    UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                          : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
-# Use removegrain(1) as it's faster
-# TODO: make separable
+# removegrain(1,-1) is 21% faster
 function ex_undot(clip a, int "radius", int "UV") {
 
-    rd = Default(radius, 1)
+    rd = Default(radius, 1)            # beware; not real radius -bigger kernel-, but further apart
     UV = Default(UV, isRGB(a) ? 3 : 1)
 
+    # Separated is slower
+    str = Format("x[-{rd},{rd}] A^ x[0,{rd}] B^ x[{rd},{rd}] C^ x[-{rd},0] D^ x[{rd},0] F^ x[-{rd},-{rd}] G^ x[0,-{rd}] H^ x[{rd},-{rd}] I^ "  \
+                +"x[0,0] A B min C D min min F G min H I min min min A B max C D max max F G max H I max max max clip")
 
-    str = Format("x x[-{rd},{rd}] x[0,{rd}] min x[{rd},{rd}] x[-{rd},0] min min x[{rd},0] x[-{rd},-{rd}] min x[0,-{rd}] x[{rd},-{rd}] min min min "    \
-                  +"x[-{rd},{rd}] x[0,{rd}] max x[{rd},{rd}] x[-{rd},0] max max x[{rd},0] x[-{rd},-{rd}] max x[0,-{rd}] x[{rd},-{rd}] max max max clip")
-
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                             : \
+    UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                          : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
