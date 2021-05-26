@@ -6,7 +6,7 @@
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
 ###               2020.04.06    by A.SONY.     ###
-###               2021.05.22 ex by Dogway      ###
+###               2021.05.26 ex by Dogway      ###
 ###                                            ###
 ##################################################
 ###
@@ -20,12 +20,9 @@
 ### +-------------+
 ######
 ###
-### 2021.05.22 ex
-###      - Cosmetics
-###
-### 2021.05.18 ex
+### 2021.05.26 ex
 ###      - Removed < AviSynth+ 3.5 support
-###      - Replaced masktools2 with internal Expr() wrappers.
+###      - Replaced with internal Expr() wrappers.
 ###
 ### 2020.04.06
 ###      - HBD for avs+
@@ -64,7 +61,7 @@
 ### -> RemoveGrain      [v1.0pre]
 ### -> MaskTools2       [v2.0a48]
 ### -> f3kdb             [v1.5.0]
-### -> ExTools
+### -> ExTools           [v1.0.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -132,7 +129,7 @@ use_ALMask   = Default( use_sAverageLumaMask, false)
 o    = clp
 ox   = o.width()
 oy   = o.height()
-oblr = o.ex_boxblur(1,1)
+oblr = o.ex_boxblur(1,UV=1)
 sx1  = m4_sh(ox/float(g1size),m4v)
 sy1  = m4_sh(oy/float(g1size),m4v)
 sx1a = m4_sh((ox+sx1)/2.0,m4v)
@@ -189,7 +186,7 @@ grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer1 = (g1tex==0)
 \           ? grainlayer1
-\           : ex_makediff(grainlayer1,grainlayer1.mt_edge(BUMPKERNEL1, 0,255,0,0, U=chroma?3:1, V=chroma?3:1 ), chroma?3:1)
+\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0,hi=255, UV=chroma?3:1), chroma?3:1)
 
 grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
 \           : (g1size > 1.5) ? grainlayer1.bicubicresize(sx1a,sy1a, b1a,c1a).bicubicresize(ox,oy, b1a,c1a)
@@ -206,7 +203,7 @@ grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer2 = (g2tex==0)
 \           ? grainlayer2
-\           : ex_makediff(grainlayer2,grainlayer2.mt_edge(BUMPKERNEL2, 0,255,0,0, U=chroma?3:1, V=chroma?3:1 ), chroma?3:1)
+\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0,hi=255, UV=chroma?3:1), chroma?3:1)
 
 grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
 \           : (g2size > 1.5) ? grainlayer2.bicubicresize(sx2a,sy2a, b2a,c2a).bicubicresize(ox,oy, b2a,c2a)
@@ -222,7 +219,7 @@ grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer3 = (g3tex==0)
 \           ? grainlayer3
-\           : ex_makediff(grainlayer3,grainlayer3.mt_edge(BUMPKERNEL2, 0,255,0,0, U=chroma?3:1, V=chroma?3:1 ), chroma?3:1)
+\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0,hi=255, UV=chroma?3:1), chroma?3:1)
 
 grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 \           : (g3size > 1.5) ? grainlayer3.bicubicresize(sx3a,sy3a, b3a,c3a).bicubicresize(ox,oy, b3a,c3a)

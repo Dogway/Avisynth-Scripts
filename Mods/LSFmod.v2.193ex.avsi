@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.194ex - 24 May 2021                                    ###
+###                                v2.193ex - 26 May 2021                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,10 +20,8 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v2.194x: - Removed Kernel argument and replaced internally with ex_blur()
-###
 ### v2.193x: - Removed < AviSynth+ 3.5 support
-###          - Replaced masktools2 with internal Expr() wrappers.
+###          - Replaced with internal Expr() wrappers.
 ###          - Replaced UnsharpMask_avsi with faster UnsharpMask_HBD
 ###
 ### v2.193 : - replace UnsharpMask of Warpsharp to use UnsharpMask_avsi for HBD
@@ -565,10 +563,10 @@ second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(
 zero   = ex_clamp(normsharp, bright_limit, dark_limit,                 0,                  0, UV=1)
 
 
-edge  = edgemaskHQ ? ex_logic( tmp.mt_edge(thY1=0,thY2=255,"8 16 8 0 0 0 -8 -16 -8 4",U=1,V=1)
-\                             ,tmp.mt_edge(thY1=0,thY2=255,"8 0 -8 16 0 -16 8 0 -8 4",U=1,V=1)
+edge  = edgemaskHQ ? ex_logic( tmp.ex_edge(mode="8 16 8 0 0 0 -8 -16 -8 4",lo=0,hi=255,UV=1)
+\                             ,tmp.ex_edge(mode="8 0 -8 16 0 -16 8 0 -8 4",lo=0,hi=255,UV=1)
 \                             ,"max", UV=1)
-\     :                        tmp.mt_edge(thY1=0,thY2=255,mode="min/max",U=1,V=1)
+\     :                        tmp.ex_edge(mode="min/max",lo=0,hi=255,UV=1)
 
 edge  = edgemaskHQ ?  edge.Expr("x range_half / 0.86 ^ range_max *",scale_inputs="floatf",clamp_float=true)
 \     :               edge.Expr("x 32 scalef / 0.86 ^ range_max *" ,scale_inputs="floatf",clamp_float=true)
