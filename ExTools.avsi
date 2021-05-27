@@ -77,9 +77,9 @@ function ex_logic(clip a, clip b, string "mode", int "UV") {
 function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
 
     lm = Default(luma, false)
-    UV = Default(UV, isRGB(a) || lm ? 3 : 2)
+    UV = Default(UV, isRGB(a) || lm ? 3 : isy(a) ? 1 : 2)
 
-    msk = mskY_to_YUV(a, msk, lm, UV)
+    msk = UV != 1 ? mskY_to_YUV(a, msk, lm, UV) : msk
     str = "x range_max z - * y z * + range_max /"
 
     UV == 1 ? isy(a) ? Expr(a, b, msk, str) : Expr(a, b, msk, str, "")                     : \
