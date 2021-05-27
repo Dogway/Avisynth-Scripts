@@ -1,11 +1,11 @@
 ##############################
-# FastLineDarken 2.0 ex MOD  #
+# FastLineDarken 2.0 MOD ex  #
 ##############################
 #
 # Written by Vectrangle    (http://forum.doom9.org/showthread.php?t=82125)
 # Didée: - Speed Boost, Updated: 11th May 2007
 # Dogway - added protection option. 12-May-2011
-# Dogway - 2.0ex Updated to internal Expr(). 23-May-2021
+# Dogway - 2.0ex Updated to internal Expr(). 27-May-2021
 #
 #  * requires mt_masktools v2
 #  * requires yv12 input
@@ -61,7 +61,7 @@ thn 	   = thinning /16.
 ## filtering ##
 exin	= c.ex_expand(thres=255/(protection+1)).ex_inpand()
 diff 	= Expr(c,exin,Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? range_half +"), "x", scale_inputs="allf")
-linemask= Expr(diff.ex_inpand(),Format("x range_half - {thn} * range_max +"), scale_inputs="allf").ex_boxblur(1,1)
+linemask= Expr(diff.ex_inpand(),Format("x range_half - {thn} * range_max +"), scale_inputs="allf").ex_boxblur(1,UV=1)
 thick 	= Expr(c, exin, Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? {str} * x +"), "x", scale_inputs="allf")
 thin 	= Expr(c.ex_expand(),diff,Format("x y range_half - {str} 1 + * +"), scale_inputs="allf")
 
