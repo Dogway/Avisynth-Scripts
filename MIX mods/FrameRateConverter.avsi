@@ -195,8 +195,8 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     \       .BicubicResize(C.Width(), C.Height()) : nop()
     # Apply mask to Flow / EM
     EMdiff = CalcDiff ? OutFps ? EMdiff.ChangeFPS(NewNum, NewDen) : EMdiff : nop()
-    Flow   = CalcDiff ? ex_merge(Flow, Flow2, EMdiff.MatchColorFormat(Flow,"PC.601"), luma=true, UV=3) : Flow
-    EM     = CalcDiff ? ex_merge(EM, EM2, EMdiff, luma=true, UV=3)                                     : EM
+    Flow   = CalcDiff ? mt_merge(Flow, Flow2, EMdiff.MatchColorFormat(Flow,"PC.601"), luma=true, U=3,V=3) : Flow
+    EM     = CalcDiff ? mt_merge(EM, EM2, EMdiff, luma=true, U=3,V=3)                                     : EM
 
 
     # Last mask frame is white. Replace with previous frame.
@@ -231,8 +231,8 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     EM     = OutFps ?     EM.ChangeFPS(NewNum, NewDen) : EM
     EMskip = OutFps ? EMskip.ChangeFPS(NewNum, NewDen) : EMskip
     EMstp  = OutFps ?  EMstp.ChangeFPS(NewNum, NewDen) : EMstp
-    M =        OutFps ? ex_merge(Flow, B, EM.MatchColorFormat(Flow,"PC.601"), luma=true, UV=3) : Flow
-    M = Stp && OutFps ? ex_merge(M, B, EMstp.MatchColorFormat(Flow,"PC.601"), luma=true, UV=3) : M
+    M =        OutFps ? mt_merge(Flow, B, EM.MatchColorFormat(Flow,"PC.601"), luma=true, U=3,V=3) : Flow
+    M = Stp && OutFps ? mt_merge(M, B, EMstp.MatchColorFormat(Flow,"PC.601"), luma=true, U=3,V=3) : M
 
     ## Apply BlendOver and SkipOver
     M2 = SkipOver > 0 ? ConditionalFilterMT(EMskip, B, BHard, "AverageLuma", "<", string(SkipOver))  : B

@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.193 mix - 27 May 2021                                     ###
+###                                v2.193 mix - 27 May 2021                                  ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -574,13 +574,13 @@ edge  = edgemaskHQ ?  edge.Expr("x range_half / 0.86 ^ range_max *",scale_inputs
 limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      : Lmode==0 ? normsharp
 \      : Lmode==1 ? normal
-\      : Lmode==2 ? ex_merge(normsharp, normal, edge.mt_inflate())
-\      : Lmode==3 ? ex_merge(normal,    zero,   edge.mt_inflate())
-\      :            ex_merge(second,    normal, edge.mt_inflate())
+\      : Lmode==2 ? mt_merge(normsharp, normal, edge.mt_inflate())
+\      : Lmode==3 ? mt_merge(normal,    zero,   edge.mt_inflate())
+\      :            mt_merge(second,    normal, edge.mt_inflate())
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? ex_merge(tmp,limit1,edge.mt_inflate().mt_inflate().removegrain(12,-1))
-\      :               ex_merge(limit1,tmp,edge.mt_inflate().mt_inflate().removegrain(12,-1))
+\      : edgemode==1 ? mt_merge(tmp,limit1,edge.mt_inflate().mt_inflate().removegrain(12,-1))
+\      :               mt_merge(limit1,tmp,edge.mt_inflate().mt_inflate().removegrain(12,-1))
 
 
 ### SOFT

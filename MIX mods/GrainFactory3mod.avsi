@@ -226,8 +226,8 @@ grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 
 #-----------------------------------------------------------------------------------
 
-grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.Expr("x "+th1str+" scalef < 0 x "+th2str+" scalef > range_max range_max "+th2str+" scalef "+th1str+" scalef - / x "+th1str+" scalef - * ? ?"), luma=chroma, UV=chroma?3:1)
- \                      .ex_merge(grainlayer3, oblr.Expr("x "+th3str+" scalef < 0 x "+th4str+" scalef > range_max range_max "+th4str+" scalef "+th3str+" scalef - / x "+th3str+" scalef - * ? ?"), luma=chroma, UV=chroma?3:1)
+grainlayer = grainlayer1.mt_merge(grainlayer2, oblr.Expr("x "+th1str+" scalef < 0 x "+th2str+" scalef > range_max range_max "+th2str+" scalef "+th1str+" scalef - / x "+th1str+" scalef - * ? ?"), luma=chroma, U=chroma?3:1,V=chroma?3:1)
+ \                      .mt_merge(grainlayer3, oblr.Expr("x "+th3str+" scalef < 0 x "+th4str+" scalef > range_max range_max "+th4str+" scalef "+th3str+" scalef - / x "+th3str+" scalef - * ? ?"), luma=chroma, U=chroma?3:1,V=chroma?3:1)
 
 grainlayer = (temp_avg==0 || ( g1const==true && g2const==true && g3const==true ) ) ? grainlayer
 \          : chroma ? grainlayer.merge(grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
@@ -240,7 +240,7 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 #-----------------------------------------------------------------------------------
 
 result = o.ex_makediff(grainlayer, ochroma?3:2)
-result = use_ALMask ? ex_merge(result,o,o.sAverageLumaMask, luma=chroma, UV=ochroma?3:2) : result
+result = use_ALMask ? mt_merge(result,o,o.sAverageLumaMask, luma=chroma, U=ochroma?3:2,V=ochroma?3:2) : result
 
 
 
