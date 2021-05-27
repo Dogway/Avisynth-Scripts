@@ -65,7 +65,6 @@ logo0 = logo0.addborders(x,abs(y),w,h).crop(0,0,-logo0.Width()-x,-logo0.Height()
 lw = mat ? logo0.Width()  : nop()
 lh = mat ? logo0.Height() : nop()
 
-# Port mt_inpand() to Expr() syntax
 msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(lw*2,lh*2).ex_inpand(mode="cross").ex_inpand(mode="cross").BicubicResize(lw,lh,-0.5,0.25).MatchColorFormat(c)
 \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).MatchColorFormat(c)
 logo0 = logo0.MatchColorFormat(c).assumefps(fps)
