@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.193ex - 26 May 2021                                    ###
+###                                v2.193 ex - 27 May 2021                                   ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,7 +20,7 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v2.193x: - Removed < AviSynth+ 3.5 support
+### v2.193ex:- Removed < AviSynth+ 3.5 support
 ###          - Replaced with internal Expr() wrappers.
 ###          - Replaced UnsharpMask_avsi with faster UnsharpMask_HBD
 ###
@@ -563,8 +563,8 @@ second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(
 zero   = ex_clamp(normsharp, bright_limit, dark_limit,                 0,                  0, UV=1)
 
 
-edge  = edgemaskHQ ? ex_logic( tmp.ex_edge(mode="8 16 8 0 0 0 -8 -16 -8 4",lo=0,hi=255,UV=1)
-\                             ,tmp.ex_edge(mode="8 0 -8 16 0 -16 8 0 -8 4",lo=0,hi=255,UV=1)
+edge  = edgemaskHQ ? ex_logic( tmp.ex_edge(mode="x[-1,1] 8 * x[0,1] 16 * + x[1,1] 8 * + x[-1,-1] 8 * - x[0,-1] 16 * - x[1,-1] 8 * -",lo=0,hi=255,UV=1)
+\                             ,tmp.ex_edge(mode="x[-1,1] 8 * x[1,1] 8 * - x[-1,0] 16 * + x[1,0] 16 * - x[-1,-1] 8 * + x[1,-1] 8 * -",lo=0,hi=255,UV=1)
 \                             ,"max", UV=1)
 \     :                        tmp.ex_edge(mode="min/max",lo=0,hi=255,UV=1)
 
