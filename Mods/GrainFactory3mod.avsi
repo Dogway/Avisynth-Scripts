@@ -6,7 +6,7 @@
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
 ###               2020.04.06    by A.SONY.     ###
-###               2021.05.26 ex by Dogway      ###
+###               2021.05.27 ex by Dogway      ###
 ###                                            ###
 ##################################################
 ###
@@ -18,9 +18,8 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
-######
 ###
-### 2021.05.26 ex
+### 2021.05.27 ex
 ###      - Removed < AviSynth+ 3.5 support
 ###      - Replaced with internal Expr() wrappers.
 ###
@@ -156,11 +155,8 @@ c1a  = (1.0-b1a)/2.0
 c2a  = (1.0-b2a)/2.0
 c3a  = (1.0-b3a)/2.0
 T1a  = string(int(g1tex*1.28))
-T1b  = string(128-int(g1tex*1.28))
 T2a  = string(int(g2tex*1.28))
-T2b  = string(128-int(g2tex*1.28))
 T3a  = string(int(g3tex*1.28))
-T3b  = string(128-int(g3tex*1.28))
 th1str = string(th1)
 th2str = string(th2)
 th3str = string(th3)
@@ -172,9 +168,9 @@ ochroma = ( ontop_cgrain != 0 ) || chroma ? true : false
 
 #-----------------------------------------------------------------------------------
 
-BUMPKERNEL1 = T1a + " 0 0 0 " + T1b + " 0 0 0 0 128"
-BUMPKERNEL2 = T2a + " 0 0 0 " + T2b + " 0 0 0 0 128"
-BUMPKERNEL3 = T3a + " 0 0 0 " + T3b + " 0 0 0 0 128"
+BUMPKERNEL1 = " x[-1,1] " +T1a + " scaleb * x[0,0] range_half " + T1a + " scaleb - * - range_half /"
+BUMPKERNEL2 = " x[-1,1] " +T2a + " scaleb * x[0,0] range_half " + T2a + " scaleb - * - range_half /"
+BUMPKERNEL3 = " x[-1,1] " +T3a + " scaleb * x[0,0] range_half " + T3a + " scaleb - * - range_half /"
 
 #-----------------------------------------------------------------------------------
 
