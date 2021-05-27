@@ -21,7 +21,7 @@
 ###
 ### 2021.05.27 ex
 ###      - Removed < AviSynth+ 3.5 support
-###      - Replaced with internal Expr() wrappers.
+###      - Replaced masktools2 with internal Expr() wrappers.
 ###
 ### 2020.04.06
 ###      - HBD for avs+
