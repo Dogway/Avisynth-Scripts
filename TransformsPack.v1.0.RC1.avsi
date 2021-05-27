@@ -239,7 +239,8 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
 
     Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
 
-    coef = Matrix_coef(matrix)
+    matrix = Matrix_fuzzy_search (matrix)
+    coef   = Matrix_coef(matrix)
 
     scale_y  = tv_in ? (256. / 219.) : 1.0
     scale_uv = tv_in ? (256. / 112.) : 2.0
@@ -315,8 +316,8 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
                          Assert (h%2==0, "Height is not mod2.")
     p_type1            ? Assert (w%4==0, "Width is not mod4." ) : nop()
 
-    coef   = Matrix_coef(matrix)
     matrix = Matrix_fuzzy_search (matrix)
+    coef   = Matrix_coef(matrix)
 
     scale_y  = !tv_in && tv_out ? (219. / 256.) : 1.0
     scale_uv = !tv_in && tv_out ? (112. / 256.) : 0.5
