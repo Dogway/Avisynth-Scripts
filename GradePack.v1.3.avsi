@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.2  (21-05-2021)              ##
+###           Grade Pack v1.3  (28-05-2021)              ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -11,7 +11,7 @@
 ###
 ### Look transforms pack for grading and look tone adjustments.
 ###
-### Dependencies: AviSynth+ 3.5
+### Dependencies: AviSynth+ 3.5 or over
 ###               ExTools
 ###               Utils-r41.avsi
 ###
@@ -170,7 +170,7 @@ function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "t
 
 
 ###
-### SmoothLevels() - v1.0 (12-05-2021)
+### SmoothLevels() - v1.1 (28-05-2021)
 ###
 ###
 ### Works like internal Levels() but works with HBD out of the box (using autoscaling)
@@ -198,10 +198,10 @@ function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high",
     Assert(AvsPlusVersionNumber > 2420, "Update Avisynth+ version")
     contoy   = !isy(c)
 
-    rangePC  = range ? "x ymin - ymax ymin - / range_max *" : "x"
-    rangeTV  = range ? "ymax ymin - * range_max / ymin +" : ""
-    gam = 1.0 - gam
-    lvl  = Format("range_max range_min "+rangePC+" {ilo} scaleb - {ihi} scaleb {ilo} scaleb - / max min {gam} abs 1 + {gam} ^ ^ {ohi} scaleb {olo} scaleb - * {olo} scaleb + "+rangeTV+"")
+    rangePC  = range ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV  = range ? "ymax ymin - * ymin +" : "range_max *"
+    gam = 1.0/gam
+    lvl  = Format("range_max range_min "+rangePC+" max min {gam} ^ {ilo} scaleb - {ihi} scaleb {ilo} scaleb - / {ohi} scaleb {olo} scaleb - * {olo} scaleb + "+rangeTV+"")
 
     lvlgb  = contoy ? ptype ? lvl : "" : Undefined
 
@@ -325,10 +325,10 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     tv_range    = Default (tv_range,  !isRGB(c) )
 
     matrix = Matrix_fuzzy_search (matrix)
-	
+
 	RGBsrc = IsRGB(c)
 	RGBpln = RGBsrc ? IsPlanar(c) : false
-	
+
     RGBsrc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
     YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
 
