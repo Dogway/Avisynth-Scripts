@@ -243,7 +243,7 @@ function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 #
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
 # ex_blur(3) same to ex_boxblur(1).ex_boxblur(1), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
-# TODO: make radius work over 6 (Expr() limit?, consider FFT)
+# TODO: make radius work over 6 (Expr() limit?, consider DFT)
 function ex_blur(clip a, int "radius", int "radiusH", int "UV") {
 
     sm = Default(radius,   1)           # from 0 to 6
@@ -503,7 +503,6 @@ function ex_UVf(clip a) {
 
 
 function mskY_to_YUV(clip a, clip msk, bool "luma", int "UV") {
-
 
     if (!isRGB(a) && !(!luma && !isy(msk))) {
 
