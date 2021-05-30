@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.0     (27-05-2021)              ##
+###           ExTools v1.1     (30-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -30,6 +30,46 @@
 ###
 ###
 ####################################
+
+
+# ex_lut family with automatic plane handling alike masktools2
+function ex_lut(clip a, string str, string "cstr", int "Y", int "UV") {
+
+    cstr = Default(cstr, str)
+    Y    = Default(Y,             3)
+    UV   = Default(UV, isRGB(a) ? 3 : 1)
+
+    str   =                         ex_Yexpr(a, str,   Y)
+    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, cstr, UV)
+
+    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a,  str, "")           : \
+                       Expr(a, str, cstr, scale_inputs=ex_UVf(a)) }
+
+
+function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV") {
+
+    cstr = Default(cstr, str)
+    Y    = Default(Y,             3)
+    UV   = Default(UV, isRGB(a) ? 3 : 1)
+
+    str   =                         ex_Yexpr(a, str,   Y)
+    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, cstr, UV)
+
+    UV == 1 ? isy(a) ? Expr(a, b, str) :  Expr(a, b, str, "")        : \
+                       Expr(a, b, str, cstr, scale_inputs=ex_UVf(a)) }
+
+
+function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", int "UV") {
+
+    cstr = Default(cstr, str)
+    Y    = Default(Y,             3)
+    UV   = Default(UV, isRGB(a) ? 3 : 1)
+
+    str   =                         ex_Yexpr(a, str,   Y)
+    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, cstr, UV)
+
+    UV == 1 ? isy(a) ? Expr(a, b, c, str) : Expr(a, b, c, str, "")      : \
+                       Expr(a, b, c, str, cstr, scale_inputs=ex_UVf(a)) }
 
 
 # mt_makediff() is 5% slower
@@ -194,7 +234,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 #  66% blur(1.58)
 #  64% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
 #  43% mt_convolution("1 1 1","1 1 1",U=1,V=1)
-#
+# TODO: Circular shape for bokeh
 function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 
     rd = Default(radius,  1)            # from 0 to inf
@@ -237,6 +277,7 @@ function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 # Benchmark:
 # 100% removegrain(12,-1)
 #  84% ex_blur(1)
+#  84% ablur(1, 1) against ex_blur(2) but scales up better
 #  70% blur(1.00)
 #  66% generalconvolution(matrix="0 1 0 1 2 1 0 1 0",6,chroma=false) doesn't match output tho
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
@@ -244,6 +285,7 @@ function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
 # ex_blur(3) same to ex_boxblur(1).ex_boxblur(1), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
 # TODO: make radius work over 6 (Expr() limit?, consider DFT)
+# TODO: process chroma with half radius (when chroma subsampled format)
 function ex_blur(clip a, int "radius", int "radiusH", int "UV") {
 
     sm = Default(radius,   1)           # from 0 to 6
@@ -259,7 +301,7 @@ function ex_blur(clip a, int "radius", int "radiusH", int "UV") {
     for (i= 0, krnlsz, 1) {
 
         k_f = factorial(i)*factorial(krnlsz-i)
-        wg = n_f/k_f
+        wg = (n_f/k_f)/pow(2,krnlsz)
         py = i - krnlsz/2
         krnv = i == 0 ? Format("x[0,{py}] {wg} * ") : Format(krnv + "x[0,{py}] {wg} * + ")
        }
@@ -271,15 +313,15 @@ function ex_blur(clip a, int "radius", int "radiusH", int "UV") {
     for (i= 0, krnlszh, 1) {
 
         k_f = factorial(i)*factorial(krnlszh-i)
-        wg = n_f/k_f
+        wg = (n_f/k_f)/pow(2,krnlszh)
         px = i - krnlszh/2
         krnh = i == 0 ? Format("x[{px},0] {wg} * ") : Format(krnh + "x[{px},0] {wg} * + ")
        }
 
     str  = "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 10 /"
     fbox = sm == 0.3 && sh == 0.3
-    strv = fbox ? str : krnv + string(pow(2,krnlsz )) + " /"
-    strh =              krnh + string(pow(2,krnlszh)) + " /"
+    strv = fbox ? str : krnv
+    strh =              krnh
 
     sm == 0 ?     a                                                                  : \
     UV == 1 ? isy(a) ? Expr(a,    strv) :    Expr(a, strv, "")                       : \
@@ -294,7 +336,7 @@ function factorial(int n) {
     n<2?1:factorial(n-1)*n }
 
 
-# mt_expand() is 7% faster (lower gap with bigger radius)
+# mt_expand() is 6% faster (6% slower when radius = 2)
 # "circle" + radius=2 is like calling mode="both" twice but faster
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
@@ -331,8 +373,9 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
     }
 
     fbox = mode == "square" && rd == 1
-    str  = Format("x[0,0] " + ReplaceStr(krn,  "x[0,0] max ", "") + (thr != 255 ? "A^ x[0,0] {thr} scaleb + A min" : ""))
-    str  = !fbox ? str : Format("x[-1,1] x[0,1] max x[1,1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,-1] max x[0,-1] max x[1,-1] max A^ x[0,0] {thr} scaleb + A min")
+    str  = Format("x[0,0] " + ReplaceStr(krn,  "x[0,0] max ", ""))
+    str  = !fbox ? str : Format("x[-1,1] x[0,1] max x[1,1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,-1] max x[0,-1] max x[1,-1] max ")
+    str  = str + (thr != 255 ? "A^ x[0,0] {thr} scaleb + A min" : "")
 
     UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                       :      \
                        Expr(a,    str,  ex_UVexpr(a, str,  UV), scale_inputs="none")
@@ -341,7 +384,7 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
                        Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs="none") : last }
 
 
-# mt_inpand() is 7% faster (lower gap with bigger radius)
+# mt_inpand() is 5% faster (4% slower when radius = 2)
 function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rd   = Default(radius, 1)
@@ -377,8 +420,9 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
     }
 
     fbox = mode == "square" && rd == 1
-    str  = Format("x[0,0] " + ReplaceStr(krn,  "x[0,0] min ", "") + (thr != 255 ? "A^ x[0,0] {thr} scaleb - A max" : ""))
-    str  = !fbox ? str : Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[0,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min A^ x[0,0] {thr} scaleb - A max")
+    str  = Format("x[0,0] " + ReplaceStr(krn,  "x[0,0] min ", ""))
+    str  = !fbox ? str : Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[0,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min ")
+    str  = str + (thr != 255 ? "A^ x[0,0] {thr} scaleb - A max" : "")
 
     UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                       :      \
                        Expr(a,    str,  ex_UVexpr(a, str,  UV), scale_inputs="none")
@@ -493,6 +537,22 @@ function ex_UVexpr(clip a, string "str", int "UV") {
           UV == 0   ? "range_min" : \
           UV == 255 ? "range_max" : \
           string(UV+bd)+" scaleb"
+
+    return str }
+
+function ex_Yexpr(clip a, string "str", int "Y") {
+
+    Y   = Default(Y, 3)
+    str = Default(str, "")
+
+    str = Y == 1   ? ""          : \
+          Y == 2   ? "x"         : \
+          Y == 3   ? str         : \
+          Y == 4   ? "y"         : \
+          Y == 128 ? "range_half": \
+          Y == 0   ? "range_min" : \
+          Y == 255 ? "range_max" : \
+          string(Y) + " scaleb"
 
     return str }
 
