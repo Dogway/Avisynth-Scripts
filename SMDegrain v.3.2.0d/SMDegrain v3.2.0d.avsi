@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.0d RC1  by Dogway - 30 May  2021                              ###
+###                       v3.2.0d RC2  by Dogway - 31 May  2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -150,8 +150,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     # Default Auto-Prefilter - Luma expansion TV->PC (up to 16% more values for motion estimation)
 
-    pref = !GlobalR ? (!TV_range ? pref : pref.ex_Luma_Rebuild(S0=Str,c=Amp,slice=slices,uv=Chr)) : pref
-    pref = pref.ConvertBits(8,dither=-1)
+    pref  = !GlobalR ? (!TV_range ? pref : pref.ex_Luma_Rebuild(S0=Str,c=Amp,slice=slices,uv=Chr)) : pref
+    pref8 = pref.ConvertBits(8,dither=-1)
 
 
     If (sShow ? false : !Show) {
@@ -165,12 +165,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         # Motion vectors search (mt=true requires avstp.pll in plugin path, otherwise ignored)
 
 
-        super_search =                             pelclip ? MSuper(pref,     pel=pel,               chroma=chroma, hpad=hpad, vpad=vpad,          pelclip=pclip,  rfilter=srfilter, mt=true) : \
-                                                             MSuper(pref,     pel=pel,sharp=subpixel,chroma=chroma, hpad=hpad, vpad=vpad                        ,  rfilter=srfilter, mt=true)
-        super_render = !GlobalR ?                 (pelclip ? MSuper(input8,   pel=pel,               chroma=plane0, hpad=hpad, vpad=vpad,levels=1, pelclip=pclip2                  , mt=true) : \
-                                                             MSuper(input8,   pel=pel,sharp=subpixel,chroma=plane0, hpad=hpad, vpad=vpad,levels=1                                  , mt=true)): super_search
-        Recalculate  = !GlobalR && RefineMotion ? (pelclip ? MSuper(pref,     pel=pel,               chroma=chroma, hpad=hpad, vpad=vpad,levels=1, pelclip=pclip                   , mt=true) : \
-                                                             MSuper(pref,     pel=pel,sharp=subpixel,chroma=chroma, hpad=hpad, vpad=vpad,levels=1                                  , mt=true)): nop()
+        super_search =                             pelclip ? MSuper(pref8,  pel=pel,               chroma=chroma, hpad=hpad, vpad=vpad,          pelclip=pclip,  rfilter=srfilter, mt=true) : \
+                                                             MSuper(pref8,  pel=pel,sharp=subpixel,chroma=chroma, hpad=hpad, vpad=vpad                        ,  rfilter=srfilter, mt=true)
+        super_render = !GlobalR ?                 (pelclip ? MSuper(input8, pel=pel,               chroma=plane0, hpad=hpad, vpad=vpad,levels=1, pelclip=pclip2                  , mt=true) : \
+                                                             MSuper(input8, pel=pel,sharp=subpixel,chroma=plane0, hpad=hpad, vpad=vpad,levels=1                                  , mt=true)): super_search
+        Recalculate  = !GlobalR && RefineMotion ? (pelclip ? MSuper(pref8,  pel=pel,               chroma=chroma, hpad=hpad, vpad=vpad,levels=1, pelclip=pclip                   , mt=true) : \
+                                                             MSuper(pref8,  pel=pel,sharp=subpixel,chroma=chroma, hpad=hpad, vpad=vpad,levels=1                                  , mt=true)): nop()
             If (!if3) {
                 t2 = interlaced ? tr > 1 ? tr*2 : tr : tr
                 bv12 =   interlaced && (tr > 5)                  ? (!GlobalR  ? super_search.MAnalyse(isb = true, delta =12,  overlap=    overlap,blksize=    blksize,   search=search,chroma=chroma, truemotion=truemotion, divide=divide, dct=dct,searchparam=searchparam,pelsearch=pelsearch, trymany=trymany, mt=true) : bv12) : nop()
@@ -249,8 +249,6 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         global cf1      = !if3 ? (interlaced ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)") : nop()
 
         !GlobalO && if0   ? Eval("
-
-        CCh   =  if1 ? CClip.height() : nop()
         CClip = (if1 ?  ((interlaced ? (if5 ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip)) : (inputP))") : nop()
 
 
@@ -352,9 +350,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         Interleave(selecteven(blkclp).addborders(2,0,0,0,color=$7f7f7f).crop(0,0,-2,0,true),selectodd(blkclp))
 
         WOut=weave().assumefieldbased().weave()
-        sep=round((hi-height(WOut))/2.0)
+        sep=(hi-height(WOut))/2
 
-        StackHorizontal(pref.ConvertBits(SBitsn),WOut.addborders(0,sep-sep%2,0,hi-(height(WOut)+(sep-sep%2)),color=$161616))
+        StackHorizontal(pref,WOut.addborders(0,sep-sep%2,0,hi-(height(WOut)+(sep-sep%2)),color=$161616))
 
 
           # Color Guide Squares
@@ -414,7 +412,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                            varn+"\n\nGlobals   = " + string(Globals==0 ? "0 (OFF)" : Globals==1 ? "1 (Import)" : Globals==2 ? "2 (Export)" : "3 (E.Only)"),lsp=lsp,text_color=                  $494949,font="COURIER NEW",size=s,x=w3,y=ys)
         Subtitle(            varn+"\nslices    = " + string(slices)                                                                          ,lsp=lsp,text_color=blue                    ?Color:$494949,font="COURIER NEW",size=s,x=w3,y=ys)
         Subtitle(               "\n\nhpad(v)   = " + string(hpad)   + "(" + string(vpad)   + ")"                                             ,lsp=lsp,text_color=red||blue               ?Color:$494949,font="COURIER NEW",size=s,x=w3,y=ys)
-        Subtitle(varn+              "bitdepth  = " + string(bdepth)                                                                          ,lsp=lsp,text_color=yellow||blue            ?Color:$494949,font="COURIER NEW",size=s,x=w3,y=ys)
+        Subtitle(varn+              "bitdepth  = " + string(SBitsn)                                                                          ,lsp=lsp,text_color=yellow||blue            ?Color:$494949,font="COURIER NEW",size=s,x=w3,y=ys)
 
         Subtitle("   Speed"   ,lsp=interlaced?15:30,text_color=$7f7f7f,font="COURIER NEW",size=s,x=w3,y=round(a-1))
         Subtitle("   Memory"  ,lsp=interlaced?17:34,text_color=$7f7f7f,font="COURIER NEW",size=s,x=w3,y=round(b-1))
@@ -449,7 +447,7 @@ function MCDegrainModex(clip c, int "frames", clip "srch", bool "soft", int "thS
 
 function SMDegrain_prefilters (clip input, int "prefilter", bool "chroma", int "Chr", int "Chr2", int "bug_wa", bool "Interlaced", val "if5", int "pel", String "device_type", int "device_id", int "d", int "a", bool "slices", clip "inputP", clip "input8", clip "input8y", clip "inputY", val "input8h", float "h", String "knlm_params", String "cplace", int "Threads") {
 
-    Interlaced   = Default( Interlaced  ,false)
+    Interlaced   = Default( Interlaced, false)
     slices       = Default( slices, true)
     if5          = Default( if5, interlaced ? GetParity(input) : nop())
     pel          = Default( pel, (input.width () > 1099 ||  input.height() > 599) ? 1 : 2 )
@@ -484,11 +482,10 @@ function SMDegrain_prefilters (clip input, int "prefilter", bool "chroma", int "
         (prefilter==0)  ?  input8.ex_MinBlur(0,Chr)                                            : \
         (prefilter==1)  ?  input8.ex_MinBlur(1,Chr)                                            : \
         (prefilter==2)  ?  input8.ex_MinBlur(2,Chr)                                            : \
-        (prefilter==3)  ?  mt_merge(sneo_dfttest(inputd,slocation="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,u=chroma?3:2,v=chroma?3:2,dither=1,threads=Threads,fft_threads=Threads),input8,                      \
-                                    input8.ex_lut("x 16 scalef < range_max x 75 scalef > 0 range_max x 16 scalef - range_max 75 scalef 16 scalef - / * - ? ?"), luma=chroma, cplace=cplace, u=chr,v=chr) : \
+        (prefilter==3)  ?  mt_merge(sneo_dfttest(inputd,slocation="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,u=chroma?3:2,v=chroma?3:2,dither=1,threads=Threads,fft_threads=Threads),input8,               \
+                                    input8.ex_lut("x ymin < range_max x 75 scaleb > range_min range_max x ymin - range_max 75 scaleb ymin - / * - ? ?"), luma=chroma, cplace=cplace, u=chr,v=chr) : \
         (prefilter==4)  ?  inputd.ex_KNLMeansCL(device_type=device_type, device_id=device_id, chroma=chroma, h=h, d=d, a=a, knlm_params=knlm_params) : \
                            Assert(false, "prefilter must be between -1~4: "+string(prefilter)) }
-
 
 
 
@@ -522,8 +519,7 @@ function ex_ContraSharpeningHD(clip denoised, clip original, bool "HD", int "ove
                             s.removegrain(12,-1))                             # The difference of a simple kernel blur.
     ssDD = ssD.repair(HD?ssD.repair(allD,1):allD,HD?12:1)                     # Limit the difference to the max of what the denoising removed locally.
 
-
-    ssDD = SSDD.ex_lut(ssD,"x range_half - abs y range_half - abs < x y ?")   # abs(diff) after limiting may not be bigger than before.
+    ssDD = SSDD.ex_lutxy(ssD,"x range_half - abs y range_half - abs < x y ?") # abs(diff) after limiting may not be bigger than before.
 
     denoised.ex_adddiff(ssDD,UV=2)                                            # Apply the limited difference. (Sharpening is just inverse blurring)
     HD ? ex_clamp(last,pmax,pmin,overshoot,overshoot,UV=2) : last }
@@ -542,7 +538,7 @@ function ex_MinBlur(clip clp, int "r", int "uv", bool "planar", string "mode", i
     Y       = Default(Y, 3)
     defmod  = Defined(mode)
     mode    = Default(mode,"Median_Both")
-    blurrep = Default(blurrep,false)
+    blurrep = Default(blurrep, false)
 
     ch    = u==1 && v==1
     u2    = (u==2) ? 1  : u
@@ -569,7 +565,7 @@ function ex_MinBlur(clip clp, int "r", int "uv", bool "planar", string "mode", i
               mode
 
     # Add Y= argument to ex_makediff for chroma only minblur
-    RG11D = (r==0) ?  ex_makediff(clp,clp.sbr(planar=planar,UV=u2),UV=u2)                                                : \
+    RG11D = (r==0) ?  ex_makediff(clp,clp.ex_sbr(U=u2,V=v2),UV=u2)                                                       : \
             (r==1) ?  ex_makediff(clp,clp.removegrain(rg11y,rg11),UV=u2)                                                 : \
             (r==2) ?  ex_makediff(clp,clp.removegrain(rg11y,rg11).removegrain(rg20y,rg20),UV=u2)                         : \
                       ex_makediff(clp,clp.removegrain(rg11y,rg11).removegrain(rg20y,rg20).removegrain(rg20y,rg20),UV=u2)
@@ -577,7 +573,7 @@ function ex_MinBlur(clip clp, int "r", int "uv", bool "planar", string "mode", i
     RG4D  = (rg4v) ?  ex_makediff(clp,clp.removegrain(rg4y,rg4),UV=u2)                                                   : \
                       Eval("ex_makediff(clp,clp."+blurstr+",UV=u2)")
 
-    DD    =           ex_lutxy(RG11D,RG4D,"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?",y=y2,UV=u2)
+    DD    =           ex_lutxy(RG11D,RG4D,"x range_half - A@ y range_half - B@ * 0 < range_half A abs B abs < x y ? ?",y=y2,UV=u2)
                       clp.ex_makediff(DD,UV=u)
     blurrep ? Repair(clp.removegrain(y!=3 ? 0 : 17,u==3 ? 0 : -1,v==3 ? 0 : -1),y!=3 ? 0 : 9,u==3 ? 0 : -1,v==3 ? 0 : -1) : last }
 
@@ -586,10 +582,10 @@ function ex_MinBlur(clip clp, int "r", int "uv", bool "planar", string "mode", i
  # helper function: make a highpass on a blur's difference (well, kind of that)
  # Highpass of spatial r=1 Gaussian (like blur(1.0))
 
-function ex_sbr(clip c, int "y", int "r", int "U", int "V") {
+function ex_sbr(clip c, int "r", int "y", int "U", int "V") {
 
-    Y      = Default(Y, 3)
     r      = Default(r, 1)
+    Y      = Default(Y, 3)
     U      = Default(U, 3)
     V      = Default(V, 3)
     Y31    = (Y==3) ? 3 : 1
@@ -612,7 +608,7 @@ function ex_sbr(clip c, int "y", int "r", int "U", int "V") {
              (r==2) ? rg11D.removegrain(Y11, U11, V11).removegrain(Y20, U20, V20)                            : \
                       rg11D.removegrain(Y11, U11, V11).removegrain(Y20, U20, V20).removegrain(Y20, U20, V20)
 
-    rg11DD = ex_lutxy(RG11D, RG11DS, "x y - x range_half - * 0 < range_half x y - abs x range_half - abs < x y - range_half + x ? ?", Y=Y31, UV=U31)
+    rg11DD = ex_lutxy(RG11D, RG11DS, "x y - A@ x range_half - * 0 < range_half A abs x range_half - abs < A range_half + x ? ?", Y=Y31, UV=U31)
              ex_makediff(c,rg11DD, UV=U) }
 
 
@@ -634,7 +630,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "y", int "uv", fl
     k = (s0 - 1) * c
     d = 1 + c
     f = d * c
-    t = "x ymin - ymax ymin - / range_min range_max clip"
+    t = "x ymin - ymax ymin - /"
     e = Format("{k} {d} {f} "+t+" A@ {c} + / - * A 1 {k} - * + range_max *")
     ec = "x range_half - cmax cmin - / range_max * range_half +"
 
