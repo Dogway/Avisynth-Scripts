@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.1     (30-05-2021)              ##
+###           ExTools v1.2     (31-05-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -39,8 +39,8 @@ function ex_lut(clip a, string str, string "cstr", int "Y", int "UV") {
     Y    = Default(Y,             3)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
-    str   =                         ex_Yexpr(a, str,   Y)
-    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, cstr, UV)
+    str   =                         ex_Yexpr(a, str,  Y)
+    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, str, UV)
 
     UV == 1 ? isy(a) ? Expr(a, str) : Expr(a,  str, "")           : \
                        Expr(a, str, cstr, scale_inputs=ex_UVf(a)) }
@@ -52,8 +52,8 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV") 
     Y    = Default(Y,             3)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
-    str   =                         ex_Yexpr(a, str,   Y)
-    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, cstr, UV)
+    str   =                         ex_Yexpr(a, str,  Y)
+    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, str, UV)
 
     UV == 1 ? isy(a) ? Expr(a, b, str) :  Expr(a, b, str, "")        : \
                        Expr(a, b, str, cstr, scale_inputs=ex_UVf(a)) }
@@ -65,8 +65,8 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
     Y    = Default(Y,             3)
     UV   = Default(UV, isRGB(a) ? 3 : 1)
 
-    str   =                         ex_Yexpr(a, str,   Y)
-    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, cstr, UV)
+    str   =                         ex_Yexpr(a, str,  Y)
+    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, str, UV)
 
     UV == 1 ? isy(a) ? Expr(a, b, c, str) : Expr(a, b, c, str, "")      : \
                        Expr(a, b, c, str, cstr, scale_inputs=ex_UVf(a)) }
@@ -196,20 +196,21 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     op    = Default(opacity, 1.0)
     UV    = Default(UV, isRGBa ? 3 : 1)
     range = Default(tv_range, !isRGBa)  # TV or PC. Luma range of your source
-    op = min(max(op,0.),1.)
+    op  = min(max(op,0.),1.)
+    opr = 1 - op
 
     rngmax = range ? "ymax ymin -" : "range_max"
     srcmax = range ? "ymin -"      : ""
     pdstl  = range ? "ymin +"      : ""
 
-    str = Format(                                                                                                                                                      \
-        mode == "blend"        ? "x 1 {op} - * y {op} * +"                                                                                                           : \
-        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A 1 {op} - * + "+pdstl+""                                                       : \
-        mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" 1 {op} - * + "+pdstl+""                                : \
-        mode == "lighten"      ? "x 1 {op} - * x y max {op} * + "                                                                                                    : \
-        mode == "linear dodge" ? "x "+srcmax+" A@ 1 {op} - * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
-        mode == "add"          ? "x "+srcmax+" A@ 1 {op} - * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
-        mode == "softlight"    ? "x "+srcmax+" B@ 1 {op} - * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+pdstl+"" : \
+    str = Format(                                                                                                                                                   \
+        mode == "blend"        ? "x {opr} * y {op} * +"                                                                                                           : \
+        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A {opr} * + "+pdstl+""                                                       : \
+        mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" {opr} * + "+pdstl+""                                : \
+        mode == "lighten"      ? "x {opr} * x y max {op} * + "                                                                                                    : \
+        mode == "linear dodge" ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
+        mode == "add"          ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
+        mode == "softlight"    ? "x "+srcmax+" B@ {opr} * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+pdstl+"" : \
                                  Assert (false, "Unsupported Blend Mode.") )
 
     UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                          : \
@@ -234,7 +235,9 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 #  66% blur(1.58)
 #  64% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
 #  43% mt_convolution("1 1 1","1 1 1",U=1,V=1)
-# TODO: Circular shape for bokeh
+#
+# TODO: Circular shape for bokeh. Chroma with half radius for 420 format
+# TODO: gamma awareness?
 function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 
     rd = Default(radius,  1)            # from 0 to inf
@@ -276,24 +279,30 @@ function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 #
 # Benchmark:
 # 100% removegrain(12,-1)
+#  94% BinomialBlur(0.75,U=1,V=1) only in 8-bit
 #  84% ex_blur(1)
 #  84% ablur(1, 1) against ex_blur(2) but scales up better
 #  70% blur(1.00)
 #  66% generalconvolution(matrix="0 1 0 1 2 1 0 1 0",6,chroma=false) doesn't match output tho
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
+#  21% GBlur(rad=1,sd=1.0,u=false,v=false)
+#  15% FastBlur(0.75,gamma=false)
+#  10% GaussianBlur(0.75,U=1,V=1) only in 8-bit
 #
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
 # ex_blur(3) same to ex_boxblur(1).ex_boxblur(1), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
 # TODO: make radius work over 6 (Expr() limit?, consider DFT)
-# TODO: process chroma with half radius (when chroma subsampled format)
-function ex_blur(clip a, int "radius", int "radiusH", int "UV") {
+function ex_blur(clip a, int "radius", int "radiusH", string "gamma", int "UV") {
 
+    isRGBa = isRGB(a)
     sm = Default(radius,   1)           # from 0 to 6
     sh = Default(radiusH, sm)           # from 0 to 6
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, isRGBa ? 3 : 1)
+    gm = Default(gamma, "none")         # Set matrix for gamma encoded clips
     sm = max(min(sm * 0.30,2.0),0)
     sh = max(min(sh * 0.30,2.0),0)
 
+    fkern  = sm==0.3 && sh==0.3
     krnlsz = 2*ceil(3*sm)
     n_f    = factorial(krnlsz)
 
@@ -318,18 +327,68 @@ function ex_blur(clip a, int "radius", int "radiusH", int "UV") {
         krnh = i == 0 ? Format("x[{px},0] {wg} * ") : Format(krnh + "x[{px},0] {wg} * + ")
        }
 
-    str  = "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 10 /"
-    fbox = sm == 0.3 && sh == 0.3
-    strv = fbox ? str : krnv
-    strh =              krnh
+    strv = fkern   ?   "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 10 /" : \
+           sm==0.3 ?   "x[0,1]  x[0,0] 2 * x[0,-1] + + 4 /" : \
+           sm==0.0 ?   "x"                                  : \
+                       krnv
+    strh = sh==0.3 ?   "x[-1,0] x[0,0] 2 * x[1,0]  + + 4 /" : \
+           sh==0.0 ?   "x"                                  : \
+                       krnh
+
+    # This is for 420 scenario
+    cstrv = ""
+    cstrh = ""
+    if (sm>0.6 || sh>0.6) {
+
+        krnlsz = krnlsz/2
+        n_f     = factorial(krnlsz)
+
+        for (i= 0, krnlsz, 1) {
+
+            k_f = factorial(i)*factorial(krnlsz-i)
+            wg = (n_f/k_f)/pow(2,krnlsz)
+            py = i - krnlsz/2
+            cstrv = i == 0 ? Format("x[0,{py}] {wg} * ") : Format(cstrv + "x[0,{py}] {wg} * + ")
+           }
+
+        krnlszh = krnlszh/2
+        n_f     = factorial(krnlszh)
+
+        for (i= 0, krnlszh, 1) {
+
+            k_f = factorial(i)*factorial(krnlszh-i)
+            wg = (n_f/k_f)/pow(2,krnlszh)
+            px = i - krnlszh/2
+            cstrh = i == 0 ? Format("x[{px},0] {wg} * ") : Format(cstrh + "x[{px},0] {wg} * + ")
+           }
+       }
+
+        cstrv = sm==0.6 && sh == 0.6 ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 10 /" : \
+                fkern                ? "x[-1,1] 0.05 * x[0,1] 0.05 * x[1,1] 0.05 * x[-1,0] 0.05 * x[0,0] 0.6 * "                         \
+                                     + "x[1,0]  0.05 * x[-1,-1] 0.05 * x[0,-1] 0.05 * x[1,-1] 0.05 * + + + + + + + +"                  : \
+                sm==0.6              ? "x[0,1] x[0,0] 2 * x[0,-1] + + 4 /"                                                             : \
+                sm==0.3              ? "x[0,1] 0.12 * x[0,0] 0.76 * x[0,-1] 0.12 * + +"                                                : \
+                sm==0.0              ? "x"                                                                                             : \
+                                       cstrv
+        cstrh = sh==0.6              ? "x[-1,0] x[0,0] 2 * x[1,0]  + + 4 /"                                                            : \
+                sh==0.3              ? "x[-1,0] 0.12 * x[0,0] 0.76 * x[1,0] 0.12 * + +"                                                : \
+                sh==0.0              ? "x"                                                                                             : \
+                                       cstrh
+
+    if (gm != "none") {
+        matrix = Matrix_fuzzy_search (gm)
+        s_gam  = moncurve_coef(a, matrix)
+        a      = moncurve_f(a, s_gam[0], s_gam[1], !isRGBa, !isRGBa)
+    }
 
     sm == 0 ?     a                                                                  : \
     UV == 1 ? isy(a) ? Expr(a,    strv) :    Expr(a, strv, "")                       : \
-                       Expr(a,    strv, ex_UVexpr(a, strv, UV), scale_inputs="none")
+                       Expr(a,    strv, ex_UVexpr(a, cstrv, UV), scale_inputs="none")
 
-    sh == 0 || fbox  ? last                                                          : \
+    sh == 0 || fkern ? last                                                          : \
     UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                       : \
-                       Expr(last, strh, ex_UVexpr(a, strh, UV), scale_inputs="none") }
+                       Expr(last, strh, ex_UVexpr(a, cstrh, UV), scale_inputs="none")
+    gm != "none"     ? moncurve_r(last, s_gam[0], s_gam[1], !isRGBa, !isRGBa) : last }
 
 
 function factorial(int n) {
