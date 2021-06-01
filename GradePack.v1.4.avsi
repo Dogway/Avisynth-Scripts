@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.3  (28-05-2021)              ##
+###           Grade Pack v1.4  (31-05-2021)              ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -13,6 +13,7 @@
 ###
 ### Dependencies: AviSynth+ 3.5 or over
 ###               ExTools
+###               Transforms Pack
 ###               Utils-r41.avsi
 ###
 ###
@@ -74,47 +75,47 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
     padY   = h%4 == 0 ? 0 : (4 - h%4)
     clp    = PointResize(w+padX, h+padY, 0, 0, w+padX, h+padY)
 
-Recclp         ? Eval("""
-Rc
-wRc    = width()
-hRc    = height()
-padXRc = wRc%4 == 0 ? 0 : (4 - wRc%4)
-padYRc = hRc%4 == 0 ? 0 : (4 - hRc%4)
-Rc     = PointResize(wRc+padXRc, hRc+padYRc, 0, 0, wRc+padXRc, hRc+padYRc)
+    Recclp         ? Eval("""
+    Rc
+    wRc    = width()
+    hRc    = height()
+    padXRc = wRc%4 == 0 ? 0 : (4 - wRc%4)
+    padYRc = hRc%4 == 0 ? 0 : (4 - hRc%4)
+    Rc     = PointResize(wRc+padXRc, hRc+padYRc, 0, 0, wRc+padXRc, hRc+padYRc)
 
 
-a      =  RecMod                    ? Expr(ExtractV(Rc),ExtractU(Rc), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_max x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {bias} * ?"))  : nop()"""  ) : nop()
+    a      =  RecMod                    ? Expr(ExtractV(Rc),ExtractU(Rc), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_max x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {bias} * ?"))  : nop()"""  ) : nop()
 
 
-clp
+    clp
 
-!fmode || show ? Eval("""
-b      =  DulMod || RecMod          ? Expr(ExtractV(),  ExtractU(), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_max x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {bias} * ?"))    : nop()
-
-
-msk    = (VibMod)                   ? Expr(ExtractV(),  ExtractU(), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_min range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ range_max * ? ")) : \
-         (DulMod)                   ? b                                                          : \
-         (RecMod)                   ? Expr(a,b,"x y - abs 2 *")                                  : \
-          Assert(false, "Wrong Saturation Mode.")
-msk    =  BicubicResize(w+padX, h+padY,0.0,0.75).crop(0,0,-padX,-padY,true).MatchColorFormat(c)""")   : nop()
+    !fmode || show ? Eval("""
+    b      =  DulMod || RecMod          ? Expr(ExtractV(),  ExtractU(), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_max x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {bias} * ?"))    : nop()
 
 
-show ?  msk          :  \
-(SatB                ?  \
-((VibMod)            ?  \
-       (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > x "+
-                                            \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
-                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /"))              : \
- (DulMod)            ?  \
-       (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^  range_half > x "+
-                                            \+" x range_half - x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {sat} 1 - * {bias} / 1 + / range_half + ?"))                           : \
-                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /"))              : \
- (RecMod)            ?  \
-       (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > x "+
-                                            \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
-                                      Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /")) : nop())     : c)
+    msk    = (VibMod)                   ? Expr(ExtractV(),  ExtractU(), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_min range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ range_max * ? ")) : \
+             (DulMod)                   ? b                                                          : \
+             (RecMod)                   ? Expr(a,b,"x y - abs 2 *")                                  : \
+              Assert(false, "Wrong Saturation Mode.")
+    msk    =  BicubicResize(w+padX, h+padY,0.0,0.75).crop(0,0,-padX,-padY,true).MatchColorFormat(c)""")   : nop()
 
-!show     &&   fmode ? crop(0,0,-padX,-padY,true) : last }
+
+    show ?  msk          :  \
+    (SatB                ?  \
+    ((VibMod)            ?  \
+           (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > x "+
+                                                \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
+                                          Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /"))              : \
+     (DulMod)            ?  \
+           (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^  range_half > x "+
+                                                \+" x range_half - x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {sat} 1 - * {bias} / 1 + / range_half + ?"))                           : \
+                                          Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /"))              : \
+     (RecMod)            ?  \
+           (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > x "+
+                                                \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
+                                          Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /")) : nop())     : c)
+
+    !show     &&   fmode ? crop(0,0,-padX,-padY,true) : last }
 
 
 
@@ -216,7 +217,8 @@ function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high",
 ### Adds a vignette (darkening around the frame) to the source.
 ### Use show=true if you only want the mask.
 ###
-### Dependencies: > Avisynth+ r2420
+### Dependencies: > AviSynth+ r2420
+###                 ExTools
 ###
 ####################################
 
@@ -229,10 +231,20 @@ function Vignette (clip c, float "Vignette", bool "show") {
                          "sy height 2 / - abs width 2 / / range_max * 1.5 {str} 2 / + ^ range_max / 0 max "+ \
                          "+ range_max - abs"), "range_half","range_half")
 
-    # this is multiply blend mode
-    show ? msk : Expr(msk,c,"x y * range_max / ", "y", "y") }
+    show ? msk : ex_blend(msk,c,mode="multiply",UV=4) }
 
 
+
+###
+###
+### greyscale_rgb()
+###
+###
+### Properly convert PC.range RGB images to greyscale
+###
+### Dependencies: > AviSynth+ 3.5 and over
+###
+####################################
 
 function greyscale_rgb (clip rgb, string "matrix") {
 
@@ -240,98 +252,47 @@ function greyscale_rgb (clip rgb, string "matrix") {
 
     matrix = Default (matrix, "sRGB")
     matrix = Matrix_fuzzy_search(matrix)
-
-    t_num =
-\     (matrix == "sRGB"      ) ? 0
-\   : (matrix == "jpeg"      ) ? 0
-\   : (matrix == "jpg"       ) ? 0
-\   : (matrix == "Rec601"    ) ? 1
-\   : (matrix == "240M"      ) ? 2
-\   : (matrix == "470BG"     ) ? 3
-\   : (matrix == "Rec2020"   ) ? 4
-\   : (matrix == "Rec2020CL" ) ? 4
-\   : (matrix == "Rec2020DVp5") ? 4
-\   : (matrix == "Rec709"    ) ? 5
-\   : (matrix == "AdobeRGB"  ) ? 6
-\   : (matrix == "Display-P3") ? 0
-\   : (matrix == "DCI-P3"    ) ? 7
-\   : (matrix == "ACEScg"    ) ? 8
-\   : (matrix == "ACES2065"  ) ? 8
-\   : Assert (false, "Unsupported Color Space.")
-
-    bdpth = BitsPerComponent(rgb) > 10 ? 0.09929682680944 : 0.099
-
-    #                                  SMPTE-C     Y’PbPr 601  PAL/SECAM BT-2020    Rec.709    AdobeRGB     DCI-P3   AP1/AP0
-    #                         sRGB     SMPTE 170M  SMPTE 240M  BT-470BG  BT-2020    BT-1886    AdobeRGB     DCI-P3      ACES
-    t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,      6504,   6504   ,      6504 ,   6305  ,     6000 )
-    t_off   = Select (t_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,    0      ,   0     ,      0   )
-    t_gamma = Select (t_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,    2.1992 ,   2.60  ,      1.0 )
-
+    s_gam  = moncurve_coef(a, matrix)
+    coeffs = RGB_to_XYZ(matrix, list=true)
 
     ConvertToPlanarRGB(rgb)
 
-    moncurve_f(t_gamma, t_off, false)
+    moncurve_f(s_gam[0], s_gam[1], false, false)
 
+    DotClip(last, [coeffs[1],coeffs[4],coeffs[7]])
 
-    coeffs =        matrix == "sRGB" || matrix == "Rec709"     ? \
-                                        [ 0.21264933049678802,   \
-                                          0.71516913175582890,   \
-                                          0.07218152284622192] : \
-                    matrix == "Rec601" || matrix == "240M"     ? \
-                                        [ 0.21238772571086884,   \
-                                          0.70106136798858640,   \
-                                          0.08655092865228653] : \
-                    matrix == "470BG"                          ? \
-                                        [ 0.22201462090015410,   \
-                                          0.70665508508682250,   \
-                                          0.07133013755083084] : \
-                    matrix == "DCI-P3"                         ? \
-                                        [ 0.20949168503284454,   \
-                                          0.72159516811370850,   \
-                                          0.06891304999589920] : \
-                    matrix == "Display-P3"                     ? \
-                                        [ 0.22898375988006592,   \
-                                          0.69173991680145260,   \
-                                          0.07927616685628891] : \
-                    matrix == "Rec2020"                        ? \
-                                        [ 0.24840137362480164,   \
-                                          0.67799961566925050,   \
-                                          0.03913172334432602] : \
-                    matrix == "AdobeRGB"                       ? \
-                                        [ 0.29734000563621520,   \
-                                          0.62735998630523680,   \
-                                          0.07529000192880630] : \
-                    matrix == "ACEScg"                         ? \
-                                        [ 0.27258800000000000,   \
-                                          0.67401860000000000,   \
-                                          0.05339329000000000] : \
-                    matrix == "ACES2065"                       ? \
-                                        [  0.34396082162857056,  \
-                                           0.74020814895629880,  \
-                                          -0.08416896313428879]: \
-                    Assert(false,"Unsupported Matrix.")
-
-    DotClip(last, coeffs)
-
-    moncurve_r(t_gamma, t_off, false) }
+    moncurve_r(s_gam[0], s_gam[1], false, false) }
 
 
 
+###
+###
+### WhitePoint()
+###
+###
+### Accurately adjust the color temperature of the image
+###
+### Dependencies: > AviSynth+ 3.5 and over
+###                 Transforms Pack
+###                 Utils-r41
+###
+####################################
 
 function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range") {
 
+    isRGBc = IsRGB(c)
+
     temp        = Default (temperature, 6504)  # Target temperature in Kelvin (Default: D65 == nop())
     matrix      = Default (matrix, "sRGB")
-    tv_range    = Default (tv_range,  !isRGB(c) )
+    tv_range    = Default (tv_range,  !isRGBc )
 
     matrix = Matrix_fuzzy_search (matrix)
+    s_gam  = moncurve_coef(a, matrix)
 
-	RGBsrc = IsRGB(c)
-	RGBpln = RGBsrc ? IsPlanar(c) : false
+    RGBpln = RGBsrc ? IsPlanar(c) : false
 
     RGBsrc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
     YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
-
 
     temp3 = 1000.       / temp
     temp6 = 1000000.    / pow(temp, 2.)
@@ -351,9 +312,13 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     fw2       = MatrixDot([0.95045,1.,1.088917],CAT02)
     fw_trans  = MatrixDiv(fw1,fw2)
 
+    moncurve_f(s_gam[0], s_gam[1], false, false)
+
     RGB_to_XYZ(matrix)
     Expr(last,string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
     XYZ_to_RGB(matrix)
+
+    moncurve_r(s_gam[0], s_gam[1], false, false)
 
     RGBsrc ? RGBpln ? last : MatchColorFormat(c) : \
     RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c)) }
