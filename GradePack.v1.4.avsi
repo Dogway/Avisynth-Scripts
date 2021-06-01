@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.4  (31-05-2021)              ##
+###           Grade Pack v1.4  (01-06-2021)              ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -11,10 +11,10 @@
 ###
 ### Look transforms pack for grading and look tone adjustments.
 ###
-### Dependencies: AviSynth+ 3.5 or over
-###               ExTools
-###               Transforms Pack
-###               Utils-r41.avsi
+### Dependencies: > AviSynth+ 3.5
+###                 ExTools
+###                 Transforms Pack
+###                 Utils-r41.avsi
 ###
 ###
 ####################################
@@ -127,7 +127,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
 ###
 ###
-### Dependencies: > AviSynth+ r2420
+### Dependencies: > AviSynth+ 3.5
 ###
 ### Performs better in gamma encoded space
 ###
@@ -177,7 +177,7 @@ function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "t
 ### Works like internal Levels() but works with HBD out of the box (using autoscaling)
 ###
 ###
-### Dependencies: > Avisynth+ r2420
+### Dependencies: > AviSynth+ 3.5
 ###
 ### Example: SmoothLevels(16, 1.200, 255, 0, 255)
 ###
@@ -217,7 +217,7 @@ function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high",
 ### Adds a vignette (darkening around the frame) to the source.
 ### Use show=true if you only want the mask.
 ###
-### Dependencies: > AviSynth+ r2420
+### Dependencies: > AviSynth+ 3.5
 ###                 ExTools
 ###
 ####################################
@@ -242,7 +242,8 @@ function Vignette (clip c, float "Vignette", bool "show") {
 ###
 ### Properly convert PC.range RGB images to greyscale
 ###
-### Dependencies: > AviSynth+ 3.5 and over
+### Dependencies: > AviSynth+ 3.5
+###                 Transforms Pack
 ###
 ####################################
 
@@ -272,7 +273,7 @@ function greyscale_rgb (clip rgb, string "matrix") {
 ###
 ### Accurately adjust the color temperature of the image
 ###
-### Dependencies: > AviSynth+ 3.5 and over
+### Dependencies: > AviSynth+ 3.5
 ###                 Transforms Pack
 ###                 Utils-r41
 ###

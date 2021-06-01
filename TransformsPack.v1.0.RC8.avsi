@@ -126,7 +126,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     V = Eval("ExtractV(yuv)." + resampler)
 
 
-    if (FindStr(matrix,"Rec2020CL")>0) {
+    if (matrix=="Rec2020CL") {
 
         RGB = YcCbcCrc_to_RGB( Y, U, V, matrix, coef, tv_in, tv_out)
 
@@ -199,7 +199,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     Bx = ExtractB(rgb)
 
 
-    if (FindStr(matrix,"Rec2020CL")>0) {
+    if (matrix=="Rec2020CL") {
 
         YCbCr = RGB_to_YcCbcCrc( Rx, Gx, Bx, matrix, coef, tv_in, tv_out)
 
@@ -497,22 +497,22 @@ function moncurve_coef (clip c, string "matrix") {
     matrix = Matrix_fuzzy_search(matrix)
 
     t_num =
-\     (matrix == "sRGB"      ) ? 0
-\   : (matrix == "jpeg"      ) ? 0
-\   : (matrix == "jpg"       ) ? 0
-\   : (matrix == "Rec601"    ) ? 1
-\   : (matrix == "240M"      ) ? 2
-\   : (matrix == "470BG"     ) ? 3
-\   : (matrix == "Rec2020"   ) ? 4
-\   : (matrix == "Rec2020CL" ) ? 4
-\   : (matrix == "Rec2020NCL") ? 4
+\     (matrix == "sRGB"       ) ? 0
+\   : (matrix == "jpeg"       ) ? 0
+\   : (matrix == "jpg"        ) ? 0
+\   : (matrix == "Rec601"     ) ? 1
+\   : (matrix == "240M"       ) ? 2
+\   : (matrix == "470BG"      ) ? 3
+\   : (matrix == "Rec2020"    ) ? 4
+\   : (matrix == "Rec2020CL"  ) ? 4
+\   : (matrix == "Rec2020NCL" ) ? 4
 \   : (matrix == "Rec2020DVp5") ? 4
-\   : (matrix == "Rec709"    ) ? 5
-\   : (matrix == "AdobeRGB"  ) ? 6
-\   : (matrix == "Display-P3") ? 0
-\   : (matrix == "DCI-P3"    ) ? 7
-\   : (matrix == "ACEScg"    ) ? 8
-\   : (matrix == "ACES2065"  ) ? 8
+\   : (matrix == "Rec709"     ) ? 5
+\   : (matrix == "AdobeRGB"   ) ? 6
+\   : (matrix == "Display-P3" ) ? 0
+\   : (matrix == "DCI-P3"     ) ? 7
+\   : (matrix == "ACEScg"     ) ? 8
+\   : (matrix == "ACES2065"   ) ? 8
 \   : Assert (false, "Unsupported Color Space.")
 
     bdpth = BitsPerComponent(c) > 10 ? 0.09929682680944 : 0.099
