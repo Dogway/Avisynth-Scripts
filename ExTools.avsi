@@ -205,8 +205,8 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 
     str = Format(                                                                                                                                                   \
         mode == "blend"        ? "x {opr} * y {op} * +"                                                                                                           : \
-        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A {opr} * + "+pdstl+""                                                       : \
         mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" {opr} * + "+pdstl+""                                : \
+        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A {opr} * + "+pdstl+""                                                       : \
         mode == "lighten"      ? "x {opr} * x y max {op} * + "                                                                                                    : \
         mode == "linear dodge" ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
         mode == "add"          ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
