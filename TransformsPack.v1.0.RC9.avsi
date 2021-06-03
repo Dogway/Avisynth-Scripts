@@ -183,10 +183,10 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     cplaceU = ",src_left="+string(cloc[0]*(1-cplace[0]))+point
     cplaceV =  ",src_top="+string(cloc[1]*(1-cplace[1]))+point
 
-    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(w) + "," + String(h) + cplace +")"         : \
-                kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplace +",b=b,c=c)" : \
-                kernel == "gauss"  ?     "GaussResize(" + String(w) + "," + String(h) + cplace +",p=p)"     : \
-                                     kernel + "Resize(" + String(w) + "," + String(h) + cplace +")"
+    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(w) + "," + String(h) + cplaceU + cplaceV +")"         : \
+                kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplaceU + cplaceV +",b=b,c=c)" : \
+                kernel == "gauss"  ?     "GaussResize(" + String(w) + "," + String(h) + cplaceU + cplaceV +",p=p)"     : \
+                                     kernel + "Resize(" + String(w) + "," + String(h) + cplaceU + cplaceV +")"
 
     Y = ExtractY(yuv)
     U = Eval("ExtractU(yuv)." + resampler)
