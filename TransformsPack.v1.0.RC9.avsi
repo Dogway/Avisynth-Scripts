@@ -38,6 +38,8 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
     lin_out = Default (linear_out, false )
     f_out   = Default (format_out, "" )
 
+    Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
+
     clp
     pxtyp = PixelType(clp)
     p_typ = f_out != "" ? Format_fuzzy_search (f_out) : pxtyp
@@ -46,7 +48,7 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
     tgt   = Matrix_fuzzy_search (target)
     s_gam = moncurve_coef (src)
     t_gam = moncurve_coef (tgt)
-	gamut = gamut && src != tgt
+    gamut = gamut && src != tgt
 
     !isRGBsrc && lin_in && gamut && gamma ? moncurve_r(s_gam[0], s_gam[1], tv_in, tv_in) : last
 
@@ -66,7 +68,7 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
                       gamut || !lin_out ? moncurve_r(s_gam[0], s_gam[1],false,false) : \
                                           last
 
-    isRGBsrc && FindStr(p_typ, "RGB")>0 ? \
+    isRGBsrc && FindStr(p_typ, "RGB")>0 ?        \
                 tv_out  ? SMPTE_legal() : last : \
                 lin_out ? moncurve_r(t_gam[0], t_gam[1]).RGB_to_YUV( tgt, tv_range_out=tv_out, kernel=f_ker, pixel_type=p_typ).moncurve_f(t_gam[0], t_gam[1],tv_out,tv_out) : \
                                                          RGB_to_YUV( tgt, tv_range_out=tv_out, kernel=f_ker, pixel_type=p_typ) }
@@ -75,24 +77,29 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
 
 function Display_Referred (clip clp, string "source", string "disp_ref", string "kernel", bool "gamut", bool "gamma", string "LUT", bool "tv_range", float "b", float "c", float "p") {
 
+    isRGBsrc    = isRGB(clp)
+
     gamut      = Default (gamut, true)      # convert gamut
     gamma      = Default (gamma, true)      # convert gamma
     disp_ref   = Default (disp_ref, "sRGB") # Display Referred Color Space
     kernel     = Default (kernel, "Bicubic")
     LUT        = Default (LUT, Undefined)   # Display LUT (the path string of your monitor 3D LUT, if calibrated)
-    tv_range   = Default (tv_range, !isRGB(clp) )
+    tv_range   = Default (tv_range, !isRGBsrc )
     b          = Default (b, 0.00)
     c          = Default (c, 0.75)          # Precise Bicubic
     p          = Default (p, 0.25)
 
-    bdpth < 32 ? clp.ConvertBits(16) : clp
+    Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
+
+    BitsPerComponent(clp) < 32 ? clp.ConvertBits(16) : clp
 
     src = Matrix_fuzzy_search (source)
     tgt = Matrix_fuzzy_search (disp_ref)
     s_gam = moncurve_coef (src)
     t_gam = moncurve_coef (tgt)
+    gamut = gamut && src != tgt
 
-    IsRGB() ? tv_range ? ConvertToPlanarRGB(src).SMPTE_legal(false) : ConvertToPlanarRGB(src) : \
+    isRGBsrc ? tv_range ? ConvertToPlanarRGB(src).SMPTE_legal(false) : ConvertToPlanarRGB(src) : \
     YUV_to_RGB(src, tv_range_in=tv_range, kernel=kernel, b=b, c=c, p=p)
 
     moncurve_f(s_gam[0], s_gam[1])
@@ -102,7 +109,8 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     matb = XYZ_to_RGB(tgt, list=true)
     MatrixClip( MatrixDot(mata, matb) ) }
 
-    Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1]) : gamut ? moncurve_r(s_gam[0], s_gam[1]) : last
+    Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1]) : \
+                    gamut ? moncurve_r(s_gam[0], s_gam[1]) : last
 
     Defined(LUT) ? Cube(LUT, 4, true) : last
 
@@ -145,7 +153,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
                                   p_type10            ? "DV"       : "MPEG2")
 
     p_type1   ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411") : nop()
-                Assert(!p_type10, "Unsupported Pixel Type: YUV410")
+                Assert(!p_type10,  "Unsupported Pixel Type: YUV410")
 
     w      = width (yuv)
     h      = height(yuv)
@@ -253,7 +261,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
                                   p_type10            ? "DV"       : "MPEG2")
 
     p_type1   ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411") : nop()
-                Assert(!p_type10, "Unsupported Pixel Type: YUV410")
+                Assert(!p_type10,  "Unsupported Pixel Type: YUV410")
 
     w  = width (rgb)
     h  = height(rgb)
