@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC8  (01-06-2021)            ##
+###    Transforms Pack v1.0 RC9  (03-06-2021)            ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -24,36 +24,52 @@
 ###
 ####################################
 
-function ColorSpace (clip clp, string "source", string "target", bool "gamut", bool "gamma", bool "tv_range_in", bool "tv_range_out") {
+function ColorSpace (clip clp, string "source", string "target", bool "gamut", bool "gamma", bool "tv_range_in", bool "tv_range_out", bool "linear_in", bool "linear_out", string "format_out") {
 
     isRGBsrc    = isRGB(clp)
 
-    gamut       = Default (gamut, true)           # convert gamut
-    gamma       = Default (gamma, true)           # convert gamma
-    tv_range_in = Default (tv_range_in,  !isRGBsrc )
-    tv_range_out= Default (tv_range_out, tv_range_in )
+    source  = Default (source, "Rec709")
+    target  = Default (target, source)
+    gamut   = Default (gamut, source != target)    # convert gamut
+    gamma   = Default (gamma, true)                # convert gamma
+    tv_in   = Default (tv_range_in,  !isRGBsrc )
+    tv_out  = Default (tv_range_out, tv_range_in )
+    lin_in  = Default (linear_in,  false )
+    lin_out = Default (linear_out, false )
+    f_out   = Default (format_out, "" )
 
     clp
+    pxtyp = PixelType(clp)
+    p_typ = f_out != "" ? Format_fuzzy_search (f_out) : pxtyp
+    f_ker = f_out != "" && pxtyp != p_typ ? "Bicubic" : "Point"
     src   = Matrix_fuzzy_search (source)
     tgt   = Matrix_fuzzy_search (target)
     s_gam = moncurve_coef (src)
     t_gam = moncurve_coef (tgt)
+	gamut = gamut && src != tgt
 
-    isRGBsrc ? tv_range_in ? ConvertToPlanarRGB(src).SMPTE_legal(false) : ConvertToPlanarRGB(src) : \
-    YUV_to_RGB(src, tv_range_in=tv_range_in, kernel="Point")
+    !isRGBsrc && lin_in && gamut && gamma ? moncurve_r(s_gam[0], s_gam[1], tv_in, tv_in) : last
 
-    moncurve_f(s_gam[0], s_gam[1])
+     isRGBsrc ? gamut ? tv_in ? ConvertToPlanarRGB(src).SMPTE_legal(false)                      : \
+                                ConvertToPlanarRGB(src)                                  : last :\
+                                YUV_to_RGB(src, tv_range_in=tv_in, kernel=f_ker)
+
+    gamma || !lin_in  ? moncurve_f(s_gam[0], s_gam[1],tv_in,false)                       : last
 
     if (gamut) {
     mata = RGB_to_XYZ(src, list=true)
     matb = XYZ_to_RGB(tgt, list=true)
     MatrixClip( MatrixDot(mata, matb) ) }
 
-    FindStr(target,"ACES")>0 ? last : gamma ? moncurve_r(t_gam[0], t_gam[1]) : gamut ? moncurve_r(s_gam[0], s_gam[1]) : last
+    FindStr(target,"ACES")>0 || lin_out ? last                                        : \
+                                  gamma ? moncurve_r(t_gam[0], t_gam[1],false,false) : \
+                      gamut || !lin_out ? moncurve_r(s_gam[0], s_gam[1],false,false) : \
+                                          last
 
-    isRGBsrc ? tv_range_out ? SMPTE_legal() : last : \
-    RGB_to_YUV( tgt, tv_range_out=tv_range_out, kernel="Point", pixel_type=PixelType(clp)) }
-
+    isRGBsrc && FindStr(p_typ, "RGB")>0 ? \
+                tv_out  ? SMPTE_legal() : last : \
+                lin_out ? moncurve_r(t_gam[0], t_gam[1]).RGB_to_YUV( tgt, tv_range_out=tv_out, kernel=f_ker, pixel_type=p_typ).moncurve_f(t_gam[0], t_gam[1],tv_out,tv_out) : \
+                                                         RGB_to_YUV( tgt, tv_range_out=tv_out, kernel=f_ker, pixel_type=p_typ) }
 
 
 
@@ -101,20 +117,63 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     kernel     = Default (kernel, "Bicubic")
     tv_in      = Default (tv_range_in, true)
     tv_out     = Default (tv_range_out, false)
-    cplace     = Default (cplace, "MPEG2")       # target chroma placement
     b          = Default (b, 0.0)
     c          = Default (c, 0.75)               # Precise Bicubic
     p          = Default (p, 0.25)
 
     Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
 
-    matrix = Matrix_fuzzy_search (matrix)
-    coef   = Matrix_coef(matrix)
+    bdpth      = BitsPerComponent(yuv)
+    p_type     = Format_fuzzy_search (yuv, PixelType(yuv))
+    p_typei    = StrLen(p_type) != 4 ? LeftStr(p_type,7) : p_type
+    matrix     = Matrix_fuzzy_search (matrix)
+    coef       = Matrix_coef(matrix)
 
+                                  p_type4  = p_typei == "YUV444P"
+                                  p_type2  = p_typei == "YUV422P"
+                                  p_type1  = p_typei == "YUV411P"
+                                  p_type0  = p_typei == "YUV420P"
+                                  p_type10 = p_typei == "YUV9"
+                                                 # source chroma placement
+    cplace     = Default (cplace, matrix == "sRGB"    ? "JPEG"     : \
+                          FindStr(matrix,"2020")>0    ? "top_left" : \
+                          FindStr(matrix,"2100")>0    ? "top_left" : \
+                                  p_type4             ? "center"   : \
+                                  p_type2             ? "MPEG1"    : \
+                                  p_type1             ? "MPEG1"    : \
+                                  p_type0             ? "MPEG2"    : \
+                                  p_type10            ? "DV"       : "MPEG2")
+
+    p_type1   ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411") : nop()
+                Assert(!p_type10, "Unsupported Pixel Type: YUV410")
 
     w      = width (yuv)
     h      = height(yuv)
-    cplace = is444(yuv) ? ",src_left=0.0" : cplace=="MPEG2" ? ",src_left=0.25" : ",src_left=0.0"
+
+                                  # centerU:centerV:
+    cloc   = cplace == "MPEG1"       ? [0.0, 0.0] : \
+             cplace == "center"      ? [0.0, 0.0] : \
+             cplace == "JPEG"        ? [0.0, 0.0] : \
+             cplace == "MPEG2"       ? [0.5, 0.0] : \
+             cplace == "left"        ? [0.5, 0.0] : \
+             cplace == "DV"          ? [0.5,-0.5] : \
+             cplace == "bottom_left" ? [0.5,-0.5] : \
+             FindStr(cplace,"2020")>0? [0.5, 0.5] : \
+             FindStr(cplace,"2100")>0? [0.5, 0.5] : \
+             cplace == "top_left"    ? [0.5, 0.5] : \
+             Assert (false, "Unsupported chroma placement mode.")
+
+                  # ratioW:ratioH
+    cplace = p_type4  ? [1,1] : \
+             p_type2  ? [2,1] : \
+             p_type1  ? [4,1] : \
+             p_type0  ? [2,2] : \
+             p_type10 ? [4,2] : \
+             Assert (false, "Unsupported chroma placement mode.")
+
+    point   = kernel=="Point" ? "+1.0" : ""
+    cplaceU = ",src_left="+string(cloc[0]*(1-cplace[0]))+point
+    cplaceV =  ",src_top="+string(cloc[1]*(1-cplace[1]))+point
 
     resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(w) + "," + String(h) + cplace +")"         : \
                 kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplace +",b=b,c=c)" : \
@@ -126,7 +185,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     V = Eval("ExtractV(yuv)." + resampler)
 
 
-    if (matrix=="Rec2020CL") {
+    if (matrix=="Rec2020CL" || matrix=="DCI-P3" || matrix=="Display-P3") {
 
         RGB = YcCbcCrc_to_RGB( Y, U, V, matrix, coef, tv_in, tv_out)
 
@@ -140,13 +199,13 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
         Kr = 1. - coef[0]
         Kb = 1. - coef[2]
 
-        m0 = scale_y         m3 = scale_y                                 m6 = scale_y
-        m1 = 0.0             m4 = scale_uv * ( -Kb * coef[2] / coef[1])   m7 = scale_uv * Kb
-        m2 = scale_uv * Kr   m5 = scale_uv * ( -Kr * coef[0] / coef[1])   m8 = 0.0
+        m0 = scale_y     m1 = 0.0                                   m2 = scale_uv * Kr
+        m3 = scale_y     m4 = scale_uv * ( -Kb * coef[2] / coef[1]) m5 = scale_uv * ( -Kr * coef[0] / coef[1])
+        m6 = scale_y     m7 = scale_uv * Kb                         m8 = 0.0
 
-        rangeY   = tv_out ? ""                                  : "ymin -"
-        range_TV = tv_out ? "ymax ymin - * range_max /"         : ""
-        UVf      = BitsPerComponent(yuv) < 32 ? "range_half - " : ""
+        rangeY   = tv_out     ? ""                          : "ymin -"
+        range_TV = tv_out     ? "ymax ymin - * range_max /" : ""
+        UVf      = bdpth < 32 ? "range_half - " : ""
 
         R = Expr(Y,    V, "x "+rangeY+" "+string(m0)+" *                            y "+UVf + string(m2)+" * + "+range_TV+"")
         G = Expr(Y, U, V, "x "+rangeY+" "+string(m3)+" * y "+UVf + string(m4)+" * + z "+UVf + string(m5)+" * + "+range_TV+"")
@@ -162,24 +221,39 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
 function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_range_out", string "pixel_type", string "kernel", float "b", float "c", float "p", string "cplace") {
 
     matrix     = Default (matrix, "sRGB")
-    pixel_type = Default (pixel_type, "420")     # target YUV pixel_type
+    p_type     = Default (pixel_type, "420")     # target YUV pixel_type
     kernel     = Default (kernel, "Bicubic")
     tv_in      = Default (tv_range_in, false)
     tv_out     = Default (tv_range_out, true)
-    cplace     = Default (cplace, "MPEG2")       # target chroma placement
     b          = Default (b, -0.5)
     c          = Default (c, 0.25)               # Didée's Bicubic
     p          = Default (p, 0.25)
 
     Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
 
-    bdpth   = BitsPerComponent(rgb)
-    p_type4 = FindStr(pixel_type, "44")>0
-    p_type2 = FindStr(pixel_type, "22")>0
-    p_type1 = FindStr(pixel_type, "11")>0    # uses MPEG1?
-    p_type0 = FindStr(pixel_type, "20")>0
-    p_type  = p_type4 ? "YUV444P" : p_type2 ? "YUV422P" : p_type1 ? "YUV411P" : "YUV420P"
-    p_type  = bdpth < 32 ? p_type + string(bdpth) : p_type + "S"
+    bdpth      = BitsPerComponent(rgb)
+    p_type     = Format_fuzzy_search (rgb, p_type)
+    p_typei    = StrLen(p_type) != 4 ? LeftStr(p_type,7) : p_type
+    matrix     = Matrix_fuzzy_search (matrix)
+    coef       = Matrix_coef(matrix)
+
+                                  p_type4  = p_typei == "YUV444P"
+                                  p_type2  = p_typei == "YUV422P"
+                                  p_type1  = p_typei == "YUV411P"
+                                  p_type0  = p_typei == "YUV420P"
+                                  p_type10 = p_typei == "YUV9"
+                                                 # target chroma placement
+    cplace     = Default (cplace, matrix == "sRGB"    ? "JPEG"     : \
+                          FindStr(matrix,"2020")>0    ? "top_left" : \
+                          FindStr(matrix,"2100")>0    ? "top_left" : \
+                                  p_type4             ? "center"   : \
+                                  p_type2             ? "MPEG1"    : \
+                                  p_type1             ? "MPEG1"    : \
+                                  p_type0             ? "MPEG2"    : \
+                                  p_type10            ? "DV"       : "MPEG2")
+
+    p_type1   ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411") : nop()
+                Assert(!p_type10, "Unsupported Pixel Type: YUV410")
 
     w  = width (rgb)
     h  = height(rgb)
@@ -187,19 +261,16 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     nh =                          round(h/2.0)
 
     p_type2 || p_type0 ? Assert (w%2==0, "Width is not mod2." ) : nop()
-                         Assert (h%2==0, "Height is not mod2.")
+                         Assert (h%2==0,"Height is not mod2." )
     p_type1            ? Assert (w%4==0, "Width is not mod4." ) : nop()
 
-
-    matrix = Matrix_fuzzy_search (matrix)
-    coef   = Matrix_coef(matrix)
 
     Rx = ExtractR(rgb)
     Gx = ExtractG(rgb)
     Bx = ExtractB(rgb)
 
 
-    if (matrix=="Rec2020CL") {
+    if (matrix=="Rec2020CL" || matrix=="DCI-P3" || matrix=="Display-P3") {
 
         YCbCr = RGB_to_YcCbcCrc( Rx, Gx, Bx, matrix, coef, tv_in, tv_out)
 
@@ -213,9 +284,9 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
         Kr = 1. - coef[0]
         Kb = 1. - coef[2]
 
-        m0 = scale_y  * coef[0]    m3 = scale_uv * (-coef[0] / Kb)    m6 = scale_uv
-        m1 = scale_y  * coef[1]    m4 = scale_uv * (-coef[1] / Kb)    m7 = scale_uv * (-coef[1] / Kr)
-        m2 = scale_y  * coef[2]    m5 = scale_uv                      m8 = scale_uv * (-coef[2] / Kr)
+        m0 = scale_y  *   coef[0]       m1 = scale_y  *   coef[1]         m2 = scale_y  *   coef[2]
+        m3 = scale_uv * (-coef[0] / Kb) m4 = scale_uv * (-coef[1] / Kb)   m5 = scale_uv
+        m6 = scale_uv                   m7 = scale_uv * (-coef[1] / Kr)   m8 = scale_uv * (-coef[2] / Kr)
 
         UVf       =  bdpth < 32      ? "" : "range_half -"
         rangeY_TV =  tv_out ?  tv_in ? "" : "ymin +" : tv_in ? "ymin - ymax ymin - / range_max *"    : ""
@@ -227,12 +298,35 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
 
     }
 
+                                  # centerU:centerV:
+    cloc   = cplace == "MPEG1"       ? [0.0, 0.0] : \
+             cplace == "center"      ? [0.0, 0.0] : \
+             cplace == "JPEG"        ? [0.0, 0.0] : \
+             cplace == "MPEG2"       ? [0.5, 0.0] : \
+             cplace == "left"        ? [0.5, 0.0] : \
+             cplace == "DV"          ? [0.5,-0.5] : \
+             cplace == "bottom_left" ? [0.5,-0.5] : \
+             FindStr(cplace,"2020")>0? [0.5, 0.5] : \
+             FindStr(cplace,"2100")>0? [0.5, 0.5] : \
+             cplace == "top_left"    ? [0.5, 0.5] : \
+             Assert (false, "Unsupported chroma placement mode.")
+
+                  # ratioW:ratioH
+    cplace = p_type4  ? [1,1] : \
+             p_type2  ? [2,1] : \
+             p_type1  ? [4,1] : \
+             p_type0  ? [2,2] : \
+             p_type10 ? [4,2] : \
+             Assert (false, "Unsupported chroma placement mode.")
+
     point  = kernel=="Point" ? "+1.0" : ""
-    cplace = p_type4 || cplace=="MPEG2" ? ",src_left=-0.50"+point : ",src_left=0.0"+point
-    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplace + ")"         : \
-                kernel == "bicubic"?   "BicubicResize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplace + ",b=b,c=c)" : \
-                kernel == "gauss"  ?     "GaussResize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplace + ",p=p)"     : \
-                                     kernel + "Resize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplace + ")"
+    cplaceU = ",src_left="+string(cloc[0]*(1-cplace[0]))+point
+    cplaceV =  ",src_top="+string(cloc[1]*(1-cplace[1]))+point
+
+    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceU + cplaceV + ")"         : \
+                kernel == "bicubic"?   "BicubicResize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceU + cplaceV + ",b=b,c=c)" : \
+                kernel == "gauss"  ?     "GaussResize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceU + cplaceV + ",p=p)"     : \
+                                     kernel + "Resize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceU + cplaceV + ")"
 
     Cb = p_type4 ? Cb : Eval("Cb." + resampler)
     Cr = p_type4 ? Cr : Eval("Cr." + resampler)
@@ -299,6 +393,29 @@ function YcCbcCrc_to_RGB (clip Y, clip Cb, clip Cr, string matrix, float_array c
     G = moncurve_r(Gx,  s_gam[0], s_gam[1], false, tv_out)
 
     [R, G, B] }
+
+
+function Format_fuzzy_search (clip a, string format) {
+
+    bdpth   = BitsPerComponent(a)
+    format  = LeftStr(format,7)
+
+    format =
+\     (FindStr(format,  "12")>0 ) ? "YUV420P"
+\   : (FindStr(format,  "16")>0 ) ? "YUV422P"
+\   : (FindStr(format,  "24")>0 ) ? "YUV444P"
+\   : (FindStr(format, "420")>0 ) ? "YUV420P"
+\   : (FindStr(format, "422")>0 ) ? "YUV422P"
+\   : (FindStr(format, "411")>0 ) ? "YUV411P"
+\   : (FindStr(format, "444")>0 ) ? "YUV444P"
+\   : (FindStr(format, "410")>0 ) ? "YUV9"
+\   : (FindStr(format,"YUV9")>0 ) ? "YUV9"
+\   : (FindStr(format, "RGB")>0 ) ? "RGBP"
+\   : Assert (false, "Unsupported Color Format.")
+
+    format = format=="YUV9" ? format : \
+             bdpth < 32     ? format + string(bdpth) : format + "S"
+    format }
 
 
 
