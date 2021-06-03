@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.4  (01-06-2021)              ##
+###           Grade Pack v1.5  (02-06-2021)              ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -251,12 +251,13 @@ function greyscale_rgb (clip rgb, string "matrix") {
 
     Assert(isRGB(rgb) == true, "Only works on RGB.")
 
+	rgb
     matrix = Default (matrix, "sRGB")
     matrix = Matrix_fuzzy_search(matrix)
-    s_gam  = moncurve_coef(a, matrix)
+    s_gam  = moncurve_coef(matrix)
     coeffs = RGB_to_XYZ(matrix, list=true)
 
-    ConvertToPlanarRGB(rgb)
+    ConvertToPlanarRGB()
 
     moncurve_f(s_gam[0], s_gam[1], false, false)
 
@@ -288,11 +289,11 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     tv_range    = Default (tv_range,  !isRGBc )
 
     matrix = Matrix_fuzzy_search (matrix)
-    s_gam  = moncurve_coef(a, matrix)
+    s_gam  = moncurve_coef(c, matrix)
 
-    RGBpln = RGBsrc ? IsPlanar(c) : false
+    RGBpln = isRGBc ? IsPlanar(c) : false
 
-    RGBsrc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
+    isRGBc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
     YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
 
     temp3 = 1000.       / temp
@@ -321,5 +322,5 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 
     moncurve_r(s_gam[0], s_gam[1], false, false)
 
-    RGBsrc ? RGBpln ? last : MatchColorFormat(c) : \
+    isRGBc ? RGBpln ? last : MatchColorFormat(c) : \
     RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c)) }
