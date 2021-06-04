@@ -307,8 +307,8 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     wpz = 1. - wpx - wpy
 
     CAT02 = [0.7328,  0.4296, -0.1624, \
-            -0.70360, 1.6975,  0.0061, \
-             0.003,  -0.0136,  0.9834]
+            -0.7036,  1.6975,  0.0061, \
+             0.0030, -0.0136,  0.9834]
 
     fw1       = MatrixDot([wpx/wpy,1.,wpz/wpy] ,CAT02)
     fw2       = MatrixDot([0.95045,1.,1.088917],CAT02)
