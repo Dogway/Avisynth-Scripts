@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.2     (31-05-2021)              ##
+###           ExTools v1.3     (04-06-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -25,7 +25,7 @@
 ### x:   custom value in 8-bit (bitdepth autoscaled)
 ###
 ###
-### Dependencies: AviSynth+ 3.5+
+### Dependencies: AviSynth+ 3.5 and over
 ###               Utils-r41 (for ex_merge)
 ###
 ###
@@ -73,22 +73,28 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
 
 
 # mt_makediff() is 5% slower
-function ex_makediff(clip a, clip b, int "UV") {
+function ex_makediff(clip a, clip b, int "UV", bool "dif", bool "aug") {
 
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV  = Default(UV, isRGB(a) ? 3 : 1)
+    dif = Default(dif, true)
+    aug = Default(aug, false)
 
-    str = "x y - range_half +"
+    str = aug ? "x y - 2 ^" : \
+          dif ? "x y - range_half +" : \
+                "x y -"
 
     UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                          : \
                        Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
 
 
 # mt_adddiff() is 5% slower
-function ex_adddiff(clip a, clip b, int "UV") {
+function ex_adddiff(clip a, clip b, int "UV", bool "dif") {
 
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV  = Default(UV, isRGB(a) ? 3 : 1)
+    dif = Default(dif, true)
 
-    str = "x y + range_half -"
+    str = dif ? "x y + range_half -" : \
+                "x y +"
 
     UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                          : \
                        Expr(a, b, str, ex_UVexpr(a, str, UV), scale_inputs=ex_UVf(a)) }
