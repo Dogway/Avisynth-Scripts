@@ -166,8 +166,10 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         # Subpixel 3
 
-        pclip  = pelclip             ? pel==4 ? pref8.nnedi3_rpow2(rfactor=2,nns=4,threads=threads).nnedi3_rpow2(rfactor=2,nns=4,threads=threads) :  pref8.nnedi3_rpow2(rfactor=2,nns=4,threads=threads) : nop()
-        pclip2 = pelclip && !GlobalR ? pel==4 ? input.nnedi3_rpow2(rfactor=2,nns=4,threads=threads).nnedi3_rpow2(rfactor=2,nns=4,threads=threads) :  input.nnedi3_rpow2(rfactor=2,nns=4,threads=threads) : nop()
+        pclip  = pelclip             ? pel==4 ? pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) :  \
+                                                pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) : nop()
+        pclip2 = pelclip && !GlobalR ? pel==4 ? input.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) :  \
+                                                input.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) : nop()
 
 
         # Motion vectors search (mt=true requires avstp.pll in plugin path, otherwise ignored)
