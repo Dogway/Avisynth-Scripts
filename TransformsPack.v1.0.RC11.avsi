@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC9  (03-06-2021)            ##
+###    Transforms Pack v1.0 RC11  (08-06-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -15,7 +15,7 @@
 ### to color gamut converters and a list of building block functions
 ### for matrix operations.
 ###
-### All of them converge on ColorSpace(). An accurate and simple to use
+### All of them converge in ColorSpace(). An accurate and simple to use
 ### color space and gamma conversion filter.
 ###
 ###
@@ -33,7 +33,7 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
     gamut   = Default (gamut, source != target)    # convert gamut
     gamma   = Default (gamma, true)                # convert gamma
     tv_in   = Default (tv_range_in,  !isRGBsrc )
-    tv_out  = Default (tv_range_out, tv_range_in )
+    tv_out  = Default (tv_range_out, tv_in )
     lin_in  = Default (linear_in,  false )
     lin_out = Default (linear_out, false )
     f_out   = Default (format_out, "" )
@@ -50,18 +50,20 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
     t_gam = moncurve_coef (tgt)
     gamut = gamut && src != tgt
 
-    !isRGBsrc && lin_in && gamut && gamma ? moncurve_r(s_gam[0], s_gam[1], tv_in, tv_in) : last
 
-     isRGBsrc ? gamut ? tv_in ? ConvertToPlanarRGB(src).SMPTE_legal(false)                      : \
-                                ConvertToPlanarRGB(src)                                  : last :\
-                                YUV_to_RGB(src, tv_range_in=tv_in, kernel=f_ker)
+    !isRGBsrc && lin_in ? moncurve_r(s_gam[0], s_gam[1], tv_in, tv_in) : last
 
-    gamma || !lin_in  ? moncurve_f(s_gam[0], s_gam[1],tv_in,false)                       : last
+     isRGBsrc ? ConvertToPlanarRGB(src)                                  : \
+                YUV_to_RGB(src, tv_range_in=tv_in, kernel=f_ker)
+
+     isRGBsrc && lin_in ? tv_in ? SMPTE_legal(false) : last              : \
+                          moncurve_f(s_gam[0], s_gam[1],isRGBsrc?tv_in:false,false)
 
     if (gamut) {
-    mata = RGB_to_XYZ(src, list=true)
-    matb = XYZ_to_RGB(tgt, list=true)
-    MatrixClip( MatrixDot(mata, matb) ) }
+    mata = RGB_to_XYZ  (src,      list=true)
+    matw = c_adaptation(src, tgt, list=true)
+    matb = XYZ_to_RGB  (tgt,      list=true)
+    MatrixClip( MatrixDot(MatrixDot(mata, matw), matb) ) }
 
     FindStr(target,"ACES")>0 || lin_out ? last                                        : \
                                   gamma ? moncurve_r(t_gam[0], t_gam[1],false,false) : \
@@ -83,7 +85,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     gamma      = Default (gamma, true)      # convert gamma
     disp_ref   = Default (disp_ref, "sRGB") # Display Referred Color Space
     kernel     = Default (kernel, "Bicubic")
-    LUT        = Default (LUT, Undefined)   # Display LUT (the path string of your monitor 3D LUT, if calibrated)
+    LUT        = Default (LUT, Undefined)   # Display LUT (the path string of your monitor .cube 3D LUT, if calibrated)
     tv_range   = Default (tv_range, !isRGBsrc )
     b          = Default (b, 0.00)
     c          = Default (c, 0.75)          # Precise Bicubic
@@ -99,18 +101,19 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     t_gam = moncurve_coef (tgt)
     gamut = gamut && src != tgt
 
-    isRGBsrc ? tv_range ? ConvertToPlanarRGB(src).SMPTE_legal(false) : ConvertToPlanarRGB(src) : \
-    YUV_to_RGB(src, tv_range_in=tv_range, kernel=kernel, b=b, c=c, p=p)
+    isRGBsrc ? ConvertToPlanarRGB(src)                                            : \
+               YUV_to_RGB(src, tv_range_in=tv_range, kernel=kernel, b=b, c=c, p=p)
 
-    moncurve_f(s_gam[0], s_gam[1])
+    moncurve_f(s_gam[0], s_gam[1],isRGBsrc?tv_range:false,false)
 
     if (gamut) {
-    mata = RGB_to_XYZ(src, list=true)
-    matb = XYZ_to_RGB(tgt, list=true)
-    MatrixClip( MatrixDot(mata, matb) ) }
+    mata = RGB_to_XYZ  (src,      list=true)
+    matw = c_adaptation(src, tgt, list=true)
+    matb = XYZ_to_RGB  (tgt,      list=true)
+    MatrixClip( MatrixDot(MatrixDot(mata, matw), matb) ) }
 
-    Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1]) : \
-                    gamut ? moncurve_r(s_gam[0], s_gam[1]) : last
+    Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1],false,false) : \
+                    gamut ? moncurve_r(s_gam[0], s_gam[1],false,false) : last
 
     Defined(LUT) ? Cube(LUT, 4, true) : last
 
@@ -119,23 +122,29 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
 
 # YCbCr to RGB function
-function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_range_out", string "kernel", float "b", float "c", float "p", string "cplace") {
+function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_range_out", string "kernel", float "b", float "c", float "p", string "cplace", bool "UVrecon") {
 
     matrix     = Default (matrix, "709")
     kernel     = Default (kernel, "Bicubic")
     tv_in      = Default (tv_range_in, true)
     tv_out     = Default (tv_range_out, false)
+    recon      = Default (UVrecon, false)
     b          = Default (b, 0.0)
     c          = Default (c, 0.75)               # Precise Bicubic
     p          = Default (p, 0.25)
 
     Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
+    Assert(isRGB(yuv)==false, "Only YUV format supported.")
 
     bdpth      = BitsPerComponent(yuv)
     p_type     = Format_fuzzy_search (yuv, PixelType(yuv))
     p_typei    = StrLen(p_type) != 4 ? LeftStr(p_type,7) : p_type
     matrix     = Matrix_fuzzy_search (matrix)
     coef       = Matrix_coef(matrix)
+    bc         = bicubic_coeffs(kernel)
+    bc_b       = string(bc[1]>=0.?bc[0]:b)
+    bc_c       = string(bc[1]>=0.?bc[1]:c)
+    kernel     = bc[1]>=0. ? "Bicubic" : kernel
 
                                   p_type4  = p_typei == "YUV444P"
                                   p_type2  = p_typei == "YUV422P"
@@ -158,39 +167,64 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     w      = width (yuv)
     h      = height(yuv)
 
-                                  # centerU:centerV:
-    cloc   = cplace == "MPEG1"       ? [0.0, 0.0] : \
-             cplace == "center"      ? [0.0, 0.0] : \
-             cplace == "JPEG"        ? [0.0, 0.0] : \
-             cplace == "MPEG2"       ? [0.5, 0.0] : \
-             cplace == "left"        ? [0.5, 0.0] : \
-             cplace == "DV"          ? [0.5,-0.5] : \
-             cplace == "bottom_left" ? [0.5,-0.5] : \
-             FindStr(cplace,"2020")>0? [0.5, 0.5] : \
-             FindStr(cplace,"2100")>0? [0.5, 0.5] : \
-             cplace == "top_left"    ? [0.5, 0.5] : \
+
+    cloc   = cplace == "MPEG1"       ? [ 0.0,  0.0] : \
+             cplace == "center"      ? [ 0.0,  0.0] : \
+             cplace == "JPEG"        ? [ 0.0,  0.0] : \
+             cplace == "MPEG2"       ? [-0.25, 0.0] : \
+             cplace == "left"        ? [-0.25, 0.25] : \
+             cplace == "DV"          ? [-0.25,-0.25] : \
+             cplace == "bottom_left" ? [-0.25,-0.25] : \
+             FindStr(cplace,"2020")>0? [-0.25, -0.25] : \
+             FindStr(cplace,"2100")>0? [-0.25, -0.25] : \
+             cplace == "top_left"    ? [-0.25, -0.25] : \
              Assert (false, "Unsupported chroma placement mode.")
 
                   # ratioW:ratioH
-    cplace = p_type4  ? [1,1] : \
-             p_type2  ? [2,1] : \
-             p_type1  ? [4,1] : \
-             p_type0  ? [2,2] : \
-             p_type10 ? [4,2] : \
+    cplace = p_type4  ? [1   ,1]    : \
+             p_type2  ? [1/2.,1]    : \
+             p_type1  ? [1/4.,1]    : \
+             p_type0  ? [1/2.,1/2.] : \
+             p_type10 ? [1/4.,1/2.] : \
              Assert (false, "Unsupported chroma placement mode.")
 
     point   = kernel=="Point" ? "+1.0" : ""
-    cplaceU = ",src_left="+string(cloc[0]*(1-cplace[0]))+point
-    cplaceV =  ",src_top="+string(cloc[1]*(1-cplace[1]))+point
+    cplaceH = ",src_left="+string(cloc[0]*(1-cplace[0]))+point
+    cplaceV =  ",src_top="+string(cloc[1]*(1-cplace[1]))
 
-    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(w) + "," + String(h) + cplaceU + cplaceV +")"         : \
-                kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplaceU + cplaceV +",b=b,c=c)" : \
-                kernel == "gauss"  ?     "GaussResize(" + String(w) + "," + String(h) + cplaceU + cplaceV +",p=p)"     : \
-                                     kernel + "Resize(" + String(w) + "," + String(h) + cplaceU + cplaceV +")"
+    # add settings for nnedi3_resize16
+    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(w) + "," + String(h) + cplaceH + cplaceV +")"                       : \
+                kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",b="+bc_b+",c="+bc_c+")" : \
+                kernel == "gauss"  ?     "GaussResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",p=p)"                   : \
+                                     kernel + "Resize(" + String(w) + "," + String(h) + cplaceH + cplaceV +")"
 
-    Y = ExtractY(yuv)
-    U = Eval("ExtractU(yuv)." + resampler)
-    V = Eval("ExtractV(yuv)." + resampler)
+    Y   = ExtractY(yuv)
+    Uor = ExtractU(yuv)
+    Vor = ExtractV(yuv)
+
+    # feisty2's ChromaReconstructor_faster v3.0 HBD mod
+
+    if (recon && !p_type4) {
+
+        radius  = 16
+        str     = 6.4
+        threads = 4
+
+        ref     =   Y.KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
+        Luma    =   Y.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
+        Uu      = Uor.nnedi3_rpow2(rfactor=4, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false,fwidth=w*2,fheight=h*2, ep0=0.0, ep1=0.75,cshift="bicubicresize",mpeg2=false)
+        Vu      = Vor.nnedi3_rpow2(rfactor=4, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false,fwidth=w*2,fheight=h*2, ep0=0.0, ep1=0.75,cshift="bicubicresize",mpeg2=false)
+        Unew    = Uu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
+        Vnew    = Vu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
+        U       = ex_adddiff(Uu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Unew, Removegrain(Unew, 19)))  # Sharpening
+        V       = ex_adddiff(Vu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Vnew, Removegrain(Vnew, 19)))  # Sharpening
+
+    } else {
+
+        U   = p_type4 ? Uor : Eval("Uor." + resampler)
+        V   = p_type4 ? Vor : Eval("Vor." + resampler)
+
+        }
 
 
     if (matrix=="Rec2020CL" || matrix=="DCI-P3" || matrix=="Display-P3") {
@@ -238,12 +272,18 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     p          = Default (p, 0.25)
 
     Assert(AvsPlusVersionNumber > 2724, "Update AviSynth+ version")
+    Assert(isRGB(rgb)==true && IsPlanar(rgb)==true, "Only Planar RGB format supported.")
 
     bdpth      = BitsPerComponent(rgb)
     p_type     = Format_fuzzy_search (rgb, p_type)
     p_typei    = StrLen(p_type) != 4 ? LeftStr(p_type,7) : p_type
     matrix     = Matrix_fuzzy_search (matrix)
     coef       = Matrix_coef(matrix)
+    s_gam      = moncurve_coef (rgb,matrix)
+    bc         = bicubic_coeffs(kernel)
+    bc_b       = string(bc[1]>=0.?bc[0]:b)
+    bc_c       = string(bc[1]>=0.?bc[1]:c)
+    kernel     = bc[1]>=0. ? "Bicubic" : kernel
 
                                   p_type4  = p_typei == "YUV444P"
                                   p_type2  = p_typei == "YUV422P"
@@ -306,18 +346,19 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
 
     }
 
-                                  # centerU:centerV:
-    cloc   = cplace == "MPEG1"       ? [0.0, 0.0] : \
-             cplace == "center"      ? [0.0, 0.0] : \
-             cplace == "JPEG"        ? [0.0, 0.0] : \
-             cplace == "MPEG2"       ? [0.5, 0.0] : \
-             cplace == "left"        ? [0.5, 0.0] : \
-             cplace == "DV"          ? [0.5,-0.5] : \
-             cplace == "bottom_left" ? [0.5,-0.5] : \
-             FindStr(cplace,"2020")>0? [0.5, 0.5] : \
-             FindStr(cplace,"2100")>0? [0.5, 0.5] : \
-             cplace == "top_left"    ? [0.5, 0.5] : \
+
+    cloc   = cplace == "MPEG1"       ? [ 0.0,  0.0] : \
+             cplace == "center"      ? [ 0.0,  0.0] : \
+             cplace == "JPEG"        ? [ 0.0,  0.0] : \
+             cplace == "MPEG2"       ? [-0.25, 0.0] : \
+             cplace == "left"        ? [-0.25, 0.25] : \
+             cplace == "DV"          ? [-0.25,-0.25] : \
+             cplace == "bottom_left" ? [-0.25,-0.25] : \
+             FindStr(cplace,"2020")>0? [-0.25, -0.25] : \
+             FindStr(cplace,"2100")>0? [-0.25, -0.25] : \
+             cplace == "top_left"    ? [-0.25, -0.25] : \
              Assert (false, "Unsupported chroma placement mode.")
+
 
                   # ratioW:ratioH
     cplace = p_type4  ? [1,1] : \
@@ -328,13 +369,13 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
              Assert (false, "Unsupported chroma placement mode.")
 
     point  = kernel=="Point" ? "+1.0" : ""
-    cplaceU = ",src_left="+string(cloc[0]*(1-cplace[0]))+point
-    cplaceV =  ",src_top="+string(cloc[1]*(1-cplace[1]))+point
+    cplaceH = ",src_left="+string(cloc[0]*(1-cplace[0]))+point
+    cplaceV =  ",src_top="+string(cloc[1]*(1-cplace[1]))
 
-    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceU + cplaceV + ")"         : \
-                kernel == "bicubic"?   "BicubicResize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceU + cplaceV + ",b=b,c=c)" : \
-                kernel == "gauss"  ?     "GaussResize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceU + cplaceV + ",p=p)"     : \
-                                     kernel + "Resize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceU + cplaceV + ")"
+    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceH + cplaceV + ")"         : \
+                kernel == "bicubic"?   "BicubicResize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceH + cplaceV + ",b="+bc_b+",c="+bc_c+")" : \
+                kernel == "gauss"  ?     "GaussResize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceH + cplaceV + ",p=p)"     : \
+                                     kernel + "Resize(" + String(nw+nw%2) + "," + String(p_type2 || p_type1 ? h : nh+nh%2) + cplaceH + cplaceV + ")"
 
     Cb = p_type4 ? Cb : Eval("Cb." + resampler)
     Cr = p_type4 ? Cr : Eval("Cr." + resampler)
@@ -375,7 +416,6 @@ function RGB_to_YcCbcCrc (clip Rx, clip Gx, clip Bx, string matrix, float_array 
 function YcCbcCrc_to_RGB (clip Y, clip Cb, clip Cr, string matrix, float_array coef, bool tv_in, bool tv_out) {
 
     bdpth     = BitsPerComponent(Y) < 32
-
     UVf       = bdpth ? "range_half -" : ""
     UVf2      = bdpth ? "range_half +" : ""
     rangeC_PC = tv_in ? ""+UVf+" cmax cmin - / range_max *" : UVf
@@ -426,6 +466,31 @@ function Format_fuzzy_search (clip a, string format) {
     format }
 
 
+function bicubic_coeffs (string kernel) {
+
+    coeffs =
+\     (kernel == "Catmull-Rom"       ) ? [0.0,0.5]
+\   : (kernel == "Mitchell-Netravali") ? [1/3.,1/3.]
+\   : (kernel == "Robidoux"          ) ? [0.3782,0.3109]
+\   : (kernel == "Hermite"           ) ? [0.0,0.0]
+\   : (kernel == "B-Spline"          ) ? [1.0,0.0]
+\   : (kernel == "B-cubic"           ) ? [0.0,1.0]
+\   : (kernel == "Precise Bicubic"   ) ? [0.0,0.75]
+\   : (kernel == "Didée"             ) ? [-0.5,0.25]
+\
+\   : (kernel == "Catmull"           ) ? [0.0,0.5]
+\   : (kernel == "catrom"            ) ? [0.0,0.5]
+\   : (kernel == "Mitchell"          ) ? [1/3.,1/3.]
+\   : (kernel == "Mitchel"           ) ? [1/3.,1/3.]
+\   : (kernel == "Robi"              ) ? [0.3782,0.3109]
+\   : (kernel == "Spline"            ) ? [1.0,0.0]
+\   : (kernel == "Precise"           ) ? [0.0,0.75]
+\   : (kernel == "Dide"              ) ? [-0.5,0.25]
+\   : (kernel == "Didee"             ) ? [-0.5,0.25]
+\   : (kernel == "Didee"             ) ? [-0.5,0.25] : [-1,-1]
+
+    coeffs }
+
 
 function Matrix_fuzzy_search (string matrix) {
 
@@ -451,9 +516,12 @@ function Matrix_fuzzy_search (string matrix) {
 \   : (FindStr(matrix,"1886")>0 ) ? "Rec709"
 \   : (matrix == "Adobe"        ) ? "AdobeRGB"
 \   : (matrix == "AdobeRGB"     ) ? "AdobeRGB"
+\   : (matrix == "AdobeWideGamut")? "AWG"
+\   : (matrix == "AWG"          ) ? "AWG"
 \   : (FindStr(matrix, "DCI")>0 ) ? "DCI-P3"
 \   : (matrix == "DCI"          ) ? "DCI-P3"
 \   : (matrix == "P3"           ) ? "Display-P3"
+\   : (matrix == "P3D65"        ) ? "Display-P3"
 \   : (FindStr(matrix,"Display")>0) ? "Display-P3"
 \   : (matrix == "Display"      ) ? "Display-P3"
 \   : (matrix == "AP1"          ) ? "ACEScg"
@@ -473,49 +541,58 @@ function Matrix_coef (string matrix) {
     matrix = Matrix_fuzzy_search (matrix)
 
     mat_i =
-\     (matrix == "srgb"      ) ? 1
-\   : (matrix == "Rec601"    ) ? 0
-\   : (matrix == "240M"      ) ? 3
-\   : (matrix == "470BG"     ) ? 0
-\   : (matrix == "Rec2020CL" ) ? 5
-\   : (matrix == "Rec2020NCL") ? 5
-\   : (matrix == "Rec709"    ) ? 1
-\   : (matrix == "AdobeRGB"  ) ? 6
-\   : (matrix == "Display-P3") ? 7
-\   : (matrix == "DCI-P3"    ) ? 8
-\   : (matrix == "ACEScg"    ) ? 9
-\   : (matrix == "ACES2065"  ) ? 10
+\     (matrix == "srgb"           ) ? 1
+\   : (matrix == "Rec601"         ) ? 0
+\   : (matrix == "240M"           ) ? 3
+\   : (matrix == "470BG"          ) ? 0
+\   : (matrix == "Rec2020CL"      ) ? 5
+\   : (matrix == "Rec2020NCL"     ) ? 5
+\   : (matrix == "Rec709"         ) ? 1
+\   : (matrix == "AdobeRGB"       ) ? 6
+\   : (matrix == "AWG"            ) ? 7
+\   : (matrix == "Display-P3"     ) ? 8
+\   : (matrix == "DCI-P3"         ) ? 9
+\   : (matrix == "ACEScg"         ) ? 10
+\   : (matrix == "ACES2065"       ) ? 11
 \   : Assert (false, "Unsupported Color Space.")
 
     mat_w =
 \     (matrix == "Rec601"         ) ? 0
-\   : (matrix == "DCI-P3"         ) ? 2
-\   : (matrix == "ACES2065"       ) ? 3
-\   : (matrix == "ACEScg"         ) ? 3
+\   : (matrix == "470BG"          ) ? 0
+\   : (matrix == "AWG"            ) ? 2
+\   : (matrix == "DCI-P3"         ) ? 3
+\   : (matrix == "ACES2065"       ) ? 4
+\   : (matrix == "ACEScg"         ) ? 4
 \   :                                 1
 
-    #                    NTSC 1953/YCbCr  IEC 61966-2-1/sRGB SMPTE 170M       Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  SMPTE RP 432-1    SMPTE RP 431-2    AP1                AP0
-    #                    SMPTE 470M       ITU-R BT.709       ITU-R BT.601     SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  Display-P3        DCI-P3            ACEScg             ACES2065-1
-    pr = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],  [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
-    pg = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],  [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
-    pb = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],  [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
-    pw = Select (mat_w,  [0.310,  0.316],  [0.312713, 0.329016],                                                                                                        [0.314,  0.351],  [0.32168,0.33767]                   )
+    mat_wp =
+\     (matrix == "AWG"            ) ? 2
+\   : (matrix == "DCI-P3"         ) ? 3
+\   : (matrix == "ACES2065"       ) ? 4
+\   : (matrix == "ACEScg"         ) ? 4
+\   :                                 1
+
+    #                    NTSC 1953/YCbCr  IEC 61966-2-1/sRGB SMPTE 170M       Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Adobe Wide Gamut  SMPTE RP 432-1    SMPTE RP 431-2    AP1                AP0
+    #                    SMPTE 470M       ITU-R BT.709       ITU-R BT.601     SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  AWG               Display-P3        DCI-P3            ACEScg             ACES2065-1
+    pr = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],  [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.7347,0.2653],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
+    pg = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],  [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.1152,0.8264],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
+    pb = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],  [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.1566,0.0177],  [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
+    pw = Select (mat_w,  [0.310,  0.316],  [0.312713, 0.329016],                                                                                      [0.3457,0.3585],                    [0.314,  0.351],  [0.32168,0.33767]                   )
+    wp = Select (mat_wp, [0.310,  0.316],  [0.312713, 0.329016],                                                                                      [0.3457,0.3585],                    [0.314,  0.351],  [0.32168,0.33767]                   )
 
     pr2 = 1. - pr[0] - pr[1]
     pb2 = 1. - pb[0] - pb[1]
     pg2 = 1. - pg[0] - pg[1]
     pw2 = 1. - pw[0] - pw[1]
+    wp2 = 1. - wp[0] - wp[1]
 
-
-    kr = (pr[1] * (pw[0] * (pg[1] * pb2 - pb[1] * pg2) + pw[1] * (pb[0] * pg2 - pg[0] * pb2) + pw2   * (pg[0] * pb[1] - pb[0] * pg[1]))) / \
-         (pw[1] * (pr[0] * (pg[1] * pb2 - pb[1] * pg2) + pg[0] * (pb[1] * pr2 - pr[1] * pb2) + pb[0] * (pr[1] * pg2   - pg[1] * pr2)))
-
-    kb = (pb[1] * (pw[0] * (pr[1] * pg2 - pg[1] * pr2) + pw[1] * (pg[0] * pr2 - pr[0] * pg2) + pw2   * (pr[0] * pg[1] - pg[0] * pr[1]))) / \
-         (pw[1] * (pr[0] * (pg[1] * pb2 - pb[1] * pg2) + pg[0] * (pb[1] * pr2 - pr[1] * pb2) + pb[0] * (pr[1] * pg2   - pg[1] * pr2)))
+    det = (pw[1] * (pr[0] * (pg[1] * pb2 - pb[1] * pg2) + pg[0] * (pb[1] * pr2 - pr[1] * pb2) + pb[0] * (pr[1] * pg2   - pg[1] * pr2)))
+    kr  = (pr[1] * (pw[0] * (pg[1] * pb2 - pb[1] * pg2) + pw[1] * (pb[0] * pg2 - pg[0] * pb2) + pw2   * (pg[0] * pb[1] - pb[0] * pg[1]))) / det
+    kb  = (pb[1] * (pw[0] * (pr[1] * pg2 - pg[1] * pr2) + pw[1] * (pg[0] * pr2 - pr[0] * pg2) + pw2   * (pr[0] * pg[1] - pg[0] * pr[1]))) / det
 
     kg = 1. - kb - kr
 
-    [kr, kg, kb] }
+    [kr, kg, kb, wp[0], wp[1], wp2] }
 
 
 
@@ -554,6 +631,10 @@ function RGB_to_XYZ (clip rgb, string cspace, bool "list") {
                                         [ 0.57666999101638790, 0.29734000563621520, 0.02703000046312809,   \
                                           0.18556000292301178, 0.62735998630523680, 0.07068999856710434,   \
                                           0.18822999298572540, 0.07529000192880630, 0.99133998155593870] : \
+                    cspace == "AWG"                                                                     ?  \
+                                        [ 0.71650063991546630, 0.258728206157684300, 0.00000000000000000, \
+                                          0.10102055221796036, 0.724682152271270800, 0.05121181160211563, \
+                                          0.14677436649799347, 0.016589440405368805, 0.77389270067214970]: \
                     cspace == "ACEScg"                                                                  ?  \
                                         [ 0.66332850000000000, 0.27258800000000000, 0.00000000000000000,   \
                                           0.13399166000000000, 0.67401860000000000, 0.00406035300000000,   \
@@ -603,6 +684,10 @@ function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
                                         [  2.04158997535705570, -0.96924000978469850,  0.013439999893307686,   \
                                           -0.56501001119613650,  1.87597000598907470, -0.118359997868537900,   \
                                           -0.34472998976707460,  0.04156000167131424,  1.015169978141784700] : \
+                    cspace == "AWG"                                                                         ?  \
+                                        [  1.46230435371398930, -0.52286839485168460,  0.034600451588630676,   \
+                                          -0.18452566862106323,  1.44798874855041500, -0.095819652080535890,   \
+                                          -0.27338108420372010,  0.06812617927789688,  1.287660717964172400] : \
                     cspace == "ACEScg"                                                                      ?  \
                                         [  1.64102330000000000, -0.66387850000000000,  0.002682799000000000,   \
                                           -0.32480330000000000,  1.61551320000000000, -0.006528448000000000,   \
@@ -614,6 +699,58 @@ function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
                      Assert(false,"Unsupported Color Space.")
 
             list ? matrix : MatrixClip(rgb, matrix) }
+
+
+# Chromatic Adaptation
+function c_adaptation (clip c, string "source", string "target", bool "tv_range", bool "list") {
+
+    isRGBc = IsRGB(c)
+
+    source   = Default (source, "sRGB")
+    target   = Default (target, "sRGB")
+    list     = Default (list, false)
+    tv_range = Default (tv_range,  !isRGBc )
+
+    src   = Matrix_fuzzy_search (source)
+    tgt   = Matrix_fuzzy_search (target)
+    wps   = Matrix_coef(src)
+    wpt   = Matrix_coef(tgt)
+    s_gam = moncurve_coef(c, src)
+    t_gam = moncurve_coef(c, tgt)
+    same  = wps[3] == wpt[3]
+
+    CAT02 = [0.7328,  0.4296, -0.1624, \
+            -0.7036,  1.6975,  0.0061, \
+             0.0030, -0.0136,  0.9834]
+
+    wpsn   = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]] ,CAT02)
+    wptn   = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]] ,CAT02)
+    trans  = MatrixDiv(wptn,wpsn)
+
+    if (!list) {
+
+    RGBpln = isRGBc ? IsPlanar(c) : false
+
+    isRGBc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
+    YUV_to_RGB(c, src, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
+
+    moncurve_f(s_gam[0], s_gam[1], false, false)
+
+    RGB_to_XYZ(src)
+    Expr(last,string(trans[0])+" x *",string(trans[1])+" x *",string(trans[2])+" x *")
+    XYZ_to_RGB(src)
+
+    moncurve_r(s_gam[0], s_gam[1], false, false)
+
+    isRGBc ? RGBpln ? last : MatchColorFormat(c) : \
+    RGB_to_YUV( src, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c))
+    same ? c : last
+
+    } else {
+
+    [same?1:trans[0],   0.0000,        0.0000,  \
+     0.0000,   same?1:trans[1],        0.0000,  \
+     0.0000,            0.0000,same?1:trans[2]] } }
 
 
 function moncurve_coef (clip c, string "matrix") {
@@ -634,6 +771,7 @@ function moncurve_coef (clip c, string "matrix") {
 \   : (matrix == "Rec2020DVp5") ? 4
 \   : (matrix == "Rec709"     ) ? 5
 \   : (matrix == "AdobeRGB"   ) ? 6
+\   : (matrix == "AWG"        ) ? 6
 \   : (matrix == "Display-P3" ) ? 0
 \   : (matrix == "DCI-P3"     ) ? 7
 \   : (matrix == "ACEScg"     ) ? 8
@@ -644,18 +782,18 @@ function moncurve_coef (clip c, string "matrix") {
 
     #                                  SMPTE-C     Y’PbPr 601  PAL/SECAM BT-2020    Rec.709    AdobeRGB     DCI-P3   AP1/AP0
     #                         sRGB     SMPTE 170M  SMPTE 240M  BT-470BG  BT-2020    BT-1886    AdobeRGB     DCI-P3      ACES
-    t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,      6504,   6504   ,      6504 ,   6305  ,     6000 )
-    t_off   = Select (t_num,  0.055  ,  0.099  ,   0.1115 ,    0.099  ,     bdpth,   0      ,    0      ,   0     ,      0   )
-    t_gamma = Select (t_num,  2.40   ,  2.22222,   2.22222,    2.80   ,   2.22222,   2.40   ,   563/256.,   2.60  ,      1.0 )
+    t_temp  = Select (t_num,  6504   ,  6504   ,   6504   ,    6504   ,   6504   ,    6504  ,    6504   ,    6305  ,    6000 )
+    t_off   = Select (t_num,  0.055  ,  bdpth  ,   0.1115 ,    0.099  ,   bdpth  ,     0    ,      0    ,     0    ,     0   )
+    t_gamma = Select (t_num,  2.40   ,  1/0.45 ,   1/0.45 ,    2.80   ,   1/0.45 ,    2.40  ,   563/256.,    2.60  ,     1.0 )
 
     return [t_gamma, t_off] }
 
 
 
-# Monitor Curve Functions: https://github.com/ampas/aces-dev
+# OETF. Monitor Curve Functions: https://github.com/ampas/aces-dev
 function moncurve_f (clip c, float "gamma", float "offs", bool "tv_range_in", bool "tv_range_out") {
 
-    gamma = Default(gamma, 2.222)  # gamma
+    gamma = Default(gamma, 1/0.45) # gamma
     offs  = Default(offs,   0.0 )  # extension of the linear part
 
     c
@@ -679,11 +817,10 @@ function moncurve_f (clip c, float "gamma", float "offs", bool "tv_range_in", bo
 
 
 
-
-# Monitor Curve Functions: https://github.com/ampas/aces-dev
+# EOTF. Monitor Curve Functions: https://github.com/ampas/aces-dev
 function moncurve_r (clip c, float "gamma", float "offs", bool "tv_range_in", bool "tv_range_out") {
 
-    gamma = Default(gamma, 2.222)  # gamma
+    gamma = Default(gamma, 1/0.45) # gamma
     offs  = Default(offs,   0.0 )  # extension of the linear part
 
     c
@@ -713,7 +850,6 @@ function SMPTE_legal (clip c, bool "forward") {
     Assert (IsRGB(c), "YUV is not supported.")
 
     Expr(c, fw ? "x ymax ymin - * range_max / ymin + " : "x ymin - ymax ymin - / range_max *") }
-
 
 
 function MatrixClip ( clip rgb, float_array mat) {
