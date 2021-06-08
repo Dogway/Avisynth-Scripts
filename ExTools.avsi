@@ -79,8 +79,8 @@ function ex_makediff(clip a, clip b, int "UV", bool "dif", bool "aug") {
     dif = Default(dif, true)
     aug = Default(aug, false)
 
-    str = aug ? "x y - 2 ^" : \
-          dif ? "x y - range_half +" : \
+    str = dif ? "x y - range_half +" : \
+          aug ? "x y - 50 *"         : \
                 "x y -"
 
     UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                          : \
@@ -598,6 +598,19 @@ function ex_undot(clip a, int "radius", int "UV") {
     UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                       : \
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs="none") }
 
+
+# This is repair mode=1
+function ex_repair(clip a, clip b, int "radius", int "UV") {
+
+    rd = Default(radius, 1)            # beware; not real radius -bigger kernel-, but further apart
+    UV = Default(UV, isRGB(a) ? 3 : 1)
+
+     Separated is slower
+    str = Format("y[-{rd},{rd}] A^ y[0,{rd}] B^ y[{rd},{rd}] C^ y[-{rd},0] D^ y[{rd},0] F^ y[-{rd},-{rd}] G^ y[0,-{rd}] H^ y[{rd},-{rd}] I^ "  \
+                +"x[0,0] A B min C D min min F G min H I min min min A B max C D max max F G max H I max max max clip")
+
+    UV == 1 ? isy(a) ? Expr(a, b, str) :    Expr(a, b, str, "")                       : \
+                       Expr(a, b, str, ex_UVexpr(a,    str, UV), scale_inputs="none") }
 
 
 ######### UV HELPER FUNCTIONS #########
