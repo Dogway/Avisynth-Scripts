@@ -167,14 +167,14 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     w      = width (yuv)
     h      = height(yuv)
 
-
-    cloc   = cplace == "MPEG1"       ? [ 0.0,  0.0] : \
-             cplace == "center"      ? [ 0.0,  0.0] : \
-             cplace == "JPEG"        ? [ 0.0,  0.0] : \
-             cplace == "MPEG2"       ? [-0.25, 0.0] : \
-             cplace == "left"        ? [-0.25, 0.25] : \
-             cplace == "DV"          ? [-0.25,-0.25] : \
-             cplace == "bottom_left" ? [-0.25,-0.25] : \
+                                     # centerU:centerV:
+    cloc   = cplace == "MPEG1"       ? [ 0.0,  0.0]   : \
+             cplace == "center"      ? [ 0.0,  0.0]   : \
+             cplace == "JPEG"        ? [ 0.0,  0.0]   : \
+             cplace == "MPEG2"       ? [-0.25, 0.0]   : \
+             cplace == "left"        ? [-0.25, 0.0]   : \
+             cplace == "DV"          ? [-0.25,-0.25]  : \
+             cplace == "bottom_left" ? [-0.25,-0.25]  : \
              FindStr(cplace,"2020")>0? [-0.25, -0.25] : \
              FindStr(cplace,"2100")>0? [-0.25, -0.25] : \
              cplace == "top_left"    ? [-0.25, -0.25] : \
@@ -346,14 +346,14 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
 
     }
 
-
-    cloc   = cplace == "MPEG1"       ? [ 0.0,  0.0] : \
-             cplace == "center"      ? [ 0.0,  0.0] : \
-             cplace == "JPEG"        ? [ 0.0,  0.0] : \
-             cplace == "MPEG2"       ? [-0.25, 0.0] : \
-             cplace == "left"        ? [-0.25, 0.25] : \
-             cplace == "DV"          ? [-0.25,-0.25] : \
-             cplace == "bottom_left" ? [-0.25,-0.25] : \
+                                     # centerU:centerV:
+    cloc   = cplace == "MPEG1"       ? [ 0.0,  0.0]   : \
+             cplace == "center"      ? [ 0.0,  0.0]   : \
+             cplace == "JPEG"        ? [ 0.0,  0.0]   : \
+             cplace == "MPEG2"       ? [-0.25, 0.0]   : \
+             cplace == "left"        ? [-0.25, 0.0]   : \
+             cplace == "DV"          ? [-0.25,-0.25]  : \
+             cplace == "bottom_left" ? [-0.25,-0.25]  : \
              FindStr(cplace,"2020")>0? [-0.25, -0.25] : \
              FindStr(cplace,"2100")>0? [-0.25, -0.25] : \
              cplace == "top_left"    ? [-0.25, -0.25] : \
