@@ -161,13 +161,13 @@ function ConvertFormat (clip clp, string "format", string "matrix", bool "tv_ran
 
         YUV_to_RGB (clp, matrix, tv_in, tv_out,         kernel, b, c, p, cplace, recon)
 
-# RGB to YUV
-} else if ( isRGBsrc && FindStr(format,"RGB")!=0) {
+    # RGB to YUV
+    } else if ( isRGBsrc && FindStr(format,"RGB")!=0) {
 
         RGB_to_YUV (clp, matrix, tv_in, tv_out, p_type, kernel, b, c, p, cplace)
 
-# YUV to YUV
-} else {
+    # YUV to YUV
+    } else {
 
     bdpth      = BitsPerComponent(clp)
     format     = Format_fuzzy_search (clp, format)
