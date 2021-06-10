@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.0d RC4  by Dogway - 10 June 2021                              ###
+###                       v3.2.0d RC5  by Dogway - 11 June 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -78,7 +78,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     search       = Default( search,   4 )
     searchparam  = Default( searchparam,   isUHD ? 1 : 2 )
     truemotion   = Default( truemotion, !isHD)
-    DCT          = Default( DCT,   0 )
+    DCT          = Default( DCT,   5 )
     thSCD1       = Default( thSCD1,  round(pow((blksize*2.5),2)))
     thSCD2       = Default( thSCD2,  130 )
 
@@ -144,7 +144,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                  (prefilter== 3) ?  mt_merge(sneo_dfttest(inputP,slocation="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma?3:2,V=chroma?3:2,dither=1,threads=Threads,fft_threads=Threads),inputP,        \
                                                     inputP.ex_lut("x ymin < range_max x 75 scaleb > range_min range_max x ymin - range_max 75 scaleb ymin - / * - ? ?"), luma=chroma, cplace="MPEG1", U=chr, V=chr) : \
                                  (prefilter== 4) ?  inputP.ex_KNLMeansCL(device_type="GPU", device_id=device_id, chroma=chroma, a=1,d=1,h=7.0)                                                                      : \
-                                                   Assert(false, "prefilter must be between -1~4: "+string(prefilter))                                                                                              : \
+                                                    Assert(false, "prefilter must be between -1~4: "+string(prefilter))                                                                                              : \
                                  inputP
 
       p_type    = LeftStr(PixelType(input),6)
@@ -158,8 +158,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     nw = round(w/2.0)
     nh = round(h/2.0)
     pref       = !isRGB(input) && (Str != 1.0) ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr) : pref
-    pref8      = SBitsn > 8 ? pref.ConvertBits(8,dither=-1)       : pref
-    pref8      = isUHD      ? pref8.SimpleResize(nw+nw%2,nh+nh%2) : pref8
+    pref8      = SBitsn > 8 ? pref.ConvertBits(8,dither=-1)        : pref
+    pref8      = isUHD      ? pref8.SimpleResize(nw+nw%2, nh+nh%2) : pref8
 
 
     If (sShow ? false : !Show) {
@@ -223,15 +223,15 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 # Scaling vectors for UHD
                 if (isUHD) {
-                bv1  = !interlaced             ? !GlobalR ?  bv1.MScaleVect(2, bits=SBitsn) :  bv1 : nop()             fv1  = !interlaced             ? !GlobalR ?  fv1.MScaleVect(2, bits=SBitsn) :  fv1 : nop()
-                bv2  = (interlaced ||  tr > 1) ? !GlobalR ?  bv2.MScaleVect(2, bits=SBitsn) :  bv2 : nop()             fv2  = (interlaced ||  tr > 1) ? !GlobalR ?  fv2.MScaleVect(2, bits=SBitsn) :  fv2 : nop()
-                bv3  = !interlaced && (tr > 2) ? !GlobalR ?  bv3.MScaleVect(2, bits=SBitsn) :  bv3 : nop()             fv3  = !interlaced && (tr > 2) ? !GlobalR ?  fv3.MScaleVect(2, bits=SBitsn) :  fv3 : nop()
-                bv4  =                 t2 > 3  ? !GlobalR ?  bv4.MScaleVect(2, bits=SBitsn) :  bv4 : nop()             fv4  =                 t2 > 3  ? !GlobalR ?  fv4.MScaleVect(2, bits=SBitsn) :  fv4 : nop()
-                bv5  = !interlaced && (tr > 4) ? !GlobalR ?  bv5.MScaleVect(2, bits=SBitsn) :  bv5 : nop()             fv5  = !interlaced && (tr > 4) ? !GlobalR ?  fv5.MScaleVect(2, bits=SBitsn) :  fv5 : nop()
-                bv6  =                 t2 > 5  ? !GlobalR ?  bv6.MScaleVect(2, bits=SBitsn) :  bv6 : nop()             fv6  =                 t2 > 5  ? !GlobalR ?  fv6.MScaleVect(2, bits=SBitsn) :  fv6 : nop()
-                bv8  =  interlaced && (tr > 3) ? !GlobalR ?  bv8.MScaleVect(2, bits=SBitsn) :  bv8 : nop()             fv8  =  interlaced && (tr > 3) ? !GlobalR ?  fv8.MScaleVect(2, bits=SBitsn) :  fv8 : nop()
-                bv10 =  interlaced && (tr > 4) ? !GlobalR ? bv10.MScaleVect(2, bits=SBitsn) : bv10 : nop()             fv10 =  interlaced && (tr > 4) ? !GlobalR ? fv10.MScaleVect(2, bits=SBitsn) : fv10 : nop()
-                bv12 =  interlaced && (tr > 5) ? !GlobalR ? bv12.MScaleVect(2, bits=SBitsn) : bv12 : nop()             fv12 =  interlaced && (tr > 5) ? !GlobalR ? fv12.MScaleVect(2, bits=SBitsn) : fv12 : nop()
+                bv1  = !interlaced             ? !GlobalR ?  bv1.MScaleVect() :  bv1 : nop()             fv1  = !interlaced             ? !GlobalR ?  fv1.MScaleVect() :  fv1 : nop()
+                bv2  = (interlaced ||  tr > 1) ? !GlobalR ?  bv2.MScaleVect() :  bv2 : nop()             fv2  = (interlaced ||  tr > 1) ? !GlobalR ?  fv2.MScaleVect() :  fv2 : nop()
+                bv3  = !interlaced && (tr > 2) ? !GlobalR ?  bv3.MScaleVect() :  bv3 : nop()             fv3  = !interlaced && (tr > 2) ? !GlobalR ?  fv3.MScaleVect() :  fv3 : nop()
+                bv4  =                 t2 > 3  ? !GlobalR ?  bv4.MScaleVect() :  bv4 : nop()             fv4  =                 t2 > 3  ? !GlobalR ?  fv4.MScaleVect() :  fv4 : nop()
+                bv5  = !interlaced && (tr > 4) ? !GlobalR ?  bv5.MScaleVect() :  bv5 : nop()             fv5  = !interlaced && (tr > 4) ? !GlobalR ?  fv5.MScaleVect() :  fv5 : nop()
+                bv6  =                 t2 > 5  ? !GlobalR ?  bv6.MScaleVect() :  bv6 : nop()             fv6  =                 t2 > 5  ? !GlobalR ?  fv6.MScaleVect() :  fv6 : nop()
+                bv8  =  interlaced && (tr > 3) ? !GlobalR ?  bv8.MScaleVect() :  bv8 : nop()             fv8  =  interlaced && (tr > 3) ? !GlobalR ?  fv8.MScaleVect() :  fv8 : nop()
+                bv10 =  interlaced && (tr > 4) ? !GlobalR ? bv10.MScaleVect() : bv10 : nop()             fv10 =  interlaced && (tr > 4) ? !GlobalR ? fv10.MScaleVect() : fv10 : nop()
+                bv12 =  interlaced && (tr > 5) ? !GlobalR ? bv12.MScaleVect() : bv12 : nop()             fv12 =  interlaced && (tr > 5) ? !GlobalR ? fv12.MScaleVect() : fv12 : nop()
                             }
 
                           } else {
@@ -239,7 +239,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 vmulti =                   !GlobalR ? super_search.MAnalyse( multi=true,overlap=    overlap,blksize=    blksize,   search=search,chroma=chroma,truemotion=truemotion, divide=divide, delta = interlaced ? tr2 : tr, dct=dct,searchparam=searchparam,pelsearch=pelsearch, trymany=trymany, scaleCSAD=scaleCSAD, mt=true) : vmulti
                 vmulti = RefineMotion   ? (!GlobalR ? MRecalculate (Recalculate, vmulti,overlap=halfoverlap,blksize=halfblksize, thSAD=halfthSAD,chroma=chroma,truemotion=truemotion, divide=divide,    tr = interlaced ? tr2 : tr, dct=dct, scaleCSAD=scaleCSAD, mt=true) :                                                    vmulti) : vmulti
                 vmulti =                   !GlobalR ? (interlaced ? vmulti.SelectEvery (4, 2, 3) : vmulti) : vmulti.SelectRangeEvery (Rtr*2, tr2, 0, false)
-                vmulti =                   !GlobalR && isUHD ? vmulti.MScaleVect(2, bits=SBitsn) : vmulti
+                vmulti =                   !GlobalR && isUHD ? vmulti.MScaleVect()               : vmulti
                                  }
 
 
