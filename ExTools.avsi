@@ -599,7 +599,7 @@ function ex_undot(clip a, int "radius", int "UV") {
                        Expr(a, str, ex_UVexpr(a, str, UV), scale_inputs="none") }
 
 
-# This is repair mode=1
+# This is repair(mode=1)
 function ex_repair(clip a, clip b, int "radius", int "UV") {
 
     rd = Default(radius, 1)            # beware; not real radius -bigger kernel-, but further apart
@@ -667,7 +667,7 @@ function mskY_to_YUV(clip a, clip msk, bool "luma", int "UV") {
         p_type  = a.PixelType()
         p_type4 = FindStr(p_type, "44")>0
         p_type2 = FindStr(p_type, "22")>0
-        p_type1 = FindStr(p_type, "11")>0    # uses MPEG1?
+        p_type1 = FindStr(p_type, "11")>0
         p_type0 = FindStr(p_type, "20")>0
 
         mskY    = isy(msk) ? msk : msk.ExtractY()
