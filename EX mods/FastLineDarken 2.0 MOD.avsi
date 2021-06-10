@@ -58,6 +58,8 @@ thr 	   = Default(threshold, 4)
 thinning   = Default(thinning,0)
 thn 	   = thinning /16.
 
+Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+
 ## filtering ##
 exin	= c.ex_expand(thres=255/(protection+1)).ex_inpand()
 diff 	= Expr(c,exin,Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? range_half +"), "x", scale_inputs="allf")

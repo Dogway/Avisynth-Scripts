@@ -78,7 +78,7 @@ function GrainFactory3mod(clip clp,
  \                        bool  "use_sAverageLumaMask")
 {
 
-sisphbd = AvsPlusVersionNumber > 2294
+sisphbd = IsVersionOrGreater(3,5,0)
 fullchr = sisphbd ? clp.is444() : clp.isyv24()
 chr420  = sisphbd ? clp.is420() : clp.isyv12()
 nochr   = sisphbd ?   clp.isy() : clp.isy8()

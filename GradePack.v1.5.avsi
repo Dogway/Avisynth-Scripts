@@ -66,7 +66,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
     SatB   ? Assert   (SatC || isint(Sat) || isfloat(Sat),  "'Sat' only accepts float, integers or clip inputs")                                       : nop()
     RecMod ? Assert   (Recclp,                              "'Recover Mode' requires a clip defined in the 'Rc' parameter to recover saturation from") : nop()
     fmode  = SatB  ? fON : false
-
+             Assert   (IsVersionOrGreater(3,5,0),           "Update AviSynth+ version")
 
     c
     w      = Width()
@@ -147,7 +147,7 @@ function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "t
                                              # Pivot: 64 to 192 (roughly)
     pivot   = Defined(pivot) ? range ? (pivot-16.)/219. : pivot/255. : range ? 0.50913 : 0.5
 
-    Assert(AvsPlusVersionNumber > 2294, "Update Avisynth+ version")
+    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
     contoy   = !isy(c)
 
     cont    = pow(cont + sign(cont), 3.)
@@ -196,7 +196,7 @@ function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high",
     ptype  = IsRGB(c)
     range   = Default(tv_range,!ptype)
 
-    Assert(AvsPlusVersionNumber > 2420, "Update Avisynth+ version")
+    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
     contoy   = !isy(c)
 
     rangePC  = range ? "x ymin - ymax ymin - /" : "x range_max /"
@@ -227,6 +227,8 @@ function Vignette (clip c, float "Vignette", bool "show") {
     str   = Default(Vignette, 0.7)
     show  = Default(show, false)
 
+    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+
     msk = Expr(c, Format("sx width 2 /  - abs width 2 / / range_max * 1.5 {str} 2 / + ^ range_max / 0 max "+ \
                          "sy height 2 / - abs width 2 / / range_max * 1.5 {str} 2 / + ^ range_max / 0 max "+ \
                          "+ range_max - abs"), "range_half","range_half")
@@ -250,6 +252,7 @@ function Vignette (clip c, float "Vignette", bool "show") {
 function greyscale_rgb (clip rgb, string "matrix") {
 
     Assert(isRGB(rgb) == true, "Only works on RGB.")
+    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
 	rgb
     matrix = Default (matrix, "sRGB")
@@ -287,6 +290,8 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     temp        = Default (temperature, 6504)  # Target temperature in Kelvin (Default: D65 == nop())
     matrix      = Default (matrix, "sRGB")
     tv_range    = Default (tv_range,  !isRGBc )
+
+    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
     matrix = Matrix_fuzzy_search (matrix)
     s_gam  = moncurve_coef(c, matrix)

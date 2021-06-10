@@ -432,7 +432,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 \                string "defaults" )
 {
 
-sisphbd = AvsPlusVersionNumber > 2294
+sisphbd = IsVersionOrGreater(3,5,0)
 
 ### DEFAULTS
 version  = "v2.193ex"

@@ -102,7 +102,8 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     OPut = Output == "auto" ? O_AUTO : Output == "flow" ? O_FLOW : Output == "over" ? O_OVER : Output == "none" ? O_NONE : Output == "raw" ? O_RAW : Output == "mask" ? O_MASK : Output == "skip" ? O_SKIP : Output == "diff" ? O_DIFF : Output == "stripe" ? O_STRIPE : -1
     Assert(OPut != -1, "FrameRateConverter: 'Output' not one of (auto|flow|none|mask|skip|raw|diff|over) {'" + Output + "'}")
     Stp = Default(Stp, true)
-    
+    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+
     FrameDouble = Default(FrameDouble, !Defined(NewNum))
     NewNum      = FrameDouble ? C.FrameRateNumerator() * 2 : Default(NewNum, 60)
     NewDen      = FrameDouble ? C.FrameRateDenominator()   : Default(NewDen, 1)
