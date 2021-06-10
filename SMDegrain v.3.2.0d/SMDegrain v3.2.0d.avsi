@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.0d RC3  by Dogway - 04 June 2021                              ###
+###                       v3.2.0d RC4  by Dogway - 10 June 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -104,7 +104,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
     # Error Report
-
+                      Assert(IsVersionOrGreater(3,5,0),    "Update AviSynth+ version")
                       Assert(blksize==4 || blksize==8 || blksize==16 || blksize==32,"MAnalyse: Block's size must be 4x4, 8x4, 8x8, 16x2, 16x8, 16x16, 32x16, 32x32")
                       Assert(overlap <= blk2,              "Overlap must be at least half blksize or less")
                       Assert(overlap == overlap-overlap%2, "MAnalyse: overlap must be an even figure")
@@ -172,7 +172,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                                 input.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) : nop()
 
 
-        # Motion vectors search (mt=true requires avstp.pll in plugin path, otherwise ignored)
+        # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
 
 
         super_search =                             pelclip ? MSuper(pref8,  pel=pel,               chroma=chroma, hpad=hpadU, vpad=vpadU,          pelclip=pclip,  rfilter=srfilter, mt=true) : \
@@ -222,15 +222,17 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 fv12 =   interlaced && (tr > 5) && RefineMotion &&  !GlobalR  ?   MRecalculate           (Recalculate,fv12,   overlap=halfoverlap,blksize=halfblksize, thSAD=halfthSAD,chroma=chroma, truemotion=truemotion, divide=divide, dct=dct, scaleCSAD=scaleCSAD, mt=true) :                                                              fv12
 
                 # Scaling vectors for UHD
-                bv1  = !interlaced             ? !GlobalR && isUHD ?  bv1.MScaleVect(2, bits=SBitsn) :  bv1 : nop()             fv1  = !interlaced             ? !GlobalR && isUHD ?  fv1.MScaleVect(2, bits=SBitsn) :  fv1 : nop()
-                bv2  = (interlaced ||  tr > 1) ? !GlobalR && isUHD ?  bv2.MScaleVect(2, bits=SBitsn) :  bv2 : nop()             fv2  = (interlaced ||  tr > 1) ? !GlobalR && isUHD ?  fv2.MScaleVect(2, bits=SBitsn) :  fv2 : nop()
-                bv3  = !interlaced && (tr > 2) ? !GlobalR && isUHD ?  bv3.MScaleVect(2, bits=SBitsn) :  bv3 : nop()             fv3  = !interlaced && (tr > 2) ? !GlobalR && isUHD ?  fv3.MScaleVect(2, bits=SBitsn) :  fv3 : nop()
-                bv4  =                 t2 > 3  ? !GlobalR && isUHD ?  bv4.MScaleVect(2, bits=SBitsn) :  bv4 : nop()             fv4  =                 t2 > 3  ? !GlobalR && isUHD ?  fv4.MScaleVect(2, bits=SBitsn) :  fv4 : nop()
-                bv5  = !interlaced && (tr > 4) ? !GlobalR && isUHD ?  bv5.MScaleVect(2, bits=SBitsn) :  bv5 : nop()             fv5  = !interlaced && (tr > 4) ? !GlobalR && isUHD ?  fv5.MScaleVect(2, bits=SBitsn) :  fv5 : nop()
-                bv6  =                 t2 > 5  ? !GlobalR && isUHD ?  bv6.MScaleVect(2, bits=SBitsn) :  bv6 : nop()             fv6  =                 t2 > 5  ? !GlobalR && isUHD ?  fv6.MScaleVect(2, bits=SBitsn) :  fv6 : nop()
-                bv8  =  interlaced && (tr > 3) ? !GlobalR && isUHD ?  bv8.MScaleVect(2, bits=SBitsn) :  bv8 : nop()             fv8  =  interlaced && (tr > 3) ? !GlobalR && isUHD ?  fv8.MScaleVect(2, bits=SBitsn) :  fv8 : nop()
-                bv10 =  interlaced && (tr > 4) ? !GlobalR && isUHD ? bv10.MScaleVect(2, bits=SBitsn) : bv10 : nop()             fv10 =  interlaced && (tr > 4) ? !GlobalR && isUHD ? fv10.MScaleVect(2, bits=SBitsn) : fv10 : nop()
-                bv12 =  interlaced && (tr > 5) ? !GlobalR && isUHD ? bv12.MScaleVect(2, bits=SBitsn) : bv12 : nop()             fv12 =  interlaced && (tr > 5) ? !GlobalR && isUHD ? fv12.MScaleVect(2, bits=SBitsn) : fv12 : nop()
+                if (isUHD) {
+                bv1  = !interlaced             ? !GlobalR ?  bv1.MScaleVect(2, bits=SBitsn) :  bv1 : nop()             fv1  = !interlaced             ? !GlobalR ?  fv1.MScaleVect(2, bits=SBitsn) :  fv1 : nop()
+                bv2  = (interlaced ||  tr > 1) ? !GlobalR ?  bv2.MScaleVect(2, bits=SBitsn) :  bv2 : nop()             fv2  = (interlaced ||  tr > 1) ? !GlobalR ?  fv2.MScaleVect(2, bits=SBitsn) :  fv2 : nop()
+                bv3  = !interlaced && (tr > 2) ? !GlobalR ?  bv3.MScaleVect(2, bits=SBitsn) :  bv3 : nop()             fv3  = !interlaced && (tr > 2) ? !GlobalR ?  fv3.MScaleVect(2, bits=SBitsn) :  fv3 : nop()
+                bv4  =                 t2 > 3  ? !GlobalR ?  bv4.MScaleVect(2, bits=SBitsn) :  bv4 : nop()             fv4  =                 t2 > 3  ? !GlobalR ?  fv4.MScaleVect(2, bits=SBitsn) :  fv4 : nop()
+                bv5  = !interlaced && (tr > 4) ? !GlobalR ?  bv5.MScaleVect(2, bits=SBitsn) :  bv5 : nop()             fv5  = !interlaced && (tr > 4) ? !GlobalR ?  fv5.MScaleVect(2, bits=SBitsn) :  fv5 : nop()
+                bv6  =                 t2 > 5  ? !GlobalR ?  bv6.MScaleVect(2, bits=SBitsn) :  bv6 : nop()             fv6  =                 t2 > 5  ? !GlobalR ?  fv6.MScaleVect(2, bits=SBitsn) :  fv6 : nop()
+                bv8  =  interlaced && (tr > 3) ? !GlobalR ?  bv8.MScaleVect(2, bits=SBitsn) :  bv8 : nop()             fv8  =  interlaced && (tr > 3) ? !GlobalR ?  fv8.MScaleVect(2, bits=SBitsn) :  fv8 : nop()
+                bv10 =  interlaced && (tr > 4) ? !GlobalR ? bv10.MScaleVect(2, bits=SBitsn) : bv10 : nop()             fv10 =  interlaced && (tr > 4) ? !GlobalR ? fv10.MScaleVect(2, bits=SBitsn) : fv10 : nop()
+                bv12 =  interlaced && (tr > 5) ? !GlobalR ? bv12.MScaleVect(2, bits=SBitsn) : bv12 : nop()             fv12 =  interlaced && (tr > 5) ? !GlobalR ? fv12.MScaleVect(2, bits=SBitsn) : fv12 : nop()
+                            }
 
                           } else {
                 tr2    = tr*2
@@ -602,7 +604,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "y", int "uv", fl
     ampn  = Default(ampn, 0.0)
     slice = Default(slice, true)
 
-    Assert(!(src.isrgb()), "ex_Luma_Rebuild: RGB Color formats is not supported" )
+    Assert(!(src.isrgb()), "ex_Luma_Rebuild: RGB Color format is not supported" )
 
     k = (s0 - 1) * c
     d = 1 + c
