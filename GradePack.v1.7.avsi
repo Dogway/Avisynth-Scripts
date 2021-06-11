@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.6  (11-06-2021)              ##
+###           Grade Pack v1.7 (11-06-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -120,8 +120,8 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 
 
 ###
-###                    v3.0 (19-01-2014)
-### SmoothContrast() - v4.3 (10-06-2021)
+###                 v3.0 (19-01-2014)
+### ex_contrast() - v4.3 (10-06-2021)
 ###
 ###
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
@@ -131,12 +131,12 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 ###
 ### Performs better in gamma encoded space
 ###
-### Example: SmoothContrast(0.7, 0.0, 128, true)
+### Example: ex_contrast(0.7, 0.0, 128, true)
 ###
 ####################################
 
 
-function SmoothContrast (clip c, float "cont", float "sat", int "pivot", bool "tv_range") {
+function ex_contrast (clip c, float "cont", float "sat", int "pivot", bool "tv_range") {
 
     isRGBc  = IsRGB(c)
 
@@ -161,8 +161,8 @@ function SmoothContrast (clip c, float "cont", float "sat", int "pivot", bool "t
     yconti = "{pivot} 1 "+rangePC+" {shldr} {knee} - * {knee} + / 1 - log {cont} / - "+rangeTV+""
     cntrst = cont != 0. ? cont > 0. ? Format(ycont) : Format(yconti) : ""
 
-    rangePCc  = range ? "x range_half - cmax cmin - / range_max * range_half +" : "x"
-    rangeTVc  = range ?   "range_half - cmax cmin - * range_max / range_half +" : ""
+    rangePCc  = range ? "x range_half - range_max cmax cmin - / * range_half +" : "x"
+    rangeTVc  = range ?   "range_half - cmax cmin - range_max / * range_half +" : ""
 
     strtn  = !isy(c) ? isRGBc ? cntrst : sat != 0. ? Format(""+rangePCc+" A^ 1 {sat} - A * {sat} range_max A - * + "+rangeTVc+"") : "" : Undefined
 
@@ -170,7 +170,7 @@ function SmoothContrast (clip c, float "cont", float "sat", int "pivot", bool "t
 
 
 ###
-### SmoothLevels() - v1.2 (10-06-2021)
+### ex_levels() - v1.3 (11-06-2021)
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
@@ -178,12 +178,12 @@ function SmoothContrast (clip c, float "cont", float "sat", int "pivot", bool "t
 ###
 ### Dependencies: > AviSynth+ 3.5
 ###
-### Example: SmoothLevels(16, 1.200, 255, 0, 255)
+### Example: ex_levels(16, 1.200, 255, 0, 255)
 ###
 ####################################
 
 
-function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high", int "output_low", int "output_high", bool "tv_range") {
+function ex_levels (clip c, int "input_low", float "gamma", int "input_high", int "output_low", int "output_high", bool "tv_range", int "UV") {
 
     isRGBc = IsRGB(c)
 
@@ -193,17 +193,19 @@ function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high",
     olo    = Default(output_low,     0)
     ohi    = Default(output_high,  255)
     range  = Default(tv_range, !isRGBc)
+    UV     = Default(UV, isRGBc ? 3 : 1)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
     rangePC = range ? "x ymin - range_max ymax ymin - / *" : "x"
     rangeTV = range ? " ymax ymin - range_max / * ymin + " : ""
+
     gam = 1.0/gam
-    lvl = Format(""+rangePC+" {ilo} scaleb - range_min max {ihi} scaleb {ilo} scaleb - / {gam} ^ {ohi} scaleb {olo} scaleb - * {olo} scaleb + "+rangeTV+"")
+    str = Format(""+rangePC+" {ilo} scaleb - range_min max {ihi} scaleb {ilo} scaleb - / {gam} ^ {ohi} scaleb {olo} scaleb - A@ * A min {olo} scaleb + "+rangeTV+"")
 
-    lvlgb  = !isy(c) ? isRGBc ? lvl : "" : Undefined
-
-    Expr(c, lvl, lvlgb, lvlgb) }
+    bi = BitsPerComponent(c)
+    UV == 1 ? isy(c) ? Expr(c, str) : Expr(c,  str, "")                                    : \
+                       Expr(c, str, ex_UVexpr(c, str, UV, bi), scale_inputs=ex_UVf(c, bi)) }
 
 
 ###
