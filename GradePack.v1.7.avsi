@@ -121,7 +121,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 
 ###
 ###                 v3.0 (19-01-2014)
-### ex_contrast() - v4.3 (10-06-2021)
+### ex_contrast() - v4.4 (11-06-2021)
 ###
 ###
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
