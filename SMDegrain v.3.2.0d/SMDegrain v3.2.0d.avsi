@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.0d RC5  by Dogway - 11 June 2021                              ###
+###                       v3.2.0d      by Dogway - 11 June 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,13 +20,14 @@
 ### https://forum.doom9.org/showthread.php?t=182881
 ###
 ### UHD input requires SimpleResize 0.3.5,
-### UHD: Degrain (or at least add as prefilter) the decoded (and tonemapped) PQ clip.
+### UHD: Degrain (or at least add as prefilter) the decoded (and tonemapped) PQ clip (ie. DGHDRtoSDR(mode="pq",white=100))
 ###
 ################################################################################################
 
+
 function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , bool "interlaced" , int   "plane" , int   "Globals"  ,                                  \
                      int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "search"    , bool "truemotion" , float "limit" , float "limitc"   , int "thSCD1"   , int "thSCD2",   \
-                    bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "dct"       , int "searchparam", int "pelsearch",                 \
+                    bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "dct"       , int "searchparam", int "pelsearch",                                                     \
                   int "device_id", bool "trymany", int "divide"   , int "srfilter", int "threads") {
 
 
@@ -63,10 +64,10 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
     pel          = Default( pel,      isHD ? 1 : 2 )
-    subpixel     = Default( subpixel, isHD ? 1 : 2)
+    subpixel     = Default( subpixel, pel)
     srfilter     = Default( srfilter, 4)
     prefilter    = Default( prefilter, -1 )
-    MFilterB     = Defined(mfilter)
+    MFilterB     = Defined( mfilter )
     pelclip      = pel>1 && subpixel == 3
     Str          = Default( Str, 1.0 )
     Amp          = Default( Amp, 0.0625 )
@@ -78,7 +79,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     search       = Default( search,   4 )
     searchparam  = Default( searchparam,   isUHD ? 1 : 2 )
     truemotion   = Default( truemotion, !isHD)
-    DCT          = Default( DCT,   5 )
+    DCT          = Default( DCT,   0 )
     thSCD1       = Default( thSCD1,  round(pow((blksize*2.5),2)))
     thSCD2       = Default( thSCD2,  130 )
 
@@ -136,30 +137,30 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     Mfilter = MFilterB ? MFilter : inputP
 
-    pref   = !GlobalR ? preclip ? prefilter                                                                             : \
-                                 (prefilter==-1) ?  inputP                                                              : \
-                                 (prefilter== 0) ?  inputP.ex_MinBlur(0,Chr)                                            : \
-                                 (prefilter== 1) ?  inputP.ex_MinBlur(1,Chr)                                            : \
-                                 (prefilter== 2) ?  inputP.ex_MinBlur(2,Chr)                                            : \
+    pref   = !GlobalR ? preclip ? prefilter                                                                               : \
+                                 (prefilter==-1) ?  inputP                                                                : \
+                                 (prefilter== 0) ?  inputP.ex_MinBlur(0,Chr)                                              : \
+                                 (prefilter== 1) ?  inputP.ex_MinBlur(1,Chr)                                              : \
+                                 (prefilter== 2) ?  inputP.ex_MinBlur(2,Chr)                                              : \
                                  (prefilter== 3) ?  mt_merge(sneo_dfttest(inputP,slocation="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma?3:2,V=chroma?3:2,dither=1,threads=Threads,fft_threads=Threads),inputP,        \
-                                                    inputP.ex_lut("x ymin < range_max x 75 scaleb > range_min range_max x ymin - range_max 75 scaleb ymin - / * - ? ?"), luma=chroma, cplace="MPEG1", U=chr, V=chr) : \
+                                                    inputP.ex_lut("x ymin < range_max x 75 scaleb > range_min range_max x ymin - range_max 75 scaleb ymin - / * - ? ?"), luma=chroma, cplace="mpeg1", U=chr, V=chr) : \
                                  (prefilter== 4) ?  inputP.ex_KNLMeansCL(device_type="GPU", device_id=device_id, chroma=chroma, a=1,d=1,h=7.0)                                                                      : \
-                                                    Assert(false, "prefilter must be between -1~4: "+string(prefilter))                                                                                              : \
+                                                    Assert(false, "prefilter must be between -1~4: "+string(prefilter))                                                                                             : \
                                  inputP
 
-      p_type    = LeftStr(PixelType(input),6)
-      scaleCSAD = p_type == "YUV444" ?  1 : \
-                  p_type == "YUV422" ?  0 : \
-                  p_type == "YUV411" ? -1 : \
-                  p_type == "YUV420" ?  0 : 0
+      p_type    = PixelType(input)
+      p_typeT   = LeftStr(p_type,6)
+      scaleCSAD = p_typeT == "YUV420" ?  0 : \
+                  p_typeT == "YUV444" ?  1 : \
+                  p_typeT == "YUV411" ? -1 : 0
 
     # Default Auto-Prefilter - Luma expansion TV->PC (up to 16% more values for motion estimation)
 
     nw = round(w/2.0)
     nh = round(h/2.0)
-    pref       = !isRGB(input) && (Str != 1.0) ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr) : pref
-    pref8      = SBitsn > 8 ? pref.ConvertBits(8,dither=-1)        : pref
-    pref8      = isUHD      ? pref8.SimpleResize(nw+nw%2, nh+nh%2) : pref8
+    pref       = !isRGB(input) ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr) : pref
+    pref8      = SBitsn > 8    ? pref.ConvertBits(8,dither=-1)             : pref
+    pref8      = isUHD         ? pref8.SimpleResize(nw+nw%2, nh+nh%2)      : pref8
 
 
     If (sShow ? false : !Show) {
@@ -595,14 +596,12 @@ function ex_sbr(clip c, int "r", int "y", int "U", int "V") {
 # Converts luma (and chroma) to PC levels, and optionally allows tweaking for pumping up the darks. (for the clip to be fed to motion search only)
 # By courtesy of cretindesalpes.
 
-function ex_Luma_Rebuild (clip src, float "s0", float "c", int "y", int "uv", float "ampn", bool "slice") {
+function ex_Luma_Rebuild (clip src, float "s0", float "c", int "y", int "uv") {
 
-    y     = Default(y,     3)
-    uv    = Default(uv,    3)
-    s0    = Default(s0,  2.0)
+    y     = Default(y,       3)
+    uv    = Default(uv,      3)
+    s0    = Default(s0,    1.0)
     c     = Default(c,  1.0/16)
-    ampn  = Default(ampn, 0.0)
-    slice = Default(slice, true)
 
     Assert(!(src.isrgb()), "ex_Luma_Rebuild: RGB Color format is not supported" )
 
@@ -610,10 +609,13 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "y", int "uv", fl
     d = 1 + c
     f = d * c
     t = "x ymin - ymax ymin - /"
-    e = Format("{k} {d} {f} "+t+" A@ {c} + / - * A 1 {k} - * + range_max *")
-    ec = "x range_half - cmax cmin - / range_max * range_half +"
+    e = S0 != 1.0 ? Format("{k} {d} {f} "+t+" A@ {c} + / - * A 1 {k} - * + range_max *") : \
+                    Format("x ymin - range_max ymax ymin - / *")
 
-    ex_lut(src, ex_Yexpr(src,e,Y), ex_UVexpr(src,ec,UV), Y=y, UV=uv) }
+    ec = "x range_half - range_max cmax cmin - / * range_half +"
+
+    bi = BitsPerComponent(src)
+    ex_lut(src, ex_Yexpr(src,e,Y), ex_UVexpr(src,ec,UV,bi), Y=y, UV=uv) }
 
 
 
