@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC13  (10-06-2021)           ##
+###    Transforms Pack v1.0 RC14  (11-06-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -101,8 +101,8 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     BitsPerComponent(clp) < 32 ? clp.ConvertBits(16) : clp
 
-    src = Matrix_fuzzy_search (source)
-    tgt = Matrix_fuzzy_search (disp_ref)
+    src   = Matrix_fuzzy_search (source)
+    tgt   = Matrix_fuzzy_search (disp_ref)
     s_gam = moncurve_coef (src)
     t_gam = moncurve_coef (tgt)
     gamut = gamut && src != tgt
@@ -136,9 +136,9 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 #   YUV_to_RGB:
 #       YUV_to_RGB("jpeg",UVRecon=true)
 #   Implicit:
-#       ConvertFormat("RGB","jpeg",UVRecon=true)
+#       ConvertFormat(1,1,"RGB","jpeg",UVRecon=true)
 #   Explicit:
-#       ConvertFormat("RGB","jpeg",false,false,cplace="MPEG1",UVRecon=true)
+#       ConvertFormat(1,1,"RGB","jpeg",false,false,cplace="MPEG1",UVRecon=true)
 #   ConvertBits(8, dither=1)
 
 # Work In progress
@@ -179,16 +179,16 @@ function ConvertFormat (clip clp, int "width", int "height", string "format", st
     # YUV to YUV
     } else {
 
-    bdpth      = BitsPerComponent()
-    format     = Format_fuzzy_search (format, bdpth)
-    p_typei    = LeftStr(PixelType(),7)
-    p_type     = LeftStr(format, 7)
-    matrix     = Matrix_fuzzy_search (matrix)
-    coef       = Matrix_coef(matrix)
-    bc         = bicubic_coeffs(kernel)
-    bc_b       = string(bc[1]>=0.?bc[0]:b)
-    bc_c       = string(bc[1]>=0.?bc[1]:c)
-    kernel     = bc[1]>=0. ? "Bicubic" : kernel
+    bdpth    = BitsPerComponent()
+    format   = Format_fuzzy_search (format, bdpth)
+    p_typei  = LeftStr(PixelType(),7)
+    p_type   = LeftStr(format, 7)
+    matrix   = Matrix_fuzzy_search (matrix)
+    coef     = Matrix_coef(matrix)
+    bc       = bicubic_coeffs(kernel)
+    bc_b     = string(bc[1]>=0.?bc[0]:b)
+    bc_c     = string(bc[1]>=0.?bc[1]:c)
+    kernel   = bc[1]>=0. ? "Bicubic" : kernel
 
     p_type4  = p_type == "YUV444P"
     p_type2  = p_type == "YUV422P"
@@ -219,16 +219,14 @@ function ConvertFormat (clip clp, int "width", int "height", string "format", st
 
     if (recon && (p_type4 || isRGBout || (nw>w || nh>h))) {
 
-        radius  = 16
-        str     = 6.4
         threads = 4
 
-        ref     =   Y.KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
+        ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
         Luma    =   Y.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
-        Uu      = Uor.nnedi3_rpow2(rfactor=4, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false,fwidth=w*2,fheight=h*2, ep0=0.0, ep1=0.75,cshift="bicubicresize",mpeg2=false)
-        Vu      = Vor.nnedi3_rpow2(rfactor=4, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false,fwidth=w*2,fheight=h*2, ep0=0.0, ep1=0.75,cshift="bicubicresize",mpeg2=false)
-        Unew    = Uu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
-        Vnew    = Vu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
+        Uu      = Uor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
+        Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
+        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
+        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
         U       = ex_adddiff(Uu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Unew, Removegrain(Unew, 19)))  # Sharpening
         V       = ex_adddiff(Vu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Vnew, Removegrain(Vnew, 19)))  # Sharpening
 
@@ -268,14 +266,14 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
     Assert(isRGB(yuv)==false, "Only YUV format supported.")
 
-    bdpth      = BitsPerComponent(yuv)
-    p_type     = LeftStr(Format_fuzzy_search(PixelType(yuv), bdpth), 7)
-    matrix     = Matrix_fuzzy_search (matrix)
-    coef       = Matrix_coef(matrix)
-    bc         = bicubic_coeffs(kernel)
-    bc_b       = string(bc[1]>=0.?bc[0]:b)
-    bc_c       = string(bc[1]>=0.?bc[1]:c)
-    kernel     = bc[1]>=0. ? "Bicubic" : kernel
+    bdpth    = BitsPerComponent(yuv)
+    p_type   = LeftStr(Format_fuzzy_search(PixelType(yuv), bdpth), 7)
+    matrix   = Matrix_fuzzy_search (matrix)
+    coef     = Matrix_coef(matrix)
+    bc       = bicubic_coeffs(kernel)
+    bc_b     = string(bc[1]>=0.?bc[0]:b)
+    bc_c     = string(bc[1]>=0.?bc[1]:c)
+    kernel   = bc[1]>=0. ? "Bicubic" : kernel
 
     p_type4  = p_type == "YUV444P"
     p_type2  = p_type == "YUV422P"
@@ -313,16 +311,14 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
 
     if (recon && !p_type4) {
 
-        radius  = 16
-        str     = 6.4
         threads = 4
 
-        ref     =   Y.KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
+        ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
         Luma    =   Y.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
-        Uu      = Uor.nnedi3_rpow2(rfactor=4, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false,fwidth=w*2,fheight=h*2, ep0=0.0, ep1=0.75,cshift="bicubicresize",mpeg2=false)
-        Vu      = Vor.nnedi3_rpow2(rfactor=4, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false,fwidth=w*2,fheight=h*2, ep0=0.0, ep1=0.75,cshift="bicubicresize",mpeg2=false)
-        Unew    = Uu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
-        Vnew    = Vu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
+        Uu      = Uor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize",mpeg2=false)
+        Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize",mpeg2=false)
+        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
+        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
         U       = ex_adddiff(Uu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Unew, Removegrain(Unew, 19)))  # Sharpening
         V       = ex_adddiff(Vu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Vnew, Removegrain(Vnew, 19)))  # Sharpening
 
@@ -353,7 +349,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
         m6 = scale_y     m7 = scale_uv * Kb                         m8 = 0.0
 
         rangeY   = tv_in      ? "ymin - "                          : ""
-        range_TV = tv_out     ? "ymax ymin - * range_max / ymin +" : ""
+        range_TV = tv_out     ? "ymax ymin - range_max / * ymin +" : ""
         UVf      = bdpth < 32 ? "range_half - " : ""
 
         R = Expr(Y,    V, "x "+rangeY+" "+string(m0)+" *                            y "+UVf + string(m2)+" * + "+range_TV+"")
@@ -382,15 +378,15 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
     Assert(isRGB(rgb)==true && IsPlanar(rgb)==true, "Only Planar RGB format supported.")
 
-    bdpth      = BitsPerComponent(rgb)
-    format     = Format_fuzzy_search (p_type, bdpth)
-    p_type     = LeftStr(format, 7)
-    matrix     = Matrix_fuzzy_search (matrix)
-    coef       = Matrix_coef(matrix)
-    bc         = bicubic_coeffs(kernel)
-    bc_b       = string(bc[1]>=0.?bc[0]:b)
-    bc_c       = string(bc[1]>=0.?bc[1]:c)
-    kernel     = bc[1]>=0. ? "Bicubic" : kernel
+    bdpth    = BitsPerComponent(rgb)
+    format   = Format_fuzzy_search (p_type, bdpth)
+    p_type   = LeftStr(format, 7)
+    matrix   = Matrix_fuzzy_search (matrix)
+    coef     = Matrix_coef(matrix)
+    bc       = bicubic_coeffs(kernel)
+    bc_b     = string(bc[1]>=0.?bc[0]:b)
+    bc_c     = string(bc[1]>=0.?bc[1]:c)
+    kernel   = bc[1]>=0. ? "Bicubic" : kernel
 
     p_type4  = p_type == "YUV444P"
     p_type2  = p_type == "YUV422P"
@@ -435,8 +431,8 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
         m6 = scale_uv                   m7 = scale_uv * (-coef[1] / Kr)   m8 = scale_uv * (-coef[2] / Kr)
 
         UVf       =  bdpth < 32      ? "" : "range_half -"
-        rangeY_TV =  tv_out ?  tv_in ? "" : "ymin +" : tv_in ? "ymin - ymax ymin - / range_max *"    : ""
-        rangeC_TV = !tv_out && tv_in ? "range_half - cmax cmin - / range_max * range_half + "+UVf+"" : UVf
+        rangeY_TV =  tv_out ?  tv_in ? "" : "ymin +" : tv_in ? "ymin - range_max ymax ymin - / *"    : ""
+        rangeC_TV = !tv_out && tv_in ? "range_half - range_max cmax cmin - / * range_half + "+UVf+"" : UVf
 
         Y  = Expr(Rx, Gx, Bx, "           x "+string(m0)+" *   y "+string(m1)+" * + z "+string(m2)+" * + "+rangeY_TV+"")
         Cb = Expr(Rx, Gx, Bx, "range_half x "+string(m3)+" * + y "+string(m4)+" * + z "+string(m5)+" * + "+rangeC_TV+"")
@@ -463,8 +459,8 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
 function RGB_to_YcCbcCrc (clip Rx, clip Gx, clip Bx, string matrix, float_array coef, bool tv_in, bool tv_out) {
 
     UVf       = BitsPerComponent(Rx) < 32 ? "range_half +" : ""
-    rangeC_PC = tv_in  ? "range_half - cmax cmin - / range_max * range_half + " : ""
-    rangeC_TV = tv_out ? "range_half + cmax cmin - * range_max / cmin + "       : UVf
+    rangeC_PC = tv_in  ? "range_half - range_max cmax cmin - / * range_half + " : ""
+    rangeC_TV = tv_out ? "range_half + cmax cmin - range_max / * cmin + "       : UVf
 
     s_gam = moncurve_coef(matrix)
     a  = 1.0 + s_gam[1]
@@ -494,7 +490,7 @@ function YcCbcCrc_to_RGB (clip Y, clip Cb, clip Cr, string matrix, float_array c
     bdpth     = BitsPerComponent(Y) < 32
     UVf       = bdpth ? "range_half -" : ""
     UVf2      = bdpth ? "range_half +" : ""
-    rangeC_PC = tv_in ? ""+UVf+" cmax cmin - / range_max *" : UVf
+    rangeC_PC = tv_in ? ""+UVf+" range_max cmax cmin - / *" : UVf
 
     s_gam = moncurve_coef(matrix)
     a  = 1.0 + s_gam[1]
@@ -680,7 +676,6 @@ function chroma_placement (clip a, int UVw, int UVh, string matrix, string forma
     [cloc[0]*(1-rw), cloc[1]*(1-rh)] }
 
 
-
 function Matrix_fuzzy_search (string matrix) {
 
     matrix =
@@ -722,7 +717,6 @@ function Matrix_fuzzy_search (string matrix) {
 \   : Assert (false, "Unsupported Color Space.")
 
        matrix }
-
 
 
 # NTSC and PAL YCbCr share the same coefficients defined in the link below, and derived from the old SMPTE 470M (NTSC 1953) standard.
@@ -1010,8 +1004,8 @@ function SMPTE_legal (clip c, bool "forward") {
     fw = Default(forward, true)    # forward converts to SMPTE legal, otherwise converts to Full Range.
     Assert (IsRGB(c), "YUV is not supported.")
 
-    Expr(c, fw ? "x ymax ymin - * range_max / ymin + " : \
-                 "x ymin - ymax ymin - / range_max *") }
+    Expr(c, fw ? "x ymax ymin - range_max / * ymin +" : \
+                 "x ymin - range_max ymax ymin - / *") }
 
 
 function MatrixClip ( clip rgb, float_array mat) {
