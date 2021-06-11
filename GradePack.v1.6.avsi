@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.5  (02-06-2021)              ##
+###           Grade Pack v1.6  (11-06-2021)              ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -121,7 +121,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 
 ###
 ###                    v3.0 (19-01-2014)
-### SmoothContrast() - v4.1 (12-05-2021)
+### SmoothContrast() - v4.3 (10-06-2021)
 ###
 ###
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
@@ -131,50 +131,49 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 ###
 ### Performs better in gamma encoded space
 ###
-### Example: SmoothContrast(0.7, 128, 0.0, true)
+### Example: SmoothContrast(0.7, 0.0, 128, true)
 ###
 ####################################
 
 
-function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "tv_range") {
+function SmoothContrast (clip c, float "cont", float "sat", int "pivot", bool "tv_range") {
 
+    isRGBc  = IsRGB(c)
 
     cont    = Default(cont, 0.0)             # [-1.0 to +1.0] can set further though
     sat     = Default(sat,  cont/1.5)        # [-1.0 to +1.0]
-
-    ptype  = IsRGB(c)
-    range   = Default(tv_range, !ptype)      # TV or PC. Luma range of your source
+    range   = Default(tv_range, !isRGBc)     # TV or PC. Luma range of your source
                                              # Pivot: 64 to 192 (roughly)
     pivot   = Defined(pivot) ? range ? (pivot-16.)/219. : pivot/255. : range ? 0.50913 : 0.5
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
-    contoy   = !isy(c)
 
     cont    = pow(cont + sign(cont), 3.)
     sat     = sat != 0. ? (1.-max(min(sat, 1.), -1.))/2. - 0.5 : 0.
 
     rangePC  = range ? "x ymin - ymax ymin - /" : "x range_max /"
-    rangeTV  = range ? "ymax ymin - * range_max / ymin +" : ""
-    str    = "1 1 {cont} {pivot}"
-    knee   = str + " * exp + /"
-    shldr  = str + " 1 - * exp + /"
-    ycont  = ""+knee+" A^ "+str+" "+rangePC+" - * exp + / A - "+shldr+" A - / range_max * "+rangeTV+""
-    yconti = ""+knee+" A^ {pivot} 1 "+rangePC+" "+shldr+" A - * A + / 1 - log {cont} / - range_max * "+rangeTV+""
+    rangeTV  = range ? "ymax ymin - * ymin +"   : "  range_max *"
+
+    knee   = 1. / (1. + exp(cont * pivot))
+    shldr  = 1. / (1. + exp(cont * (pivot - 1.)))
+
+    ycont  = "1 1 {cont} {pivot} "+rangePC+" - * exp + / {knee} - {shldr} {knee} - / "+rangeTV+""
+    yconti = "{pivot} 1 "+rangePC+" {shldr} {knee} - * {knee} + / 1 - log {cont} / - "+rangeTV+""
     cntrst = cont != 0. ? cont > 0. ? Format(ycont) : Format(yconti) : ""
 
     rangePCc  = range ? "x range_half - cmax cmin - / range_max * range_half +" : "x"
     rangeTVc  = range ?   "range_half - cmax cmin - * range_max / range_half +" : ""
 
-    strtn  = contoy ? ptype ? cntrst : sat != 0. ? Format(""+rangePCc+" A^ 1 {sat} - A * {sat} range_max A - * + "+rangeTVc+"") : "" : Undefined
+    strtn  = !isy(c) ? isRGBc ? cntrst : sat != 0. ? Format(""+rangePCc+" A^ 1 {sat} - A * {sat} range_max A - * + "+rangeTVc+"") : "" : Undefined
 
     Expr(c, cntrst, strtn, strtn) }
 
 
 ###
-### SmoothLevels() - v1.1 (28-05-2021)
+### SmoothLevels() - v1.2 (10-06-2021)
 ###
 ###
-### Works like internal Levels() but works with HBD out of the box (using autoscaling)
+### Works like internal Levels() but with HBD support out of the box (using autoscaling)
 ###
 ###
 ### Dependencies: > AviSynth+ 3.5
@@ -186,25 +185,23 @@ function SmoothContrast (clip c, float "cont", int "pivot", float "sat", bool "t
 
 function SmoothLevels (clip c, int "input_low", float "gamma", int "input_high", int "output_low", int "output_high", bool "tv_range") {
 
+    isRGBc = IsRGB(c)
 
-    ilo    = Default(input_low,     0)
-    gam    = Default(gamma,       1.0)
-    ihi    = Default(input_high,  255)
-    olo    = Default(output_low,    0)
-    ohi    = Default(output_high, 255)
-
-    ptype  = IsRGB(c)
-    range   = Default(tv_range,!ptype)
+    ilo    = Default(input_low,      0)
+    gam    = Default(gamma,        1.0)
+    ihi    = Default(input_high,   255)
+    olo    = Default(output_low,     0)
+    ohi    = Default(output_high,  255)
+    range  = Default(tv_range, !isRGBc)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
-    contoy   = !isy(c)
 
-    rangePC  = range ? "x ymin - ymax ymin - /" : "x range_max /"
-    rangeTV  = range ? "ymax ymin - * ymin +" : "range_max *"
+    rangePC = range ? "x ymin - range_max ymax ymin - / *" : "x"
+    rangeTV = range ? " ymax ymin - range_max / * ymin + " : ""
     gam = 1.0/gam
-    lvl  = Format("range_max range_min "+rangePC+" max min {gam} ^ {ilo} scaleb - {ihi} scaleb {ilo} scaleb - / {ohi} scaleb {olo} scaleb - * {olo} scaleb + "+rangeTV+"")
+    lvl = Format(""+rangePC+" {ilo} scaleb - range_min max {ihi} scaleb {ilo} scaleb - / {gam} ^ {ohi} scaleb {olo} scaleb - * {olo} scaleb + "+rangeTV+"")
 
-    lvlgb  = contoy ? ptype ? lvl : "" : Undefined
+    lvlgb  = !isy(c) ? isRGBc ? lvl : "" : Undefined
 
     Expr(c, lvl, lvlgb, lvlgb) }
 
@@ -233,7 +230,7 @@ function Vignette (clip c, float "Vignette", bool "show") {
                          "sy height 2 / - abs width 2 / / range_max * 1.5 {str} 2 / + ^ range_max / 0 max "+ \
                          "+ range_max - abs"), "range_half","range_half")
 
-    show ? msk : ex_blend(msk,c,mode="multiply",UV=4) }
+    show ? msk : ex_blend(msk, c, mode="multiply", UV=4) }
 
 
 
@@ -254,7 +251,7 @@ function greyscale_rgb (clip rgb, string "matrix") {
     Assert(isRGB(rgb) == true, "Only works on RGB.")
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
-	rgb
+    rgb
     matrix = Default (matrix, "sRGB")
     matrix = Matrix_fuzzy_search(matrix)
     s_gam  = moncurve_coef(matrix)
@@ -288,18 +285,18 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     isRGBc = IsRGB(c)
 
     temp        = Default (temperature, 6504)  # Target temperature in Kelvin (Default: D65 == nop())
-    matrix      = Default (matrix, "sRGB")
+    matrix      = Default (matrix, "709")
     tv_range    = Default (tv_range,  !isRGBc )
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
     matrix = Matrix_fuzzy_search (matrix)
-    s_gam  = moncurve_coef(c, matrix)
+    s_gam  = moncurve_coef(matrix)
 
     RGBpln = isRGBc ? IsPlanar(c) : false
 
     isRGBc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
-    YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
+    YUV_to_RGB(c, matrix, tv_range_in=tv_range, tv_range_out=false, kernel="Point", cplace="")
 
     temp3 = 1000.       / temp
     temp6 = 1000000.    / pow(temp, 2.)
@@ -309,23 +306,23 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
                             0.237040 + 0.24748 * temp3 + 1.9018 * temp6 - 2.0064 * temp9
 
     wpy = -3. * pow(wpx,2.) + 2.870 * wpx - 0.275
-    wpz = 1. - wpx - wpy
+    wpz =  1. - wpx - wpy
 
     CAT02 = [0.7328,  0.4296, -0.1624, \
             -0.7036,  1.6975,  0.0061, \
              0.0030, -0.0136,  0.9834]
 
-    fw1       = MatrixDot([wpx/wpy,1.,wpz/wpy] ,CAT02)
-    fw2       = MatrixDot([0.95045,1.,1.088917],CAT02)
+    fw1       = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,CAT02)
+    fw2       = MatrixDot([0.950450,1.,1.088917],CAT02)
     fw_trans  = MatrixDiv(fw1,fw2)
 
     moncurve_f(s_gam[0], s_gam[1], false, false)
 
     RGB_to_XYZ(matrix)
-    Expr(last,string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
+    Expr(last, string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
     XYZ_to_RGB(matrix)
 
     moncurve_r(s_gam[0], s_gam[1], false, false)
 
     isRGBc ? RGBpln ? last : MatchColorFormat(c) : \
-    RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c)) }
+    RGB_to_YUV( matrix, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c), cplace="") }
