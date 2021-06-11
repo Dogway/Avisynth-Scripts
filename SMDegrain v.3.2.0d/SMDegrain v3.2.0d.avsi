@@ -36,7 +36,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     thSAD2=thSAD/2
     thSADC       = Default( thSADC, thSAD2)
     RefineMotion = Default( RefineMotion, false)
-    Threads      = Default( Threads, sh_GetUserGlobalIMTint())
+    Threads      = Default( Threads, sh_GetUserGlobalIMTint(true))
 
     trymany      = Default(trymany, false)
 
@@ -158,7 +158,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     nw = round(w/2.0)
     nh = round(h/2.0)
-    pref       = !isRGB(input) ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr) : pref
+    pref       = !isRGB(input) ? pref.GScriptClip("""sishasColorRange=propNumElements("_ColorRange") > 0 sishasColorRange ? propGetInt("_ColorRange") == 1 ? ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr) : last)""",args="Str,Amp,Chr") : pref
     pref8      = SBitsn > 8    ? pref.ConvertBits(8,dither=-1)             : pref
     pref8      = isUHD         ? pref8.SimpleResize(nw+nw%2, nh+nh%2)      : pref8
 
