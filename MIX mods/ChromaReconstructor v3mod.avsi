@@ -85,16 +85,16 @@ function gauss_h(clip src, int "p")
 }
 
 
-# This one can work directly with any subsampled chroma format type as input
+# This one works directly with any subsampled chroma format type as input
 # Example:
 #
 # 420_Source
-# ChromaReconstructor_faster()
+# ChromaReconstructor_faster() # 444_Output
 #
 function ChromaReconstructor_faster(clip src, int "radius", float "str", int "threads")
 {
             radius  = Default(radius, 16)
-            str     = Default(str, 6.4)
+            str     = Default(str,   6.4)
             threads = Default(threads, 4)
 
             w   = src.width()
@@ -106,8 +106,8 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
 
             ref     =   Y.KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
             Luma    =   Y.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
-            Uu      = Uor.nnedi3_rpow2(rfactor=4, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false,fwidth=w*2,fheight=h*2, ep0=0.0, ep1=0.75,cshift="bicubicresize",mpeg2=false)
-            Vu      = Vor.nnedi3_rpow2(rfactor=4, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false,fwidth=w*2,fheight=h*2, ep0=0.0, ep1=0.75,cshift="bicubicresize",mpeg2=false)
+            Uu      = Uor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
+            Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
             Unew    = Uu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
             Vnew    = Vu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
             U       = ex_adddiff(Uu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Unew, Removegrain(Unew, 19)))  # Sharpening
