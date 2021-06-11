@@ -166,7 +166,8 @@ function ex_contrast (clip c, float "cont", float "sat", int "pivot", bool "tv_r
 
     strtn  = !isy(c) ? isRGBc ? cntrst : sat != 0. ? Format(""+rangePCc+" A^ 1 {sat} - A * {sat} range_max A - * + "+rangeTVc+"") : "" : Undefined
 
-    Expr(c, cntrst, strtn, strtn) }
+    bi = BitsPerComponent(c)
+    Expr(c, cntrst, strtn, strtn, scale_inputs=ex_UVf(c, bi)) }
 
 
 ###
