@@ -42,8 +42,8 @@ function ex_lut(clip a, string str, string "cstr", int "Y", int "UV") {
     cstr = Defined(cstr) ? cstr : ex_UVexpr(a, str, UV, bi)
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a,  str, "")                : \
-                       Expr(a, str, cstr, scale_inputs=ex_UVf(a,bits)) }
+    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a,  str, "")              : \
+                       Expr(a, str, cstr, scale_inputs=ex_UVf(a,bi)) }
 
 
 function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV") {
@@ -380,7 +380,7 @@ function ex_blur(clip a, int "radius", int "radiusH", string "gamma", int "UV") 
     p_0 = FindStr(p_type, "20")>0
     cstrv = ""
     cstrh = ""
-    if !p_4 && (sm>0.6 || sh>0.6) {
+    if (!p_4 && (sm>0.6 || sh>0.6)) {
 
         krnlsz = krnlsz/(!p_0 ? 1 : 2)
         n_f     = factorial(krnlsz)
