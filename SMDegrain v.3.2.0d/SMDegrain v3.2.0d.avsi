@@ -158,7 +158,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     nw = round(w/2.0)
     nh = round(h/2.0)
-    pref       = !isRGB(input) ? pref.ScriptClip(function[Str, Amp, Chr]() { sishasColorRange=propNumElements("_ColorRange") > 0 sishasColorRange ? propGetInt("_ColorRange") == 1 ? ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr) : last : last}, local=true) : pref
+    pref       = !isRGB(input) ? pref.ConditionalFilter(pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr), pref, function[]() {propNumElements("_ColorRange") > 0 ? propGetInt("_ColorRange") == 1 : false}, local=true) : pref
     pref8      = SBitsn > 8    ? pref.ConvertBits(8,dither=-1)             : pref
     pref8      = isUHD         ? pref8.SimpleResize(nw+nw%2, nh+nh%2)      : pref8
 
