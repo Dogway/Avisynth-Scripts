@@ -105,7 +105,7 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
             Vor = ExtractV(src)
 
             ref     =   Y.KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
-            Luma    =   Y.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
+            Luma    = ref.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
             Uu      = Uor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
             Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
             Unew    = Uu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
