@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.8 (13-06-2021)               ##
+###           Grade Pack v1.9 (13-06-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -170,6 +170,8 @@ function ex_contrast (clip c, float "cont", float "sat", int "pivot", bool "tv_r
     Expr(c, cntrst, strtn, strtn, scale_inputs=ex_UVf(c, bi)) }
 
 
+
+
 ###
 ### ex_levels() - v1.3 (11-06-2021)
 ###
@@ -230,6 +232,7 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
     ConvertBits(BitsPerComponent(c)) }
 
 
+
 ###
 ###              v1.0 (25-04-2019)
 ### Vignette() - v2.0 (12-05-2021)
@@ -242,6 +245,7 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
 ###                 ExTools
 ###
 ####################################
+
 
 function Vignette (clip c, float "Vignette", bool "show") {
 
@@ -272,7 +276,7 @@ function Vignette (clip c, float "Vignette", bool "show") {
 
 function greyscale_rgb (clip rgb, string "matrix") {
 
-    Assert(isRGB(rgb) == true, "Only works on RGB.")
+    Assert(isRGB(rgb) == true, "Only works on PC range RGB.")
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
     rgb
@@ -308,9 +312,9 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 
     isRGBc = IsRGB(c)
 
-    temp        = Default (temperature, 6504)  # Target temperature in Kelvin (Default: D65 == nop())
-    matrix      = Default (matrix, "709")
-    tv_range    = Default (tv_range,  !isRGBc )
+    temp     = Default (temperature, 6504)  # Target temperature in Kelvin units (Default: D65 == nop())
+    matrix   = Default (matrix, "709")
+    tv_range = Default (tv_range,  !isRGBc )
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
@@ -336,15 +340,21 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
             -0.7036,  1.6975,  0.0061, \
              0.0030, -0.0136,  0.9834]
 
-    fw1       = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,CAT02)
-    fw2       = MatrixDot([0.950450,1.,1.088917],CAT02)
-    fw_trans  = MatrixDiv(fw1,fw2)
+    fw1      = MatrixDot([0.950450,1.,1.088917],CAT02)
+    fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,CAT02)
+    trans    = MatrixDiv(fw2,fw1)
+
+    vonkries = [trans[0], 0.0000,  0.0000,  \
+                0.0000, trans[1],  0.0000,  \
+                0.0000,   0.0000, trans[2]]
+
+    CAM      = MatrixDot(CAT02, MatrixDot(vonkries, MatrixInvert(CAT02)))
 
     moncurve_f(s_gam[0], s_gam[1], false, false)
 
-    RGB_to_XYZ(matrix)
-    Expr(last, string(fw_trans[0])+" x *",string(fw_trans[1])+" x *",string(fw_trans[2])+" x *")
-    XYZ_to_RGB(matrix)
+    mata = RGB_to_XYZ  (matrix,      list=true)
+    matb = XYZ_to_RGB  (matrix,      list=true)
+    MatrixClip( MatrixDot(MatrixDot(mata, CAM), matb) )
 
     moncurve_r(s_gam[0], s_gam[1], false, false)
 
