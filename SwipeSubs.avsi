@@ -1,11 +1,11 @@
-# SwipeSubs 1.0 by Dogway (05/01/2015)
+# SwipeSubs 2.0 by Dogway (11/06/2021)
 #
 # Displays the subtitles from left to right
 #
 
 # start: Frame for subs start
+# end: Frame for subs end
 # fadeLenght: Range of frames to perform the fade
-# SubLength: Length in frames for displaying subs
 # h: Whether you want local fade or absolute resolution fade (mask)
 # shadow: shadowed subs or not.
 # color: set the color, format is: $TTRRGGBB
@@ -40,7 +40,7 @@ text    = default( text,  "hola" )
 
 mask = h ? ex_lutspa( c, mode = "relative", "x range_size *", 128)                                  : \
            ex_lutspa( c, mode = "relative", "x "+string(anim)+" y - < range_max range_min ?", 128 )
-mask = mask.ex_boxblur(1)
+mask = mask.removegrain(12)
 
 #LineSeparation=0
 #subs=subtitle(c,text,font="Verdana",lsp=LineSeparation,size=size,text_color=$ffffff,align=7,x=x,y=y,last_frame=end)
@@ -48,4 +48,4 @@ shadow ? \
 SubtitleEx(            c,text,x=x+2,y=y+2,firstframe=0, lastframe=end,font=font,effects="bsss,f(30,30)", size = size, textcolor = $20000000, halocolor = $60000000) : nop()
 SubtitleEx(shadow?last:c,text,x=x,y=y,    firstframe=0, lastframe=end,font=font,effects="b,f(30,30)"   , size = size, textcolor = color    , halocolor = $FF000000)
 
-ex_merge(c,last,mask) }
+mt_merge(c,last,mask) }
