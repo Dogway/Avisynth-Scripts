@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC14  (11-06-2021)           ##
+###    Transforms Pack v1.0 RC15  (13-06-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -138,33 +138,45 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 #   Implicit:
 #       ConvertFormat(1,1,"RGB","jpeg",UVRecon=true)
 #   Explicit:
-#       ConvertFormat(1,1,"RGB","jpeg",false,false,cplace="MPEG1",UVRecon=true)
+#       ConvertFormat(1,1,"RGB","jpeg",false,false,cplace_in="MPEG1",UVRecon=true)
 #   ConvertBits(8, dither=1)
 
-# Work In progress
-function ConvertFormat (clip clp, int "width", int "height", string "format", string "matrix", bool "tv_range_in", bool "tv_range_out", string "scale_space", string "kernel", float "b", float "c", float "p", string "cplace_in", string "cplace_out", bool "UVrecon") {
+# Work In Progress
+function ConvertFormat (clip clp, val "width", val "height", string "format", string "matrix", bool "tv_range_in", bool "tv_range_out", string "cplace_in", string "cplace_out", \
+                        string "scale_space", string "kernel", float "b", float "c", float "p", int "mod", bool "noring", bool "UVrecon") {
+    clp
+    w          = width ()
+    h          = height()
+    isRGBc     = isRGB()
+    p_type     = PixelType()
+    isUHD      = (w > 2599 ||  h > 1499)
+    isHD       = (w > 1099 ||  h > 599)
 
-    isRGBc     = isRGB(clp)
-
-    format     = Default (format, "YUV420")
-    nw         = Default (width,  1)             # 1 == no resizing
-    nh         = Default (height, 1)             # 1 == no resizing
+    format     = Default (format, p_type)
+    nw         = Default (width,  1)             # 0.0 to 10.0 is a multiplier. 12 to inf is absolute target width
+    nh         = Default (height, 1)             # 0.0 to 10.0 is a multiplier. 12 to inf is absolute target height
     kernel     = Default (kernel, "Bicubic")
+    matrix     = Default (matrix, isUHD ? "2020" : isHD ? "709" : "601")
     tv_in      = Default (tv_range_in, !isRGBc || !(matrix=="JPEG" || matrix=="JPG"))
     tv_out     = Default (tv_range_out, tv_in)
-    space      = Default (scale_space, "")        # resizing space: "gamma" / "", "linear" or "log". Assumes gamma encoded input.
-    cplace_in  = Default (cplace_in, "")
-    cplace_out = Default (cplace_out, "")
+    space      = Default (scale_space, "")       # resizing space: "gamma" / "", "linear" or "log". Assumes gamma encoded input.
+    cplace_in  = Default (cplace_in, "")         # Assumed default from format
+    cplace_out = Default (cplace_out, "")        # Assumed default from format
+    mod        = Default (mod, 2)                # mod size for resizing. ie: 2, 4, 8, 16...
     recon      = Default (UVrecon, false)
-    b          = Default (b, isRGBc?-0.5:0.0)
+    noring     = Default (noring,  false)
+    b          = Default (b, isRGBc?-0.5:0.0 )
     c          = Default (c, isRGBc?0.25:0.75)
     p          = Default (p, 0.25)
 
-    isRGBout   = FindStr(format,"RGB")>0 || FindStr(format,"rgb")>0
-                 Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
-    isRGBc ?     Assert(!isRGBout, "RGB to RGB format conversion not supported.") : nop()
+    nw = isInt(nw) && nw<=10 ? float(nw) : isFloat(nw) && nw>10. ? int(nw) : nw
+    nh = isInt(nh) && nh<=10 ? float(nh) : isFloat(nh) && nh>10. ? int(nh) : nh
 
-    clp
+    !(isInt(nw) || isInt(nh) || isFloat(nw) || isFloat(nh)) ? \
+                 Assert(false, "Width/Height type not supported.")               : nop()
+                 Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+    isRGBout   = FindStr(format,"RGB")>0 || FindStr(format,"rgb")>0
+    isRGBc ?     Assert(!isRGBout, "RGB to RGB format conversion not supported.") : nop()
 
     # YUV to RGB
     if (!isRGBc && isRGBout) {
@@ -181,54 +193,75 @@ function ConvertFormat (clip clp, int "width", int "height", string "format", st
 
     bdpth    = BitsPerComponent()
     format   = Format_fuzzy_search (format, bdpth)
-    p_typei  = LeftStr(PixelType(),7)
-    p_type   = LeftStr(format, 7)
+    i_type   = LeftStr(p_type, 7)
+    o_type   = LeftStr(format, 7)
     matrix   = Matrix_fuzzy_search (matrix)
     coef     = Matrix_coef(matrix)
+    s_gam    = moncurve_coef (matrix)
     bc       = bicubic_coeffs(kernel)
-    bc_b     = string(bc[1]>=0.?bc[0]:b)
-    bc_c     = string(bc[1]>=0.?bc[1]:c)
+    bc_b     = bc[1]>=0.?bc[0]:b
+    bc_c     = bc[1]>=0.?bc[1]:c
     kernel   = bc[1]>=0. ? "Bicubic" : kernel
 
-    p_type4  = p_type == "YUV444P"
-    p_type2  = p_type == "YUV422P"
-    p_type1  = p_type == "YUV411P"
-    p_type10 = p_type == "YUV9"
+    i_type4  = i_type == "YUV444P"          o_type4  = o_type == "YUV444P"
+    i_type2  = i_type == "YUV422P"          o_type2  = o_type == "YUV422P"
+    i_type1  = i_type == "YUV411P"          o_type1  = o_type == "YUV411P"
+    i_type10 = i_type == "YUV9"             o_type10 = o_type == "YUV9"
 
-    w  = width ()
-    h  = height()
-    nw = p_type4 ? w : p_type1 || p_type10 ? round(w/4.0) : round(w/2.0)
-    nh = p_type4 ||    p_type1 || p_type2  ?            h : round(h/2.0)
-    cplacei   = chroma_placement(nw, nh, matrix, p_type, cplace_in)
-    cplaceo   = chroma_placement(nw, nh, matrix, p_type, cplace_out)
+    nw      = nw<=10. ? w*nw : nw      nw = round(nw/mod)*mod
+    nh      = nh<=10. ? h*nh : nh      nh = round(nh/mod)*mod
+    cow     = i_type4 ?  w : i_type1 || i_type10 ? round( w/4.0) : round( w/2.0)
+    coh     = i_type4 ||     i_type1 || i_type2  ?             h : round( h/2.0)
+    cnw     = o_type4 ? nw : o_type1 || o_type10 ? round(nw/4.0) : round(nw/2.0)
+    cnh     = o_type4 ||     o_type1 || o_type2  ?            nh : round(nh/2.0)
+    cplacei = chroma_placement(cow, coh, matrix, i_type, cplace_in)
+    cplaceo = chroma_placement(cnw, cnh, matrix, o_type, cplace_out)
 
-     p_type1             ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411")      : nop()
-                           Assert(!p_type10,  "Unsupported Pixel Type: YUV410")
+     i_type1               ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411")      : nop()
+                             Assert(!i_type10,  "Unsupported Pixel Type: YUV410")
+                             Assert(h%2==0,"Height is not mod2." )
+    !i_type1   || !i_type4 ? Assert(w%2==0, "Width is not mod2." )                         : nop()
+     i_type1               ? Assert(w%4==0, "Width is not mod4." )                         : nop()
+    !(isRGBout ||  i_type4 || (cow>w || coh>h))                                            ? \
+                             Assert(!recon, "Invalid settings for chroma reconstruction.") : nop()
 
-                           Assert(h%2==0,"Height is not mod2." )
-    !p_type1 || !p_type4 ? Assert(w%2==0, "Width is not mod2." )                         : nop()
-     p_type1             ? Assert(w%4==0, "Width is not mod4." )                         : nop()
-    !(isRGBout || p_type4 || (nw>w || nh>h))                                             ? \
-                           Assert(!recon, "Invalid settings for chroma reconstruction.") : nop()
+     o_type1               ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411")      : nop()
+                             Assert(!o_type10,  "Unsupported Pixel Type: YUV410")
+                             Assert(nh%2==0,"Height is not mod2." )
+    !o_type1   || !o_type4 ? Assert(nw%2==0, "Width is not mod2." )                        : nop()
+     o_type1               ? Assert(nw%4==0, "Width is not mod4." )                        : nop()
+    !(isRGBout ||  o_type4 || (cnw>w || cnh>h))                                            ? \
+                             Assert(!recon, "Invalid settings for chroma reconstruction.") : nop()
+
+
+    space == "linear" ? moncurve_f(s_gam[0], s_gam[1], tv_in, false)             : \
+    space == "log"    ? moncurve_f(s_gam[0], s_gam[1], tv_in, false).ACEScct_f() : \
+                        last
 
     Y   = ExtractY()
     Uor = ExtractU()
     Vor = ExtractV()
 
+
+    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(nw) + "," + String(nh) + ")"                                       : \
+                kernel == "bicubic"?   "BicubicResize(" + String(nw) + "," + String(nh) + ",b="+string(bc_b)+",c="+string(bc_c)+")" : \
+                kernel == "gauss"  ?     "GaussResize(" + String(nw) + "," + String(nh) + ",p=p)"                                   : \
+                                     kernel + "Resize(" + String(nw) + "," + String(nh) + ")"
+
     # feisty2's ChromaReconstructor_faster v3.0 HBD mod
 
-    if (recon && (p_type4 || isRGBout || (nw>w || nh>h))) {
+    if (recon && (o_type4 || isRGBout || (cnw>w || cnh>h))) {
 
         threads = 4
 
         ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
-        Luma    =   Y.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
-        Uu      = Uor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
-        Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
-        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
-        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
-        U       = ex_adddiff(Uu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Unew, Removegrain(Unew, 19)))  # Sharpening
-        V       = ex_adddiff(Vu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Vnew, Removegrain(Vnew, 19)))  # Sharpening
+        Luma    = ref.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
+        Uu      = Uor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=bc_b, ep1=bc_c, cshift=kernel+"resize", mpeg2=false)
+        Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=bc_b, ep1=bc_c, cshift=kernel+"resize", mpeg2=false)
+        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(cnw, cnh, b=-0.5, c=0.25)
+        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(cnw, cnh, b=-0.5, c=0.25)
+        U       = ex_adddiff(Uu.BicubicResize(cnw, cnh, b=-0.5, c=0.25), ex_makediff(Unew, Removegrain(Unew, 19)))  # Sharpening
+        V       = ex_adddiff(Vu.BicubicResize(cnw, cnh, b=-0.5, c=0.25), ex_makediff(Vnew, Removegrain(Vnew, 19)))  # Sharpening
 
     } else {
 
@@ -236,17 +269,21 @@ function ConvertFormat (clip clp, int "width", int "height", string "format", st
         cplaceH = ",src_left="+string(cplaceo[0]-cplacei[0])+point
         cplaceV =  ",src_top="+string(cplaceo[1]-cplacei[1])
 
-        resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ")"                       : \
-                    kernel == "bicubic"?   "BicubicResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ",b="+bc_b+",c="+bc_c+")" : \
-                    kernel == "gauss"  ?     "GaussResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ",p=p)"                   : \
-                                         kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ")"
-
-        U   = Eval("Uor." + resampler)
-        V   = Eval("Vor." + resampler)
+        str = ReplaceStr(ReplaceStr(resampler, "("+string(nw), "("+string(cnw)), ","+string(nh), ","+string(cnh))
+        str = LeftStr(str,StrLen(str)-1)
+        U   = Eval("Uor." + str + cplaceH + cplaceV + ")")
+        V   = Eval("Vor." + str + cplaceH + cplaceV + ")")
 
         }
 
-    CombinePlanes(Y, U, V, planes="YUV", pixel_type=format) } }
+        Ynr = ".Repair(BicubicResize(" + String(nw) + "," + String(nh) + ",0,0),1)"
+        Y   = Eval("Y."   + resampler + (noring ? Ynr : ""))
+
+    CombinePlanes(Y, U, V, planes="YUV", pixel_type=format)
+
+    space == "linear" ?             moncurve_r(s_gam[0], s_gam[1], false, tv_out) : \
+    space == "log"    ? ACEScct_r().moncurve_r(s_gam[0], s_gam[1], false, tv_out) : \
+                        last                                                       } }
 
 
 
@@ -518,18 +555,17 @@ function YcCbcCrc_to_RGB (clip Y, clip Cb, clip Cr, string matrix, float_array c
 # OETF. Monitor Curve Functions: https://github.com/ampas/aces-dev
 function moncurve_f (clip c, float "gamma", float "alpha", bool "tv_range_in", bool "tv_range_out") {
 
-    gamma = Default(gamma, 1/0.45)  # gamma
-    alpha = Default(alpha,   0.0 )  # extension in x coords of the linear part
+    isRGBc = IsRGB(c)
+
+    gamma  = Default(gamma, 1/0.45)  # gamma
+    alpha  = Default(alpha,   0.0 )  # extension in x coords of the linear part
 
     c
-    ptype  = IsRGB()
-    contoy = !isy()
-
-    tv_in  = Default(tv_range_in,  !ptype)
+    tv_in  = Default(tv_range_in,  !isRGBc)
     tv_out = Default(tv_range_out,  tv_in)
 
-    rangePC = tv_in  ? "x ymin - ymax ymin - /"           : "x range_max /"
-    rangeTV = tv_out ? "ymax ymin - * ymin +"             : "  range_max *"
+    rangePC = tv_in  ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_out ? "ymax ymin - * ymin +"   : "  range_max *"
 
     beta = (( gamma - 1.0) / alpha) * pow( alpha * gamma / ( ( gamma - 1.0) * ( 1.0 + alpha)), gamma)
     phi  = alpha / ( gamma - 1.0)
@@ -537,28 +573,26 @@ function moncurve_f (clip c, float "gamma", float "alpha", bool "tv_range_in", b
     out  = alpha > 0.0 ? Format(""+rangePC+" A@ {phi} > A {alpha} + 1 {alpha} + / {gamma} ^ A {beta} * ? "+rangeTV+"") : \
                          Format(""+rangePC+" {gamma} ^ "+rangeTV+"")
 
-    cplane  = contoy ? ptype ? out : "" : Undefined
+    cplane  = !isy() ? isRGBc ? out : "" : Undefined
 
     gamma <= 1.0 ? last : \
     Expr(out,cplane,cplane) }
 
 
-
 # EOTF. Monitor Curve Functions: https://github.com/ampas/aces-dev
 function moncurve_r (clip c, float "gamma", float "alpha", bool "tv_range_in", bool "tv_range_out") {
 
-    gamma = Default(gamma, 1/0.45)  # gamma
-    alpha = Default(alpha,   0.0 )  # extension in x coords of the linear part
+    isRGBc = IsRGB(c)
+
+    gamma  = Default(gamma, 1/0.45)  # gamma
+    alpha  = Default(alpha,   0.0 )  # extension in x coords of the linear part
 
     c
-    ptype  = IsRGB()
-    contoy = !isy()
-
-    tv_in  = Default(tv_range_in,  !ptype)
+    tv_in  = Default(tv_range_in,  !isRGBc)
     tv_out = Default(tv_range_out,  tv_in)
 
-    rangePC = tv_in  ? "x ymin - ymax ymin - /"           : "x range_max /"
-    rangeTV = tv_out ? "ymax ymin - * ymin +"             : "  range_max *"
+    rangePC = tv_in  ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_out ? "ymax ymin - * ymin +"   : "  range_max *"
 
     beta = pow( alpha * gamma / ( ( gamma - 1.0) * ( 1.0 + alpha)), gamma)
     phi  = pow( ( gamma - 1.0) / alpha, gamma - 1.0) * pow( ( 1.0 + alpha) / gamma, gamma)
@@ -566,9 +600,52 @@ function moncurve_r (clip c, float "gamma", float "alpha", bool "tv_range_in", b
     out  = alpha > 0.0 ? Format(""+rangePC+" A@ {beta} > 1 {alpha} + A 1 {gamma} / ^ * {alpha} - A {phi} * ? "+rangeTV+"") : \
                          Format(""+rangePC+" 1 {gamma} / ^ "+rangeTV+"")
 
-    cplane  = contoy ? ptype ? out : "" : Undefined
+    cplane  = !isy() ? isRGBc ? out : "" : Undefined
 
     gamma <= 1.0 ? last : \
+    Expr(out,cplane,cplane) }
+
+
+# Linear to ACEScct: https://github.com/ampas/aces-dev
+function ACEScct_f (clip c, bool "tv_range_in", bool "tv_range_out") {
+
+    c
+    tv_in  = Default(tv_range_in,  false)
+    tv_out = Default(tv_range_out,  tv_in)
+
+    rangePC = tv_in  ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_out ? "ymax ymin - * ymin +"   : "  range_max *"
+
+    X_BRK  = 0.0078125
+    coeffA = 10.5402377416545
+    coeffB = 0.0729055341958355
+    lb     = log(2)
+
+    out  = Format(""+rangePC+" A@ {X_BRK} <= A {coeffA} * {coeffB} + A log {lb} / 9.72 + 17.52 / ? "+rangeTV+"")
+
+    cplane  = !isy() ? IsRGB(c) ? out : "" : Undefined
+
+    Expr(out,cplane,cplane) }
+
+
+# ACEScct to Linear: https://github.com/ampas/aces-dev
+function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out") {
+
+    c
+    tv_in  = Default(tv_range_in,  false)
+    tv_out = Default(tv_range_out,  tv_in)
+
+    rangePC = tv_in  ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_out ? "ymax ymin - * ymin +"   : "  range_max *"
+
+    Y_BRK  = 0.155251141552511
+    coeffA = 10.5402377416545
+    coeffB = 0.0729055341958355
+
+    out  = Format(""+rangePC+" A@ {Y_BRK} > 2 A 17.52 * 9.72 - ^ A {coeffB} - {coeffA} / ? "+rangeTV+"")
+
+    cplane  = !isy() ? IsRGB(c) ? out : "" : Undefined
+
     Expr(out,cplane,cplane) }
 
 
@@ -758,8 +835,8 @@ function Matrix_coef (string matrix) {
 \   : (matrix == "AWG"            ) ? 2
 \   :                                 1
 
-    #                    NTSC 1953/YCbCr  IEC 61966-2-1/sRGB SMPTE 170M       Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Adobe Wide Gamut  SMPTE RP 432-1    SMPTE RP 431-2    AP1                AP0
-    #                    SMPTE 470M       ITU-R BT.709       ITU-R BT.601     SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  AWG               Display-P3/D65P3  DCI-P3            ACEScg             ACES2065-1
+    #                    NTSC 1953/YCbCr   IEC 61966-2-1/sRGB SMPTE 170M       Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Adobe Wide Gamut  SMPTE RP 432-1    SMPTE RP 431-2    AP1                AP0
+    #                    SMPTE 470M        ITU-R BT.709       ITU-R BT.601     SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  AWG               Display-P3/D65P3  DCI-P3            ACEScg             ACES2065-1
     pr = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],  [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.7347,0.2653],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
     pg = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],  [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.1152,0.8264],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
     pb = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],  [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.1566,0.0177],  [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
@@ -965,37 +1042,38 @@ function c_adaptation (clip c, string "source", string "target", bool "tv_range"
             -0.7036,  1.6975,  0.0061, \
              0.0030, -0.0136,  0.9834]
 
-    wpsn   = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]] ,CAT02)
-    wptn   = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]] ,CAT02)
-    trans  = MatrixDiv(wptn,wpsn)
+    wpsn     = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], CAT02)
+    wptn     = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], CAT02)
+    trans    = MatrixDiv(wptn,wpsn)
+    vonkries = [same?1:trans[0],   0.0000,        0.0000,  \
+                0.0000,   same?1:trans[1],        0.0000,  \
+                0.0000,            0.0000,same?1:trans[2]]
 
-    if (!list) {
+    CAM      = !same ? MatrixDot(CAT02, MatrixDot(vonkries, MatrixInvert(CAT02))) : vonkries
+
+    c
+    if (!list && !same) {
 
         s_gam = moncurve_coef(src)
         t_gam = moncurve_coef(tgt)
 
-        RGBpln = isRGBc ? IsPlanar(c) : false
+        RGBpln = isRGBc ? IsPlanar() : false
 
-        isRGBc ? RGBpln ? c : ConvertToPlanarRGB(c) : \
+        isRGBc ? RGBpln ? last : ConvertToPlanarRGB() : \
         YUV_to_RGB(c, src, tv_range_in=tv_range, tv_range_out=false, kernel="Point")
 
         moncurve_f(s_gam[0], s_gam[1], false, false)
 
         RGB_to_XYZ(src)
-        Expr(last,string(trans[0])+" x *",string(trans[1])+" x *",string(trans[2])+" x *")
+        MatrixClip(CAM)
         XYZ_to_RGB(src)
 
         moncurve_r(s_gam[0], s_gam[1], false, false)
 
         isRGBc ? RGBpln ? last : MatchColorFormat(c) : \
         RGB_to_YUV( src, tv_range_in=false, tv_range_out=tv_range, kernel="Point", pixel_type=PixelType(c))
-        same ? c : last
 
-    } else {
-
-        [same?1:trans[0],   0.0000,        0.0000,  \
-         0.0000,   same?1:trans[1],        0.0000,  \
-         0.0000,            0.0000,same?1:trans[2]] } }
+    } else { CAM } }
 
 
 
@@ -1004,7 +1082,7 @@ function SMPTE_legal (clip c, bool "forward") {
     fw = Default(forward, true)    # forward converts to SMPTE legal, otherwise converts to Full Range.
     Assert (IsRGB(c), "YUV is not supported.")
 
-    Expr(c, fw ? "x ymax ymin - range_max / * ymin +" : \
+    Expr(c, fw ? "x ymax ymin - range_max / * ymin +"  : \
                  "x ymin - range_max ymax ymin - / *") }
 
 
