@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v1.7 (11-06-2021)               ##
+###           Grade Pack v1.8 (13-06-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -207,6 +207,27 @@ function ex_levels (clip c, int "input_low", float "gamma", int "input_high", in
     bi = BitsPerComponent(c)
     UV == 1 ? isy(c) ? Expr(c, str) : Expr(c,  str, "")                                    : \
                        Expr(c, str, ex_UVexpr(c, str, UV, bi), scale_inputs=ex_UVf(c, bi)) }
+
+
+
+
+
+# ported from cretindesalpes':
+# http://forum.doom9.org/showthread.php?p=1516096#post1516096
+function ex_posterize (clip c, int "bits", int "mode", int "UV") {
+
+    bits = default(bits,  3)    # Valid range: 0 - 7
+    mode = default(mode, -1)    # Valid modes: -1, 0 and 1
+    UV   = Default(UV, isRGB(c) ? 3 : 2)
+
+    mul  = string(Pow (2, 8 - bits - 1))
+    bits = max(min(bits,7),0)
+
+    ConvertBits(c,16)
+    ex_lut ("x "+mul+" /", y=3, UV=UV)
+    ConvertBits(8,dither=mode)
+    ex_lut ("x "+mul+" *", y=3, UV=UV)
+    ConvertBits(BitsPerComponent(c)) }
 
 
 ###
