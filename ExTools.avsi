@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v1.6     (13-06-2021)              ##
+###           ExTools v1.7     (16-06-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -34,50 +34,58 @@
 # ex_lut family with automatic plane handling alike masktools2
 function ex_lut(clip a, string str, string "cstr", int "Y", int "UV") {
 
-    cstr = Default(cstr, str)
-    Y    = Default(Y,             3)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    rgb  = isRGB(a)
 
-    str  =                         ex_Yexpr(a, str,  Y)
-    cstr = Defined(cstr) ? cstr : ex_UVexpr(a, str, UV, bi)
+    cstr = Default(cstr, str)
+    Y    = Default(Y,        3)
+    UV   = Default(UV, rgb ? 3 : 1)
+
+    str  =                        ex_Yexpr (     str,  Y)
+    cstr = Defined(cstr) ? cstr : ex_UVexpr(rgb, str, UV, bi)
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a,  str, "")              : \
-                       Expr(a, str, cstr, scale_inputs=ex_UVf(a,bi)) }
+    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a,  str, "")                : \
+                       Expr(a, str, cstr, scale_inputs=ex_UVf(rgb,bi)) }
 
 
 function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV") {
 
-    cstr = Default(cstr, str)
-    Y    = Default(Y,             3)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    rgb  = isRGB(a)
 
-    str   =                         ex_Yexpr(a, str,  Y)
-    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, str, UV, bi)
+    cstr = Default(cstr, str)
+    Y    = Default(Y,        3)
+    UV   = Default(UV, rgb ? 3 : 1)
+
+    str  =                        ex_Yexpr (   str,  Y)
+    cstr = Defined(cstr) ? cstr : ex_UVexpr(rgb, str, UV, bi)
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, b, str) :  Expr(a, b, str, "")            : \
-                       Expr(a, b, str, cstr, scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, b, str) :  Expr(a, b, str, "")              : \
+                       Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", int "UV") {
 
-    cstr = Default(cstr, str)
-    Y    = Default(Y,             3)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    rgb  = isRGB(a)
 
-    str   =                         ex_Yexpr(a, str,  Y)
-    cstr  = Defined(cstr) ? cstr : ex_UVexpr(a, str, UV, bi)
+    cstr = Default(cstr, str)
+    Y    = Default(Y,        3)
+    UV   = Default(UV, rgb ? 3 : 1)
+
+    str   =                        ex_Yexpr (     str,  Y)
+    cstr  = Defined(cstr) ? cstr : ex_UVexpr(rgb, str, UV, bi)
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, b, c, str) : Expr(a, b, c, str, "")          : \
-                       Expr(a, b, c, str, cstr, scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, b, c, str) : Expr(a, b, c, str, "")            : \
+                       Expr(a, b, c, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_makediff() is 5% slower
 function ex_makediff(clip a, clip b, int "UV", bool "dif", bool "aug") {
 
-    UV  = Default(UV, isRGB(a) ? 3 : 1)
+    rgb  = isRGB(a)
+
+    UV  = Default(UV, rgb ? 3 : 1)
     dif = Default(dif, true)
     aug = Default(aug, false)
 
@@ -86,29 +94,33 @@ function ex_makediff(clip a, clip b, int "UV", bool "dif", bool "aug") {
                 "x y -"
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                                  : \
-                       Expr(a, b, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                                      : \
+                       Expr(a, b, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_adddiff() is 5% slower
 function ex_adddiff(clip a, clip b, int "UV", bool "dif") {
 
-    UV  = Default(UV, isRGB(a) ? 3 : 1)
+    rgb  = isRGB(a)
+
+    UV  = Default(UV, rgb ? 3 : 1)
     dif = Default(dif, true)
 
     str = dif ? "x y + range_half -" : \
                 "x y +"
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                                  : \
-                       Expr(a, b, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                                      : \
+                       Expr(a, b, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_logic(mode="and") is 6% slower
 function ex_logic(clip a, clip b, string "mode", int "UV") {
 
+    rgb  = isRGB(a)
+
     mode = Default(mode, "and")
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    UV   = Default(UV, rgb ? 3 : 1)
 
     str = Format(                                            \
         mode == "and"   ? "x y * range_max /"              : \
@@ -120,30 +132,34 @@ function ex_logic(clip a, clip b, string "mode", int "UV") {
                           Assert (false, "Unsupported mode.") )
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                                  : \
-                       Expr(a, b, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                                      : \
+                       Expr(a, b, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_merge() is 10% slower
 function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV") {
 
+    rgb  = isRGB(a)
+
     lm = Default(luma, false)
-    UV = Default(UV, isRGB(a) || lm ? 3 : isy(a) ? 1 : 2)
+    UV = Default(UV, rgb || lm ? 3 : isy(a) ? 1 : 2)
     bi = BitsPerComponent(a)
 
     msk = UV != 1 ? mskY_to_YUV(a, msk, lm, UV, bi) : msk
     str = "x range_max z - * y z * + range_max /"
 
-    UV == 1 ? isy(a) ? Expr(a, b, msk, str) : Expr(a, b, msk, str, "")                             : \
-                       Expr(a, b, msk, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, b, msk, str) : Expr(a, b, msk, str, "")                                 : \
+                       Expr(a, b, msk, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_clamp() is 6% slower
 function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", int "UV") {
 
+    rgb  = isRGB(a)
+
     os = Default(overshoot, 0)
     us = Default(undershoot, 0)
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, rgb ? 3 : 1)
     os = min(max(os,0),255)
     us = min(max(us,0),255)
 
@@ -151,44 +167,50 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
                                    Format("x y {os} scaleb + min z {us} scaleb - max")
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, hi, lo, str) : Expr(a, hi, lo, str, "")                             : \
-                       Expr(a, hi, lo, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, hi, lo, str) : Expr(a, hi, lo, str, "")                                 : \
+                       Expr(a, hi, lo, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_binarize() is 37% slower
 function ex_binarize(clip a, int "thres", bool "invert", int "UV") {
 
+    rgb  = isRGB(a)
+
     th = Default(thres, 128)
     in = Default(invert, false)
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, rgb ? 3 : 1)
     th = min(max(th,0),255)
 
     str = in ? Format("x {th} scaleb < range_max range_min ?") : \
                Format("x {th} scaleb > range_max range_min ?")
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                                     : \
-                       Expr(a, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, str) :      Expr(a, str, "")                                    : \
+                       Expr(a, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_invert() is 10% slower and invert(channels="Y") is 17% slower
 function ex_invert(clip a, int "UV") {
 
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    rgb  = isRGB(a)
+
+    UV = Default(UV, rgb ? 3 : 1)
 
     str = "range_max x -"
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                                     : \
-                       Expr(a, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, str) :      Expr(a, str, "")                                    : \
+                       Expr(a, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_lutspa() is same speed (instant when spatial)
 function ex_lutspa(clip a, string "mode", string "str", int "UV") {
 
+    rgb  = isRGB(a)
+
     mode = Default(mode, "absolute")
     str  = Default(str, "x")
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    UV   = Default(UV, rgb ? 3 : 1)
 
     tem = FindStr(str, "frameno")  > 0 || FindStr(str, "time") > 0
 
@@ -197,21 +219,21 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV") {
                              Assert (false, "Unsupported Mode.")
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) : Expr(a, str, "")                                   : \
-                       Expr(a, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi))
-    tem     ? last :   trim(last,0,-1).Loop(FrameCount(a))                               }
+    UV == 1 ? isy(a) ? Expr(a, str) :      Expr(a, str, "")                                  : \
+                       Expr(a, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi))
+    tem     ? last :   trim(last,0,-1).Loop(FrameCount(a))                                   }
 
 
 # Overlay(mode="multiply") is 56% slower (AVS+ 3.7.0)
 # TODO: process chroma for YUV (preconvert to RGB?)
 function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool "tv_range") {
 
-    isRGBa = isRGB(a)
+    rgb = isRGB(a)
 
     mode  = Default(mode, "blend")
     op    = Default(opacity, 1.0)
-    UV    = Default(UV, isRGBa ? 3 : 1)
-    range = Default(tv_range, !isRGBa)  # TV or PC. Luma range of your source
+    UV    = Default(UV, rgb ? 3 : 1)
+    range = Default(tv_range, !rgb)  # TV or PC. Luma range of your source
     op  = min(max(op,0.),1.)
     opr = 1 - op
 
@@ -222,18 +244,24 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     str = Format(                                                                                                                                                   \
         mode == "blend"        ? "x {opr} * y {op} * +"                                                                                                           : \
         mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" {opr} * + "+pdstl+""                                : \
-        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A {opr} * + "+pdstl+""                                                       : \
-        mode == "lighten"      ? "x {opr} * x y max {op} * + "                                                                                                    : \
-        mode == "linear dodge" ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
         mode == "add"          ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
+        mode == "linear dodge" ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
+        mode == "lighten"      ? "x {opr} * x y max {op} * + "                                                                                                    : \
+        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A {opr} * + "+pdstl+""                                                       : \
+        mode == "subtract"     ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * - "+pdstl+""                                                                    : \
+        mode == "darken"       ? "x {opr} * x y min {op} * + "                                                                                                    : \
+                               \
         mode == "softlight"    ? "x "+srcmax+" B@ {opr} * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+pdstl+"" : \
+                               \
+        mode == "difference"   ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * - abs "+pdstl+""                                                                : \
+        mode == "exclusion"    ? "x {opr} * x y + 2 x * y * + {op} * + "+rngmax+" /"                                                                              : \
+        mode == "extremity"    ? "x {opr} * "+rngmax+" x - y - abs {op} * +"                                                                                      : \
+        mode == "negation"     ? "x {opr} * "+rngmax+" "+rngmax+" x - y - abs - {op} * +"                                                                         : \
                                  Assert (false, "Unsupported Blend Mode.") )
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")                                  : \
-                       Expr(a, b, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
-
-
+    UV == 1 ? isy(a) ? Expr(a, b, str) :   Expr(a, b, str, "")                                    : \
+                       Expr(a, b, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 
@@ -257,9 +285,11 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 # TODO: gamma awareness?
 function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 
+    rgb  = isRGB(a)
+
     rd = Default(radius,  1)            # from 0 to inf
     rh = Default(radiusH, rd)           # from 0 to inf
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, rgb ? 3 : 1)
     rd = max(rd, 1)
     rh = max(rh, 1)
 
@@ -286,11 +316,11 @@ function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 
     bi = BitsPerComponent(a)
     rd == 0 ?     a                                                                      : \
-    UV == 1 ? isy(a) ? Expr(a,    strv) :    Expr(a, strv, "")                           : \
-                       Expr(a,    strv, ex_UVexpr(a, strv, UV, bi), scale_inputs="none")
+    UV == 1 ? isy(a) ? Expr(a,    strv) :    Expr(a,   strv, "")                         : \
+                       Expr(a,    strv, ex_UVexpr(rgb, strv, UV, bi), scale_inputs="none")
     rh == 0 || fbox  ? last                                                              : \
-    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                           : \
-                       Expr(last, strh, ex_UVexpr(a, strh, UV, bi), scale_inputs="none") }
+    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last,   strh, "")                         : \
+                       Expr(last, strh, ex_UVexpr(rgb, strh, UV, bi), scale_inputs="none") }
 
 
 # Variable Gaussian Blur
@@ -312,11 +342,11 @@ function ex_boxblur(clip a, int "radius", int "radiusH", int "UV") {
 # TODO: make radius work over 6 (Expr() limit?, consider DFT)
 function ex_blur(clip a, int "radius", int "radiusH", string "gamma", int "UV") {
 
-    isRGBa = isRGB(a)
+    rgb  = isRGB(a)
 
     sm = Default(radius,   1)           # from 0 to 6
     sh = Default(radiusH, sm)           # from 0 to 6
-    UV = Default(UV, isRGBa ? 3 : 1)
+    UV = Default(UV, rgb ? 3 : 1)
     gm = Default(gamma, "none")         # Set matrix for gamma encoded clips
     sm = max(min(sm * 0.30,2.0),0)
     sh = max(min(sh * 0.30,2.0),0)
@@ -405,17 +435,17 @@ function ex_blur(clip a, int "radius", int "radiusH", string "gamma", int "UV") 
     if (gm != "none") {
         matrix = Matrix_fuzzy_search (gm)
         s_gam  = moncurve_coef(matrix)
-        a      = moncurve_f(a, s_gam[0], s_gam[1], !isRGBa, false)
+        a      = moncurve_f(a, s_gam[0], s_gam[1], !rgb, false)
     }
 
     sm == 0 ?     a                                                                      : \
-    UV == 1 ? isy(a) ? Expr(a,    strv) :    Expr(a, strv, "")                           : \
-                       Expr(a,    strv, ex_UVexpr(a, cstrv, UV, bi), scale_inputs="none")
+    UV == 1 ? isy(a) ? Expr(a,    strv) :      Expr(a, strv, "")                         : \
+                       Expr(a,    strv, ex_UVexpr(rgb, cstrv, UV, bi), scale_inputs="none")
 
     sh == 0 || fkern ? last                                                              : \
-    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                           : \
-                       Expr(last, strh, ex_UVexpr(a, cstrh, UV, bi), scale_inputs="none")
-    gm != "none"     ? moncurve_r(last, s_gam[0], s_gam[1], false, !isRGBa) : last }
+    UV == 1 ? isy(a) ? Expr(last, strh) :   Expr(last, strh, "")                         : \
+                       Expr(last, strh, ex_UVexpr(rgb, cstrh, UV, bi), scale_inputs="none")
+    gm != "none"     ? moncurve_r(last, s_gam[0], s_gam[1], false, !rgb) : last }
 
 
 function factorial(int n) {
@@ -426,10 +456,12 @@ function factorial(int n) {
 # "circle" + radius=2 is like calling mode="both" twice but faster
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
+    rgb  = isRGB(a)
+
     rd   = Default(radius, 1)
     mode = Default(mode, "square")
     thr  = Default(thres, 255)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    UV   = Default(UV, rgb ? 3 : 1)
     thr  = min(max(thr, 0), 255)
 
     krnlsz = 2 * rd + 1
@@ -464,20 +496,22 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
     str  = str + (thr != 255 ? "A^ x[0,0] {thr} scaleb + A min" : "")
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                           :      \
-                       Expr(a,    str,  ex_UVexpr(a, str,  UV, bi), scale_inputs="none")
-    mode == "square" ? fbox ?     last  :                                                       \
-    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                           :      \
-                       Expr(last, strh, ex_UVexpr(a, strh, UV, bi), scale_inputs="none") : last }
+    UV == 1 ? isy(a) ? Expr(a,    str)  :      Expr(a, str,  "")                           :      \
+                       Expr(a,    str,  ex_UVexpr(rgb, str,  UV, bi), scale_inputs="none")
+    mode == "square" ? fbox ?     last  :                                                         \
+    UV == 1 ? isy(a) ? Expr(last, strh) :   Expr(last, strh, "")                           :      \
+                       Expr(last, strh, ex_UVexpr(rgb, strh, UV, bi), scale_inputs="none") : last }
 
 
 # mt_inpand() is 5% faster (4% slower when radius = 2)
 function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
+    rgb  = isRGB(a)
+
     rd   = Default(radius, 1)
     mode = Default(mode, "square")
     thr  = Default(thres, 255)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    UV   = Default(UV, rgb ? 3 : 1)
     thr  = min(max(thr, 0), 255)
 
     krnlsz = 2 * rd + 1
@@ -512,18 +546,20 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
     str  = str + (thr != 255 ? "A^ x[0,0] {thr} scaleb - A max" : "")
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a,    str)  :    Expr(a, str,  "")                           :      \
-                       Expr(a,    str,  ex_UVexpr(a, str,  UV, bi), scale_inputs="none")
-    mode == "square" ? fbox ?     last  :                                                       \
-    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                           :      \
-                       Expr(last, strh, ex_UVexpr(a, strh, UV, bi), scale_inputs="none") : last }
+    UV == 1 ? isy(a) ? Expr(a,    str)  :      Expr(a, str,  "")                           :      \
+                       Expr(a,    str,  ex_UVexpr(rgb, str,  UV, bi), scale_inputs="none")
+    mode == "square" ? fbox ?     last  :                                                         \
+    UV == 1 ? isy(a) ? Expr(last, strh) :   Expr(last, strh, "")                           :      \
+                       Expr(last, strh, ex_UVexpr(rgb, strh, UV, bi), scale_inputs="none") : last }
 
 
 # mt_deflate() is 18% faster (lower gap with bigger radius)
 function ex_deflate(clip a, int "radius", int "UV") {
 
+    rgb  = isRGB(a)
+
     rd = Default(radius, 1)
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, rgb ? 3 : 1)
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -538,15 +574,17 @@ function ex_deflate(clip a, int "radius", int "UV") {
     str = ReplaceStr(krn, "x[0,0] + ", "") + string(krnlsz*krnlsz-1) + " / x[0,0] min"
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                         : \
-                       Expr(a, str, ex_UVexpr(a, str, UV, bi), scale_inputs="none") }
+    UV == 1 ? isy(a) ? Expr(a, str) :      Expr(a, str, "")                           : \
+                       Expr(a, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs="none") }
 
 
 # mt_inflate() is 17% faster (lower gap with bigger radius)
 function ex_inflate(clip a, int "radius", int "UV") {
 
+    rgb  = isRGB(a)
+
     rd = Default(radius, 1)
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, rgb ? 3 : 1)
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -561,78 +599,102 @@ function ex_inflate(clip a, int "radius", int "UV") {
     str = ReplaceStr(krn, "x[0,0] + ", "") + string(krnlsz*krnlsz-1) + " / x[0,0] max"
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                           : \
-                       Expr(a, str, ex_UVexpr(a, str, UV, bi), scale_inputs="none") }
+    UV == 1 ? isy(a) ? Expr(a, str) :      Expr(a, str, "")                           : \
+                       Expr(a, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs="none") }
 
 
 # mt_edge() is 18% faster (varies with kernel)
 function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV") {
 
+    rgb  = isRGB(a)
+
     mode = Default(mode, "sobel")
     lo   = Default(lo, 10)
     hi   = Default(hi, 10)
-    UV   = Default(UV, isRGB(a) ? 3 : 1)
+    UV   = Default(UV, rgb ? 3 : 128)
 
     th  = (lo == 0) && (hi == 255) ? "" : "T@ {lo} scaleb < range_min T {hi} scaleb > range_max T ? ?"
-    str = Format(                                                                                                                               \
-          mode=="prewitt" ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                            \
-                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "            \
-                             +"G A + B + F - H - E - D G + E + C - H - B - max E H + F + B - A - G - B H + C + E - G - D - max max max "+th+"": \
-          mode=="hprewitt"? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                   \
-                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "+th+""    : \
-          mode=="sobel"   ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 2 / "+th+""                            : \
-          mode=="roberts" ? "x[0,0] 2 * A^ x[1,0] B^ x[0,1] C^ A B - C - B A - C + max 2 / "+th+""                                            : \
-          mode=="laplace" ? "x[0,0] 8 * A^ x[-1,1] B^ x[0,1] C^ x[1,1] D^ x[-1,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "              \
-                            +"A B - C - D - E - F - G - H - I - B C + D + E + F + G + H + I + A - max 8 / "+th+""                             : \
-          mode=="cartoon" ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                           : \
-          mode=="min/max" ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                  \
-                            +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""   : \
-                             mode )
-
+    str = Format(                                                                                                                                                                           \
+          mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                      \
+                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "                                                        \
+                             +"G A + B + F - H - E - D G + E + C - H - B - max E H + F + B - A - G - B H + C + E - G - D - max max max "+th+""                                            : \
+          mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                             \
+                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "+th+""                                                : \
+          mode=="sobel"     ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 2 / "+th+""                                                                      : \
+          mode=="scharr"    ? "x[-1,1] 3 * A^ x[0,1] B^  x[1,1] 3 * C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] 3 * F^ x[0,-1] G^  x[1,-1] 3 * H^ "                                                    \
+                             +"C A - D 10 * - E 10 * + F - H + 3 / U@ U * H G 10 * + F + C - B 10 * - A - 3 / V@ V * + sqrt "+th+""                                                       : \
+          mode=="frei-chen" ? "x[-1,1] 7 * A^ x[0,1] B^  x[1,1] 7 * C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] 7 * F^ x[0,-1] G^  x[1,-1] 7 * H^ "                                                    \
+                             +"C A - D 10 * - E 10 * + F - H + 7 / U@ U * H G 10 * + F + C - B 10 * - A - 7 / V@ V * + sqrt "+th+""                                                       : \
+          mode=="roberts"   ? "x[0,0] 2 * A^ x[1,0] B^ x[0,1] C^ A B - C - B A - C + max 2 / "+th+""                                                                                      : \
+          mode=="kayyali"   ? "x[1,1] 6 * A^ x[-1,1] 6 * B^ x[-1,-1] 6 * C^ x[1,-1] 6 * D^ B A - C + D - A B - C - D + max 2 / "+th+""                                                    : \
+          mode=="robinson"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                                      \
+                             +"C A - D 2 * - E 2 * + F - H +     B C 2 * + D - E + F 2 * - G - max     A B 2 * + C + F - G 2 * - H - max     A 2 * B + D + E - G - H 2 * - max "            \
+                             +"A C - D 2 * + E 2 * - F + H - 0 B - C 2 * - D + E - F 2 * + G + max 0 A - B 2 * - C - F + G 2 * + H + max 0 A 2 * - B - D - E + G + H 2 * + max max "+th+"": \
+          mode=="FDoG"      ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] 2 * G^ x[0,1] H^ x[1,1] 2 * I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ "                      \
+                             +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] 2 * Q^ x[0,-1] R^ x[1,-1] 2 * S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] W^ x[1,-2] X^ x[2,-2] Y^ "              \
+                             +"A B + D - E - F 2 * + G + I - J 2 * - K 3 * + L 3 * + N 3 * - O 3 * - P 2 * + Q + S - T 2 * - U + V + X - Y - 2 / M@ M * "                                   \
+                             +"U V 2 * + W 3 * + X 2 * + Y + P + Q + R 3 * + S + T + F - G - H 3 * - I - J - A - B 2 * - C 3 * - D 2 * - E - 2 / N@ N * + sqrt "+th+""                    : \
+          mode=="DoG"       ? "x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ "                  \
+                             +"A 2 * B C D E + + + + 6 / N@ F G H I B 2 * E 2 * D 2 * C 2 * J K L M A 4 * + + + + + + + + + + + + 20 / O@ - abs 0.25 scaleb > N O - 2.0 * N ? "+th+""     : \
+          mode=="LoG"       ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * - "+th+""    : \
+          mode=="laplace"   ? "x[0,0] 8 * A^ x[-1,1] B^ x[0,1] C^ x[1,1] D^ x[-1,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "                                                        \
+                             +"A B - C - D - E - F - G - H - I - B C + D + E + F + G + H + I + A - max 8 / "+th+""                                                                        : \
+          mode=="cartoon"   ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                                                                     : \
+          mode=="TEdge"     ? "x[-2,0] 12 * x[-1,0] 74 * - x[1,0] 74 * + x[2,0] 12 * - 6 / A@ A * x[0,-2] 12 * x[0,-1] 74 * - x[0,1] 74 * + x[0,2] 12 * - 6 / B@ B * + sqrt "+th+""       : \
+          mode=="min/max"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                            \
+                             +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""                                              : \
+                             mode )                                                                                                                                                       
+                                                                                                                                                                                          
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                                  : \
-                       Expr(a, str, ex_UVexpr(a, str, UV, bi), scale_inputs=ex_UVf(a, bi)) }
+    UV == 1 ? isy(a) ? Expr(a, str) :      Expr(a, str, "")                                    : \
+                       Expr(a, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # removegrain(1,-1) is 21% faster
 function ex_undot(clip a, int "radius", int "UV") {
 
+    rgb  = isRGB(a)
+
     rd = Default(radius, 1)            # beware; not real radius -bigger kernel-, but further apart
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, rgb ? 3 : 1)
 
     str = Format("x[-{rd},{rd}] A^ x[0,{rd}] B^ x[{rd},{rd}] C^ x[-{rd},0] D^ x[{rd},0] F^ x[-{rd},-{rd}] G^ x[0,-{rd}] H^ x[{rd},-{rd}] I^ "  \
                 +"x[0,0] A B min C D min min F G min H I min min min A B max C D max max F G max H I max max max clip")
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, str) :    Expr(a, str, "")                           : \
-                       Expr(a, str, ex_UVexpr(a, str, UV, bi), scale_inputs="none") }
+    UV == 1 ? isy(a) ? Expr(a, str) :      Expr(a, str, "")                           : \
+                       Expr(a, str, ex_UVexpr(rgb, str, UV, bi), scale_inputs="none") }
 
 
 # This is repair(mode=1)
 function ex_repair(clip a, clip b, int "radius", int "UV") {
 
+    rgb  = isRGB(a)
+
     rd = Default(radius, 1)            # beware; not real radius -bigger kernel-, but further apart
-    UV = Default(UV, isRGB(a) ? 3 : 1)
+    UV = Default(UV, rgb ? 3 : 1)
 
     str = Format("y[-{rd},{rd}] A^ y[0,{rd}] B^ y[{rd},{rd}] C^ y[-{rd},0] D^ y[{rd},0] F^ y[-{rd},-{rd}] G^ y[0,-{rd}] H^ y[{rd},-{rd}] I^ "  \
                 +"x[0,0] A B min C D min min F G min H I min min min A B max C D max max F G max H I max max max clip")
 
     bi = BitsPerComponent(a)
-    UV == 1 ? isy(a) ? Expr(a, b, str) :    Expr(a, b, str, "")                           : \
-                       Expr(a, b, str, ex_UVexpr(a,    str, UV, bi), scale_inputs="none") }
+    UV == 1 ? isy(a) ? Expr(a, b, str) :      Expr(a, b, str, "")                           : \
+                       Expr(a, b, str, ex_UVexpr(rgb,    str, UV, bi), scale_inputs="none") }
 
 
 ######### UV HELPER FUNCTIONS #########
 
-function ex_UVexpr(clip a, string "str", int "UV", int "bits") {
+function ex_UVexpr(bool "rgb", string "str", int "UV", int "bits") {
 
+    rgb  = Default(rgb, false)
     UV   = Default(UV, 1)
     str  = Default(str, "")
     bits = Default(bits, 8)
 
+
     bd = bits == 32 ? 0.5 : 0
 
-    str = isRGB(a) ? str : ReplaceStr(str, "ymax", "cmax")
+    str = rgb ? str : ReplaceStr(str, "ymax", "cmax")
 
     # Undefined "0" is the same as "" (when not single planed)
     str = UV == 1   ? ""          : \
@@ -646,7 +708,7 @@ function ex_UVexpr(clip a, string "str", int "UV", int "bits") {
 
     return str }
 
-function ex_Yexpr(clip a, string "str", int "Y") {
+function ex_Yexpr(string "str", int "Y") {
 
     Y   = Default(Y, 3)
     str = Default(str, "")
@@ -663,9 +725,10 @@ function ex_Yexpr(clip a, string "str", int "Y") {
     return str }
 
 
-function ex_UVf(clip a, int bits) {
+function ex_UVf(bool rgb, int bits, int "tv_range") {
 
-    bits == 32 ? "floatUV" : "none" }
+    tv_r = Default(tv_range, !rgb)
+    bits == 32 ? "floatUV" : tv_r ? "none" : "allf" }
 
 
 function mskY_to_YUV(clip a, clip msk, bool "luma", int "UV", int "bits") {
