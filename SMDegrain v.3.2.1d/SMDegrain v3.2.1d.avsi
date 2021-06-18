@@ -159,9 +159,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     nw = round(w/2.0)
     nh = round(h/2.0)
-    pref       = pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr,tv_in)   : pref
-    pref8      = SBitsn > 8 ? pref.ConvertBits(8,dither=-1)        : pref
-    pref8      = isUHD      ? pref8.SimpleResize(nw+nw%2, nh+nh%2) : pref8
+    pref       = pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr,tv_range=tv_in)
+    pref8      = SBitsn > 8 ? pref.ConvertBits(8,dither=-1)               : pref
+    pref8      = isUHD      ? pref8.SimpleResize(nw+nw%2, nh+nh%2)        : pref8
 
 
     If (sShow ? false : !Show) {
