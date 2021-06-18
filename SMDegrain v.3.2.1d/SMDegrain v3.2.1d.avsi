@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.0d      by Dogway - 11 June 2021                              ###
+###                       v3.2.1d      by Dogway - 18 June 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -25,7 +25,7 @@
 ################################################################################################
 
 
-function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , bool "interlaced" , int   "plane" , int   "Globals"  ,                                  \
+function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , bool "interlaced" , int   "plane" , int   "Globals"  , bool   "tv_range",               \
                      int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "search"    , bool "truemotion" , float "limit" , float "limitc"   , int "thSCD1"   , int "thSCD2",   \
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "dct"       , int "searchparam", int "pelsearch",                                                     \
                   int "device_id", bool "trymany", int "divide"   , int "srfilter", int "threads") {
@@ -60,6 +60,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     isMult  = tr > 6     # MDegrainN is slower, so avoid at possible
     isUHD   = (w > 2599 ||  h > 1499)
     isHD    = (w > 1099 ||  h > 599)
+    tv_in   = Default(tv_range, !isRGB(input))
     isInter = interlaced ? GetParity(input) : nop()
 
 
@@ -69,7 +70,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     prefilter    = Default( prefilter, -1 )
     MFilterB     = Defined( mfilter )
     pelclip      = pel>1 && subpixel == 3
-    Str          = Default( Str, 1.0 )
+    Str          = Default( Str, 2.0 )
     Amp          = Default( Amp, 0.0625 )
 
     blksize      = Default( blksize,  isHD ? 16 : 8 )
@@ -93,9 +94,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
     hpad         = Default( hpad, isHD ? 0 : blksize)
-    hpadU        = isUHD ? hpad/2+hpad/2%2 : hpad
+    hpadU        = isUHD ? hpad/2+(hpad/2)%2 : hpad
     vpad         = Default( vpad, isHD ? 0 : blksize)
-    vpadU        = isUHD ? vpad/2+vpad/2%2 : hpad
+    vpadU        = isUHD ? vpad/2+(vpad/2)%2 : hpad
     vpad         = Default( vpad, isHD ? 0 : blksize)
     limit        = Default( limit,  isUHD ? 2 : 255 )  # auto-scaled
     limitc       = Default( limitc, limit)
@@ -158,19 +159,19 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     nw = round(w/2.0)
     nh = round(h/2.0)
-    pref       = !isRGB(input) ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr) : pref
-    pref8      = SBitsn > 8    ? pref.ConvertBits(8,dither=-1)             : pref
-    pref8      = isUHD         ? pref8.SimpleResize(nw+nw%2, nh+nh%2)      : pref8
+    pref       = pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr,tv_in)   : pref
+    pref8      = SBitsn > 8 ? pref.ConvertBits(8,dither=-1)        : pref
+    pref8      = isUHD      ? pref8.SimpleResize(nw+nw%2, nh+nh%2) : pref8
 
 
     If (sShow ? false : !Show) {
 
         # Subpixel 3
 
-        pclip  = pelclip             ? pel==4 ? pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) :  \
-                                                pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) : nop()
-        pclip2 = pelclip && !GlobalR ? pel==4 ? input.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) :  \
-                                                input.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) : nop()
+        pclip  = pelclip             ? pel==4 ?  pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) :  \
+                                                 pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) : nop()
+        pclip2 = pelclip && !GlobalR ? pel==4 ? inputP.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) :  \
+                                                inputP.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads/2,prefetch=threads,SetAffinity=true,MaxPhysCore=false) : nop()
 
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
@@ -483,13 +484,13 @@ function MCDegrainModex(clip c, int "frames", clip "srch", bool "soft", int "thS
 function ex_ContraSharpeningHD(clip denoised, clip original, bool "HD", int "overshoot") {
 
     HD        = Default(HD    ,false)
-    overshoot = Default(overshoot,0)
+    overshoot = Default(overshoot, 0)
 
     HD ? Eval("""
     cb1  = original.MCompensate(Super, cb1)
     cf1  = original.MCompensate(Super, cf1)
-    pmax = original.ex_logic(cb1, "max").ex_logic(cf1, "max")
-    pmin = original.ex_logic(cb1, "min").ex_logic(cf1, "min")""") : nop()
+    pmax = original.mt_logic(cb1, "max").mt_logic(cf1, "max")
+    pmin = original.mt_logic(cb1, "min").mt_logic(cf1, "min")""") : nop()
 
     s    = denoised.ex_MinBlur(HD?2:1,1)                                      # Damp down remaining spots of the denoised clip.
 
@@ -596,27 +597,30 @@ function ex_sbr(clip c, int "r", int "y", int "U", int "V") {
 # Converts luma (and chroma) to PC levels, and optionally allows tweaking for pumping up the darks. (for the clip to be fed to motion search only)
 # By courtesy of cretindesalpes.
 
-function ex_Luma_Rebuild (clip src, float "s0", float "c", int "y", int "uv") {
+function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bool "tv_range") {
 
-    y     = Default(y,       3)
-    uv    = Default(uv,      3)
+    rgb   = isrgb(src)
+
+    Y     = Default(Y,       3)
+    UV    = Default(UV,      3)
     s0    = Default(s0,    1.0)
     c     = Default(c,  1.0/16)
+    tv    = Default(tv_range,  !rgb)
 
-    Assert(!(src.isrgb()), "ex_Luma_Rebuild: RGB Color format is not supported" )
+    Assert(!rgb, "ex_Luma_Rebuild: RGB Color format is not supported" )
 
     k = (s0 - 1) * c
+    l = 1 - k
     d = 1 + c
     f = d * c
-    t = "x ymin - ymax ymin - /"
-    e = S0 != 1.0 ? Format("{k} {d} {f} "+t+" A@ {c} + / - * A 1 {k} - * + range_max *") : \
+    t = tv ? "x ymin - ymax ymin - /" : "x range_max /"
+    e = S0 != 1.0 ? Format("{k} {d} {f} "+t+" A@ {c} + / - * A {l} * + range_max *") : \
                     Format("x ymin - range_max ymax ymin - / *")
 
-    ec = "x range_half - range_max cmax cmin - / * range_half +"
+    ec = tv ? "x range_half - range_max cmax cmin - / * range_half +" : "x"
 
     bi = BitsPerComponent(src)
-    ex_lut(src, ex_Yexpr(src,e,Y), ex_UVexpr(src,ec,UV,bi), Y=y, UV=uv) }
-
+    ex_lut(src, ex_Yexpr(e,Y), ex_UVexpr(rgb,ec,UV,bi), Y=y, UV=uv) }
 
 
 # ex_KNLMeansCL
