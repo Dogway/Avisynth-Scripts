@@ -615,7 +615,8 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     f = d * c
     t = tv ? "x ymin - ymax ymin - /" : "x range_max /"
     e = S0 != 1.0 ? Format("{k} {d} {f} "+t+" A@ {c} + / - * A {l} * + range_max *") : \
-                    Format("x ymin - range_max ymax ymin - / *")
+        tv        ? Format("x ymin - range_max ymax ymin - / *")                     : \
+                           "x"
 
     ec = tv ? "x range_half - range_max cmax cmin - / * range_half +" : "x"
 
