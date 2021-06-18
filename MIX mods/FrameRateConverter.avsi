@@ -6,7 +6,7 @@
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (1.3.1) replaced masktools2 with internal Expr() wrappers, + cosmetics. (Requires ExTools.avsi and AviSynth+ 3.5+)
+# Dogway (1.3.3) (18-06-2021) replaced masktools2 with internal Expr() wrappers, + cosmetics. (Requires ExTools.avsi and AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 ### Increases the frame rate with interpolation and fine artifact removal.
 ##
 ## YV12/YV24/Y8/YUY2
-## Requires: FrameRateConverter.dll, MaskTools2, MvTools2 (pinterf), GRunT (for debug only)
+## Requires: FrameRateConverter.dll, MaskTools2, MvTools2 (pinterf), GRunT (for debug only), ExTools, and Utils-r41
 ##
 ## @ NewNum      - The new framerate numerator (if FrameDouble = false, default = 60)
 ##
@@ -44,13 +44,13 @@
 ##                 750-1199: 16
 ##                 1200-1699: 24
 ##                 1600-2160: 32
-## 
+##
 ## @ BlkSizeV    - The vertical block size. (default = BlkSize)
-## 
+##
 ## @ FrameDouble - Whether to double the frame rate and preserve original frames (default = true)
 ##
 ## @ Output      - Output mode [auto|flow|over|none|raw|mask|skip|diff|stripe] (default = auto)
-##                 auto=normal artifact masking; flow=interpolation only; over=mask as cyan overlay, stripes mask as yellow; none=ConvertFPS only; raw=raw mask; 
+##                 auto=normal artifact masking; flow=interpolation only; over=mask as cyan overlay, stripes mask as yellow; none=ConvertFPS only; raw=raw mask;
 ##                 mask=mask only; skip=mask used to Skip; diff=mask where alternate interpolation is better; stripe=mask used to cover stripes
 ##
 ## @ Debug       - Whether to display AverageLuma values of Skip, Mask and Raw. (Default = false)
@@ -68,18 +68,18 @@
 ## @ BlendOver   - Try fallback block size when artifacts cover more than specified threshold, or 0 to disable.
 ##                 If it fails again, it will revert to frame blending. (default = 70)
 ##
-## @ SkipOver    - Skip interpolation of frames when artifacts cover more than specified threshold, 
+## @ SkipOver    - Skip interpolation of frames when artifacts cover more than specified threshold,
 ##                 or 0 to disable. (Default = 210)
-##                 
+##
 ## @ Stp         - Whether to detect and blend stripes (default=true)
 ##
 ## @ Dct         - Overrides DCT parameter for MAnalyse (default: Normal=0, Slow=4, Slowest=1)
-##                 
+##
 ## @ DctRe       - Overrides DCT parameter for MRecalculate (default: Fast=0, Normal=4, Slowest=1)
 ##
 ## @ BlendRatio  - Changes the blend ratio used to fill artifact zones. 0 = frame copy and 100 = full blend.
 ##                 Other values provide a result in-between to eliminate ghost effects. Default = 40.
-##                 
+##
 ##
 ## Presets
 ## Faster:  Basic interpolation
@@ -102,8 +102,7 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     OPut = Output == "auto" ? O_AUTO : Output == "flow" ? O_FLOW : Output == "over" ? O_OVER : Output == "none" ? O_NONE : Output == "raw" ? O_RAW : Output == "mask" ? O_MASK : Output == "skip" ? O_SKIP : Output == "diff" ? O_DIFF : Output == "stripe" ? O_STRIPE : -1
     Assert(OPut != -1, "FrameRateConverter: 'Output' not one of (auto|flow|none|mask|skip|raw|diff|over) {'" + Output + "'}")
     Stp = Default(Stp, true)
-    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
-
+    
     FrameDouble = Default(FrameDouble, !Defined(NewNum))
     NewNum      = FrameDouble ? C.FrameRateNumerator() * 2 : Default(NewNum, 60)
     NewDen      = FrameDouble ? C.FrameRateDenominator()   : Default(NewDen, 1)
@@ -128,6 +127,7 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     Dct         = Default(Dct, PSET <= P_SLOWEST ? 1 : PSET <= P_SLOW ? 4 : 0)
     CalcDiff    = Pset <= P_SLOWER
 
+    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
     Assert(MaskThr >= 0 && MaskThr <= 255, String(MaskThr, "FrameRateConverter: MaskThr must be between 0 and 255 {%.f}"))
     Assert(MaskOcc >= 0 && MaskOcc <= 255, String(MaskOcc, "FrameRateConverter: MaskOcc must be between 0 and 255 {%.f}"))
     Assert(SkipThr < MaskThr, "FrameRateConverter: SkipThr must be lower (stronger) than MaskThr")
@@ -154,13 +154,14 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     dct_pow  = !Recalculate ?  1 : DctRe==3 ? 1.09 : DctRe==2 ? 1.10 : DctRe==4 ? 1.28 : DctRe==1 ? 1.32 : 1
 
     ## jm_fps interpolation
-    superfilt =             MSuper(prefilter.ConvertBits(8,dither=-1), hpad=16, vpad=16,           sharp=1, rfilter=4)             # all levels for MAnalyse
-    super = CalcPrefilter ? MSuper(        C.ConvertBits(8,dither=-1), hpad=16, vpad=16, levels=1, sharp=1, rfilter=4) : superfilt # one level is enough for MRecalculate
+    superfilt =              MSuper(prefilter.ConvertBits(8,dither=-1), hpad=16, vpad=16,           sharp=1, rfilter=4)             # all levels for MAnalyse
+    super  = CalcPrefilter ? MSuper(        C.ConvertBits(8,dither=-1), hpad=16, vpad=16, levels=1, sharp=1, rfilter=4) : superfilt # one level is enough for MRecalculate
+    superR =                 MSuper(        C,                          hpad=16, vpad=16, levels=1, sharp=1, rfilter=4)
     bak =         MAnalyse(superfilt, isb=true,  mt=true, blksize=BlkSize,  blksizev=BlkSizeV,   overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=Dct)
     fwd =         MAnalyse(superfilt, isb=false, mt=true, blksize=BlkSize,  blksizev=BlkSizeV,   overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=Dct)
     fwd = Recalculate ? MRecalculate(super, fwd, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe) : fwd
     bak = Recalculate ? MRecalculate(super, bak, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe) : bak
-    Flow = MFlowFps(C.ConvertBits(8,dither=-1), super, bak, fwd, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255).ConvertBits(BitsPerComponent(C))
+    Flow = MFlowFps(C, superR, bak, fwd, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255)
 
     ## "EM" - error or artifact mask
     # Mask: SAD
@@ -173,14 +174,14 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     # Mask: Occlusion
     EMocc = MaskOcc > 0 ? C_luma.MMask(bak, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand() : Blank
     EM    = MaskOcc > 0 ? ex_blend(EM,EMocc,"lighten",0.4,UV=1,tv_range=false) : EM
-    EM    = dct_mult!=1 || dct_pow!=1 ? Expr(EM,Format("x {dct_mult} * {dct_pow} ^")) : EM
+    EM    = dct_mult!=1 || dct_pow!=1 ? ex_lut(EM,Format("x {dct_mult} * {dct_pow} ^")) : EM
 
     ## For CalcDiff, calculate a 2nd version and create mask to restore from 2nd version the areas that look better
     bak2  = CalcDiff ?          MAnalyse(superfilt, isb=true,  mt=true, blksize=BlkSize,   blksizev=BlkSizeV,  overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=0)    : nop()
     fwd2  = CalcDiff ?          MAnalyse(superfilt, isb=false, mt=true, blksize=BlkSize,   blksizev=BlkSizeV,  overlap = BlkSize>4?(BlkSize/4+1)/2*2:0,   overlapv = BlkSizeV>4?(BlkSizeV/4+1)/2*2:0, search=3, dct=0)    : nop()
     fwd2  = CalcDiff ? Recalculate ? MRecalculate(super, fwd2, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100) : fwd : nop()
     bak2  = CalcDiff ? Recalculate ? MRecalculate(super, bak2, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100) : bak : nop()
-    Flow2 = CalcDiff ? MFlowFps(C.ConvertBits(8,dither=-1), super, bak2, fwd2, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255).ConvertBits(BitsPerComponent(C)) : nop()
+    Flow2 = CalcDiff ? MFlowFps(C, superR, bak2, fwd2, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255) : nop()
     # Get raw mask again
     EM2    = CalcDiff ? MaskThr > 0 ? C_luma.MMask(bak2, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank : nop()
     EMfwd2 = CalcDiff ? MaskThr > 0 ? C_luma.MMask(fwd2, ml=255, kind=1, gamma=1/gam, thSCD2=SkipOver) : EM2 : nop()
@@ -188,11 +189,11 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     EMocc2 = CalcDiff ? MaskOcc > 0 ? C_luma.MMask(bak2, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand() : Blank : nop()
     EM2    = CalcDiff ? MaskOcc > 0 ? ex_blend(EM2,EMocc2,"lighten",0.4,UV=1,tv_range=false) : EM2 : nop()
     # Get difference mask between two versions
-    EMdiff = CalcDiff ? Expr(EM, EM2,"x y -")
+    EMdiff = CalcDiff ? ex_makediff(EM, EM2, dif=false)
     \       .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
     \       .ex_expand(2,mode="circle")
     \       .ex_binarize(60)
-    \       .FRC_GaussianBlur42(1.2)
+    \       .ex_blur(3)
     \       .BicubicResize(C.Width(), C.Height()) : nop()
     # Apply mask to Flow / EM
     EMdiff = CalcDiff ? OutFps ? EMdiff.ChangeFPS(NewNum, NewDen) : EMdiff : nop()
@@ -208,13 +209,13 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     \       .ex_expand(1,mode="circle")
     \       .ex_binarize(SkipThr)
     OutSkip = EMskip.BicubicResize(C.Width(), C.Height())
-    
+
     ## Create artifact correction mask
     OutRaw = EM
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
     \       .ex_expand(1,mode="circle")
     \       .ex_binarize(MaskThr)
-    \       .Blur(.6)
+    \       .removegrain(12)
     \       .BicubicResize(C.Width(), C.Height())
 
     # Mask: Stripes
@@ -227,21 +228,21 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     \      .ex_expand(2,mode="circle").ex_expand(2,mode="square").ex_expand(2,mode="circle").mt_expand()
     \      .FRC_GaussianBlur42(2.8)
     \      .BicubicResize(C.Width(), C.Height())
-    
+
     ## "M" - Apply artifact removal
-    EM     = OutFps ?     EM.ChangeFPS(NewNum, NewDen) : EM
-    EMskip = OutFps ? EMskip.ChangeFPS(NewNum, NewDen) : EMskip
-    EMstp  = OutFps ?  EMstp.ChangeFPS(NewNum, NewDen) : EMstp
+    EM     =   OutFps ?     EM.ChangeFPS(NewNum, NewDen) : EM
+    EMskip =   OutFps ? EMskip.ChangeFPS(NewNum, NewDen) : EMskip
+    EMstp  =   OutFps ?  EMstp.ChangeFPS(NewNum, NewDen) : EMstp
     M =        OutFps ? mt_merge(Flow, B, EM.MatchColorFormat(Flow,"PC.601"), luma=true, U=3,V=3) : Flow
     M = Stp && OutFps ? mt_merge(M, B, EMstp.MatchColorFormat(Flow,"PC.601"), luma=true, U=3,V=3) : M
 
     ## Apply BlendOver and SkipOver
-    M2 = SkipOver > 0 ? ConditionalFilterMT(EMskip, B, BHard, "AverageLuma", "<", string(SkipOver))  : B
-    M = BlendOver > 0 ? ConditionalFilterMT(EMskip, M, M2,    "AverageLuma", "<", string(BlendOver)) : M
+    M2 = SkipOver > 0 ? ConditionalFilter(EMskip, B, BHard, "AverageLuma", "<", string(SkipOver))  : B
+    M = BlendOver > 0 ? ConditionalFilter(EMskip, M, M2,    "AverageLuma", "<", string(BlendOver)) : M
 
     # Prepare Output=Over: Mask(cyan), Stripes(yellow)
-    FlowOver =       ex_blend(Flow,    MergeRGB(Blank, EM, EM).MatchColorFormat(Flow,"PC.601"),          "add",0.4,UV=1,tv_range=false)
-    FlowOver = Stp ? ex_blend(FlowOver,MergeRGB(EMstp, EMstp, Blank).MatchColorFormat(FlowOver,"PC.601"),"add",0.4,UV=1,tv_range=false) : FlowOver
+    FlowOver =       ex_blend(Flow,    CombinePlanes(Blank, EM, EM,       planes="RGB").MatchColorFormat(Flow,    "PC.601"),"add",0.4,UV=1,tv_range=false)
+    FlowOver = Stp ? ex_blend(FlowOver,CombinePlanes(EMstp, EMstp, Blank, planes="RGB").MatchColorFormat(FlowOver,"PC.601"),"add",0.4,UV=1,tv_range=false) : FlowOver
 
     # Output modes
     R= (Oput==O_AUTO)                               [** auto: artifact masking     *]
@@ -268,13 +269,13 @@ function FrameRateConverter(clip C, int "NewNum", int "NewDen", string "Preset",
     ShowRaw = OutFps ? OutRaw.ChangeFPS(NewNum, NewDen) : OutRaw
     R = Debug ? R.ScriptClip("""Skip = EMskip.AverageLuma()
     \           SkipSoft = BlendOver > 0 && Skip >= BlendOver && (Skip < SkipOver || SkipOver == 0)
-    \           Subtitle("BlkSize: " + string(BlkSize) + 
+    \           Subtitle("BlkSize: " + string(BlkSize) +
     \           (SkipSoft ? " - Blend" : "") +
     \           (SkipOver > 0 && Skip >= SkipOver ? " - Skip" : "") +
-    \           "\nSkip:  " + string(Skip, "%.4f") + 
-    \           "\nRaw:  " + string(ShowRaw.AverageLuma, "%.4f") + 
-    \           "\nMask: " + string(EM.AverageLuma, "%.4f") + 
-    \           (CalcDiff ? "\nDiff:    " + string(EMdiff.AverageLuma, "%.4f") : "") + 
+    \           "\nSkip:  " + string(Skip, "%.4f") +
+    \           "\nRaw:  " + string(ShowRaw.AverageLuma, "%.4f") +
+    \           "\nMask: " + string(EM.AverageLuma, "%.4f") +
+    \           (CalcDiff ? "\nDiff:    " + string(EMdiff.AverageLuma, "%.4f") : "") +
     \           (Stp ? "\nStripes: " + string(EMstp.AverageLuma, "%.4f") : "")
     \           , lsp=0)""", args = "EM,EMskip,EMstp,EMdiff,ShowRaw,BlkSize,SkipOver,BlendOver,CalcDiff,Stp", Local=true) : R
     return R
@@ -302,15 +303,15 @@ function InterpolateDoubles(clip C, float "Thr", bool "Show", string "Preset", i
     Flow = FrameRateConverter(C, FrameDouble=true, Preset=preset, BlkSize=BlkSize, BlkSizeV=BlkSizeV, MaskThr=MaskThr, MaskOcc=MaskOcc, SkipThr=SkipThr, BlendOver=BlendOver, SkipOver=SkipOver, Stp=Stp, Dct=Dct, DctRe=DctRe).SelectOdd()
     Flow = (Show) ? Flow.Subtitle("FRAME FIXED",size=30,text_color=$0000FF,align=5) : Flow
 
-    return ConditionalFilterMT(PrevC, Flow, C, "YDifferenceToNext", "lessthan", string(thr))
+    return ConditionalFilter(PrevC, Flow, C, "YDifferenceToNext", "lessthan", string(thr))
 }
 
 
 
 
 #######################################################################
-### Emulate [[VariableBlur/GaussianBlur]] 
-##  For YUV, effective chroma blur varies depending on source 
+### Emulate [[VariableBlur/GaussianBlur]]
+##  For YUV, effective chroma blur varies depending on source
 ##  color subsampling - YUV444 has *more* chroma blur, others less.
 ##
 ## @ var - works like GaussianBlur's varY
@@ -319,11 +320,11 @@ function InterpolateDoubles(clip C, float "Thr", bool "Show", string "Preset", i
 ## @ p  - final [[GaussResize]] sharpness. Default 19
 ##        (if > 25, blockiness; if < 15, loss of contrast)
 ##
-## version 2013-10-23 raffriff42 
+## version 2013-10-23 raffriff42
 ## version 2014-05-31 discrete hor. and vert. args
 ## version 2017-05-21 bugfix: blockiness
 ##
-function FRC_GaussianBlur42(clip C, 
+function FRC_GaussianBlur42(clip C,
 \               float "var", float "rad",
 \               float "vvar", float "vrad", float "p")
 {
@@ -339,15 +340,15 @@ function FRC_GaussianBlur42(clip C,
     w0 = C.Width()
     h0 = C.Height()
     w1 = Round(w0/rad)
-    h1 = Round(h0/vrad) 
+    h1 = Round(h0/vrad)
 
     B = C.BilinearResize(
-    \         Min(Max(4, w1 + (w1 % 2)), w0), 
+    \         Min(Max(4, w1 + (w1 % 2)), w0),
     \         Min(Max(4, h1 + (h1 % 2)), h0))
 
     B = B.removegrain(12).removegrain(12)
-    
-    return (var<0.01 && vvar<0.01)       ? C 
+
+    return (var<0.01 && vvar<0.01)       ? C
     \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize(w0, h0, p=p)
     \                                    : B.BilinearResize(w0, h0)
 }
