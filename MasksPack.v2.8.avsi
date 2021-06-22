@@ -71,7 +71,7 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
     raw   = Default(raw, filtered)
 
     exten = Default(extend, false)
-    str   = string(Default(str, exten ? 10 : 6)) # Strength of the mask, the higher -> more detail protection
+    str   = Default(str, exten ? 10 : 6)         # Strength of the mask, the higher -> more detail protection
     r     = Default(r, exten ? 2 : 3)            # Mask blurriness
 
     luma  = Default(luma,true)                   # Enables dark zones to be masked out (for filtering) independent of detail
@@ -102,7 +102,8 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
     BicubicResize (w, h, 1, 0)
 
     var  = show  ? 128 : 1
-    code = upper ? "range_max x 10 scalef - "+str+" * -" : "x 10 scalef - "+str+" *"
+    up   = ex_bs(10, bi, fs)
+    code = ex_dlut(Format(upper ? "range_max x {up} - {str} * -" : "x {up} - {str} *"), bi, fs)
     msk  = ex_lut (code,UV=var,fulls=fs)
     msk  = exten ? !upper ? msk.ex_invert(fulls=fs).ex_expand(2).ex_invert(fulls=fs).ex_inpand(2) : msk.mt_expand() : msk
     show ? msk : mt_merge(filtered,raw,msk,luma=true, y=3, u=3, v=3) }
@@ -189,10 +190,10 @@ UV       = Default(UV,  !isy ? 128 : 1)
 LO       = ex_bs(LO,bi,fs)
 HI       = ex_bs(HI,bi,fs)
 
-code     = upper ? "x {LO} < range_max x {HI} > 0 range_max   x {LO} - range_max {HI} {LO} - / * - ? ?" : \
-                   "x {LO} < 0         x {HI} >   range_max 0 x {LO} - range_max {LO} {HI} - / * - ? ?"
+code     = upper ? Format("x {LO} < range_max x {HI} > 0 range_max   x {LO} - range_max {HI} {LO} - / * - ? ?") : \
+                   Format("x {LO} < 0         x {HI} >   range_max 0 x {LO} - range_max {LO} {HI} - / * - ? ?")
 
-str      = ex_dlut(Format(code), bi,  fs)
+str      = ex_dlut(code, bi, fs)
 cstr     = ex_UVexpr("", UV, bi, rgb, fs)
 
 msk      = Expr(raw, str, cstr, scale_inputs=ex_UVf(bi))
