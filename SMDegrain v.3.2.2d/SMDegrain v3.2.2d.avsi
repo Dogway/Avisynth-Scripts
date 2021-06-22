@@ -589,7 +589,6 @@ function ex_sbr(clip c, int "r", int "y", int "U", int "V", bool "fulls") {
 function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bool "tv_range", bool "fulls") {
 
     rgb   = isrgb(src)
-    bi    = BitsPerComponent(src)
 
     Y     = Default(Y,       3)
     UV    = Default(UV,      3)
@@ -604,12 +603,10 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     f = d * c
     t = tv ? "x ymin - ymax ymin - /" : "x range_max /"
     e = S0 != 1.0 ? Format("{k} {d} {f} "+t+" A@ {c} + / - * A {l} * + range_max *") : \
-        tv        ? Format("x ymin - range_max ymax ymin - / *")                     : \
+        tv        ?        "x ymin - range_max ymax ymin - / *"                      : \
                            "x"
 
     ec = tv ? "x cmin - range_max cmax cmin - / *" : "x"
-    e  = ex_dlut( ex_Yexpr(e,Y),              bi, fs)
-    ec = ex_dlut( ex_UVexpr(ec,UV,bi,rgb,fs), bi, fs)
 
     ex_lut(src, e, rgb ? e : ec, Y=Y, UV=UV, fulls=fs) }
 
