@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v2.0     (21-06-2021)              ##
+###           ExTools v2.1     (22-06-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -31,7 +31,7 @@
 ####################################
 
 # ex_lut family with automatic plane handling
-function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", bool "fulls") {
+function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -42,17 +42,21 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", bool "fu
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 1)
     fs   = Default(fulls, false)
+    cf   = Default(clamp_float, false)
+    si   = Default(scale_inputs, "none")
+    sif  = Defined(si) ? si : ex_UVf(cf, bi)
 
     str  =                        ex_Yexpr (str,  Y)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
 
-    UV == 1 ? isy ? Expr(a, str) : Expr(a,  str, "")            : \
-                    Expr(a, str, cstr, scale_inputs=ex_UVf(bi)) }
+    UV == 1 ? isy ? Expr(a, str,       scale_inputs=si,  clamp_float=cf) : \
+                    Expr(a, str, "",   scale_inputs=si,  clamp_float=cf) : \
+                    Expr(a, str, cstr, scale_inputs=sif, clamp_float=cf) }
 
 
-function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", bool "fulls") {
+function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -63,17 +67,21 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 1)
     fs   = Default(fulls, false)
+    cf   = Default(clamp_float, false)
+    si   = Default(scale_inputs, "none")
+    sif  = Defined(si) ? si : ex_UVf(cf, bi)
 
     str  =                        ex_Yexpr (str,  Y)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
 
-    UV == 1 ? isy ? Expr(a, b, str) :  Expr(a, b, str, "")         : \
-                    Expr(a, b, str, cstr, scale_inputs=ex_UVf(bi)) }
+    UV == 1 ? isy ? Expr(a, b, str,       scale_inputs=si,  clamp_float=cf) : \
+                    Expr(a, b, str, "",   scale_inputs=si,  clamp_float=cf) : \
+                    Expr(a, b, str, cstr, scale_inputs=sif, clamp_float=cf) }
 
 
-function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", int "UV", bool "fulls") {
+function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -83,14 +91,18 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 1)
     fs   = Default(fulls, false)
+    cf   = Default(clamp_float, false)
+    si   = Default(scale_inputs, "none")
+    sif  = Defined(si) ? si : ex_UVf(cf, bi)
 
     str  =                        ex_Yexpr (str,  Y)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
 
-    UV == 1 ? isy ? Expr(a, b, c, str) : Expr(a, b, c, str, "")       : \
-                    Expr(a, b, c, str, cstr, scale_inputs=ex_UVf(bi)) }
+    UV == 1 ? isy ? Expr(a, b, c, str,       scale_inputs=si,  clamp_float=cf) : \
+                    Expr(a, b, c, str, "",   scale_inputs=si,  clamp_float=cf) : \
+                    Expr(a, b, c, str, cstr, scale_inputs=sif, clamp_float=cf) }
 
 
 # mt_makediff() is 5% slower
@@ -239,7 +251,7 @@ function ex_invert(clip a, int "UV", bool "fulls") {
     bi  = BitsPerComponent(a)
 
     UV  = Default(UV,  rgb ? 3 : 1)
-    tv  = Default(tv, !(rgb || isy))
+    fs  = Default(fulls, false)
 
     str = "range_max x -"
 
@@ -491,7 +503,7 @@ function ex_blur(clip a, int "radius", int "radiusV", string "gamma", int "UV", 
     if (gm != "none") {
         matrix = Matrix_fuzzy_search (gm)
         s_gam  = moncurve_coef(matrix)
-        a      = moncurve_f(a, s_gam[0], s_gam[1], !rgb, false)
+        a      = moncurve_f(a, s_gam[0], s_gam[1], !rgb, false, fs)
     }
 
     sv == 0 ?     a                                                                           : \
@@ -501,7 +513,7 @@ function ex_blur(clip a, int "radius", int "radiusV", string "gamma", int "UV", 
     sm == 0 || fkern ? last                                                                   : \
     UV == 1 ? isy(a) ? Expr(last, strh) :   Expr(last, strh, "")                              : \
                        Expr(last, strh, ex_UVexpr(cstrh, UV, bi, rgb, fs), scale_inputs="none")
-    gm != "none"     ? moncurve_r(last, s_gam[0], s_gam[1], false, !rgb) : last }
+    gm != "none"     ? moncurve_r(last, s_gam[0], s_gam[1], false, !rgb, fs) : last }
 
 
 function factorial(int n) {
@@ -813,13 +825,15 @@ function ex_UVf(int bits) {
     bits == 32 ? "floatUV" : "none" }
 
 
-# Scales 8-bit int values to bitdepth counterpart
-function ex_bs(int var, int "bits", bool "fulls") {
+# Scales 8-bit values to bitdepth counterpart
+function ex_bs(val var, int "bits", bool "fulls") {
 
     bi = Default(bits, 16)
     fs = Default(fulls, false)
 
-    v = BitLShift(min(max(var,0),256), bi-8)
+    Assert(IsFloat(var) || IsInt(var),"'ex_bs()' only accepts integers or floats")
+
+    v = min(max(var,0.),256.)*pow(2, bi-8)
     bi != 8 ? fs ? v+v/256. : v : var }
 
 
