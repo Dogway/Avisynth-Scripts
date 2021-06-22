@@ -164,9 +164,14 @@ c1a  = (1.0-b1a)/2.0
 c2a  = (1.0-b2a)/2.0
 c3a  = (1.0-b3a)/2.0
 
+hlf  = ex_bs(128,             bi, fs)
 T1a  = ex_bs(int(g1tex*1.28), bi, fs)
 T2a  = ex_bs(int(g2tex*1.28), bi, fs)
 T3a  = ex_bs(int(g3tex*1.28), bi, fs)
+
+T1ah = hlf-T1a
+T2ah = hlf-T2a
+T3ah = hlf-T3a
 
 th1str = ex_bs(th1, bi, fs)
 th2str = ex_bs(th2, bi, fs)
@@ -180,9 +185,9 @@ ochroma = ( ontop_cgrain != 0 ) || chroma ? true : false
 
 #-----------------------------------------------------------------------------------
 
-BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] range_half {T1a} - * - range_half /")
-BUMPKERNEL2 = Format("x[-1,1] {T2a} * x[0,0] range_half {T2a} - * - range_half /")
-BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] range_half {T3a} - * - range_half /")
+BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] {T1ah} * - range_half /")
+BUMPKERNEL2 = Format("x[-1,1] {T2a} * x[0,0] {T2ah} * - range_half /")
+BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] {T3ah} * - range_half /")
 
 #-----------------------------------------------------------------------------------
 
