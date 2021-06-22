@@ -1,7 +1,7 @@
 ###                                                            ##
 ###                                                            ##
 ###                     2.4            (15-04-2015)            ##
-### Mask functions Pack 2.7 By Dogway  (17-06-2021)            ## Updated BoxMask() and LumaMask() to internal functions (faster and HBD support)
+### Mask functions Pack 2.8 By Dogway  (22-06-2021)            ## Updated BoxMask(), FlatMask() and LumaMask() to internal functions (faster and HBD support)
 ###                                                            ##
 ### https://forum.doom9.org/showthread.php?t=182881            ##
 ###                                                            ##
@@ -19,7 +19,7 @@
 ###########################
 
 
-function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert", bool "show", bool "matchformat") {
+function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert", bool "show", bool "matchformat", bool "fulls") {
 
 x1      = Default(x1,0)
 x2      = Default(x2,0)
@@ -28,14 +28,14 @@ y2      = Default(y2,0)
 upper   = Default(invert, false)
 show    = Default(show, false)
 format  = Default(matchformat, true)
+fs      = Default(fulls, false)
 
 bdpth = BitsPerComponent(clp)
 
 LetterBox(BlankClip(clp,1,pixel_type="Y"+string(bdpth),color_yuv=upper?$000000:$ffffff).killaudio(),y1,height(clp)-y2,x1,width(clp)-x2,color_yuv=upper?$ffffff:$000000)
 format ? MatchColorFormat(clp) : last
 
-softlight="y range_max / A^ x range_max / B^ 1.0 2.0 A * - B 2.0 ^ * 2.0 B A * * + range_max *"
-!show ? last : expr(clp,last,softlight) }
+!show ? last : ex_blend(clp,last,"softlight",fulls=fs) }
 
 
 ##################
@@ -64,7 +64,9 @@ softlight="y range_max / A^ x range_max / B^ 1.0 2.0 A * - B 2.0 ^ * 2.0 B A * *
 ###########################
 
 
-function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", float "Lth", bool "invert", bool "show", bool "notemp", bool "extend") {
+function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", float "Lth", bool "invert", bool "show", bool "notemp", bool "extend", bool "fulls") {
+
+    bi    = BitsPerComponent(raw)
 
     raw   = Default(raw, filtered)
 
@@ -78,17 +80,18 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
     upper = Default(invert, false)               # Inverts the mask
     show  = Default(show,  false)                # Shows the mask
     notem = Default(notemp, exten)
+    fs    = Default(fulls, false)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version.")
     c4ma = exten ? filtered : raw
 
     e1 = c4ma.mt_edge (mode="prewitt", thY1=0, thY2=255)
     e2 = c4ma.mt_edge (mode="min/max", thY1=0, thY2=255)
-    ex_makediff (e1, e2, dif=false)
-    ex_lut ("x 0 max range_max / 0.25 ^ range_max *")
+    ex_makediff (e1, e2, dif=false, fulls=fs)
+    ex_lut (ex_dlut("x 0 max range_max / 0.25 ^ range_max *", bi, fs), fulls=fs)
     mt_deflate().mt_deflate ()
 
-    luma ? mt_logic(c4ma.ex_binarize(th),"min") : last
+    luma ? mt_logic(c4ma.ex_binarize(th,fulls=fs),"min") : last
 
     w = width ()
     h = height()
@@ -100,8 +103,8 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
 
     var  = show  ? 128 : 1
     code = upper ? "range_max x 10 scalef - "+str+" * -" : "x 10 scalef - "+str+" *"
-    msk  = ex_lut (code,UV=var)
-    msk  = exten ? !upper ? msk.ex_invert().ex_expand(2).ex_invert().ex_inpand(2) : msk.mt_expand() : msk
+    msk  = ex_lut (code,UV=var,fulls=fs)
+    msk  = exten ? !upper ? msk.ex_invert(fulls=fs).ex_expand(2).ex_invert(fulls=fs).ex_inpand(2) : msk.mt_expand() : msk
     show ? msk : mt_merge(filtered,raw,msk,luma=true, y=3, u=3, v=3) }
 
 
@@ -168,24 +171,31 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
 ##############################################################
 
 
-function LumaMask(clip filtered, clip raw, int "b", int "w", bool "invert", bool "smooth", bool "show") {
+function LumaMask(clip filtered, clip raw, int "b", int "w", bool "invert", bool "smooth", bool "show", int "UV", bool "fulls") {
 
-raw      = default(raw, filtered)
+bi   = BitsPerComponent(raw)
+isy  = isy(filtered)
+rgb  = isRGB(raw)
 
-LO       = string(default(b, 24))
-HI       = string(default(w, 48))
-upper    = default(invert,  false)
-smooth   = default(smooth, false)
-show     = default(show,   false)
+raw      = Default(raw, filtered)
+LO       = Default(b, 24)
+HI       = Default(w, 48)
+upper    = Default(invert, false)
+smooth   = Default(smooth, false)
+show     = Default(show,   false)
+fs       = Default(fulls,  false)
+UV       = Default(UV,  !isy ? 128 : 1)
 
-contoy   = !isy(filtered)
-cplane   = contoy ? "range_half" : Undefined
+LO       = ex_bs(LO,bi,fs)
+HI       = ex_bs(HI,bi,fs)
 
-code     = upper ? "x "+LO+" scalef < range_max x "+HI+" scalef > 0 range_max x "+LO+" scalef -   range_max "+HI+" scalef "+LO+" scalef - / * - ? ?" : \
-                   "x "+LO+" scalef < 0         x "+HI+" scalef >   range_max 0 x "+LO+" scalef - range_max "+LO+" scalef "+HI+" scalef - / * - ? ?"
+code     = upper ? "x {LO} < range_max x {HI} > 0 range_max   x {LO} - range_max {HI} {LO} - / * - ? ?" : \
+                   "x {LO} < 0         x {HI} >   range_max 0 x {LO} - range_max {LO} {HI} - / * - ? ?"
 
-msk      = expr(raw,code,cplane,cplane,scale_inputs="floatf")
+str      = ex_dlut(Format(code), bi,  fs)
+cstr     = ex_UVexpr("", UV, bi, rgb, fs)
+
+msk      = Expr(raw, str, cstr, scale_inputs=ex_UVf(bi))
 msk      = smooth ? msk.removegrain(22,0) : msk
-msk
 
 show  ?  msk : mt_merge(raw,filtered,msk,1) }
