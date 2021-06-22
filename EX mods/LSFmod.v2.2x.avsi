@@ -580,19 +580,19 @@ edge  = edgemaskHQ ? ex_logic( tmp.ex_edge(mode="x[-1,1] 8 * A^ x[0,1] 16 * B^ x
 \     :                        tmp.ex_edge(mode="min/max",lo=0,hi=255,UV=1)
 
 emHQn = ex_bs(32, bi, fs)
-edge  = edgemaskHQ ?  edge.ex_lut(       "x range_half / 0.86 ^ range_max *",scale_inputs="floatf",clamp_float=true, fulls=fs)
+edge  = edgemaskHQ ?  edge.ex_lut(       "x range_half / 0.86 ^ range_max *" ,scale_inputs="floatf",clamp_float=true, fulls=fs)
 \     :               edge.ex_lut(Format("x {emHQn}    / 0.86 ^ range_max *"),scale_inputs="floatf",clamp_float=true, fulls=fs)
 
 limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      : Lmode==0 ? normsharp
 \      : Lmode==1 ? normal
-\      : Lmode==2 ? ex_merge(normsharp, normal, edge.ex_inflate())
-\      : Lmode==3 ? ex_merge(normal,    zero,   edge.ex_inflate())
-\      :            ex_merge(second,    normal, edge.ex_inflate())
+\      : Lmode==2 ? ex_merge(normsharp, normal, edge.ex_inflate(), fulls=fs)
+\      : Lmode==3 ? ex_merge(normal,    zero,   edge.ex_inflate(), fulls=fs)
+\      :            ex_merge(second,    normal, edge.ex_inflate(), fulls=fs)
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1))
-\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1))
+\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1), fulls=fs)
+\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1), fulls=fs)
 
 
 ### SOFT
