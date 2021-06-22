@@ -754,6 +754,6 @@ function UnsharpMask_HBD(clip clp, float "strength", int "radius", float "thresh
 
   blurclip = ex_boxblur(clp, rd)
 
-  e = "x y - A@ abs {thres} > A {str} * x + x ?"
+  e = Format("x y - A@ abs {thres} > A {str} * x + x ?")
   ex_lutxy(clp, blurclip, e, rgb?e:"x") }
 
