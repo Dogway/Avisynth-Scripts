@@ -830,11 +830,12 @@ function ex_bs(val var, int "bits", bool "fulls") {
 
     bi = Default(bits, 16)
     fs = Default(fulls, false)
+	var = min(max(var,0.),256.)
 
     Assert(IsFloat(var) || IsInt(var),"'ex_bs()' only accepts integers or floats")
 
-    v = min(max(var,0.),256.)*pow(2, bi-8)
-    bi != 8 ? fs ? v+v/256. : v : var }
+    v = var*pow(2, bi-8)
+    bi == 32 ? var/255. : bi != 8 ? fs ? v+v/256. : v : var }
 
 
 
