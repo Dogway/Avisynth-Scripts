@@ -76,9 +76,9 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
 
-    UV == 1 ? isy ? Expr(a, b, str,       scale_inputs=si, clamp_float=cf, optSingleMode=true) : \
-                    Expr(a, b, str, "",   scale_inputs=si, clamp_float=cf, optSingleMode=true) : \
-                    Expr(a, b, str, cstr, scale_inputs=si, clamp_float=cf, optSingleMode=true) }
+    UV == 1 ? isy ? Expr(a, b, str,       scale_inputs=si, clamp_float=cf) : \
+                    Expr(a, b, str, "",   scale_inputs=si, clamp_float=cf) : \
+                    Expr(a, b, str, cstr, scale_inputs=si, clamp_float=cf) }
 
 
 function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
