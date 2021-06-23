@@ -76,9 +76,9 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
 
-    UV == 1 ? isy ? Expr(a, b, str,       scale_inputs=si,  clamp_float=cf) : \
-                    Expr(a, b, str, "",   scale_inputs=si,  clamp_float=cf) : \
-                    Expr(a, b, str, cstr, scale_inputs=si, clamp_float=cf) }
+    UV == 1 ? isy ? Expr(a, b, str,       scale_inputs=si, clamp_float=cf, optSingleMode=true) : \
+                    Expr(a, b, str, "",   scale_inputs=si, clamp_float=cf, optSingleMode=true) : \
+                    Expr(a, b, str, cstr, scale_inputs=si, clamp_float=cf, optSingleMode=true) }
 
 
 function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
@@ -100,9 +100,9 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
 
-    UV == 1 ? isy ? Expr(a, b, c, str,       scale_inputs=si, clamp_float=cf) : \
-                    Expr(a, b, c, str, "",   scale_inputs=si, clamp_float=cf) : \
-                    Expr(a, b, c, str, cstr, scale_inputs=si, clamp_float=cf) }
+    UV == 1 ? isy ? Expr(a, b, c, str,       scale_inputs=si, clamp_float=cf, optSingleMode=true) : \
+                    Expr(a, b, c, str, "",   scale_inputs=si, clamp_float=cf, optSingleMode=true) : \
+                    Expr(a, b, c, str, cstr, scale_inputs=si, clamp_float=cf, optSingleMode=true) }
 
 
 # mt_makediff() is 5% slower
@@ -193,8 +193,9 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV", bool "fulls")
     str  = ex_dlut(str, bi, fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
-    UV == 1 ? isy ? Expr(a, b, msk, str) : Expr(a, b, msk, str, "")     : \
-                    Expr(a, b, msk, str, cstr, scale_inputs=ex_UVf(bi)) }
+    UV == 1 ? isy ? Expr(a, b, msk, str,                                optSingleMode=true) : \
+                    Expr(a, b, msk, str, "",                            optSingleMode=true) : \
+                    Expr(a, b, msk, str, cstr, scale_inputs=ex_UVf(bi), optSingleMode=true) }
 
 
 # mt_clamp() is 6% slower
@@ -215,8 +216,11 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
     str = (os == 0) && (us == 0) ? Format("x y min z max")               : \
                                    Format("x y {os} + min z {us} - max")
 
-    UV == 1 ? isy ? Expr(a, hi, lo, str) : Expr(a, hi, lo, str, "")                                : \
-                    Expr(a, hi, lo, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(bi)) }
+    cstr = ex_UVexpr(str, UV, bi, rgb, fs)
+
+    UV == 1 ? isy ? Expr(a, hi, lo, str,                                optSingleMode=true) : \
+                    Expr(a, hi, lo, str, "",                            optSingleMode=true) : \
+                    Expr(a, hi, lo, str, cstr, scale_inputs=ex_UVf(bi), optSingleMode=true) }
 
 
 # mt_binarize() is 37% slower
@@ -327,8 +331,9 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     cstr = ex_dlut( ex_UVexpr(str, UV, bi, rgb, fs), bi, fs)
     str  = ex_dlut(str, bi, fs)
 
-    UV == 1 ? isy(a) ? Expr(a, b, str) : Expr(a, b, str, "")          : \
-                       Expr(a, b, str, cstr, scale_inputs=ex_UVf(bi)) }
+    UV == 1 ? isy(a) ? Expr(a, b, str,                                optSingleMode=true) : \
+                       Expr(a, b, str, "",                            optSingleMode=true) : \
+                       Expr(a, b, str, cstr, scale_inputs=ex_UVf(bi), optSingleMode=true) }
 
 
 
@@ -835,7 +840,7 @@ function ex_bs(val var, int "bits", bool "fulls") {
 
     bi = Default(bits, 16)
     fs = Default(fulls, false)
-	var = min(max(var,0.),256.)
+    var = min(max(var,0.),256.)
 
     Assert(IsFloat(var) || IsInt(var),"'ex_bs()' only accepts integers or floats")
 
