@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v2.1     (22-06-2021)              ##
+###           ExTools v2.2     (23-06-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -46,7 +46,7 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(bi)
 
-    str  =                        ex_Yexpr (str,  Y)
+    str  =                        ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
@@ -71,7 +71,7 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(bi)
 
-    str  =                        ex_Yexpr (str,  Y)
+    str  =                        ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
@@ -95,7 +95,7 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(bi)
 
-    str  =                        ex_Yexpr (str,  Y)
+    str  =                        ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  = ex_dlut( str, bi, fs)
     cstr = ex_dlut(cstr, bi, fs)
@@ -788,34 +788,39 @@ function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls")
 
     str = rgb ? str : ReplaceStr(str, "ymax", "cmax")
 
-    # Undefined "0" is the same as "" (when not single planed)
+    # "" is the same as "copy first"
     str = UV == 1   ? ""          : \
-          UV == 2   ? "x"         : \
+          UV == 2   ? ""          : \
           UV == 3   ? str         : \
           UV == 4   ? "y"         : \
           UV == 128 ? "range_half": \
-          UV == 0   ? "range_min" : \
+          UV == 0   ? "0"         : \
           UV == 255 ? "range_max" : \
           string(ex_bs(UV, bi, fs)+bd)
 
-    str = UV != 3 ? ex_dlut(str, bi, fs) : str
+    str = UV == 128 || UV == 255 ? ex_dlut(str, bi, fs) : str
 
     return str }
 
 
-function ex_Yexpr(string "str", int "Y") {
+function ex_Yexpr(string "str", int "Y", int "bits", bool "rgb", bool "fulls") {
 
-    Y   = Default(Y, 3)
     str = Default(str, "")
+    Y   = Default(Y, 3)
+    bi  = Default(bits, 8)
+    rgb = Default(rgb, false)
+    fs  = Default(fulls, false)
 
     str = Y == 1   ? ""          : \
-          Y == 2   ? "x"         : \
+          Y == 2   ? ""          : \
           Y == 3   ? str         : \
           Y == 4   ? "y"         : \
           Y == 128 ? "range_half": \
-          Y == 0   ? "range_min" : \
+          Y == 0   ? "0"         : \
           Y == 255 ? "range_max" : \
-          string(Y) + " scaleb"
+          string(ex_bs(Y, bi, fs))
+
+    str = Y == 128 || Y == 255 ? ex_dlut(str, bi, fs) : str
 
     return str }
 
