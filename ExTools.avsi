@@ -312,14 +312,14 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     if (op == 1.0) {
 
         str = Format(                                                                                                                                  \
-            mode == "blend"        ? "x {opr} * y {op} * +"                                                                                          : \
+            mode == "blend"        ? "y"                                                                                                             : \
             mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - "+pdstl+""                                             : \
             mode == "add"          ? "x "+srcmax+" y "+srcmax+" + "+pdstl+""                                                                         : \
             mode == "linear dodge" ? "x "+srcmax+" y "+srcmax+" + "+pdstl+""                                                                         : \
             mode == "lighten"      ? "x y max"                                                                                                       : \
             mode == "multiply"     ? "x "+srcmax+" y "+srcmax+" * "+rngmax+" / "+pdstl+""                                                            : \
             mode == "subtract"     ? "x "+srcmax+" y "+srcmax+" - "+pdstl+""                                                                         : \
-            mode == "darken"       ? "x y min "                                                                                                      : \
+            mode == "darken"       ? "x y min"                                                                                                       : \
                                    \
             mode == "softlight"    ? ""+rngmax+" A@ x "+srcmax+" B@ - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / "+pdstl+""   : \
                                    \
@@ -335,10 +335,10 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
             mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" {opr} * + "+pdstl+""                                : \
             mode == "add"          ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
             mode == "linear dodge" ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
-            mode == "lighten"      ? "x {opr} * x y max {op} * + "                                                                                                    : \
+            mode == "lighten"      ? "x {opr} * x y max {op} * +"                                                                                                     : \
             mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A {opr} * + "+pdstl+""                                                       : \
             mode == "subtract"     ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * - "+pdstl+""                                                                    : \
-            mode == "darken"       ? "x {opr} * x y min {op} * + "                                                                                                    : \
+            mode == "darken"       ? "x {opr} * x y min {op} * +"                                                                                                     : \
                                    \
             mode == "softlight"    ? "x "+srcmax+" B@ {opr} * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+pdstl+"" : \
                                    \
