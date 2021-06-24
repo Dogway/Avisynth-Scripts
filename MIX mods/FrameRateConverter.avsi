@@ -243,8 +243,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
     \       .ex_expand(1,mode="circle")
     \       .ex_binarize(MaskThr,fulls=fs)
-    \       .Expr("x[0,1]  0.12 * x[0,0] 0.76 * x[0,-1] 0.12 * + +")
-    \       .Expr("x[-1,0] 0.12 * x[0,0] 0.76 *  x[1,0] 0.12 * + +")
+    \       .blur(0.6)
     \       .BicubicResize(C.Width(), C.Height())
 
     # Mask: Stripes
