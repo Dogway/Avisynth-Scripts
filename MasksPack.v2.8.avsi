@@ -199,4 +199,4 @@ cstr     = ex_UVexpr("", UV, bi, rgb, fs)
 msk      = Expr(raw, str, cstr, scale_inputs=ex_UVf(bi))
 msk      = smooth ? msk.removegrain(22,0) : msk
 
-show  ?  msk : mt_merge(raw,filtered,msk,1) }
+show  ?  msk : mt_merge(raw,filtered,msk,true) }
