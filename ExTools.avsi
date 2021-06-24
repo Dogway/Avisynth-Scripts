@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v2.2     (23-06-2021)              ##
+###           ExTools v2.3     (24-06-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -38,10 +38,9 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "
     bi   = BitsPerComponent(a)
 
     str  = Default(str, "")
-    cstr = Default(cstr, str)
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 1)
-    fs   = Default(fulls, false)
+    fs   = Default(fulls,       false)
     cf   = Default(clamp_float, false)
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(bi)
@@ -63,10 +62,9 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     bi   = BitsPerComponent(a)
 
     str  = Default(str, "")
-    cstr = Default(cstr, str)
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 1)
-    fs   = Default(fulls, false)
+    fs   = Default(fulls,       false)
     cf   = Default(clamp_float, false)
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(bi)
@@ -87,10 +85,10 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
     isy  = isy(a)
     bi   = BitsPerComponent(a)
 
-    cstr = Default(cstr, str)
+    str  = Default(str, "")
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 1)
-    fs   = Default(fulls, false)
+    fs   = Default(fulls,       false)
     cf   = Default(clamp_float, false)
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(bi)
@@ -310,26 +308,50 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     srcmax = tv ? "ymin -"      : ""
     pdstl  = tv ? "ymin +"      : ""
 
-    str = Format(                                                                                                                                                   \
-        mode == "blend"        ? "x {opr} * y {op} * +"                                                                                                           : \
-        mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" {opr} * + "+pdstl+""                                : \
-        mode == "add"          ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
-        mode == "linear dodge" ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
-        mode == "lighten"      ? "x {opr} * x y max {op} * + "                                                                                                    : \
-        mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A {opr} * + "+pdstl+""                                                       : \
-        mode == "subtract"     ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * - "+pdstl+""                                                                    : \
-        mode == "darken"       ? "x {opr} * x y min {op} * + "                                                                                                    : \
-                               \
-        mode == "softlight"    ? "x "+srcmax+" B@ {opr} * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+pdstl+"" : \
-                               \
-        mode == "difference"   ? "x "+srcmax+" A@ {opr} * A y "+srcmax+"                +                {op} * - abs "+pdstl+""                                  : \
-        mode == "exclusion"    ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" B@ + 2 A * B * +                {op} * + "+rngmax+" / "+pdstl+""                         : \
-        mode == "extremity"    ? "x "+srcmax+" A@ {opr} * "+rngmax+"            A - y "+srcmax+" - abs   {op} * + "+pdstl+""                                      : \
-        mode == "negation"     ? "x "+srcmax+" A@ {opr} * "+rngmax+" "+rngmax+" A - y "+srcmax+" - abs - {op} * + "+pdstl+""                                      : \
-                                 Assert (false, "Unsupported Blend Mode.") )
+    # "softlight" uses Pegtop's formula
+    if (op == 1.0) {
+
+        str = Format(                                                                                                                                  \
+            mode == "blend"        ? "x {opr} * y {op} * +"                                                                                          : \
+            mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - "+pdstl+""                                             : \
+            mode == "add"          ? "x "+srcmax+" y "+srcmax+" + "+pdstl+""                                                                         : \
+            mode == "linear dodge" ? "x "+srcmax+" y "+srcmax+" + "+pdstl+""                                                                         : \
+            mode == "lighten"      ? "x y max"                                                                                                       : \
+            mode == "multiply"     ? "x "+srcmax+" y "+srcmax+" * "+rngmax+" / "+pdstl+""                                                            : \
+            mode == "subtract"     ? "x "+srcmax+" y "+srcmax+" - "+pdstl+""                                                                         : \
+            mode == "darken"       ? "x y min "                                                                                                      : \
+                                   \
+            mode == "softlight"    ? ""+rngmax+" A@ x "+srcmax+" B@ - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / "+pdstl+""   : \
+                                   \
+            mode == "difference"   ? "x "+srcmax+" y "+srcmax+"                         + abs   "+pdstl+""                                           : \
+            mode == "exclusion"    ? "x "+srcmax+" A@ A y "+srcmax+" B@ + 2 A * B * + + "+rngmax+" / "+pdstl+""                                      : \
+            mode == "extremity"    ? ""+rngmax+"            x "+srcmax+" - y "+srcmax+" - abs   "+pdstl+""                                           : \
+            mode == "negation"     ? ""+rngmax+" "+rngmax+" x "+srcmax+" - y "+srcmax+" - abs - "+pdstl+""                                           : \
+                                     Assert (false, "Unsupported Blend Mode.") )
+        } else {
+
+        str = Format(                                                                                                                                                   \
+            mode == "blend"        ? "x {opr} * y {op} * +"                                                                                                           : \
+            mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - {op} * x "+srcmax+" {opr} * + "+pdstl+""                                : \
+            mode == "add"          ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
+            mode == "linear dodge" ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * + "+pdstl+""                                                                    : \
+            mode == "lighten"      ? "x {opr} * x y max {op} * + "                                                                                                    : \
+            mode == "multiply"     ? "x "+srcmax+" A@ y "+srcmax+" * "+rngmax+" / {op} * A {opr} * + "+pdstl+""                                                       : \
+            mode == "subtract"     ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" + {op} * - "+pdstl+""                                                                    : \
+            mode == "darken"       ? "x {opr} * x y min {op} * + "                                                                                                    : \
+                                   \
+            mode == "softlight"    ? "x "+srcmax+" B@ {opr} * "+rngmax+" A@ B - B y "+srcmax+" * A / * B A A B - A y "+srcmax+" - * A / - * + A / {op} * + "+pdstl+"" : \
+                                   \
+            mode == "difference"   ? "x "+srcmax+" A@ {opr} * A y "+srcmax+"                +                {op} * - abs "+pdstl+""                                  : \
+            mode == "exclusion"    ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" B@ + 2 A * B * +                {op} * + "+rngmax+" / "+pdstl+""                         : \
+            mode == "extremity"    ? "x "+srcmax+" A@ {opr} * "+rngmax+"            A - y "+srcmax+" - abs   {op} * + "+pdstl+""                                      : \
+            mode == "negation"     ? "x "+srcmax+" A@ {opr} * "+rngmax+" "+rngmax+" A - y "+srcmax+" - abs - {op} * + "+pdstl+""                                      : \
+                                     Assert (false, "Unsupported Blend Mode.") )
+        }
+
 
     cstr = ex_dlut( ex_UVexpr(str, UV, bi, rgb, fs), bi, fs)
-    str  = ex_dlut(str, bi, fs)
+    str  = ex_dlut( str, bi, fs)
 
     UV == 1 ? isy(a) ? Expr(a, b, str,                                optSingleMode=true) : \
                        Expr(a, b, str, "",                            optSingleMode=true) : \
@@ -512,11 +534,11 @@ function ex_blur(clip a, int "radius", int "radiusV", string "gamma", int "UV", 
     }
 
     sv == 0 ?     a                                                                           : \
-    UV == 1 ? isy(a) ? Expr(a,    strv) :   Expr(a, strv, "")                                 : \
+    UV == 1 ? isy(a) ? Expr(a,    strv) : Expr(a,    strv, "")                                : \
                        Expr(a,    strv, ex_UVexpr(cstrv, UV, bi, rgb, fs), scale_inputs="none")
 
     sm == 0 || fkern ? last                                                                   : \
-    UV == 1 ? isy(a) ? Expr(last, strh) :   Expr(last, strh, "")                              : \
+    UV == 1 ? isy(a) ? Expr(last, strh) : Expr(last, strh, "")                                : \
                        Expr(last, strh, ex_UVexpr(cstrh, UV, bi, rgb, fs), scale_inputs="none")
     gm != "none"     ? moncurve_r(last, s_gam[0], s_gam[1], false, !rgb, fs) : last }
 
@@ -573,15 +595,15 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV", b
     str  = str + (thr != 255 ? "A^ x[0,0] {th} + A min" : "")
 
 
-    UV == 1 ? isy(a) ? Expr(a, str)  : Expr(a, str,  "")                                 : \
-                       Expr(a, str,  ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs="none")
+    UV == 1 ? isy(a) ? Expr(a, str)  : Expr(a, str,  "")                                  : \
+                       Expr(a, str,  ex_UVexpr(str,  UV, bi, rgb, fs), scale_inputs="none")
 
-    v =    mode == "horizontal" ? a : last
+    v =       mode == "horizontal" ? a : last
 
     UV == 1 ? isy(a) ? Expr(v, strh) : Expr(v, strh, "")                                  : \
                        Expr(v, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none")
 
-    fbox || mode == "vertical" || mode == "circle" || mode == "both" ? v : last           }
+    !fbox && (mode == "horizontal" || mode == "square") ? last : v                        }
 
 
 # mt_inpand() is 5% faster (4% slower when radius = 2)
@@ -630,15 +652,15 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV", b
     str  = !fbox ? str : Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[0,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min ")
     str  = str + (thr != 255 ? "A^ x[0,0] {th} - A max" : "")
 
-    UV == 1 ? isy(a) ? Expr(a, str)  : Expr(a, str,  "")                                 : \
-                       Expr(a, str,  ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs="none")
+    UV == 1 ? isy(a) ? Expr(a, str)  : Expr(a, str,  "")                                  : \
+                       Expr(a, str,  ex_UVexpr(str,  UV, bi, rgb, fs), scale_inputs="none")
 
-    v =    mode == "horizontal" ? a : last
+    v =       mode == "horizontal" ? a : last
 
     UV == 1 ? isy(a) ? Expr(v, strh) : Expr(v, strh, "")                                  : \
                        Expr(v, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none")
 
-    fbox || mode == "vertical" || mode == "circle" || mode == "both" ? v : last           }
+    !fbox && (mode == "horizontal" || mode == "square") ? last : v                        }
 
 
 # mt_deflate() is 18% faster (lower gap with bigger radius)
