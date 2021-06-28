@@ -5,25 +5,28 @@
 ###      by 06_taro - astrataro@gmail.com      ###
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
-###               2020.04.06    by A.SONY.     ###
-###               2021.06.22 ex by Dogway      ###
+###               2020.04.06     by A.SONY.    ###
+###               2021.06.28 mix by Dogway     ###
 ###                                            ###
 ##################################################
 ###
 ### Luma adaptive grain generating filter in 8-bit precision
 ###
 ### Based on Didée's GrainFactory3 script
-### 
+###
 ###
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
 ###
-### 2021.06.22 ex
+### 2021.06.28 mx
+###      - Expression optimizations
+###
+### 2021.06.22 mx
 ###      - Further old checks cleanup
 ###      - Rebased with latest ExTools
 ###
-### 2021.05.27 ex
+### 2021.05.27 mx
 ###      - Removed < AviSynth+ 3.5 support
 ###      - Replaced masktools2 with internal Expr() wrappers
 ###
@@ -185,9 +188,9 @@ ochroma = ( ontop_cgrain != 0 ) || chroma ? true : false
 
 #-----------------------------------------------------------------------------------
 
-BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] {T1ah} * - range_half /")
-BUMPKERNEL2 = Format("x[-1,1] {T2a} * x[0,0] {T2ah} * - range_half /")
-BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] {T3ah} * - range_half /")
+BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] {T1ah} * - {hlf} /")
+BUMPKERNEL2 = Format("x[-1,1] {T2a} * x[0,0] {T2ah} * - {hlf} /")
+BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] {T3ah} * - {hlf} /")
 
 #-----------------------------------------------------------------------------------
 
@@ -240,8 +243,11 @@ grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 
 #-----------------------------------------------------------------------------------
 
-grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max range_max {th2str} {th1str} - / x {th1str} - * ? ?"), fulls=fs), luma=chroma, UV=chroma?3:1, fulls=fs)
- \                      .ex_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max range_max {th4str} {th3str} - / x {th3str} - * ? ?"), fulls=fs), luma=chroma, UV=chroma?3:1, fulls=fs)
+rmax    = ex_bs(255, bi, fs)
+th21str = rmax / (th2str - th1str)
+th43str = rmax / (th4str - th3str)
+grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max {th21str} x {th1str} - * ? ?"), fulls=fs), luma=chroma, UV=chroma?3:1, fulls=fs)
+ \                      .ex_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max {th43str} x {th3str} - * ? ?"), fulls=fs), luma=chroma, UV=chroma?3:1, fulls=fs)
 
 grainlayer = (temp_avg==0 || ( g1const==true && g2const==true && g3const==true ) ) ? grainlayer
 \          : chroma ? grainlayer.merge(grainlayer.temporalsoften(1,255,255,255,2), tmpavg)

@@ -12,21 +12,22 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.2 ex - 22 June 2021                                    ###
+###                                v2.3 mix - 28 June 2021                                   ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+### v2.3mx : - Expression optimizations
 ###
-### v2.2ex : - "fulls" argument
+### v2.2mx : - "fulls" argument
 ###          - Rebasing with latest ExTools
-###          - Removed old check (YUY2 and old AVS support)
+###          - Removed old checks (YUY2 and old AVS support)
 ###          - Expression optimizations
 ###          - Default is now "slow"
 ###
-### v2.193ex:- Removed < AviSynth+ 3.5 support
+### v2.193mx:- Removed < AviSynth+ 3.5 support
 ###          - Replaced with internal Expr() wrappers.
 ###          - Replaced UnsharpMask_avsi with faster UnsharpMask_HBD
 ###
@@ -440,7 +441,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
 ### DEFAULTS
-version  = "v2.2ex"
+version  = "v2.3mix"
 defaults = Default(defaults,"slow")
 num      = defaults=="old" ? 0 : defaults=="slow" ? 1 : defaults=="fast" ? 2 : 3
 
@@ -535,14 +536,14 @@ pre  = preblur=="OFF" ? tmp
                                        ,fulls=fs)
 \    : Eval("tmp."+preblur)
 
-dark_limit   = pre.ex_inpand()
-bright_limit = pre.ex_expand()
+dark_limit   = pre.mt_inpand()
+bright_limit = pre.mt_expand()
 minmaxavg    = Merge(dark_limit,bright_limit,0.5)
 
 # consider auto-increasing blur for HD/UHD
-method = Smethod==1   ? pre.ex_blur(1,UV=1)
+method = Smethod==1   ? pre.removegrain(12,-1)
 \      : Smethod==2   ? minmaxavg
-\      :                minmaxavg.ex_blur(1,UV=1)
+\      :                minmaxavg.removegrain(12,-1)
 
 sec    = ex_bs(0.51, bi, fs)
 secstr = Format("x y < x {sec} + x y > x {sec} - x ? ?")
@@ -556,12 +557,13 @@ Spwr      = ex_bs(Spwr,   bi, fs)
 SdmpLo    = ex_bs(SdmpLo, bi, fs)
 SdmpHi    = ex_bs(SdmpHi, bi, fs)
 
+rSpwr = 1. / Spwr
 normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,fulls=fs)
 \         : Smode==2 ? tmp.unsharp(strength=str,vary=((ss_x+ss_y)/2.0),varc=1,border=3,U=1,V=1)
 \         : Smode==3 ? ex_lutxy(tmp, method, Format("x x y - {str} * +"))
 \         : Smode==4 ? ex_lutxy(tmp, method, Format("x y == x x x y - abs {Szrp} / 1 {Spwr} / ^ {Szrp} * {str} * x y - dup * dup "
 \                                                  +"{SdmpLo} + / * x y - dup abs / * 1 {SdmpHi} 0 == 0 x y - abs {SdmpHi} / 4 ^ ? + / + ?"))
-\         : Smode==5 ? ex_lutxy(tmp, method, Format("x y == x x x y - abs {Szrp} / 1 {Spwr} / ^ {Szrp} * {str} * x y - dup abs / * x y - dup * "
+\         : Smode==5 ? ex_lutxy(tmp, method, Format("x y == x x x y - abs {Szrp} / {rSpwr} * ^ {Szrp} * {str} * x y - dup abs / * x y - dup * "
 \                                                  +"{Szrp} dup * {SdmpLo} + * x y - dup * {SdmpLo} + {Szrp} dup * * / * 1 "
 \                                                  +"{SdmpHi} 0 == 0 {Szrp} {SdmpHi} / 4 ^ ? + 1 {SdmpHi} 0 == 0 x y - abs {SdmpHi} / 4 ^ ? + / * + ?"), scale_inputs="allf")
 \         : preblur!="OFF" && secure ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)).ex_lutxy(pre,secstr), fulls=fs), fulls=fs)
@@ -574,38 +576,40 @@ second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(
 zero   = ex_clamp(normsharp, bright_limit, dark_limit,                 0,                  0, UV=1, fulls=fs)
 
 
-edge  = edgemaskHQ ? ex_logic( tmp.ex_edge(mode="x[-1,1] 8 * A^ x[0,1] 16 * B^ x[1,1] 8 * C^ x[-1,-1] 8 * D^ x[0,-1] 16 * E^ x[1,-1] 8 * F^ A B + C + D - E - F - D E + F + A - B - C - max 4 /",UV=1,lo=0,hi=255)
-\                             ,tmp.ex_edge(mode="x[-1,1] 8 * A^ x[1,1] 8 * B^ x[-1,0] 16 * C^ x[1,0] 16 * D^ x[-1,-1] 8 * E^ x[1,-1] 8 * F^ A B - C + D - E + F - B A - C - D + E - F + max 4 /",UV=1,lo=0,hi=255)
-\                             ,"max", UV=1)
-\     :                        tmp.ex_edge(mode="min/max",lo=0,hi=255,UV=1)
+edge  = edgemaskHQ ? mt_logic( tmp.ex_edge(mode="x[-1,1] 2 * A^ x[0,1] 4 * B^ x[1,1] 2 * C^ x[-1,-1] 2 * D^ x[0,-1] 4 * E^ x[1,-1] 2 * F^ A B + C + D - E - F - D E + F + A - B - C - max",UV=1,lo=0,hi=255)
+\                             ,tmp.ex_edge(mode="x[-1,1] 2 * A^ x[1,1] 2 * B^ x[-1,0] 4 * C^ x[1,0] 4 * D^ x[-1,-1] 2 * E^ x[1,-1] 2 * F^ A B - C + D - E + F - B A - C - D + E - F + max",UV=1,lo=0,hi=255)
+\                             ,"max", U=1,V=1)
+\     :                        tmp.mt_edge(thY1=0,thY2=255,mode="min/max",U=1,V=1)
 
-emHQn = ex_bs(32, bi, fs)
-edge  = edgemaskHQ ?  edge.ex_lut(       "x range_half / 0.86 ^ range_max *" ,scale_inputs="floatf",clamp_float=true, fulls=fs)
-\     :               edge.ex_lut(Format("x {emHQn}    / 0.86 ^ range_max *"),scale_inputs="floatf",clamp_float=true, fulls=fs)
+emHQn = 1. / ex_bs(32, bi, fs)
+edge  = edgemaskHQ ?  edge.ex_lut(       "x range_half / 0.86 ^ range_max *" , scale_inputs="floatf", clamp_float=true, fulls=fs)
+\     :               edge.ex_lut(Format("x {emHQn}    * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
 
 limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      : Lmode==0 ? normsharp
 \      : Lmode==1 ? normal
-\      : Lmode==2 ? ex_merge(normsharp, normal, edge.ex_inflate(), fulls=fs)
-\      : Lmode==3 ? ex_merge(normal,    zero,   edge.ex_inflate(), fulls=fs)
-\      :            ex_merge(second,    normal, edge.ex_inflate(), fulls=fs)
+\      : Lmode==2 ? mt_merge(normsharp, normal, edge.mt_inflate())
+\      : Lmode==3 ? mt_merge(normal,    zero,   edge.mt_inflate())
+\      :            mt_merge(second,    normal, edge.mt_inflate())
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1), fulls=fs)
-\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1), fulls=fs)
+\      : edgemode==1 ? mt_merge(tmp,limit1,edge.mt_inflate().mt_inflate().removegrain(12,-1))
+\      :               mt_merge(limit1,tmp,edge.mt_inflate().mt_inflate().removegrain(12,-1))
 
 
 ### SOFT
+soft2     = 100 - soft
 sharpdiff = ex_makediff(tmp,limit2,fulls=fs)
-sharpdiff = ex_lutxy(sharpdiff,sharpdiff.removegrain(19,-1), Format("x range_half - abs y range_half - abs > y {soft} * x 100 {soft} - * + 100 / x ?"),fulls=fs)
+sharpdiff = ex_lutxy(sharpdiff,sharpdiff.removegrain(19,-1), Format("x range_half - abs y range_half - abs > y {soft} * x {soft2} * + 0.01 * x ?"),fulls=fs)
 
 PP1 = soft==0 ? limit2 : ex_makediff(tmp,sharpdiff,fulls=fs)
 
 
 ### SOOTHE
 diff  = ex_makediff(tmp,PP1,fulls=fs)
+keep2 = keep/100.
 diff2 = diff.temporalsoften(1,255,0,32,2)
-diff3 = ex_lutxy(diff,diff2,Format("x range_half - A@ y range_half - B@ * 0 < A 100 / {keep} * range_half + A abs B abs > x {keep} * y 100 {keep} - * + 100 / x ? ?"),fulls=fs)
+diff3 = ex_lutxy(diff,diff2,Format("x range_half - A@ y range_half - B@ * 0 < A {keep2} * range_half + A abs B abs > x {keep} * y 100 {keep} - * + 0.01 * x ? ?"),fulls=fs)
 
 PP2 = soothe ? ex_makediff(tmp,diff3,fulls=fs) : PP1
 
