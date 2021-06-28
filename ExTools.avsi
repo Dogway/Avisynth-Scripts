@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v2.4     (26-06-2021)              ##
+###           ExTools v2.5     (28-06-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -379,8 +379,8 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 #
 # Benchmark:
 # 100% removegrain(19,-1)
-#  87% Dither_box_filter16(2,U=1,V=1) scales up better than ex_boxblur()
-#  85% ex_boxblur(1)
+#  87% ex_boxblur(1,UV=1)
+#  87% Dither_box_filter16(2,U=1,V=1)
 #  66% blur(1.58)
 #  64% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
 #  43% mt_convolution("1 1 1","1 1 1",U=1,V=1)
@@ -402,22 +402,26 @@ function ex_boxblur(clip a, int "radius", int "radiusV", int "UV", bool "fulls")
     krnlrd = krnlsz/2
 
     krnh = ""
+    wgh  = 1. / (krnlrd*2+1)
     for (px = -krnlrd, krnlrd, 1) {
-        krnh = px == -krnlrd ? Format("x[{px},0] ") : Format(krnh + "x[{px},0] + ")
+        krnh = px == -krnlrd ? Format("x[{px},0] {wgh} * ") : Format(krnh + "x[{px},0] {wgh} * + ")
        }
 
     krnlsz = 2 * rv + 1
     krnlrv = krnlsz/2
 
     krnv = ""
+    wgv  = 1. / (krnlrv*2+1)
     for (py = -krnlrv, krnlrv, 1) {
-        krnv = py == -krnlrv ? Format("x[0,{py}] ") : Format(krnv + "x[0,{py}] + ")
+        krnv = py == -krnlrv ? Format("x[0,{py}] {wgv} * ") : Format(krnv + "x[0,{py}] {wgv} * + ")
        }
 
-    str  = "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 9 /"
+    str  = "x[-1,1] 0.111111 * x[0,1] 0.111111 * + x[1,1] 0.111111 * + x[-1,0] 0.111111 * + x[0,0] 0.111111 * + " \
+          +"x[1,0] 0.111111 * + x[-1,-1] 0.111111 * + x[0,-1] 0.111111 * + x[1,-1] 0.111111 * +"
+
     fbox = rd == 1 && rv == 1
-    strv = fbox ? str : krnv + string(krnlrv*2+1) + " /"
-    strh =              krnh + string(krnlrd*2+1) + " /"
+    strv = fbox ? str : krnv
+    strh =              krnh
 
     rv == 0 ?      a                                                                  : \
     isy     ? Expr(a,    strv                                                       ) : \
@@ -434,7 +438,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", int "UV", bool "fulls")
 # Benchmark:
 # 100% removegrain(12,-1)
 #  94% BinomialBlur(0.75,U=1,V=1) only in 8-bit
-#  84% ex_blur(1)
+#  88% ex_blur(1,UV=1)
 #  84% ablur(1, 1) against ex_blur(2) but scales up better
 #  70% blur(1.00)
 #  66% generalconvolution(matrix="0 1 0 1 2 1 0 1 0",6,chroma=false) doesn't match output tho
@@ -484,12 +488,13 @@ function ex_blur(clip a, int "radius", int "radiusV", string "gamma", int "UV", 
         krnh = i == 0 ? Format("x[{px},0] {wg} * ") : Format(krnh + "x[{px},0] {wg} * + ")
        }
 
-    strv = fkern   ?   "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 10 /" : \
-           sv==0.3 ?   "x[0,1]  x[0,0] 2 * x[0,-1] + + 4 /" : \
-           sv==0.0 ?   "x"                                  : \
+    strv = fkern   ?   "x[-1,1] 0.1 * x[0,1] 0.1 * + x[1,1] 0.1 * + x[-1,0] 0.1 * + x[0,0] 0.2 * + "   \
+                      +"x[1,0] 0.1 * + x[-1,-1] 0.1 * + x[0,-1] 0.1 * + x[1,-1] 0.1 * +"             : \
+           sv==0.3 ?   "x[0,1] 0.25 * x[0,0] 0.5 * + x[0,-1] 0.25 * + "                              : \
+           sv==0.0 ?   "x"                                                                           : \
                        krnv
-    strh = sm==0.3 ?   "x[-1,0] x[0,0] 2 * x[1,0]  + + 4 /" : \
-           sm==0.0 ?   "x"                                  : \
+    strh = sm==0.3 ?   "x[-1,0] 0.25 * x[0,0] 0.5 * + x[1,0] 0.25 * + "                              : \
+           sm==0.0 ?   "x"                                                                           : \
                        krnh
 
     p_type = PixelType(a)
@@ -524,19 +529,20 @@ function ex_blur(clip a, int "radius", int "radiusV", string "gamma", int "UV", 
            }
        }
 
-        cstrv = !p_0                        ? strv                                                                                            : \
-                sm==0.6 && sv == 0.6        ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 10 /" : \
-                fkern                       ? "x[-1,1] 0.05 * x[0,1] 0.05 * x[1,1] 0.05 * x[-1,0] 0.05 * x[0,0] 0.6 * "                         \
-                                            + "x[1,0]  0.05 * x[-1,-1] 0.05 * x[0,-1] 0.05 * x[1,-1] 0.05 * + + + + + + + +"                  : \
-                sv==0.6                     ? "x[0,1] x[0,0] 2 * x[0,-1] + + 4 /"                                                             : \
-                sv==0.3                     ? "x[0,1] 0.12 * x[0,0] 0.76 * x[0,-1] 0.12 * + +"                                                : \
-                sv==0.0                     ? "x"                                                                                             : \
+        cstrv = !p_0                        ? strv                                                                              : \
+                sm==0.6 && sv == 0.6        ? "x[-1,1] 0.1 * x[0,1] 0.1 * + x[1,1] 0.1 * + x[-1,0] 0.1 * + x[0,0] 0.2 * + "       \
+                                             +"x[1,0] 0.1 * + x[-1,-1] 0.1 * + x[0,-1] 0.1 * + x[1,-1] 0.1 * +"                 : \
+                fkern                       ? "x[-1,1] 0.05 * x[0,1] 0.05 * + x[1,1] 0.05 * + x[-1,0] 0.05 * + x[0,0] 0.6 * + "   \
+                                            + "x[1,0] 0.05 * + x[-1,-1] 0.05 * + x[0,-1] 0.05 * + x[1,-1] 0.05 * +"             : \
+                sv==0.6                     ? "x[0,1] 0.25 * x[0,0] 0.50 * + x[0,-1] 0.25 * +"                                  : \
+                sv==0.3                     ? "x[0,1] 0.12 * x[0,0] 0.76 * + x[0,-1] 0.12 * +"                                  : \
+                sv==0.0                     ? "x"                                                                               : \
                                               cstrv
 
-        cstrh = p_4                         ? strh                                                                                            : \
-                sm==0.0                     ? "x"                                                                                             : \
-                sm==0.6 && !p_1             ? "x[-1,0] x[0,0] 2 * x[1,0]  + + 4 /"                                                            : \
-                sm==0.3 || (sm==0.3 && p_1) ? "x[-1,0] 0.12 * x[0,0] 0.76 * x[1,0] 0.12 * + +"                                                : \
+        cstrh = p_4                         ? strh                                                                              : \
+                sm==0.0                     ? "x"                                                                               : \
+                sm==0.6 && !p_1             ? "x[-1,0] 0.25 * x[0,0] 0.50 * + x[1,0] 0.25 * +"                                  : \
+                sm==0.3 || (sm==0.3 && p_1) ? "x[-1,0] 0.12 * x[0,0] 0.76 * + x[1,0] 0.12 * +"                                  : \
                                               cstrh
 
     if (gm != "none") {
@@ -601,13 +607,13 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV", b
             for (px  = -krnlrd, krnlrd, 1) {
                 krnh = Format(krnh + "x[{px},0] max ")
             }
-    strh = Format("x[0,0] " + ReplaceStr(krnh, "x[0,0] max ", "") + (thr != 255 ? "A^ x[0,0] {th} + A min" : ""))
+    strh = Format("x[0,0] " + ReplaceStr(krnh, "x[0,0] max ", "") + (thr != 255 ? "x[0,0] {th} + min" : ""))
     }
 
     fbox = mode == "square" && rd == 1
     str  = Format("x[0,0] " + ReplaceStr(krn,  "x[0,0] max ", ""))
     str  = !fbox ? str : Format("x[-1,1] x[0,1] max x[1,1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,-1] max x[0,-1] max x[1,-1] max ")
-    str  = str + (thr != 255 ? "A^ x[0,0] {th} + A min" : "")
+    str  = str + (thr != 255 ? "x[0,0] {th} + min" : "")
 
 
     isy     ? Expr(a, str                                                        ) : \
@@ -662,13 +668,13 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV", b
             for (px = -krnlrd, krnlrd, 1) {
                 krnh = Format(krnh + "x[{px},0] min ")
             }
-    strh = Format("x[0,0] " + ReplaceStr(krnh, "x[0,0] min ", "") + (thr != 255 ? "A^ x[0,0] {th} - A max" : ""))
+    strh = Format("x[0,0] " + ReplaceStr(krnh, "x[0,0] min ", "") + (thr != 255 ? "x[0,0] {th} - max" : ""))
     }
 
     fbox = mode == "square" && rd == 1
     str  = Format("x[0,0] " + ReplaceStr(krn,  "x[0,0] min ", ""))
     str  = !fbox ? str : Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[0,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min ")
-    str  = str + (thr != 255 ? "A^ x[0,0] {th} - A max" : "")
+    str  = str + (thr != 255 ? "x[0,0] {th} - max" : "")
 
     isy     ? Expr(a, str                                                        ) : \
     UV == 1 ? Expr(a, str, ""                                                    ) : \
@@ -698,13 +704,14 @@ function ex_deflate(clip a, int "radius", int "UV", bool "fulls") {
     krnlrd = krnlsz/2
 
     krn = ""
+    wg  = 1. / (krnlsz*krnlsz-1)
     for (px = -krnlrd, krnlrd, 1) {
         for (py = -krnlrd, krnlrd, 1) {
-            krn = py == -krnlrd && px == -krnlrd ? Format("x[{px},{py}] ") : Format(krn + "x[{px},{py}] + ")
+            krn = py == -krnlrd && px == -krnlrd ? Format("x[{px},{py}] {wg} * ") : Format(krn + "x[{px},{py}] {wg} * + ")
            }
        }
 
-    str = ReplaceStr(krn, "x[0,0] + ", "") + string(krnlsz*krnlsz-1) + " / x[0,0] min"
+    str = ReplaceStr(krn, Format("x[0,0] {wg} * + "), "") + "x[0,0] min"
 
     isy     ? Expr(a, str                                                      ) : \
     UV == 1 ? Expr(a, str, ""                                                  ) : \
@@ -726,20 +733,21 @@ function ex_inflate(clip a, int "radius", int "UV", bool "fulls") {
     krnlrd = krnlsz/2
 
     krn = ""
+    wg  = 1. / (krnlsz*krnlsz-1)
     for (px = -krnlrd, krnlrd, 1) {
         for (py = -krnlrd, krnlrd, 1) {
-            krn = py == -krnlrd && px == -krnlrd ? Format("x[{px},{py}] ") : Format(krn + "x[{px},{py}] + ")
+            krn = py == -krnlrd && px == -krnlrd ? Format("x[{px},{py}] {wg} * ") : Format(krn + "x[{px},{py}] {wg} * + ")
            }
        }
 
-    str = ReplaceStr(krn, "x[0,0] + ", "") + string(krnlsz*krnlsz-1) + " / x[0,0] max"
+    str = ReplaceStr(krn, Format("x[0,0] {wg} * + "), "") + "x[0,0] max"
 
     isy     ? Expr(a, str                                                      ) : \
     UV == 1 ? Expr(a, str, ""                                                  ) : \
               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs="none") }
 
 
-# mt_edge() is 18% faster (varies with kernel)
+# mt_edge() is 14% faster (varies with kernel)
 function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
@@ -757,35 +765,35 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     hi = ex_bs(hi, bi, fs)
 
     th  = th ? "" : ex_dlut(Format("T@ {lo} < range_min T {hi} > range_max T ? ?"), bi, fs)
-    str = Format(                                                                                                                                                                           \
-          mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                      \
-                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "                                                        \
-                             +"G A + B + F - H - E - D G + E + C - H - B - max E H + F + B - A - G - B H + C + E - G - D - max max max "+th+""                                            : \
-          mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                             \
-                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "+th+""                                                : \
-          mode=="sobel"     ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 2 / "+th+""                                                                      : \
-          mode=="scharr"    ? "x[-1,1] 3 * A^ x[0,1] B^  x[1,1] 3 * C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] 3 * F^ x[0,-1] G^  x[1,-1] 3 * H^ "                                                    \
-                             +"C A - D 10 * - E 10 * + F - H + 3 / U@ U * H G 10 * + F + C - B 10 * - A - 3 / V@ V * + sqrt "+th+""                                                       : \
-          mode=="frei-chen" ? "x[-1,1] 7 * A^ x[0,1] B^  x[1,1] 7 * C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] 7 * F^ x[0,-1] G^  x[1,-1] 7 * H^ "                                                    \
-                             +"C A - D 10 * - E 10 * + F - H + 7 / U@ U * H G 10 * + F + C - B 10 * - A - 7 / V@ V * + sqrt "+th+""                                                       : \
-          mode=="roberts"   ? "x[0,0] 2 * A^ x[1,0] B^ x[0,1] C^ A B - C - B A - C + max 2 / "+th+""                                                                                      : \
-          mode=="kayyali"   ? "x[1,1] 6 * A^ x[-1,1] 6 * B^ x[-1,-1] 6 * C^ x[1,-1] 6 * D^ B A - C + D - A B - C - D + max 2 / "+th+""                                                    : \
-          mode=="robinson"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                                      \
-                             +"C A - D 2 * - E 2 * + F - H +     B C 2 * + D - E + F 2 * - G - max     A B 2 * + C + F - G 2 * - H - max     A 2 * B + D + E - G - H 2 * - max "            \
-                             +"A C - D 2 * + E 2 * - F + H - 0 B - C 2 * - D + E - F 2 * + G + max 0 A - B 2 * - C - F + G 2 * + H + max 0 A 2 * - B - D - E + G + H 2 * + max max "+th+"": \
-          mode=="FDoG"      ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] 2 * G^ x[0,1] H^ x[1,1] 2 * I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ "                      \
-                             +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] 2 * Q^ x[0,-1] R^ x[1,-1] 2 * S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] W^ x[1,-2] X^ x[2,-2] Y^ "              \
-                             +"A B + D - E - F 2 * + G + I - J 2 * - K 3 * + L 3 * + N 3 * - O 3 * - P 2 * + Q + S - T 2 * - U + V + X - Y - 2 / M@ M * "                                   \
-                             +"U V 2 * + W 3 * + X 2 * + Y + P + Q + R 3 * + S + T + F - G - H 3 * - I - J - A - B 2 * - C 3 * - D 2 * - E - 2 / N@ N * + sqrt "+th+""                    : \
-          mode=="DoG"       ? "x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ "                  \
-                             +"A 2 * B C D E + + + + 6 / N@ F G H I B 2 * E 2 * D 2 * C 2 * J K L M A 4 * + + + + + + + + + + + + 20 / O@ - abs 0.25 scaleb > N O - 2.0 * N ? "+th+""     : \
-          mode=="LoG"       ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * - "+th+""    : \
-          mode=="laplace"   ? "x[0,0] 8 * A^ x[-1,1] B^ x[0,1] C^ x[1,1] D^ x[-1,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "                                                        \
-                             +"A B - C - D - E - F - G - H - I - B C + D + E + F + G + H + I + A - max 8 / "+th+""                                                                        : \
-          mode=="cartoon"   ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                                                                     : \
-          mode=="TEdge"     ? "x[-2,0] 12 * x[-1,0] 74 * - x[1,0] 74 * + x[2,0] 12 * - 6 / A@ A * x[0,-2] 12 * x[0,-1] 74 * - x[0,1] 74 * + x[0,2] 12 * - 6 / B@ B * + sqrt "+th+""       : \
-          mode=="min/max"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                            \
-                             +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""                                              : \
+    str = Format(                                                                                                                                                                                \
+          mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                           \
+                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "                                                             \
+                             +"G A + B + F - H - E - D G + E + C - H - B - max E H + F + B - A - G - B H + C + E - G - D - max max max "+th+""                                                 : \
+          mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                                  \
+                             +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "+th+""                                                     : \
+          mode=="sobel"     ? "x[1,0] 0.5 * A^ x[0,1] 0.5 * B^ x[-1,0] 0.5 * C^ x[0,-1] 0.5 * D^ A B + C - D - C D + A - B - max "+th+""                                                       : \
+          mode=="scharr"    ? "x[-1,1] 3 * A^ x[0,1] B^  x[1,1] 3 * C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] 3 * F^ x[0,-1] G^  x[1,-1] 3 * H^ "                                                         \
+                             +"C A - D 10 * - E 10 * + F - H + 0.333333 * U@ U * H G 10 * + F + C - B 10 * - A - 0.333333 * V@ V * + sqrt "+th+""                                              : \
+          mode=="frei-chen" ? "x[-1,1] 7 * A^ x[0,1] B^  x[1,1] 7 * C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] 7 * F^ x[0,-1] G^  x[1,-1] 7 * H^ "                                                         \
+                             +"C A - D 10 * - E 10 * + F - H + 0.142857 * U@ U * H G 10 * + F + C - B 10 * - A - 0.142857 * V@ V * + sqrt "+th+""                                              : \
+          mode=="roberts"   ? "x[0,0] A^ x[1,0] 0.5 * B^ x[0,1] 0.5 * C^ A B - C - B A - C + max "+th+""                                                                                       : \
+          mode=="kayyali"   ? "x[1,1] 3 * A^ x[-1,1] 3 * B^ x[-1,-1] 3 * C^ x[1,-1] 3 * D^ B A - C + D - A B - C - D + max "+th+""                                                             : \
+          mode=="robinson"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                                           \
+                             +"C A - D 2 * - E 2 * + F - H +     B C 2 * + D - E + F 2 * - G - max     A B 2 * + C + F - G 2 * - H - max     A 2 * B + D + E - G - H 2 * - max "                 \
+                             +"A C - D 2 * + E 2 * - F + H - 0 B - C 2 * - D + E - F 2 * + G + max 0 A - B 2 * - C - F + G 2 * + H + max 0 A 2 * - B - D - E + G + H 2 * + max max "+th+""     : \
+          mode=="FDoG"      ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] 2 * G^ x[0,1] H^ x[1,1] 2 * I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ "                           \
+                             +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] 2 * Q^ x[0,-1] R^ x[1,-1] 2 * S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] W^ x[1,-2] X^ x[2,-2] Y^ "                   \
+                             +"A B + D - E - F 2 * + G + I - J 2 * - K 3 * + L 3 * + N 3 * - O 3 * - P 2 * + Q + S - T 2 * - U + V + X - Y - 0.5 * M@ M * "                                      \
+                             +"U V 2 * + W 3 * + X 2 * + Y + P + Q + R 3 * + S + T + F - G - H 3 * - I - J - A - B 2 * - C 3 * - D 2 * - E - 0.5 * N@ N * + sqrt "+th+""                       : \
+          mode=="DoG"       ? "x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ "                       \
+                             +"A 2 * B + C + D + E + 0.166666 * N@ F G + H + I + B 2 * + E 2 * + D 2 * + C 2 * + J + K + L + M + A 4 * + 0.05 * O@ - abs 0.25 scaleb > N O - 2.0 * N ? "+th+"" : \
+          mode=="LoG"       ? "x[0,2] x[0,-2] + x[2,0] + x[-2,0] + x[0,1] 2 * + x[0,-1] 2 * + x[1,0] 2 * + x[-1,0] 2 * + x[-1,1] + x[-1,-1] + x[1,1] + x[1,-1] + x[0,0] 16 * - "+th+""         : \
+          mode=="laplace"   ? "x[0,0] A^ x[-1,1] 0.125 * B^ x[0,1] 0.125 * C^ x[1,1] 0.125 * D^ x[-1,0] 0.125 * E^ x[1,0] 0.125 * F^ x[-1,-1] 0.125 * G^ x[0,-1] 0.125 * H^ x[1,-1] 0.125 * I^ " \
+                             +"A B - C - D - E - F - G - H - I - B C + D + E + F + G + H + I + A - max "+th+""                                                                                 : \
+          mode=="cartoon"   ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                                                                          : \
+          mode=="TEdge"     ? "x[-2,0] 2 * x[-1,0] 12.333333 * - x[1,0] 12.333333 * + x[2,0] 2 * - A@ A * x[0,-2] 2 * x[0,-1] 12.333333 * - x[0,1] 12.333333 * + x[0,2] 2 * - B@ B * + sqrt "+th+"" : \
+          mode=="min/max"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                                 \
+                             +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""                                                   : \
                              ex_dlut(mode, bi, fs) )
 
     isy     ? Expr(a, str                                                               ) : \
@@ -800,7 +808,7 @@ function ex_undot(clip a, int "radius", int "UV", bool "fulls") {
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    rd = Default(radius, 1)            # beware; not real radius -bigger kernel-, but further apart
+    rd = Default(radius, 1)            # beware; not real radius -as bigger kernel-, but further apart
     UV = Default(UV, rgb ? 3 : 1)
     fs = Default(fulls, false)
 
@@ -819,7 +827,7 @@ function ex_repair(clip a, clip b, int "radius", int "UV", bool "fulls") {
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    rd = Default(radius, 1)            # beware; not real radius -bigger kernel-, but further apart
+    rd = Default(radius, 1)            # beware; not real radius -as bigger kernel-, but further apart
     UV = Default(UV, rgb ? 3 : 1)
     fs = Default(fulls, false)
 
