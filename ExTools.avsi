@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v2.5     (28-06-2021)              ##
+###           ExTools v2.6     (30-06-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -45,7 +45,7 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(rgb, bi)
 
-    ystr  =                       ex_Yexpr (str,  Y, bi, rgb, fs)
+    ystr =                        ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  =             ex_dlut(ystr, bi, fs)
     cstr = rgb ? str : ex_dlut(cstr, bi, fs)
@@ -69,7 +69,7 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(rgb, bi)
 
-    ystr  =                       ex_Yexpr (str,  Y, bi, rgb, fs)
+    ystr =                        ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  =             ex_dlut(ystr, bi, fs)
     cstr = rgb ? str : ex_dlut(cstr, bi, fs)
@@ -93,7 +93,7 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(rgb, bi)
 
-    ystr  =                       ex_Yexpr (str,  Y, bi, rgb, fs)
+    ystr =                        ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = Defined(cstr) ? cstr : ex_UVexpr(str, UV, bi, rgb, fs)
     str  =             ex_dlut(ystr, bi, fs)
     cstr = rgb ? str : ex_dlut(cstr, bi, fs)
@@ -104,15 +104,16 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
 
 
 # mt_makediff() is 5% slower
-function ex_makediff(clip a, clip b, int "UV", bool "dif", bool "aug", bool "fulls") {
+function ex_makediff(clip a, clip b, int "Y", int "UV", bool "dif", bool "aug", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    dif = Default(dif,  true)
-    aug = Default(aug, false)
+    aug = Default(aug,   false)
+    Y   = Default(Y,         3)
     UV  = Default(UV,  rgb ? 3 : aug ? 128 : 1)
+    dif = Default(dif,    true)
     fs  = Default(fulls, false)
 
     str = aug ? "x y - abs 50 *"     : \
@@ -120,33 +121,36 @@ function ex_makediff(clip a, clip b, int "UV", bool "dif", bool "aug", bool "ful
                 "x y -"
 
     str  = dif && fs ? ex_dlut(str, bi, fs) : str
+    ystr = ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
-    isy     ? Expr(a, b, str                                    ) : \
-    UV == 1 ? Expr(a, b, str, ""                                ) : \
-              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isy     ? Expr(a, b, ystr                                    ) : \
+    UV == 1 ? Expr(a, b, ystr, ""                                ) : \
+              Expr(a, b, ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_adddiff() is 5% slower
-function ex_adddiff(clip a, clip b, int "UV", bool "dif", bool "fulls") {
+function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    dif = Default(dif, true)
+    Y   = Default(Y,         3)
     UV  = Default(UV,  rgb ? 3 : 1)
+    dif = Default(dif,    true)
     fs  = Default(fulls, false)
 
     str = dif ? "x y + range_half -" : \
                 "x y +"
 
     str  = dif && fs ? ex_dlut(str, bi, fs) : str
+    ystr = ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
-    isy     ? Expr(a, b, str                                    ) : \
-    UV == 1 ? Expr(a, b, str, ""                                ) : \
-              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isy     ? Expr(a, b, ystr                                    ) : \
+    UV == 1 ? Expr(a, b, ystr, ""                                ) : \
+              Expr(a, b, ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_logic(mode="and") is 6% slower ("min", "max" modes are faster)
@@ -160,14 +164,14 @@ function ex_logic(clip a, clip b, string "mode", int "UV", bool "fulls") {
     UV   = Default(UV,  rgb ? 3 : 1)
     fs   = Default(fulls, false)
 
-    str = Format(                                            \
-        mode == "and"   ? "x y * range_max /"              : \
-        mode == "or"    ? "x y + range_min range_max clip" : \
-        mode == "xor"   ? "x y - abs"                      : \
-        mode == "andn"  ? "range_max x - y * range_max /"  : \
-        mode == "min"   ? "x y min"                        : \
-        mode == "max"   ? "x y max"                        : \
-                          Assert (false, "Unsupported mode.") )
+    str =                                                     \
+        mode == "and"   ? "x y * range_max /"               : \
+        mode == "or"    ? "x y + range_min range_max clip"  : \
+        mode == "xor"   ? "x y - abs"                       : \
+        mode == "andn"  ? "range_max x - y * range_max /"   : \
+        mode == "min"   ? "x y min"                         : \
+        mode == "max"   ? "x y max"                         : \
+                          Assert (false, "Unsupported mode.")
 
     str  = ex_dlut  (str,     bi,      fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
@@ -214,7 +218,7 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
     os = ex_bs(os, bi, fs)
     us = ex_bs(us, bi, fs)
 
-    str = (os == 0) && (us == 0) ? Format("x y min z max")             : \
+    str = (os == 0) && (us == 0) ?        "x y min z max"              : \
                                    Format("x y {os} + min z {us} - max")
 
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
@@ -319,7 +323,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     # "softlight" uses Pegtop's formula
     if (op == 1.0) {
 
-        str = Format(                                                                                                                                  \
+        str =                                                                                                                                          \
             mode == "blend"        ? "y"                                                                                                             : \
             mode == "screen"       ? ""+rngmax+" A@ A x "+srcmax+" - A y "+srcmax+" - * A / - "+pdstl+""                                             : \
             mode == "add"          ? "x "+srcmax+" y "+srcmax+" + "+pdstl+""                                                                         : \
@@ -335,7 +339,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
             mode == "exclusion"    ? "x "+srcmax+" A@ A y "+srcmax+" B@ + 2 A * B * + + "+rngmax+" / "+pdstl+""                                      : \
             mode == "extremity"    ? ""+rngmax+"            x "+srcmax+" - y "+srcmax+" - abs   "+pdstl+""                                           : \
             mode == "negation"     ? ""+rngmax+" "+rngmax+" x "+srcmax+" - y "+srcmax+" - abs - "+pdstl+""                                           : \
-                                     Assert (false, "Unsupported Blend Mode.") )
+                                     Assert (false, "Unsupported Blend Mode.")
         } else {
 
         str = Format(                                                                                                                                                   \
@@ -607,13 +611,13 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV", b
             for (px  = -krnlrd, krnlrd, 1) {
                 krnh = Format(krnh + "x[{px},0] max ")
             }
-    strh = Format("x[0,0] " + ReplaceStr(krnh, "x[0,0] max ", "") + (thr != 255 ? "x[0,0] {th} + min" : ""))
+    strh = "x[0,0] " + ReplaceStr(krnh, "x[0,0] max ", "") + (thr != 255 ? Format("x[0,0] {th} + min") : "")
     }
 
     fbox = mode == "square" && rd == 1
-    str  = Format("x[0,0] " + ReplaceStr(krn,  "x[0,0] max ", ""))
-    str  = !fbox ? str : Format("x[-1,1] x[0,1] max x[1,1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,-1] max x[0,-1] max x[1,-1] max ")
-    str  = str + (thr != 255 ? "x[0,0] {th} + min" : "")
+    str  = "x[0,0] " + ReplaceStr(krn,  "x[0,0] max ", "")
+    str  = !fbox ? str : "x[-1,1] x[0,1] max x[1,1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,-1] max x[0,-1] max x[1,-1] max "
+    str  = str + (thr != 255 ? Format("x[0,0] {th} + min") : "")
 
 
     isy     ? Expr(a, str                                                        ) : \
@@ -668,13 +672,13 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV", b
             for (px = -krnlrd, krnlrd, 1) {
                 krnh = Format(krnh + "x[{px},0] min ")
             }
-    strh = Format("x[0,0] " + ReplaceStr(krnh, "x[0,0] min ", "") + (thr != 255 ? "x[0,0] {th} - max" : ""))
+    strh = "x[0,0] " + ReplaceStr(krnh, "x[0,0] min ", "") + (thr != 255 ? Format("x[0,0] {th} - max") : "")
     }
 
     fbox = mode == "square" && rd == 1
-    str  = Format("x[0,0] " + ReplaceStr(krn,  "x[0,0] min ", ""))
-    str  = !fbox ? str : Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[0,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min ")
-    str  = str + (thr != 255 ? "x[0,0] {th} - max" : "")
+    str  = "x[0,0] " + ReplaceStr(krn,  "x[0,0] min ", "")
+    str  = !fbox ? str : "x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[0,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min "
+    str  = str + (thr != 255 ? Format("x[0,0] {th} - max") : "")
 
     isy     ? Expr(a, str                                                        ) : \
     UV == 1 ? Expr(a, str, ""                                                    ) : \
@@ -765,36 +769,51 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     hi = ex_bs(hi, bi, fs)
 
     th  = th ? "" : ex_dlut(Format("T@ {lo} < range_min T {hi} > range_max T ? ?"), bi, fs)
-    str = Format(                                                                                                                                                                                \
+    str =                                                                                                                                                                                        \
           mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                           \
                              +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "                                                             \
                              +"G A + B + F - H - E - D G + E + C - H - B - max E H + F + B - A - G - B H + C + E - G - D - max max max "+th+""                                                 : \
+                                                                                                                                                                                                 \
           mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                                  \
                              +"A B + C + D - E - F - A G + D + C - H - F - max F E + D + C - B - A - F H + C + D - G - A - max max "+th+""                                                     : \
+                                                                                                                                                                                                 \
           mode=="sobel"     ? "x[1,0] 0.5 * A^ x[0,1] 0.5 * B^ x[-1,0] 0.5 * C^ x[0,-1] 0.5 * D^ A B + C - D - C D + A - B - max "+th+""                                                       : \
+                                                                                                                                                                                                 \
           mode=="scharr"    ? "x[-1,1] 3 * A^ x[0,1] B^  x[1,1] 3 * C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] 3 * F^ x[0,-1] G^  x[1,-1] 3 * H^ "                                                         \
                              +"C A - D 10 * - E 10 * + F - H + 0.333333 * U@ U * H G 10 * + F + C - B 10 * - A - 0.333333 * V@ V * + sqrt "+th+""                                              : \
+                                                                                                                                                                                                 \
           mode=="frei-chen" ? "x[-1,1] 7 * A^ x[0,1] B^  x[1,1] 7 * C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] 7 * F^ x[0,-1] G^  x[1,-1] 7 * H^ "                                                         \
                              +"C A - D 10 * - E 10 * + F - H + 0.142857 * U@ U * H G 10 * + F + C - B 10 * - A - 0.142857 * V@ V * + sqrt "+th+""                                              : \
+                                                                                                                                                                                                 \
           mode=="roberts"   ? "x[0,0] A^ x[1,0] 0.5 * B^ x[0,1] 0.5 * C^ A B - C - B A - C + max "+th+""                                                                                       : \
+                                                                                                                                                                                                 \
           mode=="kayyali"   ? "x[1,1] 3 * A^ x[-1,1] 3 * B^ x[-1,-1] 3 * C^ x[1,-1] 3 * D^ B A - C + D - A B - C - D + max "+th+""                                                             : \
+                                                                                                                                                                                                 \
           mode=="robinson"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                                           \
                              +"C A - D 2 * - E 2 * + F - H +     B C 2 * + D - E + F 2 * - G - max     A B 2 * + C + F - G 2 * - H - max     A 2 * B + D + E - G - H 2 * - max "                 \
                              +"A C - D 2 * + E 2 * - F + H - 0 B - C 2 * - D + E - F 2 * + G + max 0 A - B 2 * - C - F + G 2 * + H + max 0 A 2 * - B - D - E + G + H 2 * + max max "+th+""     : \
+                                                                                                                                                                                                 \
           mode=="FDoG"      ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] 2 * G^ x[0,1] H^ x[1,1] 2 * I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ "                           \
                              +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] 2 * Q^ x[0,-1] R^ x[1,-1] 2 * S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] W^ x[1,-2] X^ x[2,-2] Y^ "                   \
                              +"A B + D - E - F 2 * + G + I - J 2 * - K 3 * + L 3 * + N 3 * - O 3 * - P 2 * + Q + S - T 2 * - U + V + X - Y - 0.5 * M@ M * "                                      \
                              +"U V 2 * + W 3 * + X 2 * + Y + P + Q + R 3 * + S + T + F - G - H 3 * - I - J - A - B 2 * - C 3 * - D 2 * - E - 0.5 * N@ N * + sqrt "+th+""                       : \
+                                                                                                                                                                                                 \
           mode=="DoG"       ? "x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ "                       \
                              +"A 2 * B + C + D + E + 0.166666 * N@ F G + H + I + B 2 * + E 2 * + D 2 * + C 2 * + J + K + L + M + A 4 * + 0.05 * O@ - abs 0.25 scaleb > N O - 2.0 * N ? "+th+"" : \
+                                                                                                                                                                                                 \
           mode=="LoG"       ? "x[0,2] x[0,-2] + x[2,0] + x[-2,0] + x[0,1] 2 * + x[0,-1] 2 * + x[1,0] 2 * + x[-1,0] 2 * + x[-1,1] + x[-1,-1] + x[1,1] + x[1,-1] + x[0,0] 16 * - "+th+""         : \
+                                                                                                                                                                                                 \
           mode=="laplace"   ? "x[0,0] A^ x[-1,1] 0.125 * B^ x[0,1] 0.125 * C^ x[1,1] 0.125 * D^ x[-1,0] 0.125 * E^ x[1,0] 0.125 * F^ x[-1,-1] 0.125 * G^ x[0,-1] 0.125 * H^ x[1,-1] 0.125 * I^ " \
                              +"A B - C - D - E - F - G - H - I - B C + D + E + F + G + H + I + A - max "+th+""                                                                                 : \
+                                                                                                                                                                                                 \
           mode=="cartoon"   ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                                                                          : \
+                                                                                                                                                                                                 \
           mode=="TEdge"     ? "x[-2,0] 2 * x[-1,0] 12.333333 * - x[1,0] 12.333333 * + x[2,0] 2 * - A@ A * x[0,-2] 2 * x[0,-1] 12.333333 * - x[0,1] 12.333333 * + x[0,2] 2 * - B@ B * + sqrt "+th+"" : \
+                                                                                                                                                                                                 \
           mode=="min/max"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                                 \
                              +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""                                                   : \
-                             ex_dlut(mode, bi, fs) )
+                                                                                                                                                                                                 \
+                             ex_dlut(mode, bi, fs)
 
     isy     ? Expr(a, str                                                               ) : \
     UV == 1 ? Expr(a, str, ""                                                           ) : \
