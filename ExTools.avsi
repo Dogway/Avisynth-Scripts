@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v2.8     (03-07-2021)              ##
+###           ExTools v2.9     (03-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -25,7 +25,6 @@
 ###
 ###
 ### Dependencies: AviSynth+ 3.5 and over
-###               Utils-r41 (for ex_merge)
 ###
 ###
 ####################################
@@ -153,7 +152,7 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "fulls")
               Expr(a, b, ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
-# mt_logic(mode="and") is 6% slower ("min", "max" modes are faster)
+# mt_logic(mode="and") is 6% slower
 function ex_logic(clip a, clip b, string "mode", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
@@ -198,9 +197,8 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV", bool
 
     msk = isy != isy(msk) || (lm && !isy) ? mskY_to_YUV(a, msk, lm, UV, bi) : msk
 
-    rgmx = ex_bs(255, bi, fs)
 
-    str  = Format("x x y - z 1 {rgmx} / * * -")
+    str  = Format("x x y - z 1 range_max / * * -")
 
      str = ex_dlut  ( str,     bi,      fs)
     ystr = ex_Yexpr ( str,  Y, bi, rgb, fs)
@@ -308,8 +306,8 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV", bool "fulls") 
     tem     ? last :   trim(last,0,-1).Loop(FrameCount(a)) }
 
 
-# Overlay(mode="multiply") is 56% slower (AVS+ 3.7.0)
-# Overlay_MTools(mode="multiply") is 31% slower
+# Overlay(mode="multiply")        is 56% slower (AVS+ 3.7.0)
+# Overlay_MTools(mode="multiply") is 13% slower
 function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool "tv_range", bool "fulls") {
 
     rgb  = isRGB(a)
@@ -515,11 +513,10 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
            sm==0.0  ?   "x"                                     : \
                        krnh + plsh
 
-    p_type = PixelType(a)
-    p_4 = FindStr(p_type, "44")>0
-    p_2 = FindStr(p_type, "22")>0
-    p_1 = FindStr(p_type, "41")>0
-    p_0 = FindStr(p_type, "20")>0
+
+    p_4 = is444(a)    p_1 = isYV411(a)
+    p_2 = is422(a)    p_0 = is420(a)
+
     cstrv = ""
     cstrh = ""
     if (!p_4 && (sm>0.6 || sv>0.6)) {
@@ -550,17 +547,18 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
        }
 
         cstrv = !p_0                        ? strv                                                                                                : \
-                sm==0.6 && sv == 0.6        ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 0.1 *"    : \
-                fkern                       ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 12 * x[1,0]  x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 0.05 *" : \
+                sm==0.6 && sv == 0.6        ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 *  x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 0.1 *"   : \
+                fkern                       ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 12 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 0.05 *"  : \
+                fkern2                      ? "x"                                                                                                 : \
                 sv==0.6                     ? "x[0,1] x[0,0] 2 * x[0,-1] + + 0.25 *"                                                              : \
-                sv==0.3                     ? "x[0,1] x[0,0] 6 * x[0,-1] + + 0.125 *"                                                             : \
+                sv==0.3                     ? "x[0,1] x[0,0] 3 * x[0,-1] + + 0.20 *"                                                              : \
                 sv==0.0                     ? "x"                                                                                                 : \
                                               cstrv + plsv
 
         cstrh = p_4                         ? strh                                                                                                : \
                 sm==0.0                     ? "x"                                                                                                 : \
                 sm==0.6 && !p_1             ? "x[-1,0] x[0,0] 2 * x[1,0] + + 0.25 *"                                                              : \
-                sm==0.3 || (sm==0.3 && p_1) ? "x[-1,0] x[0,0] 6 * x[1,0] + + 0.125 *"                                                             : \
+                sm==0.3 || (sm==0.3 && p_1) ? "x[-1,0] x[0,0] 3 * x[1,0] + + 0.20 *"                                                              : \
                                               cstrh + plsh
 
     if (gm != "none") {
@@ -790,7 +788,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                             \
                              +"G A B + + F - H - E - D G E + + C - H - B - max E H F + + B - A - G - B H C + + E - G - D - max max max "+th+""                                                 : \
                                                                                                                                                                                                  \
-          mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ F F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                                  \
+          mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ x[-1,-1] F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                           \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "+th+""                                                     : \
                                                                                                                                                                                                  \
           mode=="sobel"     ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 2 / "+th+""                                                                           : \
@@ -874,6 +872,7 @@ function ex_repair(clip a, clip b, int "radius", int "UV", bool "fulls") {
               Expr(a, b, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs="none") }
 
 
+
 ######### HELPER FUNCTIONS #########
 
 function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls") {
@@ -931,13 +930,11 @@ function ex_UVf(bool rgb, int bits) {
 
 
 # Scales 8-bit values to bitdepth counterpart
-function ex_bs(val var, int "bits", bool "fulls") {
+function ex_bs(float var, int "bits", bool "fulls") {
 
     bi  = Default(bits, 16)
     fs  = Default(fulls, false)
     var = min(max(var,0.),256.)
-
-    Assert(IsFloat(var) || IsInt(var),"'ex_bs()' only accepts integers or floats")
 
     v = var*pow(2, bi-8)
     bi == 32 ? var/255. : bi != 8 ? fs ? v+v/256. : v : var }
@@ -1014,7 +1011,7 @@ function mskY_to_YUV(clip a, clip msk, bool "luma", int "UV", int "bits") {
         w       = isYV411(a)             ? round(w/4.0) : round(w/2.0)
         h       = isYV411(a) || is422(a) ?            h : round(h/2.0)
         mskC    = is444  (a)             ?                 mskY :        mskY.BilinearResize(w+w%2,       h+h%2)
-        mskC    = luma ? p_float ? Expr(mskC, "x 0.5 -") : mskC : BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000).killaudio()
+        mskC    = luma ? p_float ? Expr(mskC, "x 0.5 -") : mskC : BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000)
         lmmsk   = CombinePlanes(mskY, mskC, mskC, planes="YUV", pixel_type=PixelType(a))
     } else {
         lmmsk   = msk
