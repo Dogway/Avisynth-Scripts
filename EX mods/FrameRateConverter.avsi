@@ -1,12 +1,12 @@
 # Frame Rate Converter ex mod
-# Version: 1.4.2  (28-06-2021)
+# Version: 1.4.3  (01-07-2021)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (1.4.2) (28-06-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
+# Dogway (1.4.3) (01-07-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -243,7 +243,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
     \       .ex_expand(1,mode="circle")
     \       .ex_binarize(MaskThr,fulls=fs)
-    \       .Expr("x[0,1] 0.03 * x[0,0] 0.76 * + x[0,-1] 0.03 * + x[-1,1] 0.03 * + x[-1,-1] 0.03 * + x[1,-1] 0.03 * + x[1,1] 0.03 * + x[-1,0] 0.03 * + x[1,0] 0.03 * +")
+    \       .Expr("x[0,1] x[-1,0] x[0,0] 3 * x[1,0] x[0,-1] + + + + 0.142857143 *")
     \       .BicubicResize(C.Width(), C.Height())
 
     # Mask: Stripes
