@@ -6,7 +6,7 @@
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
 ###               2020.04.06     by A.SONY.    ###
-###               2021.06.28 mix by Dogway     ###
+###               2021.07.02 ex by Dogway      ###
 ###                                            ###
 ##################################################
 ###
@@ -19,14 +19,18 @@
 ### |  CHANGELOG  |
 ### +-------------+
 ###
-### 2021.06.28 mx
+### 2021.07.02 ex
+###      - Convolution optimization
+###      - Resizers blur fix
+###
+### 2021.06.28 ex
 ###      - Expression optimizations
 ###
-### 2021.06.22 mx
+### 2021.06.22 ex
 ###      - Further old checks cleanup
 ###      - Rebased with latest ExTools
 ###
-### 2021.05.27 mx
+### 2021.05.27 ex
 ###      - Removed < AviSynth+ 3.5 support
 ###      - Replaced masktools2 with internal Expr() wrappers
 ###
@@ -172,6 +176,7 @@ T1a  = ex_bs(int(g1tex*1.28), bi, fs)
 T2a  = ex_bs(int(g2tex*1.28), bi, fs)
 T3a  = ex_bs(int(g3tex*1.28), bi, fs)
 
+hlfr = 1. / hlf
 T1ah = hlf-T1a
 T2ah = hlf-T2a
 T3ah = hlf-T3a
@@ -188,21 +193,21 @@ ochroma = ( ontop_cgrain != 0 ) || chroma ? true : false
 
 #-----------------------------------------------------------------------------------
 
-BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] {T1ah} * - {hlf} /")
-BUMPKERNEL2 = Format("x[-1,1] {T2a} * x[0,0] {T2ah} * - {hlf} /")
-BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] {T3ah} * - {hlf} /")
+BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] {T1ah} * - {hlfr} *")
+BUMPKERNEL2 = Format("x[-1,1] {T2a} * x[0,0] {T2ah} * - {hlfr} *")
+BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] {T3ah} * - {hlfr} *")
 
 #-----------------------------------------------------------------------------------
 
 grainlayer1 = blankclip(o, width=sx1, height=sy1, color_yuv=$808080)
-grainlayer1 = (g1str>0 || g1cstr>0) ? grainlayer1.AddGrainC(g1str>0?g1str:0, g1cstr>0?g1cstr:0, 0, 0, constant=g1const)
+grainlayer1 = (g1str>0   || g1cstr>0)   ? grainlayer1.AddGrainC(g1str>0?g1str:0, g1cstr>0?g1cstr:0, 0, 0, constant=g1const)
 \           : grainLayer1
 grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g1str<=-1?Int(-g1str):0, grainC=g1cstr<=-1?Int(-g1cstr):0, dynamic_grain=!g1const, random_algo_grain=1)
 \           : grainLayer1
 
 grainlayer1 = (g1tex==0)
 \           ? grainlayer1
-\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0,hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
+\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
 
 grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
 \           : (g1size > 1.5) ? grainlayer1.bicubicresize(sx1a,sy1a, b1a,c1a).bicubicresize(ox,oy, b1a,c1a)
@@ -212,14 +217,14 @@ grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
 #-----------------------------------------------------------------------------------
 
 grainlayer2 = blankclip(o, width=sx2, height=sy2, color_yuv=$808080)
-grainlayer2 = (g2str>0 || g2cstr>0) ? grainlayer2.AddGrainC(g2str>0?g2str:0, g2cstr>0?g2cstr:0, 0, 0, constant=g2const)
+grainlayer2 = (g2str>0   || g2cstr>0)   ? grainlayer2.AddGrainC(g2str>0?g2str:0, g2cstr>0?g2cstr:0, 0, 0, constant=g2const)
 \           : grainLayer2
 grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g2str<=-1?Int(-g2str):0, grainC=g2cstr<=-1?Int(-g2cstr):0, dynamic_grain=!g2const, random_algo_grain=1)
 \           : grainLayer2
 
 grainlayer2 = (g2tex==0)
 \           ? grainlayer2
-\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0,hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
+\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
 
 grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
 \           : (g2size > 1.5) ? grainlayer2.bicubicresize(sx2a,sy2a, b2a,c2a).bicubicresize(ox,oy, b2a,c2a)
@@ -228,14 +233,14 @@ grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
 #-----------------------------------------------------------------------------------
 
 grainlayer3 = blankclip(o, width=sx3, height=sy3, color_yuv=$808080)
-grainlayer3 = (g3str>0 || g3cstr>0) ? grainlayer3.AddGrainC(g3str>0?g3str:0, g3cstr>0?g3cstr:0, 0, 0, constant=g3const)
+grainlayer3 = (g3str>0   || g3cstr>0)   ? grainlayer3.AddGrainC(g3str>0?g3str:0, g3cstr>0?g3cstr:0, 0, 0, constant=g3const)
 \           : grainLayer3
 grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g3str<=-1?Int(-g3str):0, grainC=g3cstr<=-1?Int(-g3cstr):0, dynamic_grain=!g3const, random_algo_grain=1)
 \           : grainLayer3
 
 grainlayer3 = (g3tex==0)
 \           ? grainlayer3
-\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0,hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
+\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
 
 grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 \           : (g3size > 1.5) ? grainlayer3.bicubicresize(sx3a,sy3a, b3a,c3a).bicubicresize(ox,oy, b3a,c3a)
@@ -250,9 +255,9 @@ grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 
  \                      .ex_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max {th43str} x {th3str} - * ? ?"), fulls=fs), luma=chroma, UV=chroma?3:1, fulls=fs)
 
 grainlayer = (temp_avg==0 || ( g1const==true && g2const==true && g3const==true ) ) ? grainlayer
-\          : chroma ? grainlayer.merge(grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
-\          :          grainlayer.mergeluma(grainlayer.temporalsoften(1,255,0,255,2), tmpavg)
-grainlayer = (  ontop_grain>0  ||  ontop_cgrain>0  ) ? grainlayer.AddGrainC(ontop_grain>0?ontop_grain:0, ontop_cgrain>0?ontop_cgrain:0, 0, 0, constant=ontop_const)
+\          : chroma ? grainlayer.merge(    grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
+\          :          grainlayer.mergeluma(grainlayer.temporalsoften(1,255,  0,255,2), tmpavg)
+grainlayer = ( ontop_grain>0  ||  ontop_cgrain>0  )  ? grainlayer.AddGrainC(ontop_grain>0?ontop_grain:0, ontop_cgrain>0?ontop_cgrain:0, 0, 0, constant=ontop_const)
 \          : grainLayer
 grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=ontop_grain<=-1?Int(-ontop_grain):0, grainC=ontop_cgrain<=-1?Int(-ontop_cgrain):0, dynamic_grain=!ontop_const, random_algo_grain=1)
 \          : grainLayer
