@@ -12,13 +12,15 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.3 mix - 28 June 2021                                   ###
+###                                v2.4 mix - 03 July 2021                                   ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+### v2.4mx : - Expressions fix and optimizations
+###
 ### v2.3mx : - Expression optimizations
 ###
 ### v2.2mx : - "fulls" argument
@@ -144,8 +146,8 @@
 ### Smode [int: 1,2,3,4,5,6]
 ### ----------------------
 ### Sharpen mode:
-###    =1 : Unsharp masking (from warpsharp)
-###    =2 : Unsharp masking (from variableblur)
+###    =1 : Unsharp masking (from warpsharp)     (now UnsharpMask_HBD)
+###    =2 : Unsharp masking (from variableblur)  (now UnsharpMask_HBD)
 ###    =3 : Range sharpening
 ###    =4 : Nonlinear sharpening (original  version)
 ###    =5 : Nonlinear sharpening (corrected version)
@@ -441,7 +443,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
 ### DEFAULTS
-version  = "v2.3mix"
+version  = "v2.4mix"
 defaults = Default(defaults,"slow")
 num      = defaults=="old" ? 0 : defaults=="slow" ? 1 : defaults=="fast" ? 2 : 3
 
@@ -487,7 +489,7 @@ show        = Default( show,        Select(num,                            false
 screenW     = Default( screenW,     Select(num,                             1280 ,               1280 ,               1280 ) )
 screenH     = Default( screenH,     Select(num,                             1024 ,               1024 ,               1024 ) )
 
-Assert(!isRGB(inclip), chr(10) + "LSFmod: not work with an RGB clip !" + chr(10))
+Assert(!isRGB(inclip), chr(10) + "LSFmod: Unsupported RGB clip" + chr(10))
 Assert( ( strength >= 0 )                                                ? true : false, chr(10) + "'strength' have not a correct value! [>=0]" + chr(10))
 Assert( ( Smode >= 1 && Smode <= 6 )                                     ? true : false, chr(10) + "'Smode' have not a correct value! [1,2,3,4,5]" + chr(10))
 Assert( ( Smethod >= 1 && Smethod <= 4 )                                 ? true : false, chr(10) + "'Smethod' have not a correct value! [1,2,3,4]" + chr(10))
@@ -532,7 +534,7 @@ Assert(!isYUY2(input), chr(10) + "LSFmod: not work with an YUY2 clip !" + chr(10
 tmp  = ss_x > 1.0 || ss_y > 1.0 ? input.spline36resize(xxs,yys) : input
 pre  = preblur=="OFF" ? tmp
 \    : preblur=="ON"  ? tmp.ex_makediff(ex_lutxy(ex_makediff(tmp,tmp.removegrain(19,-1),fulls=fs)
-\                                               ,ex_makediff(tmp,tmp.removegrain(4,-1), fulls=fs),"x range_half - y range_half - * 0 < range_half x range_half - abs y range_half - abs < x y ? ?",fulls=fs) \
+\                                               ,ex_makediff(tmp,tmp.removegrain(4, -1),fulls=fs),"x range_half - A@ y range_half - B@ * 0 < range_half A abs B abs < x y ? ?",fulls=fs) \
                                        ,fulls=fs)
 \    : Eval("tmp."+preblur)
 
@@ -552,20 +554,22 @@ method = secure==true ? method.ex_lutxy(pre,secstr)
 
 method = preblur=="OFF" ? method : tmp.ex_makediff(ex_makediff(pre,method,fulls=fs),fulls=fs)
 
-Szrp      = ex_bs(Szrp,   bi, fs)
-Spwr      = ex_bs(Spwr,   bi, fs)
-SdmpLo    = ex_bs(SdmpLo, bi, fs)
-SdmpHi    = ex_bs(SdmpHi, bi, fs)
+ Szrp      = ex_bs(Szrp,   bi, fs)
+rSzrp      = 1. / Szrp
+ Spwr      = ex_bs(Spwr,   bi, fs)
+rSpwr      = 1. / Spwr
+ SdmpLo    = ex_bs(SdmpLo, bi, fs)
+ SdmpHi    = ex_bs(SdmpHi, bi, fs)
+rSdmpHi    = 1. / SdmpHi
 
-rSpwr = 1. / Spwr
-normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,fulls=fs)
-\         : Smode==2 ? tmp.unsharp(strength=str,vary=((ss_x+ss_y)/2.0),varc=1,border=3,U=1,V=1)
+normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
+\         : Smode==2 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
 \         : Smode==3 ? ex_lutxy(tmp, method, Format("x x y - {str} * +"))
-\         : Smode==4 ? ex_lutxy(tmp, method, Format("x y == x x x y - abs {Szrp} / 1 {Spwr} / ^ {Szrp} * {str} * x y - dup * dup "
-\                                                  +"{SdmpLo} + / * x y - dup abs / * 1 {SdmpHi} 0 == 0 x y - abs {SdmpHi} / 4 ^ ? + / + ?"))
-\         : Smode==5 ? ex_lutxy(tmp, method, Format("x y == x x x y - abs {Szrp} / {rSpwr} * ^ {Szrp} * {str} * x y - dup abs / * x y - dup * "
-\                                                  +"{Szrp} dup * {SdmpLo} + * x y - dup * {SdmpLo} + {Szrp} dup * * / * 1 "
-\                                                  +"{SdmpHi} 0 == 0 {Szrp} {SdmpHi} / 4 ^ ? + 1 {SdmpHi} 0 == 0 x y - abs {SdmpHi} / 4 ^ ? + / * + ?"), scale_inputs="allf")
+\         : Smode==4 ? ex_lutxy(tmp, method, Format("x y == x x x y - A@ abs {rSzrp} * {rSpwr} ^ {Szrp} * {str} * A dup * dup "
+\                                                  +"{SdmpLo} + / * A dup abs / * 1 {SdmpHi} 0 == 0 A abs {rSdmpHi} * 4 ^ ? + / + ?"))
+\         : Smode==5 ? ex_lutxy(tmp, method, Format("x y == x x x y - A@ abs {rSzrp} * {rSpwr} ^ {Szrp} * {str} * A A abs / * A A * "
+\                                                  +"{Szrp} dup * {SdmpLo} + * A A * {SdmpLo} + {Szrp} dup * * / * 1 "
+\                                                  +"{SdmpHi} 0 == 0 {Szrp} {rSdmpHi} * 4 ^ ? + 1 {SdmpHi} 0 == 0 A abs {rSdmpHi} * 4 ^ ? + / * + ?"), scale_inputs="allf")
 \         : preblur!="OFF" && secure ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)).ex_lutxy(pre,secstr), fulls=fs), fulls=fs)
 \         : preblur!="OFF"           ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)), fulls=fs), fulls=fs) : secure ? pre.cas(min(Str, 1)).ex_lutxy(pre,secstr) : pre.cas(min(Str, 1))
 
@@ -576,14 +580,15 @@ second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(
 zero   = ex_clamp(normsharp, bright_limit, dark_limit,                 0,                  0, UV=1, fulls=fs)
 
 
-edge  = edgemaskHQ ? mt_logic( tmp.ex_edge(mode="x[-1,1] 2 * A^ x[0,1] 4 * B^ x[1,1] 2 * C^ x[-1,-1] 2 * D^ x[0,-1] 4 * E^ x[1,-1] 2 * F^ A B + C + D - E - F - D E + F + A - B - C - max",UV=1,lo=0,hi=255)
-\                             ,tmp.ex_edge(mode="x[-1,1] 2 * A^ x[1,1] 2 * B^ x[-1,0] 4 * C^ x[1,0] 4 * D^ x[-1,-1] 2 * E^ x[1,-1] 2 * F^ A B - C + D - E + F - B A - C - D + E - F + max",UV=1,lo=0,hi=255)
+edge  = edgemaskHQ ? mt_logic( tmp.ex_edge(mode="x[-1,1] A^ x[0,1] 2 * B^ x[1,1] C^ x[-1,-1] D^ x[0,-1] 2 * E^ x[1,-1] F^ A B + C + D - E - F - D E + F + A - B - C - max 2 *",UV=1,lo=0,hi=255)
+\                             ,tmp.ex_edge(mode="x[-1,1] A^ x[1,1] B^ x[-1,0] 2 * C^ x[1,0] 2 * D^ x[-1,-1] E^ x[1,-1] F^ A B - C + D - E + F - B A - C - D + E - F + max 2 *",UV=1,lo=0,hi=255)
 \                             ,"max", U=1,V=1)
 \     :                        tmp.mt_edge(thY1=0,thY2=255,mode="min/max",U=1,V=1)
 
-emHQn = 1. / ex_bs(32, bi, fs)
-edge  = edgemaskHQ ?  edge.ex_lut(       "x range_half / 0.86 ^ range_max *" , scale_inputs="floatf", clamp_float=true, fulls=fs)
-\     :               edge.ex_lut(Format("x {emHQn}    * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
+emHQn = 1. / ex_bs(32,  bi, fs)
+rhlf  = 1. / ex_bs(128, bi, fs)
+edge  = edgemaskHQ ?  edge.ex_lut(Format("x  {rhlf} * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
+\     :               edge.ex_lut(Format("x {emHQn} * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
 
 limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      : Lmode==0 ? normsharp
@@ -716,7 +721,7 @@ output = edgemode!=-1 ? output : !sisupscale ? edge.spline36resize(dest_x,dest_y
    e = e.SubTitle("screenH       = " + string(screenH)       ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=870)
 
    debug = stackhorizontal( e ,
-   \                        stackvertical( i.subtitle("Input",text_color=$FFFFFF,size=20,x=40,y=20) ,
+   \                        stackvertical( i.subtitle("Input" ,text_color=$FFFFFF,size=20,x=40,y=20) ,
    \                                       o.subtitle("Output",text_color=$FFFFFF,size=20,x=40,y=20) )
    \                      )
 
@@ -742,22 +747,23 @@ return output
 }
 
 
-function UnsharpMask_HBD(clip clp, float "strength", int "radius", float "threshold", bool "fulls") {
+function UnsharpMask_HBD(clip clp, float "strength", int "radius", float "threshold", int "UV", bool "fulls") {
 
   bi  = BitsPerComponent(clp)
   rgb = isRGB(clp)
 
-  str      = Default(strength,64)
-  radius   = Default(radius,   3)
-  thres    = Default(threshold,8)
+  str      = Default(strength, 64)
+  radius   = Default(radius,    3)
+  thres    = Default(threshold, 8)
+  UV       = Default(UV, rgb ?  3 : 1)
   fs       = Default(fulls, false)
 
   rd    = radius - 1
   str   = str/128.
   thres = ex_bs(thres,bi,fs)
 
-  blurclip = ex_boxblur(clp, rd)
+  blurclip = ex_boxblur(clp, rd, UV=UV)
 
   e = Format("x y - A@ abs {thres} > A {str} * x + x ?")
-  ex_lutxy(clp, blurclip, e, rgb?e:"x") }
+  ex_lutxy(clp, blurclip, e, rgb?e:"", UV=UV) }
 
