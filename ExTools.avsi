@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v2.7     (01-07-2021)              ##
+###           ExTools v2.8     (03-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -181,26 +181,34 @@ function ex_logic(clip a, clip b, string "mode", int "UV", bool "fulls") {
               Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
-# mt_merge() is 10% slower
-function ex_merge(clip a, clip b, clip msk, bool "luma", int "UV", bool "fulls") {
+# mt_merge() is 4% slower on                  Y clips / masks
+#               8% faster on luma=true  for YUV clips / masks
+#               9% faster on luma=true  for YUV clips Y masks
+#               9% faster on luma=false for YUV clips Y masks
+function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
     lm  = Default(luma,  false)
+    Y   = Default(Y,              3)
     UV  = Default(UV, rgb || lm ? 3 : isy ? 1 : 2)
     fs  = Default(fulls, false)
 
-    msk = UV != 1 ? mskY_to_YUV(a, msk, lm, UV, bi) : msk
-    str = "x range_max z - * y z * + range_max /"
+    msk = isy != isy(msk) || (lm && !isy) ? mskY_to_YUV(a, msk, lm, UV, bi) : msk
 
-    str  = ex_dlut  (str,     bi,      fs)
-    cstr = ex_UVexpr(str, UV, bi, rgb, fs)
+    rgmx = ex_bs(255, bi, fs)
 
-    isy     ? Expr(a, b, msk, str,                                     optSingleMode=true) : \
-    UV == 1 ? Expr(a, b, msk, str, "",                                 optSingleMode=true) : \
-              Expr(a, b, msk, str, cstr, scale_inputs=ex_UVf(rgb, bi), optSingleMode=true) }
+    str  = Format("x x y - z 1 {rgmx} / * * -")
+
+     str = ex_dlut  ( str,     bi,      fs)
+    ystr = ex_Yexpr ( str,  Y, bi, rgb, fs)
+    cstr = ex_UVexpr( str, UV, bi, rgb, fs)
+
+    isy     ? Expr(a, b, msk, ystr,                                     optSingleMode=true) : \
+    UV == 1 ? Expr(a, b, msk, ystr, "",                                 optSingleMode=true) : \
+              Expr(a, b, msk, ystr, cstr, scale_inputs=ex_UVf(rgb, bi), optSingleMode=true) }
 
 
 # mt_clamp() is 6% slower
@@ -321,7 +329,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
     srcmax = tv ? "ymin -"      : ""
     pdstl  = tv ? "ymin +"      : ""
 
-    # "softlight" uses Pegtop's formula
+    # "softlight" uses Pegtop's improved formula
     if (op == 1.0) {
 
         str =                                                                                                                                          \
@@ -444,7 +452,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", int "UV", bool "fulls")
 # 100% removegrain(12,-1)
 #  96% ex_blur(1,UV=1)
 #  94% BinomialBlur(0.75,U=1,V=1) only in 8-bit
-#  84% ablur(1, 1) against ex_blur(2) but scales up better
+#  84% ablur(1, 1) against ex_blur(2)
 #  70% blur(1.00)
 #  66% generalconvolution(matrix="0 1 0 1 2 1 0 1 0",6,chroma=false) doesn't match output tho
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
@@ -454,21 +462,22 @@ function ex_boxblur(clip a, int "radius", int "radiusV", int "UV", bool "fulls")
 #
 # ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
 # ex_blur(3) same to ex_boxblur(1).ex_boxblur(1), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
-function ex_blur(clip a, int "radius", int "radiusV", string "gamma", int "UV", bool "fulls") {
+function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    sm = Default(radius,   1)           # from 0 to 6
-    sv = Default(radiusv, sm)           # from 0 to 6
+    sm = Default(radius,   1)           # from 0 to 6 (integers except for 0.5)
+    sv = Default(radiusv, sm)           # from 0 to 6 (integers except for 0.5)
     UV = Default(UV, rgb ? 3 : 1)
     gm = Default(gamma, "none")         # Set matrix for gamma encoded clips
     fs = Default(fulls, false)
     sm = max(min(sm * 0.30,2.0),0)
     sv = max(min(sv * 0.30,2.0),0)
 
-    fkern  = sm==0.3 && sv==0.3
+    fkern  = sm==0.30 && sv==0.30
+    fkern2 = sm==0.15 && sv==0.15
     krnlsz = 2*ceil(3*sv)
     n_f    = factorial(krnlsz)
 
@@ -495,12 +504,15 @@ function ex_blur(clip a, int "radius", int "radiusV", string "gamma", int "UV", 
         plsh = i == 0 ? "" : plsh + "+ "
        }
 
-    strv = fkern   ?   "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 0.1 *" : \
-           sv==0.3 ?   "x[0,1]  x[0,0] 2 * x[0,-1] + + 0.25 *" : \
-           sv==0.0 ?   "x"                                     : \
+    strv = fkern    ?   "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 0.1 *" : \
+           fkern2   ?   "x[0,1] x[-1,0] x[0,0] 3 * x[1,0] x[0,-1] + + + + 0.142857143 *"                                 : \
+           sv==0.3  ?   "x[0,1]  x[0,0] 2 * x[0,-1] + + 0.25 *" : \
+           sv==0.15 ?   "x[0,1]  x[0,0] 3 * x[0,-1] + + 0.20 *" : \
+           sv==0.0  ?   "x"                                     : \
                        krnv + plsv
-    strh = sm==0.3 ?   "x[-1,0] x[0,0] 2 * x[1,0]  + + 0.25 *" : \
-           sm==0.0 ?   "x"                                     : \
+    strh = sm==0.3  ?   "x[-1,0] x[0,0] 2 * x[1,0]  + + 0.25 *" : \
+           sm==0.15 ?   "x[-1,0] x[0,0] 3 * x[1,0]  + + 0.20 *" : \
+           sm==0.0  ?   "x"                                     : \
                        krnh + plsh
 
     p_type = PixelType(a)
@@ -561,7 +573,7 @@ function ex_blur(clip a, int "radius", int "radiusV", string "gamma", int "UV", 
     isy     ? Expr(a,    strv                                                        ) : \
     UV == 1 ? Expr(a,    strv, ""                                                    ) : \
               Expr(a,    strv, ex_UVexpr(cstrv, UV, bi, rgb, fs), scale_inputs="none")
-    sm == 0 || fkern ? last                                                            : \
+    sm == 0 || fkern || fkern2 ? last                                                  : \
     isy     ? Expr(last, strh                                                        ) : \
     UV == 1 ? Expr(last, strh, ""                                                    ) : \
               Expr(last, strh, ex_UVexpr(cstrh, UV, bi, rgb, fs), scale_inputs="none")
@@ -989,22 +1001,21 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 
 function mskY_to_YUV(clip a, clip msk, bool "luma", int "UV", int "bits") {
 
-    if (!isRGB(a) && !(!luma && !isy(msk))) {
+    isy = isy(msk)
 
+    if (!isRGB(a) && !(!luma && !isy)) {
+
+        w = width (a)
+        h = height(a)
         p_float = bits == 32
-        p_type  = a.PixelType()
-        p_type4 = FindStr(p_type, "44")>0
-        p_type2 = FindStr(p_type, "22")>0
-        p_type1 = FindStr(p_type, "11")>0
-        p_type0 = FindStr(p_type, "20")>0
+        bstr    = p_float ? "S" : string(bits)
 
-        mskY    = isy(msk) ? msk : msk.ExtractY()
-        w       = p_type1 ?  round(width(a)/4.0) : round(width(a)/2.0)
-        h       = p_type1 || p_type2 ? height(a) : round(height(a)/2.0)
-        mskC    = p_type4 ? mskY : mskY.bilinearresize(w+w%2,h+h%2,src_left=-0.50)
-        mskC    = luma ? p_float ? Expr(mskC, "x 0.5 -") : mskC : \
-                  BlankClip(a,1,w+w%2,h+h%2,pixel_type="Y"+string(bits),color_yuv=$000000).killaudio()
-        lmmsk   = CombinePlanes(mskY, mskC, mskC, planes="YUV", pixel_type=p_type)
+        mskY    = isy ? msk : msk.ExtractY()
+        w       = isYV411(a)             ? round(w/4.0) : round(w/2.0)
+        h       = isYV411(a) || is422(a) ?            h : round(h/2.0)
+        mskC    = is444  (a)             ?                 mskY :        mskY.BilinearResize(w+w%2,       h+h%2)
+        mskC    = luma ? p_float ? Expr(mskC, "x 0.5 -") : mskC : BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000).killaudio()
+        lmmsk   = CombinePlanes(mskY, mskC, mskC, planes="YUV", pixel_type=PixelType(a))
     } else {
         lmmsk   = msk
     }
