@@ -181,7 +181,7 @@ function ex_logic(clip a, clip b, string "mode", int "UV", bool "fulls") {
               Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
-# mt_merge() is 4% slower on                  Y clips / masks
+# mt_merge() is 5% slower on                  Y clips / masks
 #               8% faster on luma=true  for YUV clips / masks
 #               9% faster on luma=true  for YUV clips Y masks
 #               9% faster on luma=false for YUV clips Y masks
