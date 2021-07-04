@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v2.9     (03-07-2021)              ##
+###           ExTools v3.0     (04-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -150,6 +150,27 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "fulls")
     isy     ? Expr(a, b, ystr                                    ) : \
     UV == 1 ? Expr(a, b, ystr, ""                                ) : \
               Expr(a, b, ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+
+
+function ex_makeadddiff(clip a, clip b, clip c, int "Y", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    Y   = Default(Y,         3)
+    UV  = Default(UV,  rgb ? 3 : 1)
+    dif = Default(dif,    true)
+    fs  = Default(fulls, false)
+
+    str = "x y - z +"
+
+    ystr = ex_Yexpr (str,  Y, bi, rgb, fs)
+    cstr = ex_UVexpr(str, UV, bi, rgb, fs)
+
+    isy     ? Expr(a, b, c, ystr                                    ) : \
+    UV == 1 ? Expr(a, b, c, ystr, ""                                ) : \
+              Expr(a, b, c, ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_logic(mode="and") is 6% slower
@@ -773,16 +794,30 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     bi   = BitsPerComponent(a)
 
     mode = Default(mode, "sobel")
-    lo   = Default(lo, 10)
-    hi   = Default(hi, 10)
     UV   = Default(UV, rgb ? 3 : 1)
     fs   = Default(fulls, false)
 
-    th = (lo == 0) && (hi == 255)
-    lo = ex_bs(lo, bi, fs)
-    hi = ex_bs(hi, bi, fs)
+    th =  mode=="prewitt"   ?  [25, 10]       : \
+          mode=="hprewitt"  ?  [25, 10]       : \
+          mode=="sobel"     ?  [10, 10]       : \
+          mode=="scharr"    ?  [ 0, 40]       : \
+          mode=="frei-chen" ?  [ 0, 30]       : \
+          mode=="roberts"   ?  [10, 10]       : \
+          mode=="kayyali"   ?  [ 0, 40]       : \
+          mode=="robinson"  ?  [ 0, 30]       : \
+          mode=="FDoG"      ?  [ 0, 70]       : \
+          mode=="DoG"       ?  [10, 10]       : \
+          mode=="LoG"       ?  [ 0,100]       : \
+          mode=="laplace"   ?  [ 0,  5]       : \
+          mode=="cartoon"   ?  [ 0, 10]       : \
+          mode=="TEdge"     ?  [100,120]      : \
+          mode=="min/max"   ?  [ 0, 12]       : \
+                               [10, 10]
 
-    th  = th ? "" : ex_dlut(Format("T@ {lo} < range_min T {hi} > range_max T ? ?"), bi, fs)
+    lo = ex_bs(Defined(lo) ? lo : th[0], bi, fs)
+    hi = ex_bs(Defined(hi) ? hi : th[1], bi, fs)
+
+    th  = (lo == 0) && (hi == ex_bs(255, bi, fs)) ? "" : ex_dlut(Format("T@ {lo} < range_min T {hi} > range_max T ? ?"), bi, fs)
     str =                                                                                                                                                                                        \
           mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                           \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                             \
