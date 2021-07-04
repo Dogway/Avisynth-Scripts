@@ -806,62 +806,73 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
           mode=="kayyali"   ?  [ 0, 40]       : \
           mode=="robinson"  ?  [ 0, 30]       : \
           mode=="FDoG"      ?  [ 0, 70]       : \
-          mode=="DoG"       ?  [10, 10]       : \
+          mode=="DoG"       ?  [40, 40]       : \
+          mode=="DoB"       ?  [40, 40]       : \
           mode=="LoG"       ?  [ 0,100]       : \
           mode=="laplace"   ?  [ 0,  5]       : \
           mode=="cartoon"   ?  [ 0, 10]       : \
           mode=="TEdge"     ?  [100,120]      : \
           mode=="min/max"   ?  [ 0, 12]       : \
+          mode=="kirsch"    ?  [50, 40]       : \
                                [10, 10]
 
     lo = ex_bs(Defined(lo) ? lo : th[0], bi, fs)
     hi = ex_bs(Defined(hi) ? hi : th[1], bi, fs)
 
     th  = (lo == 0) && (hi == ex_bs(255, bi, fs)) ? "" : ex_dlut(Format("T@ {lo} < range_min T {hi} > range_max T ? ?"), bi, fs)
-    str =                                                                                                                                                                                        \
-          mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                           \
-                             +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                             \
-                             +"G A B + + F - H - E - D G E + + C - H - B - max E H F + + B - A - G - B H C + + E - G - D - max max max "+th+""                                                 : \
-                                                                                                                                                                                                 \
-          mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ x[-1,-1] F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                           \
-                             +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "+th+""                                                     : \
-                                                                                                                                                                                                 \
-          mode=="sobel"     ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 2 / "+th+""                                                                           : \
-                                                                                                                                                                                                 \
-          mode=="scharr"    ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^  x[1,-1] H^ "                                                                          \
-                             +"C A - D 3.333333333 * - E 3.333333333 * + F - H + U@ U * F G 3.333333333 * H + + C - B 3.333333333 * - A - V@ V * + sqrt "+th+""                                : \
-                                                                                                                                                                                                 \
-          mode=="frei-chen" ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                                           \
-                             +"C A - D 1.428571428 * - E 1.428571428 * + F - H + U@ U * F G 1.428571428 * H + + C - B 1.428571428 * - A - V@ V * + sqrt "+th+""                                : \
-                                                                                                                                                                                                 \
-          mode=="roberts"   ? "x[0,0] A^ x[1,0] 0.5 * B^ x[0,1] 0.5 * C^ A B - C - B A - C + max "+th+""                                                                                       : \
-                                                                                                                                                                                                 \
-          mode=="kayyali"   ? "x[1,1] 3 * A^ x[-1,1] 3 * B^ x[-1,-1] 3 * C^ x[1,-1] 3 * D^ B A - C + D - A B - C - D + max "+th+""                                                             : \
-                                                                                                                                                                                                 \
-          mode=="robinson"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                                           \
-                             +"C A - D 2 * - E 2 * + F - H +     B C 2 * + D - E + F 2 * - G - max     A B 2 * + C + F - G 2 * - H - max     A 2 * B + D + E - G - H 2 * - max "                 \
-                             +"A C - D 2 * + E 2 * - F + H - 0 B - C 2 * - D + E - F 2 * + G + max 0 A - B 2 * - C - F + G 2 * + H + max 0 A 2 * - B - D - E + G + H 2 * + max max "+th+""     : \
-                                                                                                                                                                                                 \
-          mode=="FDoG"      ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] 2 * G^ x[0,1] H^ x[1,1] 2 * I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ "                           \
-                             +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] 2 * Q^ x[0,-1] R^ x[1,-1] 2 * S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] W^ x[1,-2] X^ x[2,-2] Y^ "                   \
-                             +"A B + D - E - F 2 * + G + I - J 2 * - K 3 * + L 3 * + N 3 * - O 3 * - P 2 * Q U V + + + + S - T 2 * - X - Y - 0.5 * M@ M * "                                      \
-                             +"U V 2 * W 3 * X 2 * Y P Q R 3 * S T + + + + + + + + + F - G - H 3 * - I - J - A - B 2 * - C 3 * - D 2 * - E - 0.5 * N@ N * + sqrt "+th+""                       : \
-                                                                                                                                                                                                 \
-          mode=="DoG"       ? "x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ "                       \
-                             +"A 2 * B C D E + + + + 0.166666666 * N@ F G H I B 2 * E 2 * D 2 * C 2 * J K L M A 4 * + + + + + + + + + + + + 0.05 * O@ - abs 0.25 scaleb > N O - 2.0 * N ? "+th+"": \
-                                                                                                                                                                                                 \
-          mode=="LoG"       ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * - "+th+""         : \
-                                                                                                                                                                                                 \
+    str =                                                                                                                                                                                                \
+          mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                                   \
+                             +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                                     \
+                             +"G A B + + F - H - E - D G E + + C - H - B - max E H F + + B - A - G - B H C + + E - G - D - max max max "+th+""                                                         : \
+                                                                                                                                                                                                         \
+          mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ x[-1,-1] F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                                   \
+                             +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "+th+""                                                             : \
+                                                                                                                                                                                                         \
+          mode=="sobel"     ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 2 / "+th+""                                                                                   : \
+                                                                                                                                                                                                         \
+          mode=="scharr"    ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^  x[1,-1] H^ "                                                                                  \
+                             +"C A - D 3.333333333 * - E 3.333333333 * + F - H + U@ U * F G 3.333333333 * H + + C - B 3.333333333 * - A - V@ V * + sqrt "+th+""                                        : \
+                                                                                                                                                                                                         \
+          mode=="frei-chen" ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                                                   \
+                             +"C A - D 1.428571428 * - E 1.428571428 * + F - H + U@ U * F G 1.428571428 * H + + C - B 1.428571428 * - A - V@ V * + sqrt "+th+""                                        : \
+                                                                                                                                                                                                         \
+          mode=="roberts"   ? "x[0,0] A^ x[1,0] 0.5 * B^ x[0,1] 0.5 * C^ A B - C - B A - C + max "+th+""                                                                                               : \
+                                                                                                                                                                                                         \
+          mode=="kayyali"   ? "x[1,1] 3 * A^ x[-1,1] 3 * B^ x[-1,-1] 3 * C^ x[1,-1] 3 * D^ B A - C + D - A B - C - D + max "+th+""                                                                     : \
+                                                                                                                                                                                                         \
+          mode=="robinson"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                                                   \
+                             +"C A - D 2 * - E 2 * + F - H +     B C 2 * + D - E + F 2 * - G - max     A B 2 * + C + F - G 2 * - H - max     A 2 * B + D + E - G - H 2 * - max "                         \
+                             +"A C - D 2 * + E 2 * - F + H - 0 B - C 2 * - D + E - F 2 * + G + max 0 A - B 2 * - C - F + G 2 * + H + max 0 A 2 * - B - D - E + G + H 2 * + max max "+th+""             : \
+                                                                                                                                                                                                         \
+          mode=="FDoG"      ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] 2 * G^ x[0,1] H^ x[1,1] 2 * I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ "                                   \
+                             +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] 2 * Q^ x[0,-1] R^ x[1,-1] 2 * S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] W^ x[1,-2] X^ x[2,-2] Y^ "                           \
+                             +"A B + D - E - F 2 * + G + I - J 2 * - K 3 * + L 3 * + N 3 * - O 3 * - P 2 * Q U V + + + + S - T 2 * - X - Y - 0.5 * M@ M * "                                              \
+                             +"U V 2 * W 3 * X 2 * Y P Q R 3 * S T + + + + + + + + + F - G - H 3 * - I - J - A - B 2 * - C 3 * - D 2 * - E - 0.5 * N@ N * + sqrt "+th+""                               : \
+                                                                                                                                                                                                         \
+          mode=="DoG"       ? "x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ "                               \
+                             +"F G H I B 2 * E 2 * D 2 * C 2 * J K L M A 4 * + + + + + + + + + + + + 0.05 * A 2 * B C D E + + + + 0.166666666 * - 25 * "+th+""                                         : \
+                                                                                                                                                                                                         \
+          mode=="DoB"       ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] G^ x[0,1] H^ x[1,1] I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ x[0,0] M^ "                                 \
+                             +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] Q^ x[0,-1] R^ x[1,-1] S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] W^ x[1,-2] X^ x[2,-2] Y^ "                                   \
+                             +"A B C D E F G H I J K L M N O P Q R S T U V W X Y + + + + + + + + + + + + + + + + + + + + + + + + 0.04 * G H I L M N Q R S + + + + + + + + 0.111111111 * - 25 * "+th+"" : \
+                                                                                                                                                                                                         \
+          mode=="LoG"       ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * - "+th+""                 : \
+                                                                                                                                                                                                         \
           mode=="laplace"   ? "x[0,0] 8 * A^ x[-1,1] B^ x[0,1] C^ x[1,1] D^ x[-1,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ " \
-                             +"A B - C - D - E - F - G - H - I - B C D E F G H I + + + + + + + A - max 0.125 * "+th+""                                                                         : \
-                                                                                                                                                                                                 \
-          mode=="cartoon"   ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                                                                          : \
-                                                                                                                                                                                                 \
-          mode=="TEdge"     ? "x[-2,0] x[-1,0] 6.166666666 * - x[1,0] 6.166666666 * + x[2,0] - 2 * A@ A * x[0,-2] x[0,-1] 6.166666666 * - x[0,1] 6.166666666 * + x[0,2] - 2 * B@ B * + sqrt "+th+"": \
-                                                                                                                                                                                                 \
-          mode=="min/max"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                                 \
-                             +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""                                                   : \
-                                                                                                                                                                                                 \
+                             +"A B - C - D - E - F - G - H - I - B C D E F G H I + + + + + + + A - max 0.125 * "+th+""                                                                                 : \
+                                                                                                                                                                                                         \
+          mode=="cartoon"   ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                                                                                  : \
+                                                                                                                                                                                                         \
+          mode=="TEdge"     ? "x[-2,0] x[-1,0] 6.166666666 * - x[1,0] 6.166666666 * + x[2,0] - 2 * A@ A * x[0,-2] x[0,-1] 6.166666666 * - x[0,1] 6.166666666 * + x[0,2] - 2 * B@ B * + sqrt "+th+""    : \
+                                                                                                                                                                                                         \
+          mode=="min/max"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                                         \
+                             +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""                                                           : \
+                                                                                                                                                                                                         \
+          mode=="kirsch"    ?  "x[-1,1] A@ 1.666666 * R^ x[0,1] B@ 1.666666 * S^ x[1,1] C@ 1.666666 * T^ x[-1,0] D@ 1.666666 * U^ "                                                                      \
+                              +"x[1,0] E@ 1.666666 * V^ x[-1,-1] F@ 1.666666 * X^ x[0,-1] G@ 1.666666 * Y^ x[1,-1] H@ 1.666666 * Z^ "                                                                    \
+                              +"R S T + + D - E - F - G - H -     R S + C - U + E - F - G - H - max R B - C - U + E - X + G - H - max U A - B - C - E - X + Y + H - max "                                \
+                              +"X Y Z + + A - B - C - D - E - max V Y Z + + A - B - C - D - F - max T V Z + + A - B - D - F - G - max S T V + + A - D - F - G - H - max "+th+""                        : \
+                                                                                                                                                                                                         \
                              ex_dlut(mode, bi, fs)
 
     isy     ? Expr(a, str                                                               ) : \
