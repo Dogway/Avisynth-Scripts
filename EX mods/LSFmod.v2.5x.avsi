@@ -12,13 +12,15 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.4 ex - 03 July 2021                                    ###
+###                                v2.5 ex - 04 July 2021                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+### v2.5ex : - Expressions optimizations
+###
 ### v2.4ex : - Expressions fix and optimizations
 ###
 ### v2.3ex : - Expression optimizations
@@ -443,7 +445,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
 ### DEFAULTS
-version  = "v2.4ex"
+version  = "v2.5ex"
 defaults = Default(defaults,"slow")
 num      = defaults=="old" ? 0 : defaults=="slow" ? 1 : defaults=="fast" ? 2 : 3
 
@@ -580,10 +582,9 @@ second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(
 zero   = ex_clamp(normsharp, bright_limit, dark_limit,                 0,                  0, UV=1, fulls=fs)
 
 
-edge  = edgemaskHQ ? ex_logic( tmp.ex_edge(mode="x[-1,1] A^ x[0,1] 2 * B^ x[1,1] C^ x[-1,-1] D^ x[0,-1] 2 * E^ x[1,-1] F^ A B + C + D - E - F - D E + F + A - B - C - max 2 *",UV=1,lo=0,hi=255)
-\                             ,tmp.ex_edge(mode="x[-1,1] A^ x[1,1] B^ x[-1,0] 2 * C^ x[1,0] 2 * D^ x[-1,-1] E^ x[1,-1] F^ A B - C + D - E + F - B A - C - D + E - F + max 2 *",UV=1,lo=0,hi=255)
-\                             ,"max", UV=1, fulls=fs)
-\     :                        tmp.ex_edge(mode="min/max",lo=0,hi=255,UV=1)
+edge  = edgemaskHQ ? tmp.ex_edge(mode="x[-1,1] A^ x[0,1] 2 * B^ x[1,1] C^ x[-1,0] 2 * D^ x[1,0] 2 * E^ x[-1,-1] F^ x[0,-1] 2 * G^ x[1,-1] H^ "                    \
+                                     +"A B C + + F - G - H - F G H + + A - B - C - max A C - D + E - F + H - C A - D - E + F - H + max max 2 *", lo=0,hi=255, UV=1)
+\     :              tmp.mt_edge(thY1=0,thY2=255,mode="min/max",U=1,V=1)
 
 emHQn = 1. / ex_bs(32,  bi, fs)
 rhlf  = 1. / ex_bs(128, bi, fs)
