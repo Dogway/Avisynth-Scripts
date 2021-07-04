@@ -1,12 +1,12 @@
 # Frame Rate Converter mix mod
-# Version: 1.4.3  (01-07-2021)
+# Version: 1.4.4  (04-07-2021)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (1.4.3) (01-07-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
+# Dogway (1.4.4) (04-07-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -170,6 +170,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     BHard  = C.ChangeFps(NewNum, NewDen)
     C_luma = C.ConvertToY()
     Blank  = BlankClip(C_luma, color_yuv=$000000)
+    bi     = C.BitsPerComponent()
 
     ## Adjust parameters for different block sizes, causing stronger or weaker masks
     blk     = Max(BlkSize, BlkSizeV)
@@ -217,10 +218,10 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EMocc2 = CalcDiff ? MaskOcc > 0 ? C_luma.MMask(bak2, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand() : Blank : nop()
     EM2    = CalcDiff ? MaskOcc > 0 ? ex_blend(EM2,EMocc2,"lighten",0.4,UV=1,tv_range=false,fulls=fs)  : EM2 : nop()
     # Get difference mask between two versions
+    thb    = ex_bs(60,bi,fs)
     EMdiff = CalcDiff ? ex_makediff(EM, EM2, dif=false, fulls=fs)
     \       .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
-    \       .ex_expand(2,mode="circle")
-    \       .ex_binarize(60,fulls=fs)
+    \       .Expr(ex_dlut(Format("x[0,0] x[-2,0] max x[-1,-1] max x[-1,0] max x[-1,1] max x[0,-2] max x[0,-1] max x[0,1] max x[0,2] max x[1,-1] max x[1,0] max x[1,1] max x[2,0] max {thb} > range_max range_min ?"), bi, fs))
     \       .ex_blur(3)
     \       .BicubicResize(C.Width(), C.Height()) : nop()
     # Apply mask to Flow / EM
@@ -233,26 +234,26 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EM = EM.DeleteFrame(EM.Framecount()-1).Loop(2, EM.Framecount()-1)
 
     # Create skip mask
+    SkipThrb = ex_bs(SkipThr,bi,fs)
     EMskip = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
-    \       .ex_expand(1,mode="circle")
-    \       .ex_binarize(SkipThr,fulls=fs)
+    \       .Expr(ex_dlut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {SkipThrb} > range_max range_min ?"), bi, fs))
     OutSkip = EMskip.BicubicResize(C.Width(), C.Height())
 
     ## Create artifact correction mask
-    OutRaw = EM
+    OutRaw   = EM
+    MaskThrb = ex_bs(MaskThr,bi,fs)
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
-    \       .ex_expand(1,mode="circle")
-    \       .ex_binarize(MaskThr,fulls=fs)
-    \       .Expr("x[0,1] x[-1,0] x[0,0] 3 * x[1,0] x[0,-1] + + + + 0.142857143 *")
+    \       .Expr(ex_dlut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {MaskThrb} > range_max range_min ?"), bi, fs))
+    \       .Expr("x[-1,1] x[0,1] 4 * x[1,1] x[-1,0] 4 * x[0,0] 14 * x[1,0] 4 * x[-1,-1] x[0,-1] 4 * x[1,-1] + + + + + + + + 0.02941176 *")
     \       .BicubicResize(C.Width(), C.Height())
 
     # Mask: Stripes
+    thb   = ex_bs(82,bi,fs)
     EMstp = C.StripeMask(blksize=BlkSize, blksizev=BlkSizeV, str=min(SkipThr*2+20, 255), strf=min(SkipThr+10, 255), thr=23)
     \      .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
     \      .ContinuousMask(22)
     EMstp = EMstp.BicubicResize(EMstp.Width()/2, EMstp.Height()/2)
-    \      .ex_binarize(82,fulls=fs)
-    \      .mt_inpand()
+    \      .Expr(ex_dlut(Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[0,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min {thb} > range_max range_min ?"), bi, fs))
     \      .ex_expand(2,mode="circle").ex_expand(2,mode="square").ex_expand(2,mode="circle").mt_expand()
     \      .FRC_GaussianBlur42(2.8)
     \      .BicubicResize(C.Width(), C.Height())
