@@ -273,8 +273,8 @@ function ex_binarize(clip a, int "thres", bool "invert", int "lo", int "hi", int
     lo = lo < 0 ? "x" : string(ex_bs(lo, bi, fs))
     hi = hi < 0 ? "x" : string(ex_bs(hi, bi, fs))
 
-    str = in ? Format("x {th} < "+lo+" "+hi+" ?") : \
-               Format("x {th} > "+lo+" "+hi+" ?")
+    str = in ? Format("x {th} < "+hi+" "+lo+" ?") : \
+               Format("x {th} > "+hi+" "+lo+" ?")
 
     str  = ex_dlut  (str,     bi,      fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
