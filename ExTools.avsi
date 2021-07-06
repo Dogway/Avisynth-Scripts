@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v3.0     (04-07-2021)              ##
+###           ExTools v3.1     (06-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -218,7 +218,6 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV", bool
 
     msk = isy != isy(msk) || (lm && !isy) ? mskY_to_YUV(a, msk, lm, UV, bi) : msk
 
-
     str  = Format("x x y - z 1 range_max / * * -")
 
      str = ex_dlut  ( str,     bi,      fs)
@@ -256,21 +255,26 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
 
 
 # mt_binarize() is 37% slower
-function ex_binarize(clip a, int "thres", bool "invert", int "UV", bool "fulls") {
+# lo=-1 | hi=-1 replaces lo|hi with source "x"
+function ex_binarize(clip a, int "thres", bool "invert", int "lo", int "hi", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
     th = Default(thres, 128)
+    lo = Default(lo,   0)
+    hi = Default(hi, 255)
     in = Default(invert, false)
     UV = Default(UV, rgb ? 3 : 1)
     fs = Default(fulls,  false)
 
     th = ex_bs(th, bi, fs)
+    lo = lo < 0 ? "x" : string(ex_bs(lo, bi, fs))
+    hi = hi < 0 ? "x" : string(ex_bs(hi, bi, fs))
 
-    str = in ? Format("x {th} < range_max range_min ?") : \
-               Format("x {th} > range_max range_min ?")
+    str = in ? Format("x {th} < "+lo+" "+hi+" ?") : \
+               Format("x {th} > "+lo+" "+hi+" ?")
 
     str  = ex_dlut  (str,     bi,      fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
@@ -416,6 +420,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 #  66% blur(1.58)
 #  64% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
 #  43% mt_convolution("1 1 1","1 1 1",U=1,V=1)
+#   6% mt_luts(last, "avg", mt_square(1), "y",chroma="-1")
 #
 function ex_boxblur(clip a, int "radius", int "radiusV", int "UV", bool "fulls") {
 
@@ -604,6 +609,7 @@ function factorial(int n) {
     n<2?1:factorial(n-1)*n }
 
 
+
 # mt_expand() is 6% faster (6% slower when radius = 2)
 # modes: square, circle, both, vertical, horizontal
 # "circle" + radius=2 is like calling mode="both" twice but faster
@@ -787,6 +793,7 @@ function ex_inflate(clip a, int "radius", int "UV", bool "fulls") {
 
 
 # mt_edge() is 14% faster (varies with kernel)
+# "canny" is a bit too complex so that's better used in a plugin
 function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
@@ -797,29 +804,31 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     UV   = Default(UV, rgb ? 3 : 1)
     fs   = Default(fulls, false)
 
-    th =  mode=="prewitt"   ?  [25, 10]       : \
-          mode=="hprewitt"  ?  [25, 10]       : \
-          mode=="sobel"     ?  [10, 10]       : \
-          mode=="scharr"    ?  [ 0, 40]       : \
-          mode=="frei-chen" ?  [ 0, 30]       : \
-          mode=="roberts"   ?  [10, 10]       : \
-          mode=="kayyali"   ?  [ 0, 40]       : \
-          mode=="robinson"  ?  [ 0, 30]       : \
-          mode=="FDoG"      ?  [ 0, 70]       : \
-          mode=="DoG"       ?  [40, 40]       : \
-          mode=="DoB"       ?  [40, 40]       : \
-          mode=="LoG"       ?  [ 0,100]       : \
-          mode=="laplace"   ?  [ 0,  5]       : \
-          mode=="cartoon"   ?  [ 0, 10]       : \
-          mode=="TEdge"     ?  [100,120]      : \
-          mode=="min/max"   ?  [ 0, 12]       : \
-          mode=="kirsch"    ?  [50, 40]       : \
-                               [10, 10]
+    th   = mode=="prewitt"   ?  [10, 100] : \
+           mode=="hprewitt"  ?  [10, 100] : \
+           mode=="sobel"     ?  [ 5,  25] : \
+           mode=="scharr"    ?  [30,  70] : \
+           mode=="frei-chen" ?  [20,  50] : \
+           mode=="roberts"   ?  [ 5,  15] : \
+           mode=="kayyali"   ?  [20, 100] : \
+           mode=="robinson"  ?  [20,  50] : \
+           mode=="FDoG"      ?  [20, 150] : \
+           mode=="DoG"       ?  [10, 100] : \
+           mode=="DoB"       ?  [10, 155] : \
+           mode=="LoG"       ?  [70, 125] : \
+           mode=="Std"       ?  [50, 255] : \
+           mode=="laplace"   ?  [ 5,   6] : \
+           mode=="cartoon"   ?  [10,  20] : \
+           mode=="TEdge"     ?  [90, 255] : \
+           mode=="min/max"   ?  [10,  25] : \
+           mode=="max"       ?  [ 5,  45] : \
+           mode=="kirsch"    ?  [20, 100] : \
+                                [10,  50]
 
     lo = ex_bs(Defined(lo) ? lo : th[0], bi, fs)
     hi = ex_bs(Defined(hi) ? hi : th[1], bi, fs)
 
-    th  = (lo == 0) && (hi == ex_bs(255, bi, fs)) ? "" : ex_dlut(Format("T@ {lo} < range_min T {hi} > range_max T ? ?"), bi, fs)
+    th  = (lo == 0) && (hi == ex_bs(255, bi, fs)) ? "" : ex_dlut(Format("T@ {lo} - range_max {hi} {lo} - / * "), bi, fs)
     str =                                                                                                                                                                                                \
           mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                                   \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                                     \
@@ -828,7 +837,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
           mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ x[-1,-1] F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                                   \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "+th+""                                                             : \
                                                                                                                                                                                                          \
-          mode=="sobel"     ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 2 / "+th+""                                                                                   : \
+          mode=="sobel"     ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 0.5 * "+th+""                                                                                 : \
                                                                                                                                                                                                          \
           mode=="scharr"    ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^  x[1,-1] H^ "                                                                                  \
                              +"C A - D 3.333333333 * - E 3.333333333 * + F - H + U@ U * F G 3.333333333 * H + + C - B 3.333333333 * - A - V@ V * + sqrt "+th+""                                        : \
@@ -858,7 +867,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
                                                                                                                                                                                                          \
           mode=="LoG"       ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * - "+th+""                 : \
                                                                                                                                                                                                          \
-          mode=="laplace"   ? "x[0,0] 8 * A^ x[-1,1] B^ x[0,1] C^ x[1,1] D^ x[-1,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ " \
+          mode=="laplace"   ? "x[0,0] 8 * A^ x[-1,1] B^ x[0,1] C^ x[1,1] D^ x[-1,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "                                                                     \
                              +"A B - C - D - E - F - G - H - I - B C D E F G H I + + + + + + + A - max 0.125 * "+th+""                                                                                 : \
                                                                                                                                                                                                          \
           mode=="cartoon"   ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                                                                                  : \
@@ -868,16 +877,23 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
           mode=="min/max"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                                         \
                              +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""                                                           : \
                                                                                                                                                                                                          \
-          mode=="kirsch"    ?  "x[-1,1] A@ 1.666666 * R^ x[0,1] B@ 1.666666 * S^ x[1,1] C@ 1.666666 * T^ x[-1,0] D@ 1.666666 * U^ "                                                                      \
-                              +"x[1,0] E@ 1.666666 * V^ x[-1,-1] F@ 1.666666 * X^ x[0,-1] G@ 1.666666 * Y^ x[1,-1] H@ 1.666666 * Z^ "                                                                    \
-                              +"R S T + + D - E - F - G - H -     R S + C - U + E - F - G - H - max R B - C - U + E - X + G - H - max U A - B - C - E - X + Y + H - max "                                \
-                              +"X Y Z + + A - B - C - D - E - max V Y Z + + A - B - C - D - F - max T V Z + + A - B - D - F - G - max S T V + + A - D - F - G - H - max "+th+""                        : \
+          mode=="max"       ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                                         \
+                             +"O A - abs O B - abs max O C - abs max O D - abs max O E - abs max O F - abs max O G - abs max O H - abs max "+th+""                                                     : \
+                                                                                                                                                                                                         \
+          mode=="kirsch"    ? "x[-1,1] A@ 1.666666 * R^ x[0,1] B@ 1.666666 * S^ x[1,1] C@ 1.666666 * T^ x[-1,0] D@ 1.666666 * U^ "                                                                       \
+                             +"x[1,0] E@ 1.666666 * V^ x[-1,-1] F@ 1.666666 * X^ x[0,-1] G@ 1.666666 * Y^ x[1,-1] H@ 1.666666 * Z^ "                                                                     \
+                             +"R S T + + D - E - F - G - H -     R S + C - U + E - F - G - H - max R B - C - U + E - X + G - H - max U A - B - C - E - X + Y + H - max "                                 \
+                             +"X Y Z + + A - B - C - D - E - max V Y Z + + A - B - C - D - F - max T V Z + + A - B - D - F - G - max S T V + + A - D - F - G - H - max "+th+""                         : \
+                                                                                                                                                                                                         \
+          mode=="Std"       ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ A B C D E F G H + + + + + + + 0.125 * J^ "                                          \
+                             +"A J - dup * B J - dup * C J - dup * D J - dup * E J - dup * F J - dup * G J - dup * H J - dup * + + + + + + + 0.125 * sqrt 8 * "+th+""                                  : \
                                                                                                                                                                                                          \
                              ex_dlut(mode, bi, fs)
 
     isy     ? Expr(a, str                                                               ) : \
     UV == 1 ? Expr(a, str, ""                                                           ) : \
               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi)) }
+
 
 
 # removegrain(1,-1) is 21% faster
@@ -1056,8 +1072,8 @@ function mskY_to_YUV(clip a, clip msk, bool "luma", int "UV", int "bits") {
         mskY    = isy ? msk : msk.ExtractY()
         w       = isYV411(a)             ? round(w/4.0) : round(w/2.0)
         h       = isYV411(a) || is422(a) ?            h : round(h/2.0)
-        mskC    = is444  (a)             ?                 mskY :        mskY.BilinearResize(w+w%2,       h+h%2)
-        mskC    = luma ? p_float ? Expr(mskC, "x 0.5 -") : mskC : BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000)
+        mskC    = is444  (a)             ?                                        mskY : mskY.ConvertBits(8,dither=-1).BilinearResize(w+w%2,       h+h%2)
+        mskC    = luma ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32) : mskC.ConvertBits(bits) : BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000)
         lmmsk   = CombinePlanes(mskY, mskC, mskC, planes="YUV", pixel_type=PixelType(a))
     } else {
         lmmsk   = msk
