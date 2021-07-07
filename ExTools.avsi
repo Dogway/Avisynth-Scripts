@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v3.1     (06-07-2021)              ##
+###           ExTools v3.2     (07-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -10,7 +10,7 @@
 ###
 ### Pack of masktools2 replacement functions with internal Expr().
 ### Generally works faster in HBD, but slower in 8-bit.
-### See performance notes (benchmarks on 16-bit).
+### See performance notes (benchmarks on 1080p@16-bit).
 ###
 ### *Convolutions are slower than in masktools2 (SSSE3 vs AVX2)
 ###
@@ -254,9 +254,10 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
               Expr(a, hi, lo, str, cstr, scale_inputs=ex_UVf(rgb, bi), optSingleMode=true) }
 
 
-# mt_binarize() is 37% slower
+# mt_binarize() is 12% slower than ex_binarize()
+# mt_binarize() is 17% faster than ex_binarize(smooth=true)
 # lo=-1 | hi=-1 replaces lo|hi with source "x"
-function ex_binarize(clip a, int "thres", bool "invert", int "lo", int "hi", int "UV", bool "fulls") {
+function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo", int "hi", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -266,22 +267,51 @@ function ex_binarize(clip a, int "thres", bool "invert", int "lo", int "hi", int
     lo = Default(lo,   0)
     hi = Default(hi, 255)
     in = Default(invert, false)
+    sm = Default(smooth, false)
     UV = Default(UV, rgb ? 3 : 1)
     fs = Default(fulls,  false)
 
-    th = ex_bs(th, bi, fs)
-    lo = lo < 0 ? "x" : string(ex_bs(lo, bi, fs))
-    hi = hi < 0 ? "x" : string(ex_bs(hi, bi, fs))
+    lo < 0 && hi < 0 ? Assert (false, "'lo' or 'hi': At least one bound should be binarized.") : nop()
 
-    str = in ? Format("x {th} < "+hi+" "+lo+" ?") : \
-               Format("x {th} > "+hi+" "+lo+" ?")
+    th = ex_bs(th, bi, fs)
+
+    if (sm) {
+
+        thl = round(th * 0.9)
+        thh = round(th * 1.1)
+		mx  = ex_bs(255, bi, fs)
+
+		sub = Format(lo < 0 ? in ? "B@ {thl} < B x ?" : \
+								   "B@ {thh} > B x ?" : \
+					 hi < 0 ? in ? "B@ {thl} < x B ?" : \
+								   "B@ {thh} > x B ?" : \
+								   ""                 )
+		lo = lo < 0 ? 0  : ex_bs(lo, bi, fs)
+		hi = hi < 0 ? mx : ex_bs(hi, bi, fs)
+
+		olo = lo == 0  ? "" : "0 max"
+		ohi = hi == mx ? "" : in ? "A max" : "A min"
+
+		str = Format(in ? "x {thl} - "+olo+" {thh} {thl} - / {lo} {hi} - A@ * "+ohi+" {hi} + "        : \
+						  "x {thl} - "+olo+" {thh} {thl} - / {hi} {lo} - A@ * "+ohi+" {lo} + " ) + sub
+
+    } else {
+
+        lo = lo < 0 ? "x" : string(ex_bs(lo, bi, fs))
+        hi = hi < 0 ? "x" : string(ex_bs(hi, bi, fs))
+
+        str = Format(in ? "x {th} < "+hi+" "+lo+" ?" : \
+                          "x {th} > "+hi+" "+lo+" ?")
+    }
 
     str  = ex_dlut  (str,     bi,      fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
     isy     ?  Expr(a, str                                    ) : \
     UV == 1 ?  Expr(a, str, ""                                ) : \
-               Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+               Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi))
+
+    sm ? ex_blur(0.5, UV=UV, fulls=fulls) : last }
 
 
 # mt_invert() is 10% slower and invert(channels="Y") is 17% slower
@@ -530,14 +560,14 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
 
     strv = fkern    ?   "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 0.1 *" : \
            fkern2   ?   "x[0,1] x[-1,0] x[0,0] 3 * x[1,0] x[0,-1] + + + + 0.142857143 *"                                 : \
-           sv==0.3  ?   "x[0,1]  x[0,0] 2 * x[0,-1] + + 0.25 *" : \
-           sv==0.15 ?   "x[0,1]  x[0,0] 3 * x[0,-1] + + 0.20 *" : \
-           sv==0.0  ?   "x"                                     : \
-                       krnv + plsv
-    strh = sm==0.3  ?   "x[-1,0] x[0,0] 2 * x[1,0]  + + 0.25 *" : \
-           sm==0.15 ?   "x[-1,0] x[0,0] 3 * x[1,0]  + + 0.20 *" : \
-           sm==0.0  ?   "x"                                     : \
-                       krnh + plsh
+           sv==0.3  ?   "x[0,1]  x[0,0] 2 * x[0,-1] + + 0.25 *"                                                          : \
+           sv==0.15 ?   "x[0,1]  x[0,0] 3 * x[0,-1] + + 0.20 *"                                                          : \
+           sv==0.0  ?   "x"                                                                                              : \
+                         krnv + plsv
+    strh = sm==0.3  ?   "x[-1,0] x[0,0] 2 * x[1,0]  + + 0.25 *"                                                          : \
+           sm==0.15 ?   "x[-1,0] x[0,0] 3 * x[1,0]  + + 0.20 *"                                                          : \
+           sm==0.0  ?   "x"                                                                                              : \
+                         krnh + plsh
 
 
     p_4 = is444(a)    p_1 = isYV411(a)
@@ -579,13 +609,13 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
                 sv==0.6                     ? "x[0,1] x[0,0] 2 * x[0,-1] + + 0.25 *"                                                              : \
                 sv==0.3                     ? "x[0,1] x[0,0] 3 * x[0,-1] + + 0.20 *"                                                              : \
                 sv==0.0                     ? "x"                                                                                                 : \
-                                              cstrv + plsv
+                                               cstrv + plsv
 
         cstrh = p_4                         ? strh                                                                                                : \
                 sm==0.0                     ? "x"                                                                                                 : \
                 sm==0.6 && !p_1             ? "x[-1,0] x[0,0] 2 * x[1,0] + + 0.25 *"                                                              : \
                 sm==0.3 || (sm==0.3 && p_1) ? "x[-1,0] x[0,0] 3 * x[1,0] + + 0.20 *"                                                              : \
-                                              cstrh + plsh
+                                               cstrh + plsh
 
     if (gm != "none") {
         matrix = Matrix_fuzzy_search (gm)
@@ -607,6 +637,58 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
 
 function factorial(int n) {
     n<2?1:factorial(n-1)*n }
+
+
+
+# Savitzky-Golay (S-G) smoothing filter (similar to Gaussian blur)
+function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", int "UV", bool "fulls") {
+
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    bi   = BitsPerComponent(a)
+
+    rd = Default(radius,  1)            # from 0 to 3
+    rv = Default(radiusV, rd)           # from 0 to 3
+    UV = Default(UV, rgb ? 3 : 1)
+    sh = Default(sharp, false)
+    fs = Default(fulls, false)
+    rd = max(rd, 1)
+    rv = max(rv, 1)
+
+    rd == 3 || rv == 3 ? Assert (!sh, "Sharp mode only for radius < 3") : nop()
+
+    if (!sh) {
+
+    # Quadratic/Cubic (2nd and 3rd degree polynomials)
+    strv = rv == 1 ? "x[0,1] 4 * x[0,0] 5.666666666 * x[0,-1] 4 * + + x[0,-2] - x[0,2] - 0.085714286 *"                                                                                        : \
+           rv == 2 ? "x[0,2] x[0,1] 2 * x[0,0] 2.333333333 * x[0,-1] 2 * x[0,-2] + + + + x[0,-3] 0.666666666 * - x[0,3] 0.666666666 * - 0.142857143 *"                                         : \
+           rv == 3 ? "x[0,3] 4.666666666 * x[0,2] 13 * x[0,1] 18 * x[0,0] 19.666666666 * x[0,-1] 18 * x[0,-2] 13 * x[0,-3] 4.666666666 * + + + + + + x[0,-4] 7 * - x[0,4] 7 * - 0.012987013 *" : \
+                     "x"
+
+    strh = rd == 1 ? "x[-1,0] 4 * x[0,0] 5.666666666 * x[1,0] 4 * + + x[2,0] - x[-2,0] - 0.085714286 *"                                                                                        : \
+           rd == 2 ? "x[-2,0] x[-1,0] 2 * x[0,0] 2.333333333 * x[1,0] 2 * x[2,0] + + + + x[3,0] 0.666666666 * - x[-3,0] 0.666666666 * - 0.142857143 *"                                         : \
+           rd == 3 ? "x[-3,0] 4.666666666 * x[-2,0] 13 * x[-1,0] 18 * x[0,0] 19.666666666 * x[1,0] 18 * x[2,0] 13 * x[3,0] 4.666666666 * + + + + + + x[4,0] 7 * - x[-4,0] 7 * - 0.012987013 *" : \
+                     "x"
+    } else {
+
+    # Quartic/Quintic (4th and 5th degree polynomials) (sharper)
+    strv = rv == 1 ? "x[0,3] x[0,-3] x[0,1] 15 * x[0,0] 26.2 * x[0,-1] 15 * + + + + x[0,-2] 6 * - x[0,2] 6 * - 0.021645022 *"                                                                  : \
+           rv == 2 ? "x[0,4] x[0,-4] x[0,2] 2 * x[0,1] 9 * x[0,0] 11.933333333 * x[0,-1] 9 * x[0,-2] 2 * + + + + + + x[0,-3] 3.666666666 * - x[0,3] 3.666666666 * - 0.034965035 *"             : \
+                     "x"
+
+    strh = rd == 1 ? "x[-3,0] x[3,0] x[-1,0] 15 * x[0,0] 26.2 * x[1,0] 15 * + + + + x[2,0] 6 * - x[-2,0] 6 * - 0.021645022 *"                                                                  : \
+           rd == 2 ? "x[-4,0] x[4,0] x[-2,0] 2 * x[-1,0] 9 * x[0,0] 11.933333333 * x[1,0] 9 * x[2,0] 2 * + + + + + + x[3,0] 3.666666666 * - x[-3,0] 3.666666666 * - 0.034965035 *"             : \
+                     "x"
+    }
+
+    rv == 0 ?      a                                                                  : \
+    isy     ? Expr(a,    strv                                                       ) : \
+    UV == 1 ? Expr(a,    strv, ""                                                   ) : \
+              Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
+    rd == 0 ? last                                                                    : \
+    isy     ? Expr(last, strh                                                       ) : \
+    UV == 1 ? Expr(last, strh, ""                                                   ) : \
+              Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
 
 
 
