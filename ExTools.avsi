@@ -279,21 +279,21 @@ function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo"
 
         thl = round(th * 0.9)
         thh = round(th * 1.1)
-		mx  = ex_bs(255, bi, fs)
+        mx  = ex_bs(255, bi, fs)
 
-		sub = Format(lo < 0 ? in ? "B@ {thl} < B x ?" : \
-								   "B@ {thh} > B x ?" : \
-					 hi < 0 ? in ? "B@ {thl} < x B ?" : \
-								   "B@ {thh} > x B ?" : \
-								   ""                 )
-		lo = lo < 0 ? 0  : ex_bs(lo, bi, fs)
-		hi = hi < 0 ? mx : ex_bs(hi, bi, fs)
+        sub = Format(lo < 0 ? in ? "B@ {thl} < B x ?" : \
+                                   "B@ {thh} > B x ?" : \
+                     hi < 0 ? in ? "B@ {thl} < x B ?" : \
+                                   "B@ {thh} > x B ?" : \
+                                   ""                 )
+        lo = lo < 0 ? 0  : ex_bs(lo, bi, fs)
+        hi = hi < 0 ? mx : ex_bs(hi, bi, fs)
 
-		olo = lo == 0  ? "" : "0 max"
-		ohi = hi == mx ? "" : in ? "A max" : "A min"
+        olo = lo == 0  ? "" : "0 max"
+        ohi = hi == mx ? "" : in ? "A max" : "A min"
 
-		str = Format(in ? "x {thl} - "+olo+" {thh} {thl} - / {lo} {hi} - A@ * "+ohi+" {hi} + "        : \
-						  "x {thl} - "+olo+" {thh} {thl} - / {hi} {lo} - A@ * "+ohi+" {lo} + " ) + sub
+        str = Format(in ? "x {thl} - "+olo+" {thh} {thl} - / {lo} {hi} - A@ * "+ohi+" {hi} + "        : \
+                          "x {thl} - "+olo+" {thh} {thl} - / {hi} {lo} - A@ * "+ohi+" {lo} + " ) + sub
 
     } else {
 
