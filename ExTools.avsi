@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v3.2     (07-07-2021)              ##
+###           ExTools v3.3     (08-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -191,7 +191,7 @@ function ex_logic(clip a, clip b, string "mode", int "UV", bool "fulls") {
         mode == "andn"  ? "range_max x - y * range_max /"   : \
         mode == "min"   ? "x y min"                         : \
         mode == "max"   ? "x y max"                         : \
-                          Assert (false, "Unsupported mode.")
+                          Assert (false, "Unsupported logic mode.")
 
     str  = ex_dlut  (str,     bi,      fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
@@ -286,14 +286,13 @@ function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo"
                      hi < 0 ? in ? "B@ {thl} < x B ?" : \
                                    "B@ {thh} > x B ?" : \
                                    ""                 )
-        lo = lo < 0 ? 0  : ex_bs(lo, bi, fs)
-        hi = hi < 0 ? mx : ex_bs(hi, bi, fs)
+        lo  = lo < 0 ? 0  : ex_bs(lo, bi, fs)
+        hi  = hi < 0 ? mx : ex_bs(hi, bi, fs)
+        olo = lo == 0  ? ""  :      "A@ * 0 max"
+        ohi = hi == mx ? "*" : in ? "A@ * A max" : "A@ * A min"
 
-        olo = lo == 0  ? "" : "0 max"
-        ohi = hi == mx ? "" : in ? "A max" : "A min"
-
-        str = Format(in ? "x {thl} - "+olo+" {thh} {thl} - / {lo} {hi} - A@ * "+ohi+" {hi} + "        : \
-                          "x {thl} - "+olo+" {thh} {thl} - / {hi} {lo} - A@ * "+ohi+" {lo} + " ) + sub
+        str = Format(in ? "x {thl} - "+olo+" {thh} {thl} - / {lo} {hi} - "+ohi+" {hi} + "        : \
+                          "x {thl} - "+olo+" {thh} {thl} - / {hi} {lo} - "+ohi+" {lo} + " ) + sub
 
     } else {
 
@@ -350,7 +349,7 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV", bool "fulls") 
 
     str = mode=="absolute" ? ReplaceStr(ReplaceStr(" "+str+" "," y "," sy " ), " x ", " sx " )  : \
           mode=="relative" ? ReplaceStr(ReplaceStr(" "+str+" "," y "," syr "), " x ", " sxr ")  : \
-                             Assert (false, "Unsupported Mode.")
+                             Assert (false, "Unsupported lutspa mode.")
 
     str  = ex_dlut(str, bi, fs)
     cstr = ex_dlut( ex_UVexpr(str, UV, bi, rgb, fs), bi, fs)
@@ -401,7 +400,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
             mode == "exclusion"    ? "x "+srcmax+" A@ A y "+srcmax+" B@ + 2 A * B * + + "+rngmax+" / "+pdstl+""                                      : \
             mode == "extremity"    ? ""+rngmax+"            x "+srcmax+" - y "+srcmax+" - abs   "+pdstl+""                                           : \
             mode == "negation"     ? ""+rngmax+" "+rngmax+" x "+srcmax+" - y "+srcmax+" - abs - "+pdstl+""                                           : \
-                                     Assert (false, "Unsupported Blend Mode.")
+                                     Assert (false, "Unsupported blend mode.")
         } else {
 
         str = Format(                                                                                                                                                   \
@@ -420,7 +419,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
             mode == "exclusion"    ? "x "+srcmax+" A@ {opr} * A y "+srcmax+" B@ + 2 A * B * +                {op} * + "+rngmax+" / "+pdstl+""                         : \
             mode == "extremity"    ? "x "+srcmax+" A@ {opr} * "+rngmax+"            A - y "+srcmax+" - abs   {op} * + "+pdstl+""                                      : \
             mode == "negation"     ? "x "+srcmax+" A@ {opr} * "+rngmax+" "+rngmax+" A - y "+srcmax+" - abs - {op} * + "+pdstl+""                                      : \
-                                     Assert (false, "Unsupported Blend Mode.") )
+                                     Assert (false, "Unsupported blend mode.") )
         }
 
 
@@ -452,7 +451,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 #  43% mt_convolution("1 1 1","1 1 1",U=1,V=1)
 #   6% mt_luts(last, "avg", mt_square(1), "y",chroma="-1")
 #
-function ex_boxblur(clip a, int "radius", int "radiusV", int "UV", bool "fulls") {
+function ex_boxblur(clip a, int "radius", int "radiusV", bool "trim", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -461,14 +460,17 @@ function ex_boxblur(clip a, int "radius", int "radiusV", int "UV", bool "fulls")
     rd = Default(radius,  1)            # from 0 to inf
     rv = Default(radiusV, rd)           # from 0 to inf
     UV = Default(UV, rgb ? 3 : 1)
+    tm = Default(trim,  false)         # median limited mean
     fs = Default(fulls, false)
     rd = max(rd, 1)
     rv = max(rv, 1)
 
+    tm ? Assert (rd == 1 && rv == 1, "Trim mode only supports radius=1") : nop()
+
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
 
-    krnh = ""
+    krnh = ""    krnv = ""
     for (px = -krnlrd, krnlrd, 1) {
         krnh = Format(krnh + "x[{px},0] ")
         plsh = px == -krnlrd ? "" : plsh + "+ "
@@ -477,14 +479,24 @@ function ex_boxblur(clip a, int "radius", int "radiusV", int "UV", bool "fulls")
     krnlsz = 2 * rv + 1
     krnlrv = krnlsz/2
 
-    krnv = ""
     for (py = -krnlrv, krnlrv, 1) {
         krnv = Format(krnv + "x[0,{py}] ")
         plsv = py == -krnlrv ? "" : plsv + "+ "
        }
 
-    # Special case to match RemoveGrain(19) -no center pixel-. Iterator includes it though.
-    str  = "x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + 0.125 *"
+    # Special case to match RemoveGrain(19) -no center pixel-. Iterator includes it though. Below: trimmed mean (median limited mean).
+    str  = !tm ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + 0.125 *"                   : \
+                                                                                                                           \
+                 "x[-1,1] A@ x[0,1] B@ x[1,1] C@ x[-1,0] D@ x[0,0] E@ x[1,0] F@ x[-1,-1] G@ x[0,-1] H@ x[1,-1] I@ "        \
+                +"+ + + + + + + + 0.111111111 * X^ "                                                                       \
+                +"A D min AA^ A D max DD^ B H min BB^ B H max HH^ C F min CC^ C F max FF^ E I min EE^ E I max II^ "        \
+                +"AA HH min A^ AA HH max H^ CC EE min C^ CC EE max E^ DD II min D^ DD II max I^ FF G min F^ FF G max GG^ " \
+                +"A C min AA^ A C max CC^ BB D min B^ BB D max DD^ E F min EE^ E F max FF^ H I min HH^ H I max II^ "       \
+                +"B EE min BB^ B EE max E^ DD GG min D^ DD GG max G^ FF HH min F^ FF GG max H^ "                           \
+                +"AA BB min A^ AA BB max B^ CC E min C^ CC E max EE^ D F min DD^ D F max FF^ G II min GG^ G II max I^ "    \
+                +"C DD min CC^ C DD max D^ EE FF min E^ EE FF max F^ GG H min G^ GG H max HH^ "                            \
+                +"B CC min BB^ B CC max C^ D E min DD^ D E max EE^ F G min FF^ F G max GG^ "                               \
+                +"X DD FF clip"
 
     fbox = rd == 1 && rv == 1
     strv = fbox ? str : krnv + plsv + string(1. / (krnlrv*2+1)) + " *"
@@ -535,7 +547,7 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
     krnlsz = 2*ceil(3*sv)
     n_f    = factorial(krnlsz)
 
-    krnv = ""
+    krnv = ""    krnh = ""
     for (i=0, krnlsz, 1) {
 
         k_f = factorial(i)*factorial(krnlsz-i)
@@ -548,7 +560,6 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
     krnlszh = 2*ceil(3*sm)
     n_f     = factorial(krnlszh)
 
-    krnh = ""
     for (i=0, krnlszh, 1) {
 
         k_f = factorial(i)*factorial(krnlszh-i)
@@ -573,8 +584,7 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
     p_4 = is444(a)    p_1 = isYV411(a)
     p_2 = is422(a)    p_0 = is420(a)
 
-    cstrv = ""
-    cstrh = ""
+    cstrv = ""    cstrh = ""
     if (!p_4 && (sm>0.6 || sv>0.6)) {
 
         krnlsz = krnlsz/(!p_0 ? 1 : 2)
@@ -691,6 +701,142 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", int "UV", 
               Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
 
 
+# 100% removegrain(1,-1)
+#  83% ex_median(mode="undot",UV=1)
+
+# 100% removegrain(2,-1)
+#  65% ex_median(mode="undot2",UV=1)
+
+#  100% removegrain(4,-1)
+#   60% ex_median(mode="undot4",UV=1)
+#  1.2% MedianBlur(1,0,0)
+# 0.06% mt_luts(last, "med", mt_square(1), "y",chroma="-1")
+
+# undot is also called "Conservative"
+function ex_median(clip a, string "mode", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    mode = Default(mode, "median")
+    UV   = Default(UV, rgb ? 3 : 1)
+    fs   = Default(fulls, false)
+
+    str =                                                                                                                           \
+        mode == "SNN"    ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ x[0,0] J^ "       \
+                          +"A J - abs H J - abs + B J - abs G J - abs + < A R@ H S@ + B R@ G S@ + ? Z^ "                            \
+                          +"C J - abs F J - abs + D J - abs E J - abs + < C T@ F U@ + D T@ E U@ + ? Z^ "                            \
+                          +"R J - abs S J - abs + T J - abs U J - abs + < R R@ S S@ + T R@ U S@ + ? Z^ "                            \
+                          +"J R S min R S max clip"                                                                               : \
+                                                                                                                                    \
+        mode == "median" ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[0,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "       \
+                          +"A D min AA^ A D max DD^   "                                                                             \
+                          +"B H min BB^ B H max HH^   "                                                                             \
+                          +"C F min CC^ C F max FF^   "                                                                             \
+                          +"E I min EE^ E I max II^   "                                                                             \
+                          +"AA HH min A^ AA HH max H^ "                                                                             \
+                          +"CC EE min C^ CC EE max E^ "                                                                             \
+                          +"DD II min D^ DD II max I^ "                                                                             \
+                          +"FF G min F^ FF G max GG^  "                                                                             \
+                          +"A C min AA^ A C max CC^   "                                                                             \
+                          +"BB D min B^ BB D max DD^  "                                                                             \
+                          +"E F min EE^ E F max FF^   "                                                                             \
+                          +"H I min HH^ H I max II^   "                                                                             \
+                          +"B EE min BB^ B EE max E^  "                                                                             \
+                          +"DD GG min D^ DD GG max G^ "                                                                             \
+                          +"FF HH min F^ FF GG max H^ "                                                                             \
+                          +"AA BB min A^ AA BB max B^ "                                                                             \
+                          +"CC E min C^ CC E max EE^  "                                                                             \
+                          +"D F min DD^ D F max FF^   "                                                                             \
+                          +"G II min GG^ G II max I^  "                                                                             \
+                          +"C DD min CC^ C DD max D^  "                                                                             \
+                          +"EE FF min E^ EE FF max F^ "                                                                             \
+                          +"GG H min G^ GG H max HH^  "                                                                             \
+                          +"B CC min BB^ B CC max C^  "                                                                             \
+                          +"D E min DD^ D E max EE^   "                                                                             \
+                          +"F G min FF^ F G max GG^   "                                                                             \
+                          +"EE"                                                                                                   : \
+                                                                                                                                    \
+        mode == "undot"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                 \
+                          +"x[0,0] A B min C min D min E min F min G min H min A B max C max D max E max F max G max H max clip"  : \
+                                                                                                                                    \
+        mode == "undot2" ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                 \
+                          +"A C min AA^ A C max CC^   "                                                                             \
+                          +"B D min BB^ B D max DD^   "                                                                             \
+                          +"E G min EE^ E G max GG^   "                                                                             \
+                          +"F H min FF^ F H max HH^   "                                                                             \
+                          +"AA EE min A^ AA EE max E^ "                                                                             \
+                          +"BB FF min B^ BB FF max F^ "                                                                             \
+                          +"CC GG min C^ CC GG max G^ "                                                                             \
+                          +"DD HH min D^ DD HH max H^ "                                                                             \
+                          +"A B min AA^ A B max BB^   "                                                                             \
+                          +"C D min CC^ C D max DD^   "                                                                             \
+                          +"E F min EE^ E F max FF^   "                                                                             \
+                          +"G H min GG^ G H max HH^   "                                                                             \
+                          +"CC EE min C^ CC EE max E^ "                                                                             \
+                          +"DD FF min D^ DD FF max F^ "                                                                             \
+                          +"BB E min B^ BB E max EE^  "                                                                             \
+                          +"D GG min DD^ D GG max G^  "                                                                             \
+                          +"B C min BB^ B C max CC^   "                                                                             \
+                          +"DD EE min D^ DD EE max E^ "                                                                             \
+                          +"F G min FF^ F G max GG^   "                                                                             \
+                          +"x[0,0] BB GG clip"                                                                                    : \
+                                                                                                                                    \
+        mode == "undot3" ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                 \
+                          +"A C min AA^ A C max CC^   "                                                                             \
+                          +"B D min BB^ B D max DD^   "                                                                             \
+                          +"E G min EE^ E G max GG^   "                                                                             \
+                          +"F H min FF^ F H max HH^   "                                                                             \
+                          +"AA EE min A^ AA EE max E^ "                                                                             \
+                          +"BB FF min B^ BB FF max F^ "                                                                             \
+                          +"CC GG min C^ CC GG max G^ "                                                                             \
+                          +"DD HH min D^ DD HH max H^ "                                                                             \
+                          +"A B min AA^ A B max BB^   "                                                                             \
+                          +"C D min CC^ C D max DD^   "                                                                             \
+                          +"E F min EE^ E F max FF^   "                                                                             \
+                          +"G H min GG^ G H max HH^   "                                                                             \
+                          +"CC EE min C^ CC EE max E^ "                                                                             \
+                          +"DD FF min D^ DD FF max F^ "                                                                             \
+                          +"BB E min B^ BB E max EE^  "                                                                             \
+                          +"D GG min DD^ D GG max G^  "                                                                             \
+                          +"B C min BB^ B C max CC^   "                                                                             \
+                          +"DD EE min D^ DD EE max E^ "                                                                             \
+                          +"F G min FF^ F G max GG^   "                                                                             \
+                          +"x[0,0] CC FF clip"                                                                                    : \
+                                                                                                                                    \
+        mode == "undot4" ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                 \
+                          +"A C min AA^ A C max CC^   "                                                                             \
+                          +"B D min BB^ B D max DD^   "                                                                             \
+                          +"E G min EE^ E G max GG^   "                                                                             \
+                          +"F H min FF^ F H max HH^   "                                                                             \
+                          +"AA EE min A^ AA EE max E^ "                                                                             \
+                          +"BB FF min B^ BB FF max F^ "                                                                             \
+                          +"CC GG min C^ CC GG max G^ "                                                                             \
+                          +"DD HH min D^ DD HH max H^ "                                                                             \
+                          +"A B min AA^ A B max BB^   "                                                                             \
+                          +"C D min CC^ C D max DD^   "                                                                             \
+                          +"E F min EE^ E F max FF^   "                                                                             \
+                          +"G H min GG^ G H max HH^   "                                                                             \
+                          +"CC EE min C^ CC EE max E^ "                                                                             \
+                          +"DD FF min D^ DD FF max F^ "                                                                             \
+                          +"BB E min B^ BB E max EE^  "                                                                             \
+                          +"D GG min DD^ D GG max G^  "                                                                             \
+                          +"B C min BB^ B C max CC^   "                                                                             \
+                          +"DD EE min D^ DD EE max E^ "                                                                             \
+                          +"F G min FF^ F G max GG^   "                                                                             \
+                          +"x[0,0] D E clip"                                                                                      : \
+                                                                                                                                    \
+        mode == "22"   ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                   \
+                        +"x[0,0] A H + B G + min C F + min D E + min 0.5 * A H + B G + max C F + max D E + max 0.5 * clip"        : \
+                                                                                                                                    \
+                          Assert (false, "Unsupported median mode.")
+
+    isy     ? Expr(a, str                                                      ) : \
+    UV == 1 ? Expr(a, str, ""                                                  ) : \
+              Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs="none") }
+
+
 
 # mt_expand() is 6% faster (6% slower when radius = 2)
 # modes: square, circle, both, vertical, horizontal
@@ -712,8 +858,7 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV", b
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
 
-    strh = ""
-    krn  = ""
+    strh = ""    krn  = ""
     if (mode == "both" || mode == "circle") {
 
     for (px = -krnlrd, krnlrd, 1) {
@@ -773,8 +918,7 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV", b
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
 
-    strh = ""
-    krn  = ""
+    strh = ""    krn  = ""
     if (mode == "both" || mode == "circle") {
 
     for (px = -krnlrd, krnlrd, 1) {
@@ -828,8 +972,7 @@ function ex_deflate(clip a, int "radius", int "UV", bool "fulls") {
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
 
-    krn = ""
-    pls = ""
+    krn = ""    pls = ""
     for (px = -krnlrd, krnlrd, 1) {
         for (py = -krnlrd, krnlrd, 1) {
             krn = Format(krn + "x[{px},{py}] ")
@@ -858,8 +1001,7 @@ function ex_inflate(clip a, int "radius", int "UV", bool "fulls") {
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
 
-    krn = ""
-    pls = ""
+    krn = ""    pls = ""
     for (px = -krnlrd, krnlrd, 1) {
         for (py = -krnlrd, krnlrd, 1) {
             krn = Format(krn + "x[{px},{py}] ")
@@ -910,7 +1052,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     lo = ex_bs(Defined(lo) ? lo : th[0], bi, fs)
     hi = ex_bs(Defined(hi) ? hi : th[1], bi, fs)
 
-    th  = (lo == 0) && (hi == ex_bs(255, bi, fs)) ? "" : ex_dlut(Format("T@ {lo} - range_max {hi} {lo} - / * "), bi, fs)
+    th  = (lo == 0) && (hi == ex_bs(255, bi, fs)) ? "" : ex_dlut(Format("{lo} - range_max {hi} {lo} - / *"), bi, fs)
     str =                                                                                                                                                                                                \
           mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                                   \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                                     \
@@ -976,25 +1118,6 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     UV == 1 ? Expr(a, str, ""                                                           ) : \
               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi)) }
 
-
-
-# removegrain(1,-1) is 21% faster
-function ex_undot(clip a, int "radius", int "UV", bool "fulls") {
-
-    rgb = isRGB(a)
-    isy = isy(a)
-    bi  = BitsPerComponent(a)
-
-    rd = Default(radius, 1)            # beware; not real radius -as bigger kernel-, but further apart
-    UV = Default(UV, rgb ? 3 : 1)
-    fs = Default(fulls, false)
-
-    str = Format("x[-{rd},{rd}] A^ x[0,{rd}] B^ x[{rd},{rd}] C^ x[-{rd},0] D^ x[{rd},0] F^ x[-{rd},-{rd}] G^ x[0,-{rd}] H^ x[{rd},-{rd}] I^ " \
-                +"x[0,0] A B min C D min min F G min H I min min min A B max C D max max F G max H I max max max clip")
-
-    isy     ? Expr(a, str                                                      ) : \
-    UV == 1 ? Expr(a, str, ""                                                  ) : \
-              Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs="none") }
 
 
 # This is repair(mode=1)
