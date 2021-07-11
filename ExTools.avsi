@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v3.4     (10-07-2021)              ##
+###           ExTools v3.5     (11-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -284,6 +284,7 @@ function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo"
 
         thl = round(th * 0.9)
         thh = round(th * 1.1)
+        thm = 1. / (thh - thl)
         mx  = ex_bs(255, bi, fs)
 
         sub = Format(lo < 0 ? in ? "B@ {thl} < B x ?" : \
@@ -296,8 +297,8 @@ function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo"
         olo = lo == 0  ? ""  :      "A@ * 0 max"
         ohi = hi == mx ? "*" : in ? "A@ * A max" : "A@ * A min"
 
-        str = Format(in ? "x {thl} - "+olo+" {thh} {thl} - / {lo} {hi} - "+ohi+" {hi} + "        : \
-                          "x {thl} - "+olo+" {thh} {thl} - / {hi} {lo} - "+ohi+" {lo} + " ) + sub
+        str = Format(in ? "x {thl} - "+olo+" {thm} * {lo} {hi} - "+ohi+" {hi} + "        : \
+                          "x {thl} - "+olo+" {thm} * {hi} {lo} - "+ohi+" {lo} + " ) + sub
 
     } else {
 
@@ -484,7 +485,8 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
     rd = max(rd, 1)
     rv = max(rv, 1)
 
-    md == "trimmed" ? Assert (fbox, "'Trimmed' mode only supports radius=1") : nop()
+    md == "trimmed" ? Assert (fbox, "'Trimmed' mode only supports radius=1")           : nop()
+    md == "bokeh"   ? Assert (rd == rv, "'Bokeh' mode only supports isotropic radius") : nop()
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -494,11 +496,12 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
 
         for (px = -krnlrd, krnlrd, 1) {
                 for (py = -krnlrd, krnlrd, 1) {
-                    ctr  = abs(px) < krnlrd-1 && abs(py) < krnlrd-1
-                    skip = px != 0 && abs(px) > krnlrd*cos(2.0 * atan(abs(py)/(abs(px)+sqrt(px*px + py*py))))
-                    krnv = skip || ctr                  ? krnv : Format(krnv + "x[{px},{py}] ")
-                    plsv = skip || ctr || py == -krnlrd ? plsv : plsv + "+ "
-                    divy = skip || ctr                  ? divy : divy + 1
+                    rad   = cos(2.0 * atan(abs(py)/(abs(px)+sqrt(px*px + py*py))))
+                    skipo =  px != 0 &&                       abs(px) >  krnlrd   *rad
+                    skipi = (px != 0 || abs(py) == krnlrd) && abs(px) > (krnlrd-1)*rad
+                    krnv = skipo || !skipi                  ? krnv : Format(krnv + "x[{px},{py}] ")
+                    plsv = skipo || !skipi || py == -krnlrd ? plsv : plsv + "+ "
+                    divy = skipo || !skipi                  ? divy : divy + 1
            }      }
 
     } else if (!fbox) {
@@ -763,16 +766,23 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", int "UV", 
 ##   64% ex_median(mode="undot4",UV=1)
 ##  1.2% MedianBlur(1,0,0)
 ## 0.06% mt_luts(last, "med", mt_square(1), "y",chroma="-1")
+#
+# modes:
+# median    - True median. Replace with kernel middle value
+# median5   - True median. Replace with kernel middle value (5x5 kernel) (very slow)
+# undot     - Also called "conservative", removes one pixel salt'n'pepper noise -removegrain(1)-
+# undot2    - Same as undot but clip up to the second closest minimum values -removegrain(2)-
+# undot3    - Same as undot but clip up to the third  closest minimum values -removegrain(3)-
+# undot4    - Same as undot but clip up to the fourth closest minimum values -removegrain(4)-
+# SNN       - Symmetric Nearest Neighbour. Clip to closest opposing pair from center value
+# kuwahara  - Mean average of the least variance quadrant in a 5x5 kernel window. (oil paint look)
+# pseudo    - Pseudo median. Replace with the average of the maximum of the minima and the minimum of the maxima of the sliding window
+# weightedp - 50% weighted percentile weighted median (commonly same than "median" but much slower)
+# weightedm - mean average weighted median
+# cartoon   - Clipping is done with respect to averages of neighbours. Best for cartoons -removegrain(22)-
+# edgeS     - Edge sensitive. Same as mode 4 but better edge protection. Strong denoise  -removegrain(17)-
+# edgeW     - Edge sensitive. Only line pairs are used.                    Weak denoise  -removegrain(18)-
 
-# SNN      - Symmetric Nearest Neighbour. Clip to closest opposing pair from center value
-# Median   - True median. Replace with kernel middle value
-# undot    - Also called "conservative", removes one pixel salt'n'pepper noise
-# undot2   - Same as undot but clip up to the second closest minimum values
-# undot3   - Same as undot but clip up to the third  closest minimum values
-# undot4   - Same as undot but clip up to the fourth closest minimum values
-# pseudo   - Pseudo median. Replace with the average of the maximum of the minima and the minimum of the maxima of the sliding window
-# Weighted - 50% weighted percentile median
-# 22       - Clipping is done with respect to averages of neighbours. Best for cartoons
 
 function ex_median(clip a, string "mode", bool "pcorner", int "UV", bool "fulls") {
 
@@ -788,12 +798,6 @@ function ex_median(clip a, string "mode", bool "pcorner", int "UV", bool "fulls"
     Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version to 3.7.1+")
 
     str =                                                                                                                                                             \
-        mode == "SNN"    ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ x[0,0] J^ "                                         \
-                          +"A J - abs H J - abs + B J - abs G J - abs + < A R@ H S@ + B R@ G S@ + ? Z^ "                                                              \
-                          +"C J - abs F J - abs + D J - abs E J - abs + < C T@ F U@ + D T@ E U@ + ? Z^ "                                                              \
-                          +"R J - abs S J - abs + T J - abs U J - abs + < R R@ S S@ + T R@ U S@ + ? Z^ "                                                              \
-                          +"J R S min R S max clip"                                                                                                                 : \
-                                                                                                                                                                      \
         mode == "median" ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[0,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "                                         \
                           +"A D   dup1 dup1 min AA^ max DD^ "                                                                                                         \
                           +"B H   dup1 dup1 min BB^ max HH^ "                                                                                                         \
@@ -819,6 +823,24 @@ function ex_median(clip a, string "mode", bool "pcorner", int "UV", bool "fulls"
                           +"D E   dup1 dup1 min DD^ max EE^ "                                                                                                         \
                           +"EE"                                                                                                                                     : \
                                                                                                                                                                       \
+        mode == "median5"? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] G^ x[0,1] H^ x[1,1] I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ x[0,0] M^ " \
+                          +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] Q^ x[0,-1] R^ x[1,-1] S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] X^ x[1,-2] Y^ x[2,-2] Z^ "   \
+                          +"A C dup1 dup1 min AA^ max CC^ B I dup1 dup1 min BB^ max II^ D S dup1 dup1 min DD^ max SS^ E R dup1 dup1 min EE^ max RR^ F U dup1 dup1 min FF^ max UU^ G T dup1 dup1 min GG^ max TT^ H J dup1 dup1 min HH^ max JJ^ K L dup1 dup1 min KK^ max LL^ M N dup1 dup1 min MM^ max NN^ O Q dup1 dup1 min OO^ max QQ^ P X dup1 dup1 min PP^ max XX^ V Y dup1 dup1 min VV^ max YY^ " \
+                          +"AA DD dup1 dup1 min A^ max D^ BB PP dup1 dup1 min B^ max P^ CC SS dup1 dup1 min C^ max S^ EE MM dup1 dup1 min E^ max M^ FF VV dup1 dup1 min F^ max V^ GG KK dup1 dup1 min G^ max K^ HH OO dup1 dup1 min H^ max O^ II XX dup1 dup1 min I^ max X^ JJ QQ dup1 dup1 min J^ max Q^ LL TT dup1 dup1 min L^ max T^ NN RR dup1 dup1 min N^ max R^ UU YY dup1 dup1 min U^ max Y^ " \
+                          +"A E dup1 dup1 min AA^ max EE^ B H dup1 dup1 min BB^ max HH^ C N dup1 dup1 min CC^ max NN^ D M dup1 dup1 min DD^ max MM^ F G dup1 dup1 min FF^ max GG^ I O dup1 dup1 min II^ max OO^ J P dup1 dup1 min JJ^ max PP^ K V dup1 dup1 min KK^ max VV^ L U dup1 dup1 min LL^ max UU^ Q X dup1 dup1 min QQ^ max XX^ R S dup1 dup1 min RR^ max SS^ T Y dup1 dup1 min TT^ max YY^ " \
+                          +"AA FF dup1 dup1 min A^ max F^ CC LL dup1 dup1 min C^ max L^ DD GG dup1 dup1 min D^ max G^ EE KK dup1 dup1 min E^ max K^ HH QQ dup1 dup1 min H^ max Q^ II JJ dup1 dup1 min I^ max J^ MM VV dup1 dup1 min M^ max V^ NN TT dup1 dup1 min N^ max T^ OO PP dup1 dup1 min O^ max P^ RR UU dup1 dup1 min R^ max U^ SS YY dup1 dup1 min S^ max Y^ " \
+                          +"C H dup1 dup1 min CC^ max HH^ G J dup1 dup1 min GG^ max JJ^ I LL dup1 dup1 min II^ max L^ O Z dup1 dup1 min OO^ max ZZ^ S V dup1 dup1 min SS^ max VV^ "                                                                                                                         \
+                          +"D II dup1 dup1 min DD^ max I^ HH K dup1 dup1 min H^ max KK^ LL M dup1 dup1 min L^ max MM^ N OO dup1 dup1 min NN^ max O^ P VV dup1 dup1 min PP^ max V^ SS U dup1 dup1 min S^ max UU^ X ZZ dup1 dup1 min XX^ max Z^ "                                                             \
+                          +"E NN dup1 dup1 min EE^ max N^ KK Q dup1 dup1 min K^ max QQ^ L PP dup1 dup1 min LL^ max P^ S Z dup1 dup1 min SS^ max ZZ^ T XX dup1 dup1 min TT^ max X^ "                                                                                                                         \
+                          +"BB EE dup1 dup1 min B^ max E^ I LL dup1 dup1 min II^ max L^ JJ TT dup1 dup1 min J^ max T^ N R dup1 dup1 min NN^ max RR^ O SS dup1 dup1 min OO^ max S^ QQ UU dup1 dup1 min Q^ max U^ Y ZZ dup1 dup1 min YY^ max Z^ "                                                             \
+                          +"A B dup1 dup1 min AA^ max BB^ E F dup1 dup1 min EE^ max FF^ GG NN dup1 dup1 min G^ max N^ J OO dup1 dup1 min JJ^ max O^ K RR dup1 dup1 min KK^ max R^ MM Q dup1 dup1 min M^ max QQ^ S T dup1 dup1 min SS^ max TT^ U V dup1 dup1 min UU^ max VV^ X YY dup1 dup1 min XX^ max Y^ " \
+                          +"CC G dup1 dup1 min C^ max GG^ DD EE dup1 dup1 min D^ max E^ FF N dup1 dup1 min F^ max NN^ H JJ dup1 dup1 min HH^ max J^ M SS dup1 dup1 min MM^ max S^ P R dup1 dup1 min PP^ max RR^ QQ TT dup1 dup1 min Q^ max T^ UU XX dup1 dup1 min U^ max X^ VV Y dup1 dup1 min V^ max YY^ " \
+                          +"BB C dup1 dup1 min B^ max CC^ F II dup1 dup1 min FF^ max I^ GG HH dup1 dup1 min G^ max H^ J KK dup1 dup1 min JJ^ max K^ L NN dup1 dup1 min LL^ max N^ O PP dup1 dup1 min OO^ max P^ RR U dup1 dup1 min R^ max UU^ V X dup1 dup1 min VV^ max XX^ "                               \
+                          +"B D dup1 dup1 min BB^ max DD^ CC E dup1 dup1 min C^ max EE^ FF G dup1 dup1 min F^ max GG^ H LL dup1 dup1 min HH^ max L^ I JJ dup1 dup1 min II^ max J^ K N dup1 dup1 min KK^ max NN^ MM OO dup1 dup1 min M^ max O^ P Q dup1 dup1 min PP^ max QQ^ R S dup1 dup1 min RR^ max SS^ T UU dup1 dup1 min TT^ max U^ " \
+                          +"C DD dup1 dup1 min CC^ max D^ EE II dup1 dup1 min E^ max I^ GG HH dup1 dup1 min G^ max H^ J M dup1 dup1 min JJ^ max MM^ KK L dup1 dup1 min K^ max LL^ NN O dup1 dup1 min N^ max OO^ PP RR dup1 dup1 min P^ max R^ QQ SS dup1 dup1 min Q^ max S^ U VV dup1 dup1 min UU^ max V^ " \
+                          +"D F dup1 dup1 min DD^ max FF^ E G dup1 dup1 min EE^ max GG^ H II dup1 dup1 min HH^ max I^ JJ K dup1 dup1 min J^ max KK^ LL MM dup1 dup1 min L^ max M^ N P dup1 dup1 min NN^ max PP^ M NN dup1 dup1 min MM^ max N^ "                                                             \
+                          +"MM"                                                                                                                                     : \
+                                                                                                                                                                      \
         mode == "pseudo" ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] G^ x[0,1] H^ x[1,1] I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ x[0,0] M^ " \
                           +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] Q^ x[0,-1] R^ x[1,-1] S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] X^ x[1,-2] Y^ x[2,-2] Z^ "   \
                           +"A B min C min F min G min H min K min L min M min C D min E min H min I min J min M min N min O min max "                                 \
@@ -826,10 +848,55 @@ function ex_median(clip a, string "mode", bool "pcorner", int "UV", bool "fulls"
                           +"A B max C max F max G max H max K max L max M max C D max E max H max I max J max M max N max O max min "                                 \
                           +"K L max M max P max Q max R max U max V max X max M N max O max R max S max T max X max Y max Z max min min + 0.5 *"                    : \
                                                                                                                                                                       \
-        mode == "weighted"?"x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[0,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "                                         \
-                          +"A B C D E F G H I + + + + + + + + 0.111111111 * W^ "                                                                                      \
-                          +" A W - abs B W - abs < A B ? Z@ W - abs C W - abs < Z C ? Y@ W - abs D W - abs < Y D ? X@ W - abs E W - abs < X E ? "                     \
-                          +"V@ W - abs F W - abs < V F ? U@ W - abs G W - abs < U G ? T@ W - abs H W - abs < T H ? S@ W - abs I W - abs < S I ? "                   : \
+        mode == "SNN"    ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ x[0,0] J^ "                                         \
+                          +"A J - abs H J - abs + B J - abs G J - abs + < A R@ H S@ + B R@ G S@ + ? Z^ "                                                              \
+                          +"C J - abs F J - abs + D J - abs E J - abs + < C T@ F U@ + D T@ E U@ + ? Z^ "                                                              \
+                          +"R J - abs S J - abs + T J - abs U J - abs + < R R@ S S@ + T R@ U S@ + ? Z^ "                                                              \
+                          +"J R S min R S max clip"                                                                                                                 : \
+                                                                                                                                                                      \
+        mode == "kuwahara"?"x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] G^ x[0,1] H^ x[1,1] I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ x[0,0] M^ " \
+                          +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] Q^ x[0,-1] R^ x[1,-1] S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] X^ x[1,-2] Y^ x[2,-2] Z^ "   \
+                          +"A B C F G H K L M + + + + + + + + 0.111111111 * W^   C D E H I J M N O + + + + + + + + 0.111111111 * WW^ "                                \
+                          +"K L M P Q R U V X + + + + + + + + 0.111111111 * WWW^ M N O R S T X Y Z + + + + + + + + 0.111111111 * WWWW^ "                              \
+                          +"A W - dup * B W - dup * C W - dup * F W - dup * G W - dup * H W - dup * K W - dup * L W - dup * M W - dup * + + + + + + + + AA^ "         \
+                          +"C WW - dup * D WW - dup * E WW - dup * H WW - dup * I WW - dup * J WW - dup * M WW - dup * N WW - dup * O WW - dup * + + + + + + + + BB^ "\
+                          +"K WWW - dup * L WWW - dup * M WWW - dup * P WWW - dup * Q WWW - dup * R WWW - dup * U WWW - dup * V WWW - dup * X WWW - dup * + + + + + + + + CC^ " \
+                          +"M WWWW - dup * N WWWW - dup * O WWWW - dup * R WWWW - dup * S WWWW - dup * T WWWW - dup * X WWWW - dup * Y WWWW - dup * Z WWWW - dup * + + + + + + + + DD^ " \
+                          +"AA BB min CC DD min min EE^ EE AA == W EE BB == WW EE CC == WWW WWWW ? ? ?"                                                             : \
+                                                                                                                                                                      \
+        mode == "weightedp"?"x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[0,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "                                        \
+                           +"A D   dup1 dup1 min AA^ max DD^ "                                                                                                        \
+                           +"B H   dup1 dup1 min BB^ max HH^ "                                                                                                        \
+                           +"C F   dup1 dup1 min CC^ max FF^ "                                                                                                        \
+                           +"E I   dup1 dup1 min EE^ max II^ "                                                                                                        \
+                           +"AA HH dup1 dup1 min A^  max H^  "                                                                                                        \
+                           +"CC EE dup1 dup1 min C^  max E^  "                                                                                                        \
+                           +"DD II dup1 dup1 min D^  max I^  "                                                                                                        \
+                           +"FF G  dup1 dup1 min F^  max GG^ "                                                                                                        \
+                           +"A C   dup1 dup1 min AA^ max CC^ "                                                                                                        \
+                           +"BB D  dup1 dup1 min B^  max DD^ "                                                                                                        \
+                           +"E F   dup1 dup1 min EE^ max FF^ "                                                                                                        \
+                           +"H I   dup1 dup1 min HH^ max II^ "                                                                                                        \
+                           +"B EE  dup1 dup1 min BB^ max E^  "                                                                                                        \
+                           +"DD GG dup1 dup1 min D^  max G^  "                                                                                                        \
+                           +"FF HH dup1 dup1 min F^  max H^  "                                                                                                        \
+                           +"AA BB dup1 dup1 min A^  max B^  "                                                                                                        \
+                           +"CC E  dup1 dup1 min C^  max EE^ "                                                                                                        \
+                           +"D F   dup1 dup1 min DD^ max FF^ "                                                                                                        \
+                           +"G II  dup1 dup1 min GG^ max I^  "                                                                                                        \
+                           +"C DD  dup1 dup1 min CC^ max D^  "                                                                                                        \
+                           +"EE FF dup1 dup1 min E^  max F^  "                                                                                                        \
+                           +"GG H  dup1 dup1 min G^  max HH^ "                                                                                                        \
+                           +"B CC  dup1 dup1 min BB^ max C^  "                                                                                                        \
+                           +"D E   dup1 dup1 min DD^ max EE^ "                                                                                                        \
+                           +"F G   dup1 dup1 min FF^ max GG^ "                                                                                                        \
+                           +"A BB C + + A B C D E F G H I + + + + + + + + 0.5 * W@ - abs Z^ A BB C DD + + + W - abs Y^ A BB C DD EE + + + + W - abs X^ "              \
+                           +"A BB C DD EE FF + + + + + W - abs V^ Z Y < C Y X < DD X Z < EE FF ? ? ? "                                                              : \
+                                                                                                                                                                      \
+        mode == "weightedm"?"x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[0,0] E^ x[1,0] F^ x[-1,-1] G^ x[0,-1] H^ x[1,-1] I^ "                                        \
+                           +"A B C D E F G H I + + + + + + + + 0.111111111 * W^ "                                                                                     \
+                           +" A W - abs B W - abs < A B ? Z@ W - abs C W - abs < Z C ? Y@ W - abs D W - abs < Y D ? X@ W - abs E W - abs < X E ? "                    \
+                           +"V@ W - abs F W - abs < V F ? U@ W - abs G W - abs < U G ? T@ W - abs H W - abs < T H ? S@ W - abs I W - abs < S I ? "                  : \
                                                                                                                                                                       \
         mode == "undot"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                   \
                           +"x[0,0] A B min C min D min E min F min G min H min A B max C max D max E max F max G max H max clip"                                    : \
@@ -896,8 +963,17 @@ function ex_median(clip a, string "mode", bool "pcorner", int "UV", bool "fulls"
                           +"DD EE dup1 dup1 min D^  max E^  "                                                                                                         \
                           +"x[0,0] D E clip"                                                                                                                        : \
                                                                                                                                                                       \
-        mode == "22"     ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                   \
+        mode == "cartoon"? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                   \
                           +"x[0,0] A H + B G + min C F + min D E + min 0.5 * A H + B G + max C F + max D E + max 0.5 * clip"                                        : \
+                                                                                                                                                                      \
+        mode == "edgeS"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                   \
+                          +"A H min B G min max C F min D E min max max L^ A H max B G max min C F max D E max min min U^ "                                           \
+                          +"x[0,0] L U min L U max clip"                                                                                                            : \
+                                                                                                                                                                      \
+        mode == "edgeW"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ x[0,0] I^ "                                         \
+                          +"I A - abs I H - abs max AA^ I B - abs I G - abs max BB^ I C - abs I F - abs max CC^ I D - abs I E - abs max DD^ "                         \
+                          +"AA BB min CC DD min min X^  "                                                                                                             \
+                          +"X AA == I A H min A H max clip X BB == I B G min B G max clip X CC == I C F min C F max clip I D E min D E max clip ? ? ?"              : \
                                                                                                                                                                       \
                           Assert (false, "Unsupported median mode.")
 
