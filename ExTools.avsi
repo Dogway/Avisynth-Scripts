@@ -27,6 +27,7 @@
 ###
 ### Dependencies: AviSynth+ 3.5 and over
 ###
+### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips.
 ###
 ####################################
 
@@ -309,7 +310,6 @@ function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo"
                           "x {th} > "+hi+" "+lo+" ?")
     }
 
-    str  = ex_dlut  (str,     bi,      fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
     isy     ?  Expr(a, str                                    ) : \
@@ -771,17 +771,18 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", int "UV", 
 # median    - True median. Replace with kernel middle value
 # median5   - True median. Replace with kernel middle value (5x5 kernel) (very slow)
 # undot     - Also called "conservative", removes one pixel salt'n'pepper noise -removegrain(1)-
-# undot2    - Same as undot but clip up to the second closest minimum values -removegrain(2)-
-# undot3    - Same as undot but clip up to the third  closest minimum values -removegrain(3)-
-# undot4    - Same as undot but clip up to the fourth closest minimum values -removegrain(4)-
+# undot2    - Same as undot but clip up to the second closest minimum values    -removegrain(2)-
+# undot3    - Same as undot but clip up to the third  closest minimum values    -removegrain(3)-
+# undot4    - Same as undot but clip up to the fourth closest minimum values    -removegrain(4)-
+# adaptive  - Similar to undot but better at salt'n'pepper noise. (very slow)   -From VC Mohan AdaptiveMedian-
 # SNN       - Symmetric Nearest Neighbour. Clip to closest opposing pair from center value
 # kuwahara  - Mean average of the least variance quadrant in a 5x5 kernel window. (oil paint look)
 # pseudo    - Pseudo median. Replace with the average of the maximum of the minima and the minimum of the maxima of the sliding window
 # weightedp - 50% weighted percentile weighted median (commonly same than "median" but much slower)
 # weightedm - mean average weighted median
-# cartoon   - Clipping is done with respect to averages of neighbours. Best for cartoons -removegrain(22)-
 # edgeS     - Edge sensitive. Same as mode 4 but better edge protection. Strong denoise  -removegrain(17)-
 # edgeW     - Edge sensitive. Only line pairs are used.                    Weak denoise  -removegrain(18)-
+# cartoon   - Clipping is done with respect to averages of neighbours. Best for cartoons -removegrain(22)-
 
 
 function ex_median(clip a, string "mode", bool "pcorner", int "UV", bool "fulls") {
@@ -814,10 +815,8 @@ function ex_median(clip a, string "mode", bool "pcorner", int "UV", bool "fulls"
                           +"B EE  dup1 dup1 min BB^ max E^  "                                                                                                         \
                           +"DD GG dup1 dup1 min D^  max G^  "                                                                                                         \
                           +"FF HH dup1 dup1 min F^  max H^  "                                                                                                         \
-                          +"AA BB dup1 dup1 min A^  max B^  "                                                                                                         \
                           +"CC E  dup1 dup1 min C^  max EE^ "                                                                                                         \
                           +"D F   dup1 dup1 min DD^ max FF^ "                                                                                                         \
-                          +"G II  dup1 dup1 min GG^ max I^  "                                                                                                         \
                           +"C DD  dup1 dup1 min CC^ max D^  "                                                                                                         \
                           +"EE FF dup1 dup1 min E^  max F^  "                                                                                                         \
                           +"D E   dup1 dup1 min DD^ max EE^ "                                                                                                         \
@@ -897,6 +896,45 @@ function ex_median(clip a, string "mode", bool "pcorner", int "UV", bool "fulls"
                            +"A B C D E F G H I + + + + + + + + 0.111111111 * W^ "                                                                                     \
                            +" A W - abs B W - abs < A B ? Z@ W - abs C W - abs < Z C ? Y@ W - abs D W - abs < Y D ? X@ W - abs E W - abs < X E ? "                    \
                            +"V@ W - abs F W - abs < V F ? U@ W - abs G W - abs < U G ? T@ W - abs H W - abs < T H ? S@ W - abs I W - abs < S I ? "                  : \
+                                                                                                                                                                      \
+        mode == "adaptive"?"x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] G^ x[0,1] H^ x[1,1] I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ x[0,0] M@ W^"\
+                          +" x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] Q^ x[0,-1] R^ x[1,-1] S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] X^ x[1,-2] Y^ x[2,-2] Z^ "  \
+                          +"Q L     dup1 dup1 min QQQ^ max LLL^ "                                                                                                     \
+                          +"H R     dup1 dup1 min HHH^ max RRR^ "                                                                                                     \
+                          +"I N     dup1 dup1 min III^ max NNN^ "                                                                                                     \
+                          +"M S     dup1 dup1 min MMM^ max SSS^ "                                                                                                     \
+                          +"QQQ RRR dup1 dup1 min QQ^  max RR^  "                                                                                                     \
+                          +"III MMM dup1 dup1 min II^  max MM^  "                                                                                                     \
+                          +"LLL SSS dup1 dup1 min LL^  max SS^  "                                                                                                     \
+                          +"NNN QQ  dup1 dup1 min NN^  max QQQ^ "                                                                                                     \
+                          +"QQ II   dup1 dup1 min QQQ^ max III^ "                                                                                                     \
+                          +"HHH LL  dup1 dup1 min HH^  max LLL^ "                                                                                                     \
+                          +"MM NN   dup1 dup1 min MMM^ max NNN^ "                                                                                                     \
+                          +"RR SS   dup1 dup1 min RRR^ max SSS^ "                                                                                                     \
+                          +"HH MMM  dup1 dup1 min HH^  max MM^  "                                                                                                     \
+                          +"LLL QQQ dup1 dup1 min LL^  max QQ^  "                                                                                                     \
+                          +"NNN RRR dup1 dup1 min NN^  max RR^  "                                                                                                     \
+                          +"III MM  dup1 dup1 min II^  max MMM^ "                                                                                                     \
+                          +"LL NN   dup1 dup1 min LLL^ max NNN^ "                                                                                                     \
+                          +"II LLL  dup1 dup1 min III^ max LL^  "                                                                                                     \
+                          +"MMM NNN dup1 dup1 min MM^  max NN^  "                                                                                                     \
+                          +"LL MM   dup1 dup1 min LLL^ max MMM^ "                                                                                                     \
+                          +"A C dup1 dup1 min AA^ max CC^ B I dup1 dup1 min BB^ max II^ D S dup1 dup1 min DD^ max SS^ E R dup1 dup1 min EE^ max RR^ F U dup1 dup1 min FF^ max UU^ G T dup1 dup1 min GG^ max TT^ H J dup1 dup1 min HH^ max JJ^ K L dup1 dup1 min KK^ max LL^ M N dup1 dup1 min MM^ max NN^ O Q dup1 dup1 min OO^ max QQ^ P X dup1 dup1 min PP^ max XX^ V Y dup1 dup1 min VV^ max YY^ " \
+                          +"AA DD dup1 dup1 min A^ max D^ BB PP dup1 dup1 min B^ max P^ CC SS dup1 dup1 min C^ max S^ EE MM dup1 dup1 min E^ max M^ FF VV dup1 dup1 min F^ max V^ GG KK dup1 dup1 min G^ max K^ HH OO dup1 dup1 min H^ max O^ II XX dup1 dup1 min I^ max X^ JJ QQ dup1 dup1 min J^ max Q^ LL TT dup1 dup1 min L^ max T^ NN RR dup1 dup1 min N^ max R^ UU YY dup1 dup1 min U^ max Y^ " \
+                          +"A E dup1 dup1 min AA^ max EE^ B H dup1 dup1 min BB^ max HH^ C N dup1 dup1 min CC^ max NN^ D M dup1 dup1 min DD^ max MM^ F G dup1 dup1 min FF^ max GG^ I O dup1 dup1 min II^ max OO^ J P dup1 dup1 min JJ^ max PP^ K V dup1 dup1 min KK^ max VV^ L U dup1 dup1 min LL^ max UU^ Q X dup1 dup1 min QQ^ max XX^ R S dup1 dup1 min RR^ max SS^ T Y dup1 dup1 min TT^ max YY^ " \
+                          +"AA FF dup1 dup1 min A^ max F^ CC LL dup1 dup1 min C^ max L^ DD GG dup1 dup1 min D^ max G^ EE KK dup1 dup1 min E^ max K^ HH QQ dup1 dup1 min H^ max Q^ II JJ dup1 dup1 min I^ max J^ MM VV dup1 dup1 min M^ max V^ NN TT dup1 dup1 min N^ max T^ OO PP dup1 dup1 min O^ max P^ RR UU dup1 dup1 min R^ max U^ SS YY dup1 dup1 min S^ max Y^ " \
+                          +"C H dup1 dup1 min CC^ max HH^ G J dup1 dup1 min GG^ max JJ^ I LL dup1 dup1 min II^ max L^ O Z dup1 dup1 min OO^ max ZZ^ S V dup1 dup1 min SS^ max VV^ "                                                                                                                         \
+                          +"D II dup1 dup1 min DD^ max I^ HH K dup1 dup1 min H^ max KK^ LL M dup1 dup1 min L^ max MM^ N OO dup1 dup1 min NN^ max O^ P VV dup1 dup1 min PP^ max V^ SS U dup1 dup1 min S^ max UU^ X ZZ dup1 dup1 min XX^ max Z^ "                                                             \
+                          +"E NN dup1 dup1 min EE^ max N^ KK Q dup1 dup1 min K^ max QQ^ L PP dup1 dup1 min LL^ max P^ S Z dup1 dup1 min SS^ max ZZ^ T XX dup1 dup1 min TT^ max X^ "                                                                                                                         \
+                          +"BB EE dup1 dup1 min B^ max E^ I LL dup1 dup1 min II^ max L^ JJ TT dup1 dup1 min J^ max T^ N R dup1 dup1 min NN^ max RR^ O SS dup1 dup1 min OO^ max S^ QQ UU dup1 dup1 min Q^ max U^ Y ZZ dup1 dup1 min YY^ max Z^ "                                                             \
+                          +"A B dup1 dup1 min AA^ max BB^ E F dup1 dup1 min EE^ max FF^ GG NN dup1 dup1 min G^ max N^ J OO dup1 dup1 min JJ^ max O^ K RR dup1 dup1 min KK^ max R^ MM Q dup1 dup1 min M^ max QQ^ S T dup1 dup1 min SS^ max TT^ U V dup1 dup1 min UU^ max VV^ X YY dup1 dup1 min XX^ max Y^ " \
+                          +"CC G dup1 dup1 min C^ max GG^ DD EE dup1 dup1 min D^ max E^ FF N dup1 dup1 min F^ max NN^ H JJ dup1 dup1 min HH^ max J^ M SS dup1 dup1 min MM^ max S^ P R dup1 dup1 min PP^ max RR^ QQ TT dup1 dup1 min Q^ max T^ UU XX dup1 dup1 min U^ max X^ VV Y dup1 dup1 min V^ max YY^ " \
+                          +"BB C dup1 dup1 min B^ max CC^ F II dup1 dup1 min FF^ max I^ GG HH dup1 dup1 min G^ max H^ J KK dup1 dup1 min JJ^ max K^ L NN dup1 dup1 min LL^ max N^ O PP dup1 dup1 min OO^ max P^ RR U dup1 dup1 min R^ max UU^ V X dup1 dup1 min VV^ max XX^ " \
+                          +"B D dup1 dup1 min BB^ max DD^ CC E dup1 dup1 min C^ max EE^ FF G dup1 dup1 min F^ max GG^ H LL dup1 dup1 min HH^ max L^ I JJ dup1 dup1 min II^ max J^ K N dup1 dup1 min KK^ max NN^ MM OO dup1 dup1 min M^ max O^ P Q dup1 dup1 min PP^ max QQ^ R S dup1 dup1 min RR^ max SS^ T UU dup1 dup1 min TT^ max U^ " \
+                          +"C DD dup1 dup1 min CC^ max D^ EE II dup1 dup1 min E^ max I^ GG HH dup1 dup1 min G^ max H^ J M dup1 dup1 min JJ^ max MM^ KK L dup1 dup1 min K^ max LL^ NN O dup1 dup1 min N^ max OO^ PP RR dup1 dup1 min P^ max R^ QQ SS dup1 dup1 min Q^ max S^ U VV dup1 dup1 min UU^ max V^ " \
+                          +"D F dup1 dup1 min DD^ max FF^ E G dup1 dup1 min EE^ max GG^ H II dup1 dup1 min HH^ max I^ JJ K dup1 dup1 min J^ max KK^ LL MM dup1 dup1 min L^ max M^ N P dup1 dup1 min NN^ max PP^ OO R dup1 dup1 min O^ max RR^ Q TT dup1 dup1 min QQ^ max T^ "                               \
+                          +"EE FF dup1 dup1 min E^ max F^ GG HH dup1 dup1 min G^ max H^ I J dup1 dup1 min II^ max JJ^ KK L dup1 dup1 min K^ max LL^ M NN dup1 dup1 min MM^ max N^ O PP dup1 dup1 min OO^ max P^ QQ RR dup1 dup1 min Q^ max R^ S T dup1 dup1 min SS^ max TT^ "                               \
+                          +"MMM AA > MMM Z < & W AA > W Z < & W MMM ? MM AA > MM Z < & W AA > W Z < & W MMM ? MMM ? ?   "                                           : \
                                                                                                                                                                       \
         mode == "undot"  ? "x[-1,1] A^ x[0,1] B^ x[1,1] C^ x[-1,0] D^ x[1,0] E^ x[-1,-1] F^ x[0,-1] G^ x[1,-1] H^ "                                                   \
                           +"x[0,0] A B min C min D min E min F min G min H min A B max C max D max E max F max G max H max clip"                                    : \
