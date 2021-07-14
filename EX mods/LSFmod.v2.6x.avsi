@@ -12,13 +12,16 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.5 ex - 04 July 2021                                    ###
+###                                v2.6 ex - 14 July 2021                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+### v2.6ex : - Expressions cleanup
+###          - Rebase to latest ExTools
+###
 ### v2.5ex : - Expressions optimizations
 ###
 ### v2.4ex : - Expressions fix and optimizations
@@ -111,10 +114,10 @@
 ### | DEPENDENCIES |
 ### +--------------+
 ###
-### -> Masktools    (v2.2.15 or up)
-### -> Removegrain  (v1.0pre or up)
+### -> Masktools    (v2.2.26 or up)
+### -> RgTools      (v1.2 or up)
 ### -> UnsharpMask_HBD.avsi            [for Smode=1]
-### -> Variableblur (v0.30 or up)      [for Smode=2]
+### -> Variableblur (v0.70 or up)      [for Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use avs+ then make sure it's the last one
 ###
@@ -445,7 +448,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
 ### DEFAULTS
-version  = "v2.5ex"
+version  = "v2.6ex"
 defaults = Default(defaults,"slow")
 num      = defaults=="old" ? 0 : defaults=="slow" ? 1 : defaults=="fast" ? 2 : 3
 
@@ -454,7 +457,7 @@ oy = inclip.height()
 bi = BitsPerComponent(inclip)
 fs = Default(fulls, false)
 
-Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
 Assert(num         != 3      ? true : false, chr(10) + """Defaults must be "old" or "slow" or "fast" !""" + chr(10))
 
 strength    = Default( strength,    Select(num,                              100 ,                100 ,                100 ) )
@@ -491,7 +494,8 @@ show        = Default( show,        Select(num,                            false
 screenW     = Default( screenW,     Select(num,                             1280 ,               1280 ,               1280 ) )
 screenH     = Default( screenH,     Select(num,                             1024 ,               1024 ,               1024 ) )
 
-Assert(!isRGB(inclip), chr(10) + "LSFmod: Unsupported RGB clip" + chr(10))
+Assert(!isYUY2(inclip), chr(10) + "LSFmod: Unsupported format: YUY2" + chr(10))
+Assert(!isRGB(inclip),  chr(10) + "LSFmod: Unsupported format: RGB"  + chr(10))
 Assert( ( strength >= 0 )                                                ? true : false, chr(10) + "'strength' have not a correct value! [>=0]" + chr(10))
 Assert( ( Smode >= 1 && Smode <= 6 )                                     ? true : false, chr(10) + "'Smode' have not a correct value! [1,2,3,4,5]" + chr(10))
 Assert( ( Smethod >= 1 && Smethod <= 4 )                                 ? true : false, chr(10) + "'Smethod' have not a correct value! [1,2,3,4]" + chr(10))
@@ -529,14 +533,12 @@ sode  = Defined(source)
 
 source = sode ? sisupscale || sislumaonly ? source : source.converttoy() : source
 
-Assert(!isYUY2(input), chr(10) + "LSFmod: not work with an YUY2 clip !" + chr(10))
-
 
 ### SHARP
 tmp  = ss_x > 1.0 || ss_y > 1.0 ? input.spline36resize(xxs,yys) : input
 pre  = preblur=="OFF" ? tmp
-\    : preblur=="ON"  ? tmp.ex_makediff(ex_lutxy(ex_makediff(tmp,tmp.removegrain(19,-1),fulls=fs)
-\                                               ,ex_makediff(tmp,tmp.removegrain(4, -1),fulls=fs),"x range_half - A@ y range_half - B@ * 0 < range_half A abs B abs < x y ? ?",fulls=fs) \
+\    : preblur=="ON"  ? tmp.ex_makediff(ex_lutxy(ex_makediff(tmp,tmp.ex_boxblur(1,UV=1),fulls=fs)
+\                                               ,ex_makediff(tmp,tmp.ex_median("undot4",UV=1),fulls=fs),"x range_half - A@ y range_half - B@ * 0 < range_half A abs B abs < x y ? ?",fulls=fs) \
                                        ,fulls=fs)
 \    : Eval("tmp."+preblur)
 
@@ -545,9 +547,9 @@ bright_limit = pre.ex_expand()
 minmaxavg    = Merge(dark_limit,bright_limit,0.5)
 
 # consider auto-increasing blur for HD/UHD
-method = Smethod==1   ? pre.ex_blur(1,UV=1)
+method = Smethod==1   ? pre.ex_boxblur(1,mode="weighted",UV=1)
 \      : Smethod==2   ? minmaxavg
-\      :                minmaxavg.ex_blur(1,UV=1)
+\      :                minmaxavg.ex_boxblur(1,mode="weighted",UV=1)
 
 sec    = ex_bs(0.51, bi, fs)
 secstr = Format("x y < x {sec} + x y > x {sec} - x ? ?")
@@ -557,21 +559,18 @@ method = secure==true ? method.ex_lutxy(pre,secstr)
 method = preblur=="OFF" ? method : tmp.ex_makediff(ex_makediff(pre,method,fulls=fs),fulls=fs)
 
  Szrp      = ex_bs(Szrp,   bi, fs)
-rSzrp      = 1. / Szrp
  Spwr      = ex_bs(Spwr,   bi, fs)
-rSpwr      = 1. / Spwr
  SdmpLo    = ex_bs(SdmpLo, bi, fs)
  SdmpHi    = ex_bs(SdmpHi, bi, fs)
-rSdmpHi    = 1. / SdmpHi
 
 normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
 \         : Smode==2 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
-\         : Smode==3 ? ex_lutxy(tmp, method, Format("x x y - {str} * +"))
-\         : Smode==4 ? ex_lutxy(tmp, method, Format("x y == x x x y - A@ abs {rSzrp} * {rSpwr} ^ {Szrp} * {str} * A dup * dup "
-\                                                  +"{SdmpLo} + / * A dup abs / * 1 {SdmpHi} 0 == 0 A abs {rSdmpHi} * 4 ^ ? + / + ?"))
-\         : Smode==5 ? ex_lutxy(tmp, method, Format("x y == x x x y - A@ abs {rSzrp} * {rSpwr} ^ {Szrp} * {str} * A A abs / * A A * "
+\         : Smode==3 ? ex_lutxy(tmp, method, Format("x y - {str} * x +"))
+\         : Smode==4 ? ex_lutxy(tmp, method, Format("x y == x x x y - A@ abs 1 {Szrp} / * {rSpwr} ^ {Szrp} * {str} * A dup * dup "
+\                                                  +"{SdmpLo} + / * A dup abs / * 1 {SdmpHi} 0 == 0 A abs 1 {SdmpHi} / * 4 ^ ? + / + ?"))
+\         : Smode==5 ? ex_lutxy(tmp, method, Format("x y == x x x y - A@ abs 1 {Szrp} / * 1 {Spwr} / ^ {Szrp} * {str} * A A abs / * A A * "
 \                                                  +"{Szrp} dup * {SdmpLo} + * A A * {SdmpLo} + {Szrp} dup * * / * 1 "
-\                                                  +"{SdmpHi} 0 == 0 {Szrp} {rSdmpHi} * 4 ^ ? + 1 {SdmpHi} 0 == 0 A abs {rSdmpHi} * 4 ^ ? + / * + ?"), scale_inputs="allf")
+\                                                  +"{SdmpHi} 0 == 0 {Szrp} 1 {SdmpHi} / * 4 ^ ? + 1 {SdmpHi} 0 == 0 A abs 1 {SdmpHi} / * 4 ^ ? + / * + ?"), scale_inputs="allf")
 \         : preblur!="OFF" && secure ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)).ex_lutxy(pre,secstr), fulls=fs), fulls=fs)
 \         : preblur!="OFF"           ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)), fulls=fs), fulls=fs) : secure ? pre.cas(min(Str, 1)).ex_lutxy(pre,secstr) : pre.cas(min(Str, 1))
 
@@ -582,14 +581,14 @@ second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(
 zero   = ex_clamp(normsharp, bright_limit, dark_limit,                 0,                  0, UV=1, fulls=fs)
 
 
-edge  = edgemaskHQ ? tmp.ex_edge(mode="x[-1,1] A^ x[0,1] 2 * B^ x[1,1] C^ x[-1,0] 2 * D^ x[1,0] 2 * E^ x[-1,-1] F^ x[0,-1] 2 * G^ x[1,-1] H^ "                    \
-                                     +"A B C + + F - G - H - F G H + + A - B - C - max A C - D + E - F + H - C A - D - E + F - H + max max 2 *", lo=0,hi=255, UV=1)
-\     :              tmp.mt_edge(thY1=0,thY2=255,mode="min/max",U=1,V=1)
+edge  = edgemaskHQ ? tmp.ex_edge(mode="x[-1,1] A@ x[0,1] 2 * B@ x[1,1] C@ + + x[-1,-1] F@ - x[0,-1] 2 * G@ - x[1,-1] H@ - F G H + + A - B - C - max " \
+                                     +"A C - x[-1,0] 2 * D@ + x[1,0] 2 * E@ - F + H - C A - D - E + F - H + max max 2 *", lo=0, hi=255, UV=1, fulls=fs)
+\     :              tmp.ex_edge(mode="min/max",lo=0,hi=255,UV=1,fulls=fs)
 
-emHQn = 1. / ex_bs(32,  bi, fs)
-rhlf  = 1. / ex_bs(128, bi, fs)
-edge  = edgemaskHQ ?  edge.ex_lut(Format("x  {rhlf} * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
-\     :               edge.ex_lut(Format("x {emHQn} * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
+rhlf  = ex_bs(128, bi, fs)
+emHQn = ex_bs(32,  bi, fs)
+edge  = edgemaskHQ ?  edge.ex_lut(Format("x 1 {rhlf}  / * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
+\     :               edge.ex_lut(Format("x 1 {emHQn} / * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
 
 limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      : Lmode==0 ? normsharp
@@ -599,23 +598,21 @@ limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
 \      :            ex_merge(second,    normal, edge.ex_inflate(), fulls=fs)
 
 limit2 = edgemode==0 ? limit1
-\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1), fulls=fs)
-\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().ex_blur(1,UV=1), fulls=fs)
+\      : edgemode==1 ? ex_merge(tmp,limit1,edge.ex_inflate().ex_inflate().ex_boxblur(1,mode="weighted",UV=1), fulls=fs)
+\      :               ex_merge(limit1,tmp,edge.ex_inflate().ex_inflate().ex_boxblur(1,mode="weighted",UV=1), fulls=fs)
 
 
 ### SOFT
-soft2     = 100 - soft
 sharpdiff = ex_makediff(tmp,limit2,fulls=fs)
-sharpdiff = ex_lutxy(sharpdiff,sharpdiff.removegrain(19,-1), Format("x range_half - abs y range_half - abs > y {soft} * x {soft2} * + 0.01 * x ?"),fulls=fs)
+sharpdiff = ex_lutxy(sharpdiff,sharpdiff.ex_boxblur(1,UV=1), Format("x range_half - abs y range_half - abs > y {soft} * x 100 {soft} - * + 1 100 / * x ?"),fulls=fs)
 
 PP1 = soft==0 ? limit2 : ex_makediff(tmp,sharpdiff,fulls=fs)
 
 
 ### SOOTHE
 diff  = ex_makediff(tmp,PP1,fulls=fs)
-keep2 = keep/100.
 diff2 = diff.temporalsoften(1,255,0,32,2)
-diff3 = ex_lutxy(diff,diff2,Format("x range_half - A@ y range_half - B@ * 0 < A {keep2} * range_half + A abs B abs > x {keep} * y 100 {keep} - * + 0.01 * x ? ?"),fulls=fs)
+diff3 = ex_lutxy(diff,diff2,Format("x range_half - A@ y range_half - B@ * 0 < A {keep} 100 / * range_half + A abs B abs > x {keep} * y 100 {keep} - * + 1 100 / * x ? ?"),fulls=fs)
 
 PP2 = soothe ? ex_makediff(tmp,diff3,fulls=fs) : PP1
 
@@ -763,7 +760,7 @@ function UnsharpMask_HBD(clip clp, float "strength", int "radius", float "thresh
   str   = str/128.
   thres = ex_bs(thres,bi,fs)
 
-  blurclip = ex_boxblur(clp, rd, UV=UV)
+  blurclip = ex_boxblur(clp, rd, mode="mean", UV=UV)
 
   e = Format("x y - A@ abs {thres} > A {str} * x + x ?")
   ex_lutxy(clp, blurclip, e, rgb?e:"", UV=UV) }

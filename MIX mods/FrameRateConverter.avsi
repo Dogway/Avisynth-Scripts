@@ -1,12 +1,12 @@
 # Frame Rate Converter mix mod
-# Version: 1.4.4  (04-07-2021)
+# Version: 1.4.5  (14-07-2021)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (1.4.4) (04-07-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
+# Dogway (1.4.5) (14-07-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -167,7 +167,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
 
     ## "B" - Blending, "BHard" - No blending
     B = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
-    BHard  = C.ChangeFps(NewNum, NewDen)
+    BHard  = C.ChangeFps (NewNum, NewDen)
     C_luma = C.ConvertToY()
     Blank  = BlankClip(C_luma, color_yuv=$000000)
     bi     = C.BitsPerComponent()
@@ -197,7 +197,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EM    = MaskThr > 0 ? C_luma.MMask(bak, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank
     # Mask: Temporal blending
     EMfwd = MaskThr > 0 ? C_luma.MMask(fwd, ml=255, kind=1, gamma=1/gam, thSCD2=SkipOver) : EM
-    EM    = MaskThr > 0 ? ex_blend(EM,EMfwd,"lighten",0.6,UV=1,tv_range=false,fulls=fs) : EM
+    EM    = MaskThr > 0 ? ex_blend(EM,EMfwd,"lighten",0.6,UV=1,tv_range=false,fulls=fs)   : EM
 
 
     # Mask: Occlusion
@@ -244,7 +244,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     MaskThrb = ex_bs(MaskThr,bi,fs)
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
     \       .Expr(ex_dlut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {MaskThrb} > range_max range_min ?"), bi, fs))
-    \       .Expr("x[-1,1] x[0,1] 4 * x[1,1] x[-1,0] 4 * x[0,0] 14 * x[1,0] 4 * x[-1,-1] x[0,-1] 4 * x[1,-1] + + + + + + + + 0.02941176 *")
+    \       .Expr("x[-1,1] x[0,1] 4 * x[1,1] x[-1,0] 4 * x[0,0] 14 * x[1,0] 4 * x[-1,-1] x[0,-1] 4 * x[1,-1] + + + + + + + + 1 34 / *")
     \       .BicubicResize(C.Width(), C.Height())
 
     # Mask: Stripes

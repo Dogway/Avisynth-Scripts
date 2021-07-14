@@ -6,11 +6,11 @@
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
 ###               2020.04.06     by A.SONY.    ###
-###               2021.07.02 mix by Dogway     ###
+###               2021.07.14 mix by Dogway     ###
 ###                                            ###
 ##################################################
 ###
-### Luma adaptive grain generating filter in 8-bit precision
+### Luma adaptive grain generating filter
 ###
 ### Based on Didée's GrainFactory3 script
 ###
@@ -18,6 +18,9 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2021.07.14 mx
+###      - Minor Expr edit
 ###
 ### 2021.07.02 mx
 ###      - Convolution optimization
@@ -67,11 +70,11 @@
 ### |  REQUIREMENTS  |
 ### +----------------+
 ###
-### -> AddGrainC         [v1.6.1]
-### -> RemoveGrain      [v1.0pre]
-### -> MaskTools2       [v2.0a48]
-### -> f3kdb             [v1.5.0]
-### -> ExTools           [v2.1.0]
+### -> AddGrainC         [v1.8.2]
+### -> RgTools           [v1.2]
+### -> MaskTools2        [v2.2.26]
+### -> neo_f3kdb         [r6]
+### -> ExTools           [v3.6.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -248,11 +251,10 @@ grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 
 #-----------------------------------------------------------------------------------
 
-rmax    = ex_bs(255, bi, fs)
-th21str = rmax / (th2str - th1str)
-th43str = rmax / (th4str - th3str)
-grainlayer = grainlayer1.mt_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max {th21str} x {th1str} - * ? ?"), fulls=fs), luma=chroma, U=chroma?3:1,V=chroma?3:1)
- \                      .mt_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max {th43str} x {th3str} - * ? ?"), fulls=fs), luma=chroma, U=chroma?3:1,V=chroma?3:1)
+th21str = th2str - th1str
+th43str = th4str - th3str
+grainlayer = grainlayer1.mt_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max range_max {th21str} / x {th1str} - * ? ?"), fulls=fs), luma=chroma, U=chroma?3:1,V=chroma?3:1)
+ \                      .mt_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max range_max {th43str} / x {th3str} - * ? ?"), fulls=fs), luma=chroma, U=chroma?3:1,V=chroma?3:1)
 
 grainlayer = (temp_avg==0 || ( g1const==true && g2const==true && g3const==true ) ) ? grainlayer
 \          : chroma ? grainlayer.merge(    grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
