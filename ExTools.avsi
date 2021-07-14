@@ -835,7 +835,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                             H  LL                    max L^  I  JJ                   max J^  K  N  dup1 dup1 min KK^ max NN^ MM OO      dup1 dup1 min M^  max O^  P  Q            min PP^ R  S          min RR^
                             J  M                     max MM^ KK L                    max LL^ NN O            min N^ PP RR min P^
                             LL MM                    max M^  N  P            min NN^
-                            M  NN min M^ M"                                                                                                                                   : \
+                            M  NN min"                                                                                                                                        : \
                                                                                                                                                                                 \
         mode == "pseudo" ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] G^ x[0,1] H^ x[1,1] I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ x[0,0] M^ "           \
                           +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] Q^ x[0,-1] R^ x[1,-1] S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] X^ x[1,-2] Y^ x[2,-2] Z^ "             \
