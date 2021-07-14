@@ -485,8 +485,8 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
     UV = Default(UV, rgb ? 3 : 1)
     md = Default(mode,  fbox ? "rg19" : "mean")
     fs = Default(fulls, false)
-    rd = max(rd, 1)
-    rv = max(rv, 1)
+    rd = max(rd, 0)
+    rv = max(rv, 0)
 
     md == "trimmed" ? Assert (fbox, "'Trimmed' mode only supports radius=1 for both dimensions") : nop()
     md == "bokeh"   ? Assert (rd == rv, "'Bokeh' mode only supports isotropic radius")           : nop()
@@ -511,7 +511,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
 
         for (px = -krnlrd, krnlrd, 1) {
             wg   = md == "weighted" ? px == 0 ? krnlrd*2 : krnlrd / float(abs(px)) : nop()
-            krnh = md == "rg19" && px == 0 ? krnh : \
+            krnh = md == "rg19"    && px == 0 ? krnh                            : \
                    md == "weighted"        ? Format(krnh + "x[{px},0] {wg} * ") : \
                                              Format(krnh + "x[{px},0] ")
             plsh = px == -krnlrd || (md == "rg19" && px == 0) ? plsh : plsh + "+ "
@@ -525,7 +525,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
         divw=0
         for (py = -krnlrv, krnlrv, 1) {
             wg   = md == "weighted" ? py == 0 ? krnlrv*2 : krnlrv / float(abs(py)) : nop()
-            krnv = md == "rg19" && py == 0 ? krnv : \
+            krnv = md == "rg19"    && py == 0 ? krnv                            : \
                    md == "weighted"        ? Format(krnv + "x[0,{py}] {wg} * ") : \
                                              Format(krnv + "x[0,{py}] ")
             plsv = py == -krnlrv || (md == "rg19" && py == 0) ? plsv : plsv + "+ "
@@ -1285,8 +1285,8 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
                                                                                                                                                                                                          \
           mode=="TEdge"     ? "x[-2,0] x[-1,0] 6.166666666 * - x[1,0] 6.166666666 * + x[2,0] - 2 * dup * x[0,-2] x[0,-1] 6.166666666 * - x[0,1] 6.166666666 * + x[0,2] - 2 * dup * + sqrt "+th+""      : \
                                                                                                                                                                                                          \
-          mode=="min/max"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                                         \
-                             +"A B max C max G max O max H max D max E max F max A B min C min G min O min H min D min E min F min - "+th+""                                                           : \
+          mode=="min/max"   ? "x[1,1] A@ x[1,0] B@ max x[1,-1] C@ max x[-1,1] D@ max x[-1,0] E@ max x[-1,-1] F@ max x[0,1] G@ max x[0,-1] H@ max x[0,0] O@ max "                                         \
+                             +"A B min C min G min O min H min D min E min F min - "+th+""                                                                                                             : \
                                                                                                                                                                                                          \
           mode=="max"       ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ x[0,0] O^ "                                                                         \
                              +"O A - abs O B - abs max O C - abs max O D - abs max O E - abs max O F - abs max O G - abs max O H - abs max "+th+""                                                     : \
