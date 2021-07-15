@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v3.7     (14-07-2021)              ##
+###           ExTools v3.7.1    (14-07-2021)             ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -551,14 +551,14 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
                                   +"X DD F clip" : "" : krnv + plsv + string(divy) + " 1 swap / *"
 
 
-    strv = fbox || mode=="bokeh" ? str : krnv + plsv + string(divy) + " 1 swap / *"
-    strh =                               krnh + plsh + string(divx) + " 1 swap / *"
+    strv = fbox || md=="bokeh" ? str : krnv + plsv + string(divy) + " 1 swap / *"
+    strh =                             krnh + plsh + string(divx) + " 1 swap / *"
 
     rv == 0 ?      a                                                                  : \
     isy     ? Expr(a,    strv                                                       ) : \
     UV == 1 ? Expr(a,    strv, ""                                                   ) : \
               Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
-    rd == 0 || fbox || mode=="bokeh"  ? last                                          : \
+    rd == 0 || fbox || md=="bokeh"  ? last                                            : \
     isy     ? Expr(last, strh                                                       ) : \
     UV == 1 ? Expr(last, strh, ""                                                   ) : \
               Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
