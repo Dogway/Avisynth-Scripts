@@ -402,16 +402,16 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
 
     str = Format(                                                                                                                                                                 \
         md == "blend"        ? iso ? "y" : "x {opr} * y {op} * + "                                                                                                              : \
-        md == "divide"       ? "y "+srcmx+" B@ 0 <= "+rngmx+" dup x "+srcmx+" "+V+" * B / ? "                                                                                   : \
+        md == "divide"       ? ""+rngmx+" x "+srcmx+" "+V+" * y "+srcmx+" 0 max / "                                                                                             : \
         md == "interpolation"? ""+rngmx+" 0.5 pi x "+srcmx+" "+V+" * "+rngmx+" / cos 4 / - pi y "+srcmx+" * "+rngmx+" / cos 4 / - * "                                           : \
                              \
         md == "screen"       ? ""+rngmx+" C@ dup x "+srcmx+" "+V+" - C y "+srcmx+" - * C / - "                                                                                  : \
-        md == "colordodge"   ? "y "+srcmx+" B@ "+rngmx+" >= B x "+srcmx+" "+V+" "+rngmx+" * "+rngmx+" B - / ? "                                                                 : \
+        md == "colordodge"   ? "x "+srcmx+" "+V+" "+rngmx+" * "+rngmx+" y "+srcmx+" 0 max - / "                                                                                 : \
         md == "lineardodge"  ? "x "+srcmx+" "+V+" y "+srcmx+" + "                                                                                                               : \
         md == "lighten"      ? "x "+V+" y max "                                                                                                                                 : \
                              \
         md == "multiply"     ? "x "+srcmx+" "+V+" y "+srcmx+" * "+rngmx+" / "                                                                                                   : \
-        md == "colorburn"    ? "y "+srcmx+" B@ 0 <= B "+rngmx+" dup x "+srcmx+" "+V+" - "+rngmx+" * B / - ? "                                                                   : \
+        md == "colorburn"    ? ""+rngmx+" dup x "+srcmx+" "+V+" - "+rngmx+" * y "+srcmx+" 0 max / - "                                                                           : \
         md == "linearburn"   ? "x "+srcmx+" "+V+" y "+srcmx+" + B@ "+rngmx+" < 0 B "+rngmx+" - ? "                                                                              : \
         md == "darken"       ? "x "+V+" y min "                                                                                                                                 : \
         md == "subtract"     ? "x "+srcmx+" "+V+" y "+srcmx+" - "                                                                                                               : \
@@ -424,10 +424,10 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", int "UV", bool
         md == "pinlight"     ? "y "+srcmx+" B@ range_half "+srcmx+" < x "+srcmx+" A@ 2 B * min A 2 B range_half "+srcmx+" - * max ? "                                           : \
         md == "hardmix"      ? "x "+srcmx+" "+V+" "+rngmx+" y "+srcmx+" - < 0 "+rngmx+" ? "                                                                                     : \
                              \
-        md == "glow"         ? "x "+srcmx+" A@ "+rngmx+" >= A y "+srcmx+" dup * "+rngmx+" A - / ? "                                                                             : \
-        md == "reflect"      ? "y "+srcmx+" B@ "+rngmx+" >= B x "+srcmx+" "+V+" dup * "+rngmx+" B - / ? "                                                                       : \
-        md == "heat"         ? "x "+srcmx+" A@ 0 <= 0 "+rngmx+" dup y "+srcmx+" - dup * A / "+rngmx+" min - ? "                                                                 : \
-        md == "freeze"       ? "y "+srcmx+" B@ 0 <= 0 "+rngmx+" dup x "+srcmx+" "+V+" - dup * B / "+rngmx+" min - ? "                                                           : \
+        md == "glow"         ? "y "+srcmx+" dup * "+rngmx+" x "+srcmx+" "+V+" 0 max - / "                                                                                       : \
+        md == "reflect"      ? "x "+srcmx+" "+V+" dup * "+rngmx+" y "+srcmx+" 0 max - / "                                                                                       : \
+        md == "heat"         ? ""+rngmx+" dup y "+srcmx+" - dup * x "+srcmx+" 0 max "+V+" / "+rngmx+" min - "                                                                   : \
+        md == "freeze"       ? ""+rngmx+" dup x "+srcmx+" "+V+" - dup * y "+srcmx+" 0 max / "+rngmx+" min - "                                                                   : \
                              \
         md == "grainextract" ? "x "+srcmx+" "+V+" y "+srcmx+" - range_half "+srcmx+" + "                                                                                        : \
         md == "grainmerge"   ? "x "+srcmx+" "+V+" y "+srcmx+" + range_half "+srcmx+" - "                                                                                        : \
