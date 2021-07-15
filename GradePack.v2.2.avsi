@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v2.1 (26-06-2021)               ##
+###           Grade Pack v2.2 (15-07-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -121,7 +121,7 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 
 ###
 ###                 v3.0 (19-01-2014)
-### ex_contrast() - v4.6 (26-06-2021)
+### ex_contrast() - v5.0 (15-07-2021)
 ###
 ###
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
@@ -130,14 +130,14 @@ function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool 
 ### Dependencies: > AviSynth+ 3.5
 ###                 ExTools
 ###
-### Apply over gamma encoded source
+### Apply over gamma encoded clip
 ###
-### Example: ex_contrast(0.7, 0.0, 128, true)
+### Example: ex_contrast(0.7, 0.0, 127.5, true)
 ###
 ####################################
 
 
-function ex_contrast (clip c, float "cont", float "sat", int "pivot", bool "tv_range", int "UV", bool "fulls") {
+function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv_range", int "UV", bool "fulls") {
 
     rgb   = IsRGB(c)
     isy   = isy(c)
@@ -145,32 +145,34 @@ function ex_contrast (clip c, float "cont", float "sat", int "pivot", bool "tv_r
 
     cont  = Default(cont, 0.0)             # [-1.0 to +1.0] can set further though
     sat   = Default(sat,  cont/1.5)        # [-1.0 to +1.0]
+    pivot = Default(pivot, 127.5)          # Pivot: 64 to 192 (roughly)
     tv    = Default(tv_range, !rgb)        # TV or PC. Luma range of your source
-    pivot = Default(pivot, 128)            # Pivot: 64 to 192 (roughly)
-    UV    = Default(UV, rgb ? 3 : 1)
-    fs    = Default(fulls, false)
+    UV    = Default(UV,        rgb ? 3 : 1)
+    fs    = Default(fulls,     rgb)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
-    cont    = pow(cont + sign(cont), 3.)
-    sat     = sat != 0. ? (1.-max(min(sat, 1.), -1.))/2. - 0.5 : 0.
 
     rangePC  = tv ? "x ymin - ymax ymin - /" : "x range_max /"
     rangeTV  = tv ? "ymax ymin - * ymin +"   : "  range_max *"
 
+    sat    = sat != 0. ? (1.-max(min(sat, 1.), -1.))/2. - 0.5 : 0.
+    cont   = pow(cont + sign(cont), 3.)
+    rcont  = 1. / cont
     pivot  = pivot / 255.
     knee   = 1. / (1. + exp(cont *  pivot))
     shldr  = 1. / (1. + exp(cont * (pivot - 1.)))
     shmkn  = shldr - knee
+    rshmkn = 1. / shmkn
 
-    ycont  = "1 1 {cont} {pivot} "+rangePC+" - * exp + / {knee} - {shmkn} / "+rangeTV+""
-    yconti = "{pivot} 1 "+rangePC+" {shmkn} * {knee} + / 1 - log {cont} / - "+rangeTV+""
+    ycont  = "1 1 {cont} {pivot} "+rangePC+" - * exp + / {knee} - {rshmkn} * "+rangeTV+""
+    yconti = "{pivot} 1 "+rangePC+" {shmkn} * {knee} + / 1 - log {rcont} * - "+rangeTV+""
     str    = cont != 0. ? ex_dlut(Format(cont > 0. ? ycont : yconti), bi, fs) : ""
 
     rangePCc  = tv ? "x range_half - range_max cmax cmin - / * range_half +" : "x"
     rangeTVc  = tv ?   "range_half - cmax cmin - range_max / * range_half +" : ""
 
-    cstr = sat != 0. ? Format(""+rangePCc+" A^ "+string(1. - sat)+" A * {sat} range_max A - * + "+rangeTVc+"") : "x"
+    cstr = sat != 0. ? Format(""+string(1. - sat)+" "+rangePCc+" dup swap2 * range_max swap1 swap2 - {sat} * + "+rangeTVc+"") : "x"
     cstr = rgb ? str : ex_dlut(ex_UVexpr(cstr, UV, bi, rgb, fs), bi, fs)
 
     isy     ? Expr(c, str                                    ) : \
@@ -180,7 +182,7 @@ function ex_contrast (clip c, float "cont", float "sat", int "pivot", bool "tv_r
 
 
 ###
-### ex_levels() - v1.5 (26-06-2021)
+### ex_levels() - v2.0 (15-07-2021)
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
@@ -206,21 +208,24 @@ function ex_levels (clip c, int "input_low", float "gamma", int "input_high", in
     olo  = Default(output_low,     0)
     ohi  = Default(output_high,  255)
     tv   = Default(tv_range, !rgb)
-    UV   = Default(UV, rgb ? 3 : 2)
-    fs   = Default(fulls, false)
+    UV   = Default(UV,        rgb ? 3 : 2)
+    fs   = Default(fulls,     rgb)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
     rangePC = tv ? "x ymin - range_max ymax ymin - / *" : "x"
     rangeTV = tv ? " ymax ymin - range_max / * ymin + " : ""
 
-    ilo = ex_bs( tv ? ((ilo-16)/219.)*255. : ilo, bi, fs)
-    ihi = ex_bs( tv ? ((ihi-16)/219.)*255. : ihi, bi, fs)
-    olo = ex_bs( tv ? ((olo-16)/219.)*255. : olo, bi, fs)
-    ohi = ex_bs( tv ? ((ohi-16)/219.)*255. : ohi, bi, fs)
+    ilo = ex_bs( tv ? (ilo-16)*255./219. : ilo, bi, fs)
+    ihi = ex_bs( tv ? (ihi-16)*255./219. : ihi, bi, fs)
+    olo = ex_bs( tv ? (olo-16)*255./219. : olo, bi, fs)
+    ohi = ex_bs( tv ? (ohi-16)*255./219. : ohi, bi, fs)
+    iho = ihi - ilo
+    oho = ohi - olo
 
-    gam = 1. / gam
-    str = ex_dlut(Format(""+rangePC+" {ilo} - 0 max {ihi} {ilo} - / {gam} ^ {ohi} {olo} - A@ * A min {olo} + "+rangeTV+""), bi, fs)
+    gm   = (gam == 1.0)                 ? ""             : string(1. / gam)+" ^ "
+    iioo = (gam == 1.0) && (iho == oho) ? gm+string(oho) : Format("1 {iho} / * "+gm+" {oho} dup swap2 *")
+    str  = ex_dlut(Format(""+rangePC+" {ilo} - 0 max "+iioo+" swap1 min {olo} + "+rangeTV+""), bi, fs)
 
     isy     ? Expr(c, str                                                          ) : \
     UV == 1 ? Expr(c, str, ""                                                      ) : \
@@ -235,10 +240,12 @@ function ex_levels (clip c, int "input_low", float "gamma", int "input_high", in
 # Similar to "dither_bits" argument from ConvertBits() but more flexible and more options.
 function ex_posterize (clip c, int "bits", int "mode", int "UV", bool "fulls") {
 
+    rgb  = IsRGB(c)
+
     bits = Default(bits,  3)    # Valid range: 0 - 7
     mode = Default(mode, -1)    # Valid modes: -1, 0 and 1
-    UV   = Default(UV, isRGB(c) ? 3 : 2)
-    fs   = Default(fulls, false)
+    UV   = Default(UV,    rgb ? 3 : 2)
+    fs   = Default(fulls, rgb)
 
     mul  = string(Pow (2, 8 - bits - 1))
     bits = max(min(bits,7),0)
@@ -271,7 +278,7 @@ function Vignette (clip c, float "Vignette", bool "show", bool "fulls") {
     bi    = BitsPerComponent(c)
     str   = Default(Vignette, 0.8)
     show  = Default(show,  false)
-    fs    = Default(fulls, false)
+    fs    = Default(fulls, IsRGB(c))
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
@@ -301,7 +308,7 @@ function greyscale_rgb (clip rgb, string "matrix", bool "fulls") {
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
     rgb
-    fs     = Default (fulls, false)
+    fs     = Default (fulls, true)
     matrix = Default (matrix, "sRGB")
     matrix = Matrix_fuzzy_search(matrix)
     s_gam  = moncurve_coef(matrix)
@@ -338,7 +345,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     temp     = Default (temperature, 6504)  # Target temperature in Kelvin units (Default: D65 == nop())
     matrix   = Default (matrix, "709")
     tv_range = Default (tv_range, !rgb )
-    fs       = Default (fulls, false)
+    fs       = Default (fulls,     rgb)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
