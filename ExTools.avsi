@@ -580,6 +580,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
 # 100% removegrain(12,-1)          # technically a weighted mean of [1 2 1]
 #  96% ex_blur(1,UV=1)             # true gaussian blur
 #  94% BinomialBlur(0.75,U=1,V=1)  # only in 8-bit
+#  94% GBlur2(0.75,chroma=2)       # only in 8-bit. weighted mean of [1 2 1]
 #  84% ablur(1, 1)                 # against ex_blur(2)
 #  70% blur(1.00)                  # weighted mean of [1 2 1]
 #  66% generalconvolution(matrix="0 1 0 1 2 1 0 1 0",6,chroma=false) doesn't match output tho
