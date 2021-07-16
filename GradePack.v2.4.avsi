@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v2.3 (15-07-2021)               ##
+###           Grade Pack v2.4 (16-07-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -233,7 +233,7 @@ function ex_levels (clip c, int "input_low", float "gamma", int "input_high", in
 
 
 ###
-### ex_blend() - v1.0 (15-07-2021)
+### ex_blend() - v2.0 (16-07-2021)
 ###
 ###
 ### Works like Overlay() but supports more modes, better handling of TV range and performs much faster in either 8-bit or HBD.
@@ -260,9 +260,8 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
     UV   = Default(UV,        rgb ? 3 : 1)
     fs   = Default(fulls,     rgb)
 
-          Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
-    xer = (md == "darker") || (md == "lighter")
-    xer ? Assert (rgb && UV == 3, "'darker' and 'lighter' modes require PC levels Rec.709 RGB inputs and UV = 3.") : nop()
+                                        Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+    md == "darker" || md == "lighter" ? Assert (rgb && UV == 3, "'darker' and 'lighter' modes require PC levels Rec.709 RGB inputs and UV = 3.") : nop()
     op  = min(max(op,0.),1.)
     iso = op == 1.0
     opr = 1 - op
@@ -278,19 +277,19 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
     # "softlight" uses Pegtop's improved formula
     # Half the modes ported from HAvsFunc and some other from Overlay_MTools()
 
-    str = Format(
+    str = Format(                                                                                                                                                                 \
                                                                                                                                                                                   \
         md == "blend"        ? iso ? "y" : "x {opr} * y {op} * + "                                                                                                              : \
         md == "interpolation"? ""+rngmx+" 0.5 pi x "+srcmx+" "+V+" * "+rngmx+" / cos 4 / - pi y "+srcmx+" * "+rngmx+" / cos 4 / - * "                                           : \
                              \
-        md == "lighter"      ? "see foot"                                                                                                                                       : \
+        md == "lighter"      ? "see footer"                                                                                                                                     : \
         md == "lighten"      ? "x "+V+" y max "                                                                                                                                 : \
         md == "screen"       ? ""+rngmx+" C@ dup x "+srcmx+" "+V+" - C y "+srcmx+" - * C / - "                                                                                  : \
         md == "softdodge"    ? "x "+srcmx+" A@ y "+srcmx+" B@ + "+rngmx+" < A range_half "+srcmx+" * "+rngmx+" B - C@ / "+rngmx+" C range_half "+srcmx+" * A / - ? "            : \
         md == "colordodge"   ? "x "+srcmx+" "+V+" "+rngmx+" * "+rngmx+" y "+srcmx+" 0 max - / "                                                                                 : \
         md == "lineardodge"  ? "x "+srcmx+" "+V+" y "+srcmx+" + "                                                                                                               : \
                              \
-        md == "darker"       ? "see foot"                                                                                                                                       : \
+        md == "darker"       ? "see footer"                                                                                                                                     : \
         md == "darken"       ? "x "+V+" y min "                                                                                                                                 : \
         md == "multiply"     ? "x "+srcmx+" "+V+" y "+srcmx+" * "+rngmx+" / "                                                                                                   : \
         md == "softburn"     ? "y "+srcmx+" B@ x "+srcmx+" A@ + "+rngmx+" < B range_half "+srcmx+" * "+rngmx+" A - C@ / "+rngmx+" C range_half "+srcmx+" * B / - ? "            : \
@@ -328,20 +327,17 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
     str = iso || md == "blend" ? str+off : \
                                  str+Format(" {op} * A {opr} * + ")+off
 
-    if (xer) {
-
-        sym = md == "darker" ? "<" : ">"
-        dot = "x 0.298967 * y 0.586421 * + z 0.114612 * + a 0.298967 * b 0.586421 * + c 0.114612 * + "
+    if (md == "darker" || md == "lighter") {
 
         Ra = a.ExtractR()  Rb = b.ExtractR()
         Ga = a.ExtractG()  Gb = b.ExtractG()
         Ba = a.ExtractB()  Bb = b.ExtractB()
 
-        R = Expr(Ra,Ga,Ba,Rb,Gb,Bb, dot+sym+" x a ?", optSingleMode=true)
-        G = Expr(Ra,Ga,Ba,Rb,Gb,Bb, dot+sym+" y b ?", optSingleMode=true)
-        B = Expr(Ra,Ga,Ba,Rb,Gb,Bb, dot+sym+" z c ?", optSingleMode=true)
+        sym  = md == "darker" ? "<" : ">"
+        msk  = Expr(Ra, Ga, Ba, Rb, Gb, Bb, ex_dlut("x y z + + a b c + + "+sym+" 0 range_max ?", bi, fs))
+        RGBm = CombinePlanes(msk, msk, msk, planes="RGB")
 
-        CombinePlanes(R, G, B, planes="RGB")
+        ex_merge(a, b, RGBm, luma=false, UV=3, fulls=fs)
 
     } else {
 
