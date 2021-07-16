@@ -1,6 +1,6 @@
-# ChromaReconstructor v3.0 HBD mod: restore 420/422 to (almost) native 444
+# ChromaReconstructor v3.1 HBD mod: restore 420/422 to (almost) native 444
 # by feisty2
-# HBD mod and faster "faster" mod by Dogway
+# v3.1 HBD mod and faster "faster" mod by Dogway
 #
 # just convert 420/422 to 444 with any regular resampling filter, bicubic, spline, kind of stuff
 # and apply this filter, chroma planes will be reconstructed to 444 with high frequencies from luma (luma serves as the weighting reference to NLMeans both chroma planes)
@@ -47,11 +47,9 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
              Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 16, str)
              Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 32, str)
              Vnew     = Vnew.Spline64Resize(w, h, src_left=-1.25, src_top=-1.25)
-             UHi      = (mode == 1) ? ex_makediff(Unew, gauss_h(Unew, hipass), dif=True) : ex_makediff(Unew, gauss(Unew, hipass), dif=True)
-             VHi      = (mode == 1) ? ex_makediff(Vnew, gauss_h(Vnew, hipass), dif=True) : ex_makediff(Vnew, gauss(Vnew, hipass), dif=True)
-             UFinal   = ex_adddiff(srcU, UHi, dif=True)
-             VFinal   = ex_adddiff(srcV, VHi, dif=True)
-             return CombinePlanes(src.ExtractY(), UFinal, VFinal, planes="YUV")
+             UHi      = (mode == 1) ? ex_makeadddiff(Unew, gauss_h(Unew, hipass), srcU) : ex_makediff(Unew, gauss(Unew, hipass), srcU)
+             VHi      = (mode == 1) ? ex_makeadddiff(Vnew, gauss_h(Vnew, hipass), srcV) : ex_makediff(Vnew, gauss(Vnew, hipass), srcV)
+             return CombinePlanes(src.ExtractY(), UHi, VHi, planes="YUV")
 }
 
 
@@ -110,7 +108,7 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
             Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
             Unew    = Uu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
             Vnew    = Vu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
-            U       = ex_adddiff(Uu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Unew, Removegrain(Unew, 19)))  # Sharpening
-            V       = ex_adddiff(Vu.BicubicResize(w, h, b=-0.5, c=0.25), ex_makediff(Vnew, Removegrain(Vnew, 19)))  # Sharpening
+            U       = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(w, h, b=-0.5, c=0.25))  # Sharpening
+            V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 19), Vu.BicubicResize(w, h, b=-0.5, c=0.25))  # Sharpening
             return CombinePlanes(Y, U, V, planes="YUV")
 }
