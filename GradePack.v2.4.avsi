@@ -261,7 +261,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
     fs   = Default(fulls,     rgb)
 
                                         Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
-    md == "darker" || md == "lighter" ? Assert (rgb && UV == 3, "'darker' and 'lighter' modes require PC levels Rec.709 RGB inputs and UV = 3.") : nop()
+    md == "darker" || md == "lighter" ? Assert (rgb && UV == 3, "'darker' and 'lighter' modes require RGB inputs and UV = 3.") : nop()
     op  = min(max(op,0.),1.)
     iso = op == 1.0
     opr = 1 - op
