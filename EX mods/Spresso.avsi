@@ -1,5 +1,5 @@
 # SPresso by Didée, r.f mod in 2020.05.07 for HBD
-#                Dogway mod in 2021.07.15 for optimization+cleanup
+#                Dogway mod in 2021.07.16 for optimization+cleanup
 function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "limitC", float "biasC", int "RGmodeC", bool "HD", int "radius", bool "fulls") {
 
     rgb = isRGB(clp)
@@ -24,14 +24,15 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
     LIM1c = ex_bs(limitC>0 ? round(limitC*100.0/biasC-1.0) : round(100.0/biasC), bi, fs)
     LIM2c = ex_bs(limitC<0 ? 1 : limitC, bi, fs)
     BIAc  = ex_bs(biasc, bi, fs)
+    CTH   = ex_bs(100, bi, fs)
 
-    expr  = Format(limit<0 ? "x y - A@ abs B@ {LIM1} < x dup 1 A B / * - ?"                                                   : \
-                             "x y - abs A@ 0 <= x dup {LIM1} + y < x {LIM2} + x {LIM1} - y > x {LIM2} - x 100 {BIA} - * y {BIA} * + 100 / ? ? ?" )
+    expr  = Format(limit<0 ? "x y - A@ abs B@ {LIM1} < x dup 1 A B / * - ?"                                                          : \
+                             "x y - abs 0 <= x dup {LIM1} + y < x {LIM2} + x {LIM1} - y > x {LIM2} - x {CTH} {BIA} - * y {BIA} * + 1 {CTH} / * ? ? ?" )
 
-    exprC = Format(limit<0 ? "x y - A@ abs B@ {LIM1c} < x x 1 A B / * - ?"                                                     : \
-                             "x y - abs 0 <= x dup {LIM1c} + y < x {LIM2c} + x {LIM1c} - y > x {LIM2c} - x 100 {BIAc} - * y {BIAc} * + 100 / ? ? ?" )
+    exprC = Format(limit<0 ? "x y - A@ abs B@ {LIM1c} < x dup 1 A B / * - ?"                                                         : \
+                             "x y - abs 0 <= x dup {LIM1c} + y < x {LIM2c} + x {LIM1c} - y > x {LIM2c} - x {CTH} {BIAc} - * y {BIAc} * + 1 {CTH} / * ? ? ?" )
 
 
-    ex_lutxy( clp, HD ? clp.ex_MinBlur(radius,uv=uv) : clp.removegrain(RGmode,RGmodeC), expr, exprC, scale_inputs=limit<0 ? "floatf" : "none", Y=yy,UV=uv)
+    ex_lutxy( clp, HD ? clp.ex_MinBlur(radius,uv=uv) : clp.removegrain(RGmode,RGmodeC), expr, exprC, scale_inputs=limit<0 ? "floatf" : "none", Y=yy, UV=uv, fulls=fs)
 
 }
