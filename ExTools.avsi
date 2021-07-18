@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v3.8     (15-07-2021)              ##
+###           ExTools v3.9     (18-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -215,24 +215,32 @@ function ex_logic(clip a, clip b, string "mode", int "UV", bool "fulls") {
 #               9% faster on luma=false for YUV clips Y masks
 function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV", bool "fulls") {
 
-    rgb = isRGB(a)
-    isy = isy(a)
-    bi  = BitsPerComponent(a)
+    rgb  = isRGB(a)
+    isya = isy(a)
+    isym = isy(msk)
+    bi   = BitsPerComponent(a)
 
     lm  = Default(luma,  false)
-    Y   = Default(Y,              3)
-    UV  = Default(UV,    rgb || lm ? 3 : isy ? 1 : 2)
+    Y   = Default(Y,                 3)
+    UV  = Default(UV,    rgb || lm ? 3 : isya ? 1 : 2)
     fs  = Default(fulls, rgb)
 
-    msk = isy != isy(msk) || (lm && !isy) ? mskY_to_YUV(a, msk, lm, UV, bi) : msk
+    isRGB(msk) ? Assert (!lm, "'luma=true' unsupported for RGB masks.") : nop()
 
-    str  = Format("x x y - z 1 range_max / * * -")
+    msk = isya ? isym ? msk           : \
+                        ExtractY(msk) : \
+          lm  || isym ||                \
+          width (msk)!=width (a) ||     \
+          height(msk)!=height(a)      ? \
+          mskY_to_YYY(a, msk, lm, rgb, UV, bi) : msk
+
+     str = "x x y - z 1 range_max / * * -"
 
      str = ex_dlut  ( str,     bi,      fs)
     ystr = ex_Yexpr ( str,  Y, bi, rgb, fs)
     cstr = ex_UVexpr( str, UV, bi, rgb, fs)
 
-    isy     ? Expr(a, b, msk, ystr,                                     optSingleMode=false) : \
+    isya    ? Expr(a, b, msk, ystr,                                     optSingleMode=false) : \
     UV == 1 ? Expr(a, b, msk, ystr, "",                                 optSingleMode=false) : \
               Expr(a, b, msk, ystr, cstr, scale_inputs=ex_UVf(rgb, bi), optSingleMode=false) }
 
@@ -433,9 +441,9 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
                     rad   = cos(2.0 * atan(abs(py)/(abs(px)+sqrt(px*px + py*py))))
                     skipo =  px != 0 &&                       abs(px) >  krnlrd   *rad
                     skipi = (px != 0 || abs(py) == krnlrd) && abs(px) > (krnlrd-1)*rad
-                    krnv = skipo || !skipi                  ? krnv : Format(krnv + "x[{px},{py}] ")
-                    plsv = skipo || !skipi || py == -krnlrd ? plsv : plsv + "+ "
-                    divy = skipo || !skipi                  ? divy : divy + 1
+                    krnv  = skipo || !skipi                  ? krnv : Format(krnv + "x[{px},{py}] ")
+                    plsv  = skipo || !skipi || py == -krnlrd ? plsv : plsv + "+ "
+                    divy  = skipo || !skipi                  ? divy : divy + 1
            }      }
 
     } else if (!fbox) {
@@ -445,7 +453,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
             krnh = md == "rg19"    && px == 0 ? krnh                            : \
                    md == "weighted"        ? Format(krnh + "x[{px},0] {wg} * ") : \
                                              Format(krnh + "x[{px},0] ")
-            plsh = px == -krnlrd || (md == "rg19" && px == 0) ? plsh : plsh + "+ "
+            plsh = px ==  -krnlrd || (md == "rg19" && px == 0) ? plsh : plsh + "+ "
             divw = md == "weighted" ? divw + wg : nop()
             divx = md == "rg19" &&    px == 0 ? divx  : \
                    md == "weighted"           ? divw  : divx + 1
@@ -459,7 +467,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
             krnv = md == "rg19"    && py == 0 ? krnv                            : \
                    md == "weighted"        ? Format(krnv + "x[0,{py}] {wg} * ") : \
                                              Format(krnv + "x[0,{py}] ")
-            plsv = py == -krnlrv || (md == "rg19" && py == 0) ? plsv : plsv + "+ "
+            plsv = py ==  -krnlrv || (md == "rg19" && py == 0) ? plsv : plsv + "+ "
             divw = md == "weighted" ? divw + wg : nop()
             divy = md == "rg19" &&    py == 0 ? divy  : \
                    md == "weighted"           ? divw  : divy + 1
@@ -471,13 +479,13 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
                  md == "mean"     ?"x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[0,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 1 9 / *"                                  : \
                  md == "weighted" ?"x[-1,1] 0.5 * x[0,1] x[1,1] 0.5 * x[0,0] 2 * x[-1,0] x[1,0] x[-1,-1] 0.5 * x[0,-1] x[1,-1] 0.5 * + + + + + + + + 1 8 / * "     : \
                  md == "trimmed"  ?"x[-1,1] A@ x[0,1] B@ x[1,1] C@ x[-1,0] D@ x[0,0] E@ x[1,0] F@ x[-1,-1] G@ x[0,-1] H@ x[1,-1] I@ + + + + + + + + 1 9 / * X^ "     \
-                                  +"A  D  dup1 dup1 min AA^ max DD^ B  H  dup1 dup1 min BB^ max HH^ C  F  dup1 dup1 min CC^ max FF^ E  I dup1 dup1 min EE^ max II^ " \
-                                  +"AA HH dup1 dup1 min A^  max H^  CC EE dup1 dup1 min C^  max E^  DD II dup1 dup1 min D^  max I^  FF G dup1 dup1 min F^  max GG^ " \
-                                  +"A  C                    max CC^ BB D  dup1 dup1 min B^  max DD^ E  F  dup1 dup1 min EE^ max FF^ H  I           min HH^ "         \
-                                  +"B  EE                   max E^  DD GG           min D^          FF HH           min F^ "                                         \
-                                  +"CC E  dup1 dup1 min C^  max EE^ D  F  dup1 dup1 min DD^ max FF^ "                                                                \
-                                  +"C  DD                   max D^  EE FF dup1 dup1 min E^  max F^  D  E            min DD^ "                                        \
-                                  +"X DD F clip" : "" : krnv + plsv + string(divy) + " 1 swap / *"
+                                  +"A D dup1 dup1 min A^ max D^ B H dup1 dup1 min B^ max H^ C F dup1 dup1 min C^ max F^ E I dup1 dup1 min E^ max I^ "                \
+                                  +"A H dup1 dup1 min A^ max H^ C E dup1 dup1 min C^ max E^ D I dup1 dup1 min D^ max I^ F G dup1 dup1 min F^ max G^ "                \
+                                  +"A C                  max C^ B D dup1 dup1 min B^ max D^ E F dup1 dup1 min E^ max F^ H I           min H^ "                       \
+                                  +"B E                  max E^ D G           min D^        F H           min F^ "                                                   \
+                                  +"C E dup1 dup1 min C^ max E^ D F dup1 dup1 min D^ max F^ "                                                                        \
+                                  +"C D                  max D^ E F max D E min "                                                                                    \
+                                  +"X swap2 clip" : "" : krnv + plsv + string(divy) + " 1 swap / *"
 
 
     strv = fbox || md=="bokeh" ? str : krnv + plsv + string(divy) + " 1 swap / *"
@@ -532,9 +540,9 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
     krnv = ""    krnh = ""
     for (i=0, krnlsz, 1) {
 
-        k_f = factorial(i)*factorial(krnlsz-i)
-        wg  = (n_f/k_f)/pow(2,krnlsz)
-        py  = i - krnlsz/2
+        k_f  = factorial(i)*factorial(krnlsz-i)
+        wg   = (n_f/k_f)/pow(2,krnlsz)
+        py   = i - krnlsz/2
         krnv = Format(krnv + "x[0,{py}] {wg} * ")
         plsv = i == 0 ? "" : plsv + "+ "
        }
@@ -544,9 +552,9 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
 
     for (i=0, krnlszh, 1) {
 
-        k_f = factorial(i)*factorial(krnlszh-i)
-        wg  = (n_f/k_f)/pow(2,krnlszh)
-        px  = i - krnlszh/2
+        k_f  = factorial(i)*factorial(krnlszh-i)
+        wg   = (n_f/k_f)/pow(2,krnlszh)
+        px   = i - krnlszh/2
         krnh = Format(krnh + "x[{px},0] {wg} * ")
         plsh = i == 0 ? "" : plsh + "+ "
        }
@@ -574,11 +582,11 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
 
         for (i=0, krnlsz, 1) {
 
-            k_f = factorial(i)*factorial(krnlsz-i)
-            wg  = (n_f/k_f)/pow(2,krnlsz)
-            py  = i - krnlsz/2
+            k_f   = factorial(i)*factorial(krnlsz-i)
+            wg    = (n_f/k_f)/pow(2,krnlsz)
+            py    = i - krnlsz/2
             cstrv = Format(cstrv + "x[0,{py}] {wg} * ")
-            plsv = i == 0 ? "" : plsv + "+ "
+            plsv  = i == 0 ? "" : plsv + "+ "
            }
 
         krnlszh = krnlszh/(p_1 ? 4 : 2)
@@ -586,11 +594,11 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
 
         for (i=0, krnlszh, 1) {
 
-            k_f = factorial(i)*factorial(krnlszh-i)
-            wg  = (n_f/k_f)/pow(2,krnlszh)
-            px  = i - krnlszh/2
+            k_f   = factorial(i)*factorial(krnlszh-i)
+            wg    = (n_f/k_f)/pow(2,krnlszh)
+            px    = i - krnlszh/2
             cstrh = Format(cstrh + "x[{px},0] {wg} * ")
-            plsh = i == 0 ? "" : plsh + "+ "
+            plsh  = i == 0 ? "" : plsh + "+ "
            }
        }
 
@@ -684,6 +692,39 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", int "UV", 
 
 
 
+# Kawase blur multipass kernel for optimized Gaussian blur approximation with high sigma
+#
+# Benchmark:
+# 100% ex_kawase(1,UV=1)
+#  76% ex_blur(2,UV=1)
+#  75% removegrain(12,-1).removegrain(12,-1)
+#  75% FRC_GaussianBlur42(1) # but scales up better than kawase for ex_kawase > 2
+#
+function ex_kawase(clip a, int "radius", int "UV", bool "fulls") {
+
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    bi   = BitsPerComponent(a)
+
+    rd = Default(radius,  1)            # from 0 to inf
+    UV = Default(UV,    rgb ? 3 : 1)
+    fs = Default(fulls, rgb)
+
+    str = ""
+    for (px = 1, rd, 1) {
+        dot = px == rd ? "" : "."
+        krn =                         Format("x[-{px},{px}] x[{px},{px}] x[-{px},-{px}] x[{px},-{px}]         x[0,0] + + + + 0.2 *")
+        pxc = max(0, px - 1)
+        krc = is444(a) || rgb ? krn : Format("x[-{pxc},{pxc}] x[{pxc},{pxc}] x[-{pxc},-{pxc}] x[{pxc},-{pxc}] x[0,0] + + + + 0.2 *")
+        str = str + Format(isy     ?   "Expr(a,   "+Chr(34)+krn+Chr(34)+"                                                                                        )"   : \
+                           UV == 1 ?   "Expr(a,   "+Chr(34)+krn+Chr(34)+",               "+Chr(34)+" "+Chr(34)+"                                                 )"   : \
+                                     """Expr(a, """+Chr(34)+krn+Chr(34)+""", ex_UVexpr("""+Chr(34)+krc+Chr(34)+""", {UV}, {bi}, {rgb}, {fs}), scale_inputs="none")""")+dot
+           }
+
+    rd != 0 ? Eval(str) : a }
+
+
+
 ##############################
 ##
 ## Median Blur
@@ -697,17 +738,22 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", int "UV", 
 ##  75% ex_median(mode="undot2",UV=1)
 ##
 ##  100% removegrain(4,-1)
-##   75% ex_median(mode="undot4",UV=1)
+##   75% ex_median(mode="median",UV=1)  # same as "undot4"
+##   60% Dither_median16(rx=1, ry=1, rt=0, y=3, u=1, v=1)
 ##  1.2% MedianBlur(1,0,0)
 ## 0.06% mt_luts(last, "med", mt_square(1), "y",chroma="-1")
+##
+## 100% ex_median(mode="median5")
+##  15% Dither_median16(rx=2, ry=2, rt=0, y=3, u=1, v=1)
+##   5% MedianBlur(2,0,0)
 #
 # modes:
-# median    - True median. Replace with kernel middle value
+# median    - True median. Replace with kernel middle value *Same as "undot4"
 # median5   - True median. Replace with kernel middle value (5x5 kernel) (very slow)
 # undot     - Also called "conservative", removes one pixel salt'n'pepper noise -removegrain(1)-
 # undot2    - Same as undot but clip up to the second closest minimum values    -removegrain(2)-
 # undot3    - Same as undot but clip up to the third  closest minimum values    -removegrain(3)-
-# undot4    - Same as undot but clip up to the fourth closest minimum values    -removegrain(4)-
+# undot4    - Same as undot but clip up to the fourth closest minimum values*   -removegrain(4)-  *Same as "median"
 # adaptive  - Similar to undot but better at salt'n'pepper noise. (very slow)   -From VC Mohan AdaptiveMedian-
 # SNN       - Symmetric Nearest Neighbour. Clip to closest opposing pair from center value
 # kuwahara  - Mean average of the least variance quadrant in a 5x5 kernel window. (oil paint look)
@@ -732,132 +778,106 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
     Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version to 3.7.1+")
 
     str =                                                                                                                                                                       \
-        mode == "median" ? "x[-1,1]  x[0,1]       dup1 dup1 min swap2 max
-                            x[1,1]   x[-1,0]      dup1 dup1 min swap2 max
-                            x[0,0]   x[1,0]       dup1 dup1 min swap2 max
-                            x[-1,-1] x[0,-1]      dup1 dup1 min swap2 max
-                            swap7  swap1  swap4   dup1 dup1 min swap2 max
-                            swap3  swap1  swap4   dup1 dup1 min swap2 max
-                            swap6  swap1  swap7   dup1 dup1 min swap2 max
-                            swap2  x[1,-1]        dup1 dup1 min swap2 max
-                            swap5  swap1  swap8                       max
-                            swap5                 dup1 dup1 min swap2 max
-                            swap6  swap1  swap7   dup1 dup1 min swap2 max
-                            swap3  swap1  swap2             min
-                            swap6                                     max
-                            swap4  swap1  swap2             min
-                            swap4                           min
-                            swap2                 dup1 dup1 min swap2 max
-                            swap3  swap1  swap2   dup1 dup1 min swap2 max
-                            swap2                                     max
-                            swap2                           min
-                                                                      max"                                                                                                    : \
-                                                                                                                                                                                \
-        mode == "median5"? "x[-2,-2] x[-2,-1]     dup1 dup1 min A^ max C^
-                            x[-2,0] x[-2,1]       dup1 dup1 min B^ max I^
-                            x[-2,2] x[-1,-2]      dup1 dup1 min D^ max S^
-                            x[-1,-1] x[-1,0]      dup1 dup1 min E^ max R^
-                            x[-1,1] x[-1,2]       dup1 dup1 min F^ max U^
-                            x[0,-2] x[0,-1]       dup1 dup1 min G^ max T^
-                            x[0,0] x[0,1]         dup1 dup1 min H^ max J^
-                            x[0,2] x[1,-2]        dup1 dup1 min K^ max L^
-                            x[1,-1] x[1,0]        dup1 dup1 min M^ max N^
-                            x[1,1] x[1,2]         dup1 dup1 min O^ max Q^
-                            x[2,-2] x[2,-1]       dup1 dup1 min P^ max W^
-                            x[2,0] x[2,1]         dup1 dup1 min V^ max X^
-                            A D                   dup1 dup1 min A^ max D^
-                            B P                   dup1 dup1 min B^ max P^
-                            C S                   dup1 dup1 min C^ max S^
-                            E M                   dup1 dup1 min E^ max M^
-                            F V                   dup1 dup1 min F^ max V^
-                            G K                   dup1 dup1 min G^ max K^
-                            H O                   dup1 dup1 min H^ max O^
-                            I W                   dup1 dup1 min I^ max W^
-                            J Q                   dup1 dup1 min J^ max Q^
-                            L T                   dup1 dup1 min L^ max T^
-                            N R                   dup1 dup1 min N^ max R^
-                            U X                   dup1 dup1 min U^ max X^
-                            A E                   dup1 dup1 min A^ max E^
-                            B H                   dup1 dup1 min B^ max H^
-                            C N                   dup1 dup1 min C^ max N^
-                            D M                   dup1 dup1 min D^ max M^
-                            F G                   dup1 dup1 min F^ max G^
-                            I O                   dup1 dup1 min I^ max O^
-                            J P                   dup1 dup1 min J^ max P^
-                            K V                   dup1 dup1 min K^ max V^
-                            L U                   dup1 dup1 min L^ max U^
-                            Q W                   dup1 dup1 min Q^ max W^
-                            R S                   dup1 dup1 min R^ max S^
-                            T X                   dup1 dup1 min T^ max X^
-                            A F                                    max F^
-                            C L                   dup1 dup1 min C^ max L^
-                            D G                   dup1 dup1 min D^ max G^
-                            E K                   dup1 dup1 min E^ max K^
-                            H Q                   dup1 dup1 min H^ max Q^
-                            I J                   dup1 dup1 min I^ max J^
-                            M V                   dup1 dup1 min M^ max V^
-                            N T                   dup1 dup1 min N^ max T^
-                            O P                   dup1 dup1 min O^ max P^
-                            R U                   dup1 dup1 min R^ max U^
-                            S X                   dup1 dup1 min S^ max X^
-                            C H                   dup1 dup1 min C^ max H^
-                            G J                   dup1 dup1 min G^ max J^
-                            I L                   dup1 dup1 min I^ max L^
-                            O x[2,2]              dup1 dup1 min O^ max Y^
-                            S V                   dup1 dup1 min S^ max V^
-                            D I                                    max I^
-                            H K                   dup1 dup1 min H^ max K^
-                            L M                   dup1 dup1 min L^ max M^
-                            N O                   dup1 dup1 min N^ max O^
-                            P V                   dup1 dup1 min P^ max V^
-                            S U                   dup1 dup1 min S^ max U^
-                            W Y                   dup1 dup1 min W^ max Y^
-                            E N                   dup1 dup1 min E^ max N^
-                            K Q                   dup1 dup1 min K^ max Q^
-                            L P                   dup1 dup1 min L^ max P^
-                            S Y                   dup1 dup1 min S^ max Y^
-                            T W                   dup1 dup1 min T^ max W^
-                            B E                                    max E^
-                            I L                   dup1 dup1 min I^ max L^
-                            J T                   dup1 dup1 min J^ max T^
-                            N R                   dup1 dup1 min N^ max R^
-                            O S                   dup1 dup1 min O^ max S^
-                            Q U                   dup1 dup1 min Q^ max U^
-                            X Y                             min X^
-                            E F                                    max F^
-                            G N                   dup1 dup1 min G^ max N^
-                            J O                   dup1 dup1 min J^ max O^
-                            K R                   dup1 dup1 min K^ max R^
-                            M Q                   dup1 dup1 min M^ max Q^
-                            S T                   dup1 dup1 min S^ max T^
-                            U V                             min U^
-                            W X                             min W^
-                            C G                                    max G^
-                            F N                   dup1 dup1 min F^ max N^
-                            H J                   dup1 dup1 min H^ max J^
-                            M S                   dup1 dup1 min M^ max S^
-                            P R                   dup1 dup1 min P^ max R^
-                            Q T                             min Q^
-                            U W                             min U^
-                            F I                                    max I^
-                            G H                                    max H^
-                            J K                   dup1 dup1 min J^ max K^
-                            L N                   dup1 dup1 min L^ max N^
-                            O P                   dup1 dup1 min O^ max P^
-                            R U                             min R^
-                            H L                                    max L^
-                            I J                                    max J^
-                            K N                   dup1 dup1 min K^ max N^
-                            M O                   dup1 dup1 min M^ max O^
-                            P Q                             min P^
-                            R S                             min R^
-                            J M                                    max M^
-                            K L                                    max L^
-                            N O                             min N^
-                            P R                             min P^
-                            L M                                    max
-                            N P                             min
-                                                            min"                                                                                                              : \
+        mode == "median5"? "x[-2,-2] x[-2,-1] dup1 dup1 min A^ max B^
+                            x[-2,0] x[-2,1]   dup1 dup1 min C^ max D^
+                            x[-2,2] x[-1,-2]  dup1 dup1 min E^ max F^
+                            x[-1,-1] x[-1,0]  dup1 dup1 min G^ max H^
+                            x[-1,1] x[-1,2]   dup1 dup1 min I^ max J^
+                            x[0,-2] x[0,-1]   dup1 dup1 min K^ max L^
+                            x[2,2] x[0,1]     dup1 dup1 min M^ max N^
+                            x[0,2] x[1,-2]    dup1 dup1 min O^ max P^
+                            x[1,-1] x[1,0]    dup1 dup1 min Q^ max R^
+                            x[1,1] x[1,2]     dup1 dup1 min S^ max T^
+                            x[2,-2] x[2,-1]   dup1 dup1 min U^ max V^
+                            x[2,0] x[2,1]     dup1 dup1 min X^ max Y^
+                            A C               dup1 dup1 min A^ max C^
+                            B D               dup1 dup1 min B^ max D^
+                            E G               dup1 dup1 min E^ max G^
+                            F H               dup1 dup1 min F^ max H^
+                            I K               dup1 dup1 min I^ max K^
+                            J L               dup1 dup1 min J^ max L^
+                            M O               dup1 dup1 min M^ max O^
+                            N P               dup1 dup1 min N^ max P^
+                            Q S               dup1 dup1 min Q^ max S^
+                            R T               dup1 dup1 min R^ max T^
+                            U X               dup1 dup1 min U^ max X^
+                            V Y               dup1 dup1 min V^ max Y^
+                            A E               dup1 dup1 min A^ max E^
+                            B F               dup1 dup1 min B^ max F^
+                            C I               dup1 dup1 min C^ max I^
+                            D J               dup1 dup1 min D^ max J^
+                            G K               dup1 dup1 min G^ max K^
+                            H L               dup1 dup1 min H^ max L^
+                            M Q               dup1 dup1 min M^ max Q^
+                            N R               dup1 dup1 min N^ max R^
+                            O U               dup1 dup1 min O^ max U^
+                            P V               dup1 dup1 min P^ max V^
+                            S X               dup1 dup1 min S^ max X^
+                            T Y               dup1 dup1 min T^ max Y^
+                            A C               dup1 dup1 min A^ max C^
+                            B D               dup1 dup1 min B^ max D^
+                            E G               dup1 dup1 min E^ max G^
+                            F H               dup1 dup1 min F^ max H^
+                            I K               dup1 dup1 min I^ max K^
+                            J L               dup1 dup1 min J^ max L^
+                            M O               dup1 dup1 min M^ max O^
+                            N P               dup1 dup1 min N^ max P^
+                            Q S               dup1 dup1 min Q^ max S^
+                            R T               dup1 dup1 min R^ max T^
+                            U X               dup1 dup1 min U^ max X^
+                            V Y               dup1 dup1 min V^ max Y^
+                            A M                                max M^
+                            B N               dup1 dup1 min B^ max N^
+                            C E               dup1 dup1 min C^ max E^
+                            D F               dup1 dup1 min D^ max F^
+                            G I               dup1 dup1 min G^ max I^
+                            H J               dup1 dup1 min H^ max J^
+                            K X               dup1 dup1 min K^ max X^
+                            L Y                         min L^
+                            O Q               dup1 dup1 min O^ max Q^
+                            P R               dup1 dup1 min P^ max R^
+                            S U               dup1 dup1 min S^ max U^
+                            T V               dup1 dup1 min T^ max V^
+                            B M                                max M^
+                            C O                                max O^
+                            D P               dup1 dup1 min D^ max P^
+                            E Q               dup1 dup1 min E^ max Q^
+                            F R               dup1 dup1 min F^ max R^
+                            G S               dup1 dup1 min G^ max S^
+                            H T               dup1 dup1 min H^ max T^
+                            I U               dup1 dup1 min I^ max U^
+                            J V                         min J^
+                            L X                         min L^
+                            D O               dup1 dup1 min D^ max O^
+                            E G                                max G^
+                            F H               dup1 dup1 min F^ max H^
+                            I N               dup1 dup1 min I^ max N^
+                            J U               dup1 dup1 min J^ max U^
+                            K P               dup1 dup1 min K^ max P^
+                            Q S               dup1 dup1 min Q^ max S^
+                            R T                         min R^
+                            D G                                max G^
+                            F Q               dup1 dup1 min F^ max Q^
+                            H S               dup1 dup1 min H^ max S^
+                            I M                                max M^
+                            J N               dup1 dup1 min J^ max N^
+                            K O               dup1 dup1 min K^ max O^
+                            L P                         min L^
+                            R U                         min R^
+                            F M                                max M^
+                            G K                                max K^
+                            H O               dup1 dup1 min H^ max O^
+                            J Q               dup1 dup1 min J^ max Q^
+                            L S                         min L^
+                            N R                         min N^
+                            H J                                max J^
+                            K M                                max M^
+                            L N                         min L^
+                            O Q                         min O^
+                            J M                                max M^
+                            L O                         min L^
+                            L M               dup1 dup1 max swap2 min
+                            x swap2 clip"                                                                                                                                     : \
                                                                                                                                                                                 \
         mode == "pseudo" ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] G^ x[0,1] H^ x[1,1] I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ x[0,0] M^ "           \
                           +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] Q^ x[0,-1] R^ x[1,-1] S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] X^ x[1,-2] Y^ x[2,-2] Z^ "             \
@@ -877,7 +897,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                           +"A W   - dup * B W   - dup * C W   - dup * F W   - dup * G W   - dup * H W   - dup * K W   - dup * L W   - dup * M W   - dup * + + + + + + + + AA^ " \
                           +"C WW  - dup * D WW  - dup * E WW  - dup * H WW  - dup * I WW  - dup * J WW  - dup * M WW  - dup * N WW  - dup * O WW  - dup * + + + + + + + + BB^ " \
                           +"K WWW - dup * L WWW - dup * M WWW - dup * P WWW - dup * Q WWW - dup * R WWW - dup * U WWW - dup * V WWW - dup * X WWW - dup * + + + + + + + + CC^ " \
-                          +"AA BB min CC min EE^ EE AA == W EE BB == WW EE CC == WWW M N O R x[1,-1] S@ x[2,-1] T@ X x[1,-2] Y@ x[2,-2] Z@ + + + + + + + + 1 9 / * ? ? ?"     : \
+                          +"AA BB min CC min EE^ EE AA == W EE BB == WW EE CC == WWW M N O R x[1,-1] x[2,-1] X x[1,-2] x[2,-2] + + + + + + + + 1 9 / * ? ? ?"                 : \
                                                                                                                                                                                 \
         mode == "weightedp"?"x[-1,1]  x[0,1]       dup1 dup1 min swap2 max
                              x[1,1]   x[-1,0]      dup1 dup1 min swap2 max
@@ -913,46 +933,46 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                            +"A swap - abs B W - abs < A B ? Z@ W - abs C W - abs < Z C ? Y@ W - abs D W - abs < Y D ? X@ W - abs E W - abs < X E ? "                  \
                            +"V@   W - abs F W - abs < V F ? U@ W - abs G W - abs < U G ? T@ W - abs H W - abs < T H ? S@ W - abs I W - abs < S I ? "                : \
                                                                                                                                                                       \
-        mode == "adaptive"?"x[-1,1] GGG@ x[0,1] HHH@   dup1 dup1 min swap2 max
-                            x[1,1] III@ x[-1,0] LLL@   dup1 dup1 min swap2 max
-                            x[0,0] WWW@ x[1,0] NNN@    dup1 dup1 min swap2 max
-                            x[-1,-1] QQQ@ x[0,-1] RRR@ dup1 dup1 min swap2 max
-                            swap7  swap1  swap4        dup1 dup1 min swap2 max
-                            swap3  swap1  swap4        dup1 dup1 min swap2 max
-                            swap6  swap1  swap7        dup1 dup1 min swap2 max
-                            swap2  x[1,-1] SSS@        dup1 dup1 min swap2 max
-                            swap5  swap1  swap8                            max
-                            swap5                      dup1 dup1 min swap2 max
-                            swap6  swap1  swap7        dup1 dup1 min swap2 max
-                            swap3  swap1  swap2                  min
-                            swap6                                          max
-                            swap4  swap1  swap2                  min
-                            swap4                                min
-                            swap2                      dup1 dup1 min swap2 max
-                            swap3  swap1  swap2        dup1 dup1 min swap2 max
-                            swap2                                          max
-                            swap2                                min
-                                                                           max MT^
+        mode == "adaptive"?"x[-1,1] G@ x[0,1] H@   dup1 dup1 min swap2 max
+                            x[1,1] I@ x[-1,0] L@   dup1 dup1 min swap2 max
+                            x[0,0] W@ x[1,0] N@    dup1 dup1 min swap2 max
+                            x[-1,-1] Q@ x[0,-1] R@ dup1 dup1 min swap2 max
+                            swap7  swap1  swap4    dup1 dup1 min swap2 max
+                            swap3  swap1  swap4    dup1 dup1 min swap2 max
+                            swap6  swap1  swap7    dup1 dup1 min swap2 max
+                            swap2  x[1,-1] S@      dup1 dup1 min swap2 max
+                            swap5  swap1  swap8                        max
+                            swap5                  dup1 dup1 min swap2 max
+                            swap6  swap1  swap7    dup1 dup1 min swap2 max
+                            swap3  swap1  swap2              min
+                            swap6                                      max
+                            swap4  swap1  swap2              min
+                            swap4                            min
+                            swap2                  dup1 dup1 min swap2 max
+                            swap3  swap1  swap2    dup1 dup1 min swap2 max
+                            swap2                                      max
+                            swap2                            min
+                                                                       max MT^
 
-                            x[-2,2] x[0,2] dup1 dup1 min AA^ max CC^ x[-1,2] III dup1 dup1 min BB^ max II^ x[1,2] SSS dup1 dup1 min DD^ max SS^ x[2,2] RRR dup1 dup1 min EE^ max RR^ x[-2,1] x[-2,-2] dup1 dup1 min FF^ max UU^ GGG x[2,-1] dup1 dup1 min GG^ max TT^ HHH x[2,1] dup1 dup1 min HH^ max JJ^ x[-2,0] LLL dup1 dup1 min KK^ max LL^ WWW NNN dup1 dup1 min MM^ max NN^ x[2,0] QQQ dup1 dup1 min OO^ max QQ^ x[-2,-1] x[0,-2] dup1 dup1 min PP^ max XX^ x[-1,-2] x[1,-2] dup1 dup1 min VV^ max YY^
-                            AA DD  dup1 dup1 min A^  max D^  BB PP dup1 dup1 min B^  max P^  CC SS dup1 dup1 min C^  max S^  EE MM      dup1 dup1 min E^  max M^  FF VV dup1 dup1 min F^  max V^  GG KK dup1 dup1 min G^  max K^  HH OO dup1 dup1 min H^  max O^  II XX dup1 dup1 min I^  max X^  JJ QQ dup1 dup1 min J^  max Q^  LL TT dup1 dup1 min L^  max T^  NN RR dup1 dup1 min N^  max R^  UU YY dup1 dup1 min U^  max Y^
-                            A  E   dup1 dup1 min AA^ max EE^ B  H  dup1 dup1 min BB^ max HH^ C  N  dup1 dup1 min CC^ max NN^ D  M       dup1 dup1 min DD^ max MM^ F  G  dup1 dup1 min FF^ max GG^ I  O  dup1 dup1 min II^ max OO^ J  P  dup1 dup1 min JJ^ max PP^ K  V  dup1 dup1 min KK^ max VV^ L  U  dup1 dup1 min LL^ max UU^ Q  X  dup1 dup1 min QQ^ max XX^ R  S  dup1 dup1 min RR^ max SS^ T  Y  dup1 dup1 min TT^ max YY^
-                            AA FF  dup1 dup1 min A^  max F^  CC LL dup1 dup1 min C^  max L^  DD GG dup1 dup1 min D^  max G^  EE KK      dup1 dup1 min E^  max K^  HH QQ dup1 dup1 min H^  max Q^  II JJ dup1 dup1 min I^  max J^  MM VV dup1 dup1 min M^  max V^  NN TT dup1 dup1 min N^  max T^  OO PP dup1 dup1 min O^  max P^  RR UU dup1 dup1 min R^  max U^  SS YY dup1 dup1 min S^  max Y^
-                            C  H   dup1 dup1 min CC^ max HH^ G  J  dup1 dup1 min GG^ max JJ^ I  L  dup1 dup1 min II^ max LL^ O  x[2,-2] dup1 dup1 min OO^ max ZZ^ S  V  dup1 dup1 min SS^ max VV^
-                            D  II  dup1 dup1 min DD^ max I^  HH K  dup1 dup1 min H^  max KK^ LL M  dup1 dup1 min L^  max MM^ N  OO      dup1 dup1 min NN^ max O^  P  VV dup1 dup1 min PP^ max V^  SS U  dup1 dup1 min S^  max UU^ X  ZZ dup1 dup1 min XX^ max Z^
-                            E  NN  dup1 dup1 min EE^ max N^  KK Q  dup1 dup1 min K^  max QQ^ L  PP dup1 dup1 min LL^ max P^  S  Z       dup1 dup1 min SS^ max ZZ^ T  XX dup1 dup1 min TT^ max X^
-                            BB EE  dup1 dup1 min B^  max E^  I  LL dup1 dup1 min II^ max L^  JJ TT dup1 dup1 min J^  max T^  N  R       dup1 dup1 min NN^ max RR^ O  SS dup1 dup1 min OO^ max S^  QQ UU dup1 dup1 min Q^  max U^  Y  ZZ dup1 dup1 min YY^ max Z^
-                            E  F                     max FF^ GG NN dup1 dup1 min G^  max N^  J  OO dup1 dup1 min JJ^ max O^  K  RR      dup1 dup1 min KK^ max R^  MM Q  dup1 dup1 min M^  max QQ^ S  T  dup1 dup1 min SS^ max TT^ U  V            min UU^        X  YY  min XX^
-                            CC G                     max GG^ FF N  dup1 dup1 min F^  max NN^ H  JJ dup1 dup1 min HH^ max J^  M  SS      dup1 dup1 min MM^ max S^  P  R  dup1 dup1 min PP^ max RR^ QQ TT           min Q^          UU XX           min U^
-                            F  II                    max I^  GG HH                   max H^  J  KK dup1 dup1 min JJ^ max K^  L  NN      dup1 dup1 min LL^ max N^  O  PP dup1 dup1 min OO^ max P^  RR U            min R^
-                            H  LL                    max L^  I  JJ                   max J^  K  N  dup1 dup1 min KK^ max NN^ MM OO      dup1 dup1 min M^  max O^  P  Q            min PP^ R  S                    min RR^
-                            J  M                     max MM^ KK L                    max LL^ NN O            min N^ PP RR min P^
-                            LL MM                    max M^  N  P            min NN^
-                            M  NN min MF^
-                            MT AA > MT Z < & x[0,0] W@ AA > W Z < & W MT ? MF AA > MF Z < & W AA > W Z < & W MT ? MT ? ? "                                          : \
+                            x[-2,2] x[0,2] dup1 dup1 min A^ max C^ x[-1,2] I dup1 dup1 min B^ max I^ x[1,2] S dup1 dup1 min D^ max S^ x[2,2] R dup1 dup1 min E^ max R^ x[-2,1] x[-2,-2] dup1 dup1 min F^ max U^ G x[2,-1] dup1 dup1 min G^ max T^ H x[2,1] dup1 dup1 min H^ max J^ x[-2,0] L dup1 dup1 min K^ max L^ W N dup1 dup1 min M^ max N^ x[2,0] Q dup1 dup1 min O^ max Q^ x[-2,-1] x[0,-2] dup1 dup1 min P^ max X^ x[-1,-2] x[1,-2] dup1 dup1 min V^ max Y^
+                            A D  dup1 dup1 min A^ max D^ B P dup1 dup1 min B^ max P^ C S dup1 dup1 min C^ max S^ E M       dup1 dup1 min E^ max M^ F V dup1 dup1 min F^ max V^ G K dup1 dup1 min G^ max K^ H O dup1 dup1 min H^ max O^ I X dup1 dup1 min I^ max X^ J Q dup1 dup1 min J^ max Q^ L T dup1 dup1 min L^ max T^ N R dup1 dup1 min N^ max R^ U Y dup1 dup1 min U^ max Y^
+                            A E  dup1 dup1 min A^ max E^ B H dup1 dup1 min B^ max H^ C N dup1 dup1 min C^ max N^ D M       dup1 dup1 min D^ max M^ F G dup1 dup1 min F^ max G^ I O dup1 dup1 min I^ max O^ J P dup1 dup1 min J^ max P^ K V dup1 dup1 min K^ max V^ L U dup1 dup1 min L^ max U^ Q X dup1 dup1 min Q^ max X^ R S dup1 dup1 min R^ max S^ T Y dup1 dup1 min T^ max Y^
+                            A F  dup1 dup1 min A^ max F^ C L dup1 dup1 min C^ max L^ D G dup1 dup1 min D^ max G^ E K       dup1 dup1 min E^ max K^ H Q dup1 dup1 min H^ max Q^ I J dup1 dup1 min I^ max J^ M V dup1 dup1 min M^ max V^ N T dup1 dup1 min N^ max T^ O P dup1 dup1 min O^ max P^ R U dup1 dup1 min R^ max U^ S Y dup1 dup1 min S^ max Y^
+                            C H  dup1 dup1 min C^ max H^ G J dup1 dup1 min G^ max J^ I L dup1 dup1 min I^ max L^ O x[2,-2] dup1 dup1 min O^ max Z^ S V dup1 dup1 min S^ max V^
+                            D I  dup1 dup1 min D^ max I^ H K dup1 dup1 min H^ max K^ L M dup1 dup1 min L^ max M^ N O       dup1 dup1 min N^ max O^ P V dup1 dup1 min P^ max V^ S U dup1 dup1 min S^ max U^ X Z dup1 dup1 min X^ max Z^
+                            E N  dup1 dup1 min E^ max N^ K Q dup1 dup1 min K^ max Q^ L P dup1 dup1 min L^ max P^ S Z       dup1 dup1 min S^ max Z^ T X dup1 dup1 min T^ max X^
+                            B E  dup1 dup1 min B^ max E^ I L dup1 dup1 min I^ max L^ J T dup1 dup1 min J^ max T^ N R       dup1 dup1 min N^ max R^ O S dup1 dup1 min O^ max S^ Q U dup1 dup1 min Q^ max U^ Y Z dup1 dup1 min Y^ max Z^
+                            E F                   max F^ G N dup1 dup1 min G^ max N^ J O dup1 dup1 min J^ max O^ K R       dup1 dup1 min K^ max R^ M Q dup1 dup1 min M^ max Q^ S T dup1 dup1 min S^ max T^ U V           min U^        X Y min X^
+                            C G                   max G^ F N dup1 dup1 min F^ max N^ H J dup1 dup1 min H^ max J^ M S       dup1 dup1 min M^ max S^ P R dup1 dup1 min P^ max R^ Q T           min Q^        U X           min U^
+                            F I                   max I^ G H                  max H^ J K dup1 dup1 min J^ max K^ L N       dup1 dup1 min L^ max N^ O P dup1 dup1 min O^ max P^ R U           min R^
+                            H L                   max L^ I J                  max J^ K N dup1 dup1 min K^ max N^ M O       dup1 dup1 min M^ max O^ P Q           min P^ R S                  min R^
+                            J M                   max M^ K L                  max L^ N O           min N^        P R                 min P^
+                            L M                   max M^ N P           min N^
+                            M N min MF^
+                            MT A > MT Z < & x[0,0] W@ A > W Z < & W MT ? MF A > MF Z < & W A > W Z < & W MT ? MT ? ? "                                              : \
                                                                                                                                                                       \
-        mode == "undot"  ? "x[-1,1] A@ x[0,1] B@ min x[1,1] C@ min x[-1,0] D@ min x[1,0] E@ min x[-1,-1] F@ min x[0,-1] G@ min x[1,-1] H@ min "                       \
-                          +"A B max C max D max E max F max G max H max x[0,0] swap2 swap1 clip"                                                                    : \
+        mode == "undot"  ? "x[-1,1] A@ x[0,1] B@ max x[1,1] C@ max x[-1,0] D@ max x[1,0] E@ max x[-1,-1] F@ max x[0,-1] G@ max x[1,-1] H@ max "                       \
+                          +"A B min C min D min E min F min G min H min x swap2 clip"                                                                               : \
                                                                                                                                                                       \
         mode == "undot2" ? "x[-1,1] x[0,1]        dup1 dup1 min swap2 max
                             x[1,1]  x[-1,0]       dup1 dup1 min swap2 max
@@ -994,7 +1014,8 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                             swap2                           min
                             x swap2 swap1 clip"                                                                                                                     : \
                                                                                                                                                                       \
-        mode == "undot4" ? "x[-1,1] x[0,1]        dup1 dup1 min swap2 max
+        mode == "undot4" ||                                                                                                                                           \
+        mode == "median" ? "x[-1,1] x[0,1]        dup1 dup1 min swap2 max
                             x[1,1]  x[-1,0]       dup1 dup1 min swap2 max
                             x[1,0]  x[-1,-1]      dup1 dup1 min swap2 max
                             x[0,-1] x[1,-1]       dup1 dup1 min swap2 max
@@ -1010,8 +1031,8 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                             swap2                           min
                             swap3                                     max
                             swap2                           min
-                                                  dup1 dup1 min swap2 max
-                            x swap2 swap1 clip"                                                                                                                     : \
+                                                  dup1 dup1 max swap2 min
+                            x swap2 clip"                                                                                                                           : \
                                                                                                                                                                       \
         mode == "cartoon"? "x[-1,1] A@ x[1,-1] H@ + x[0,1] B@ x[0,-1] G@ + min x[1,1] C@ x[-1,-1] F@ + min x[-1,0] D@ x[1,0] E@ + min 0.5 * "                         \
                           +"A H +                          B G + max                  C F +            max         D E +          max 0.5 * x swap2 swap1 clip"     : \
@@ -1472,24 +1493,21 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     return str }
 
 
-function mskY_to_YUV(clip a, clip msk, bool "luma", int "UV", int "bits") {
+function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits") {
 
-    isy = isy(msk)
+    w  = width (a)
+    h  = height(a)
+    wm = width (msk)
+    hm = height(msk)
+    wh = wm!=w || hm!=h
+    p_float = bits == 32
+    bstr    = p_float ? "S" : string(bits)
 
-    if (!isRGB(a) && !(!luma && !isy)) {
-
-        w = width (a)
-        h = height(a)
-        p_float = bits == 32
-        bstr    = p_float ? "S" : string(bits)
-
-        mskY    = isy ? msk : msk.ExtractY()
-        w       = isYV411(a)             ? round(w/4.0) : round(w/2.0)
-        h       = isYV411(a) || is422(a) ?            h : round(h/2.0)
-        mskC    = is444  (a)             ?                                        mskY : mskY.ConvertBits(8,dither=-1).BilinearResize(w+w%2,       h+h%2)
-        mskC    = luma ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32) : mskC.ConvertBits(bits) : BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000)
-        lmmsk   = CombinePlanes(mskY, mskC, mskC, planes="YUV", pixel_type=PixelType(a))
-    } else {
-        lmmsk   = msk
-    }
-    return lmmsk }
+    mskYs   =  isy(msk)               ? msk          : msk.ExtractY()
+    mskYr   =  !wh                    ? mskYs        : mskYs.ConvertBits(8,dither=-1).BilinearResize(w, h).ConvertBits(bits)
+    w       =  isYV411(a)             ? round(w/4.0) : round(w/2.0)
+    h       =  isYV411(a) || is422(a) ?            h : round(h/2.0)
+    mskC    = (is444  (a) || rgb)     ?                               mskYr : mskYs.ConvertBits(8,dither=-1).BilinearResize(      w+w%2,       h+h%2)
+    mskC    = luma ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32) : mskC.ConvertBits(bits) : BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000)
+    msk     = CombinePlanes(mskYr, mskC, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
+    msk }
