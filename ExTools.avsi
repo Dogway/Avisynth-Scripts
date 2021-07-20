@@ -755,7 +755,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ##
 ## 100% ex_median(mode="median5")
 ##  15% Dither_median16(rx=2, ry=2, rt=0, y=3, u=1, v=1)
-##   5% MedianBlur(2,0,0)
+##   5% MedianBlur(2,0,0) (unstable filter)
 ##
 ##  100% Clense(grey=true)
 ##   92% ex_median(mode="medianT")
@@ -785,6 +785,9 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # medianT   - Temporal median of 3 frames
 # medianT5  - Temporal median of 5 frames
 # medianST  - 3x3x3 Spatio-Temporal median
+# ML3D      - Multi-Level median filter (Spatio-Temporal)
+# ML3Dex    - Extended Multi-Level median (Spatio-Temporal)
+# BDM       - Arce Bi-directional Multi-Level Median Filter (Spatio-Temporal)
 
 function ex_median(clip a, string "mode", int "UV", bool "fulls") {
 
@@ -1215,11 +1218,193 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                             M O                                max O^
                             N P                         min O  min"                                                                                                : \
                                                                                                                                                                      \
+        mode == "ML3D" ? "x[1,1] x[-1,-1]       dup1 dup1 min swap2 max
+                          x[-1,1] x[1,-1]       dup1 dup1 min swap2 max
+                          x[0,0] X@  y[0,0] Y@  dup1 dup1 min swap2 max
+                          swap5  swap1  swap3   dup1 dup1 min swap2 max
+                          swap3  z[0,0] Z@      dup1 dup1 min swap2 max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap2  swap1  swap5                       max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap4  swap1  swap2   dup1 dup1 min swap2 max
+                          swap3  swap1  swap2                       max
+                          swap2  swap1  swap4             min
+                          swap3                                     max
+                          swap2                           min
+                                                          min
+
+                          x[1,0] x[0,-1]        dup1 dup1 min swap2 max
+                          x[-1,0] x[0,1]        dup1 dup1 min swap2 max
+                          X  Y                  dup1 dup1 min swap2 max
+                          swap5  swap1  swap3   dup1 dup1 min swap2 max
+                          swap3  Z              dup1 dup1 min swap2 max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap2  swap1  swap5                       max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap4  swap1  swap2   dup1 dup1 min swap2 max
+                          swap3  swap1  swap2                       max
+                          swap2  swap1  swap4             min
+                          swap3                                     max
+                          swap2                           min
+                                                        min
+
+                          dup1 dup1 min swap2 max swap1 X max min"                                                                                                 : \
+                                                                                                                                                                     \
+        mode == "ML3Dex" ? "x[1,1] x[-1,-1]       dup1 dup1 min swap2 max
+                          x[-1,1] x[1,-1]       dup1 dup1 min swap2 max
+                          x[0,0] X@  y[0,0] Y@  dup1 dup1 min swap2 max
+                          swap5  swap1  swap3   dup1 dup1 min swap2 max
+                          swap3  z[0,0] Z@      dup1 dup1 min swap2 max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap2  swap1  swap5                       max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap4  swap1  swap2   dup1 dup1 min swap2 max
+                          swap3  swap1  swap2                       max
+                          swap2  swap1  swap4             min
+                          swap3                                     max
+                          swap2                           min
+                                                          min A^
+
+                          x[1,0] x[0,-1]        dup1 dup1 min swap2 max
+                          x[-1,0] x[0,1]        dup1 dup1 min swap2 max
+                          X  Y                  dup1 dup1 min swap2 max
+                          swap5  swap1  swap3   dup1 dup1 min swap2 max
+                          swap3  Z              dup1 dup1 min swap2 max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap2  swap1  swap5                       max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap4  swap1  swap2   dup1 dup1 min swap2 max
+                          swap3  swap1  swap2                       max
+                          swap2  swap1  swap4             min
+                          swap3                                     max
+                          swap2                           min
+                                                          min  B^
+
+                          y[1,1] y[-1,-1]       dup1 dup1 min swap2 max
+                          y[-1,1] y[1,-1]       dup1 dup1 min swap2 max
+                          Y  X                  dup1 dup1 min swap2 max
+                          swap5  swap1  swap3   dup1 dup1 min swap2 max
+                          swap3  Z              dup1 dup1 min swap2 max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap2  swap1  swap5                       max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap4  swap1  swap2   dup1 dup1 min swap2 max
+                          swap3  swap1  swap2                       max
+                          swap2  swap1  swap4             min
+                          swap3                                     max
+                          swap2                           min
+                                                          min C^
+
+                          y[1,0] y[0,-1]        dup1 dup1 min swap2 max
+                          y[-1,0] y[0,1]        dup1 dup1 min swap2 max
+                          Y  X                  dup1 dup1 min swap2 max
+                          swap5  swap1  swap3   dup1 dup1 min swap2 max
+                          swap3  Z              dup1 dup1 min swap2 max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap2  swap1  swap5                       max
+                          swap3  swap1  swap5   dup1 dup1 min swap2 max
+                          swap4  swap1  swap2   dup1 dup1 min swap2 max
+                          swap3  swap1  swap2                       max
+                          swap2  swap1  swap4             min
+                          swap3                                     max
+                          swap2                           min
+                                                          min D^
+
+                         X Y dup1 dup1 min swap2 max swap1 Z max min
+
+                           A                   dup1 dup1 min swap2 max
+                         B C                   dup1 dup1 min swap2 max
+                         swap3  D              dup1 dup1 min swap2 max
+                         swap2  swap1  swap3   dup1 dup1 min swap2 max
+                         swap3                                     max
+                         swap3                 dup1 dup1 min swap2 max
+                         swap3                                     max
+                         swap2                           min
+                                                         min"                                                                                                 : \
+        mode == "BDM" ? "x[1,1] x[-1,-1]       dup1 dup1 min swap2 max
+                         x[-1,1] x[1,-1]       dup1 dup1 min swap2 max
+                         x[0,0] X@  y[0,0] Y@  dup1 dup1 min swap2 max
+                         swap5  swap1  swap3   dup1 dup1 min swap2 max
+                         swap3  z[0,0] Z@      dup1 dup1 min swap2 max
+                         swap3  swap1  swap5   dup1 dup1 min swap2 max
+                         swap2  swap1  swap5                       max
+                         swap3  swap1  swap5   dup1 dup1 min swap2 max
+                         swap4  swap1  swap2   dup1 dup1 min swap2 max
+                         swap3  swap1  swap2                       max
+                         swap2  swap1  swap4             min
+                         swap3                                     max
+                         swap2                           min
+                                                         min A^
+
+                         y[1,1] y[-1,-1]       dup1 dup1 min swap2 max
+                         y[-1,1] y[1,-1]       dup1 dup1 min swap2 max
+                         z[1,1]  z[-1,-1]      dup1 dup1 min swap2 max
+                         z[-1,1] z[1,-1]       dup1 dup1 min swap2 max
+                         Y Z                   dup1 dup1 min swap2 max
+                         swap9  swap1  swap7   dup1 dup1 min swap2 max
+                         swap3  swap1  swap7   dup1 dup1 min swap2 max
+                         swap4  X              dup1 dup1 min swap2 max
+                         swap7  swap1  swap9   dup1 dup1 min swap2 max
+                         swap3  swap1  swap10  dup1 dup1 min swap2 max
+                         swap4  swap1  swap2   dup1 dup1 min swap2 max
+                         swap6  swap1  swap5   dup1 dup1 min swap2 max
+                         swap9  swap1  swap2   dup1 dup1 min swap2 max
+                         swap4  swap1  swap7             min
+                         swap7  swap1  swap6                       max
+                         swap3  swap1  swap5                       max
+                         swap3                 dup1 dup1 min swap2 max
+                         swap6  swap1  swap4             min
+                         swap6  swap1  swap4   dup1 dup1 min swap2 max
+                         swap2                 dup1 dup1 min swap2 max
+                         swap4  swap1  swap6   dup1 dup1 min swap2 max
+                         swap5  swap1  swap2             min
+                         swap5                                     max
+                         swap2                 dup1 dup1 min swap2 max
+                         swap3  swap1  swap4             min
+                         swap3                                     max
+                         swap2                           min
+                                                                   max  B^
+
+                         y[1,0] y[0,-1]        dup1 dup1 min swap2 max
+                         y[-1,0] y[0,1]        dup1 dup1 min swap2 max
+                         z[1,0] z[0,-1]        dup1 dup1 min swap2 max
+                         z[-1,0] z[0,1]        dup1 dup1 min swap2 max
+                         Y Z                   dup1 dup1 min swap2 max
+                         swap9  swap1  swap7   dup1 dup1 min swap2 max
+                         swap3  swap1  swap7   dup1 dup1 min swap2 max
+                         swap4  X              dup1 dup1 min swap2 max
+                         swap7  swap1  swap9   dup1 dup1 min swap2 max
+                         swap3  swap1  swap10  dup1 dup1 min swap2 max
+                         swap4  swap1  swap2   dup1 dup1 min swap2 max
+                         swap6  swap1  swap5   dup1 dup1 min swap2 max
+                         swap9  swap1  swap2   dup1 dup1 min swap2 max
+                         swap4  swap1  swap7             min
+                         swap7  swap1  swap6                       max
+                         swap3  swap1  swap5                       max
+                         swap3                 dup1 dup1 min swap2 max
+                         swap6  swap1  swap4             min
+                         swap6  swap1  swap4   dup1 dup1 min swap2 max
+                         swap2                 dup1 dup1 min swap2 max
+                         swap4  swap1  swap6   dup1 dup1 min swap2 max
+                         swap5  swap1  swap2             min
+                         swap5                                     max
+                         swap2                 dup1 dup1 min swap2 max
+                         swap3  swap1  swap4             min
+                         swap3                                     max
+                         swap2                           min
+                                                                   max C^
+
+                         X Y dup1 dup1 min swap2 max swap1 Z max min
+
+                         dup A min B min C min swap1 A max B max C max
+
+                         dup1 dup1 min swap2 max swap1 X max min"                                                                                                  : \
+                                                                                                                                                                     \
                           Assert (false, "Unsupported median mode.")
 
 
     temp5 = mode == "medianT5"
-    temp  = mode == "medianT" || temp5 || mode == "medianST"
+    temp  = mode == "medianT" || temp5 || mode == "medianST" || mode == "ML3D" || mode == "ML3Dex" || mode == "BDM"
 
     if (temp) {
 
