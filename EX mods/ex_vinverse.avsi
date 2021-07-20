@@ -24,4 +24,4 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
 
     (amnt>254) ? last : \
     (amnt==0)  ? clp  : \
-    ex_lutxy(clp, last, Format("x {amnt} yscalef + y < x {amnt} yscalef + x {amnt} yscalef - y > x {amnt} yscalef - y ? ?"), UV=uv, fulls=fs) }
+    ex_lutxy(clp, last, Format("x {amnt} yscalef + A@ y < A x {amnt} yscalef - B@ y > B y ? ?"), UV=uv, fulls=fs) }
