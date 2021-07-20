@@ -785,7 +785,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # medianT   - Temporal median of 3 frames
 # medianT5  - Temporal median of 5 frames
 # medianST  - 3x3x3 Spatio-Temporal median
-# ML3D      - Multi-Level median filter (Spatio-Temporal)
+# ML3D      - Multi-Level median (Spatio-Temporal)
 # ML3Dex    - Extended Multi-Level median (Spatio-Temporal)
 # BDM       - Arce Bi-directional Multi-Level Median Filter (Spatio-Temporal)
 
@@ -1231,7 +1231,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                           swap2  swap1  swap4             min
                           swap3                                     max
                           swap2                           min
-                                                          min
+                                                          min A^
 
                           x[1,0] x[0,-1]        dup1 dup1 min swap2 max
                           x[-1,0] x[0,1]        dup1 dup1 min swap2 max
@@ -1246,7 +1246,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                           swap2  swap1  swap4             min
                           swap3                                     max
                           swap2                           min
-                                                        min
+                                                          min A
 
                           dup1 dup1 min swap2 max swap1 X max min"                                                                                                 : \
                                                                                                                                                                      \
@@ -1310,17 +1310,18 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                           swap2                           min
                                                           min D^
 
-                         X Y dup1 dup1 min swap2 max swap1 Z max min
+                          X Y dup1 dup1 min swap2 max swap1 Z max min
 
-                           A                   dup1 dup1 min swap2 max
-                         B C                   dup1 dup1 min swap2 max
-                         swap3  D              dup1 dup1 min swap2 max
-                         swap2  swap1  swap3   dup1 dup1 min swap2 max
-                         swap3                                     max
-                         swap3                 dup1 dup1 min swap2 max
-                         swap3                                     max
-                         swap2                           min
-                                                         min"                                                                                                 : \
+                            A                   dup1 dup1 min swap2 max
+                          B C                   dup1 dup1 min swap2 max
+                          swap3  D              dup1 dup1 min swap2 max
+                          swap2  swap1  swap3   dup1 dup1 min swap2 max
+                          swap3                                     max
+                          swap3                 dup1 dup1 min swap2 max
+                          swap3                                     max
+                          swap2                           min
+                                                          min"                                                                                                     : \
+                                                                                                                                                                     \
         mode == "BDM" ? "x[1,1] x[-1,-1]       dup1 dup1 min swap2 max
                          x[-1,1] x[1,-1]       dup1 dup1 min swap2 max
                          x[0,0] X@  y[0,0] Y@  dup1 dup1 min swap2 max
@@ -1363,7 +1364,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                          swap3  swap1  swap4             min
                          swap3                                     max
                          swap2                           min
-                                                                   max  B^
+                                                                   max B^
 
                          y[1,0] y[0,-1]        dup1 dup1 min swap2 max
                          y[-1,0] y[0,1]        dup1 dup1 min swap2 max
