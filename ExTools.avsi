@@ -757,8 +757,8 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ##  15% Dither_median16(rx=2, ry=2, rt=0, y=3, u=1, v=1)
 ##   5% MedianBlur(2,0,0)
 ##
-## 100% ex_median(mode="medianT")
-##   91% Clense()
+##  100% Clense(grey=true)
+##   92% ex_median(mode="medianT")
 ##   91% MedianBlurTemporal(0,0,0)
 ##
 ## 100% ex_median(mode="medianST")
