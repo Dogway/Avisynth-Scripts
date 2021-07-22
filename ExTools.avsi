@@ -853,7 +853,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # edgeS     - Edge sensitive. Same as mode 4 but better edge protection. Strong denoise  -removegrain(17)-
 # edgeW     - Edge sensitive. Only line pairs are used.                    Weak denoise  -removegrain(18)-
 # edgeC     - Edge sensitive. Same as edgeS but better corner protection. Strong denoise -removegrain(26)-
-# edgeCT    - Edge sensitive. Same as edgeC but better line   protection. Strong denoise -removegrain(27)-
+# edgeCL    - Edge sensitive. Same as edgeC but better line   protection. Strong denoise -removegrain(27)-
 # cartoon   - Clipping is done with respect to averages of neighbours. Best for cartoons -removegrain(22)-
 # vertical  - Vertical median. Port of VerticalCleaner mode=1
 # verticalS - Vertical median. Port of VerticalCleaner mode=2 (edge sensitive)
