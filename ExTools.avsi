@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.1     (22-07-2021)              ##
+###           ExTools v4.2     (22-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -641,7 +641,7 @@ function factorial(int n) {
     n<2?1:factorial(n-1)*n }
 
 
-# Dither_bilateral16(radius=2,thr=10,flat=1.0,u=1,v=1) is 250% faster than ex_bilateral(1,dejaggie=false) # output doesn't match though
+# Dither_bilateral16(radius=2,thr=10,flat=1.0,u=1,v=1) is 232% faster ('exp' is the culprit) than ex_bilateral(1,dejaggie=false) # output is dirtier though
 function ex_bilateral(clip a, float "radius", float "radiusV", float "sthres", float "ithres", bool "dejaggie", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
@@ -678,8 +678,8 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "sthres", f
         Vv    = Vv + " " + V
         k_f   = factorial(i)*factorial(krnlsz-i)
         wg    = exp(pow(2, 1./ ((n_f/k_f)/pow(2,krnlsz) * ex_bs(st, bi, fs)) ) / 2.)
-        krnv2 = i != krnlsz/2 ? Format(krnv2 + krnv1 + V + "@ "+Vc+" - dup * sqrt "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv2
-        krnv3 = i == krnlsz/2 ? Format(                V + "  "+Vc+" - dup * sqrt "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv3
+        krnv2 = i != krnlsz/2 ? Format(krnv2 + krnv1 + V + "@ "+Vc+" - "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv2
+        krnv3 = i == krnlsz/2 ? Format(                V + "  "+Vc+" - "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv3
         plsv  = i == 0 ? "" : plsv + " + "
        }
 
@@ -696,8 +696,8 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "sthres", f
         Vh    = Vh + " " + V
         k_f   = factorial(i)*factorial(krnlszh-i)
         wg    = exp(pow(2, 1./ ((n_f/k_f)/pow(2,krnlszh) * ex_bs(st, bi, fs)) ) / 2.)
-        krnh2 = i != krnlsz/2 ? Format(krnh2 + krnh1 + V + "@ "+Vc+" - dup * sqrt "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh2
-        krnh3 = i == krnlsz/2 ? Format(                V + "  "+Vc+" - dup * sqrt "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh3
+        krnh2 = i != krnlsz/2 ? Format(krnh2 + krnh1 + V + "@ "+Vc+" - "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh2
+        krnh3 = i == krnlsz/2 ? Format(                V + "  "+Vc+" - "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh3
         plsh  = i == 0 ? "" : plsh + " + "
        }
 
@@ -837,7 +837,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ## 100% ex_median(mode="medianST")
 ##   81% MedianBlurTemporal(1,1,1) # re-asses without chroma (unstable filter)
 #
-# modes:
+# 27 modes:
 # median    - True median. Replace with kernel middle value *Same as "undot4"
 # median5   - True median. Replace with kernel middle value (5x5 kernel) (very slow)
 # undot     - Also called "conservative", removes one pixel salt'n'pepper noise -removegrain(1)-
@@ -852,16 +852,20 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # weightedm - mean average weighted median
 # edgeS     - Edge sensitive. Same as mode 4 but better edge protection. Strong denoise  -removegrain(17)-
 # edgeW     - Edge sensitive. Only line pairs are used.                    Weak denoise  -removegrain(18)-
+# edgeC     - Edge sensitive. Same as edgeS but better corner protection. Strong denoise -removegrain(26)-
+# edgeCT    - Edge sensitive. Same as edgeC but better line   protection. Strong denoise -removegrain(27)-
 # cartoon   - Clipping is done with respect to averages of neighbours. Best for cartoons -removegrain(22)-
 # vertical  - Vertical median. Port of VerticalCleaner mode=1
 # verticalS - Vertical median. Port of VerticalCleaner mode=2 (edge sensitive)
 # medianT   - Temporal median of 3 frames
 # medianT5  - Temporal median of 5 frames
-# medianST  - 3x3x3 Spatio-Temporal median (very slow)
-# ML3D      - Multi-Level Median Filter (Spatio-Temporal)
-# ML3Dex    - Extended Multi-Level Median Filter (Spatio-Temporal)
-# BDM       - Arce Bi-directional Multi-Level Median Filter (Spatio-Temporal)
-# MMF       - Multistage Median Filter (Spatio-Temporal) (like a 3D undot)
+# medianST  - 3x3x3 Cubic Spatio-Temporal (very slow)       (Spatio-Temporal)
+# SixNN     - 1x3x1 Six Nearest-Neighbours                  (Spatio-Temporal, Motion Protected)
+# PML       - Planar Multi-Level Median Filter              (Spatio-Temporal, Motion Protected)
+# ML3D      - Multi-Level Median Filter                     (Spatio-Temporal, Motion Protected)
+# ML3Dex    - Extended Multi-Level Median Filter            (Spatio-Temporal)
+# BDM       - Arce Bi-directional Multi-Level Median Filter (Spatio-Temporal, Motion Protected)
+# MMF       - Multistage Median Filter                      (Spatio-Temporal, Motion Protected) (like a 3D undot)
 
 function ex_median(clip a, string "mode", int "UV", bool "fulls") {
 
@@ -1160,6 +1164,45 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                           +"X@ DD == I D E dup1 dup1 min swap2 max clip X BB == I B G dup1 dup1 min swap2 max clip "                                                 \
                           +"X  CC == I C F dup1 dup1 min swap2 max clip         I A H dup1 dup1 min swap2 max clip ? ? ?"                                          : \
                                                                                                                                                                      \
+        mode == "edgeC"  ? "x[-1,1]   A@ x[0,1] B@ dup1 dup1 min swap2 max
+                            B x[1,1]  C@           dup1 dup1 min swap2 max
+                            C x[1,0]  E@           dup1 dup1 min swap2 max
+                            E x[1,-1] H@           dup1 dup1 min swap2 max
+                            swap7 swap1 swap5 max swap1 swap4 swap2 max max LO^
+                            swap1 swap2 min min min                         HI^
+
+                            x[0,-1]  G@ H dup1 dup1 min swap2 max
+                            x[-1,-1] F@ G dup1 dup1 min swap2 max
+                            x[-1,0]  D@ F dup1 dup1 min swap2 max
+                            A D           dup1 dup1 min swap2 max
+                            swap7 swap1 swap5 max swap1 swap4 swap2 max max LO max LO^
+                            swap1 swap2 min min min                         HI min HI^
+
+                            x LO HI min LO HI max clip"                                                                                                            : \
+                                                                                                                                                                     \
+        mode == "edgeCL" ? "x[-1,1] A@ x[1,-1] H@ dup1 dup1 min swap2 max
+                            A          x[0,1]  B@ dup1 dup1 min swap2 max
+                            x[0,-1] G@         H  dup1 dup1 min swap2 max
+                            B                  G  dup1 dup1 min swap2 max
+                            swap7 swap1 swap5 max swap1 swap4 swap2 max max LO^
+                            swap1 swap2 min min min                         HI^
+
+                            x[1,1]   C@ B dup1 dup1 min swap2 max
+                            x[-1,-1] F@ G dup1 dup1 min swap2 max
+                                     C  F dup1 dup1 min swap2 max
+                            x[1,0]   E@ C dup1 dup1 min swap2 max
+                            swap7 swap1 swap5 max swap1 swap4 swap2 max max LO max LO^
+                            swap1 swap2 min min min                         HI min HI^
+
+                            x[-1,0]  D@ F dup1 dup1 min swap2 max
+                                     D  E dup1 dup1 min swap2 max
+                                     E  H dup1 dup1 min swap2 max
+                                     D  A dup1 dup1 min swap2 max
+                            swap7 swap1 swap5 max swap1 swap4 swap2 max max LO max LO^
+                            swap1 swap2 min min min                         HI min HI^
+
+                            x LO HI min LO HI max clip"                                                                                                            : \
+                                                                                                                                                                     \
         mode == "medianT" ? "y[0,0] z[0,0] dup1 dup1 min swap2 max swap1 x[0,0] max min"                                                                           : \
                                                                                                                                                                      \
         mode == "medianT5"? "x[0,0] y[0,0]         dup1 dup1 min swap2 max
@@ -1292,6 +1335,16 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                             N R                         min N^
                             M O                                max O^
                             N P                         min O  min"                                                                                                : \
+                                                                                                                                                                     \
+        mode == "SixNN" ? "x[0,0] x[0,1]         dup1 dup1 min swap2 max
+                           x[0,-1] y[0,0]        dup1 dup1 min swap2 max
+                           swap3  z[0,0]         dup1 dup1 min swap2 max
+                           swap2  swap1  swap3   dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap3                 dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap2                           min
+                                                           min"                                                                                                    : \
                                                                                                                                                                      \
         mode == "ML3D" ? "x[1,1] x[-1,-1]       dup1 dup1 min swap2 max
                           x[-1,1] x[1,-1]       dup1 dup1 min swap2 max
@@ -1526,11 +1579,43 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                            J K min L min M min N min O min P min Q min R min
                            dup1 dup1 min swap2 max swap1 X max min"                                                                                                : \
                                                                                                                                                                      \
+        mode == "PML"   ? "x[0,0] X@ x[0,1] A@   dup1 dup1 min swap2 max
+                           x[0,-1] B@ y[0,0] Y@  dup1 dup1 min swap2 max
+                           swap3  z[0,0] Z@      dup1 dup1 min swap2 max
+                           swap2  swap1  swap3   dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap3                 dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap2                           min
+                                                           min J^
+
+                           X x[1,0] C@           dup1 dup1 min swap2 max
+                           x[-1,0] D@ Y          dup1 dup1 min swap2 max
+                           swap3  Z              dup1 dup1 min swap2 max
+                           swap2  swap1  swap3   dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap3                 dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap2                           min
+                                                           min K^
+
+                           A B                   dup1 dup1 min swap2 max
+                           C D                   dup1 dup1 min swap2 max
+                           swap3  X              dup1 dup1 min swap2 max
+                           swap2  swap1  swap3   dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap3                 dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap2                           min
+                                                           min
+
+                           J dup1 dup1 min swap2 max swap1 K max min"                                                                                              : \
+                                                                                                                                                                     \
                           Assert (false, "Unsupported median mode.")
 
 
     temp5 = mode == "medianT5"
-    temp  = mode == "medianT" || temp5 || mode == "medianST" || mode == "ML3D" || mode == "ML3Dex" || mode == "BDM" || mode == "MMF"
+    temp  = mode == "medianT" || temp5 || mode == "medianST" || mode == "ML3D" || mode == "ML3Dex" || mode == "BDM" || mode == "MMF" || mode == "SixNN" || mode == "PML"
 
     if (temp) {
 
