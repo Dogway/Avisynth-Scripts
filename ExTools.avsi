@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.0     (20-07-2021)              ##
+###           ExTools v4.1     (22-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -430,7 +430,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
     rv = max(rv, 0)
 
     md == "trimmed" ? Assert (fbox, "'Trimmed' mode only supports radius=1 for both dimensions") : nop()
-    md == "bokeh"   ? Assert (rd == rv, "'Bokeh' mode only supports isotropic radius")           : nop()
+    md == "bokeh"   ? Assert (rd == rv, "'Bokeh' mode only supports isotropic radii")            : nop()
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -507,7 +507,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
 #
 # Benchmark:
 # 100% removegrain(12,-1)          # technically a weighted mean of [1 2 1]
-#  96% ex_blur(1,UV=1)             # true gaussian blur
+#  96% ex_blur(1,UV=1)             # true gaussian blur (use ex_boxblur(1, mode="weighted") for a 1:1 match)
 #  94% BinomialBlur(0.75,U=1,V=1)  # only in 8-bit
 #  94% GBlur2(0.75,chroma=2)       # only in 8-bit. weighted mean of [1 2 1]
 #  84% ablur(1, 1)                 # against ex_blur(2)
@@ -528,7 +528,7 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
 
     sm = Default(radius,   1)           # from 0 to 6 (integers except for 0.5)
     sv = Default(radiusv, sm)           # from 0 to 6 (integers except for 0.5)
-    gm = Default(gamma, "none")         # Set matrix for gamma encoded clips
+    gm = Default(gamma, "none")         # Set matrix for gamma encoded clips (ie. 601, 709, 2020...) Requires TransformsPack
     UV = Default(UV,    rgb ? 3 : 1)
     fs = Default(fulls, rgb)
     sm = max(min(sm * 0.30,2.0),0)
@@ -641,6 +641,79 @@ function factorial(int n) {
     n<2?1:factorial(n-1)*n }
 
 
+# Dither_bilateral16(radius=2,thr=10,flat=1.0,u=1,v=1) is 250% faster than ex_bilateral(1,dejaggie=false) # output doesn't match though
+function ex_bilateral(clip a, float "radius", float "radiusV", float "sthres", float "ithres", bool "dejaggie", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    sm = Default(radius,   1)           # from 0 to 6
+    sv = Default(radiusv, sm)           # from 0 to 6
+    st = Default(sthres,   5)           # 0.1 to 10. Spatial standard deviation target used to compute coefficients for the spatial Gaussian filter. Higher values spread the weights further away.
+    it = Default(ithres,   4)           # 0.1 to 10. Intensity standard deviation target used to compute coefficients for the intensity Gaussian filter. Keep low for more edge preservation.
+    dj = Default(dejaggie, true)
+    UV = Default(UV,    rgb ? 3 : 1)
+    fs = Default(fulls, rgb)
+    sm = max(min(sm * 0.30,2.0),0)
+    sv = max(min(sv * 0.30,2.0),0)
+
+    krnlsz = 2*ceil(3*sv)
+    n_f    = factorial(krnlsz)
+
+    vars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    Vc   = MidStr(vars,krnlsz/2+1,1)
+    dj   = dj ? Vc+" 0.3 * min" : ""
+    it   = 1./ ex_bs(it, bi, fs)
+
+
+    krnv2 = "" krnv3 = ""  Vv = "" krnh2 = "" krnh3 = "" Vh = ""
+
+    for (i=0, krnlsz, 1) {
+
+        V     = MidStr(vars,i+1,1)
+        py    = i - krnlsz/2
+        krnv1 = Format("x[0,{py}] ")
+
+        Vv    = Vv + " " + V
+        k_f   = factorial(i)*factorial(krnlsz-i)
+        wg    = exp(pow(2, 1./ ((n_f/k_f)/pow(2,krnlsz) * ex_bs(st, bi, fs)) ) / 2.)
+        krnv2 = i != krnlsz/2 ? Format(krnv2 + krnv1 + V + "@ "+Vc+" - dup * sqrt "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv2
+        krnv3 = i == krnlsz/2 ? Format(                V + "  "+Vc+" - dup * sqrt "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv3
+        plsv  = i == 0 ? "" : plsv + " + "
+       }
+
+
+    krnlszh = 2*ceil(3*sm)
+    n_f     = factorial(krnlszh)
+
+    for (i=0, krnlszh, 1) {
+
+        V     = MidStr(vars,i+1,1)
+        px    = i - krnlszh/2
+        krnh1 = Format("x[{px},0] ")
+
+        Vh    = Vh + " " + V
+        k_f   = factorial(i)*factorial(krnlszh-i)
+        wg    = exp(pow(2, 1./ ((n_f/k_f)/pow(2,krnlszh) * ex_bs(st, bi, fs)) ) / 2.)
+        krnh2 = i != krnlsz/2 ? Format(krnh2 + krnh1 + V + "@ "+Vc+" - dup * sqrt "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh2
+        krnh3 = i == krnlsz/2 ? Format(                V + "  "+Vc+" - dup * sqrt "+dj+" {it} * dup * 0.5 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh3
+        plsh  = i == 0 ? "" : plsh + " + "
+       }
+
+    strv = "x[0,0] " + Vc + "^ " + krnv2 + krnv3 + plsv + Vv + plsv + "1 swap / *"
+    strh = "x[0,0] " + Vc + "^ " + krnh2 + krnh3 + plsh + Vh + plsh + "1 swap / *"
+
+    sv == 0 ?      a                                                                  : \
+    isy     ? Expr(a,    strv                                                       ) : \
+    UV == 1 ? Expr(a,    strv, ""                                                   ) : \
+              Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
+    sm == 0 ? last                                                                    : \
+    isy     ? Expr(last, strh                                                       ) : \
+    UV == 1 ? Expr(last, strh, ""                                                   ) : \
+              Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
+
+
 
 # Savitzky-Golay (S-G) smoothing filter (similar to Gaussian blur)
 function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", int "UV", bool "fulls") {
@@ -720,7 +793,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
     str = ""
     for (i = 1, rd, 1) {
         dot = i == rd ? "" : "."
-        px = md == "lin" ? i : Eval(LeftStr(String(log(i)/log(2)+1,"%0.1f"),1))
+        px  = md == "lin" ? i : Eval(LeftStr(String(log(i)/log(2)+1,"%0.1f"),1))
         krn =                         Format("x[-{px},{px}] x[{px},{px}] x[-{px},-{px}] x[{px},-{px}]         x[0,0] + + + + 0.2 *")
         pxc = max(0, px - 1)
         krc = is444(a) || rgb ? krn : Format("x[-{pxc},{pxc}] x[{pxc},{pxc}] x[-{pxc},-{pxc}] x[{pxc},-{pxc}] x[0,0] + + + + 0.2 *")
@@ -784,10 +857,11 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # verticalS - Vertical median. Port of VerticalCleaner mode=2 (edge sensitive)
 # medianT   - Temporal median of 3 frames
 # medianT5  - Temporal median of 5 frames
-# medianST  - 3x3x3 Spatio-Temporal median
-# ML3D      - Multi-Level median (Spatio-Temporal)
-# ML3Dex    - Extended Multi-Level median (Spatio-Temporal)
+# medianST  - 3x3x3 Spatio-Temporal median (very slow)
+# ML3D      - Multi-Level Median Filter (Spatio-Temporal)
+# ML3Dex    - Extended Multi-Level Median Filter (Spatio-Temporal)
 # BDM       - Arce Bi-directional Multi-Level Median Filter (Spatio-Temporal)
+# MMF       - Multistage Median Filter (Spatio-Temporal) (like a 3D undot)
 
 function ex_median(clip a, string "mode", int "UV", bool "fulls") {
 
@@ -948,8 +1022,9 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                              swap6  swap1  swap4   dup1 dup1 min swap2 max
                              swap3  swap1  swap2   dup1 dup1 min swap2 max
                              swap8  swap1  swap4   dup1 dup1 min swap2 max
-                             swap7  swap8  swap2  swap7  swap3  swap6  swap4  swap5  swap2  swap4  swap1  swap3  swap2
-                             A@ B@ C@ + + R@ swap6 D@ E@ F@ G@ H@ I@ R + + + + + + 0.5 * W@ - abs Z^
+                             swap5  swap8  swap6  swap7  swap5  swap6  swap1  swap5  swap1  swap4  swap3  swap2  swap1
+                             A^ B^ C^ D^ E^ F^ G^ H^ I^
+                             A B C + + R@ dup D E F G H I + + + + + + 0.5 * W@ - abs Z^
                              R     D  +                                                  W  - abs Y^ R D E + + W - abs X^ R D E F + + + W - abs V^
                              Z Y < C Y X < D X V < E F ? ? ?"                                                                                                       : \
                                                                                                                                                                       \
@@ -1401,11 +1476,61 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
 
                          dup1 dup1 min swap2 max swap1 X max min"                                                                                                  : \
                                                                                                                                                                      \
+        mode == "MMF"   ? "x[0,0] X@ x[0,1] A@   dup1 dup1 min swap2 max
+                           x[0,-1] B@ y[0,0] Y@  dup1 dup1 min swap2 max
+                           swap3  z[0,0] Z@      dup1 dup1 min swap2 max
+                           swap2  swap1  swap3   dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap3                 dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap2                           min
+                                                           min J^
+
+                           X x[1,0] D@           dup1 dup1 min swap2 max
+                           x[-1,0] E@ Y          dup1 dup1 min swap2 max
+                           swap3  Z              dup1 dup1 min swap2 max
+                           swap2  swap1  swap3   dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap3                 dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap2                           min
+                                                           min K^
+
+                           X x[1,1] F@           dup1 dup1 min swap2 max
+                           x[-1,-1] G@ Y         dup1 dup1 min swap2 max
+                           swap3  Z              dup1 dup1 min swap2 max
+                           swap2  swap1  swap3   dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap3                 dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap2                           min
+                                                           min L^
+
+                           X x[-1,1] H@          dup1 dup1 min swap2 max
+                           x[1,-1] I@ Y          dup1 dup1 min swap2 max
+                           swap3  Z              dup1 dup1 min swap2 max
+                           swap2  swap1  swap3   dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap3                 dup1 dup1 min swap2 max
+                           swap3                                     max
+                           swap2                           min
+                                                           min M^
+
+                           Y Z dup1 dup1 min swap2 max swap1 X max min N^
+                           F G dup1 dup1 min swap2 max swap1 X max min O^
+                           H I dup1 dup1 min swap2 max swap1 X max min P^
+                           A B dup1 dup1 min swap2 max swap1 X max min Q^
+                           D E dup1 dup1 min swap2 max swap1 X max min R^
+
+                           J K max L max M max N max O max P max Q max R max
+                           J K min L min M min N min O min P min Q min R min
+                           dup1 dup1 min swap2 max swap1 X max min"                                                                                                : \
+                                                                                                                                                                     \
                           Assert (false, "Unsupported median mode.")
 
 
     temp5 = mode == "medianT5"
-    temp  = mode == "medianT" || temp5 || mode == "medianST" || mode == "ML3D" || mode == "ML3Dex" || mode == "BDM"
+    temp  = mode == "medianT" || temp5 || mode == "medianST" || mode == "ML3D" || mode == "ML3Dex" || mode == "BDM" || mode == "MMF"
 
     if (temp) {
 
@@ -1418,7 +1543,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
         isy     ? Expr(a, b,     f,     str,                                  optSingleMode = false                     ) : \
         UV == 1 ? Expr(a, b,     f,     str, "",                              optSingleMode = false                     ) : \
                   Expr(a, b,     f,     str, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = false, scale_inputs="none") : \
-        isy     ? Expr(a, b,     f,     str,                                  optSingleMode = false                     ) : \
+        isy     ? Expr(a, b2, b, f, f2, str,                                  optSingleMode = false                     ) : \
         UV == 1 ? Expr(a, b2, b, f, f2, str, "",                              optSingleMode = false                     ) : \
                   Expr(a, b2, b, f, f2, str, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = false, scale_inputs="none")
 
