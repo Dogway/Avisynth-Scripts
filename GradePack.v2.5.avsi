@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v2.4 (16-07-2021)               ##
+###           Grade Pack v2.5 (25-07-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -19,7 +19,7 @@
 ###
 ####################################
 ###
-### SatMask() v2.0 (12-05-2021)
+### ex_vibrance() v2.0 (12-05-2021)
 ###
 ### 20-11-2011
 ### by Motenai Yoda:  (http://forum.doom9.org/showthread.php?t=162882)
@@ -39,18 +39,18 @@
 ### Use like this (recommended):
 ###
 ### sat=Tweak(1.5)
-### satmask(sat)   # Mandatory to write parameter "sat=" when using a clip
+### ex_vibrance(sat)   # Mandatory to write parameter "sat=" when using a clip
 ###
 ### or like this (more speed):
 ###
-### satmask(1.5)
+### ex_vibrance(1.5)
 ###
 ###########################
 ### TODO
 ### Dullness not correctly ported over
 ### "Recover" in fast mode not yet implemented
 
-function SatMask (clip c, val Sat, float "bias", string "mode", clip "Rc", bool "show") {
+function ex_vibrance (clip c, val Sat, float "bias", string "mode", clip "Rc", bool "show") {
 
     bias  = Default(bias, 5)
     mode  = Default(mode,  "Vibrance")
@@ -348,6 +348,39 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
     UV == 1 ? Expr(a, b, str, "",                                 optSingleMode=true) : \
               Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi), optSingleMode=true) } }
 
+
+
+# modes:
+# fib  - fibonacci  multipass: 1,1,2,3,5,8...
+# trib - tribonacci multipass: 1,1,2,4,7,13...
+function ex_glow(clip a, int "radius", int "thres", float "opacity", bool "tv_range", string "mode", int "UV", bool "fulls") {
+
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    bi   = BitsPerComponent(a)
+
+    rd = Default(radius,    8)          # from 0 to ~10 (Expr hard limit). Spread
+    th = Default(thres,   164)          # from 64 to 192 (roughly)
+    op = Default(opacity, rd/50.+0.1)   # from 0.0 to 1.0. Strength
+    md = Default(mode, "trib")
+    tv = Default(tv_range, !rgb)
+    UV = Default(UV,        rgb ? 3 : 1)
+    fs = Default(fulls,     rgb)
+
+    b = ex_binarize(a, th, smooth=false, UV=UV, fulls=fs).ex_kawase(2,"trib",uv,fs).ex_boxblur(1,1,"weighted",uv,fs)
+    str = ""
+    for (i = 1, rd, 1) {
+        c   = i == 1  ? "b," : ""
+        dot = i == rd ? ""   : "."
+        bop = md == "fib" ? floor(pow((1+sqrt(5))/2,i)/sqrt(5)+0.5)               :\
+                            floor(0.618033988749895*pow(1.839286755214161,i)+0.5)
+        bop = min((1./ bop) * 10, 1)
+        str = str + Format("""ex_blend("""+c+"""ex_kawase(b,{i},md,{uv},{fs}),"screen",{bop},false,{uv},{fs})""")+dot
+           }
+
+    Eval(str)
+    d = ex_makediff(last,b,dif=false,UV=uv,fulls=fs).moncurve_r(2.222222,0.0,false,tv,uv,fs)
+    rd != 0 ? ex_blend(a,d,"screen",op,tv,uv,fs) : a }
 
 
 
