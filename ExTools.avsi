@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.3     (25-07-2021)              ##
+###           ExTools v4.4     (26-07-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -380,6 +380,37 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV", bool "fulls") 
 
 
 
+# Vinverse: a small, but effective Function against (residual) combing, by Didée
+#           Ported to EX mod from real.finder's HBD mod. by Dogway (19-07-2021)
+# HBD update and adding custem clip
+# sstr: strength of contra sharpening
+# amnt: change no pixel by more than this (Default=255: unrestricted)
+# UV  : chroma mode, as in MaskTools: 1=trash chroma, 2=pass chroma through, 3=process chroma
+
+function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem", bool "fulls") {
+
+    uv   = Default(uv,3)
+    dcus = Defined(custem)
+    sstr = Default(sstr,2.7)
+    amnt = Default(amnt,255)
+    fs   = Default(fulls, false)
+    uv2  = (uv==2) ? 1 : uv
+    bi   = BitsPerComponent(clp)
+    amnt = ex_bs(amnt, bi, fs)
+
+    vblur  = clp.ex_boxblur(0, 1, "weighted", UV=uv)
+    vblurD = ex_makediff(clp, vblur, UV=uv2, fulls=fs)
+    Vshrp  = dcus ? clp : ex_lutxy(vblur, vblur.ex_boxblur(0, 2, "weighted", UV=uv2), Format("x x y - {sstr} * +"), UV=uv2, fulls=fs)
+    VshrpD = ex_makediff(Vshrp, dcus ? custem : vblur, UV=uv2, fulls=fs)
+    VlimD  = ex_lutxy(VshrpD, VblurD, "x range_half - A@ y range_half - B@ * 0 < A abs B abs < x y ? C@ range_half - 0.25 * range_half + C ?", UV=uv2, fulls=fs)
+
+    ex_adddiff(dcus ? custem : Vblur, VlimD, UV=uv, fulls=fs)
+
+    (amnt>254) ? last : \
+    (amnt==0)  ? clp  : \
+    ex_lutxy(clp, last, Format("x {amnt} + A@ y < A x {amnt} - B@ y > B y ? ?"), UV=uv, fulls=fs) }
+
+
 
 
 
@@ -451,7 +482,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
     } else if (!fbox) {
 
         for (px = -krnlrd, krnlrd, 1) {
-            wg   = md == "weighted" ? px == 0 ? krnlrd*2 : krnlrd / float(abs(px)) : nop()
+            wg   = md == "weighted" ? factorial(krnlsz-1)/(factorial(px+krnlrd)*factorial(krnlsz-1-(px+krnlrd))) : nop()
             krnh = md == "rg19"    && px == 0 ? krnh                            : \
                    md == "weighted"        ? Format(krnh + "x[{px},0] {wg} * ") : \
                                              Format(krnh + "x[{px},0] ")
@@ -465,7 +496,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
         krnlrv = krnlsz/2
         divw=0
         for (py = -krnlrv, krnlrv, 1) {
-            wg   = md == "weighted" ? py == 0 ? krnlrv*2 : krnlrv / float(abs(py)) : nop()
+            wg   = md == "weighted" ? factorial(krnlsz-1)/(factorial(py+krnlrv)*factorial(krnlsz-1-(py+krnlrv))) : nop()
             krnv = md == "rg19"    && py == 0 ? krnv                            : \
                    md == "weighted"        ? Format(krnv + "x[0,{py}] {wg} * ") : \
                                              Format(krnv + "x[0,{py}] ")
@@ -714,6 +745,64 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
               Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
 
 
+# Like ex_bilateral, a less gentle blurring but more performant
+function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    sm = Default(radius,   1)           # from 0 to 6
+    sv = Default(radiusv, sm)           # from 0 to 6
+    th = Default(thres,   15)
+    UV = Default(UV,    rgb ? 3 : 1)
+    fs = Default(fulls, rgb)
+    th = ex_bs(th, bi, fs)
+
+    krnlsz = 2*ceil(3*max(min(sv * 0.30,2.0),0))
+
+    vars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    Vc   = MidStr(vars,krnlsz/2+1,1)
+
+    krnv2 = "" krnv3 = ""  Vv = "" krnh2 = "" krnh3 = "" Vh = ""  divx=0  divy=0
+
+    for (i=0, krnlsz, 1) {
+
+        V     = MidStr(vars,i+1,1)
+        Vv    = Vv + " " + V
+        py    = i - krnlsz/2
+        krnv2 = Format(krnv2 + "x[0,{py}] " + V + "^ ")
+        krnv3 = Format(krnv3                + V + " " + Vc + " - abs ")
+        plsv  = i == 0 ? "" : plsv + " + "
+        divy  = divy + 1
+       }
+
+    krnlszh = 2*ceil(3*max(min(sm * 0.30,2.0),0))
+
+    for (i=0, krnlszh, 1) {
+
+        V     = MidStr(vars,i+1,1)
+        Vh    = Vh + " " + V
+        px    = i - krnlszh/2
+        krnh2 = Format(krnh2 + "x[{px},0] " + V + "^ ")
+        krnh3 = Format(krnh3                + V + " " + Vc + " - abs ")
+        plsh  = i == 0 ? "" : plsh + " + "
+        divx = divx + 1
+       }
+
+    strv = krnv2 + krnv3 + plsv +string(th*sv) + " < " + Vv + plsv + string(divy) + " 1 swap / * x ?"
+    strh = krnh2 + krnh3 + plsh +string(th*sm) + " < " + Vh + plsh + string(divx) + " 1 swap / * x ?"
+
+    sv == 0 ?      a                                                                  : \
+    isy     ? Expr(a,    strv                                                       ) : \
+    UV == 1 ? Expr(a,    strv, ""                                                   ) : \
+              Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
+    sm == 0 ? last                                                                    : \
+    isy     ? Expr(last, strh                                                       ) : \
+    UV == 1 ? Expr(last, strh, ""                                                   ) : \
+              Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
+
+
 
 # Savitzky-Golay (S-G) smoothing filter (similar to Gaussian blur)
 function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", int "UV", bool "fulls") {
@@ -845,7 +934,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ## 100% ex_median(mode="medianST")
 ##   81% MedianBlurTemporal(1,1,1) # re-assess without chroma (unstable filter)
 #
-# 27 modes:
+# 28 modes:
 # median    - True median. Replace with kernel middle value *Same as "undot4"
 # median5   - True median. Replace with kernel middle value (5x5 kernel) (very slow)
 # undot     - Also called "conservative", removes one pixel salt'n'pepper noise -removegrain(1)-
@@ -874,6 +963,8 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # ML3Dex    - Extended Multi-Level Median Filter            (Spatio-Temporal)
 # BDM       - Arce Bi-directional Multi-Level Median Filter (Spatio-Temporal, Motion Protected)
 # MMF       - Multistage Median Filter                      (Spatio-Temporal, Motion Protected) (like a 3D undot)
+# EMF       - Extended Median Filter
+
 
 function ex_median(clip a, string "mode", int "UV", bool "fulls") {
 
@@ -1144,6 +1235,25 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
                             swap2                           min
                                                   dup1 dup1 max swap2 min
                             x swap2 clip"                                                                                                                           : \
+                                                                                                                                                                      \
+        mode == "EMF" ?    "x[-1,1] x[0,1]        dup1 dup1 min swap2 max
+                            x[1,1]  x[-1,0]       dup1 dup1 min swap2 max
+                            x[1,0]  x[-1,-1]      dup1 dup1 min swap2 max
+                            x[0,-1] x[1,-1]       dup1 dup1 min swap2 max
+                            swap7  swap1  swap3   dup1 dup1 min swap2 max
+                            swap5  swap1  swap3   dup1 dup1 min swap2 max
+                            swap6  swap1  swap2   dup1 dup1 min swap2 max
+                            swap4  swap1  swap7   dup1 dup1 min swap2 max
+                            swap3  swap1  swap2                       max
+                            swap6                 dup1 dup1 min swap2 max
+                            swap4  swap1  swap5   dup1 dup1 min swap2 max
+                            swap3  swap1  swap2             min
+                            swap4                                     max
+                            swap2                           min
+                            swap3                                     max
+                            swap2                           min
+                                                  dup1 dup1 max swap2 min
+                            x swap2 clip M@ x swap - abs 9 scaleb <= M x ?"                                                                                         : \
                                                                                                                                                                       \
         mode == "Vertical" ?"x[0,1] x[0,-1] dup1 dup1 max swap2 min
                              x swap2 clip"                                                                                                                          : \
@@ -1648,7 +1758,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls") {
 
 
 
-# Replaces Repair() and TemporalRepair()
+# Replaces Repair() and TemporalRepair() (which plugin seems broken)
 function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
@@ -1854,7 +1964,8 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
                             swap2                           min
                             x swap2 swap1 clip"                                                                                                                    : \
                                                                                                                                                                      \
-        mode == "undot4c"? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
+        mode == "undot4c" ||                                                                                                                                         \
+        mode == "medianc" ? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
                             y[1,1]  y[-1,0]       dup1 dup1 min swap2 max
                             y[1,0]  y[-1,-1]      dup1 dup1 min swap2 max
                             y[0,-1] y[1,-1]       dup1 dup1 min swap2 max
