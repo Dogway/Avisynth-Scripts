@@ -1,9 +1,9 @@
 #-------------------------------------------------------------------#
 #                                                                   #
-#     QTGMC 3.33        by Vit,   2012                              #
-#     QTGMC 3.34d   mod by Dogway 2015                              #
-#     QTGMC 3.382s  mod by A.SONY 2021, based on 3.34d              #
-#     QTGMC 3.5 mix mod by Dogway 2021, based on 3.382s             #
+#     QTGMC 3.33         by Vit,   2012                             #
+#     QTGMC 3.34d    mod by Dogway 2015                             #
+#     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
+#     QTGMC 3.51 mix mod by Dogway 2021, based on 3.382s            #
 #                                                                   #
 #   A high quality deinterlacer using motion-compensated temporal   #
 #  smoothing, with a range of features for quality and convenience  #
@@ -15,7 +15,11 @@
 #
 # --- LATEST CHANGES ---
 #
-# v3.5mx
+# v3.51mx
+# - Replaced vinverse() with ex_vinverse() for custem arg
+# - Removed Dither tools related arguments
+#
+# v3.50mx
 # - Replaced masktools2 with Expr calls via ExTools pack wrappers (except mt_merge)
 # - Merged redundant expressions
 # - Replaced blurs and medians with ExTools equivalents
@@ -212,7 +216,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                     int "ShutterBlur", float "ShutterAngleSrc", float "ShutterAngleOut", int "SBlurLimit", bool "Border", bool "Precise", string "Tuning", \
                     bool "ShowSettings", string "GlobalNames", string "PrevGlobals", int "ForceTR", \
                     val "BT", val "DetailRestore", val "MotionBlur", val "MBlurLimit", val "NoiseBypass", float "Str", float "Amp", bool "TV_range", bool "useEdiExt", \
-                    int "DftDither", bool "lsbd", bool "lsb", bool "n16", bool "keep_tv_range", String "device_type", int "device_id", bool "n16d", bool "ESearchP", bool "EdiExtPre", bool "Refinemotion", bool "fulls" )
+                    int "DftDither", bool "n16", bool "keep_tv_range", String "device_type", int "device_id", bool "n16d", bool "ESearchP", bool "EdiExtPre", bool "Refinemotion", bool "fulls" )
 {
     # EdiMode="RepcYadif"/"cYadif" require the Yadif plugin, which doesn't autoload. Typically the calling script would load it.
 
@@ -235,11 +239,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     Amp           = Default( Amp,     0.0625 )
     TV_range      = Default( TV_range, !(Isrgb(input)))
     keep_tv_range = Default( keep_tv_range,      false)
-
-    # Dogways Added Defaults
-    RefineMotion = Default( RefineMotion,        false)
-    lsbd         = Default( lsbd, false)
-    lsb          = Default( lsb,  false)
+    RefineMotion  = Default( RefineMotion,        false)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
     bi      = Input.BitsPerComponent()
@@ -897,7 +897,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                                  repair1.QTGMC_ApplySourceMatch( InputType, ediInput, bVec1,fVec1, bVec2,fVec2, SubPel, SubPelInterp, hpad, vpad,              \
                                                                  ThSAD1, ThSCD1, ThSCD2, SourceMatch, MatchTR1, MatchEdi, MatchNNSize, MatchNNeurons,          \
                                                                  MatchEdiQual, MatchEdiMaxD, MatchTR2, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, \
-                                                                 MatchEdiMaxD2, MatchEnhance, EdiThreads, lsb, n16, bomt, fs )
+                                                                 MatchEdiMaxD2, MatchEnhance, EdiThreads, n16, bomt, fs )
 
     # Lossless=2 - after preparing an interpolated, de-shimmered clip, restore the original source fields into it and clean up any artefacts.
     # This mode will not give a true lossless result because the resharpening and final temporal smooth are still to come, but it will add further detail.
@@ -1074,8 +1074,7 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
                                            Default( Fallback, Input.sh_Bob( 0,0.5 ) )
 
     interp = (EdiMode == "BWDIF+NNEDI3") || \
-             (EdiMode == "BWDIF+EEDI3")   ? bi8 ? isyuy2(Input) ? interp.   vinverse(custem=NNEDI3clp.nonyuy2clipin(true)).nonyuy2clipout(true) : interp.   vinverse(custem=NNEDI3clp) : \
-                                                  isyuy2(Input) ? interp.ex_vinverse(custem=NNEDI3clp.nonyuy2clipin(true)).nonyuy2clipout(true) : interp.ex_vinverse(custem=NNEDI3clp) : interp
+             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.ex_vinverse(custem=NNEDI3clp.nonyuy2clipin(true)).nonyuy2clipout(true) : interp.ex_vinverse(custem=NNEDI3clp) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                           : \
                (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=EdiThreads, Y=false )                                  : \
@@ -1108,7 +1107,7 @@ function QTGMC_KeepOnlyBobShimmerFixes( clip Input, clip Ref, int Rep, bool Chro
     RCrgo = Chroma ? 3 : 2
 
     bi    = Input.BitsPerComponent()
-    diff  = ex_makediff(Ref, Input, UV=RCrg, fulls=fs )
+    diff  = ex_makediff(Ref, Input, UV=RCrgo, fulls=fs )
 
     # Areas of positive difference                                                                  # ed = 0 1 2 3 4 5 6 7
     choke1 =                        diff.mt_inpand(     mode="vertical", U=RCrg,V=RCrg )            #      x x x x x x x x    1 pixel   \
@@ -1132,20 +1131,22 @@ function QTGMC_KeepOnlyBobShimmerFixes( clip Input, clip Ref, int Rep, bool Chro
     choke2 = (ed > 2)             ? diff.ex_expand(2,   mode="vertical", UV=RCrg       ) : choke2
     choke2 = (ed > 5)             ? diff.ex_expand(3,   mode="vertical", UV=RCrg       ) : choke2
     choke2 = (ed % 3 != 0)        ? choke2.mt_inflate( U=RCrg,V=RCrg )                   : choke2
-    choke0 = (ed == 2 || ed == 5) ? choke2.RemoveGrain(4, chroma ? 4 : -1 )              : choke2
-    choke2 =                        choke0.mt_inpand(   mode="vertical", U=RCrg,V=RCrg )
-    choke2 = (ed > 1)             ? choke0.ex_inpand(2, mode="vertical", UV=RCrg       ) : choke2
-    choke2 = (ed > 4)             ? choke0.ex_inpand(3, mode="vertical", UV=RCrg       ) : choke2
+    choke2 = (ed == 2 || ed == 5) ? choke2.RemoveGrain(4, chroma ? 4 : -1 )              : choke2
 
-    choke2 = (od == 0)            ? choke2 : \
-             (od == 1)            ? choke2.mt_deflate( U=RCrg,V=RCrg )                             : \
-             (od == 2)            ? choke2.mt_deflate( U=RCrg,V=RCrg ).mt_deflate( U=RCrg,V=RCrg ) : \
-                                    choke2.mt_inpand ( U=RCrg,V=RCrg )
+    choke0 =                        choke2.mt_inpand(   mode="vertical", U=RCrg,V=RCrg )
+    choke0 = (ed > 1)             ? choke2.ex_inpand(2, mode="vertical", UV=RCrg       ) : choke0
+    choke0 = (ed > 4)             ? choke2.ex_inpand(3, mode="vertical", UV=RCrg       ) : choke0
+
+    # Over-erosion - extra deflation up to about 1 pixel
+    choke2 = (od == 0)            ? choke0 : \
+             (od == 1)            ? choke0.mt_deflate( U=RCrg,V=RCrg )                             : \
+             (od == 2)            ? choke0.mt_deflate( U=RCrg,V=RCrg ).mt_deflate( U=RCrg,V=RCrg ) : \
+                                    choke0.mt_inpand ( U=RCrg,V=RCrg )
 
     # Combine above areas to find those areas of difference to restore
 
     str = ex_dlut("x 129 scalef < x y range_half < range_half y ? ? A@ 127 scalef > A z range_half > range_half z ? ? a + range_half -", bi, fs)
-    restore = Expr(diff, choke1, choke2, Input, str, Chroma ? str : "" )
+    restore = Expr(diff, choke1, choke2, Input, str, Chroma ? str : "x" )
 
     return restore
 }
@@ -1204,13 +1205,13 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
                                  int SubPel, int SubPelInterp, int hpad, int vpad, int ThSAD1, int ThSCD1, int ThSCD2, int SourceMatch, \
                                  int MatchTR1, string MatchEdi, int MatchNNSize, int MatchNNeurons, int MatchEdiQual, int MatchEdiMaxD,\
                                  int MatchTR2, string MatchEdi2, int MatchNNSize2, int MatchNNeurons2, int MatchEdiQual2, int MatchEdiMaxD2, \
-                                 float MatchEnhance, int EdiThreads, bool lsb, bool n16, bool "bomt", bool "fulls" )
+                                 float MatchEnhance, int EdiThreads, bool n16, bool "bomt", bool "fulls" )
 {
     # >>>> YUY2: 'Deinterlace' is planar, 'Source' is interleaved (changed to planar here for all processing except interpolation) - returns planar result
     yuy2 = Source.IsYUY2()
     fs   = Default( fulls, false)
     Source = yuy2 ? Source.nonyuy2clipin(true) : Source
-    sMDegnl  = n16 ? ", out16=n16" : lsb ? ", lsb=lsb" : ""
+    sMDegnl  = n16 ? ", out16=n16" : ""
     sMDegnl  = Defined(bomt) ? sMDegnl + ", mt=bomt" : sMDegnl
 
     # Basic source-match. Find difference between source clip & equivalent fields in interpolated/smoothed clip (called the "error" in formula below). Ideally
