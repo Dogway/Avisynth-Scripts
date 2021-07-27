@@ -1118,24 +1118,25 @@ function QTGMC_KeepOnlyBobShimmerFixes( clip Input, clip Ref, int Rep, bool Chro
     choke1 = (ed == 2 || ed == 5) ? choke1.RemoveGrain(4, chroma ? 4 : -1 )              : choke1   #      . . x . . x . .    Local median
 
     choke0 =                        choke1.mt_expand(   mode="vertical", U=RCrg,V=RCrg )            #      x x x x x x x x    1 pixel  \
-    choke1 = (ed > 1)             ? choke1.ex_expand(2, mode="vertical", UV=RCrg       ) : choke0   #      . . x x x x x x    1 pixel   | Reflate again
-    choke1 = (ed > 4)             ? choke1.ex_expand(3, mode="vertical", UV=RCrg       ) : choke1   #      . . . . . x x x    1 pixel  /
+    choke0 = (ed > 1)             ? choke1.ex_expand(2, mode="vertical", UV=RCrg       ) : choke0   #      . . x x x x x x    1 pixel   | Reflate again
+    choke0 = (ed > 4)             ? choke1.ex_expand(3, mode="vertical", UV=RCrg       ) : choke0   #      . . . . . x x x    1 pixel  /
 
     # Over-dilation - extra reflation up to about 1 pixel
-    choke1 = (od == 0)            ? choke1                                                         : \
-             (od == 1)            ? choke1.mt_inflate( U=RCrg,V=RCrg )                             : \
-             (od == 2)            ? choke1.mt_inflate( U=RCrg,V=RCrg ).mt_inflate( U=RCrg,V=RCrg ) : \
-                                    choke1.mt_expand ( U=RCrg,V=RCrg )
+    choke1 = (od == 0)            ? choke0                                                         : \
+             (od == 1)            ? choke0.mt_inflate( U=RCrg,V=RCrg )                             : \
+             (od == 2)            ? choke0.mt_inflate( U=RCrg,V=RCrg ).mt_inflate( U=RCrg,V=RCrg ) : \
+                                    choke0.mt_expand ( U=RCrg,V=RCrg )
 
     # Areas of negative difference (similar to above)
     choke2 =                        diff.mt_expand(     mode="vertical", U=RCrg,V=RCrg )
     choke2 = (ed > 2)             ? diff.ex_expand(2,   mode="vertical", UV=RCrg       ) : choke2
     choke2 = (ed > 5)             ? diff.ex_expand(3,   mode="vertical", UV=RCrg       ) : choke2
     choke2 = (ed % 3 != 0)        ? choke2.mt_inflate( U=RCrg,V=RCrg )                   : choke2
-    choke2 = (ed == 2 || ed == 5) ? choke2.RemoveGrain(4, chroma ? 4 : -1 )              : choke2
-    choke0 =                        choke2.mt_inpand(   mode="vertical", U=RCrg,V=RCrg )
-    choke2 = (ed > 1)             ? choke2.ex_inpand(2, mode="vertical", UV=RCrg       ) : choke0
-    choke2 = (ed > 4)             ? choke2.ex_inpand(3, mode="vertical", UV=RCrg       ) : choke2
+    choke0 = (ed == 2 || ed == 5) ? choke2.RemoveGrain(4, chroma ? 4 : -1 )              : choke2
+    choke2 =                        choke0.mt_inpand(   mode="vertical", U=RCrg,V=RCrg )
+    choke2 = (ed > 1)             ? choke0.ex_inpand(2, mode="vertical", UV=RCrg       ) : choke2
+    choke2 = (ed > 4)             ? choke0.ex_inpand(3, mode="vertical", UV=RCrg       ) : choke2
+
     choke2 = (od == 0)            ? choke2 : \
              (od == 1)            ? choke2.mt_deflate( U=RCrg,V=RCrg )                             : \
              (od == 2)            ? choke2.mt_deflate( U=RCrg,V=RCrg ).mt_deflate( U=RCrg,V=RCrg ) : \
