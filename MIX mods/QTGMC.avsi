@@ -564,14 +564,14 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                   (SrchClipPP == 1) ? repair0.BilinearResize( w/2, h/2 ).RemoveGrain( 12, CMrg).BilinearResize( w, h ) : \
                                       repair0.RemoveGrain( 12, CMrg).GaussResize( w,h, 0,0, w+epsilon,h+epsilon, p=2 )
 
-    spatialBlur = (SrchClipPP > 1 && IsClip(spatialBlur)) ? (ChromaMotion ? spatialBlur.Merge( repair0, 0.1 ) : spatialBlur.MergeLuma( repair0, 0.1 )) : spatialBlur
-    tweaked     = (SrchClipPP > 1 && !srchcheck)  ? ex_lutxy( repair0, bobbed, "x 3 scalef + A@ y < A x 3 scalef - B@ y > B y ? ?", UV=CMmt, fulls=fs ) : nop()
+    spatialBlur = (SrchClipPP > 1 && IsClip(spatialBlur)) ? (ChromaMotion ? spatialBlur.Merge( repair0, 0.1 ) : spatialBlur.MergeLuma( repair0, 0.1 ))          : spatialBlur
+    tweaked     = (SrchClipPP > 1 && !srchcheck)          ? ex_lutxy( repair0, bobbed, "x 3 scalef + A@ y < A x 3 scalef - B@ y > B y ? ?", UV=CMmt, fulls=fs ) : nop()
     srchClip    = srchcheck         ? srchClip    : \
                   (SrchClipPP == 0) ? repair0     : \
                   (SrchClipPP  < 3) ? spatialBlur : \
                                       spatialBlur.ex_lutxy( tweaked, "x 7 scalef + y < x 2 scalef + x 7 scalef - y > x 2 scalef - x 0.51 * y 0.49 * + ? ?", UV=CMmt, fulls=fs )
     srchClip    = tv_range && !srchcheck ? srchClip.ex_Luma_Rebuild(S0=Str,c=Amp,uv=CMmt, fulls=fs) : srchClip
-    srchClip    = bi8 ? srchClip.ConvertBits(8,dither=-1) : srchClip
+    srchClip    = bi8 ? srchClip : srchClip.ConvertBits(8,dither=-1)
     # Calculate forward and backward motion vectors from motion search clip
     srchSuper = IsClip(srchSuper) ? srchSuper                                                                                                             : \
                 (maxTR > 0)       ? Defined(bomt) ? srchClip.MSuper( pel=SubPel, sharp=SubPelInterp, hpad=hpad, vpad=vpad, chroma=ChromaMotion, mt=bomt ) : \
