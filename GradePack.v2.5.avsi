@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v2.5 (25-07-2021)               ##
+###           Grade Pack v2.51 (25-07-2021)              ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -156,6 +156,9 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     rangePC  = tv ? "x ymin - ymax ymin - /" : "x range_max /"
     rangeTV  = tv ? "ymax ymin - * ymin +"   : "  range_max *"
 
+    rangePCc = tv ? "x range_half - range_max cmax cmin - / * range_half +" : "x"
+    rangeTVc = tv ?   "range_half - cmax cmin - range_max / * range_half +" : ""
+
     sat    = sat != 0. ? (1.-max(min(sat, 1.), -1.))/2. - 0.5 : 0.
     cont   = pow(cont + sign(cont), 3.)
     rcont  = 1. / cont
@@ -168,9 +171,6 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     ycont  = "1 1 {cont} {pivot} "+rangePC+" - * exp + / {knee} - {rshmkn} * "+rangeTV+""
     yconti = "{pivot} 1 "+rangePC+" {shmkn} * {knee} + / 1 - log {rcont} * - "+rangeTV+""
     str    = cont != 0. ? ex_dlut(Format(cont > 0. ? ycont : yconti), bi, fs) : ""
-
-    rangePCc  = tv ? "x range_half - range_max cmax cmin - / * range_half +" : "x"
-    rangeTVc  = tv ?   "range_half - cmax cmin - range_max / * range_half +" : ""
 
     cstr = sat != 0. ? Format(""+string(1. - sat)+" "+rangePCc+" dup swap2 * range_max swap1 swap2 - {sat} * + "+rangeTVc+"") : "x"
     cstr = rgb ? str : ex_dlut(ex_UVexpr(cstr, UV, bi, rgb, fs), bi, fs)
@@ -186,7 +186,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
-###
+### ...and proper handling of tv range levels
 ###
 ### Dependencies: > AviSynth+ 3.5
 ###                 ExTools
@@ -195,7 +195,8 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###
 ####################################
 
-
+# oSmoothLevels(10, 1.40, 245, 10, 255, 0, 0)           is 80% slower than ex_levels(10, 1.40, 245, 10, 255, false, 1)
+# Levels(10*256, 1.40, 245*256, 10*256, 255*256, false) is 25% faster than ex_levels(10, 1.40, 245, 10, 255, false, 1)
 function ex_levels (clip c, int "input_low", float "gamma", int "input_high", int "output_low", int "output_high", bool "tv_range", int "UV", bool "fulls") {
 
     rgb  = IsRGB(c)
