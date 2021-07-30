@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.5     (30-07-2021)              ##
+###           ExTools v4.5b     (30-07-2021)             ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -1290,19 +1290,33 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             y[1,0] z[-1,0]  dup1 dup1 min U^ max V^
                             z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
                             z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
-                            B A -
-                            D C - AA@ min
-                            F E - AB@ min
-                            H G - AC@ min
-                            J I - AD@ min
-                            L K - AE@ min
-                            N M - AF@ min
-                            P O - AG@ min
-                            R Q - AH@ min
-                            T S - AI@ min
-                            V U - AJ@ min
-                            X W - AK@ min
-                            Z Y - AL@ min BB^
+                            B A - AM^
+                            D C - AA^
+                            F E - AB^
+                            H G - AC^
+                            J I - AD^
+                            L K - AE^
+                            N M - AF^
+                            P O - AG^
+                            R Q - AH^
+                            T S - AI^
+                            V U - AJ^
+                            X W - AK^
+                            Z Y - AL^
+                            AM
+                            AA min
+                            AB min
+                            AC min
+                            AD min
+                            AE min
+                            AF min
+                            AG min
+                            AH min
+                            AI min
+                            AJ min
+                            AK min
+                            AL min BB^
+
                             BB AL == x Y Z clip BB AJ == x U V clip BB AK == x W X clip BB AI == x S T clip BB AG == x O P clip BB AH == x Q R clip BB AF == x M N clip BB AD == x I J clip BB AE == x K L clip BB AC == x G H clip BB AA == x C D clip BB AB == x E F clip x A B clip ? ? ? ? ? ? ? ? ? ? ? ?
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                : \
                                                                                                                                                                      \
@@ -1321,19 +1335,32 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
                             z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
 
-                            B A - 4 * x dup A B clip A@ - abs + 0 range_max clip AM@
-                            D C - 4 * x dup C D clip B@ - abs + 0 range_max clip AA@ min
-                            F E - 4 * x dup E F clip C@ - abs + 0 range_max clip AB@ min
-                            H G - 4 * x dup G H clip D@ - abs + 0 range_max clip AC@ min
-                            J I - 4 * x dup I J clip E@ - abs + 0 range_max clip AD@ min
-                            L K - 4 * x dup K L clip F@ - abs + 0 range_max clip AE@ min
-                            N M - 4 * x dup M N clip G@ - abs + 0 range_max clip AF@ min
-                            P O - 4 * x dup O P clip H@ - abs + 0 range_max clip AG@ min
-                            R Q - 4 * x dup Q R clip I@ - abs + 0 range_max clip AH@ min
-                            T S - 4 * x dup S T clip J@ - abs + 0 range_max clip AI@ min
-                            V U - 4 * x dup U V clip K@ - abs + 0 range_max clip AJ@ min
-                            X W - 4 * x dup W X clip L@ - abs + 0 range_max clip AK@ min
-                            Z Y - 4 * x dup Y Z clip M@ - abs + 0 range_max clip AL@ min BB^
+                            B A - 4 * x dup A B clip A@ - abs + AM^
+                            D C - 4 * x dup C D clip B@ - abs + AA^
+                            F E - 4 * x dup E F clip C@ - abs + AB^
+                            H G - 4 * x dup G H clip D@ - abs + AC^
+                            J I - 4 * x dup I J clip E@ - abs + AD^
+                            L K - 4 * x dup K L clip F@ - abs + AE^
+                            N M - 4 * x dup M N clip G@ - abs + AF^
+                            P O - 4 * x dup O P clip H@ - abs + AG^
+                            R Q - 4 * x dup Q R clip I@ - abs + AH^
+                            T S - 4 * x dup S T clip J@ - abs + AI^
+                            V U - 4 * x dup U V clip K@ - abs + AJ^
+                            X W - 4 * x dup W X clip L@ - abs + AK^
+                            Z Y - 4 * x dup Y Z clip M@ - abs + AL^
+                            AM
+                            AA min
+                            AB min
+                            AC min
+                            AD min
+                            AE min
+                            AF min
+                            AG min
+                            AH min
+                            AI min
+                            AJ min
+                            AK min
+                            AL min BB^
 
                             BB AL == M BB AJ == K BB AK == L BB AI == J BB AG == H BB AH == I BB AF == G BB AD == E BB AE == F BB AC == D BB AA == B BB AB == C A ? ? ? ? ? ? ? ? ? ? ? ?
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
@@ -1353,19 +1380,32 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
                             z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
 
-                            B A - 2 * x dup A B clip A@ - abs + 0 range_max clip AM@
-                            D C - 2 * x dup C D clip B@ - abs + 0 range_max clip AA@ min
-                            F E - 2 * x dup E F clip C@ - abs + 0 range_max clip AB@ min
-                            H G - 2 * x dup G H clip D@ - abs + 0 range_max clip AC@ min
-                            J I - 2 * x dup I J clip E@ - abs + 0 range_max clip AD@ min
-                            L K - 2 * x dup K L clip F@ - abs + 0 range_max clip AE@ min
-                            N M - 2 * x dup M N clip G@ - abs + 0 range_max clip AF@ min
-                            P O - 2 * x dup O P clip H@ - abs + 0 range_max clip AG@ min
-                            R Q - 2 * x dup Q R clip I@ - abs + 0 range_max clip AH@ min
-                            T S - 2 * x dup S T clip J@ - abs + 0 range_max clip AI@ min
-                            V U - 2 * x dup U V clip K@ - abs + 0 range_max clip AJ@ min
-                            X W - 2 * x dup W X clip L@ - abs + 0 range_max clip AK@ min
-                            Z Y - 2 * x dup Y Z clip M@ - abs + 0 range_max clip AL@ min BB^
+                            B A - 2 * x dup A B clip A@ - abs + AM^
+                            D C - 2 * x dup C D clip B@ - abs + AA^
+                            F E - 2 * x dup E F clip C@ - abs + AB^
+                            H G - 2 * x dup G H clip D@ - abs + AC^
+                            J I - 2 * x dup I J clip E@ - abs + AD^
+                            L K - 2 * x dup K L clip F@ - abs + AE^
+                            N M - 2 * x dup M N clip G@ - abs + AF^
+                            P O - 2 * x dup O P clip H@ - abs + AG^
+                            R Q - 2 * x dup Q R clip I@ - abs + AH^
+                            T S - 2 * x dup S T clip J@ - abs + AI^
+                            V U - 2 * x dup U V clip K@ - abs + AJ^
+                            X W - 2 * x dup W X clip L@ - abs + AK^
+                            Z Y - 2 * x dup Y Z clip M@ - abs + AL^
+                            AM
+                            AA min
+                            AB min
+                            AC min
+                            AD min
+                            AE min
+                            AF min
+                            AG min
+                            AH min
+                            AI min
+                            AJ min
+                            AK min
+                            AL min BB^
 
                             BB AL == M BB AJ == K BB AK == L BB AI == J BB AG == H BB AH == I BB AF == G BB AD == E BB AE == F BB AC == D BB AA == B BB AB == C A ? ? ? ? ? ? ? ? ? ? ? ?
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
@@ -1385,19 +1425,32 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
                             z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
 
-                            B A - x dup A B clip A@ - abs + AM@
-                            D C - x dup C D clip B@ - abs + AA@ min
-                            F E - x dup E F clip C@ - abs + AB@ min
-                            H G - x dup G H clip D@ - abs + AC@ min
-                            J I - x dup I J clip E@ - abs + AD@ min
-                            L K - x dup K L clip F@ - abs + AE@ min
-                            N M - x dup M N clip G@ - abs + AF@ min
-                            P O - x dup O P clip H@ - abs + AG@ min
-                            R Q - x dup Q R clip I@ - abs + AH@ min
-                            T S - x dup S T clip J@ - abs + AI@ min
-                            V U - x dup U V clip K@ - abs + AJ@ min
-                            X W - x dup W X clip L@ - abs + AK@ min
-                            Z Y - x dup Y Z clip M@ - abs + AL@ min BB^
+                            B A - x dup A B clip A@ - abs + AM^
+                            D C - x dup C D clip B@ - abs + AA^
+                            F E - x dup E F clip C@ - abs + AB^
+                            H G - x dup G H clip D@ - abs + AC^
+                            J I - x dup I J clip E@ - abs + AD^
+                            L K - x dup K L clip F@ - abs + AE^
+                            N M - x dup M N clip G@ - abs + AF^
+                            P O - x dup O P clip H@ - abs + AG^
+                            R Q - x dup Q R clip I@ - abs + AH^
+                            T S - x dup S T clip J@ - abs + AI^
+                            V U - x dup U V clip K@ - abs + AJ^
+                            X W - x dup W X clip L@ - abs + AK^
+                            Z Y - x dup Y Z clip M@ - abs + AL^
+                            AM
+                            AA min
+                            AB min
+                            AC min
+                            AD min
+                            AE min
+                            AF min
+                            AG min
+                            AH min
+                            AI min
+                            AJ min
+                            AK min
+                            AL min BB^
 
                             BB AL == M BB AJ == K BB AK == L BB AI == J BB AG == H BB AH == I BB AF == G BB AD == E BB AE == F BB AC == D BB AA == B BB AB == C A ? ? ? ? ? ? ? ? ? ? ? ?
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
@@ -1417,19 +1470,32 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
                             z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
 
-                            B A - x dup A B clip A@ - abs 2 * + 0 range_max clip AM@
-                            D C - x dup C D clip B@ - abs 2 * + 0 range_max clip AA@ min
-                            F E - x dup E F clip C@ - abs 2 * + 0 range_max clip AB@ min
-                            H G - x dup G H clip D@ - abs 2 * + 0 range_max clip AC@ min
-                            J I - x dup I J clip E@ - abs 2 * + 0 range_max clip AD@ min
-                            L K - x dup K L clip F@ - abs 2 * + 0 range_max clip AE@ min
-                            N M - x dup M N clip G@ - abs 2 * + 0 range_max clip AF@ min
-                            P O - x dup O P clip H@ - abs 2 * + 0 range_max clip AG@ min
-                            R Q - x dup Q R clip I@ - abs 2 * + 0 range_max clip AH@ min
-                            T S - x dup S T clip J@ - abs 2 * + 0 range_max clip AI@ min
-                            V U - x dup U V clip K@ - abs 2 * + 0 range_max clip AJ@ min
-                            X W - x dup W X clip L@ - abs 2 * + 0 range_max clip AK@ min
-                            Z Y - x dup Y Z clip M@ - abs 2 * + 0 range_max clip AL@ min BB^
+                            B A - x dup A B clip A@ - abs 2 * + 0 range_max clip AM^
+                            D C - x dup C D clip B@ - abs 2 * + 0 range_max clip AA^
+                            F E - x dup E F clip C@ - abs 2 * + 0 range_max clip AB^
+                            H G - x dup G H clip D@ - abs 2 * + 0 range_max clip AC^
+                            J I - x dup I J clip E@ - abs 2 * + 0 range_max clip AD^
+                            L K - x dup K L clip F@ - abs 2 * + 0 range_max clip AE^
+                            N M - x dup M N clip G@ - abs 2 * + 0 range_max clip AF^
+                            P O - x dup O P clip H@ - abs 2 * + 0 range_max clip AG^
+                            R Q - x dup Q R clip I@ - abs 2 * + 0 range_max clip AH^
+                            T S - x dup S T clip J@ - abs 2 * + 0 range_max clip AI^
+                            V U - x dup U V clip K@ - abs 2 * + 0 range_max clip AJ^
+                            X W - x dup W X clip L@ - abs 2 * + 0 range_max clip AK^
+                            Z Y - x dup Y Z clip M@ - abs 2 * + 0 range_max clip AL^
+                            AM
+                            AA min
+                            AB min
+                            AC min
+                            AD min
+                            AE min
+                            AF min
+                            AG min
+                            AH min
+                            AI min
+                            AJ min
+                            AK min
+                            AL min BB^
 
                             BB AL == M BB AJ == K BB AK == L BB AI == J BB AG == H BB AH == I BB AF == G BB AD == E BB AE == F BB AC == D BB AA == B BB AB == C A ? ? ? ? ? ? ? ? ? ? ? ?
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
@@ -1449,19 +1515,32 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
                             z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
 
-                            x dup A B clip A@ - abs AM@
-                            x dup C D clip B@ - abs AA@ min
-                            x dup E F clip C@ - abs AB@ min
-                            x dup G H clip D@ - abs AC@ min
-                            x dup I J clip E@ - abs AD@ min
-                            x dup K L clip F@ - abs AE@ min
-                            x dup M N clip G@ - abs AF@ min
-                            x dup O P clip H@ - abs AG@ min
-                            x dup Q R clip I@ - abs AH@ min
-                            x dup S T clip J@ - abs AI@ min
-                            x dup U V clip K@ - abs AJ@ min
-                            x dup W X clip L@ - abs AK@ min
-                            x dup Y Z clip M@ - abs AL@ min BB^
+                            x dup A B clip A@ - abs AM^
+                            x dup C D clip B@ - abs AA^
+                            x dup E F clip C@ - abs AB^
+                            x dup G H clip D@ - abs AC^
+                            x dup I J clip E@ - abs AD^
+                            x dup K L clip F@ - abs AE^
+                            x dup M N clip G@ - abs AF^
+                            x dup O P clip H@ - abs AG^
+                            x dup Q R clip I@ - abs AH^
+                            x dup S T clip J@ - abs AI^
+                            x dup U V clip K@ - abs AJ^
+                            x dup W X clip L@ - abs AK^
+                            x dup Y Z clip M@ - abs AL^
+                            AM
+                            AA min
+                            AB min
+                            AC min
+                            AD min
+                            AE min
+                            AF min
+                            AG min
+                            AH min
+                            AI min
+                            AJ min
+                            AK min
+                            AL min BB^
 
                             BB AL == M BB AJ == K BB AK == L BB AI == J BB AG == H BB AH == I BB AF == G BB AD == E BB AE == F BB AC == D BB AA == B BB AB == C A ? ? ? ? ? ? ? ? ? ? ? ?
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
