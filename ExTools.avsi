@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.5b     (30-07-2021)             ##
+###           ExTools v4.5c     (30-07-2021)             ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -1243,8 +1243,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             swap2                           min
                                                   dup1 dup1 max swap2 min
                             x swap2 clip"                                                                                                                           : \
-
-
+                                                                                                                                                                      \
         mode == "EMF" ?    "x[-1,1] x[0,1]        dup1 dup1 min swap2 max
                             x[1,1]  x[-1,0]       dup1 dup1 min swap2 max
                             x[1,0]  x[-1,-1]      dup1 dup1 min swap2 max
@@ -1470,19 +1469,19 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
                             z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
 
-                            B A - x dup A B clip A@ - abs 2 * + 0 range_max clip AM^
-                            D C - x dup C D clip B@ - abs 2 * + 0 range_max clip AA^
-                            F E - x dup E F clip C@ - abs 2 * + 0 range_max clip AB^
-                            H G - x dup G H clip D@ - abs 2 * + 0 range_max clip AC^
-                            J I - x dup I J clip E@ - abs 2 * + 0 range_max clip AD^
-                            L K - x dup K L clip F@ - abs 2 * + 0 range_max clip AE^
-                            N M - x dup M N clip G@ - abs 2 * + 0 range_max clip AF^
-                            P O - x dup O P clip H@ - abs 2 * + 0 range_max clip AG^
-                            R Q - x dup Q R clip I@ - abs 2 * + 0 range_max clip AH^
-                            T S - x dup S T clip J@ - abs 2 * + 0 range_max clip AI^
-                            V U - x dup U V clip K@ - abs 2 * + 0 range_max clip AJ^
-                            X W - x dup W X clip L@ - abs 2 * + 0 range_max clip AK^
-                            Z Y - x dup Y Z clip M@ - abs 2 * + 0 range_max clip AL^
+                            B A - x dup A B clip A@ - abs 2 * + AM^
+                            D C - x dup C D clip B@ - abs 2 * + AA^
+                            F E - x dup E F clip C@ - abs 2 * + AB^
+                            H G - x dup G H clip D@ - abs 2 * + AC^
+                            J I - x dup I J clip E@ - abs 2 * + AD^
+                            L K - x dup K L clip F@ - abs 2 * + AE^
+                            N M - x dup M N clip G@ - abs 2 * + AF^
+                            P O - x dup O P clip H@ - abs 2 * + AG^
+                            R Q - x dup Q R clip I@ - abs 2 * + AH^
+                            T S - x dup S T clip J@ - abs 2 * + AI^
+                            V U - x dup U V clip K@ - abs 2 * + AJ^
+                            X W - x dup W X clip L@ - abs 2 * + AK^
+                            Z Y - x dup Y Z clip M@ - abs 2 * + AL^
                             AM
                             AA min
                             AB min
