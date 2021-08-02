@@ -71,7 +71,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     UV           = Default(UV,              rgb ? 3 : 1)
     fs           = Default(fulls,           rgb)
 
-    tv_range = tv_range ? "ymax ymin - * ymin +" : "range_max *"
+    tv       = tv_range ? "ymax ymin - * ymin +" : "range_max *"
     r_max    = 1./ex_bs(255,      bi, fs)
     a_eps    = ex_bs(2.55,        bi, fs)
     a_offset = ex_bs(a_offset,    bi, fs)
@@ -86,14 +86,16 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     D_over   = ex_bs(D_overshoot, 32, fs)
     dW_lothr = ex_bs(dW_lothr,    bi, fs)
     dW_hithr = ex_bs(dW_hithr,    bi, fs)
+    dW       = 1. / (dW_hithr - dW_lothr)
 
     # Custom weighted DoG edge detection
     edge = Format("x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ " \
                  +"B E D C + + + 2 * J K L M + + + A 4 * + + 1 16 / * S^ S F - abs S G - abs S H - abs S I - abs  + + + 0.23 * S J - abs S K - abs S L - abs S M - abs + + + 0.92 * S B - abs S E - abs S D - abs S C - abs + + + 1.15 * S A - abs 1.38 * + + +
                    {r_max} * 2 S -2.466666681 {r_max} * * ^ 0.9 * 0.266666667 + 0 1 clip * range_max * {a_offset} +")
 
-    edge = isy ? Expr(a, edge                                    ) : \
-                 Expr(a, edge, "",   scale_inputs=ex_UVf(rgb, bi))
+    edge = isy ? Expr(a, edge                                                                , optSingleMode=false) : \
+      UV == 1  ? Expr(a, edge, ""                                                            , optSingleMode=false) : \
+                 Expr(a, edge, ex_UVexpr(edge, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
 
 
     oh = bi == 32 ? 1 : ex_bs(82, bi, fs)
@@ -111,18 +113,19 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
            x[1,2]   C x[2,1]    {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} -
            x[-2,-1] F x[-1,-2]  {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} - * + {oh} {os} - *"), bi, fs)
 
-    sbe = isy ? Expr(edge, sbe                                    ) : \
-                Expr(edge, sbe, "",   scale_inputs=ex_UVf(rgb, bi))
+    sbe = isy ? Expr(edge, sbe                                                               , optSingleMode=false) : \
+      UV == 1 ? Expr(edge, sbe, ""                                                           , optSingleMode=false) : \
+                Expr(edge, sbe, ex_UVexpr(sbe, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
 
 
-    luma = a.SMPTE_legal(false,UV=1,fulls=fs)
+    luma = tv_range ? a.SMPTE_legal(false,UV=UV,fulls=fs) : a
 
     sharpdiff = ex_dlut(Format("
-                y {a_offset} - {dW_lothr} - 1 {dW_hithr} {dW_lothr} - / * 0 1 clip
+                y {a_offset} - {dW_lothr} - {dW} * 0 1 clip
                 dup dup * swap 2 * 3 swap - * Z^
 
-                Z dup 0.86602540378 * swap 1 swap - 0.5 * + 2 ^ X^
-                Z dup 0.54772255751 * swap 1 swap - 1.41421356237 * + 2 ^ Z^
+                Z dup 0.86602540378 * swap 1 swap - 0.5 * + dup * X^
+                Z dup 0.54772255751 * swap 1 swap - 1.41421356237 * + dup * Z^
 
                 x[0,0] T@ x[0,1]   B@ - abs
                        T  x[-1,0]  C@ - abs
@@ -220,18 +223,18 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
                 LK C10 * WK^
                 LL C11 * WL^
 
-                WA J {r_max} * 0.06 + 2.222222 ^ *
-                WB B {r_max} * 0.06 + 2.222222 ^ * +
-                WC L {r_max} * 0.06 + 2.222222 ^ * +
-                WD C {r_max} * 0.06 + 2.222222 ^ * +
-                WE D {r_max} * 0.06 + 2.222222 ^ * +
-                WF K {r_max} * 0.06 + 2.222222 ^ * +
-                WG E {r_max} * 0.06 + 2.222222 ^ * +
-                WH M {r_max} * 0.06 + 2.222222 ^ * +
-                WI F {r_max} * 0.06 + 2.222222 ^ * +
-                WJ I {r_max} * 0.06 + 2.222222 ^ * +
-                WK H {r_max} * 0.06 + 2.222222 ^ * +
-                WL G {r_max} * 0.06 + 2.222222 ^ * +
+                WA J {r_max} * 0.06 + 2.4 ^ *
+                WB B {r_max} * 0.06 + 2.4 ^ * +
+                WC L {r_max} * 0.06 + 2.4 ^ * +
+                WD C {r_max} * 0.06 + 2.4 ^ * +
+                WE D {r_max} * 0.06 + 2.4 ^ * +
+                WF K {r_max} * 0.06 + 2.4 ^ * +
+                WG E {r_max} * 0.06 + 2.4 ^ * +
+                WH M {r_max} * 0.06 + 2.4 ^ * +
+                WI F {r_max} * 0.06 + 2.4 ^ * +
+                WJ I {r_max} * 0.06 + 2.4 ^ * +
+                WK H {r_max} * 0.06 + 2.4 ^ * +
+                WL G {r_max} * 0.06 + 2.4 ^ * +
 
                 WA WB WC WD WE WF WG WH WI WJ WK WL + + + + + + + + + + + / abs 0.416666667 ^ 0.06 - L^
                 LA LB LC LD LE LF LG LH LI LJ LK LL + + + + + + + + + + + 0.083333333 *  T^
@@ -240,9 +243,9 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
                 T V * 0.01 + x {r_max} * L - *  range_max * range_half +"), bi, fs)
 
-    sharpdiff = isy ? Expr(luma, edge, sharpdiff                                    ) : \
-                      Expr(luma, edge, sharpdiff, "",   scale_inputs=ex_UVf(rgb, bi))
-
+    sharpdiff = isy ? Expr(luma, edge, sharpdiff                                                                     , optSingleMode=false) : \
+            UV == 1 ? Expr(luma, edge, sharpdiff, ""                                                                 , optSingleMode=false) : \
+                      Expr(luma, edge, sharpdiff, ex_UVexpr(sharpdiff, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
 
 
     sharp = ex_dlut(Format("
@@ -353,7 +356,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
             y range_half - {r_max} * abs Y@ 0 max U@ P 24 * min 2 * P / 2.718281828 swap ^ E@ 1 - E 1 + / P * SP^
             Y                               0 min V@ N 24 * min 2 * N / 2.718281828 swap ^ E@ 1 - E 1 + / N * SN^
 
-            z {oh} / 2 - 0.909090909 * 0 1 clip
+            z 1 {oh} / * 2 - 0.909090909 * 0 1 clip
             dup dup * swap 2 * 3 swap - * C^
             C dup {D_compr_high} * swap 1 swap - {D_compr_low} * + CH^
             C dup {L_compr_high} * swap 1 swap - {L_compr_low} * + CL^
@@ -362,11 +365,11 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
             V {pm_p} ^ CH *  SN abs {pm_p} ^ 1 CH - abs * + 1 {pm_p} / ^ - R^
 
             X R + 0 1 clip X -
-            3 * R + 0.25 * X + "+tv_range+"
+            3 * R + 0.25 * X + "+tv+"
             "), bi, fs)
 
-            isy ? Expr(luma, sharpdiff, sbe, sharp                                    ) : \
-                  Expr(luma, sharpdiff, sbe, sharp, "",   scale_inputs=ex_UVf(rgb, bi))
-
+            isy     ? Expr(luma, sharpdiff, sbe, sharp                                                                 , optSingleMode=false) : \
+            UV == 1 ? Expr(luma, sharpdiff, sbe, sharp, ""                                                             , optSingleMode=false) : \
+                      Expr(luma, sharpdiff, sbe, sharp, ex_UVexpr(sharp, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
 
 }
