@@ -44,7 +44,7 @@
 ####################################
 
 function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", float "L_over", float "H_compr_lo", float "H_compr_hi", float "L_compr_lo", float "L_compr_hi", float "scale_lim", float "scale_cs", \
-                                  float "dW_lothr", float "dW_hithr", float "lowthr_mxw", float "pm_p", float "alpha_out", float "a_offset", float "bounds_check", float "tv_range", float "UV", float "fulls") {
+                                  float "dW_lothr", float "dW_hithr", float "lowthr_mxw", float "pm_p", float "a_offset", float "tv_range", float "UV", float "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -66,9 +66,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     dW_hithr     = Default(dW_hithr,      204.0)                # When dW is equal to W2
     lowthr_mxw   = Default(lowthr_mxw,    0.1  )                # Edge value for max lowthr weight [>0.01]
     pm_p         = Default(pm_p,          0.7  )                # Power mean p-value [>0-1.0]
-    alpha_out    = Default(alpha_out,     1.0  )                # MPDN requires the alpha channel output to be 1.0
     a_offset     = Default(a_offset,      2.0  )                # Edge channel offset, MUST BE THE SAME IN ALL PASSES [0-255]
-    bounds_check = Default(bounds_check, true  )                # If edge data is outside bounds, make pixels green
     tv_range     = Default(tv_range,       !rgb)                # True to preserve BTB & WTW (minor summation error)
     UV           = Default(UV,              rgb ? 3 : 1)
     fs           = Default(fulls,           rgb)
