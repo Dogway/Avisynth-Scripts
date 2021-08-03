@@ -25,7 +25,7 @@
 ###########################################################################
 ###
 ###
-### Adaptive_Sharpen() - v1.0 (02-08-2021)
+### Adaptive_Sharpen() - v1.1 (03-08-2021)
 ###
 ### https://forum.doom9.org/showthread.php?t=182881
 ###
@@ -77,9 +77,9 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     a_offset = ex_bs(a_offset,    bi, fs)
     a_off_ep = a_offset - a_eps
     lthr_m   = ex_bs(lowthr_mxw,  bi, fs)
-    lthr_r   = 1. / (lthr_m - a_eps)
+    lthr_r   = (1. / (0.1 - 0.01)) * r_max
     sbe_h    = ex_bs(216.75,      32, fs)
-    sbe_m    = ex_bs(14.28,       bi, fs)
+    sbe_m    = ex_bs(14.28,       bi, fs) - a_offset * 3
     sbe_l    = ex_bs(7.65,        32, fs)
     sd_off   = ex_bs(5.1,         bi, fs)
     L_over   = ex_bs(L_overshoot, 32, fs)
@@ -90,28 +90,27 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
     # Custom weighted DoG edge detection
     edge = Format("x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ " \
-                 +"B E D C + + + 2 * J K L M + + + A 4 * + + 1 16 / * S^ S F - abs S G - abs S H - abs S I - abs  + + + 0.23 * S J - abs S K - abs S L - abs S M - abs + + + 0.92 * S B - abs S E - abs S D - abs S C - abs + + + 1.15 * S A - abs 1.38 * + + +
-                   {r_max} * 2 S -2.466666681 {r_max} * * ^ 0.9 * 0.266666667 + 0 1 clip * range_max * {a_offset} +")
+                 +"B E D C + + + 2 * J K L M + + + A 4 * + + 1 16 / * S@ F - abs S G - abs S H - abs S I - abs + + + 0.23 * S J - abs S K - abs S L - abs S M - abs + + + 0.92 * S B - abs S E - abs S D - abs S C - abs + + + 1.15 * S A - abs 1.38 * + + +
+                   {r_max} * 0.65 ^ 2 S {r_max} -2.466666681 1.442695040888963 * * * ^ 0.9 * 0.266666667 + 0 1 clip * range_max * {a_offset} +")
 
     edge = isy ? Expr(a, edge                                                                , optSingleMode=false) : \
       UV == 1  ? Expr(a, edge, ""                                                            , optSingleMode=false) : \
                  Expr(a, edge, ex_UVexpr(edge, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
 
 
-    oh = bi == 32 ? 1 : ex_bs(82, bi, fs)
-    os = bi == 32 ? 0 : ex_bs(20, bi, fs)
-
-    # Similar Bound Edge (Soft if, fast linear approx)
+    # Similar Bound Edge (soft_if(), fast linear approx)
     sbe = ex_dlut(Format("
-           x[-1,1] A@ x[0,1] B@ max  x[1,1] C@ x[-1,0] D@ max max     x[1,0] E@ x[-1,-1] F@ max x[0,-1] G@ x[1,-1] H@ max max  max  x[0,2] I@ x[-2,0] J@ max x[2,0] K@ x[0,-2] L@ max max x[0,0] X@ max max {r_max} * M^
-           x[0,3]   I   B       {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} -
-           G  L  x[0,-3]        {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} - *
-           x[-3,0]  J D         {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} -
-           E  K   x[3,0]        {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} - * +
-           x[-1,2]  x[-2,1]  A  {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} -
-           H x[2,-1]  x[1,-2]   {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} - * +
-           x[1,2]   C x[2,1]    {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} -
-           x[-2,-1] F x[-1,-2]  {sbe_m} + + + {a_offset} 3 * - {r_max} * M {sbe_l} + / {sbe_h} - * + {oh} {os} - *"), bi, fs)
+           x[-1,1] A@ x[0,1] B@ max  x[1,1] C@ x[-1,0] D@ max max     x[1,0] E@ x[-1,-1] F@ max x[0,-1] G@ x[1,-1] H@ max max  max
+            x[0,2] I@ x[-2,0] J@ max x[2,0] K@ x[0,-2] L@ max max     x[0,0] X@ max max {r_max} * M^
+           x[0,3]   I   B       {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} -
+           G  L  x[0,-3]        {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} - *
+           x[-3,0]  J D         {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} -
+           E  K   x[3,0]        {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} - * +
+           x[-1,2]  x[-2,1]  A  {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} -
+           H x[2,-1]  x[1,-2]   {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} - * +
+           x[1,2]   C x[2,1]    {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} -
+           x[-2,-1] F x[-1,-2]  {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} - * +
+           2 - 0.909090909 * 0 1 clip dup dup * swap 2 * 3 swap - * range_max *"), bi, fs)
 
     sbe = isy ? Expr(edge, sbe                                                               , optSingleMode=false) : \
       UV == 1 ? Expr(edge, sbe, ""                                                           , optSingleMode=false) : \
@@ -125,6 +124,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
                 dup dup * swap 2 * 3 swap - * Z^
 
                 Z dup 0.86602540378 * swap 1 swap - 0.5 * + dup * X^
+                1 Z - Z + dup * Y^
                 Z dup 0.54772255751 * swap 1 swap - 1.41421356237 * + dup * Z^
 
                 x[0,0] T@ x[0,1]   B@ - abs
@@ -141,28 +141,28 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
                        J          B   - abs
                        J          C   - abs + + +
                        J  x[0,2]  F@  - abs
-                       J  x[-2,0] I@  - abs + 0.5 * + {r_max} * A swap / 1 min C0^
+                       J  x[-2,0] I@  - abs + 0.5 * + {r_max} * A swap / Y min C0^
 
                        L  x[1,2]  O@  - abs
                        L  x[2,1]  P@  - abs
                        L          B   - abs
                        L          D   - abs + + +
                        L          F   - abs
-                       L  x[2,0]  H@  - abs + 0.5 * + {r_max} * A swap / 1 min C2^
+                       L  x[2,0]  H@  - abs + 0.5 * + {r_max} * A swap / Y min C2^
 
                        K  x[-1,-2]    - abs
                        K  x[2,-1] Q@  - abs
                        K          E   - abs
                        K          C   - abs + + +
                        K  x[0,-2] G@  - abs
-                       K          I   - abs + 0.5 * + {r_max} * A swap / 1 min C5^
+                       K          I   - abs + 0.5 * + {r_max} * A swap / Y min C5^
 
                        M  x[1,-2] R@  - abs
                        M          Q   - abs
                        M          E   - abs
                        M          D   - abs + + +
                        M          G   - abs
-                       M          H   - abs + 0.5 * + {r_max} * A swap / 1 min C7^
+                       M          H   - abs + 0.5 * + {r_max} * A swap / Y min C7^
 
                        F          O   - abs
                        F          N   - abs
@@ -197,18 +197,18 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
                 C9  C11 0.25 * + C5 max 0.25 max C5 + 0.5 * C5^
                 C10 C11 0.25 * + C7 max 0.25 max C7 + 0.5 * C7^
 
-                y[-1,1]  {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LA^
-                y[0,1]   {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LB^
-                y[1,1]   {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LC^
-                y[-1,0]  {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LD^
-                y[1,0]   {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LE^
-                y[-1,-1] {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LF^
-                y[0,-1]  {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LG^
-                y[1,-1]  {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LH^
-                y[0,2]   {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LI^
-                y[-2,0]  {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LJ^
-                y[2,0]   {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LK^
-                y[0,-2]  {a_off_ep} - {lthr_r} * 255 /   dup dup 1.98 * 2.97 swap - * * 0.01 +  LL^
+                y[-1,1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LA^
+                y[0,1]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LB^
+                y[1,1]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LC^
+                y[-1,0]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LD^
+                y[1,0]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LE^
+                y[-1,-1] {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LF^
+                y[0,-1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LG^
+                y[1,-1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LH^
+                y[0,2]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LI^
+                y[-2,0]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LJ^
+                y[2,0]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LK^
+                y[0,-2]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LL^
 
                 LA C0  * WA^
                 LB X   * WB^
@@ -241,7 +241,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
                 y {a_offset} - abs {r_max} * 3.5 ^ {curveslope} * {curve_height} * 0.625 + {curve_height} swap / V^
 
-                T V * 0.01 + x {r_max} * L - *  range_max * range_half +"), bi, fs)
+                T V * 0.01 + x {r_max} * L - * range_max * range_half +"), bi, fs)
 
     sharpdiff = isy ? Expr(luma, edge, sharpdiff                                                                     , optSingleMode=false) : \
             UV == 1 ? Expr(luma, edge, sharpdiff, ""                                                                 , optSingleMode=false) : \
@@ -350,22 +350,19 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
             1.0001 D - X - {L_over} min   D + P^
             0.0001 D - X + {D_over} min   D + N^
 
-            1 {scale_cs} - {scale_lim} *  P {scale_cs} *  + P min   P^
-            1 {scale_cs} - {scale_lim} *  N {scale_cs} *  + N min   N^
+            1 {scale_cs} - {scale_lim} * P {scale_cs} * + P min P^
+            1 {scale_cs} - {scale_lim} * N {scale_cs} * + N min N^
 
             y range_half - {r_max} * abs Y@ 0 max U@ P 24 * min 2 * P / 2.718281828 swap ^ E@ 1 - E 1 + / P * SP^
             Y                               0 min V@ N 24 * min 2 * N / 2.718281828 swap ^ E@ 1 - E 1 + / N * SN^
 
-            z 1 {oh} / * 2 - 0.909090909 * 0 1 clip
-            dup dup * swap 2 * 3 swap - * C^
-            C dup {D_compr_high} * swap 1 swap - {D_compr_low} * + CH^
-            C dup {L_compr_high} * swap 1 swap - {L_compr_low} * + CL^
+            z {r_max} * Z@ dup {D_compr_high} * swap 1 swap - {D_compr_low} * + CH^
+            Z              dup {L_compr_high} * swap 1 swap - {L_compr_low} * + CL^
 
             U {pm_p} ^ CL *  SP abs {pm_p} ^ 1 CL - abs * + 1 {pm_p} / ^
-            V {pm_p} ^ CH *  SN abs {pm_p} ^ 1 CH - abs * + 1 {pm_p} / ^ - R^
+            V {pm_p} ^ CH *  SN abs {pm_p} ^ 1 CH - abs * + 1 {pm_p} / ^ -
 
-            X R + 0 1 clip X -
-            3 * R + 0.25 * X + "+tv+"
+            X + "+tv+"
             "), bi, fs)
 
             isy     ? Expr(luma, sharpdiff, sbe, sharp                                                                 , optSingleMode=false) : \
