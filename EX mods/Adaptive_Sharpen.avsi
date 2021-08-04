@@ -1,5 +1,9 @@
+###########################################################################
+###
+### Adaptive Sharpen (2018-04-14)
+###
 ### Copyright (c) 2015-2021, bacondither
-### All rights reserved.
+### All rights reserved. BSD 2 license.
 ###
 ### Redistribution and use in source and binary forms, with or without
 ### modification, are permitted provided that the following conditions
@@ -24,8 +28,15 @@
 ###
 ###########################################################################
 ###
+### The shader tries to sharpen somewhat blurry edges the most, it avoids to sharpen near-flat areas and very sharp edges.
+### The outer weights of the laplace matrix is variable to mitigate ringing on relative sharp edges and to provide more sharpening on wider and blurrier edges.
 ###
-### Adaptive_Sharpen() - v1.1 (03-08-2021)
+### The final stage is a soft limiter that confines overshoots based on local near min/max values.
+### Light overshoots are limited more due to it's worse appearance compared to dark undershoots in most cases.
+###
+###########################################################################
+###
+### Adaptive_Sharpen() - v1.2 (04-08-2021)
 ###
 ### https://forum.doom9.org/showthread.php?t=182881
 ###
@@ -33,11 +44,15 @@
 ###
 ###
 ### AviSynth+ port of HLSL Adaptive Sharpen shader by bacondither
-### Applies sharpening on a smart way (only to blurred lines)
+### Process in 32-bit or 8-bit (4% slower). Avoid 12-16-bit as it loses precision.
+### Since this is CPU based it's 10 times slower compared to the GPU shader.
+###
+### The premise is similar to SlopeBend() by Didée, it reads:
+### "It sharpens the picture by adjusting the slope of the gradient values inbetween the local min/max interval.
+###  Effectively, edges are sharpened without oversharpening (halos) (but risk to make them jaggy)."
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
-###                 Transforms Pack
 ###
 ### Example: Adaptive_Sharpen(1.0)
 ###
@@ -67,11 +82,9 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     lowthr_mxw   = Default(lowthr_mxw,    0.1  )                # Edge value for max lowthr weight [>0.01]
     pm_p         = Default(pm_p,          0.7  )                # Power mean p-value [>0-1.0]
     a_offset     = Default(a_offset,      2.0  )                # Edge channel offset, MUST BE THE SAME IN ALL PASSES [0-255]
-    tv_range     = Default(tv_range,       !rgb)                # True to preserve BTB & WTW (minor summation error)
     UV           = Default(UV,              rgb ? 3 : 1)
     fs           = Default(fulls,           rgb)
 
-    tv       = tv_range ? "ymax ymin - * ymin +" : "range_max *"
     r_max    = 1./ex_bs(255,      bi, fs)
     a_eps    = ex_bs(2.55,        bi, fs)
     a_offset = ex_bs(a_offset,    bi, fs)
@@ -117,8 +130,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
                 Expr(edge, sbe, ex_UVexpr(sbe, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
 
 
-    luma = tv_range ? a.SMPTE_legal(false,UV=UV,fulls=fs) : a
-
+    # Sharp difference
     sharpdiff = ex_dlut(Format("
                 y {a_offset} - {dW_lothr} - {dW} * 0 1 clip
                 dup dup * swap 2 * 3 swap - * Z^
@@ -243,11 +255,11 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
                 T V * 0.01 + x {r_max} * L - * range_max * range_half +"), bi, fs)
 
-    sharpdiff = isy ? Expr(luma, edge, sharpdiff                                                                     , optSingleMode=false) : \
-            UV == 1 ? Expr(luma, edge, sharpdiff, ""                                                                 , optSingleMode=false) : \
-                      Expr(luma, edge, sharpdiff, ex_UVexpr(sharpdiff, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
+    sharpdiff = isy ? Expr(a, edge, sharpdiff                                                                     , optSingleMode=false) : \
+            UV == 1 ? Expr(a, edge, sharpdiff, ""                                                                 , optSingleMode=false) : \
+                      Expr(a, edge, sharpdiff, ex_UVexpr(sharpdiff, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
 
-
+    # Soft limiter. Anti-ringing block
     sharp = ex_dlut(Format("
             x[0,3] x[-1,2]    dup1 dup1 min A^ max N^
             x[0,2] x[1,2]     dup1 dup1 min B^ max G^
@@ -347,26 +359,26 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
             C B 2 * + x 3 * min A + 0.25 * {r_max} * N^
 
             M x {r_max} * X@ - abs X N - abs min D^
-            1.0001 D - X - {L_over} min   D + P^
-            0.0001 D - X + {D_over} min   D + N^
+            1.0001 D - X - {L_over} min D + P^
+            0.0001 D - X + {D_over} min D + N^
 
             1 {scale_cs} - {scale_lim} * P {scale_cs} * + P min P^
             1 {scale_cs} - {scale_lim} * N {scale_cs} * + N min N^
 
-            y range_half - {r_max} * abs Y@ 0 max U@ P 24 * min 2 * P / 2.718281828 swap ^ E@ 1 - E 1 + / P * SP^
-            Y                               0 min V@ N 24 * min 2 * N / 2.718281828 swap ^ E@ 1 - E 1 + / N * SN^
+            y range_half - {r_max} * 0 1 clip Y@ 0 max U@ P 24 * min 2 * P / 2.718281828 swap ^ E@ 1 - E 1 + / P * SP^
+            Y                                    0 min V@ N 24 * min 2 * N / 2.718281828 swap ^ E@ 1 - E 1 + / N * SN^
 
-            z {r_max} * Z@ dup {D_compr_high} * swap 1 swap - {D_compr_low} * + CH^
-            Z              dup {L_compr_high} * swap 1 swap - {L_compr_low} * + CL^
+            {L_compr_high} {L_compr_low} - z {r_max} * Z@ * {L_compr_low} + CX^
+            {D_compr_high} {D_compr_low} - Z              * {D_compr_low} + CY^
 
-            U {pm_p} ^ CL *  SP abs {pm_p} ^ 1 CL - abs * + 1 {pm_p} / ^
-            V {pm_p} ^ CH *  SN abs {pm_p} ^ 1 CH - abs * + 1 {pm_p} / ^ -
+            U {pm_p} ^ CX *  SP abs {pm_p} ^ 1 CX - abs * + 1 {pm_p} / ^
+            V {pm_p} ^ CY *  SN abs {pm_p} ^ 1 CY - abs * + 1 {pm_p} / ^ -
 
-            X + "+tv+"
+            X + range_max *
             "), bi, fs)
 
-            isy     ? Expr(luma, sharpdiff, sbe, sharp                                                                 , optSingleMode=false) : \
-            UV == 1 ? Expr(luma, sharpdiff, sbe, sharp, ""                                                             , optSingleMode=false) : \
-                      Expr(luma, sharpdiff, sbe, sharp, ex_UVexpr(sharp, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
+            isy     ? Expr(a, sharpdiff, sbe, sharp                                                                 , optSingleMode=false) : \
+            UV == 1 ? Expr(a, sharpdiff, sbe, sharp, ""                                                             , optSingleMode=false) : \
+                      Expr(a, sharpdiff, sbe, sharp, ex_UVexpr(sharp, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
 
 }
