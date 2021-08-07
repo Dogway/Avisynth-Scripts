@@ -108,7 +108,7 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
             Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
             Unew    = Uu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
             Vnew    = Vu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
-            U       = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(w, h, b=-0.5, c=0.25))  # Sharpening
-            V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 19), Vu.BicubicResize(w, h, b=-0.5, c=0.25))  # Sharpening
+            U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=-0.5, c=0.25))  # Sharpening
+            V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 20), Vu.BicubicResize(w, h, b=-0.5, c=0.25))  # Sharpening
             return CombinePlanes(Y, U, V, planes="YUV")
 }
