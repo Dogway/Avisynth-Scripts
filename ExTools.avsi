@@ -618,8 +618,8 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
     sv = max(sv,0) / 5. + 0.5
 
     # LUMA
-    strv = gauss_constructor(a,sv,true)
-    strh = gauss_constructor(a,sm,false)
+    strv = gauss_constructor(sv,true)
+    strh = gauss_constructor(sm,false)
 
     # CHROMA
     p_4 = is444(a) || rgb  p_1 = isYV411(a)
@@ -628,8 +628,8 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
     sv = sv/(!p_0 ? 1 : 2)
     sm = sm/( p_4 ? 1 : p_1 ? 4 : 2)
 
-    cstrv = gauss_constructor(a,sv,true)
-    cstrh = gauss_constructor(a,sm,false)
+    cstrv = gauss_constructor(sv,true)
+    cstrh = gauss_constructor(sm,false)
 
     if (gm != "none") {
         matrix = Matrix_fuzzy_search (gm)
@@ -649,7 +649,7 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
     gm != "none" ? moncurve_r(last, s_gam[0], s_gam[1], false, !rgb, UV, fs) : last  }
 
 
-function gauss_constructor(clip a, float rad, bool vert) {
+function gauss_constructor(float rad, bool vert) {
 
     str = "" pls="" di=0
     krnlsz = 2*ceil(3*rad)
