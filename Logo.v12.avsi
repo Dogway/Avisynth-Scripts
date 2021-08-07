@@ -1,7 +1,7 @@
 ###
-### Logo 12.0  (https://forum.doom9.org/showthread.php?t=182881)
+### Logo 12.1  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (30-07-2021) By Dogway
+###  (07-08-2021) By Dogway
 ###
 ### Check Readme.txt for:
 ###                       Reference credits
@@ -61,7 +61,7 @@ logo0 = gif ? ImmaRead(   path,start=start,end= end == -1 ? start : end2,animati
 
 logo0 = PAR !=  1.0  ? logo0.BicubicResize(round(logo0.Width()/par),logo0.Height(),0.0,0.75).mmod2()
 \                    : logo0.mmod2()
-logo0 = logo0.addborders(x,abs(y),w,h).crop(0,0,-logo0.Width()-x,-logo0.Height()-abs(y),true).Blur(min(Sblur/par,1.58),Sblur).Blur(min(Sblur/par,1.58),Sblur)
+logo0 = logo0.addborders(x,abs(y),w,h).crop(0,0,-logo0.Width()-x,-logo0.Height()-abs(y),true).ex_blur(Sblur/par,Sblur,UV=Ch?3:2)
 
 lw = mat ? logo0.Width()  : nop()
 lh = mat ? logo0.Height() : nop()
