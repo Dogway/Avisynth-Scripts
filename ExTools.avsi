@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.5c     (30-07-2021)             ##
+###           ExTools v4.6      (07-08-2021)             ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -220,7 +220,7 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV", bool
     isym = isy(msk)
     bi   = BitsPerComponent(a)
 
-    lm  = Default(luma,  false)
+    lm  = Default(luma,    isym && rgb)
     Y   = Default(Y,                 3)
     UV  = Default(UV,    rgb || lm ? 3 : isya ? 1 : 2)
     fs  = Default(fulls, rgb)
@@ -273,7 +273,11 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
 # mt_binarize() is 12% slower than ex_binarize()
 # mt_binarize() is 17% faster than ex_binarize(smooth=true)
 # lo=-1 | hi=-1 replaces lo|hi with source "x"
-function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo", int "hi", int "UV", bool "fulls") {
+# modes:
+# simple  - fixed static threshold
+# dynamic - temporal stable dynamic threshold. A cheap alternative to Otsu's method
+#
+function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", string "mode", int "lo", int "hi", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -284,44 +288,56 @@ function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo"
     hi = Default(hi, 255)
     in = Default(invert, false)
     sm = Default(smooth, false)
+    md = Default(mode, "simple")      # 'simple' or 'dynamic'
     UV = Default(UV,    rgb ? 3 : 1)
     fs = Default(fulls, rgb)
 
-    th  = ex_bs(th, bi, fs)
+    th  = ex_bs(th,  bi, fs)
+    mx  = ex_bs(255, bi, fs)
+    thr = mx/255.
     lox = lo < 0   hix = hi < 0
     lox && hix ? Assert (false, "'lo' or 'hi': At least one bound should be binarized.") : nop()
 
+    if (md=="dynamic") {
+        ScriptClip(a,"""
 
-    if (sm) {
+        thm = int((AverageLuma(a,-2)+AverageLuma(a,0)+AverageLuma(a,2))/(3.*thr))
+        ex_binarize(a,thm,in,sm,"simple",lo,hi,UV,fs)
 
-        thl = round(th * 0.9)
-        thh = round(th * 1.1)
-        thm = thh - thl
-        mx  = ex_bs(255, bi, fs)
-
-        sub = Format(lox ? in ? "dup {thl} < swap2 swap1 ?"       : \
-                                "dup {thh} > swap2 swap1 swap1 ?" : \
-                     hix ? in ? "dup {thl} < swap2 swap1 swap1 ?" : \
-                                "dup {thh} > swap2 swap1 ?"       : \
-                                ""                                )
-        dp  = lox || hix ? "dup" : ""
-        lo  = lox ? 0  : ex_bs(lo, bi, fs)
-        hi  = hix ? mx : ex_bs(hi, bi, fs)
-        olo = lo == 0  ? ""  :      "0 max"
-        ohi = hi == mx ? "*" : in ? "dup swap2 0 max * swap1 max" : "dup swap2 * swap1 min"
-
-
-        str = Format(in ? "x "+dp+" {thl} - "+olo+" 1 {thm} / * {lo} {hi} - "+ohi+" {hi} + "        : \
-                          "x "+dp+" {thl} - "+olo+" 1 {thm} / * {hi} {lo} - "+ohi+" {lo} + " ) + sub
+        """,args="a,thr,in,sm,lo,hi,UV,fs",local=true)
 
     } else {
 
-        lo = lox ? "x" : string(ex_bs(lo, bi, fs))
-        hi = hix ? "x" : string(ex_bs(hi, bi, fs))
+        if (sm) {
 
-        str = Format(in ? "x {th} < "+hi+" "+lo+" ?" : \
-                          "x {th} > "+hi+" "+lo+" ?")
-    }
+            # same output than smoothstep but faster
+            thl = round(th * 0.9)
+            thh = round(th * 1.1)
+            thm = 1./(thh - thl)
+
+            sub = Format(lox ? in ? "dup {thl} < swap2 swap1       ?" : \
+                                    "dup {thh} > swap2 swap1 swap1 ?" : \
+                         hix ? in ? "dup {thl} < swap2 swap1 swap1 ?" : \
+                                    "dup {thh} > swap2 swap1       ?" : \
+                                    ""                                )
+            dp  = lox || hix ? "dup" : ""
+            lo  = lox ? 0  : ex_bs(lo, bi, fs)
+            hi  = hix ? mx : ex_bs(hi, bi, fs)
+            olo = lo == 0  ? ""  :      "0 max"
+            ohi = hi == mx ? "*" : in ? "dup swap2 0 max * swap1 max" : "dup swap2 * swap1 min"
+
+
+            str = Format(in ? "x "+dp+" {thl} - "+olo+" {thm} * {lo} {hi} - "+ohi+" {hi} + "        : \
+                              "x "+dp+" {thl} - "+olo+" {thm} * {hi} {lo} - "+ohi+" {lo} + " ) + sub
+
+        } else {
+
+            lo = lox ? "x" : string(ex_bs(lo, bi, fs))
+            hi = hix ? "x" : string(ex_bs(hi, bi, fs))
+
+            str = Format(in ? "x {th} < "+hi+" "+lo+" ?" : \
+                              "x {th} > "+hi+" "+lo+" ?")
+        }
 
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
@@ -329,7 +345,7 @@ function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", int "lo"
     UV == 1 ?  Expr(a, str, ""                                ) : \
                Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi))
 
-    sm ? ex_blur(0.5, UV=UV, fulls=fulls) : last }
+    sm ? ex_boxblur(0.3,mode="weighted", UV=UV, fulls=fulls) : last } }
 
 
 # mt_invert() is 10% slower and invert(channels="Y") is 17% slower
@@ -382,17 +398,13 @@ function ex_lutspa(clip a, string "mode", string "str", int "UV", bool "fulls") 
 
 # Vinverse: a small, but effective Function against (residual) combing, by Didée
 #           Ported to EX mod from real.finder's HBD mod. by Dogway (19-07-2021)
-# HBD update and adding custem clip
-# sstr: strength of contra sharpening
-# amnt: change no pixel by more than this (Default=255: unrestricted)
-# UV  : chroma mode, as in MaskTools: 1=trash chroma, 2=pass chroma through, 3=process chroma
 
 function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem", bool "fulls") {
 
-    uv   = Default(uv,3)
+    UV   = Default(UV, 3)
     dcus = Defined(custem)
-    sstr = Default(sstr,2.7)
-    amnt = Default(amnt,255)
+    sstr = Default(sstr, 2.7)       # strength of contra sharpening
+    amnt = Default(amnt, 255)       # change no pixel by more than this (Default=255: unrestricted)
     fs   = Default(fulls, false)
     uv2  = (uv==2) ? 1 : uv
     bi   = BitsPerComponent(clp)
@@ -421,6 +433,16 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
 
 # Convolutions in AviSynth+ work better with Prefetch(physical cores) than with threads. Also for RGTools and other plugins.
 
+# EQUIVALENCES:
+# blur(1.0)                                           -> ex_blur(1)
+# blur(1.58)                                          -> ex_boxblur(1,mode="mean")
+# removegrain(20)                                     -> ex_boxblur(1,mode="mean")
+# removegrain(19)                                     -> ex_boxblur(1,mode="rg19")
+# removegrain(12)                                     -> ex_boxblur(1,mode="weighted")
+# removegrain(12).removegrain(20)                     -> ex_blur(3)
+# removegrain(12).removegrain(20).removegrain(20)     -> ex_blur(4.4)
+# ex_boxblur(1,mode="mean").ex_boxblur(1,mode="mean") -> ex_boxblur(2,mode="weighted") -> ex_blur(2.5)
+
 
 
 # Variable Box Blur
@@ -435,15 +457,18 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
 #   6% mt_luts(last, "avg", mt_square(1), "y",chroma="-1")
 #
 # modes:
-# mean     average: mean average of a square kernel with equal weight per component (also known as moving average)
-# tent        blur: two   pass mean average (same as ex_blur(3)) *Not included as mode, call twice manually
-# quadratic   blur: three pass mean average                      *Not included as mode, call thrice manually
+# mean     average: mean average of a square kernel with equal weight per component (also known as moving/local mean/average)
+# tent        blur: two   pass mean average (same as ex_blur(2.5)) *Not included as mode, call twice manually
+# quadratic   blur: three pass mean average                        *Not included as mode, call thrice manually
 # bokeh    average: mean average of a ring   kernel with equal weight per component (also known as lens blur)
 # rg19     average: mean average of a square kernel with equal weight per component except central pixel (weight = 0) -matches removegrain(19)-
 # weighted average: mean average of a square kernel with custom local weights per component (commonly used for a Gaussian approximations; blur(1), removegrain(12), etc)
 # trimmed  average: mean average of a square kernel with equal weight per component limited by its local median
 #
-function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV", bool "fulls") {
+# *'weighted' allows 0.15, 0.3, 0.5 and 1, 2, 3...
+
+# ex_boxblur(2,mode="weighted") same to ex_blur(2.5) and ex_boxblur(1,mode="mean").ex_boxblur(1,mode="mean"), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
+function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -452,18 +477,22 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
     rd = Default(radius,  1)            # from 0 to inf
     rv = Default(radiusV, rd)           # from 0 to inf
 
-    fbox = rd == 1 && rv == 1
+    fbox  = rd == 1    && rv == 1
+    fbox2 = rd == 0.5  && rv == 0.5
+    fbox3 = rd == 0.3  && rv == 0.3
+    fbox4 = rd == 0.15 && rv == 0.15
 
     UV = Default(UV,    rgb  ? 3 : 1)
-    md = Default(mode,  fbox ? "rg19" : "mean")
+    md = Default(mode,  "weighted")
     fs = Default(fulls, rgb)
-    rd = max(rd, 0)
-    rv = max(rv, 0)
+    rd = max(rd>1?round(rd):rd, 0)
+    rv = max(rv>1?round(rv):rv, 0)
 
+    rv<1 || rd<1    ? Assert (md == "weighted", "<1 radius requires 'weighted' mode")            : nop()
     md == "trimmed" ? Assert (fbox, "'Trimmed' mode only supports radius=1 for both dimensions") : nop()
     md == "bokeh"   ? Assert (rd == rv, "'Bokeh' mode only supports isotropic radii")            : nop()
 
-    krnlsz = 2 * rd + 1
+    krnlsz = ceil(2 * rd) + 1
     krnlrd = krnlsz/2
 
     krnh = ""  krnv = ""  plsh = ""  plsv = ""  divx=0  divy=0  divw=0
@@ -479,7 +508,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
                     divy  = skipo || !skipi                  ? divy : divy + 1
            }      }
 
-    } else if (!fbox) {
+    } else if (!fbox || !(rd<1 || rv<1)) {
 
         for (px = -krnlrd, krnlrd, 1) {
             wg   = md == "weighted" ? factorial(krnlsz-1)/(factorial(px+krnlrd)*factorial(krnlsz-1-(px+krnlrd))) : nop()
@@ -492,7 +521,7 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
                    md == "weighted"           ? divw  : divx + 1
            }
 
-        krnlsz = 2 * rv + 1
+        krnlsz = ceil(2 * rv) + 1
         krnlrv = krnlsz/2
         divw=0
         for (py = -krnlrv, krnlrv, 1) {
@@ -507,10 +536,26 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
            }
    }
 
+    strv = md == "weighted" ?                                                                                                 \
+           fbox2            ? "x[0,1] x[-1,0] x[0,0] 3  * x[1,0] x[0,-1] + + + + 1  7 / *"                                  : \
+           fbox3            ? "x[0,1] x[-1,0] x[0,0] 6  * x[1,0] x[0,-1] + + + + 1 10 / *"                                  : \
+           fbox4            ? "x[0,1] x[-1,0] x[0,0] 12 * x[1,0] x[0,-1] + + + + 1 16 / *"                                  : \
+           rv == 0.5        ? "x[0,1]  x[0,0] 5  * x[0,-1] + + 1  7 / *"                                                    : \
+           rv == 0.3        ? "x[0,1]  x[0,0] 8  * x[0,-1] + + 1 10 / *"                                                    : \
+           rv == 0.15       ? "x[0,1]  x[0,0] 16 * x[0,-1] + + 1 18 / *"                                                    : \
+                              krnv + plsv + string(divy) + " 1 swap / *" : ""
+
+    strh = md == "weighted" ?                                                                                                 \
+           rd == 0.5        ? "x[-1,0] x[0,0] 5  * x[1,0]  + + 1  7 / *"                                                    : \
+           rd == 0.3        ? "x[-1,0] x[0,0] 8  * x[1,0]  + + 1 10 / *"                                                    : \
+           rd == 0.15       ? "x[-1,0] x[0,0] 16 * x[1,0]  + + 1 18 / *"                                                    : \
+                              krnh + plsh + string(divx) + " 1 swap / *" : ""
+
+
     str = fbox ? md == "rg19"     ?"x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + 1 8 / *"                                           : \
                  md == "bokeh"    ?"x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 1 4 / *"                                                                                   : \
                  md == "mean"     ?"x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[0,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 1 9 / *"                                  : \
-                 md == "weighted" ?"x[-1,1] 0.5 * x[0,1] x[1,1] 0.5 * x[0,0] 2 * x[-1,0] x[1,0] x[-1,-1] 0.5 * x[0,-1] x[1,-1] 0.5 * + + + + + + + + 1 8 / * "     : \
+                 md == "weighted" ?"x[-1,1] 0.5 * x[0,1] x[1,1] 0.5 * x[0,0] 2 * x[-1,0] x[1,0] x[-1,-1] 0.5 * x[0,-1] x[1,-1] 0.5 * + + + + + + + + 1 8 / *"      : \
                  md == "trimmed"  ?"x[-1,1] A@ x[0,1] B@ x[1,1] C@ x[-1,0] D@ x[0,0] E@ x[1,0] F@ x[-1,-1] G@ x[0,-1] H@ x[1,-1] I@ + + + + + + + + 1 9 / * X^ "     \
                                   +"A D dup1 dup1 min A^ max D^ B H dup1 dup1 min B^ max H^ C F dup1 dup1 min C^ max F^ E I dup1 dup1 min E^ max I^ "                \
                                   +"A H dup1 dup1 min A^ max H^ C E dup1 dup1 min C^ max E^ D I dup1 dup1 min D^ max I^ F G dup1 dup1 min F^ max G^ "                \
@@ -521,17 +566,26 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
                                   +"X swap2 clip" : "" : krnv + plsv + string(divy) + " 1 swap / *"
 
 
-    strv = fbox || md=="bokeh" ? str : krnv + plsv + string(divy) + " 1 swap / *"
-    strh =                             krnh + plsh + string(divx) + " 1 swap / *"
+    strv = fbox  || md == "bokeh"                       ? str  : \
+          (fbox2 || fbox3 || fbox4) && md == "weighted" ||       \
+                               rv<1 && md == "weighted" ? strv : \
+           krnv + plsv + string(divy) + " 1 swap / *"
+
+    strh =                     rd<1 && md == "weighted" ? strh : \
+           krnh + plsh + string(divx) + " 1 swap / *"
 
     rv == 0 ?      a                                                                  : \
     isy     ? Expr(a,    strv                                                       ) : \
     UV == 1 ? Expr(a,    strv, ""                                                   ) : \
               Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
-    rd == 0 || fbox || md=="bokeh"  ? last                                            : \
+    rd == 0 || fbox || fbox2 || fbox3 || fbox4 || md=="bokeh"  ? last                 : \
     isy     ? Expr(last, strh                                                       ) : \
     UV == 1 ? Expr(last, strh, ""                                                   ) : \
               Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
+
+function factorial(int n) {
+    n<2?1:factorial(n-1)*n }
+
 
 
 # Variable Gaussian Blur
@@ -549,118 +603,45 @@ function ex_boxblur(clip a, int "radius", int "radiusV", string "mode", int "UV"
 #  15% FastBlur(0.75,gamma=false)
 #  10% GaussianBlur(0.75,U=1,V=1)  # only in 8-bit
 #
-# ex_blur(4) same to FRC_GaussianBlur42(1.3) and similar to ex_boxblur(2)
-# ex_blur(3) same to ex_boxblur(1).ex_boxblur(1), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
 function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    sm = Default(radius,   1)           # from 0 to 6 (integers except for 0.5)
-    sv = Default(radiusv, sm)           # from 0 to 6 (integers except for 0.5)
+    sm = Default(radius,   1)
+    sv = Default(radiusv, sm)
     gm = Default(gamma, "none")         # Set matrix for gamma encoded clips (ie. 601, 709, 2020...) Requires TransformsPack
     UV = Default(UV,    rgb ? 3 : 1)
     fs = Default(fulls, rgb)
-    sm = max(min(sm * 0.30,2.0),0)
-    sv = max(min(sv * 0.30,2.0),0)
+    sm = max(sm,0) / 5. + 0.5
+    sv = max(sv,0) / 5. + 0.5
 
-    fkern  = sm==0.30 && sv==0.30
-    fkern2 = sm==0.15 && sv==0.15
-    krnlsz = 2*ceil(3*sv)
-    n_f    = factorial(krnlsz)
+    # LUMA
+    strv = gauss_constructor(a,sv,true)
+    strh = gauss_constructor(a,sm,false)
 
-    krnv = ""    krnh = ""
-    for (i=0, krnlsz, 1) {
+    # CHROMA
+    p_4 = is444(a) || rgb  p_1 = isYV411(a)
+    p_2 = is422(a)         p_0 = is420(a)
 
-        k_f  = factorial(i)*factorial(krnlsz-i)
-        wg   = (n_f/k_f)/pow(2,krnlsz)
-        py   = i - krnlsz/2
-        krnv = Format(krnv + "x[0,{py}] {wg} * ")
-        plsv = i == 0 ? "" : plsv + "+ "
-       }
+    sv = sv/(!p_0 ? 1 : 2)
+    sm = sm/( p_4 ? 1 : p_1 ? 4 : 2)
 
-    krnlszh = 2*ceil(3*sm)
-    n_f     = factorial(krnlszh)
-
-    for (i=0, krnlszh, 1) {
-
-        k_f  = factorial(i)*factorial(krnlszh-i)
-        wg   = (n_f/k_f)/pow(2,krnlszh)
-        px   = i - krnlszh/2
-        krnh = Format(krnh + "x[{px},0] {wg} * ")
-        plsh = i == 0 ? "" : plsh + "+ "
-       }
-
-    strv = fkern    ?   "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 1 10 / *" : \
-           fkern2   ?   "x[0,1] x[-1,0] x[0,0] 3 * x[1,0] x[0,-1] + + + + 1 7 / *"                                          : \
-           sv==0.3  ?   "x[0,1]  x[0,0] 2 * x[0,-1] + + 1 4 / *"                                                            : \
-           sv==0.15 ?   "x[0,1]  x[0,0] 3 * x[0,-1] + + 1 5 / *"                                                            : \
-           sv==0.0  ?   "x"                                                                                                 : \
-                         krnv + plsv
-    strh = sm==0.3  ?   "x[-1,0] x[0,0] 2 * x[1,0]  + + 1 4 / *"                                                            : \
-           sm==0.15 ?   "x[-1,0] x[0,0] 3 * x[1,0]  + + 1 5 / *"                                                            : \
-           sm==0.0  ?   "x"                                                                                                 : \
-                         krnh + plsh
-
-
-    p_4 = is444(a)    p_1 = isYV411(a)
-    p_2 = is422(a)    p_0 = is420(a)
-
-    cstrv = ""    cstrh = ""
-    if (!p_4 && (sm>0.6 || sv>0.6)) {
-
-        krnlsz = krnlsz/(!p_0 ? 1 : 2)
-        n_f    = factorial(krnlsz)
-
-        for (i=0, krnlsz, 1) {
-
-            k_f   = factorial(i)*factorial(krnlsz-i)
-            wg    = (n_f/k_f)/pow(2,krnlsz)
-            py    = i - krnlsz/2
-            cstrv = Format(cstrv + "x[0,{py}] {wg} * ")
-            plsv  = i == 0 ? "" : plsv + "+ "
-           }
-
-        krnlszh = krnlszh/(p_1 ? 4 : 2)
-        n_f     = factorial(krnlszh)
-
-        for (i=0, krnlszh, 1) {
-
-            k_f   = factorial(i)*factorial(krnlszh-i)
-            wg    = (n_f/k_f)/pow(2,krnlszh)
-            px    = i - krnlszh/2
-            cstrh = Format(cstrh + "x[{px},0] {wg} * ")
-            plsh  = i == 0 ? "" : plsh + "+ "
-           }
-       }
-
-        cstrv = !p_0                        ? strv                                                                                                 : \
-                sm==0.6 && sv == 0.6        ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 2 *  x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 1 10 / *" : \
-                fkern                       ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] 12 * x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 1 20 / *" : \
-                fkern2                      ? "x"                                                                                                  : \
-                sv==0.6                     ? "x[0,1] x[0,0] 2 * x[0,-1] + + 1 4 / *"                                                              : \
-                sv==0.3                     ? "x[0,1] x[0,0] 3 * x[0,-1] + + 1 5 / *"                                                              : \
-                sv==0.0                     ? "x"                                                                                                  : \
-                                               cstrv + plsv
-
-        cstrh = p_4                         ? strh                                                                                                 : \
-                sm==0.0                     ? "x"                                                                                                  : \
-                sm==0.6 && !p_1             ? "x[-1,0] x[0,0] 2 * x[1,0] + + 1 4 / *"                                                              : \
-                sm==0.3 || (sm==0.3 && p_1) ? "x[-1,0] x[0,0] 3 * x[1,0] + + 1 5 / *"                                                              : \
-                                               cstrh + plsh
+    cstrv = gauss_constructor(a,sv,true)
+    cstrh = gauss_constructor(a,sm,false)
 
     if (gm != "none") {
         matrix = Matrix_fuzzy_search (gm)
         s_gam  = moncurve_coef(matrix)
         a      = moncurve_f(a, s_gam[0], s_gam[1], !rgb, false, UV, fs)
     }
-
+#subtitle(a,strv) }
     sv == 0 ?      a                                                                   : \
     isy     ? Expr(a,    strv                                                        ) : \
     UV == 1 ? Expr(a,    strv, ""                                                    ) : \
               Expr(a,    strv, ex_UVexpr(cstrv, UV, bi, rgb, fs), scale_inputs="none")
-    sm == 0 || fkern || fkern2 ? last                                                  : \
+    sm == 0 ? last                                                                     : \
     isy     ? Expr(last, strh                                                        ) : \
     UV == 1 ? Expr(last, strh, ""                                                    ) : \
               Expr(last, strh, ex_UVexpr(cstrh, UV, bi, rgb, fs), scale_inputs="none")
@@ -668,11 +649,31 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
     gm != "none" ? moncurve_r(last, s_gam[0], s_gam[1], false, !rgb, UV, fs) : last  }
 
 
-function factorial(int n) {
-    n<2?1:factorial(n-1)*n }
+function gauss_constructor(clip a, float rad, bool vert) {
+
+    str = "" pls="" di=0
+    krnlsz = 2*ceil(3*rad)
+
+    for (i=0, krnlsz, 1) {
+        wgc  = exp(-(pow(i-(krnlsz)/2.,2))/(2*rad*rad))
+        di   = wgc < 0.001 ? di : di + wgc
+       }
+
+    for (i=0, krnlsz, 1) {
+
+        ga    = exp(-(pow(i-(krnlsz)/2,2))/(2*rad*rad))
+        wg    = ga/di
+        px    = i - krnlsz/2
+        str   = ga < 0.001 ? str : Format(str + (vert ? "x[0,{px}] {wg} * " : "x[{px},0] {wg} * "))
+        pls   = i == krnlsz/2 || ga < 0.001 ? pls : pls + "+ "
+       }
+
+    str + pls
+}
 
 
-# Dither_bilateral16(radius=2,thr=10,flat=1.0,u=1,v=1) is 232% faster ('exp' is the culprit) than ex_bilateral(1,dejaggie=false) # output is dirtier though
+
+# Dither_bilateral16(radius=2,thr=10,flat=1.0,u=1,v=1) is 232% faster than ex_bilateral(1,dejaggie=false) ('exp' is the culprit) # Dither_ output is dirtier though
 # TBilateral(3,3,chroma=false) is same speed than ex_bilateral(1,dejaggie=false) but only supports 8-bits
 function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", float "sthres", bool "dejaggie", int "UV", bool "fulls") {
 
@@ -747,6 +748,8 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
 
 
 # Like ex_bilateral, a less gentle blurring but more performant
+# Similar to SurfaceBlur by Didée: http://forum.doom9.org/showthread.php?p=1586287#post1586287
+# SurfaceBlur(3,5) is 22% slower than ex_smartblur(3,thres=20)
 function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
@@ -773,8 +776,8 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
         Vv    = Vv + " " + V
         py    = i - krnlsz/2
         krnv2 = Format(krnv2 + "x[0,{py}] " + V + "^ ")
-        krnv3 = Format(krnv3                + V + " " + Vc + " - abs ")
-        plsv  = i == 0 ? "" : plsv + " + "
+        krnv3 = Vc != V ? Format(krnv3      + V + " " + Vc + " - abs ") : krnv3
+        plsv  = i == 0 ? "" : Vc == V ? plsv : plsv + " + "
         divy  = divy + 1
        }
 
@@ -786,13 +789,13 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
         Vh    = Vh + " " + V
         px    = i - krnlszh/2
         krnh2 = Format(krnh2 + "x[{px},0] " + V + "^ ")
-        krnh3 = Format(krnh3                + V + " " + Vc + " - abs ")
-        plsh  = i == 0 ? "" : plsh + " + "
+        krnh3 = Vc != V ? Format(krnh3      + V + " " + Vc + " - abs ") : krnh3
+        plsh  = i == 0 ? "" : Vc == V ? plsh : plsh + " + "
         divx = divx + 1
        }
 
-    strv = krnv2 + krnv3 + plsv +string(th*sv) + " < " + Vv + plsv + string(divy) + " 1 swap / * x ?"
-    strh = krnh2 + krnh3 + plsh +string(th*sm) + " < " + Vh + plsh + string(divx) + " 1 swap / * x ?"
+    strv = krnv2 + krnv3 + plsv + string(th*sv) + " < " + Vv + plsv + " + " + string(divy) + " 1 swap / * x ?"
+    strh = krnh2 + krnh3 + plsh + string(th*sm) + " < " + Vh + plsh + " + " + string(divx) + " 1 swap / * x ?"
 
     sv == 0 ?      a                                                                  : \
     isy     ? Expr(a,    strv                                                       ) : \
@@ -908,12 +911,12 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ##
 ## Median Blur
 ##
-## Replaces removegrain median modes, adaptivemedian, verticalcleaner, clense, medianblur and medianblurtemporal, and adds new modes.
+## Replaces removegrain median modes, adaptivemedian, verticalcleaner, clense, degrainmedian, medianblur and medianblurtemporal, and adds new modes.
 ##
 ## Requires AviSynth+ 3.7.1
 ##
 ## 100% removegrain(1,-1)
-##  91% ex_median(mode="undot",UV=1)
+##  91% ex_median(mode="undot",UV=1) # same as DeSaltPepper or SaltPepper from manyplus, or UnDot by Tom Barry.
 ##
 ## 100% removegrain(2,-1)
 ##  75% ex_median(mode="undot2",UV=1)
@@ -924,9 +927,11 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ##  1.2% MedianBlur(1,0,0)
 ## 0.06% mt_luts(last, "med", mt_square(1), "y",chroma="-1")
 ##
-## 100% ex_median(mode="median5")
-##  15% Dither_median16(rx=2, ry=2, rt=0, y=3, u=1, v=1)
-##   5% MedianBlur(2,0,0) (unstable filter)
+## 100% quantile(rank=13,radius_u=0,radius_v=0) # 155fps (only 8-bits)
+##  84% removegrainHD(rank=13,radius_u=0,radius_v=0) # (only 8-bits)
+##  66% ex_median(mode="median5")
+##  10% Dither_median16(rx=2, ry=2, rt=0, y=3, u=1, v=1)
+## 3.3% MedianBlur(2,0,0) (unstable filter)
 ##
 ##  100% Clense(grey=true)
 ##   92% ex_median(mode="medianT")
@@ -936,7 +941,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ##   81% MedianBlurTemporal(1,1,1) # re-assess without chroma (unstable filter)
 #
 # 34 modes:
-# median    - True median. Replace with kernel middle value *Same as "undot4"
+# median    - True median. Replace with kernel middle value *Same as "undot4"   -removegrain(4)-
 # median5   - True median. Replace with kernel middle value (5x5 kernel) (very slow)
 # EMF       - Extended Median Filter
 # undot     - Also called "conservative", removes one pixel salt'n'pepper noise -removegrain(1)-
@@ -945,15 +950,15 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # undot4    - Same as undot but clip up to the fourth closest minimum values*   -removegrain(4)-  *Same as "median"
 # adaptive  - Similar to undot but better at salt'n'pepper noise. (very slow)   -From VC Mohan AdaptiveMedian-
 # SNN       - Symmetric Nearest Neighbour. Clip to closest opposing pair from center value
-# kuwahara  - Mean average of the least variance quadrant in a 5x5 kernel window. (oil paint look)
+# kuwahara  - Mean average of the least variance quadrant in a 5x5 kernel window. (oil paint look/filter)
 # pseudo    - Pseudo median. Replace with the average of the maximum of the minima and the minimum of the maxima of the sliding window
 # weightedp - 50% weighted percentile weighted median
-# weightedm - mean average weighted median
-# edgeS     - Edge sensitive. Same as mode 4 but better edge protection. Strong denoise  -removegrain(17)-
-# edgeW     - Edge sensitive. Only line pairs are used.                    Weak denoise  -removegrain(18)-
-# edgeC     - Edge sensitive. Same as edgeS but better corner protection. Strong denoise -removegrain(26)-
-# edgeCL    - Edge sensitive. Same as edgeC but better line   protection. Strong denoise -removegrain(27)-
-# cartoon   - Clipping is done with respect to averages of neighbours. Best for cartoons -removegrain(22)-
+# weightedm - Mean average weighted median
+# edgeS     - Edge sensitive. Same as 'median' but better edge protection. Strong denoise  -removegrain(17)-
+# edgeW     - Edge sensitive. Only line pairs are used.                      Weak denoise  -removegrain(18)-
+# edgeC     - Edge sensitive. Same as edgeS but better corner protection.   Strong denoise -removegrain(26)-
+# edgeCL    - Edge sensitive. Same as edgeC but better line   protection.   Strong denoise -removegrain(27)-
+# cartoon   - Clipping is done with respect to averages of neighbours.   Best for cartoons -removegrain(22)-
 # vertical  - Vertical median. Port of VerticalCleaner mode=1
 # verticalS - Vertical median. Port of VerticalCleaner mode=2 (edge sensitive)
 # medianT   - Temporal median of 3 frames
@@ -970,7 +975,10 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # DGM2      - Mode=2 of DeGrainMedian (similar    to spatial only RemoveGrain(8)) (Spatio-Temporal, Motion Protected)
 # DGM3      - Mode=3 of DeGrainMedian (similar    to spatial only RemoveGrain(7)) (Spatio-Temporal, Motion Protected)
 # DGM4      - Mode=4 of DeGrainMedian (similar    to spatial only RemoveGrain(6)) (Spatio-Temporal, Motion Protected)
-# DGM5      - Mode=5 of DeGrainMedian (similar    to spatial only RemoveGrain(6)) (Spatio-Temporal, Motion Protected)
+# DGM5      - Mode=5 of DeGrainMedian (similar    to spatial only RemoveGrain(5)) (Spatio-Temporal, Motion Protected)
+
+
+#*SmartMedian and SmartMedian2 from RemoveGrainHD are not included. With radius=1 output is blotchy and jagged lines, with radius=2 it's like strong undot, it protects lines to some degree
 
 function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
 
@@ -981,7 +989,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
     mode = Default(mode, "median")
     UV   = Default(UV,    rgb ? 3 : 1)
     fs   = Default(fulls, rgb)
-    th   = Default(thres,   4)    # Only for DeGrainMedian modes
+    th   = Default(thres, mode=="EMF" ? 9 : 4)    # Only for EMF and DeGrainMedian modes
     th   = ex_bs(th, bi, fs)
 
     Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version to 3.7.1+")
@@ -1244,7 +1252,8 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                                                   dup1 dup1 max swap2 min
                             x swap2 clip"                                                                                                                           : \
                                                                                                                                                                       \
-        mode == "EMF" ?    "x[-1,1] x[0,1]        dup1 dup1 min swap2 max
+        mode == "EMF" ?    Format("
+                            x[-1,1] x[0,1]        dup1 dup1 min swap2 max
                             x[1,1]  x[-1,0]       dup1 dup1 min swap2 max
                             x[1,0]  x[-1,-1]      dup1 dup1 min swap2 max
                             x[0,-1] x[1,-1]       dup1 dup1 min swap2 max
@@ -1261,7 +1270,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             swap3                                     max
                             swap2                           min
                                                   dup1 dup1 max swap2 min
-                            x swap2 clip M@ x swap - abs 9 scaleb <= M x ?"                                                                                         : \
+                            x swap2 clip M@ x swap - abs {th} <= M x ?")                                                                                            : \
                                                                                                                                                                       \
         mode == "Vertical" ?"x[0,1] x[0,-1] dup1 dup1 max swap2 min
                              x swap2 clip"                                                                                                                          : \
@@ -1276,19 +1285,19 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                           +"A H +                          B G + min                  C F +            min         D E +          min 0.5 * x swap2 clip"           : \
                                                                                                                                                                       \
         mode == "DGM0"   ? ex_dlut(Format("
-                            x[1,-1] x[-1,1] dup1 dup1 min A^ max B^
-                            x[1,1] x[-1,-1] dup1 dup1 min C^ max D^
-                            x[0,1] x[0,-1]  dup1 dup1 min E^ max F^
-                            x[1,0] x[-1,0]  dup1 dup1 min G^ max H^
-                            z[-1,1] y[1,-1] dup1 dup1 min I^ max J^
-                            z[1,1] y[-1,-1] dup1 dup1 min K^ max L^
-                            y[1,1] z[-1,-1] dup1 dup1 min M^ max N^
-                            z[1,-1] y[-1,1] dup1 dup1 min O^ max P^
-                            z[0,-1] y[0,1]  dup1 dup1 min Q^ max R^
-                            z[0,1]  y[0,-1] dup1 dup1 min S^ max T^
-                            y[1,0] z[-1,0]  dup1 dup1 min U^ max V^
-                            z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
-                            z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
+                            x[1,-1] x[-1,1]  dup1 dup1 min A^ max B^
+                            x[1,1]  x[-1,-1] dup1 dup1 min C^ max D^
+                            x[0,1]  x[0,-1]  dup1 dup1 min E^ max F^
+                            x[1,0]  x[-1,0]  dup1 dup1 min G^ max H^
+                            z[-1,1] y[1,-1]  dup1 dup1 min I^ max J^
+                            z[1,1]  y[-1,-1] dup1 dup1 min K^ max L^
+                            y[1,1]  z[-1,-1] dup1 dup1 min M^ max N^
+                            z[1,-1] y[-1,1]  dup1 dup1 min O^ max P^
+                            z[0,-1] y[0,1]   dup1 dup1 min Q^ max R^
+                            z[0,1]  y[0,-1]  dup1 dup1 min S^ max T^
+                            y[1,0]  z[-1,0]  dup1 dup1 min U^ max V^
+                            z[1,0]  y[-1,0]  dup1 dup1 min W^ max X^
+                            z[0,0]  y[0,0]   dup1 dup1 min Y^ max Z^
                             B A - AM^
                             D C - AA^
                             F E - AB^
@@ -1316,23 +1325,24 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             AK min
                             AL min BB^
 
-                            BB AL == x Y Z clip BB AJ == x U V clip BB AK == x W X clip BB AI == x S T clip BB AG == x O P clip BB AH == x Q R clip BB AF == x M N clip BB AD == x I J clip BB AE == x K L clip BB AC == x G H clip BB AA == x C D clip BB AB == x E F clip x A B clip ? ? ? ? ? ? ? ? ? ? ? ?
+                            BB AL == x Y Z clip BB AJ == x U V clip BB AK == x W X clip BB AI == x S T clip BB AG == x O P clip BB AH == x Q R clip
+                            BB AF == x M N clip BB AD == x I J clip BB AE == x K L clip BB AC == x G H clip BB AA == x C D clip BB AB == x E F clip x A B clip ? ? ? ? ? ? ? ? ? ? ? ?
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                : \
                                                                                                                                                                      \
         mode == "DGM1"   ? ex_dlut(Format("
-                            x[1,-1] x[-1,1] dup1 dup1 min A^ max B^
-                            x[1,1] x[-1,-1] dup1 dup1 min C^ max D^
-                            x[0,1] x[0,-1]  dup1 dup1 min E^ max F^
-                            x[1,0] x[-1,0]  dup1 dup1 min G^ max H^
-                            z[-1,1] y[1,-1] dup1 dup1 min I^ max J^
-                            z[1,1] y[-1,-1] dup1 dup1 min K^ max L^
-                            y[1,1] z[-1,-1] dup1 dup1 min M^ max N^
-                            z[1,-1] y[-1,1] dup1 dup1 min O^ max P^
-                            z[0,-1] y[0,1]  dup1 dup1 min Q^ max R^
-                            z[0,1]  y[0,-1] dup1 dup1 min S^ max T^
-                            y[1,0] z[-1,0]  dup1 dup1 min U^ max V^
-                            z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
-                            z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
+                            x[1,-1] x[-1,1]  dup1 dup1 min A^ max B^
+                            x[1,1]  x[-1,-1] dup1 dup1 min C^ max D^
+                            x[0,1]  x[0,-1]  dup1 dup1 min E^ max F^
+                            x[1,0]  x[-1,0]  dup1 dup1 min G^ max H^
+                            z[-1,1] y[1,-1]  dup1 dup1 min I^ max J^
+                            z[1,1]  y[-1,-1] dup1 dup1 min K^ max L^
+                            y[1,1]  z[-1,-1] dup1 dup1 min M^ max N^
+                            z[1,-1] y[-1,1]  dup1 dup1 min O^ max P^
+                            z[0,-1] y[0,1]   dup1 dup1 min Q^ max R^
+                            z[0,1]  y[0,-1]  dup1 dup1 min S^ max T^
+                            y[1,0]  z[-1,0]  dup1 dup1 min U^ max V^
+                            z[1,0]  y[-1,0]  dup1 dup1 min W^ max X^
+                            z[0,0]  y[0,0]   dup1 dup1 min Y^ max Z^
 
                             B A - 4 * x dup A B clip A@ - abs + AM^
                             D C - 4 * x dup C D clip B@ - abs + AA^
@@ -1365,19 +1375,19 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
                                                                                                                                                                       \
         mode == "DGM2"   ? ex_dlut(Format("
-                            x[1,-1] x[-1,1] dup1 dup1 min A^ max B^
-                            x[1,1] x[-1,-1] dup1 dup1 min C^ max D^
-                            x[0,1] x[0,-1]  dup1 dup1 min E^ max F^
-                            x[1,0] x[-1,0]  dup1 dup1 min G^ max H^
-                            z[-1,1] y[1,-1] dup1 dup1 min I^ max J^
-                            z[1,1] y[-1,-1] dup1 dup1 min K^ max L^
-                            y[1,1] z[-1,-1] dup1 dup1 min M^ max N^
-                            z[1,-1] y[-1,1] dup1 dup1 min O^ max P^
-                            z[0,-1] y[0,1]  dup1 dup1 min Q^ max R^
-                            z[0,1]  y[0,-1] dup1 dup1 min S^ max T^
-                            y[1,0] z[-1,0]  dup1 dup1 min U^ max V^
-                            z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
-                            z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
+                            x[1,-1] x[-1,1]  dup1 dup1 min A^ max B^
+                            x[1,1]  x[-1,-1] dup1 dup1 min C^ max D^
+                            x[0,1]  x[0,-1]  dup1 dup1 min E^ max F^
+                            x[1,0]  x[-1,0]  dup1 dup1 min G^ max H^
+                            z[-1,1] y[1,-1]  dup1 dup1 min I^ max J^
+                            z[1,1]  y[-1,-1] dup1 dup1 min K^ max L^
+                            y[1,1]  z[-1,-1] dup1 dup1 min M^ max N^
+                            z[1,-1] y[-1,1]  dup1 dup1 min O^ max P^
+                            z[0,-1] y[0,1]   dup1 dup1 min Q^ max R^
+                            z[0,1]  y[0,-1]  dup1 dup1 min S^ max T^
+                            y[1,0]  z[-1,0]  dup1 dup1 min U^ max V^
+                            z[1,0]  y[-1,0]  dup1 dup1 min W^ max X^
+                            z[0,0]  y[0,0]   dup1 dup1 min Y^ max Z^
 
                             B A - 2 * x dup A B clip A@ - abs + AM^
                             D C - 2 * x dup C D clip B@ - abs + AA^
@@ -1410,19 +1420,19 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
                                                                                                                                                                       \
         mode == "DGM3"   ? ex_dlut(Format("
-                            x[1,-1] x[-1,1] dup1 dup1 min A^ max B^
-                            x[1,1] x[-1,-1] dup1 dup1 min C^ max D^
-                            x[0,1] x[0,-1]  dup1 dup1 min E^ max F^
-                            x[1,0] x[-1,0]  dup1 dup1 min G^ max H^
-                            z[-1,1] y[1,-1] dup1 dup1 min I^ max J^
-                            z[1,1] y[-1,-1] dup1 dup1 min K^ max L^
-                            y[1,1] z[-1,-1] dup1 dup1 min M^ max N^
-                            z[1,-1] y[-1,1] dup1 dup1 min O^ max P^
-                            z[0,-1] y[0,1]  dup1 dup1 min Q^ max R^
-                            z[0,1]  y[0,-1] dup1 dup1 min S^ max T^
-                            y[1,0] z[-1,0]  dup1 dup1 min U^ max V^
-                            z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
-                            z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
+                            x[1,-1] x[-1,1]  dup1 dup1 min A^ max B^
+                            x[1,1]  x[-1,-1] dup1 dup1 min C^ max D^
+                            x[0,1]  x[0,-1]  dup1 dup1 min E^ max F^
+                            x[1,0]  x[-1,0]  dup1 dup1 min G^ max H^
+                            z[-1,1] y[1,-1]  dup1 dup1 min I^ max J^
+                            z[1,1]  y[-1,-1] dup1 dup1 min K^ max L^
+                            y[1,1]  z[-1,-1] dup1 dup1 min M^ max N^
+                            z[1,-1] y[-1,1]  dup1 dup1 min O^ max P^
+                            z[0,-1] y[0,1]   dup1 dup1 min Q^ max R^
+                            z[0,1]  y[0,-1]  dup1 dup1 min S^ max T^
+                            y[1,0]  z[-1,0]  dup1 dup1 min U^ max V^
+                            z[1,0]  y[-1,0]  dup1 dup1 min W^ max X^
+                            z[0,0]  y[0,0]   dup1 dup1 min Y^ max Z^
 
                             B A - x dup A B clip A@ - abs + AM^
                             D C - x dup C D clip B@ - abs + AA^
@@ -1455,19 +1465,19 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
                                                                                                                                                                       \
         mode == "DGM4"   ? ex_dlut(Format("
-                            x[1,-1] x[-1,1] dup1 dup1 min A^ max B^
-                            x[1,1] x[-1,-1] dup1 dup1 min C^ max D^
-                            x[0,1] x[0,-1]  dup1 dup1 min E^ max F^
-                            x[1,0] x[-1,0]  dup1 dup1 min G^ max H^
-                            z[-1,1] y[1,-1] dup1 dup1 min I^ max J^
-                            z[1,1] y[-1,-1] dup1 dup1 min K^ max L^
-                            y[1,1] z[-1,-1] dup1 dup1 min M^ max N^
-                            z[1,-1] y[-1,1] dup1 dup1 min O^ max P^
-                            z[0,-1] y[0,1]  dup1 dup1 min Q^ max R^
-                            z[0,1]  y[0,-1] dup1 dup1 min S^ max T^
-                            y[1,0] z[-1,0]  dup1 dup1 min U^ max V^
-                            z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
-                            z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
+                            x[1,-1] x[-1,1]  dup1 dup1 min A^ max B^
+                            x[1,1]  x[-1,-1] dup1 dup1 min C^ max D^
+                            x[0,1]  x[0,-1]  dup1 dup1 min E^ max F^
+                            x[1,0]  x[-1,0]  dup1 dup1 min G^ max H^
+                            z[-1,1] y[1,-1]  dup1 dup1 min I^ max J^
+                            z[1,1]  y[-1,-1] dup1 dup1 min K^ max L^
+                            y[1,1]  z[-1,-1] dup1 dup1 min M^ max N^
+                            z[1,-1] y[-1,1]  dup1 dup1 min O^ max P^
+                            z[0,-1] y[0,1]   dup1 dup1 min Q^ max R^
+                            z[0,1]  y[0,-1]  dup1 dup1 min S^ max T^
+                            y[1,0]  z[-1,0]  dup1 dup1 min U^ max V^
+                            z[1,0]  y[-1,0]  dup1 dup1 min W^ max X^
+                            z[0,0]  y[0,0]   dup1 dup1 min Y^ max Z^
 
                             B A - x dup A B clip A@ - abs 2 * + AM^
                             D C - x dup C D clip B@ - abs 2 * + AA^
@@ -1500,19 +1510,19 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                             Z@ x swap - abs {th} > x Z ?"), bi, fs)                                                                                                 : \
                                                                                                                                                                       \
         mode == "DGM5"   ? ex_dlut(Format("
-                            x[1,-1] x[-1,1] dup1 dup1 min A^ max B^
-                            x[1,1] x[-1,-1] dup1 dup1 min C^ max D^
-                            x[0,1] x[0,-1]  dup1 dup1 min E^ max F^
-                            x[1,0] x[-1,0]  dup1 dup1 min G^ max H^
-                            z[-1,1] y[1,-1] dup1 dup1 min I^ max J^
-                            z[1,1] y[-1,-1] dup1 dup1 min K^ max L^
-                            y[1,1] z[-1,-1] dup1 dup1 min M^ max N^
-                            z[1,-1] y[-1,1] dup1 dup1 min O^ max P^
-                            z[0,-1] y[0,1]  dup1 dup1 min Q^ max R^
-                            z[0,1]  y[0,-1] dup1 dup1 min S^ max T^
-                            y[1,0] z[-1,0]  dup1 dup1 min U^ max V^
-                            z[1,0]  y[-1,0] dup1 dup1 min W^ max X^
-                            z[0,0] y[0,0]   dup1 dup1 min Y^ max Z^
+                            x[1,-1] x[-1,1]  dup1 dup1 min A^ max B^
+                            x[1,1]  x[-1,-1] dup1 dup1 min C^ max D^
+                            x[0,1]  x[0,-1]  dup1 dup1 min E^ max F^
+                            x[1,0]  x[-1,0]  dup1 dup1 min G^ max H^
+                            z[-1,1] y[1,-1]  dup1 dup1 min I^ max J^
+                            z[1,1]  y[-1,-1] dup1 dup1 min K^ max L^
+                            y[1,1]  z[-1,-1] dup1 dup1 min M^ max N^
+                            z[1,-1] y[-1,1]  dup1 dup1 min O^ max P^
+                            z[0,-1] y[0,1]   dup1 dup1 min Q^ max R^
+                            z[0,1]  y[0,-1]  dup1 dup1 min S^ max T^
+                            y[1,0]  z[-1,0]  dup1 dup1 min U^ max V^
+                            z[1,0]  y[-1,0]  dup1 dup1 min W^ max X^
+                            z[0,0]  y[0,0]   dup1 dup1 min Y^ max Z^
 
                             x dup A B clip A@ - abs AM^
                             x dup C D clip B@ - abs AA^
@@ -1611,126 +1621,119 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                              swap2                           min
                                                              min"                                                                                                  : \
                                                                                                                                                                      \
-        mode == "medianST"?"x[-1,1] x[0,1]    dup1 dup1 min A^ max J^
-                            x[1,1]  x[-1,0]   dup1 dup1 min B^ max G^
-                            x[1,0]  x[-1,-1]  dup1 dup1 min C^ max E^
-                            x[0,-1] x[1,-1]   dup1 dup1 min D^ max H^
-                            y[-1,1] y[0,1]    dup1 dup1 min F^ max I^
-                            y[1,1]  y[-1,0]   dup1 dup1 min L^ max Q^
-                            y[1,0]  y[-1,-1]  dup1 dup1 min M^ max P^
-                            y[0,-1] y[1,-1]   dup1 dup1 min N^ max X^
-                            z[-1,1] z[0,1]    dup1 dup1 min O^ max Y^
-                            z[1,1]  z[-1,0]   dup1 dup1 min R^ max S^
-                            z[1,0]  z[-1,-1]  dup1 dup1 min T^ max U^
-                            z[0,-1] z[1,-1]   dup1 dup1 min V^ max II^
-                            x[0,0] y[0,0]     dup1 dup1 min W^ max Z^
-                            A B               dup1 dup1 min A^ max B^
-                            D F               dup1 dup1 min D^ max F^
-                            E z[0,0]          dup1 dup1 min E^ max K^
-                            G J               dup1 dup1 min G^ max J^
-                            H I               dup1 dup1 min H^ max I^
-                            L N               dup1 dup1 min L^ max N^
-                            M V               dup1 dup1 min M^ max V^
-                            O R               dup1 dup1 min O^ max R^
-                            P S               dup1 dup1 min P^ max S^
-                            Q Z               dup1 dup1 min Q^ max Z^
-                            T W               dup1 dup1 min T^ max W^
-                            U X               dup1 dup1 min U^ max X^
-                            Y II              dup1 dup1 min Y^ max II^
-                            B D               dup1 dup1 min B^ max D^
-                            C F               dup1 dup1 min C^ max F^
-                            E H               dup1 dup1 min E^ max H^
-                            I K               dup1 dup1 min I^ max K^
-                            L T               dup1 dup1 min L^ max T^
-                            M O               dup1 dup1 min M^ max O^
-                            N W               dup1 dup1 min N^ max W^
-                            P Y               dup1 dup1 min P^ max Y^
-                            Q U               dup1 dup1 min Q^ max U^
-                            R V               dup1 dup1 min R^ max V^
-                            S II              dup1 dup1 min S^ max II^
-                            X Z               dup1 dup1 min X^ max Z^
-                            A E               dup1 dup1 min A^ max E^
-                            B C               dup1 dup1 min B^ max C^
-                            D H               dup1 dup1 min D^ max H^
-                            F J               dup1 dup1 min F^ max J^
-                            G I               dup1 dup1 min G^ max I^
-                            L M               dup1 dup1 min L^ max M^
-                            N P               dup1 dup1 min N^ max P^
-                            O T               dup1 dup1 min O^ max T^
-                            Q R               dup1 dup1 min Q^ max R^
-                            S X               dup1 dup1 min S^ max X^
-                            U V               dup1 dup1 min U^ max V^
-                            W Y               dup1 dup1 min W^ max Y^
-                            Z II                        min Z^
-                            A B               dup1 dup1 min A^ max B^
-                            C G               dup1 dup1 min C^ max G^
-                            E F               dup1 dup1 min E^ max F^
-                            H I               dup1 dup1 min H^ max I^
-                            J K               dup1 dup1 min J^ max K^
-                            M O               dup1 dup1 min M^ max O^
-                            N Q               dup1 dup1 min N^ max Q^
-                            P T               dup1 dup1 min P^ max T^
-                            R U               dup1 dup1 min R^ max U^
-                            S W               dup1 dup1 min S^ max W^
-                            V Y               dup1 dup1 min V^ max Y^
-                            X Z               dup1 dup1 min X^ max Z^
-                            A L                                max L^
-                            C E               dup1 dup1 min C^ max E^
-                            D G               dup1 dup1 min D^ max G^
-                            F H               dup1 dup1 min F^ max H^
-                            I J               dup1 dup1 min I^ max J^
-                            M N               dup1 dup1 min M^ max N^
-                            O Q               dup1 dup1 min O^ max Q^
-                            P W               dup1 dup1 min P^ max W^
-                            R T               dup1 dup1 min R^ max T^
-                            S U               dup1 dup1 min S^ max U^
-                            V X               dup1 dup1 min V^ max X^
-                            Y Z               dup1 dup1 min Y^ max Z^
-                            B C               dup1 dup1 min B^ max C^
-                            D E               dup1 dup1 min D^ max E^
-                            F G               dup1 dup1 min F^ max G^
-                            H I               dup1 dup1 min H^ max I^
-                            N O               dup1 dup1 min N^ max O^
-                            P Q               dup1 dup1 min P^ max Q^
-                            R S               dup1 dup1 min R^ max S^
-                            T U               dup1 dup1 min T^ max U^
-                            V W               dup1 dup1 min V^ max W^
-                            X Y               dup1 dup1 min X^ max Y^
-                            B M                                max M^
-                            C D               dup1 dup1 min C^ max D^
-                            E F               dup1 dup1 min E^ max F^
-                            G H               dup1 dup1 min G^ max H^
-                            P R               dup1 dup1 min P^ max R^
-                            Q S               dup1 dup1 min Q^ max S^
-                            T V               dup1 dup1 min T^ max V^
-                            U W               dup1 dup1 min U^ max W^
-                            C N                                max N^
-                            O P               dup1 dup1 min O^ max P^
-                            Q R               dup1 dup1 min Q^ max R^
-                            S T               dup1 dup1 min S^ max T^
-                            U V               dup1 dup1 min U^ max V^
-                            W X               dup1 dup1 min W^ max X^
-                            D O                                max O^
-                            E P                                max P^
-                            F Q                                max Q^
-                            G R                                max R^
-                            H S                         min H^
-                            I T                         min I^
-                            J U                         min J^
-                            K V                         min K^
-                            I L                                max L^
-                            J M                                max M^
-                            K N                                max N^
-                            O W                         min O^
-                            P X                         min P^
-                            Q Y                         min Q^
-                            R Z                         min R^
-                            H O                                max O^
-                            L P                                max P^
-                            M Q                         min M^
-                            N R                         min N^
-                            M O                                max O^
-                            N P                         min O  min"                                                                                                : \
+        mode == "medianST"?"x[-1,1] x[0,1]        dup1 dup1 min M^ max Z^
+                            x[1,1]  x[-1,0]       dup1 dup1 min T^ max Y^
+                            x[1,0]  x[-1,-1]      dup1 dup1 min R^ max X^
+                            x[0,-1] x[1,-1]       dup1 dup1 min F^ max W^
+                            y[-1,1] y[0,1]        dup1 dup1 min S^ max V^
+                            y[1,1]  y[-1,0]       dup1 dup1 min D^ max U^
+                            y[1,0]  y[-1,-1]      dup1 dup1 min J^ max Q^
+                            y[0,-1] y[1,-1]       dup1 dup1 min K^ max P^
+                            z[-1,1] z[0,1]        dup1 dup1 min L^ max O^
+                            z[1,1]  z[-1,0]       dup1 dup1 min A^ max N^
+                            z[1,0]  z[-1,-1]      dup1 dup1 min C^ max I^
+                            z[0,-1] z[1,-1]       dup1 dup1 min E^ max H^
+                            z[0,0]  y[0,0]        dup1 dup1 min B^ max G^
+                            W Z                   dup1 dup1 min W^ max Z^
+                            G Y                   dup1 dup1 min G^ max Y^
+                            H V                   dup1 dup1 min H^ max V^
+                            N U                   dup1 dup1 min N^ max U^
+                            B T                   dup1 dup1 min B^ max T^
+                            E S                   dup1 dup1 min E^ max S^
+                            J R                   dup1 dup1 min J^ max R^
+                            I Q                   dup1 dup1 min I^ max Q^
+                            O P                   dup1 dup1 min O^ max P^
+                            F M                   dup1 dup1 min F^ max M^
+                            K L                   dup1 dup1 min K^ max L^
+                            A D                   dup1 dup1 min A^ max D^
+                            P Z                   dup1 dup1 min P^ max Z^
+                            U Y                   dup1 dup1 min U^ max Y^
+                            I X                   dup1 dup1 min I^ max X^
+                            N W                   dup1 dup1 min N^ max W^
+                            O T                   dup1 dup1 min O^ max T^
+                            J S                   dup1 dup1 min J^ max S^
+                            C R                   dup1 dup1 min C^ max R^
+                            H Q                   dup1 dup1 min H^ max Q^
+                            D M                   dup1 dup1 min D^ max M^
+                            G L                   dup1 dup1 min G^ max L^
+                            A K                   dup1 dup1 min A^ max K^
+                            B F                   dup1 dup1 min B^ max F^
+                            Y Z                   dup1 dup1 min Y^ max Z^
+                            Q X                   dup1 dup1 min Q^ max X^
+                            L W                   dup1 dup1 min L^ max W^
+                            R V                   dup1 dup1 min R^ max V^
+                            P U                   dup1 dup1 min P^ max U^
+                            M T                   dup1 dup1 min M^ max T^
+                            H S                   dup1 dup1 min H^ max S^
+                            D O                   dup1 dup1 min D^ max O^
+                            G N                   dup1 dup1 min G^ max N^
+                            F K                   dup1 dup1 min F^ max K^
+                            C J                   dup1 dup1 min C^ max J^
+                            E I                   dup1 dup1 min E^ max I^
+                            A B                   dup1 dup1 min A^ max B^
+                            U Y                   dup1 dup1 min U^ max Y^
+                            V X                   dup1 dup1 min V^ max X^
+                            T W                   dup1 dup1 min T^ max W^
+                            Q S                   dup1 dup1 min Q^ max S^
+                            I R                   dup1 dup1 min I^ max R^
+                            K P                   dup1 dup1 min K^ max P^
+                            L O                   dup1 dup1 min L^ max O^
+                            M N                   dup1 dup1 min M^ max N^
+                            H J                   dup1 dup1 min H^ max J^
+                            D G                   dup1 dup1 min D^ max G^
+                            B F                   dup1 dup1 min B^ max F^
+                            C E                   dup1 dup1 min C^ max E^
+                            X Z                             min X^
+                            W Y                   dup1 dup1 min W^ max Y^
+                            S V                   dup1 dup1 min S^ max V^
+                            T U                   dup1 dup1 min T^ max U^
+                            P R                   dup1 dup1 min P^ max R^
+                            J Q                   dup1 dup1 min J^ max Q^
+                            N O                   dup1 dup1 min N^ max O^
+                            L M                   dup1 dup1 min L^ max M^
+                            I K                   dup1 dup1 min I^ max K^
+                            E H                   dup1 dup1 min E^ max H^
+                            F G                   dup1 dup1 min F^ max G^
+                            B D                   dup1 dup1 min B^ max D^
+                            A C                                    max C^
+                            X Y                   dup1 dup1 min X^ max Y^
+                            V W                             min V^
+                            H T                   dup1 dup1 min H^ max T^
+                            G S                   dup1 dup1 min G^ max S^
+                            O R                             min O^
+                            N Q                   dup1 dup1 min N^ max Q^
+                            K P                   dup1 dup1 min K^ max P^
+                            J M                   dup1 dup1 min J^ max M^
+                            I L                                    max L^
+                            D E                                    max E^
+                            B C                   dup1 dup1 min B^ max C^
+                            Q Y                             min Q^
+                            O X                             min O^
+                            T V                             min T^
+                            S U                             min S^
+                            N P                   dup1 dup1 min N^ max P^
+                            K M                   dup1 dup1 min K^ max M^
+                            C L                                    max L^
+                            B J                                    max J^
+                            F H                                    max H^
+                            E G                                    max G^
+                            L T                   dup1 dup1 min L^ max T^
+                            M S                             min M^
+                            P Q                             min P^
+                            G O                   dup1 dup1 min G^ max O^
+                            H N                                    max N^
+                            J K                                    max K^
+                            P T                             min P^
+                            M O                             min M^
+                            L N                                    max N^
+                            G K                                    max K^
+                            N P                   dup1 dup1 min N^ max P^
+                            K M                   dup1 dup1 min K^ max M^
+                            M P                             min M^
+                            K N                                    max N^
+                            M N                   dup1 dup1 max swap2 min
+
+                            x swap2 clip"                                                                                                                          : \
                                                                                                                                                                      \
         mode == "SixNN" ? "x[0,0] x[0,1]         dup1 dup1 min swap2 max
                            x[0,-1] y[0,0]        dup1 dup1 min swap2 max
@@ -2007,7 +2010,7 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
 
                          J dup1 dup1 min swap2 max swap1 K max min"                                                                                                : \
                                                                                                                                                                      \
-                          Assert (false, "Unsupported median mode.")
+                         Assert (false, "Unsupported median mode.")
 
 
     temp5 = mode == "medianT5"
@@ -2262,7 +2265,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
                             x swap2 swap1 clip"                                                                                                                    : \
                                                                                                                                                                      \
         mode == "undot4c" ||                                                                                                                                         \
-        mode == "medianc" ? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
+        mode == "medianc"? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
                             y[1,1]  y[-1,0]       dup1 dup1 min swap2 max
                             y[1,0]  y[-1,-1]      dup1 dup1 min swap2 max
                             y[0,-1] y[1,-1]       dup1 dup1 min swap2 max
@@ -2283,7 +2286,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
                             y max swap y min
                             x swap2 clip"                                                                                                                           : \
                                                                                                                                                                       \
-        mode=="edgeSP"     ?   "y[1,-1] y[-1,1] dup1 dup1 min A^ max B^
+        mode=="edgeSP"   ? "y[1,-1] y[-1,1] dup1 dup1 min A^ max B^
                             y[1,1] y[-1,-1] dup1 dup1 min C^ max D^
                             y[0,1] y[0,-1]  dup1 dup1 min E^ max F^
                             y[1,0] y[-1,0]  dup1 dup1 min G^ max H^
@@ -2318,7 +2321,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
                           +"S  CC == x C F dup1 dup1 min I min swap2 max I max clip          x A H dup1 dup1 min I min swap2 max I max clip ? ? ?"                 : \
                                                                                                                                                                      \
         mode == "cartoonc"? "y[0,0] Y@ y[1,1] - abs Y y[1,0] - abs min Y y[1,-1] - abs min Y y[-1,1] - abs min Y y[-1,0] - abs min Y y[-1,-1] - abs min Y y[0,1] - abs min Y y[0,-1] - abs min DI^ " \
-                           +"Y DI + 0 range_max clip Y DI - 0 range_max clip x swap2 clip"                                                                          : \
+                           +"Y DI + 0 range_max clip Y DI - 0 range_max clip x swap2 clip"                                                                         : \
                                                                                                                                                                      \
         mode == "cartoon"? "x[0,0] X@ y[1,1] - abs X y[1,0] - abs min X y[1,-1] - abs min X y[-1,1] - abs min X y[-1,0] - abs min X y[-1,-1] - abs min X y[0,1] - abs min X y[0,-1] - abs min DI^ " \
                           +"X DI + 0 range_max clip X DI - 0 range_max clip y swap2 clip"                                                                          : \
