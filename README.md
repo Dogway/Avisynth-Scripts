@@ -10,7 +10,7 @@ For a full description of each check the main forum thread in [Doom9](https://fo
 
 This GitHub repository is licensed under the GNU General Public License v3.0 (GPL3) license except noted otherwise below or within each script file.
 
-**ExTools**: ex_expand(), ex_inpand(), ex_deflate(), ex_inflate() and some ex_median() and ex_repair() modes have been adapted and ported from RGTools under [MIT license](https://github.com/pinterf/RgTools/blob/master/LICENSE). A few ex_median() modes are also ported from DeGrainMedian under [GPL2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt) and now promoted to GPL3 by its license terms.
+**ExTools**: ex_expand(), ex_inpand(), ex_deflate(), ex_inflate() and some ex_median() and ex_repair() modes have been adapted and ported from RGTools under [MIT license](https://github.com/pinterf/RgTools/blob/master/LICENSE). A few ex_median() modes are also ported from DeGrainMedian under [GPL2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt) and now promoted to [GPL3](https://www.gnu.org/licenses/gpl-3.0.txt) by its license terms.
 
 **ex_repair()** from RGTools (MIT):
 
@@ -33,7 +33,7 @@ This GitHub repository is licensed under the GNU General Public License v3.0 (GP
 *   temp4     - TemporalRepair mode=4
 
 **ex_median()** from RGTools (MIT):
-*   median>   - removegrain(4)
+*   median    - removegrain(4)
 *   undot     - removegrain(1)
 *   undot2    - removegrain(2)
 *   undot3    - removegrain(3)
