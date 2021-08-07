@@ -52,20 +52,20 @@ function FastLineDarkenMOD( clip c, int "strength", int "prot", int "luma_cap", 
 {
 ## parameters ##
 str        = Default(strength, 50) / 128.
-lum 	   = Default(luma_cap, 191)
+lum        = Default(luma_cap, 191)
 protection = Default(prot,5)
-thr 	   = Default(threshold, 4)
+thr        = Default(threshold, 4)
 thinning   = Default(thinning,0)
-thn 	   = thinning /16.
+thn        = thinning /16.
 
 Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
 ## filtering ##
-exin	= c.ex_expand(thres=255/(protection+1)).ex_inpand()
-diff 	= Expr(c,exin,Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? range_half +"), "x", scale_inputs="allf")
-linemask= Expr(diff.ex_inpand(),Format("x range_half - {thn} * range_max +"), scale_inputs="allf").ex_boxblur(1,UV=1)
-thick 	= Expr(c, exin, Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? {str} * x +"), "x", scale_inputs="allf")
-thin 	= Expr(c.ex_expand(),diff,Format("x y range_half - {str} 1 + * +"), scale_inputs="allf")
+exin    = c.ex_expand(thres=255/(protection+1)).ex_inpand()
+diff    = Expr(c,exin,Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? range_half +"), "x", scale_inputs="allf")
+linemask= Expr(diff.ex_inpand(),Format("x range_half - {thn} * range_max +"), scale_inputs="allf").ex_boxblur(1,mode="mean",UV=1)
+thick   = Expr(c, exin, Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? {str} * x +"), "x", scale_inputs="allf")
+thin    = Expr(c.ex_expand(),diff,Format("x y range_half - {str} 1 + * +"), scale_inputs="allf")
 
 (thinning == 0) ? thick : ex_merge(thin,thick,linemask,UV=2)
 return mergechroma(c)}

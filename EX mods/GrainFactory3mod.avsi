@@ -6,7 +6,7 @@
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
 ###               2020.04.06     by A.SONY.    ###
-###               2021.07.14 ex  by Dogway     ###
+###               2021.08.07  ex by Dogway     ###
 ###                                            ###
 ##################################################
 ###
@@ -19,7 +19,10 @@
 ### |  CHANGELOG  |
 ### +-------------+
 ###
-### 2021.07.14 mx
+### 2021.08.07 ex
+###      - Minor edits
+###
+### 2021.07.14 ex
 ###      - Minor Expr edit
 ###
 ### 2021.07.02 ex
@@ -74,7 +77,8 @@
 ### -> RgTools           [v1.2]
 ### -> MaskTools2        [v2.2.26]
 ### -> neo_f3kdb         [r6]
-### -> ExTools           [v3.6.0]
+### -> ExTools           [v4.6.0]
+### -> Zs_RF_Shared      [V1.154]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -97,7 +101,6 @@ function GrainFactory3mod(clip clp,
 Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
 fullchr = clp.is444()
-chr420  = clp.is420()
 nochr   = clp.isy()
 bi      = BitsPerComponent(clp)
 
@@ -147,7 +150,7 @@ fs           = Default( fulls, false)
 o    = clp
 ox   = o.width()
 oy   = o.height()
-oblr = o.ex_boxblur(1,UV=1)
+oblr = o.ex_boxblur(1,mode="rg19",UV=1)
 sx1  = m4_sh(ox/float(g1size),m4v)
 sy1  = m4_sh(oy/float(g1size),m4v)
 sx1a = m4_sh((ox+sx1)/2.0,m4v)
@@ -191,8 +194,8 @@ th4str = ex_bs(th4, bi, fs)
 
 tmpavg = temp_avg/100.0
 
-chroma  = ( g1cstr == 0 ) && ( g2cstr == 0 ) && ( g3cstr == 0 ) ? false : true
-ochroma = ( ontop_cgrain != 0 ) || chroma ? true : false
+chroma  = !( (g1cstr + g2cstr + g3cstr) == 0 )
+ochroma = ( ontop_cgrain != 0 ) || chroma
 
 #-----------------------------------------------------------------------------------
 
@@ -267,9 +270,5 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 #-----------------------------------------------------------------------------------
 
 result = o.ex_makediff(grainlayer, ochroma?3:2, fulls=fs)
-result = use_ALMask ? ex_merge(result,o,o.sAverageLumaMask, luma=chroma, UV=ochroma?3:2, fulls=fs) : result
 
-
-
-
-return( result ) }
+use_ALMask ? ex_merge(result,o,o.sAverageLumaMask, luma=chroma, UV=ochroma?3:2, fulls=fs) : result }

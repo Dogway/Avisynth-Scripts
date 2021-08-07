@@ -1,9 +1,11 @@
 # SPresso by Didée, r.f mod in 2020.05.07 for HBD
 #                Dogway mod in 2021.07.16 for optimization+cleanup
+#                Dogway mod in 2021.08.07 for minor edits
 function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "limitC", float "biasC", int "RGmodeC", bool "HD", int "radius", bool "fulls") {
 
     rgb = isRGB(clp)
     bi  = BitsPerComponent(clp)
+    w   = clp.width()
     h   = clp.height()
 
     limit   = Default( limit,   2 )
@@ -12,7 +14,7 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
     biasC   = Default( biasC,  50 )
     RGmode  = Default( RGmode,  4 )
     RGmodeC = Default( RGmodeC, 0 )
-    HD      = Default( HD,  h > 720 )
+    HD      = Default( HD,  (w > 1099 ||  h > 599) )
     radius  = Default( radius,  round(h/540.0) )
     fs      = Default( fulls, rgb )
 

@@ -1,12 +1,12 @@
 # Frame Rate Converter ex mod
-# Version: 1.4.5  (14-07-2021)
+# Version: 1.4.6  (07-08-2021)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (1.4.5) (14-07-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
+# Dogway (1.4.6) (07-08-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -222,7 +222,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EMdiff = CalcDiff ? ex_makediff(EM, EM2, dif=false, fulls=fs)
     \       .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
     \       .Expr(ex_dlut(Format("x[0,0] x[-2,0] max x[-1,-1] max x[-1,0] max x[-1,1] max x[0,-2] max x[0,-1] max x[0,1] max x[0,2] max x[1,-1] max x[1,0] max x[1,1] max x[2,0] max {thb} > range_max range_min ?"), bi, fs))
-    \       .ex_blur(3)
+    \       .ex_boxblur(4,mode="weighted")
     \       .BicubicResize(C.Width(), C.Height()) : nop()
     # Apply mask to Flow / EM
     EMdiff = CalcDiff ? OutFps ? EMdiff.ChangeFPS(NewNum, NewDen) : EMdiff : nop()
@@ -242,6 +242,8 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     ## Create artifact correction mask
     OutRaw   = EM
     MaskThrb = ex_bs(MaskThr,bi,fs)
+    ## Expand 'circle' with binarize
+    ## Blur(0.6)
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
     \       .Expr(ex_dlut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {MaskThrb} > range_max range_min ?"), bi, fs))
     \       .Expr("x[-1,1] x[0,1] 4 * x[1,1] x[-1,0] 4 * x[0,0] 14 * x[1,0] 4 * x[-1,-1] x[0,-1] 4 * x[1,-1] + + + + + + + + 1 34 / *")
@@ -375,7 +377,7 @@ function FRC_GaussianBlur42(clip C,
     \         Min(Max(4, w1 + (w1 % 2)), w0),
     \         Min(Max(4, h1 + (h1 % 2)), h0))
 
-    B = B.ex_blur(2, UV=3)
+    B = B.ex_boxblur(2,mode="weighted",UV=3)
 
     return (var<0.01 && vvar<0.01)       ? C
     \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize(w0, h0, p=p)
