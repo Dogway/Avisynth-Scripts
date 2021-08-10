@@ -634,7 +634,7 @@ function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "U
         s_gam  = moncurve_coef(matrix)
         a      = moncurve_f(a, s_gam[0], s_gam[1], !rgb, false, UV, fs)
     }
-#subtitle(a,strv) }
+
     sv == 0 ?      a                                                                   : \
     isy     ? Expr(a,    strv                                                        ) : \
     UV == 1 ? Expr(a,    strv, ""                                                    ) : \
@@ -2968,7 +2968,7 @@ function ex_bs(float var, int "bits", bool "fulls") {
     var = min(max(var,0.),256.)
 
     v = var*pow(2, bi-8)
-    bi == 32 ? var/255. : bi != 8 ? fs ? v+v/256. : v : var }
+    bi == 32 ? var/255. : bi != 8 ? fs ? v+v/256. : v : round(var) }
 
 
 
