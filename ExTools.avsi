@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.6      (07-08-2021)             ##
+###           ExTools v4.7      (10-08-2021)             ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -301,7 +301,7 @@ function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", string "
     if (md=="dynamic") {
         ScriptClip(a,"""
 
-        thm = int((AverageLuma(a,-2)+AverageLuma(a,0)+AverageLuma(a,2))/(3.*thr))
+        thm = round((AverageLuma(a,-2)+AverageLuma(a,0)+AverageLuma(a,2))/(3.*thr))
         ex_binarize(a,thm,in,sm,"simple",lo,hi,UV,fs)
 
         """,args="a,thr,in,sm,lo,hi,UV,fs",local=true)
@@ -434,14 +434,13 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
 # Convolutions in AviSynth+ work better with Prefetch(physical cores) than with threads. Also for RGTools and other plugins.
 
 # EQUIVALENCES:
-# blur(1.0)                                           -> ex_blur(1)
-# blur(1.58)                                          -> ex_boxblur(1,mode="mean")
-# removegrain(20)                                     -> ex_boxblur(1,mode="mean")
-# removegrain(19)                                     -> ex_boxblur(1,mode="rg19")
-# removegrain(12)                                     -> ex_boxblur(1,mode="weighted")
-# removegrain(12).removegrain(20)                     -> ex_blur(3)
-# removegrain(12).removegrain(20).removegrain(20)     -> ex_blur(4.4)
-# ex_boxblur(1,mode="mean").ex_boxblur(1,mode="mean") -> ex_boxblur(2,mode="weighted") -> ex_blur(2.5)
+# blur(0.5)                                       ~> ex_boxblur(0.5,mode="weighted")
+# removegrain(12) / blur(1.0)                     -> ex_boxblur(1,mode="weighted")
+# removegrain(20) / blur(1.58)                    -> ex_boxblur(1,mode="mean")
+# removegrain(19)                                 -> ex_boxblur(1,mode="rg19")
+# removegrain(12).removegrain(20)                 ~> ex_blur(3)
+# removegrain(12).removegrain(20).removegrain(20) ~> ex_blur(4.4)
+# removegrain(20).removegrain(20)                 ~> ex_blur(3.5) -> ex_boxblur(3,mode="weighted") -> ex_boxblur(1,mode="mean").ex_boxblur(1,mode="mean")
 
 
 
@@ -483,7 +482,7 @@ function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int 
     fbox4 = rd == 0.15 && rv == 0.15
 
     UV = Default(UV,    rgb  ? 3 : 1)
-    md = Default(mode,  "weighted")
+    md = Default(mode,  "mean")
     fs = Default(fulls, rgb)
     rd = max(rd>1?round(rd):rd, 0)
     rv = max(rv>1?round(rv):rv, 0)
@@ -536,26 +535,26 @@ function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int 
            }
    }
 
-    strv = md == "weighted" ?                                                                                                 \
-           fbox2            ? "x[0,1] x[-1,0] x[0,0] 3  * x[1,0] x[0,-1] + + + + 1  7 / *"                                  : \
-           fbox3            ? "x[0,1] x[-1,0] x[0,0] 6  * x[1,0] x[0,-1] + + + + 1 10 / *"                                  : \
-           fbox4            ? "x[0,1] x[-1,0] x[0,0] 12 * x[1,0] x[0,-1] + + + + 1 16 / *"                                  : \
-           rv == 0.5        ? "x[0,1]  x[0,0] 5  * x[0,-1] + + 1  7 / *"                                                    : \
-           rv == 0.3        ? "x[0,1]  x[0,0] 8  * x[0,-1] + + 1 10 / *"                                                    : \
-           rv == 0.15       ? "x[0,1]  x[0,0] 16 * x[0,-1] + + 1 18 / *"                                                    : \
+    strv = md == "weighted" ?                                                                                                                              \
+           fbox             ? "x[-1,1] 0.5 * x[0,1] x[1,1] 0.5 * x[0,0] 2 * x[-1,0] x[1,0] x[-1,-1] 0.5 * x[0,-1] x[1,-1] 0.5 * + + + + + + + + 1 8 / *" : \
+           fbox2            ? "x[0,1] x[-1,0] x[0,0] 3  * x[1,0] x[0,-1] + + + + 1  7 / *"                                                               : \
+           fbox3            ? "x[0,1] x[-1,0] x[0,0] 6  * x[1,0] x[0,-1] + + + + 1 10 / *"                                                               : \
+           fbox4            ? "x[0,1] x[-1,0] x[0,0] 12 * x[1,0] x[0,-1] + + + + 1 16 / *"                                                               : \
+           rv == 0.5        ? "x[0,1]  x[0,0] 5  * x[0,-1] + + 1  7 / *"                                                                                 : \
+           rv == 0.3        ? "x[0,1]  x[0,0] 8  * x[0,-1] + + 1 10 / *"                                                                                 : \
+           rv == 0.15       ? "x[0,1]  x[0,0] 16 * x[0,-1] + + 1 18 / *"                                                                                 : \
                               krnv + plsv + string(divy) + " 1 swap / *" : ""
 
-    strh = md == "weighted" ?                                                                                                 \
-           rd == 0.5        ? "x[-1,0] x[0,0] 5  * x[1,0]  + + 1  7 / *"                                                    : \
-           rd == 0.3        ? "x[-1,0] x[0,0] 8  * x[1,0]  + + 1 10 / *"                                                    : \
-           rd == 0.15       ? "x[-1,0] x[0,0] 16 * x[1,0]  + + 1 18 / *"                                                    : \
+    strh = md == "weighted" ?                                                                                                                              \
+           rd == 0.5        ? "x[-1,0] x[0,0] 5  * x[1,0]  + + 1  7 / *"                                                                                 : \
+           rd == 0.3        ? "x[-1,0] x[0,0] 8  * x[1,0]  + + 1 10 / *"                                                                                 : \
+           rd == 0.15       ? "x[-1,0] x[0,0] 16 * x[1,0]  + + 1 18 / *"                                                                                 : \
                               krnh + plsh + string(divx) + " 1 swap / *" : ""
 
 
     str = fbox ? md == "rg19"     ?"x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + 1 8 / *"                                           : \
                  md == "bokeh"    ?"x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 1 4 / *"                                                                                   : \
                  md == "mean"     ?"x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[0,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 1 9 / *"                                  : \
-                 md == "weighted" ?"x[-1,1] 0.5 * x[0,1] x[1,1] 0.5 * x[0,0] 2 * x[-1,0] x[1,0] x[-1,-1] 0.5 * x[0,-1] x[1,-1] 0.5 * + + + + + + + + 1 8 / *"      : \
                  md == "trimmed"  ?"x[-1,1] A@ x[0,1] B@ x[1,1] C@ x[-1,0] D@ x[0,0] E@ x[1,0] F@ x[-1,-1] G@ x[0,-1] H@ x[1,-1] I@ + + + + + + + + 1 9 / * X^ "     \
                                   +"A D dup1 dup1 min A^ max D^ B H dup1 dup1 min B^ max H^ C F dup1 dup1 min C^ max F^ E I dup1 dup1 min E^ max I^ "                \
                                   +"A H dup1 dup1 min A^ max H^ C E dup1 dup1 min C^ max E^ D I dup1 dup1 min D^ max I^ F G dup1 dup1 min F^ max G^ "                \
@@ -566,12 +565,11 @@ function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int 
                                   +"X swap2 clip" : "" : krnv + plsv + string(divy) + " 1 swap / *"
 
 
-    strv = fbox  || md == "bokeh"                       ? str  : \
-          (fbox2 || fbox3 || fbox4) && md == "weighted" ||       \
-                               rv<1 && md == "weighted" ? strv : \
+    strv =          md == "weighted" ? strv : \
+           fbox  || md == "bokeh"    ? str  : \
            krnv + plsv + string(divy) + " 1 swap / *"
 
-    strh =                     rd<1 && md == "weighted" ? strh : \
+    strh =          md == "weighted" ? strh : \
            krnh + plsh + string(divx) + " 1 swap / *"
 
     rv == 0 ?      a                                                                  : \
@@ -591,8 +589,8 @@ function factorial(int n) {
 # Variable Gaussian Blur
 #
 # Benchmark:
-# 100% removegrain(12,-1)          # technically a weighted mean of [1 2 1]
-#  96% ex_blur(1,UV=1)             # true gaussian blur (use ex_boxblur(1, mode="weighted") for a 1:1 match)
+# 100% removegrain(12,-1)          # technically a binomial weighted mean of [1 2 1]
+#  96% ex_blur(1,UV=1)             # true gaussian blur (use ex_boxblur(1, mode="weighted") for a 1:1 binomial match)
 #  94% BinomialBlur(0.75,U=1,V=1)  # only in 8-bit
 #  94% GBlur2(0.75,chroma=2)       # only in 8-bit. weighted mean of [1 2 1]
 #  84% ablur(1, 1)                 # against ex_blur(2)
@@ -668,8 +666,7 @@ function gauss_constructor(float rad, bool vert) {
         pls   = i == krnlsz/2 || ga < 0.001 ? pls : pls + "+ "
        }
 
-    str + pls
-}
+    str + pls }
 
 
 
@@ -745,6 +742,7 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
     isy     ? Expr(last, strh                                                       ) : \
     UV == 1 ? Expr(last, strh, ""                                                   ) : \
               Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
+
 
 
 # Like ex_bilateral, a less gentle blurring but more performant
@@ -2435,6 +2433,38 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
 
 
 
+##################
+## MORPHOLOGICAL #
+##################
+##
+## Opening: To clean small blotches
+##   ex_inpand(n).ex_expand(n)
+##
+## Closing: To close gaps
+##   ex_expand(n).ex_inpand(n)
+##
+## Smooth: Opening + Closing, effectively cleaning binary images
+##   ex_inpand(n).ex_expand(n).ex_expand(n).ex_inpand(n)
+##
+## Outline: To reveal the outer edge of a line
+##   ex_makediff(ex_expand(n), a, dif=false)
+##
+## Inline: To reveal the inner edge of a line
+##   ex_makediff(a, ex_inpand(n), dif=false)
+##
+## Gradient: To reveal the boundary of elements in a binary image
+##   ex_makediff(ex_expand(n), ex_inpand(n), dif=false)
+##   or
+##   ex_hitormiss(mode="boundary") # thinner
+##
+## Top Hat: To reveal bright elements over dark backgrounds on a greyscale image
+##   ex_makediff(a, ex_inpand(n).ex_expand(n), dif=false)
+##
+## Black Hat: To reveal dark elements over bright backgrounds on a greyscale image
+##   ex_makediff(ex_expand(n).ex_inpand(n), a, dif=false)
+##
+
+
 # mt_expand() is 6% faster (6% slower when radius = 2)
 # modes: square, circle, vertical, horizontal, both
 # "circle" + radius=2 is like calling mode="both" twice but faster
@@ -2617,6 +2647,145 @@ function ex_inflate(clip a, int "radius", int "UV", bool "fulls") {
     isy     ? Expr(a, str                                                      ) : \
     UV == 1 ? Expr(a, str, ""                                                  ) : \
               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs="none") }
+
+
+# Hit-or-Miss morphological transform (HMT)
+#
+# Requires AviSynth+ 3.7.1 (for string line carriage)
+#
+# modes:
+# thin         - Like erode (inpand) but one pixel at a time without complete removal (leads to 'skeleton')
+# thicken      - Like dilate (expand) but one pixel at a time without element merging (leads to 'SKIZ')
+# prune        - To remove thin branches from the main binary element bodies
+# pruneS       - Prune strong
+# boundary     - Get the boundary edge of the element bodies
+# convexhull   - Minimal geometry representation of the element body (fills concave contours)
+# convexhull45 - 45º convex hull approximation
+# corner       - Detects right angle pixel corners (ie. jaggies) (WIP)
+# cornerS      - Corner strong
+# skeleton     - Minimal 1 pixel representation of element bodies in binary image                           (iterate 'thin' until stable -no more changes-)
+# SKIZ         - Skeleton by zone of influence. Also known as backround skeletonization or Voronoi diagram. (iterate 'thicken' or 'convehull' until stable)
+# end          - Extracts end pixels      (to be used after skeleton)
+# junction     - Extracts junction pixels (to be used after skeleton). Also known as branched points
+# connected    - Extracts connected components (not implemented)
+# fill         - (Boundary) fill element bodies (not implemented)
+function ex_hitormiss(clip a, int "radius", string "mode", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    rd = Default(radius, 1)
+    md = Default(mode, "thin")
+    UV = Default(UV,    rgb ? 3 : 1)
+    fs = Default(fulls, rgb)
+
+    md == "boundary" || md == "end" || md == "junction" || md == "corner" || md == "cornerS" ? \
+    Assert(rd == 1, md+" mode only supports radius=1") : nop()
+
+    if (rd > 1) {
+
+        ex_hitormiss(a,   rd-1,  md, UV, fs)
+        ex_hitormiss(last,   1,  md, UV, fs)
+
+    } else {
+
+    krn = "range_max x[-1,-1] A@ - O^ range_max  x[0,-1] B@ - P^ range_max x[1,-1] C@ - Q^
+           range_max x[-1,0]  D@ - R^            x[0,0]  E^      range_max x[1,0]  F@ - T^
+           range_max x[-1,1]  G@ - U^ range_max  x[0,1]  H@ - V^ range_max x[1,1]  I@ - W^ "
+
+    # Structuring Elements
+    str = md == "thin"       ? "O P min Q min E min G min H min I min
+                                P Q min T min D min E min G min H min max
+                                Q T min W min A min D min G min E min max
+                                T V min W min A min D min B min E min max
+                                U V min W min A min B min C min E min max
+                                R U min V min B min E min C min F min max
+                                O R min U min C min F min I min E min max
+                                O P min R min E min H min F min I min max range_max swap - x *"                   : \
+                                                                                                                    \
+          md == "thicken"    ? "O P max Q max E max G max H max I max
+                                P Q max T max D max E max G max H max min
+                                Q T max W max A max D max G max E max min
+                                T V max W max A max D max B max E max min
+                                U V max W max A max B max C max E max min
+                                R U max V max B max E max C max F max min
+                                O R max U max C max F max I max E max min
+                                O P max R max E max H max F max I max min range_max x - * range_max swap -"      : \
+                                                                                                                   \
+          md == "prune"      ? "P Q min T min W min V min D min E min
+                                R U min V min W min T min B min E min max
+                                O P min R min U min V min F min E min max
+                                O R min P min Q min T min H min E min max
+                                P Q min T min W min V min U min R min A min E min max
+                                P O min T min W min V min U min R min C min E min max
+                                P Q min T min O min V min U min R min I min E min max
+                                P Q min T min W min V min O min R min G min E min max range_max swap - x *"      : \
+                                                                                                                   \
+          md == "pruneS"     ? "Q T min W min V min U min R min E min
+                                O P min W min V min U min R min E min max
+                                O P min Q min T min U min R min E min max
+                                O P min Q min T min W min V min E min max
+                                T W min V min U min R min O min E min max
+                                P Q min V min U min R min O min E min max
+                                P Q min W min T min R min O min E min max
+                                P Q min W min T min U min V min E min max range_max swap - x *"                  : \
+                                                                                                                   \
+          md == "boundary"   ? "A B min C min D min E min F min G min H min I min range_max swap - x *"          : \
+                                                                                                                   \
+          md == "convexhull" ? "O R max U max E max
+                                O P max Q max E max min
+                                Q T max W max E max min
+                                U V max W max E max min range_max x - * range_max swap -"                        : \
+                                                                                                                   \
+          md =="convexhull45"? "O R max U max P max E max I max
+                                O P max Q max T max E max G max min
+                                Q T max W max V max E max A max min
+                                W V max U max R max E max C max min
+                                P Q max T max W max E max G max min
+                                U V max W max T max E max A max min
+                                O R max U max V max E max C max min
+                                O R max P max Q max E max I max min range_max x - * range_max swap -"            : \
+                                                                                                                   \
+          md == "junction"   ? "A C min E min H min
+                                B E min F min G min max
+                                D E min C min I min max
+                                A E min F min H min max
+                                B E min G min I min max
+                                D E min H min C min max
+                                A E min G min F min max
+                                D E min B min I min max
+                                A E min I min G min max
+                                A E min C min G min max
+                                A E min C min I min max
+                                G E min C min I min max"                                                         : \
+                                                                                                                   \
+          md == "end"        ? "Q T min P min O min R min E min H min
+                                Q T min W min V min P min E min D min max
+                                U T min W min V min R min E min B min max
+                                U P min O min V min R min E min F min max
+                                O P min Q min U min R min E min I min max
+                                O P min Q min W min T min E min G min max
+                                Q T min W min V min U min E min A min max
+                                O R min U min V min W min E min C min max"                                       : \
+                                                                                                                   \
+          md == "corner"     ? "V R min U min E min B min F min
+                                T W min V min E min B min D min max
+                                P Q min T min E min D min H min max
+                                O P min R min E min F min H min max"                                             : \
+                                                                                                                   \
+          md == "cornerS"    ? "V R min U min B min F min
+                                T W min V min B min D min max
+                                P Q min T min D min H min max
+                                O P min R min F min H min max" : ""
+
+    str = ex_dlut(krn + str, bi, fs)
+
+    rd < 1  ? a                                                                  : \
+    isy     ? Expr(a, str                                                      ) : \
+    UV == 1 ? Expr(a, str, ""                                                  ) : \
+              Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs="none") } }
+
 
 
 # mt_edge() is 14% faster (varies with kernel)
@@ -2803,7 +2972,7 @@ function ex_bs(float var, int "bits", bool "fulls") {
 
 
 
-# HBD constants look up table
+# HBD constants 3D look up table
 function ex_dlut(string "str", int "bits", bool "fulls") {
 
     str  = Default(str, "")
