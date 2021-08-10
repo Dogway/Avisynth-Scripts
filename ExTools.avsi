@@ -2444,7 +2444,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
 ##   ex_expand(n).ex_inpand(n)
 ##
 ## Smooth: Opening + Closing, effectively cleaning binary images
-##   ex_inpand(n).ex_expand(n).ex_expand(n).ex_inpand(n)
+##   ex_inpand(n).ex_expand(n+n).ex_inpand(n)
 ##
 ## Outline: To reveal the outer edge of a line
 ##   ex_makediff(ex_expand(n), a, dif=false)
@@ -2457,10 +2457,10 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
 ##   or
 ##   ex_hitormiss(mode="boundary") # thinner
 ##
-## Top Hat: To reveal bright elements over dark backgrounds on a greyscale image
+## Top Hat:   (a - opening) To reveal bright elements over dark backgrounds on a greyscale image
 ##   ex_makediff(a, ex_inpand(n).ex_expand(n), dif=false)
 ##
-## Black Hat: To reveal dark elements over bright backgrounds on a greyscale image
+## Black Hat: (closing - a) To reveal dark elements over bright backgrounds on a greyscale image
 ##   ex_makediff(ex_expand(n).ex_inpand(n), a, dif=false)
 ##
 
