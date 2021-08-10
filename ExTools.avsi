@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.7      (10-08-2021)             ##
+###           ExTools v4.7.1      (10-08-2021)           ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -2663,12 +2663,13 @@ function ex_inflate(clip a, int "radius", int "UV", bool "fulls") {
 # convexhull45 - 45º convex hull approximation
 # corner       - Detects right angle pixel corners (ie. jaggies) (WIP)
 # cornerS      - Corner strong
-# skeleton     - Minimal 1 pixel representation of element bodies in binary image                           (iterate 'thin' until stable -no more changes-)
-# SKIZ         - Skeleton by zone of influence. Also known as backround skeletonization or Voronoi diagram. (iterate 'thicken' or 'convehull' until stable)
+# skeleton     - Minimal 1 pixel representation of element bodies in binary image                            (iterate 'thin' until stable -no more changes-)
+# SKIZ         - Skeleton by zone of influence. Also known as background skeletonization or Voronoi diagram. (iterate 'thicken' or 'convehull' until stable)
 # end          - Extracts end pixels      (to be used after skeleton)
 # junction     - Extracts junction pixels (to be used after skeleton). Also known as branched points
 # connected    - Extracts connected components (not implemented)
 # fill         - (Boundary) fill element bodies (not implemented)
+#
 function ex_hitormiss(clip a, int "radius", string "mode", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
