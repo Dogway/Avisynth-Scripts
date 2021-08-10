@@ -277,7 +277,7 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
 # simple  - fixed static threshold
 # dynamic - temporal stable dynamic threshold. A cheap alternative to Otsu's method
 #
-function ex_binarize(clip a, int "thres", bool "invert", bool "smooth", string "mode", int "lo", int "hi", int "UV", bool "fulls") {
+function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string "mode", int "lo", int "hi", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
