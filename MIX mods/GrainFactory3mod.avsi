@@ -259,7 +259,7 @@ th43str = th4str - th3str
 grainlayer = grainlayer1.mt_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max range_max {th21str} / x {th1str} - * ? ?"), fulls=fs), luma=chroma, U=chroma?3:1,V=chroma?3:1)
  \                      .mt_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max range_max {th43str} / x {th3str} - * ? ?"), fulls=fs), luma=chroma, U=chroma?3:1,V=chroma?3:1)
 
-grainlayer = (temp_avg==0 || ( g1const==true && g2const==true && g3const==true ) ) ? grainlayer
+grainlayer = (temp_avg==0 || ( g1const && g2const && g3const ) ) ? grainlayer
 \          : chroma ? grainlayer.merge(    grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
 \          :          grainlayer.mergeluma(grainlayer.temporalsoften(1,255,  0,255,2), tmpavg)
 grainlayer = ( ontop_grain>0  ||  ontop_cgrain>0  )  ? grainlayer.AddGrainC(ontop_grain>0?ontop_grain:0, ontop_cgrain>0?ontop_cgrain:0, 0, 0, constant=ontop_const)
@@ -271,4 +271,4 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 
 result = o.ex_makediff(grainlayer, ochroma?3:2, fulls=fs)
 
-use_ALMask ? mt_merge(result,o,o.sAverageLumaMask, luma=chroma, U=ochroma?3:2,V=ochroma?3:2) : result  }
+use_ALMask ? mt_merge(result,o,o.sAverageLumaMask(), luma=chroma, U=ochroma?3:2,V=ochroma?3:2) : result  }

@@ -114,7 +114,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     # Similar Bound Edge (soft_if(), fast linear approx)
     sbe = ex_dlut(Format("
            x[-1,1] A@ x[0,1] B@ max  x[1,1] C@ x[-1,0] D@ max max     x[1,0] E@ x[-1,-1] F@ max x[0,-1] G@ x[1,-1] H@ max max  max
-            x[0,2] I@ x[-2,0] J@ max x[2,0] K@ x[0,-2] L@ max max     x[0,0] X@ max max {r_max} * M^
+           x[0,2]  I@ x[-2,0] J@ max x[2,0] K@ x[0,-2] L@ max max     x[0,0] X@ max max {r_max} * M^
            x[0,3]   I   B       {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} -
            G  L  x[0,-3]        {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} - *
            x[-3,0]  J D         {sbe_m} + + + {r_max} * M {sbe_l} + / {sbe_h} -
@@ -261,18 +261,18 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
     # Soft limiter. Anti-ringing block
     sharp = ex_dlut(Format("
-            x[0,3] x[-1,2]    dup1 dup1 min A^ max N^
-            x[0,2] x[1,2]     dup1 dup1 min B^ max G^
-            x[-2,1] x[-1,1]   dup1 dup1 min C^ max I^
-            x[0,1] x[1,1]     dup1 dup1 min D^ max U^
-            x[2,1] x[-3,0]    dup1 dup1 min E^ max H^
-            x[-2,0] x[-1,0]   dup1 dup1 min F^ max X^
-            x[0,0] x[1,0]     dup1 dup1 min J^ max Q^
-            x[2,0] x[3,0]     dup1 dup1 min K^ max P^
+            x[0,3]   x[-1,2]  dup1 dup1 min A^ max N^
+            x[0,2]   x[1,2]   dup1 dup1 min B^ max G^
+            x[-2,1]  x[-1,1]  dup1 dup1 min C^ max I^
+            x[0,1]   x[1,1]   dup1 dup1 min D^ max U^
+            x[2,1]   x[-3,0]  dup1 dup1 min E^ max H^
+            x[-2,0]  x[-1,0]  dup1 dup1 min F^ max X^
+            x[0,0]   x[1,0]   dup1 dup1 min J^ max Q^
+            x[2,0]   x[3,0]   dup1 dup1 min K^ max P^
             x[-2,-1] x[-1,-1] dup1 dup1 min L^ max O^
-            x[0,-1] x[1,-1]   dup1 dup1 min R^ max Y^
-            x[2,-1] x[-1,-2]  dup1 dup1 min S^ max V^
-            x[0,-2] x[1,-2]   dup1 dup1 min T^ max Z^
+            x[0,-1]  x[1,-1]  dup1 dup1 min R^ max Y^
+            x[2,-1]  x[-1,-2] dup1 dup1 min S^ max V^
+            x[0,-2]  x[1,-2]  dup1 dup1 min T^ max Z^
             A D               dup1 dup1 min A^ max D^
             B T               dup1 dup1 min B^ max T^
             E S               dup1 dup1 min E^ max S^
