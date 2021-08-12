@@ -8,13 +8,13 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.3d      by Dogway - 04 Augu 2021                              ###
+###                       v3.2.4d      by Dogway - 12 Augu 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### General purpose simple degrain function. Pure temporal denoiser. Basically a wrapper(function)/frontend of mvtools2+mdegrain
 ### with some added common related options. Goal is accessibility and quality but not targeted to any specific kind of source.
-### The reason behind is to keep it simple so aside masktools2 you will only need MVTools2.
+### The reason behind is to keep it simple so aside ExTools you will only need MVTools2.
 ###
 ### Check documentation for deep explanation on settings and defaults.
 ### https://forum.doom9.org/showthread.php?t=182881
@@ -37,8 +37,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     thSAD2=thSAD/2
     thSADC       = Default( thSADC, thSAD2)
     RefineMotion = Default( RefineMotion, false)
-    Threads      = Default( Threads, sh_GetUserGlobalIMTint())
-    Threads      = isInt(Threads) ? Threads : 0
+    Threads      = Default( Threads, sh_GetUserGlobalIMTint(true))
 
     trymany      = Default(trymany, false)
 
@@ -144,18 +143,18 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     # Prefilter & Motion Filter
 
     Mfilter = MFilterB ? MFilter : inputP
-    Lthres  = ex_bs(75,bi,fs)
+    Lthres  = ex_bs(75, 8, bi, fulls=fs)
 
     pref   = !GlobalR ? preclip ? prefilter                                                                               : \
                                  (prefilter==-1) ?  inputP                                                                : \
                                  (prefilter== 0) ?  inputP.ex_MinBlur(0,Chr,fulls=fs)                                     : \
                                  (prefilter== 1) ?  inputP.ex_MinBlur(1,Chr,fulls=fs)                                     : \
                                  (prefilter== 2) ?  inputP.ex_MinBlur(2,Chr,fulls=fs)                                     : \
-                                 (prefilter== 3) ?  mt_merge(dfttest(inputP,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=Threads),inputP,                            \
-                                                    inputP.ex_lut(Format("x ymin < range_max x {Lthres} > range_min range_max x ymin - range_max {Lthres} ymin - / * - ? ?"),UV=1,fulls=fs), luma=chroma, cplace="mpeg1", U=chr, V=chr) : \
-                                 (prefilter== 4) ?  inputP.ex_KNLMeansCL(device_type="GPU", device_id=device_id, chroma=chroma, a=1,d=1,h=7.0)                                                                                          : \
-                                 (prefilter== 5) ?  inputP.ex_BM3D(sigma=5,radius=1,UV=Chr)                                                                                                                                                              : \
-                                                    Assert(false, "prefilter must be between -1~5: "+string(prefilter))                                                                                                                 : \
+                                 (prefilter== 3) ?  ex_merge(dfttest(inputP,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1),inputP,                                                         \
+                                                    inputP.ex_lut(Format("x ymin < range_max x {Lthres} > range_min range_max x ymin - range_max {Lthres} ymin - / * - ? ?"),UV=1,fulls=fs), luma=chroma, UV=chr, fulls=fs) : \
+                                 (prefilter== 4) ?  inputP.ex_KNLMeansCL(device_type="GPU", device_id=device_id, chroma=chroma, a=1,d=1,h=7.0)                                                                              : \
+                                 (prefilter== 5) ?  inputP.ex_BM3D(sigma=5,radius=1,UV=Chr)                                                                                                                                 : \
+                                                    Assert(false, "prefilter must be between -1~5: "+string(prefilter))                                                                                                     : \
                                  inputP
 
 
@@ -462,11 +461,11 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
  # contra-sharpening: sharpen the denoised clip, but don't add more to any pixel than what was removed previously.
  # script function from Didée, at the VERY GRAINY thread
- # Enable MC (default false) for temporal limiting sharpening versus the default spatial limiting
-
+ # Enable 'MC' (default false) for temporal limiting sharpening versus the default spatial limiting
+ #
  # In final version 2.0d ContraHD() was merged, to allow proper HD sharpening.
- # In this case global variables of (before denoising) source MSuper and forward and backward
- # compensated motion vectors are necessary as: Super, cb1 and cf1, if used as a stand alone function.
+ # When using 'MC' (temporal limiting) global variables of (before denoising), source MSuper and forward and
+ # backward compensated motion vectors are necessary as: Super, cb1 and cf1, if used as a standalone function.
  # Don't know who made (mod) it, so I can't give proper credits, sorry.
 
 function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC", int "overshoot", bool "fulls") {
@@ -486,7 +485,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 
     allD = ex_makediff(original,denoised,fulls=fs)                                      # The difference achieved by the denoising.
     ssD  = ex_makediff(s,HD?s.removegrain(12,-1).\
-                              removegrain(19,-1):\
+                              removegrain(20,-1):\
                             s.removegrain(12,-1),fulls=fs)                              # The difference of a simple kernel blur.
     ssDD = ssD.repair(HD?ssD.repair(allD,1):allD,1)                                     # Limit the difference to the max of what the denoising removed locally.
 
@@ -515,19 +514,19 @@ function ex_MinBlur(clip clp, int "r", int "UV", bool "planar", string "mode", b
     y2    = (y ==2) ? 1  : y
     rg4   = (uv==3) ? 4  : -1
     rg11  = (uv==3) ? 12 : -1
-    rg20  = (uv==3) ? 19 : -1
+    rg20  = (uv==3) ? 20 : -1
     rg4v  = (uv==3) ? 4  : -1
     rg11v = (uv==3) ? 12 : -1
-    rg20v = (uv==3) ? 19 : -1
+    rg20v = (uv==3) ? 20 : -1
     rg4y  = (y ==3) ? 4  : -1
     rg11y = (y ==3) ? 12 : -1
-    rg20y = (y ==3) ? 19 : -1
+    rg20y = (y ==3) ? 20 : -1
     rg4v  = !(defmod && r==1) && (r<=1)
 
     blurstr = mode == "median"             ? """ex_median(mode=r==1?"median":"median5",UV=uv)""" : \
-              mode == "average"            ? "ex_blur(r*2,    UV=uv)"                            : \
-              mode == "average_horizontal" ? "ex_blur(r*2, 0, UV=uv)"                            : \
-              mode == "average_vertical"   ? "ex_blur(0, r*2, UV=uv)"                            : \
+              mode == "average"            ? """ex_boxblur(r*2, r*2, "weighted",       UV=uv)""" : \
+              mode == "average_horizontal" ? """ex_boxblur(r*2,   0, "weighted",       UV=uv)""" : \
+              mode == "average_vertical"   ? """ex_boxblur(0,   r*2, "weighted",       UV=uv)""" : \
               mode
 
     # Add Y= argument to ex_makediff for chroma only minblur
@@ -557,9 +556,9 @@ function ex_sbr(clip c, int "r", int "Y", int "UV", bool "fulls") {
     Y31    = (Y==3)  ?  3 :  1
     UV31   = (UV==3) ?  3 :  1
     Y11    = (Y==3)  ? 12 : -1
-    Y20    = (Y==3)  ? 19 : -1
+    Y20    = (Y==3)  ? 20 : -1
     UV11   = (UV==3) ? 12 : -1
-    UV20   = (UV==3) ? 19 : -1
+    UV20   = (UV==3) ? 20 : -1
 
     rg11   = (r<=1) ?     c.removegrain(Y11, UV11)                                                   : \
              (r==2) ?     c.removegrain(Y11, UV11).removegrain(Y20, UV20)                            : \
@@ -652,8 +651,10 @@ function ex_BM3D(clip a, float "sigma", int "radius", int "UV") {
     BM3D_CUDA(sigma=[s,ch?s/2:0,ch?s/2:0], radius=r, chroma=ch, fast=true, extractor_exp=6)
     BM3D_VAggregate(radius=r)
 
-    ConvertBits(bits=16, dither=-1)
-    ConvertBits(bits=bi, dither= 1)
+    if (bi < 32) {
+        ConvertBits(bits=16, dither=-1)
+        ConvertBits(bits=bi, dither= 1)
+    }
     ch ? MatchColorFormat(a) : mergechroma(a) }
 
 
