@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.8      (12-08-2021)             ##
+###           ExTools v4.8.1    (12-08-2021)             ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -284,9 +284,9 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    th = Default(thres, 128)
-    lo = Default(lo,   0)
-    hi = Default(hi, 255)
+    th = Default(thres, 115)
+    lo = Default(lo,      0)
+    hi = Default(hi,    255)
     in = Default(invert, false)
     sm = Default(smooth, false)
     md = Default(mode, "simple")      # 'simple' or 'dynamic'
@@ -301,27 +301,41 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
 
     if (md=="otsu") {
 
-        bnth = mx / 10.
+        # Assumes TV range for YUV
+        bnth = (rgb ? 255 : 219) / 10.
+        off  =  rgb ?   0 :  16
+        bs   =  rgb ? a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298967,0.586421,0.114612]) : a.ConvertBits(8,dither=-1,fulls=fs)
+        a    =  rgb ? bs.ConvertBits(bi,fulls=fs) : a
+        br   = bs.width() > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
+        isy  = rgb || isy
 
         ScriptClip(a,"""
-        thr1 =a.ex_binarize(255/10.,true,UV=UV,fulls=fs)
+        thr1 =br.ex_binarize(bnth+off,true,UV=UV,fulls=fs)
         bin1 =thr1.AverageLuma()
-        thr2 =Expr(thr1,a,ex_dlut(Format("range_max x - y {bnth} 2 * < range_max 0 ? * range_max /"),bi,fs),"")
+        thr2 =bnth * 2 + off
+        thr2 =Expr(thr1,br,Format("range_max x - y {thr2} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
         bin2 =thr2.AverageLuma()
-        thr3 =Expr(thr2,a,ex_dlut(Format("range_max x - y {bnth} 3 * < range_max 0 ? * range_max /"),bi,fs),"")
+        thr3 =bnth * 3 + off
+        thr3 =Expr(thr2,br,Format("range_max x - y {thr3} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
         bin3 =thr3.AverageLuma()
-        thr4 =Expr(thr3,a,ex_dlut(Format("range_max x - y {bnth} 4 * < range_max 0 ? * range_max /"),bi,fs),"")
+        thr4 =bnth * 4 + off
+        thr4 =Expr(thr3,br,Format("range_max x - y {thr4} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
         bin4 =thr4.AverageLuma()
-        thr5 =Expr(thr4,a,ex_dlut(Format("range_max x - y {bnth} 5 * < range_max 0 ? * range_max /"),bi,fs),"")
+        thr5 =bnth * 5 + off
+        thr5 =Expr(thr4,br,Format("range_max x - y {thr5} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
         bin5 =thr5.AverageLuma()
-        thr6 =Expr(thr5,a,ex_dlut(Format("range_max x - y {bnth} 6 * < range_max 0 ? * range_max /"),bi,fs),"")
+        thr6 =bnth * 6 + off
+        thr6 =Expr(thr5,br,Format("range_max x - y {thr6} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
         bin6 =thr6.AverageLuma()
-        thr7 =Expr(thr6,a,ex_dlut(Format("range_max x - y {bnth} 7 * < range_max 0 ? * range_max /"),bi,fs),"")
+        thr7 =bnth * 7 + off
+        thr7 =Expr(thr6,br,Format("range_max x - y {thr7} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
         bin7 =thr7.AverageLuma()
-        thr8 =Expr(thr7,a,ex_dlut(Format("range_max x - y {bnth} 8 * < range_max 0 ? * range_max /"),bi,fs),"")
+        thr8 =bnth * 8 + off
+        thr8 =Expr(thr7,br,Format("range_max x - y {thr8} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
         bin8 =thr8.AverageLuma()
-        thr10=a.Expr(Format("x {bnth} 9 * > range_max 0 ?"),"")
-        thr9 =Expr(thr8,thr10,ex_dlut("range_max x - range_max y - * range_max /",bi,fs),"")
+        thr9 =bnth * 9 + off
+        thr10=br.Expr(Format("x {thr9} > range_max 0 ?"), isy ? Undefined() : "")
+        thr9 =Expr(thr8,thr10,"range_max x - range_max y - * range_max /", isy ? Undefined() : "")
         bin9 =thr9.AverageLuma()
         bin10=thr10.AverageLuma()
 
@@ -351,15 +365,16 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
 
         th = max(max(max(max(max(max(max(max(max(th0,th1),th2),th3),th4),th5),th6),th7),th8),th9)
         th = th == th0 ? 1 : th == th1 ? 2 : th == th2 ? 3 : th == th3 ? 4 : th == th4 ? 5 : th == th5 ? 6 : th == th6 ? 7 : th == th7 ? 8 : th == th8 ? 9 : 10
-        th = th*bnth-bnth/2
-        th = ex_bs(th,bi,8,fs)
+        th = (th*bnth+off)-bnth/2
 
-        ex_binarize(a,th,in,sm,"simple",lo,hi,UV,fs)
+        ex_binarize(a,th,in,sm,"simple",lo,hi,isy ? 1 : UV,fs)
 
-        """,args="a,bnth,in,sm,lo,hi,UV,bi,fs",local=true)
+        """,args="a,br,bnth,off,in,sm,lo,hi,UV,bi,fs,rgb,isy",local=true)
 
+        rgb ? CombinePlanes(last, last, last, planes="RGB") : last
 
     } else if (md=="dynamic") {
+
         ScriptClip(a,"""
 
         thm = round((AverageLuma(a,-2)+AverageLuma(a,0)+AverageLuma(a,2))/(3.*thr))
@@ -3101,7 +3116,6 @@ function ex_bs(float var, int "ibits", int "obits", bool "ifulls", bool "fulls")
     obi = Default(obits, 16)
     fs  = Default(ifulls,  false)
     fso = Default(fulls, fs)
-    var = min(max(var,0.),16777216.)
 
     fs  = (ibi == 8 || ibi == 32) ? false : fs
     fso = (obi == 8 || obi == 32) ? false : fso
