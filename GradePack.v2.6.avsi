@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v2.51 (25-07-2021)              ##
+###           Grade Pack v2.6 (12-08-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -147,7 +147,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     sat   = Default(sat,  cont/1.5)        # [-1.0 to +1.0]
     pivot = Default(pivot, 127.5)          # Pivot: 64 to 192 (roughly)
     tv    = Default(tv_range, !rgb)        # TV or PC. Luma range of your source
-    UV    = Default(UV,        rgb ? 3 : 1)
+    UV    = Default(UV, Defined(sat) || rgb ? 3 : 1)
     fs    = Default(fulls,     rgb)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
@@ -172,7 +172,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     yconti = "{pivot} 1 "+rangePC+" {shmkn} * {knee} + / 1 - log {rcont} * - "+rangeTV+""
     str    = cont != 0. ? ex_dlut(Format(cont > 0. ? ycont : yconti), bi, fs) : ""
 
-    cstr = sat != 0. ? Format(""+string(1. - sat)+" "+rangePCc+" dup swap2 * range_max swap1 swap2 - {sat} * + "+rangeTVc+"") : "x"
+    cstr = sat != 0. ? Format(""+string(1. - sat)+" "+rangePCc+" dup swap2 * range_max swap1 swap2 - {sat} * + "+rangeTVc+"") : ""
     cstr = rgb ? str : ex_dlut(ex_UVexpr(cstr, UV, bi, rgb, fs), bi, fs)
 
     isy     ? Expr(c, str                                    ) : \
@@ -217,10 +217,10 @@ function ex_levels (clip c, int "input_low", float "gamma", int "input_high", in
     rangePC = tv ? "x ymin - range_max ymax ymin - / *" : "x"
     rangeTV = tv ? " ymax ymin - range_max / * ymin + " : ""
 
-    ilo = ex_bs( tv ? (ilo-16)*255./219. : ilo, bi, fs)
-    ihi = ex_bs( tv ? (ihi-16)*255./219. : ihi, bi, fs)
-    olo = ex_bs( tv ? (olo-16)*255./219. : olo, bi, fs)
-    ohi = ex_bs( tv ? (ohi-16)*255./219. : ohi, bi, fs)
+    ilo = ex_bs( tv ? (ilo-16)*255./219. : ilo, 8, bi, fulls=fs)
+    ihi = ex_bs( tv ? (ihi-16)*255./219. : ihi, 8, bi, fulls=fs)
+    olo = ex_bs( tv ? (olo-16)*255./219. : olo, 8, bi, fulls=fs)
+    ohi = ex_bs( tv ? (ohi-16)*255./219. : ohi, 8, bi, fulls=fs)
     iho = ihi - ilo
     oho = ohi - olo
 
@@ -281,7 +281,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
     str = Format(                                                                                                                                                                 \
                                                                                                                                                                                   \
         md == "blend"        ? iso ? "y" : "x {opr} * y {op} * + "                                                                                                              : \
-        md == "interpolation"? ""+rngmx+" 0.5 pi x "+srcmx+" "+V+" * "+rngmx+" / cos 4 / - pi y "+srcmx+" * "+rngmx+" / cos 4 / - * "                                           : \
+        md == "interpolation"? ""+rngmx+" 0.5 pi x "+srcmx+" "+V+" * "+rngmx+" / cos 0.25 * - pi y "+srcmx+" * "+rngmx+" / cos 0.25 * - * "                                     : \
                              \
         md == "lighter"      ? "see footer"                                                                                                                                     : \
         md == "lighten"      ? "x "+V+" y max "                                                                                                                                 : \
