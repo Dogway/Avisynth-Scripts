@@ -350,7 +350,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
         }
 
         th = max(max(max(max(max(max(max(max(max(th0,th1),th2),th3),th4),th5),th6),th7),th8),th9)
-        th = th == th0 ? 0 : th == th1 ? 1 : th == th2 ? 2 : th == th3 ? 3 : th == th4 ? 4 : th == th5 ? 5 : th == th6 ? 6 : th == th7 ? 7 : th == th8 ? 8 : 9
+        th = th == th0 ? 1 : th == th1 ? 2 : th == th2 ? 3 : th == th3 ? 4 : th == th4 ? 5 : th == th5 ? 6 : th == th6 ? 7 : th == th7 ? 8 : th == th8 ? 9 : 10
         th = th*bnth-bnth/2
         th = ex_bs(th,bi,8,fs)
 
