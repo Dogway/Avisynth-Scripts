@@ -1,5 +1,5 @@
 # Frame Rate Converter mix mod
-# Version: 1.4.6  (07-08-2021)
+# Version: 1.4.7  (12-08-2021)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
@@ -218,7 +218,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EMocc2 = CalcDiff ? MaskOcc > 0 ? C_luma.MMask(bak2, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand() : Blank : nop()
     EM2    = CalcDiff ? MaskOcc > 0 ? ex_blend(EM2,EMocc2,"lighten",0.4,UV=1,tv_range=false,fulls=fs)  : EM2 : nop()
     # Get difference mask between two versions
-    thb    = ex_bs(60,bi,fs)
+    thb    = ex_bs(60,8,bi,fulls=fs)
     EMdiff = CalcDiff ? ex_makediff(EM, EM2, dif=false, fulls=fs)
     \       .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
     \       .Expr(ex_dlut(Format("x[0,0] x[-2,0] max x[-1,-1] max x[-1,0] max x[-1,1] max x[0,-2] max x[0,-1] max x[0,1] max x[0,2] max x[1,-1] max x[1,0] max x[1,1] max x[2,0] max {thb} > range_max range_min ?"), bi, fs))
@@ -234,14 +234,14 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EM = EM.DeleteFrame(EM.Framecount()-1).Loop(2, EM.Framecount()-1)
 
     # Create skip mask
-    SkipThrb = ex_bs(SkipThr,bi,fs)
+    SkipThrb = ex_bs(SkipThr,8,bi,fulls=fs)
     EMskip = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
     \       .Expr(ex_dlut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {SkipThrb} > range_max range_min ?"), bi, fs))
     OutSkip = EMskip.BicubicResize(C.Width(), C.Height())
 
     ## Create artifact correction mask
     OutRaw   = EM
-    MaskThrb = ex_bs(MaskThr,bi,fs)
+    MaskThrb = ex_bs(MaskThr,8,bi,fulls=fs)
     ## Expand 'circle' with binarize
     ## Blur(0.6)
     EM = EM.BicubicResize(Round(C.Width()/BlkSize/4.0)*4, Round(C.Height()/BlkSizeV/4.0)*4)
@@ -250,7 +250,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     \       .BicubicResize(C.Width(), C.Height())
 
     # Mask: Stripes
-    thb   = ex_bs(82,bi,fs)
+    thb   = ex_bs(82,8,bi,fulls=fs)
     EMstp = C.StripeMask(blksize=BlkSize, blksizev=BlkSizeV, str=min(SkipThr*2+20, 255), strf=min(SkipThr+10, 255), thr=23)
     \      .BicubicResize(Round(C.Width()/BlkSize)*4, Round(C.Height()/BlkSizeV)*4)
     \      .ContinuousMask(22)

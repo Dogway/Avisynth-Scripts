@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.7 mix - 07 August 2021                                 ###
+###                                v2.8 ex - 12 August 2021                                  ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,7 +20,9 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v2.7mx : - Revert to removegrain(20) (mathematically correct)
+### v2.8ex : - Rebase to latest ExTools for ex_bs()
+###
+### v2.7ex : - Revert to removegrain(20) (mathematically correct)
 ###          - Add internal HD mode
 ###          - Rebase to latest ExTools
 ###
@@ -453,7 +455,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### DEFAULTS
-    version  = "v2.7ex"
+    version  = "v2.8ex"
     defaults = Default(defaults,"slow")
     num      = defaults=="old" ? 0 : defaults=="slow" ? 1 : defaults=="fast" ? 2 : 3
 
@@ -556,17 +558,17 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     \      : Smethod==2   ? minmaxavg
     \      :                isHD ? minmaxavg.ex_blur(3,UV=1) : minmaxavg.ex_boxblur(1,mode="weighted",UV=1)
 
-    sec    = ex_bs(0.51, bi, fs)
+    sec    = ex_bs(0.51, 8, bi, fulls=fs)
     secstr = Format("x y < x {sec} + x y > x {sec} - x ? ?")
     method = secure==true ? method.ex_lutxy(pre,secstr)
     \      :                method
 
     method = preblur=="OFF" ? method : tmp.ex_makediff(ex_makediff(pre,method,fulls=fs),fulls=fs)
 
-     Szrp      = ex_bs(Szrp,   bi, fs)
-     Spwr      = ex_bs(Spwr,   bi, fs)
-     SdmpLo    = ex_bs(SdmpLo, bi, fs)
-     SdmpHi    = ex_bs(SdmpHi, bi, fs)
+     Szrp      = ex_bs(Szrp,   8, bi, fulls=fs)
+     Spwr      = ex_bs(Spwr,   8, bi, fulls=fs)
+     SdmpLo    = ex_bs(SdmpLo, 8, bi, fulls=fs)
+     SdmpHi    = ex_bs(SdmpHi, 8, bi, fulls=fs)
 
     normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
     \         : Smode==2 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
@@ -590,8 +592,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
                                          +"A C - x[-1,0] 2 * D@ + x[1,0] 2 * E@ - F + H - C A - D - E + F - H + max max 2 *", lo=0, hi=255, UV=1, fulls=fs)
     \     :              tmp.ex_edge(mode="min/max",lo=0,hi=255,UV=1,fulls=fs)
 
-    rhlf  = ex_bs(128, bi, fs)
-    emHQn = ex_bs(32,  bi, fs)
+    rhlf  = ex_bs(128, 8, bi, fulls=fs)
+    emHQn = ex_bs(32,  8, bi, fulls=fs)
     edge  = edgemaskHQ ?  edge.ex_lut(Format("x 1 {rhlf}  / * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
     \     :               edge.ex_lut(Format("x 1 {emHQn} / * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
 
@@ -763,7 +765,7 @@ function UnsharpMask_HBD(clip clp, float "strength", int "radius", float "thresh
 
   rd    = radius - 1
   str   = str/128.
-  thres = ex_bs(thres,bi,fs)
+  thres = ex_bs(thres, 8, bi, fulls=fs)
 
   blurclip = ex_boxblur(clp, rd, mode="mean", UV=UV)
 

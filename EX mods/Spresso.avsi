@@ -20,13 +20,13 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
 
     yy = (RGmode ==0) ? 2 : 3
     uv = (RGmodeC==0) ? 2 : 3
-    LIM1  = ex_bs(limit>0 ? round(limit*100.0/bias-1.0) : round(100.0/bias), bi, fs)
-    LIM2  = ex_bs(limit<0 ? 1 : limit, bi, fs)
-    BIA   = ex_bs(bias, bi, fs)
-    LIM1c = ex_bs(limitC>0 ? round(limitC*100.0/biasC-1.0) : round(100.0/biasC), bi, fs)
-    LIM2c = ex_bs(limitC<0 ? 1 : limitC, bi, fs)
-    BIAc  = ex_bs(biasc, bi, fs)
-    CTH   = ex_bs(100, bi, fs)
+    LIM1  = ex_bs(limit>0 ? round(limit*100.0/bias-1.0) : round(100.0/bias), 8, bi, fulls=fs)
+    LIM2  = ex_bs(limit<0 ? 1 : limit, 8, bi, fulls=fs)
+    BIA   = ex_bs(bias, 8, bi, fulls=fs)
+    LIM1c = ex_bs(limitC>0 ? round(limitC*100.0/biasC-1.0) : round(100.0/biasC), 8, bi, fulls=fs)
+    LIM2c = ex_bs(limitC<0 ? 1 : limitC, 8, bi, fulls=fs)
+    BIAc  = ex_bs(biasc, 8, bi, fulls=fs)
+    CTH   = ex_bs(100, 8, bi, fulls=fs)
 
     expr  = Format(limit<0 ? "x y - A@ abs B@ {LIM1} < x dup 1 A B / * - ?"                                                          : \
                              "x y - abs 0 <= x dup {LIM1} + y < x {LIM2} + x {LIM1} - y > x {LIM2} - x {CTH} {BIA} - * y {BIA} * + 1 {CTH} / * ? ? ?" )

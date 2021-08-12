@@ -6,7 +6,7 @@
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
 ###               2020.04.06     by A.SONY.    ###
-###               2021.08.07 mix by Dogway     ###
+###               2021.08.12 mix by Dogway     ###
 ###                                            ###
 ##################################################
 ###
@@ -18,6 +18,9 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2021.08.12 mx
+###      - Update ex_bs()
 ###
 ### 2021.08.07 mx
 ###      - Minor edits
@@ -177,20 +180,20 @@ c1a  = (1.0-b1a)/2.0
 c2a  = (1.0-b2a)/2.0
 c3a  = (1.0-b3a)/2.0
 
-hlf  = ex_bs(128,             bi, fs)
-T1a  = ex_bs(int(g1tex*1.28), bi, fs)
-T2a  = ex_bs(int(g2tex*1.28), bi, fs)
-T3a  = ex_bs(int(g3tex*1.28), bi, fs)
+hlf  = ex_bs(128,             8, bi, fulls=fs)
+T1a  = ex_bs(int(g1tex*1.28), 8, bi, fulls=fs)
+T2a  = ex_bs(int(g2tex*1.28), 8, bi, fulls=fs)
+T3a  = ex_bs(int(g3tex*1.28), 8, bi, fulls=fs)
 
 hlfr = 1. / hlf
 T1ah = hlf-T1a
 T2ah = hlf-T2a
 T3ah = hlf-T3a
 
-th1str = ex_bs(th1, bi, fs)
-th2str = ex_bs(th2, bi, fs)
-th3str = ex_bs(th3, bi, fs)
-th4str = ex_bs(th4, bi, fs)
+th1str = ex_bs(th1, 8, bi, fulls=fs)
+th2str = ex_bs(th2, 8, bi, fulls=fs)
+th3str = ex_bs(th3, 8, bi, fulls=fs)
+th4str = ex_bs(th4, 8, bi, fulls=fs)
 
 tmpavg = temp_avg/100.0
 
