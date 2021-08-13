@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v4.8.1    (12-08-2021)             ##
+###           ExTools v4.8.2    (13-08-2021)             ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -289,8 +289,8 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     hi = Default(hi,    255)
     in = Default(invert, false)
     sm = Default(smooth, false)
-    md = Default(mode, "simple")      # 'simple' or 'dynamic'
-    UV = Default(UV,    rgb ? 3 : 1)
+    md = Default(mode, "simple")      # 'simple', 'dynamic' or 'otsu'
+    UV = Default(UV,      1)          # Currently this is noop as chroma thresholding makes no sense
     fs = Default(fulls, rgb)
 
     th  = ex_bs(th,  8, bi, fulls=fs)
@@ -299,15 +299,16 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     lox = lo < 0   hix = hi < 0
     lox && hix ? Assert (false, "'lo' or 'hi': At least one bound should be binarized.") : nop()
 
+    bs   = rgb ? a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298967,0.586421,0.114612]) : a.ConvertBits(8,dither=-1,fulls=fs)
+    a    = rgb ? bs.ConvertBits(bi,fulls=fs) : a
+    br   = bs.width() > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
+    isy  = rgb || isy
+
     if (md=="otsu") {
 
         # Assumes TV range for YUV
         bnth = (rgb ? 255 : 219) / 10.
         off  =  rgb ?   0 :  16
-        bs   =  rgb ? a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298967,0.586421,0.114612]) : a.ConvertBits(8,dither=-1,fulls=fs)
-        a    =  rgb ? bs.ConvertBits(bi,fulls=fs) : a
-        br   = bs.width() > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
-        isy  = rgb || isy
 
         ScriptClip(a,"""
         thr1 =br.ex_binarize(bnth+off,true,UV=UV,fulls=fs)
@@ -377,10 +378,12 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
 
         ScriptClip(a,"""
 
-        thm = round((AverageLuma(a,-2)+AverageLuma(a,0)+AverageLuma(a,2))/(3.*thr))
-        ex_binarize(a,thm,in,sm,"simple",lo,hi,UV,fs)
+        thm = round((AverageLuma(br,-2)+AverageLuma(br,0)+AverageLuma(br,2))/(3.*thr))
+        ex_binarize(a,thm,in,sm,"simple",lo,hi,isy ? 1 : UV,fs)
 
-        """,args="a,thr,in,sm,lo,hi,UV,fs",local=true)
+        """,args="a,br,thr,in,sm,lo,hi,UV,fs,isy",local=true)
+
+        rgb ? CombinePlanes(last, last, last, planes="RGB") : last
 
     } else {
 
@@ -421,7 +424,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     UV == 1 ?  Expr(a, str, ""                                ) : \
                Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi))
 
-    sm ? ex_boxblur(0.3,mode="weighted", UV=UV, fulls=fulls) : last } }
+    sm ? ex_boxblur(0.3,mode="weighted", UV=1, fulls=fulls) : last } }
 
 
 # mt_invert() is 10% slower and invert(channels="Y") is 17% slower
@@ -2812,7 +2815,7 @@ function ex_inflate(clip a, int "radius", int "UV", bool "fulls") {
 # corner       - Detects right angle pixel corners (ie. jaggies) (WIP)
 # cornerS      - Corner strong
 # skeleton     - Minimal 1 pixel representation of element bodies in binary image                            (iterate 'thin' until stable -no more changes-)
-# SKIZ         - Skeleton by zone of influence. Also known as background skeletonization or Voronoi diagram. (iterate 'thicken' or 'convehull' until stable)
+# SKIZ         - Skeleton by zone of influence. Also known as background skeletonization or Voronoi diagram. (iterate 'thicken' or 'convexhull' until stable)
 # end          - Extracts end pixels      (to be used after skeleton)
 # junction     - Extracts junction pixels (to be used after skeleton). Also known as branched points
 # connected    - Extracts connected components (not implemented)
