@@ -12,13 +12,15 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v2.8 mix - 12 August 2021                                 ###
+###                                v2.9 mix - 17 August 2021                                 ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v2.9mx : - Bugfix for HBD
 ###
 ### v2.8mx : - Rebase to latest ExTools for ex_bs()
 ###
@@ -142,7 +144,7 @@
 ###         edgemode, edgemaskHQ,
 ###         ss_x, ss_y, dest_x, dest_y,
 ###         show, screenW, screenH,
-###         defaults )
+###         preset )
 ###
 ###
 ###
@@ -324,17 +326,17 @@
 ### | SETTINGS |
 ### +----------+
 ###
-### defaults [string: "old" or "slow" or "fast"]
+### preset [string: "old" or "slow" or "fast"]
 ### --------------------------------------------
 ###    = "old"  : Reset settings to original version (output will be THE SAME AS LSF)
 ###    = "slow" : Enable SLOW modded version settings
 ###    = "fast" : Enable FAST modded version settings
-###  --> /!\ [default:"fast"]
+###  --> /!\ [preset:"slow"]
 ###
 ###
-### defaults="old" :  - strength    = 100
+### preset="old"   :  - strength    = 100
 ### ----------------  - Smode       = 3
-###                   - Smethod     = Smode==3?2:1
+###                   - Smethod     = Smode==3 ? 2 : 1
 ###
 ###                   - preblur     = "OFF"
 ###                   - secure      = false
@@ -358,17 +360,17 @@
 ###                   - edgemode    = 0
 ###                   - edgemaskHQ  = true
 ###
-###                   - ss_x        = Smode==3?1.50:1.25
+###                   - ss_x        = Smode==3 ? 1.50 : 1.25
 ###                   - ss_y        = ss_x
 ###                   - dest_x      = ox
 ###                   - dest_y      = oy
 ###
 ###                   - show        = false
-###                   - screenW     = 1280
-###                   - screenH     = 1024
+###                   - screenW     = 1920
+###                   - screenH     = 1080
 ###
 ###
-### defaults="slow" : - strength    = 100
+### preset="slow"   : - strength    = 100
 ### ----------------- - Smode       = 5
 ###                   - Smethod     = 3
 ###
@@ -394,17 +396,17 @@
 ###                   - edgemode    = 0
 ###                   - edgemaskHQ  = true
 ###
-###                   - ss_x        = 1.50
+###                   - ss_x        = Smode==3 ? 1.00 : 1.50
 ###                   - ss_y        = ss_x
 ###                   - dest_x      = ox
 ###                   - dest_y      = oy
 ###
 ###                   - show        = false
-###                   - screenW     = 1280
-###                   - screenH     = 1024
+###                   - screenW     = 1920
+###                   - screenH     = 1080
 ###
 ###
-### defaults="fast" : - strength    = 100
+### preset="fast"   : - strength    = 100
 ### ----------------- - Smode       = 3
 ###                   - Smethod     = 2
 ###
@@ -430,14 +432,14 @@
 ###                   - edgemode    = 0
 ###                   - edgemaskHQ  = false
 ###
-###                   - ss_x        = 1.25
+###                   - ss_x        = Smode==3 ? 1.00 : 1.25
 ###                   - ss_y        = ss_x
 ###                   - dest_x      = ox
 ###                   - dest_y      = oy
 ###
 ###                   - show        = false
-###                   - screenW     = 1280
-###                   - screenH     = 1024
+###                   - screenW     = 1920
+###                   - screenH     = 1080
 ###
 ################################################################################################
 
@@ -449,13 +451,13 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 \                int "edgemode", bool "edgemaskHQ",
 \                float "ss_x", float "ss_y", int "dest_x", int "dest_y",
 \                bool "show", int "screenW", int "screenH",
-\                string "defaults", bool "fulls" ) {
+\                string "preset", bool "fulls" ) {
 
 
-    ### DEFAULTS
-    version  = "v2.8mix"
-    defaults = Default(defaults,"slow")
-    num      = defaults=="old" ? 0 : defaults=="slow" ? 1 : defaults=="fast" ? 2 : 3
+    ### PRESETS
+    version = "v2.9ex"
+    preset  = Default(preset,"slow")
+    num     = preset=="old" ? 0 : preset=="slow" ? 1 : preset=="fast" ? 2 : 3
 
     ox   = inclip.width()
     oy   = inclip.height()
@@ -464,7 +466,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     fs   = Default(fulls, false)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
-    Assert(num         != 3      ? true : false, chr(10) + """Defaults must be "old" or "slow" or "fast" !""" + chr(10))
+    Assert(num != 3, chr(10) + """Preset must be "old" or "slow" or "fast" !""" + chr(10))
 
     strength    = Default( strength,    Select(num,                              100 ,                100 ,                100 ) )
     Smode       = Default( Smode,       Select(num,                                3 ,                  5 ,                  3 ) )
@@ -484,21 +486,21 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     overshoot2  = Default( overshoot2,  Select(num,                      overshoot*2 ,        overshoot*2 ,        overshoot*2 ) )
     undershoot2 = Default( undershoot2, Select(num,                       overshoot2 ,         overshoot2 ,         overshoot2 ) )
 
-    soft        = Default( soft,        Select(num,                  0 ,                 -2 ,                  0 ) )
+    soft        = Default( soft,        Select(num,                                0 ,                 -2 ,                  0 ) )
     soothe      = Default( soothe,      Select(num,                            false ,               true ,               true ) )
     keep        = Default( keep,        Select(num,                               25 ,                 20 ,                 20 ) )
 
     edgemode    = Default( edgemode,    Select(num,                                0 ,                  0 ,                  0 ) )
     edgemaskHQ  = Default( edgemaskHQ,  Select(num,                             true ,               true ,              false ) )
 
-    ss_x        = Default( ss_x,        Select(num, Smode==6?1.00:Smode==3?1.50:1.25 ,               1.50 ,               1.25 ) )
+    ss_x        = Default( ss_x,        Select(num, Smode==6?1.00:Smode==3?1.50:1.25 , Smode==3?1.00:1.50 , Smode==3?1.00:1.25 ) )
     ss_y        = Default( ss_y,        Select(num,                             ss_x ,               ss_x ,               ss_x ) )
     dest_x      = Default( dest_x,      Select(num,                               ox ,                 ox ,                 ox ) )
     dest_y      = Default( dest_y,      Select(num,                               oy ,                 oy ,                 oy ) )
 
     show        = Default( show,        Select(num,                            false ,              false ,              false ) )
-    screenW     = Default( screenW,     Select(num,                             1280 ,               1280 ,               1280 ) )
-    screenH     = Default( screenH,     Select(num,                             1024 ,               1024 ,               1024 ) )
+    screenW     = Default( screenW,     Select(num,                             1920 ,               1920 ,               1920 ) )
+    screenH     = Default( screenH,     Select(num,                             1080 ,               1080 ,               1080 ) )
 
     Assert(!isYUY2(inclip), chr(10) + "LSFmod: Unsupported format: YUY2" + chr(10))
     Assert(!isRGB(inclip),  chr(10) + "LSFmod: Unsupported format: RGB"  + chr(10))
@@ -564,18 +566,17 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     method = preblur=="OFF" ? method : tmp.ex_makediff(ex_makediff(pre,method,fulls=fs),fulls=fs)
 
      Szrp      = ex_bs(Szrp,   8, bi, fulls=fs)
-     Spwr      = ex_bs(Spwr,   8, bi, fulls=fs)
      SdmpLo    = ex_bs(SdmpLo, 8, bi, fulls=fs)
      SdmpHi    = ex_bs(SdmpHi, 8, bi, fulls=fs)
 
     normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
     \         : Smode==2 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
     \         : Smode==3 ? ex_lutxy(tmp, method, Format("x y - {str} * x +"))
-    \         : Smode==4 ? ex_lutxy(tmp, method, Format("x y == x x x y - A@ abs 1 {Szrp} / * {rSpwr} ^ {Szrp} * {str} * A dup * dup "
-    \                                                  +"{SdmpLo} + / * A dup abs / * 1 {SdmpHi} 0 == 0 A abs 1 {SdmpHi} / * 4 ^ ? + / + ?"))
-    \         : Smode==5 ? ex_lutxy(tmp, method, Format("x y == x x x y - A@ abs 1 {Szrp} / * 1 {Spwr} / ^ {Szrp} * {str} * A A abs / * A A * "
-    \                                                  +"{Szrp} dup * {SdmpLo} + * A A * {SdmpLo} + {Szrp} dup * * / * 1 "
-    \                                                  +"{SdmpHi} 0 == 0 {Szrp} 1 {SdmpHi} / * 4 ^ ? + 1 {SdmpHi} 0 == 0 A abs 1 {SdmpHi} / * 4 ^ ? + / * + ?"), scale_inputs="allf")
+    \         : Smode==4 ? ex_lutxy(tmp, method, Format("x y == x dup dup y - A@ abs 1 {Szrp} / * 1 {Spwr} / ^ {Szrp} * {str} * A dup * dup "
+    \                                                  +"{SdmpLo} scalef + / * A dup abs / * 1 {SdmpHi} 0 == 0 A abs 1 {SdmpHi} / * 4 ^ ? + / + ?"))
+    \         : Smode==5 ? ex_lutxy(tmp, method, Format("x y == x dup dup y - A@ abs 1 {Szrp} / * 1 {Spwr} / ^ {Szrp} * {str} * A dup abs / * A dup * "
+    \                                                  +"{Szrp} dup * {SdmpLo} scalef + * A dup * {SdmpLo} scalef + {Szrp} dup * * / * 1 "
+    \                                                  +"{SdmpHi} 0 == 0 {Szrp} 1 {SdmpHi} / * 4 ^ ? + 1 {SdmpHi} 0 == 0 A abs 1 {SdmpHi} / * 4 ^ ? + / * + ?"))
     \         : preblur!="OFF" && secure ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)).ex_lutxy(pre,secstr), fulls=fs), fulls=fs)
     \         : preblur!="OFF"           ? tmp.ex_makediff(ex_makediff(pre,pre.cas(min(Str, 1)), fulls=fs), fulls=fs) : secure ? pre.cas(min(Str, 1)).ex_lutxy(pre,secstr) : pre.cas(min(Str, 1))
 
@@ -592,8 +593,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
     rhlf  = ex_bs(128, 8, bi, fulls=fs)
     emHQn = ex_bs(32,  8, bi, fulls=fs)
-    edge  = edgemaskHQ ?  edge.ex_lut(Format("x 1 {rhlf}  / * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
-    \     :               edge.ex_lut(Format("x 1 {emHQn} / * 0.86 ^ range_max *"), scale_inputs="floatf", clamp_float=true, fulls=fs)
+    edge  = edgemaskHQ ?  edge.ex_lut(Format("x 1 {rhlf}  / * 0.86 ^ range_max *"), clamp_float=true, fulls=fs)
+    \     :               edge.ex_lut(Format("x 1 {emHQn} / * 0.86 ^ range_max *"), clamp_float=true, fulls=fs)
 
     limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
     \      : Lmode==0 ? normsharp
@@ -641,7 +642,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### SHOW
-       function LSFM_Show(clip input, clip output, string "version", string "defaults",
+       function LSFM_Show(clip input, clip output, string "version", string "preset",
        \                  float "strength", int "Smode", int "Smethod",
        \                  string "preblur", bool "secure", string "source",
        \                  float "Szrp", float "Spwr", float "SdmpLo", float "SdmpHi",
@@ -670,7 +671,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
        e = blankclip(input, width=384, height=resoH)
        e = e.SubTitle("LSFmod " + string(version)                ,text_color=$FFFFFF,font="COURIER NEW",size=24,x=40,y=40)
-       e = e.SubTitle("DEFAULTS      = " + string(defaults)      ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=100)
+       e = e.SubTitle("PRESET        = " + string(preset)        ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=100)
 
        e = e.SubTitle("GENERAL:"                                 ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=150)
        e = e.SubTitle("--------"                                 ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=160)
@@ -734,7 +735,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     output = sisupscale || sislumaonly ? output : CombinePlanes(output,inclip,planes="YUV",sample_clip=inclip)
 
     output = show==false ? output
-    \                    : LSFM_Show(inclip, output, version, defaults,
+    \                    : LSFM_Show(inclip, output, version, preset,
     \                                strength, Smode, Smethod,
     \                                preblur, secure, sode?"defined":"undefined",
     \                                Szrp, Spwr, SdmpLo, SdmpHi,
