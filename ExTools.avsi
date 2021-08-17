@@ -1667,10 +1667,10 @@ function ex_median(clip a, string "mode", int "UV", bool "fulls", int "thres") {
                                                                                                                                                                       \
         mode == "WMF"  ?   "x[-1,1]  x[1,1]       dup1 dup1 min K^ max P^
                             x[-1,-1] x[1,-1]      dup1 dup1 min L^ max O^
-                            x[0,1]   dup          dup1 dup1 min D^ max N^
-                            x[-1,0]  dup          dup1 dup1 min C^ max M^
-                            x[0,-1]  dup          dup1 dup1 min I^ max J^
-                            x[1,0]   dup          dup1 dup1 min G^ max H^
+                            x[0,1]   dup                        D^     N^
+                            x[-1,0]  dup                        C^     M^
+                            x[0,-1]  dup                        I^     J^
+                            x[1,0]   dup                        G^     H^
                             x[0,0]   dup dup dup                A^     F^
                                                                 B^     E^
                             N P                   dup1 dup1 min N^ max P^
