@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack (17-08-2021)                                   ###
+###        Sharpeners Pack v0.5 (17-08-2021)                              ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -461,7 +461,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 ###    0.3f (13 Dec 2006) by foxyshadis (port to masktools2)
 ###    0.3g (15 Dec 2015) by StainlessS (Force int call arguments to user script function float params to be explicit floats)
 ###    0.3h (31 Jan 2020) by real.finder (Update to avs+ and HBD)
-###    0.3i (04 Aug 2021) by Dogway (Sanitize, port to ExTools -mix mod- and optimize expressions)
+###    0.3i (16 Aug 2021) by Dogway (Sanitize, port to ExTools -mix mod- and optimize expressions)
 ###
 ###  (Full Name: "Denoiser-and-Sharpener-are-riding-the-SeeSaw" )
 ###
@@ -984,8 +984,8 @@ function SSSharpFaster(clip c, float "str", int "hthr", int "hbias", bool "fulls
     Gblur = s.removegrain(20,-1)
     Hmask = ex_lutxy(Mblur, Gblur, Format("y x - abs {hthr} * {hbias} -"), UV=1, fulls=fs)
 
-    ex_merge(ex_lutxy(s, Gblur, Format("x x y - {str}     * +"), UV=1, fulls=fs),
-      \      ex_lutxy(s,     a, Format("x y x - {str} 3 / * +"), UV=1, fulls=fs),
+    ex_merge(ex_lutxy(s, Gblur, Format("x dup y      - {str}     * +"), UV=1, fulls=fs),
+      \      ex_lutxy(s,     a, Format("x dup y swap - {str} 3 / * +"), UV=1, fulls=fs),
       \      Hmask, UV=1, fulls=fs)
 
     spline36resize(w,h).mergechroma(c) }
