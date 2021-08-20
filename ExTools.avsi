@@ -2601,7 +2601,7 @@ function ex_median(clip a, string "mode", int "thres", bool "recursion", int "UV
 
     if (temp) {
 
-        b  =         rc ? a.selectevery(1,-1).ex_median(mode,false,UV,fs,thr) : a.selectevery(1,-1)
+        b  =         rc ? a.selectevery(1,-1).ex_median(mode,thr,false,UV,fs) : a.selectevery(1,-1)
         f  =                                                                    a.selectevery(1,+1)
         b2 = temp5 ? rc ? b.selectevery(1,-1) :                                 a.selectevery(1,-2) : nop()
         f2 = temp5 ?                                                            a.selectevery(1,+2) : nop()
