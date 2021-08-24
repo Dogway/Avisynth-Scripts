@@ -495,10 +495,10 @@ function ex_MinBlur(clip clp, int "r", int "UV", bool "planar", string "mode", b
     rg20y = (y ==3) ? 20 : -1
     rg4v  = !(defmod && r==1) && (r<=1)
 
-    blurstr = mode == "median"          ? """ex_median(mode=r==1 ? "edgeCL" : "EMF2",UV=uv)""" : \
-              mode == "blur"            ? """ex_boxblur(r*2, r*2, "weighted",        UV=uv)""" : \
-              mode == "blur_horizontal" ? """ex_boxblur(r*2,   0, "weighted",        UV=uv)""" : \
-              mode == "blur_vertical"   ? """ex_boxblur(0,   r*2, "weighted",        UV=uv)""" : \
+    blurstr = mode == "median"          ? """ex_median(mode="smart",          UV=uv)""" : \
+              mode == "blur"            ? """ex_boxblur(r*2, r*2, "weighted", UV=uv)""" : \
+              mode == "blur_horizontal" ? """ex_boxblur(r*2,   0, "weighted", UV=uv)""" : \
+              mode == "blur_vertical"   ? """ex_boxblur(0,   r*2, "weighted", UV=uv)""" : \
               mode
 
     rg12D = (r==0) ? ex_makediff(clp,clp.ex_sbr(Y=y2,UV=uv2,fulls=fs),Y=y2,UV=uv2,fulls=fs)                                                 : \
@@ -506,9 +506,9 @@ function ex_MinBlur(clip clp, int "r", int "UV", bool "planar", string "mode", b
             (r==2) ? ex_makediff(clp,clp.removegrain(rg12y,rg12).removegrain(rg20y,rg20),Y=y2,UV=uv2,fulls=fs)                              : \
                      ex_makediff(clp,clp.removegrain(rg12y,rg12).removegrain(rg20y,rg20).removegrain(rg20y,rg20),Y=y2,UV=uv2,fulls=fs)
 
-    RG4D  =  old        ? (rg4v) ? clp.removegrain(rg4y,rg4)                           : clp.ex_median(mode=r==2?"median5":"median7",UV=uv) : \
-                          (rg4v) ? clp.removegrain(27,rg4)                             : Eval("clp."+blurstr+"")
-    RG4D  = !old && !sh ? (rg4v) ? RG4D.ex_boxblur(r==0?0.3:0.5,mode="weighted",UV=uv) : RG4D.removegrain(rg12y,rg12) : RG4D
+    RG4D  =  old        ? (rg4v) ? clp.removegrain(rg4y,rg4)                                : clp.ex_median(mode=r==2?"median5":"median7",UV=uv) : \
+                          (rg4v) ? clp.removegrain(27,rg4) : r==1 ? clp.removegrain(27,rg4) : Eval("clp."+blurstr+"")
+    RG4D  = !old && !sh ? (rg4v) ? RG4D.ex_boxblur(r==0?0.3:0.5,mode="weighted",UV=uv)      : RG4D.removegrain(rg12y,rg12) : RG4D
 
     ex_lutxyz(rg12D,RG4D,clp,"x range_half - A@ z y - 0 range_half - max B@ * 0 < range_half A abs B abs < x B range_half + ? ? z swap - range_half +",y=y2,UV=uv2,fulls=fs)
 
