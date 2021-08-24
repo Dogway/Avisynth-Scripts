@@ -507,7 +507,7 @@ function ex_MinBlur(clip clp, int "r", int "UV", bool "planar", string "mode", b
                      ex_makediff(clp,clp.removegrain(rg12y,rg12).removegrain(rg20y,rg20).removegrain(rg20y,rg20),Y=y2,UV=uv2,fulls=fs)
 
     RG4D  =  old        ? (rg4v) ? clp.removegrain(rg4y,rg4)                           : clp.ex_median(mode=r==2?"median5":"median7",UV=uv) : \
-                          (rg4v) ? clp.ex_median("edgeCL",UV=uv)                       : Eval("clp."+blurstr+"")
+                          (rg4v) ? clp.removegrain(27,rg4)                             : Eval("clp."+blurstr+"")
     RG4D  = !old && !sh ? (rg4v) ? RG4D.ex_boxblur(r==0?0.3:0.5,mode="weighted",UV=uv) : RG4D.removegrain(rg12y,rg12) : RG4D
 
     ex_lutxyz(rg12D,RG4D,clp,"x range_half - A@ z y - 0 range_half - max B@ * 0 < range_half A abs B abs < x B range_half + ? ? z swap - range_half +",y=y2,UV=uv2,fulls=fs)
