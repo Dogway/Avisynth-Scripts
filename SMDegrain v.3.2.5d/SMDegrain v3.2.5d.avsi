@@ -453,7 +453,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 ########################################################
 #                                                      #
-# HELPER FUNCTIONS: For Contrasharp and Prefilter      #
+# HELPER FUNCTIONS: For Prefilter                      #
 #                                                      #
 ########################################################
 
@@ -462,10 +462,10 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 ## Didée's functions:
 ##
 ## MinBlur   by Didée (24-10-2006)
-## Nifty Gauss/Median combination, reminds a little of a bilateral filter.
+## Nifty Gauss/Median combination.
 ## (https://forum.doom9.org/showthread.php?p=1018488#post1018488)
 ##
-## Optimized, updated and ported to ExTools by Dogway (22-08-2021)
+## Optimized, updated and ported to ExTools by Dogway (25-08-2021)
 ## Output is different by default, medians have been replaced with edge retaining versions...
 ## and a following blur to mimic the old fat lines (needed?). Enable 'old' for old output.
 
@@ -474,45 +474,40 @@ function ex_MinBlur(clip clp, int "r", int "UV", bool "planar", string "mode", b
     r       = Default(r,  1)
     UV      = Default(UV, 3)
     Y       = Default(Y,  3)
-    defmod  = Defined(mode)
     mode    = Default(mode, "median")
-    sh      = Default(sharp,   false)   # recover edges (in old method) or remove blur (for new method)
+    sh      = Default(sharp,   false)   # Recover edges (in old method) or remove blur (for new method)
     old     = Default(old,     false)   # Enable to use the old method with dumb medians
-    fs      = Default(fulls,   false)
+    fs      = Default(fulls,isrgb(clp))
 
-    ch    =  uv==1
-    uv2   = (uv==2) ? 1 : uv
-    ch2   =  uv2==1
-    y2    = (y ==2) ? 1  : y
     rg4   = (uv==3) ? 4  : -1
     rg12  = (uv==3) ? 12 : -1
     rg20  = (uv==3) ? 20 : -1
-    rg4v  = (uv==3) ? 4  : -1
-    rg12v = (uv==3) ? 12 : -1
-    rg20v = (uv==3) ? 20 : -1
+    rg27  = (uv==3) ? 27 : -1
     rg4y  = (y ==3) ? 4  : -1
     rg12y = (y ==3) ? 12 : -1
     rg20y = (y ==3) ? 20 : -1
-    rg4v  = !(defmod && r==1) && (r<=1)
+    rg27y = (y ==3) ? 27 : -1
+    med   = mode=="median"
+    rg4v  = med && (r<=1)
 
-    blurstr = mode == "median"          ? """ex_median(mode="smart",          UV=uv)""" : \
+    blurstr = mode == "median"          ? """ex_median(              "smart", UV=uv)""" : \
               mode == "blur"            ? """ex_boxblur(r*2, r*2, "weighted", UV=uv)""" : \
               mode == "blur_horizontal" ? """ex_boxblur(r*2,   0, "weighted", UV=uv)""" : \
               mode == "blur_vertical"   ? """ex_boxblur(0,   r*2, "weighted", UV=uv)""" : \
               mode
 
-    rg12D = (r==0) ? ex_makediff(clp,clp.ex_sbr(Y=y2,UV=uv2,fulls=fs),Y=y2,UV=uv2,fulls=fs)                                                 : \
-            (r==1) ? ex_makediff(clp,clp.removegrain(rg12y,rg12),Y=y2,UV=uv2,fulls=fs)                                                      : \
-            (r==2) ? ex_makediff(clp,clp.removegrain(rg12y,rg12).removegrain(rg20y,rg20),Y=y2,UV=uv2,fulls=fs)                              : \
-                     ex_makediff(clp,clp.removegrain(rg12y,rg12).removegrain(rg20y,rg20).removegrain(rg20y,rg20),Y=y2,UV=uv2,fulls=fs)
+    rg12D = (r==0) ? ex_makediff(clp,clp.ex_sbr(Y=Y,UV=UV,fulls=fs),Y=Y,UV=UV,fulls=fs)                                                   : \
+            (r==1) ? ex_makediff(clp,clp.removegrain(rg12y,rg12),Y=Y,UV=UV,fulls=fs)                                                      : \
+            (r==2) ? ex_makediff(clp,clp.removegrain(rg12y,rg12).removegrain(rg20y,rg20),Y=Y,UV=UV,fulls=fs)                              : \
+                     ex_makediff(clp,clp.removegrain(rg12y,rg12).removegrain(rg20y,rg20).removegrain(rg20y,rg20),Y=Y,UV=UV,fulls=fs)
 
-    RG4D  =  old        ? (rg4v) ? clp.removegrain(rg4y,rg4)                                : clp.ex_median(mode=r==2?"median5":"median7",UV=uv) : \
-                          (rg4v) ? clp.removegrain(27,rg4) : r==1 ? clp.removegrain(27,rg4) : Eval("clp."+blurstr+"")
-    RG4D  = !old && !sh ? (rg4v) ? RG4D.ex_boxblur(r==0?0.3:0.5,mode="weighted",UV=uv)      : RG4D.removegrain(rg12y,rg12) : RG4D
+    RG4D  =  old               ? (rg4v) ? clp.removegrain(rg4y,rg4)   : med ? clp.ex_median(r==2?"median5":"median7",UV=uv)  : Eval("clp."+blurstr+"")  :\
+                                 (rg4v) ? clp.removegrain(rg27y,rg27)                                                        : Eval("clp."+blurstr+"")
+    RG4D  = !old && !sh && med ? (r<=1) ? RG4D.ex_boxblur(r==0?0.3:0.5,mode="weighted",UV=uv) : RG4D.removegrain(rg12y,rg12) : RG4D
 
-    ex_lutxyz(rg12D,RG4D,clp,"x range_half - A@ z y - 0 range_half - max B@ * 0 < range_half A abs B abs < x B range_half + ? ? z swap - range_half +",y=y2,UV=uv2,fulls=fs)
+    ex_lutxyz(rg12D,RG4D,clp,"x range_half - A@ z y - 0 range_half - max B@ * 0 < range_half A abs B abs < x B range_half + ? ? z swap - range_half +",y=Y,UV=UV,fulls=fs)
 
-    old && sh ? Repair(clp.removegrain(y!=3 ? 0 : 17,uv==3 ? 0 : -1),y!=3 ? 0 : 9,uv==3 ? 0 : -1) : last }
+    (!old && !med || old) && sh ? Repair(clp.removegrain(y!=3 ? 0 : 17,uv==3 ? 0 : -1),y!=3 ? 0 : 9,uv==3 ? 0 : -1) : last }
 
 
 ## sbr()   by Didée (08-09-2009)
@@ -524,7 +519,7 @@ function ex_sbr(clip c, int "r", int "Y", int "UV", bool "fulls") {
     r      = Default(r,  1)
     Y      = Default(Y,  3)
     UV     = Default(UV, 3)
-    fs     = Default(fulls, false)
+    fs     = Default(fulls,isrgb(c))
     Y31    = (Y==3)  ?  3 :  1
     UV31   = (UV==3) ?  3 :  1
     Y11    = (Y==3)  ? 12 : -1
@@ -559,8 +554,8 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     UV    = Default(UV,      3)
     s0    = Default(s0,    3.0)
     c     = Default(c,  1.0/16)
-    tv    = Default(tv_range,  !rgb)
-    fs    = Default(fulls,  false)
+    tv    = Default(tv_range, !rgb)
+    fs    = Default(fulls,     rgb)
 
     k = (s0 - 1) * c
     l = 1 - k
