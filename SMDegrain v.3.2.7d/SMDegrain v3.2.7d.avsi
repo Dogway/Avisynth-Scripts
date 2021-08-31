@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.6d      by Dogway - 27 Augu 2021                              ###
+###                       v3.2.7d      by Dogway - 31 Augu 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -68,6 +68,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     InterPar = isInter ? GetParity(input) : nop()
 
     scaleCSAD = is420(input)   ? isHD ? 1 :  0 : \
+                is422(input)   ? isHD ? 1 :  0 : \
                 is444(input)   ? isHD ? 1 :  1 : \
                 isYV411(input) ? isHD ? 0 : -1 : \
                                  isHD ? 1 :  0
@@ -78,7 +79,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     prefilter    = Default( prefilter, -1 )
     MFilterB     = Defined( mfilter )
     pelclip      = pel>1 && subpixel == 3
-    Str          = Default( Str, 3.0 )
+    Str          = Default( Str, 3.0 )           # 0: Automatic Range Conversion (with FrameProps)  1: Multi-Scale Retinex  >1.0: ex_luma_rebuild(Str)
     Amp          = Default( Amp, 0.0625 )
 
     blksize      = Default( blksize,  isHD ? 16 : 8 )
@@ -87,7 +88,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     ovl2=overlap/2
     search       = Default( search,   4 )
     searchparam  = Default( searchparam, isUHD ? 1 : 2 )
-    pelsearch    = Default( pelsearch,   14 )
+    pelsearch    = Default( pelsearch,   pel )
     truemotion   = Default( truemotion, !isHD)
     DCT          = Default( DCT,   0 )
     thSCD1       = Default( thSCD1,  round(pow((blksize*2.5),2)))
@@ -164,7 +165,11 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     nw = round(w/2.0)
     nh = round(h/2.0)
-    pref       = tv || Str > 1.0 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr,tv_range=tv,fulls=fs) : pref
+    pref       = Defined(tv_range) && tv || Str >  1.0 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr,tv_range=tv,fulls=fs)                        : \
+                 Defined(tv_range) && tv || Str == 1.0 ? pref.ex_retinex(1,tv_range=tv,fulls=fs)                                               : \
+                                                         pref.ConditionalFilter(pref.ex_Luma_Rebuild(S0=1.0,c=Amp,uv=Chr,tv_range=tv,fulls=fs),  \
+                                                         pref, function[tv]() {propNumElements("_ColorRange") > 0 ? propGetInt("_ColorRange") == 1 : tv}, local=true)
+
     pref8      = bi > 8  ? pref.ConvertBits(8,dither=-1, fulls=fs)              : pref
     pref8      = UHDhalf ? pref8.BilinearResize(nw+nw%2, nh+nh%2, src_top=-0.5) : pref8  # todo: fix for MPEG1 to top_left (UHD default)
 
@@ -459,8 +464,11 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 ## Didée's functions:
 ##
 ## MinBlur   by Didée (24-10-2006)
-## Nifty Gauss/Median combination.
+## Minimum Blur - Nifty Gauss/Median combination.
 ## (https://forum.doom9.org/showthread.php?p=1018488#post1018488)
+##
+## kgrabs: "Pixelwise median and blur admixture. If the differences are homologous to the input,
+##          the weaker result of the two are taken, else the source pixel is passed"
 ##
 ## Optimized, updated and ported to ExTools by Dogway (25-08-2021)
 ## Output is different by default, medians have been replaced with edge retaining versions...
@@ -502,14 +510,19 @@ function ex_MinBlur(clip clp, int "r", int "UV", bool "planar", string "mode", b
                                  (rg4v) ? clp.removegrain(rg27y,rg27)                                                        : Eval("clp."+blurstr+"")
     RG4D  = !old && !sh && med ? (r<=1) ? RG4D.ex_boxblur(r==0?0.3:0.5,mode="weighted",UV=uv) : RG4D.removegrain(rg12y,rg12) : RG4D
 
-    ex_lutxyz(rg12D,RG4D,clp,"x range_half - A@ z y - 0 range_half - max B@ * 0 < range_half A abs B abs < x B range_half + ? ? z swap - range_half +",y=Y,UV=UV,fulls=fs)
+    ex_lutxyz(rg12D,RG4D,clp,"z y - B@ x * 0 max 0 < 0 x B abs < x B ? ? z swap - ",y=Y,UV=UV,fulls=fs)
 
     (!old && !med || old) && sh ? Repair(clp.removegrain(y!=3 ? 0 : 17,uv==3 ? 0 : -1),y!=3 ? 0 : 9,uv==3 ? 0 : -1) : last }
 
 
 ## sbr()   by Didée (08-09-2009)
-## Make a highpass on a blur's difference (well, kind of that)
-## Highpass of spatial r=1 Gaussian (like blur(1.0)) (https://forum.doom9.org/showthread.php?p=1323257#post1323257)
+## Soft Blur Repair - Make a highpass on a blur's difference (well, kind of that)
+## (https://forum.doom9.org/showthread.php?p=1323257#post1323257)
+##
+## kgrabs: "Takes a blur's difference and performs a blurring of the difference.
+##          If both differences are homologous to the input, the weaker result is taken, else the source pixel is passed"
+##
+## Highpass of spatial r=1 Gaussian (like blur(1.0))
 
 function ex_sbr(clip c, int "r", int "Y", int "UV", bool "fulls") {
 
@@ -560,13 +573,58 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     d = 1 + c
     f = d * c
     t = tv ? "x ymin - 0 max ymax ymin - /" : "x range_max /"
-    e = S0 != 1.0 ? Format("{k} {d} {f} "+t+" A@ {c} + / - * A {l} * + range_max *") : \
-        tv        ?        "x ymin - 0 max range_max ymax ymin - / * "               : \
-                           "x"
+    e = S0 > 1.0 ? Format("{k} {d} {f} "+t+" A@ {c} + / - * A {l} * + range_max *") : \
+        tv       ?        "x ymin - 0 max range_max ymax ymin - / * "               : \
+                          "x"
 
     ec = tv ? "x cmin - range_max cmax cmin - / *" : "x"
 
     ex_lut(src, e, rgb ? e : ec, Y=Y, UV=UV, fulls=fs) }
+
+
+
+## ex_retinex()   by Dogway (31-08-2021)
+##
+## Multi-Scale Retinex
+## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
+## Output is PC range. Performance is 40% of ex_Luma_Rebuild() although still fast and quality isn't comparable.
+##
+## "Contrast enhancement is a classic image restoration technique that traditionally has been performed using forms of histogram equalization.
+## While effective these techniques often introduce unrealistic tonal rendition in real-world scenes. This paper explores the use of Retinex theory to perform
+## contrast enhancement of real-world scenes. We propose an improvement to the Multi-Scale Retinex algorithm which enhances its ability to perform
+## dynamic range compression while not introducing halo artifacts and greying."
+##
+## [2] P. Robinson, Y. Roodt and A. Nel. "Adaptive Multi-Scale Retinex algorithm for contrast enhancement of real world scenes".
+##     In the Proceedings of Twenty - Third Annual Symposium of the Pattern Recognition Association of South Africa, Pretoria, South Africa,
+##     Edited by Alta de Waal, November 29 - 30, 2012.
+##
+function ex_retinex(clip a, int "sigma", int "percentile", bool "tv_range", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    bi  = BitsPerComponent(a)
+
+    r  = Default(sigma,       1)     # from 1 to 5 roughly (leave it at 1 for the most time)
+    p  = Default(percentile, 10)     # percentile for min & max for automatic levels
+    tv = Default(tv_range, !rgb)     # range of input clip
+    fs = Default(fulls,     rgb)
+
+    p    = p < 1 ? 0 : max(p,1)/100.
+    w    = a.Width()*r
+
+    b = a.FRC_GaussianBlur42(w*0.015)
+    c = a.FRC_GaussianBlur42(w/2.*0.5).FRC_GaussianBlur42(w/2.*0.5)
+    d = ScriptClip(a,"""ex_lut(a,Format(""+string(a.AverageLuma())+""))""",args="a")
+
+    rangePC = tv ? "ymin - ymax ymin - /" : "range_max /"
+    MSR     = ex_lutxyza(a,b,c,d,Format("x "+rangePC+" A@ log y 0.200001 * z 0.100001 * a 0.700001 * + + "+rangePC+" A * log / 1 swap - range_max *"),fulls=fs)
+
+    ScriptClip(MSR,"""
+
+    min  = ex_bs(MSR.YPlaneMin(p), bi, 32, fulls=fs)
+    max  = ex_bs(MSR.YPlaneMax(p), bi, 32, fulls=fs)
+    gain = 1./(max - min)
+
+    min > 0 || max < 1 ? MSR.ex_lut(Format("x range_max / {min} - {gain} * range_max *"),fulls=fs) : MSR""",args="MSR,p,bi,fs",local=true) }
 
 
 
