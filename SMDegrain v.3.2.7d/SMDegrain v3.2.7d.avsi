@@ -620,8 +620,8 @@ function ex_retinex(clip a, int "sigma", int "percentile", bool "tv_range", int 
 
     ScriptClip(MSR,"""
 
-    min  = ex_bs(MSR.YPlaneMin(p), bi, 32, ifulls=fs)
-    max  = ex_bs(MSR.YPlaneMax(p), bi, 32, ifulls=fs)
+    min  = ex_bs((MSR.YPlaneMin(p) + MSR.YPlaneMin(p,-2) + MSR.YPlaneMin(p,2)) / 3, bi, 32, ifulls=fs)
+    max  = ex_bs((MSR.YPlaneMax(p) + MSR.YPlaneMax(p,-2) + MSR.YPlaneMax(p,2)) / 3, bi, 32, ifulls=fs)
     gain = 1./(max - min)
 
     min > 0 || max < 1 ? MSR.ex_lut(Format("x range_max / {min} - {gain} * range_max *"),fulls=fs) : MSR""",args="MSR,p,bi,fs",local=true) }
