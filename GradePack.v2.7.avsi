@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v2.6 (12-08-2021)               ##
+###           Grade Pack v2.7 (01-09-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -182,7 +182,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
 
 ###
-### ex_levels() - v2.0 (15-07-2021)
+### ex_levels() - v2.1 (01-09-2021)
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
@@ -193,11 +193,13 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###
 ### Example: ex_levels(23, 1.200, 255, 0, 255, tv_range=true)
 ###
+### Equation = (input - input_low) / (input_high - input_low)] ^ (1/gamma) * (output_high - output_low) + output_low
+###
 ####################################
 
-# oSmoothLevels(10, 1.40, 245, 10, 255, 0, 0)           is 80% slower than ex_levels(10, 1.40, 245, 10, 255, false, 1)
-# Levels(10*256, 1.40, 245*256, 10*256, 255*256, false) is 25% faster than ex_levels(10, 1.40, 245, 10, 255, false, 1)
-function ex_levels (clip c, int "input_low", float "gamma", int "input_high", int "output_low", int "output_high", bool "tv_range", int "UV", bool "fulls") {
+# oSmoothLevels(10, 1.40, 245, 10, 255, 0, 0)                  is 80% slower than ex_levels(10, 1.40, 245, 10, 255, false, 1)
+# Levels(10*256, 1.40, 245*256, 10*256, 255*256, false, false) is 25% faster than ex_levels(10, 1.40, 245, 10, 255, false, 1)
+function ex_levels (clip c, float "input_low", float "gamma", float "input_high", float "output_low", float "output_high", bool "tv_range", int "UV", bool "fulls") {
 
     rgb  = IsRGB(c)
     isy  = isy(c)
@@ -234,7 +236,7 @@ function ex_levels (clip c, int "input_low", float "gamma", int "input_high", in
 
 
 ###
-### ex_blend() - v2.0 (16-07-2021)
+### ex_blend() - v2.1 (01-09-2021)
 ###
 ###
 ### Works like Overlay() but supports more modes, better handling of TV range and performs much faster in either 8-bit or HBD.
@@ -265,7 +267,9 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
     md == "darker" || md == "lighter" ? Assert (rgb && UV == 3, "'darker' and 'lighter' modes require RGB inputs and UV = 3.") : nop()
     op  = min(max(op,0.),1.)
     iso = op == 1.0
-    opr = 1 - op
+    ep  = 0.000001
+    opr = (1 - ep) - op
+    op  = op - ep
 
     md = md == "add"   ? "lineardodge" : \
          md == "burn"  ? "colorburn"   : \
@@ -281,7 +285,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
     str = Format(                                                                                                                                                                 \
                                                                                                                                                                                   \
         md == "blend"        ? iso ? "y" : "x {opr} * y {op} * + "                                                                                                              : \
-        md == "interpolation"? ""+rngmx+" 0.5 pi x "+srcmx+" "+V+" * "+rngmx+" / cos 0.25 * - pi y "+srcmx+" * "+rngmx+" / cos 0.25 * - * "                                     : \
+        md == "interpolation"? ""+rngmx+" 0.500001 pi x "+srcmx+" "+V+" * "+rngmx+" / cos 0.250001 * - pi y "+srcmx+" * "+rngmx+" / cos 0.250001 * - * "                        : \
                              \
         md == "lighter"      ? "see footer"                                                                                                                                     : \
         md == "lighten"      ? "x "+V+" y max "                                                                                                                                 : \
