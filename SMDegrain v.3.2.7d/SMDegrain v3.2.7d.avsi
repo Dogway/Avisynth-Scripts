@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.7d      by Dogway - 31 Augu 2021                              ###
+###                       v3.2.7d      by Dogway - 01 Sept 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -166,7 +166,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     nw = round(w/2.0)
     nh = round(h/2.0)
     pref       = Defined(tv_range) && tv || Str >  1.0 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr,tv_range=tv,fulls=fs)                        : \
-                 Defined(tv_range) && tv || Str == 1.0 ? pref.ex_retinex(1,tv_range=tv,fulls=fs)                                               : \
+                 Defined(tv_range) && tv || Str == 1.0 ? pref.ex_retinex(1,tv_range=tv,UV=Chr,fulls=fs)                                        : \
                                                          pref.ConditionalFilter(pref.ex_Luma_Rebuild(S0=1.0,c=Amp,uv=Chr,tv_range=tv,fulls=fs),  \
                                                          pref, function[tv]() {propNumElements("_ColorRange") > 0 ? propGetInt("_ColorRange") == 1 : tv}, local=true)
 
@@ -587,7 +587,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ##
 ## Multi-Scale Retinex
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
-## Output is PC range. Performance is 40% of ex_Luma_Rebuild() although still fast and quality isn't comparable.
+## Output is PC range. Performance is 30% of ex_Luma_Rebuild() although still fast and quality isn't comparable.
 ##
 ## "Contrast enhancement is a classic image restoration technique that traditionally has been performed using forms of histogram equalization.
 ## While effective these techniques often introduce unrealistic tonal rendition in real-world scenes. This paper explores the use of Retinex theory to perform
@@ -598,33 +598,41 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ##     In the Proceedings of Twenty - Third Annual Symposium of the Pattern Recognition Association of South Africa, Pretoria, South Africa,
 ##     Edited by Alta de Waal, November 29 - 30, 2012.
 ##
-function ex_retinex(clip a, int "sigma", int "percentile", bool "tv_range", int "UV", bool "fulls") {
+## Dependencies:
+##               ExTools
+##               GradePack
+##               FRC_GaussianBlur42 (inside FrameRateConverter)
+##
+function ex_retinex(clip a, float "sigma", int "percentile", bool "tv_range", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     bi  = BitsPerComponent(a)
 
     r  = Default(sigma,       1)     # from 1 to 5 roughly (leave it at 1 for the most time)
-    p  = Default(percentile, 10)     # percentile for min & max for automatic levels
+    p  = Default(percentile, 10)     # percentile for min & max for automatic levels (crop black borders beforehand)
     tv = Default(tv_range, !rgb)     # range of input clip
+    UV = Default(UV,          3)     # Set to 3 to convert Chroma to PC range
     fs = Default(fulls,     rgb)
 
-    p    = p < 1 ? 0 : max(p,1)/100.
-    w    = a.Width()*r
+    p = p < 1 ? 0 : max(p,1)/100.
+    w = max(a.Width(),a.Height()) * r
 
     b = a.FRC_GaussianBlur42(w*0.015)
     c = a.FRC_GaussianBlur42(w/2.*0.5).FRC_GaussianBlur42(w/2.*0.5)
-    d = ScriptClip(a,"""ex_lut(a,Format(""+string(a.AverageLuma())+""))""",args="a")
+    d = ScriptClip(a,"""ex_lut(a,Format(""+string(a.AverageLuma())+""),UV=rgb?3:1)""",args="a,rgb")
 
-    rangePC = tv ? "ymin - ymax ymin - /" : "range_max /"
-    MSR     = ex_lutxyza(a,b,c,d,Format("x "+rangePC+" A@ log y 0.200001 * z 0.100001 * a 0.700001 * + + "+rangePC+" A * log / 1 swap - range_max *"),fulls=fs)
+    rangePC =                        tv ? "ymin - ymax ymin - /" : "range_max /"
+    str     = Format("x "+rangePC+" A@ log y 0.200001 * z 0.100001 * a 0.700001 * + + "+rangePC+" A * log / 1 swap - range_max *")
+    strC    = rgb ? str : UV == 3 && tv ? "x cmin - range_max cmax cmin - / *" : ""
+
+    MSR     = ex_lutxyza(a,b,c,d, str, strC, UV=uv, fulls=fs)
 
     ScriptClip(MSR,"""
 
-    min  = ex_bs((MSR.YPlaneMin(p) + MSR.YPlaneMin(p,-2) + MSR.YPlaneMin(p,2)) / 3, bi, 32, ifulls=fs)
-    max  = ex_bs((MSR.YPlaneMax(p) + MSR.YPlaneMax(p,-2) + MSR.YPlaneMax(p,2)) / 3, bi, 32, ifulls=fs)
-    gain = 1./(max - min)
+    min  = ex_bs((MSR.YPlaneMin(p) + MSR.YPlaneMin(p,-2) + MSR.YPlaneMin(p,2)) / 3., bi, 8, ifulls=fs)
+    max  = ex_bs((MSR.YPlaneMax(p) + MSR.YPlaneMax(p,-2) + MSR.YPlaneMax(p,2)) / 3., bi, 8, ifulls=fs)
 
-    min > 0 || max < 1 ? MSR.ex_lut(Format("x range_max / {min} - {gain} * range_max *"),fulls=fs) : MSR""",args="MSR,p,bi,fs",local=true) }
+    min > 0 || max < 255 ? MSR.ex_levels(min,1.0,max,0,255,false,1,fs) : MSR""",args="MSR,p,bi,fs",local=true) }
 
 
 
