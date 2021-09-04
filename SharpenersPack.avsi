@@ -1295,18 +1295,18 @@ Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int
     Med_V = ex_luts( C, mode = "med", pixels = ex_shape(Radv, mode="vertical", center= true), expr = expr, UV=1, fulls=fs)
 
 
-    minmaxmed_v   = ex_lutxyz(Max_V, Min_V, Med_V, Format(" x range_half - abs X@ y range_half - abs Y@  > X Y ? A@ 0.062501 *
-                                                                               X                     Y  <= X Y ? B@ 0.250001 * +
-                                                                               B A B - - 0 max z range_half - abs + 0.343750 * + "), UV=1, fulls=fs)
+    minmaxmed_v   = ex_lutxyz(Max_V, Min_V, Med_V, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.062501 *
+                                                                               X                     Y   min B@ 0.250001 * +
+                                                                           B A B - - 0 max z range_half - abs + 0.343750 * + "), UV=1, fulls=fs)
 
     Max_H = ex_luts( C, mode = "max", pixels = ex_shape(Radh, mode="horizontal", center=false), expr = expr, UV=1, fulls=fs)
     Min_H = ex_luts( C, mode = "min", pixels = ex_shape(Radh, mode="horizontal", center=false), expr = expr, UV=1, fulls=fs)
     Med_H = ex_luts( C, mode = "med", pixels = ex_shape(Radh, mode="horizontal", center= true), expr = expr, UV=1, fulls=fs)
 
 
-    minmaxmed_h   = ex_lutxyz(Max_H, Min_H, Med_H, Format(" x range_half - abs X@ y range_half - abs Y@  > X Y ? A@ 0.062501 *
-                                                                               X                     Y  <= X Y ? B@ 0.250001 * +
-                                                                               B A B - - 0 max z range_half - abs + 0.343750 * + "), UV=1, fulls=fs)
+    minmaxmed_h   = ex_lutxyz(Max_H, Min_H, Med_H, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.062501 *
+                                                                               X                     Y   min B@ 0.250001 * +
+                                                                           B A B - - 0 max z range_half - abs + 0.343750 * + "), UV=1, fulls=fs)
 
     Blur_V =                C.NLLV(   1,true, fs)
     Blur_V = Rad > 1 ? Blur_V.NLLV(Radv,true, fs) : Blur_V
@@ -1391,7 +1391,7 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
     lp_V =    C.NLLV(1,true,fs)
     lp_H = lp_V.NLLH(1,true,fs)
 
-    DeEmphasis = lp_H.yahr.yahr.Expr(Format("x[-2,0] x[2,0] + 6 * x[-1,0] x[1,0] + 15 * x[-3,0] x[3,0] x[0,0] {reh} * + + + + {dih1} * "),""). \
+    DeEmphasis = lp_H.YAHR(fs).YAHR(fs).Expr(Format("x[-2,0] x[2,0] + 6 * x[-1,0] x[1,0] + 15 * x[-3,0] x[3,0] x[0,0] {reh} * + + + + {dih1} * "),""). \
                                 Expr(Format("x[0,-2] x[0,2] + 6 * x[0,-1] x[0,1] + 15 * x[0,-3] x[0,3] x[0,0] {reh} * + + + + {div1} * "),"")
 
     exprv = Format("x y - dup dup abs {un} + dup swap2 * swap {strv} {un} >= {strv2} {strv} ? + / - range_half +")
@@ -1401,16 +1401,16 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
     Max_V = ex_luts( C, mode = "max", pixels = ex_shape(1, mode="horizontal", center=false), expr = exprv, UV=1, fulls=fs)
     Min_V = ex_luts( C, mode = "min", pixels = ex_shape(1, mode="horizontal", center=false), expr = exprv, UV=1, fulls=fs)
 
-    minmax_G_V   = ex_lutxy(Max_V, Min_V, Format(" x range_half - abs X@ y range_half - abs Y@  > X Y ? A@ 0.100001 *
-                                                                      X                     Y  <= X Y ? B@ 0.350001 * +
-                                                                                           B A B - - 0 max 0.550001 * + "), UV=1, fulls=fs)
+    minmax_G_V   = ex_lutxy(Max_V, Min_V, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.100001 *
+                                                                      X                     Y   min B@ 0.350001 * +
+                                                                                       B A B - - 0 max 0.550001 * + "), UV=1, fulls=fs)
 
     Max_H = ex_luts( C, mode = "max", pixels = ex_shape(1, mode="vertical", center=false), expr = exprh, UV=1, fulls=fs)
     Min_H = ex_luts( C, mode = "min", pixels = ex_shape(1, mode="vertical", center=false), expr = exprh, UV=1, fulls=fs)
 
-    minmax_G_H   = ex_lutxy(Max_H, Min_H, Format(" x range_half - abs X@ y range_half - abs Y@  > X Y ? A@ 0.100001 *
-                                                                      X                     Y  <= X Y ? B@ 0.350001 * +
-                                                                                           B A B - - 0 max 0.550001 * + "), UV=1, fulls=fs)
+    minmax_G_H   = ex_lutxy(Max_H, Min_H, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.100001 *
+                                                                      X                     Y   min B@ 0.350001 * +
+                                                                                       B A B - - 0 max 0.550001 * + "), UV=1, fulls=fs)
 
     HPSharp = Expr(C, lp_V, lp_H, minmax_G_V, minmax_G_H, DeEmphasis, Format("x y - X@ a {un} max * a X abs - {un} max /
                                                                               y z - X@ b {un} max * b X abs - {un} max / + c +" ))
@@ -1585,7 +1585,6 @@ Function NLLH(Clip C, int "rad", bool "var4", bool "fulls") {
     ex_adddiff(B4_DT, C, fulls=fs) }
 
 
-
 Function NLLV(Clip C, int "rad", bool "var4", bool "fulls") {
 
     bi  = BitsPerComponent(c)
@@ -1629,6 +1628,7 @@ Function blurH(clip c, int "rad", Float "CW") {
 
     ex_lutxyz(Center, Left, Right, Format("x {CW} * y z + {CWr} * + "),UV=1) }
 
+
 Function BlurV(clip c, int "rad", Float "CW") {
 
     rad = Default(rad, 1)
@@ -1643,3 +1643,21 @@ Function BlurV(clip c, int "rad", Float "CW") {
     Up     = C.PointResize(w, h, 0,  rad, w, h)
 
     ex_lutxyz(Center, Down, Up, Format("x {CW} * y z + {CWr} * + "),UV=1) }
+
+
+# Y'et A'nother H'alo R'educing script
+
+function YAHR(clip clp, bool "fulls") {
+
+    fs    = Default(fulls, false)
+
+    b1    = clp.ex_minblur(2,1,fulls=fs).removegrain(11,-1)
+    b1D   = ex_makediff(clp,b1,UV=1,fulls=fs)
+
+    w1    = clp.aWarpSharp(depth=32,blurlevel=2,thresh=0.5)
+    w1b1  = w1.ex_minblur(2,1,fulls=fs).removegrain(11,-1)
+    w1b1D = ex_makediff(w1,w1b1,UV=1,fulls=fs)
+
+    DD    = b1D.repair(w1b1D,13)
+
+    ex_lutxyz(clp, b1D, DD, "x y range_half + z range_half + - -", UV=1, fulls=fs) }
