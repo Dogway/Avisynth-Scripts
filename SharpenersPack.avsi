@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v0.75 (04-09-2021)                             ###
+###        Sharpeners Pack v0.80 (04-09-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -410,27 +410,32 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 ###
 ###  ex_unsharp()    by Dogway (04-09-2021)
 ###
-### Simple and fast unsharp mask filter for a (not matching) replacement of ASharp, UnsharpHQ and VariableBlur's Unsharp.
+### Simple and fast unsharp mask filter for a (not matching) replacement of ASharp, UnsharpHQ, UnsharpMask_avsi and VariableBlur's Unsharp.
+### "ex_unsharp(1,str=4,th=0)" is equivalent to "unsharp(vary=1, varc=1, strength=4)", although less haloing
+### due to using binomial blur instead of box blur, same with UnsharpMask_avsi(512,1,0)
 
-function ex_unsharp(clip a, float "radius", float "radiusV", float "str", int "UV", bool "fulls") {
+function ex_unsharp(clip a, float "rad", float "radV", float "str", int "th", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
 
-    rd = Default(radius,  1)            # integers from 0 to inf (also 0.15, 0.3, 0.5 and integers up to 14 -single float AVSValue limit-)
-    rv = Default(radiusV, rd)           # integers from 0 to inf (also 0.15, 0.3, 0.5 and integers up to 14 -single float AVSValue limit-)
+    rd = Default(rad,  3)            # integers from 0 to inf (also 0.15, 0.3, 0.5 and integers up to 14 -single float AVSValue limit-)
+    rv = Default(radV, rd)           # integers from 0 to inf (also 0.15, 0.3, 0.5 and integers up to 14 -single float AVSValue limit-)
 
     fbox  = rd == 1    && rv == 1
     fbox2 = rd == 0.5  && rv == 0.5
     fbox3 = rd == 0.3  && rv == 0.3
     fbox4 = rd == 0.15 && rv == 0.15
 
+    str = Default(str,  0.5)
+    th  = Default(th,     8)
     UV  = Default(UV,    rgb  ? 3 : 1)
-    str = Default(str,    2)
     fs  = Default(fulls, rgb)
+
     rd  = max(rd>1?round(rd):rd, 0)
     rv  = max(rv>1?round(rv):rv, 0)
+    th  = ex_bs(th, 8, bi, fulls=fs)
 
     Assert (rd < 15 || rv < 15, "Maximum radius reached")
 
@@ -476,8 +481,9 @@ function ex_unsharp(clip a, float "radius", float "radiusV", float "str", int "U
                  rd == 0.15       ? "x[-1,0] x[0,0] 16 * x[1,0]  + + 0.055555555 *"                                                                                : \
                                     krnh + plsh + (rd > 7 ? string(divx)+" /" : string(1./divx)+" *")
 
-    strv = strv + Format(" x swap - {str} * x +")
-    strh = strh + Format(" x swap - {str} * x +")
+
+    strv = strv + (th > 0 ? Format(" x swap - Y@ abs {th} > Y {str} * x + x ?") : Format(" x swap - {str} * x +") )
+    strh = strh + (th > 0 ? Format(" x swap - Y@ abs {th} > Y {str} * x + x ?") : Format(" x swap - {str} * x +") )
 
     rv == 0 ?      a                                                                  : \
     isy     ? Expr(a,    strv                                                       ) : \
@@ -670,7 +676,7 @@ function SeeSaw( clip  input, clip "denoised",
     BIAS1 = bias
     BIAS2 = 100-bias
 
-    denoised = Defined(denoised) ? denoised.converttoy() : ex_lutxy(clp, clp.removegrain(4, -1), Format("x {NRL} + dup y < swap x {NRL} - dup y > swap y ? ?"), fulls=fs)
+    denoised = Defined(denoised) ? denoised.converttoy() : ex_lutxy(clp, clp.removegrain(4, -1), Format("y x {NRL} - x {NRL} + clip"), fulls=fs)
 
     NRdiff = ex_makediff(clp, denoised, fulls=fs)
     tame   = ex_lutxy(clp, denoised, Format("x {NRLL} + y < x {NRL2} + x {NRLL} - y > x {NRL2} - x {BIAS1} * y {BIAS2} * + 0.01 * ? ?"), fulls=fs)
@@ -741,7 +747,7 @@ function SeeSaw2( clip  input, clip "denoised",
     BIAS1 = bias
     BIAS2 = 100-bias
 
-    denoised = Defined(denoised) ? denoised.converttoy() : ex_lutxy(clp, clp.removegrain(1, -1), Format("x {NRL} + dup y < swap x {NRL} - dup y > swap y ? ?"), fulls=fs)
+    denoised = Defined(denoised) ? denoised.converttoy() : ex_lutxy(clp, clp.removegrain(1, -1), Format("y x {NRL} - x {NRL} + clip"), fulls=fs)
 
     NRdiff = ex_makediff(clp, denoised, fulls=fs)
     tame   = ex_lutxy(clp, denoised, Format("x {NRLL} + y < x {NRL2} + x {NRLL} - y > x {NRL2} - x {BIAS1} * y {BIAS2} * + 0.010001 * ? ?"), fulls=fs)
@@ -1196,9 +1202,9 @@ function SSSharpEX(clip c, int "rad", bool "ssw", float "strength", int "iter", 
 
     sswc = ssw ? c.SSW() : c
     for (i = 0, iter, 1) {
-        us = "ex_merge(ex_unsharp(rad, str=str-1, UV=1, fulls=fs), sswc, spline16resize((ss ? w*4 : w), (ss ? h*4 : h)).                          \
-                                                                   halomaskM(hbias=-128, hthr=256, agmrad=(ss ? round(rad) : round(rad/2.))).\
-                                                                   spline16resize(w, h), UV=1, fulls=fs)"
+        us = "ex_merge(ex_unsharp(rad, str=str-1, th=0, UV=1, fulls=fs), sswc, spline16resize((ss ? w*4 : w), (ss ? h*4 : h)).                          \
+                                                                               halomaskM(hbias=-128, hthr=256, agmrad=(ss ? round(rad) : round(rad/2.))).\
+                                                                               spline16resize(w, h), UV=1, fulls=fs)"
         for (k = 0, denoise, 1) {
             dot = i == denoise ? "" : "."
             us = us + """.ex_median(mode="DGM3", UV=1, fulls=fs)""" + dot
@@ -1392,7 +1398,7 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
     lp_H = lp_V.NLLH(1,true,fs)
 
     DeEmphasis = lp_H.YAHR(fs).YAHR(fs).Expr(Format("x[-2,0] x[2,0] + 6 * x[-1,0] x[1,0] + 15 * x[-3,0] x[3,0] x[0,0] {reh} * + + + + {dih1} * "),""). \
-                                Expr(Format("x[0,-2] x[0,2] + 6 * x[0,-1] x[0,1] + 15 * x[0,-3] x[0,3] x[0,0] {reh} * + + + + {div1} * "),"")
+                                        Expr(Format("x[0,-2] x[0,2] + 6 * x[0,-1] x[0,1] + 15 * x[0,-3] x[0,3] x[0,0] {reh} * + + + + {div1} * "),"")
 
     exprv = Format("x y - dup dup abs {un} + dup swap2 * swap {strv} {un} >= {strv2} {strv} ? + / - range_half +")
     exprh = Format("x y - dup dup abs {un} + dup swap2 * swap {strh} {un} >= {strh2} {strh} ? + / - range_half +")
