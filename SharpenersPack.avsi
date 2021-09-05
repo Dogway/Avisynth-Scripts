@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v0.80 (04-09-2021)                             ###
+###        Sharpeners Pack v0.85 (05-09-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -502,7 +502,7 @@ function ex_unsharp(clip a, float "rad", float "radV", float "str", int "th", in
 ### http://www.avisynth.nl/index.php/SharpenComplex2_source
 ### http://forum.doom9.org/showthread.php?t=158385
 ###
-### ExTools port by Dogway (03-09-2021)
+### ExTools port by Dogway (04-09-2021)
 ###
 ### str0 is the non-edge unsharp amount, default 2.0
 ### str1 is the edge unsharp amount, default 1.125
@@ -593,8 +593,8 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 
     ssDD = SSDD.ex_lutxy(ssD,"x range_half - abs y range_half - abs < x y ?",fulls=fs)  # abs(diff) after limiting may not be bigger than before.
 
-    denoised.ex_adddiff(MC?ssD:ssDD,UV=2,fulls=fs)                                      # Apply the limited difference. (Sharpening is just inverse blurring)
-    MC ? ex_clamp(last,pmax,pmin,overshoot,overshoot,UV=2,fulls=fs) : last }
+    denoised.ex_adddiff(MC?ssD:ssDD,UV=1,fulls=fs)                                      # Apply the limited difference. (Sharpening is just inverse blurring)
+    MC ? ex_clamp(last,pmax,pmin,overshoot,overshoot,UV=1,fulls=fs) : last }
 
 
 
@@ -607,7 +607,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 ###    0.3f (13 Dec 2006) by foxyshadis (port to masktools2)
 ###    0.3g (15 Dec 2015) by StainlessS (Force int call arguments to user script function float params to be explicit floats)
 ###    0.3h (31 Jan 2020) by real.finder (Update to avs+ and HBD)
-###    0.3i (16 Aug 2021) by Dogway (Sanitize, port to ExTools -mix mod- and optimize expressions)
+###    0.3i (05 Sep 2021) by Dogway (Sanitize, port to ExTools -mix mod- and optimize expressions)
 ###
 ###  (Full Name: "Denoiser-and-Sharpener-are-riding-the-SeeSaw" )
 ###
@@ -640,7 +640,7 @@ function SeeSaw( clip  input, clip "denoised",
 
 
     isy = input.isy()
-    clp = isy ? input : input.converttoy()
+    clp = isy ? input : input.ExtractY()
     bi  = BitsPerComponent(input)
 
     ssx      = Default( ssx,           1.0 )      # supersampling factor x  /  SeeSaw doesn't require supersampling urgently.
@@ -664,8 +664,8 @@ function SeeSaw( clip  input, clip "denoised",
     Szp     = Szp     / pow(Sstr, 1.0/4.0) / pow( (ssx+ssy)/2.0, 1.0/2.0 )
     SdampLo = SdampLo / pow(Sstr, 1.0/4.0) / pow( (ssx+ssy)/2.0, 1.0/2.0 )
 
-    ox    = clp.width
-    oy    = clp.height
+    ox    = clp.width()
+    oy    = clp.height()
     xss   = m4_sh(ox*ssx)
     yss   = m4_sh(oy*ssy)
     NRL   = ex_bs(NRlimit,  8, bi, fulls=fs)
@@ -676,7 +676,7 @@ function SeeSaw( clip  input, clip "denoised",
     BIAS1 = bias
     BIAS2 = 100-bias
 
-    denoised = Defined(denoised) ? denoised.converttoy() : ex_lutxy(clp, clp.removegrain(4, -1), Format("y x {NRL} - x {NRL} + clip"), fulls=fs)
+    denoised = Defined(denoised) ? denoised.ExtractY() : ex_lutxy(clp, clp.removegrain(4, -1), Format("y x {NRL} - x {NRL} + clip"), fulls=fs)
 
     NRdiff = ex_makediff(clp, denoised, fulls=fs)
     tame   = ex_lutxy(clp, denoised, Format("x {NRLL} + y < x {NRL2} + x {NRLL} - y > x {NRL2} - x {BIAS1} * y {BIAS2} * + 0.01 * ? ?"), fulls=fs)
@@ -689,10 +689,10 @@ function SeeSaw( clip  input, clip "denoised",
     ex_SootheSS2(last, tame, sootheT, sootheS, false, 2, fs)
     sharpdiff = ex_makediff(tame, last, fulls=fs)
 
-    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, ex_dlut(Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),   bi, fs), fulls=fs)
+    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, ex_dlut(Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),     bi, fs), fulls=fs)
 
-     Slimit>=0   ? ex_lutxy(last, sharpdiff, ex_dlut(Format("y range_half {SLIM} + > x {SLIM} - y range_half {SLIM} - < x {SLIM} + x y range_half - - ? ?"), bi, fs), fulls=fs) : \
-                   ex_lutxy(last, sharpdiff, ex_dlut(Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?"),                  bi, fs), fulls=fs)
+      Slimit>=0  ? ex_lutxy(last, sharpdiff,   ex_dlut(Format("y range_half {SLIM} + > x {SLIM} - y range_half {SLIM} - < x {SLIM} + x y range_half - - ? ?"), bi, fs), fulls=fs) : \
+                   ex_lutxy(last, sharpdiff,   ex_dlut(Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?"),                  bi, fs), fulls=fs)
 
     isy ? last : CombinePlanes(last, input, planes="YUV", sample_clip=input) }
 
@@ -710,7 +710,7 @@ function SeeSaw2( clip  input, clip "denoised",
  \               float "bias",   int "Smode",    int "sootheT",  int "sootheS", float "ssx",     float "ssy", bool "PAL", bool "fulls") {
 
     isy = input.isy()
-    clp = isy ? input : input.converttoy()
+    clp = isy ? input : input.ExtractY()
     bi  = BitsPerComponent(input)
 
     PAL      = Default( PAL,   false )
@@ -747,7 +747,7 @@ function SeeSaw2( clip  input, clip "denoised",
     BIAS1 = bias
     BIAS2 = 100-bias
 
-    denoised = Defined(denoised) ? denoised.converttoy() : ex_lutxy(clp, clp.removegrain(1, -1), Format("y x {NRL} - x {NRL} + clip"), fulls=fs)
+    denoised = Defined(denoised) ? denoised.ExtractY() : ex_lutxy(clp, clp.removegrain(1, -1), Format("y x {NRL} - x {NRL} + clip"), fulls=fs)
 
     NRdiff = ex_makediff(clp, denoised, fulls=fs)
     tame   = ex_lutxy(clp, denoised, Format("x {NRLL} + y < x {NRL2} + x {NRLL} - y > x {NRL2} - x {BIAS1} * y {BIAS2} * + 0.010001 * ? ?"), fulls=fs)
@@ -760,10 +760,10 @@ function SeeSaw2( clip  input, clip "denoised",
     ex_SootheSS2(last, tame, sootheT, sootheS, true, 2, fs)
     sharpdiff = ex_makediff(tame, last, fulls=fs)
 
-    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, ex_dlut(Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),   bi, fs), fulls=fs)
+    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, ex_dlut(Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),     bi, fs), fulls=fs)
 
-     Slimit>=0   ? ex_lutxy(last, sharpdiff, ex_dlut(Format("y range_half {SLIM} + > x {SLIM} - y range_half {SLIM} - < x {SLIM} + x y range_half - - ? ?"), bi, fs), fulls=fs) : \
-                   ex_lutxy(last, sharpdiff, ex_dlut(Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?"),                  bi, fs), fulls=fs)
+      Slimit>=0  ? ex_lutxy(last, sharpdiff,   ex_dlut(Format("y range_half {SLIM} + > x {SLIM} - y range_half {SLIM} - < x {SLIM} + x y range_half - - ? ?"), bi, fs), fulls=fs) : \
+                   ex_lutxy(last, sharpdiff,   ex_dlut(Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?"),                  bi, fs), fulls=fs)
 
     isy ? last : CombinePlanes(last, input, planes="YUV", sample_clip=input) }
 
@@ -781,7 +781,7 @@ function ex_sharpen22(clip clp, float strength, float power, float zp, float lod
     HDMPr = 1. / hidmp
     HDMP  = (hidmp==0) ? "" : Format("A abs {HDMPr} * dup dup dup * * * 1 + /")
 
-    ex_lutxy( clp, clp.RemoveGrain(rgmode,-1,-1), Format("x dup y == swap dup dup y - A@ abs {ZRPr} * {PWR} ^ {ZRP} * {STR} * A dup * dup {DMP} + / * A dup abs / * "+HDMP+" + ?"), UV=2, fulls=fulls, scale_inputs="allf") }
+    ex_lutxy( clp, clp.RemoveGrain(rgmode,-1,-1), Format("x dup y == swap dup dup y - A@ abs {ZRPr} * {PWR} ^ {ZRP} * {STR} * A dup * dup {DMP} + / * A dup abs / * "+HDMP+" + ?"), UV=1, fulls=fulls, scale_inputs=fs ? "allf" : "all") }
 
 
 
@@ -859,13 +859,13 @@ function FineSharp(clip c, float "sstr", int "mode", float "cstr", float "xstr",
     \ : (abs(mode)==2) ? c.removegrain(4, -1).removegrain(12,-1)
     \ : (abs(mode)==3) ? c.removegrain(4, -1).removegrain(12,-1).removegrain(4,-1) : c
 
-    shrpD = ex_lutxy(c,b,Format("x y - A@ abs {LSTR} * {PSTR} ^ {SSTR} * A dup abs {HDMP} + / * A dup * dup {LDMP} + / * 0 max 128 +"), UV=2, fulls=fs, scale_inputs="allf")
+    shrpD = ex_lutxy(c,b,Format("x y - A@ abs {LSTR} * {PSTR} ^ {SSTR} * A dup abs {HDMP} + / * A dup * dup {LDMP} + / * 0 max 128 +"), UV=1, fulls=fs, scale_inputs=fs ? "allf" : "all")
 
-    shrp = (sstr<0.01) ? c : c.ex_adddiff(shrpD,UV=2,fulls=fs)
+    shrp = (sstr<0.01) ? c : c.ex_adddiff(shrpD,UV=1,fulls=fs)
 
-    shrp = (cstr<0.01) ? shrp : shrp.ex_makediff(shrpD.ex_lut(ex_dlut(Format("x range_half - {CSTR} * range_half +"), bi, fs),fulls=fs).removegrain(rg,-1),UV=2,fulls=fs)
+    shrp = (cstr<0.01) ? shrp : shrp.ex_makediff(shrpD.ex_lut(ex_dlut(Format("x range_half - {CSTR} * range_half +"), bi, fs),fulls=fs).removegrain(rg,-1), UV=1, fulls=fs)
 
-           (xstr<0.01) ? shrp : ex_lutxy(shrp,shrp.removegrain(20,-1),"x dup y - 9.690001 * +",UV=2,fulls=fs).repair(shrp,12,0).mergeluma(shrp,1.0-xstr) }
+           (xstr<0.01) ? shrp : ex_lutxy(shrp, shrp.removegrain(20,-1),"x dup y - 9.690001 * +", UV=1, fulls=fs).repair(shrp,12,0).mergeluma(shrp,1.0-xstr) }
 
 
 
@@ -1022,29 +1022,35 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
 # Didée's Median Enhancer Sharpener (12-10-2012)
 # http://forum.doom9.org/showthread.php?p=1595531#post1595531
 #
-# ExTools port  by Dogway           (16-08-2021)
+# ExTools port  by Dogway           (05-09-2021)
 #
 # Requires MedianBlur2: http://avisynth.nl/index.php/MedianBlur2
 # Also known as DDSharp(). 'pass' concept imported from DDSharp()
 
-function MedianSharp (clip a, int "str", float "pwr") {
+function MedianSharp (clip a, int "str", float "pwr", int "UV", bool "fulls") {
 
-    str = Default( str, 4   )
+    str = Default( str,    4 )
     pwr = Default( pwr, 1.62 )
+    UV  = Default(UV,         3)
+    fs  = Default(fulls,  false)
 
     bi   = BitsPerComponent(a)
     pwr2 = 1. / pow(pwr, 2)
     pwr3 =      pow(pwr, 3)
     rpwr = 1. / pwr
-
     pass = round(str/1.5)
-    b    = str==1 ? a.removegrain(4) : str<4 ? a.ex_median(str==2?"median5":"median7") : a.medianblur(str,pass,pass)
+
+    b    = str==1 ? a.removegrain(4,UV==3?4:-1)   : \
+           str==2 ? a.ex_median("median5", UV=UV) : \
+           str==3 ? a.ex_median("median7", UV=UV) : \
+                    a.medianblur(str,pass,pass)
+
     c    = a.repair(b,1)
 
     for (i = 0, max(0,pass-1), 1) {
-    c = c.repair(c) }
+        c = c.repair(c) }
 
-    ex_lutxy(a, c, Format("x dup y - A@ abs {pwr2} * {rpwr} ^ {pwr3} * A dup abs {pwr} + / * +"), UV=3, scale_inputs="allf") }
+    ex_lutxy(a, c, Format("x dup y - A@ abs {pwr2} * {rpwr} ^ {pwr3} * A dup abs {pwr} + / * +"), UV=UV, scale_inputs=fs ? "allf" : "all") }
 
 
 
@@ -1069,7 +1075,7 @@ function MedianSharp (clip a, int "str", float "pwr") {
 #      med   (bool)  - When True, median is used to achieve stronger sharpening.
 
 #  Examples:
-#      DetailSharpen() # Original DetailSharpen by Didée.
+#      DetailSharpen()                            # Original DetailSharpen by Didée.
 #      DetailSharpen(power=1.5, mode=0, med=True) # Mini-SeeSaw...just without See, and without Saw.
 
 function DetailSharpen(clip c, int "z", float "sstr", int "power", int "ldmp", int "mode", bool "med", bool "fulls") {
@@ -1088,8 +1094,8 @@ function DetailSharpen(clip c, int "z", float "sstr", int "power", int "ldmp", i
     strzi = ex_bs(sstr*z,       8, bi, fulls=fs)
     rpwr  = 1. / power
 
-    denoised = mode == 1 ? c.removegrain(20,-1) : c.removegrain(12,-1)
-    denoised = med ? denoised.removegrain(4,-1) : denoised
+    denoised = mode == 1 ?  c.removegrain(20,-1) : c.removegrain(12,-1)
+    denoised = med ? denoised.removegrain(4,-1)  : denoised
 
     ex_lutxy(c, denoised, Format("x y == x dup dup y - A@ abs 1 {zs} / * {rpwr} ^ {strzi} * A dup abs {ldmp} + / * + ? "), UV=1, fulls=fs) }
 
@@ -1110,7 +1116,7 @@ function DetailSharpen(clip c, int "z", float "sstr", int "power", int "ldmp", i
 ###
 ### http://forum.doom9.org/showthread.php?t=142682&page=4#post1218074
 ###
-### port by Dogway (03-09-2021)
+### port by Dogway (05-09-2021)
 ###
 function SSSharpFaster(clip c, float "str", int "hthr", int "hbias", bool "fulls") {
 
@@ -1132,10 +1138,10 @@ function SSSharpFaster(clip c, float "str", int "hthr", int "hbias", bool "fulls
     Gblur = s.removegrain(20,-1)
     Hmask = ex_lutxy(Mblur, Gblur, Format("y x - abs {hthr} * {hbias} -"), UV=1, fulls=fs)
 
-    ex_merge(ex_lutxy(s, Gblur, Format("x dup y      - {str}     * +"), UV=1, fulls=fs),
-      \      ex_lutxy(s,     a, Format("x dup y swap - {str} 3 / * +"), UV=1, fulls=fs),
-      \      Hmask, UV=1, fulls=fs)
 
+    ex_lutxyza(s, Gblur, a, Hmask, Format("x dup y      - {str}     * + X@
+                                           x dup z swap - {str} 3 / * + -
+                                           a range_max / * X swap -"), UV=1, fulls=fs)
     spline36resize(w,h) }
 
 
@@ -1143,7 +1149,7 @@ function SSSharpFaster(clip c, float "str", int "hthr", int "hbias", bool "fulls
 ### SSSharp() (Super Slow Sharpen)
 ### 0.0 by *.mp4 guy (02-12-2007)
 ### 0.1 by Didée     (03-12-2007)
-### 0.2 by Dogway    (03-09-2021)
+### 0.2 by Dogway    (04-09-2021)
 ###
 ### https://forum.doom9.org/showthread.php?t=132330
 ###
@@ -1223,7 +1229,7 @@ function halomaskM(clip c, int "hthr", int "hbias", int "agmrad", bool "fulls") 
     hbias = ex_bs(hbias, 8, bi, fulls=fs)
 
     Mblur = (agmrad==1) ? c.removegrain(4,-1) : c.ex_median(agmrad==2 ? "median5" : "median7", UV=1, fulls=fs)
-    gblur =               c.ex_boxblur(agmrad*2,mode="weighted", UV=1, fulls=fs)
+    Gblur =               c.ex_boxblur(agmrad*2,mode="weighted", UV=1, fulls=fs)
 
     ex_lutxy(Mblur, Gblur, Format("y x - abs {hthr} * {hbias} +"), UV=1, fulls=fs) }
 
@@ -1259,7 +1265,7 @@ function SSW(clip c) {
 ### ReConvolution - Makes things sharp by mixing pixels together
 ### https://forum.doom9.org/showthread.php?p=1409582#post1409582
 ###
-### Optimized and ported by Dogway (03-09-2021)
+### Optimized and ported by Dogway (04-09-2021)
 ###
 ### Rad - radius of sharpening
 ### str - strength
@@ -1341,7 +1347,7 @@ Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int
 ### blah()   by *.mp4 guy (09-06-2010)
 ### https://forum.doom9.org/showthread.php?p=1406843#post1406843
 ###
-### Optimized and ported by Dogway (03-09-2021)
+### Optimized and ported by Dogway (04-09-2021)
 ###
 ### After reading this post by Didée I decided to
 ### take a crack at the problem of sharpening an interpolated or lowpassed image. Out of curiosity I tried the resulting function
@@ -1437,7 +1443,7 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
 
 
 
-### MedSharp v0.3 by    Dogway (03-09-2021)
+### MedSharp v0.3 by    Dogway (04-09-2021)
 ###          v0.2 by *.mp4 guy (11-08-2010)
 ###          v0.1 by *.mp4 guy (06-03-2010)
 ###
@@ -1480,7 +1486,7 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
 
     mask1 = ex_lut(Diff1, "x range_half - range_max * ", UV=1, fulls=fs)
 
-    s1  = ex_merge(Diff2, blank, mask1, UV=2, fulls=fs).ex_lut(Format("x range_half - {str} 0.500001 * * range_half +"), UV=1, fulls=fs)
+    s1  = ex_merge(Diff2, blank, mask1, UV=1, fulls=fs).ex_lut(Format("x range_half - {str} 0.500001 * * range_half +"), UV=1, fulls=fs)
     s1b = s1.NLLV(1,false,fs).NLLH(1,false,fs)
 
     s2  = Diff1.ex_lut(Format("x range_half - {str} * range_half +"), UV=1, fulls=fs)
@@ -1489,7 +1495,15 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
     Expr(C, s1, s1b, s2, s2b, "x y a + + z - b -","") }
 
 
-Function TMed2(Clip c, float "thresh", int "rad", int "mode", int "kernel", bool "fulls") {
+
+################################
+##                            ##
+## *.mp4 guy helper functions ##
+##                            ##
+################################
+
+
+function TMed2(Clip c, float "thresh", int "rad", int "mode", int "kernel", bool "fulls") {
 
     THR    = Default(thresh, 255)
     RAD    = Default(rad, 1)
@@ -1511,35 +1525,9 @@ Function TMed2(Clip c, float "thresh", int "rad", int "mode", int "kernel", bool
     Diff }
 
 
-Function NLHH2(Clip C, bool "fulls") {
+function NLHH2(Clip C, bool "fulls") {
 
-    bi  = BitsPerComponent(c)
-
-    fs = Default(fulls, false)
-
-    B1 = C.BlurH(1, 0.833)
-    B2 = C.BlurH(2, 0.750)
-    B3 = C.BlurH(3, 0.944)
-    B4 = C.BlurH(4, 0.981)
-
-    B1_D = ex_makediff(c, b1, UV=1, fulls=fs)
-    B2_D = ex_makediff(b2, c, UV=1, fulls=fs)
-    B3_D = ex_makediff(c, b3, UV=1, fulls=fs)
-    B4_D = ex_makediff(b4, c, UV=1, fulls=fs)
-
-    un = ex_bs(1, 8, bi, fulls=fs)
-    mx = bi > 8 ? "0 max" : ""
-
-    B2_DT = ex_lutxy(B1_D,  B2_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 0.75 * X - 0 > Y 0.75 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-    B3_DT = ex_lutxy(B2_DT, B3_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 2.25 * X - 0 > Y 2.25 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-    B4_DT = ex_lutxy(B3_DT, B4_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 6.75 * X - 0 > Y 6.75 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-
-    ex_adddiff(B4_DT, C, fulls=fs) }
-
-
-Function NLHV2(Clip C, bool "fulls") {
-
-    bi  = BitsPerComponent(c)
+    bi = BitsPerComponent(c)
 
     fs = Default(fulls, false)
 
@@ -1548,22 +1536,30 @@ Function NLHV2(Clip C, bool "fulls") {
     B3 = C.BlurH(3, 0.944)
     B4 = C.BlurH(4, 0.981)
 
-    B1_D = ex_makediff(c, b1, UV=1, fulls=fs)
-    B2_D = ex_makediff(b2, c, UV=1, fulls=fs)
-    B3_D = ex_makediff(c, b3, UV=1, fulls=fs)
-    B4_D = ex_makediff(b4, c, UV=1, fulls=fs)
-
-    un = ex_bs(1, 8, bi, fulls=fs)
-    mx = bi > 8 ? "0 max" : ""
-
-    B2_DT = ex_lutxy(B1_D,  B2_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 0.75 * X - 0 > Y 0.75 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-    B3_DT = ex_lutxy(B2_DT, B3_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 2.25 * X - 0 > Y 2.25 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-    B4_DT = ex_lutxy(B3_DT, B4_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 6.75 * X - 0 > Y 6.75 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-
-    ex_adddiff(B4_DT, C, fulls=fs) }
+    Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
+                                              x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
+                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +","", scale_inputs = fs ? "allf" : "all")
+      }
 
 
-Function NLLH(Clip C, int "rad", bool "var4", bool "fulls") {
+function NLHV2(Clip C, bool "fulls") {
+
+    bi = BitsPerComponent(c)
+
+    fs = Default(fulls, false)
+
+    B1 = C.BlurH(1, 0.833)
+    B2 = C.BlurH(2, 0.750)
+    B3 = C.BlurH(3, 0.944)
+    B4 = C.BlurH(4, 0.981)
+
+    Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
+                                              x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
+                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +","", scale_inputs = fs ? "allf" : "all")
+    }
+
+
+function NLLH(Clip C, int "rad", bool "var4", bool "fulls") {
 
     bi  = BitsPerComponent(c)
 
@@ -1576,22 +1572,14 @@ Function NLLH(Clip C, int "rad", bool "var4", bool "fulls") {
     B3 = C.BlurH((v4?3:5)*rad, 0.934)
     B4 = C.BlurH((v4?4:7)*rad, 0.983)
 
-    B1_D = ex_makediff(B1, C, UV=1, fulls=fs)
-    B2_D = ex_makediff(C, B2, UV=1, fulls=fs)
-    B3_D = ex_makediff(B3, C, UV=1, fulls=fs)
-    B4_D = ex_makediff(C, B4, UV=1, fulls=fs)
-
-    un = ex_bs(1, 8, bi, fulls=fs)
-    mx = bi > 8 ? "0 max" : ""
-
-    B2_DT = ex_lutxy(B1_D,  B2_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 1.915 * X - 0 > Y 1.915 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-    B3_DT = ex_lutxy(B2_DT, B3_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 2.025 * X - 0 > Y 2.025 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-    B4_DT = ex_lutxy(B3_DT, B4_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 2.077 * X - 0 > Y 2.077 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-
-    ex_adddiff(B4_DT, C, fulls=fs) }
+    Expr(C, B1, B2, B3, B4, "y x - S@ abs X^  x z - T@ abs Y^  S T X Y * A@ 1 + * A Y 1.915 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
+                                              a x - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.025 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
+                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +","", scale_inputs = fs ? "allf" : "all")
+    }
 
 
-Function NLLV(Clip C, int "rad", bool "var4", bool "fulls") {
+
+function NLLV(Clip C, int "rad", bool "var4", bool "fulls") {
 
     bi  = BitsPerComponent(c)
 
@@ -1604,24 +1592,15 @@ Function NLLV(Clip C, int "rad", bool "var4", bool "fulls") {
     B3 = C.BlurV((v4?3:5)*rad, 0.934)
     B4 = C.BlurV((v4?4:7)*rad, 0.983)
 
-    B1_D = ex_makediff(B1, C, UV=1, fulls=fs)
-    B2_D = ex_makediff(C, B2, UV=1, fulls=fs)
-    B3_D = ex_makediff(B3, C, UV=1, fulls=fs)
-    B4_D = ex_makediff(C, B4, UV=1, fulls=fs)
-
-    un = ex_bs(1, 8, bi, fulls=fs)
-    mx = bi > 8 ? "0 max" : ""
-
-    B2_DT = ex_lutxy(B1_D,  B2_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 1.915 * X - 0 > Y 1.915 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-    B3_DT = ex_lutxy(B2_DT, B3_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 2.025 * X - 0 > Y 2.025 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-    B4_DT = ex_lutxy(B3_DT, B4_D, Format("x range_half - S@ abs X^ y range_half - T@ abs Y^ S T X Y * A@ {un} + * A Y 2.077 * X - 0 > Y 2.077 * X - 0 ?  X 0 > X -{un} X 0 > S {un} ? / ^ {un} ? / {un} * + {un} + / + "+mx+" range_half +"), UV=1, fulls=fs)
-
-    ex_adddiff(B4_DT, C, fulls=fs) }
+    Expr(C, B1, B2, B3, B4, "y x - S@ abs X^  x z - T@ abs Y^  S T X Y * A@ 1 + * A Y 1.915 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
+                                              a x - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.025 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
+                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +","", scale_inputs = fs ? "allf" : "all")
+    }
 
 
-Function blurH(clip c, int "rad", Float "CW") {
+function BlurH(clip c, int "rad", Float "CW") {
 
-    rad = Default(rad, 1)
+    rad = Default(rad,  1)
     CW  = Default(CW, 0.5)
 
     CWr = (1-CW)/2.
@@ -1632,12 +1611,12 @@ Function blurH(clip c, int "rad", Float "CW") {
     Left   = C.PointResize(w, h, -rad, 0, w, h)
     Right  = C.PointResize(w, h,  rad, 0, w, h)
 
-    ex_lutxyz(Center, Left, Right, Format("x {CW} * y z + {CWr} * + "),UV=1) }
+    ex_lutxyz(Center, Left, Right, Format("x {CW} * y z + {CWr} * + "), UV=1) }
 
 
-Function BlurV(clip c, int "rad", Float "CW") {
+function BlurV(clip c, int "rad", Float "CW") {
 
-    rad = Default(rad, 1)
+    rad = Default(rad,  1)
     CW  = Default(CW, 0.5)
 
     CWr = (1-CW)/2.
@@ -1648,7 +1627,7 @@ Function BlurV(clip c, int "rad", Float "CW") {
     Down   = C.PointResize(w, h, 0, -rad, w, h)
     Up     = C.PointResize(w, h, 0,  rad, w, h)
 
-    ex_lutxyz(Center, Down, Up, Format("x {CW} * y z + {CWr} * + "),UV=1) }
+    ex_lutxyz(Center, Down, Up, Format("x {CW} * y z + {CWr} * + "), UV=1) }
 
 
 # Y'et A'nother H'alo R'educing script
@@ -1661,7 +1640,7 @@ function YAHR(clip clp, bool "fulls") {
     b1D   = ex_makediff(clp,b1,UV=1,fulls=fs)
 
     w1    = clp.aWarpSharp(depth=32,blurlevel=2,thresh=0.5)
-    w1b1  = w1.ex_minblur(2,1,fulls=fs).removegrain(11,-1)
+    w1b1  =  w1.ex_minblur(2,1,fulls=fs).removegrain(11,-1)
     w1b1D = ex_makediff(w1,w1b1,UV=1,fulls=fs)
 
     DD    = b1D.repair(w1b1D,13)
