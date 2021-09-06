@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v5.3     (01-09-2021)              ##
+###           ExTools v5.4     (06-09-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -476,7 +476,7 @@ function ex_invert(clip a, bool "tv_range", int "UV", bool "fulls") {
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    tv  = Default(tv_range, false)
+    tv  = Default(tv_range, false)    # enable for non-scalar TV range clips
     UV  = Default(UV,    rgb ? 3 : 1)
     fs  = Default(fulls, rgb)
 
@@ -557,7 +557,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
 
     (amnt > 254) ? VlimD : \
     (amnt ==  0) ?   clp : \
-    ex_lutxy(clp,  VlimD, Format("x {amnt} + dup y < swap x {amnt} - dup y > swap y ? ?"), UV=uv, fulls=fs) }
+    ex_lutxy(clp,  VlimD, Format("y x {amnt} - x {amnt} + clip"), UV=uv, fulls=fs) }
 
 
 
@@ -578,6 +578,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
 # removegrain(12).removegrain(20)                 ~> ex_blur(2.25)
 # removegrain(12).removegrain(20).removegrain(20) ~> ex_blur(4)
 # removegrain(20).removegrain(20)                 ~> ex_blur(2.75) -> ex_boxblur(3,mode="weighted") -> ex_boxblur(1,mode="mean").ex_boxblur(1,mode="mean")
+# ex_blur(n)                                      -> ex_blur(0.7*n-1).ex_blur(0.7*n-1) (slower though)
 
 
 
@@ -753,7 +754,6 @@ function binom_coeffs(n, k) {
 
 
 
-
 # Variable Gaussian Blur
 #
 # Benchmark:
@@ -773,25 +773,26 @@ function binom_coeffs(n, k) {
 #
 # ex_blur() is the reference blur function, with correct gaussian coefficients and chroma subsampling adapted sigma.
 # Also includes a gamma aware option for more correct defocus on non-scalar clips.
-function ex_blur(clip a, float "radius", float "radiusV", string "gamma", int "UV", bool "fulls") {
+function ex_blur(clip a, float "radius", float "radiusV", bool "bifit", string "gamma", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    sm = Default(radius,   1)
-    sv = Default(radiusv, sm)
+    rm = Default(radius,   1)
+    rv = Default(radiusv, rm)
+    bf = Default(bifit, true)           # false: true gaussian distribution  true: binomial distribution fit (like blur() or ex_boxblur(mode="weighted") )
     gm = Default(gamma, "none")         # Set matrix for gamma encoded clips (ie. 601, 709, 2020...) Requires TransformsPack
     UV = Default(UV,    rgb ? 3 : 1)
     fs = Default(fulls, rgb)
 
     # Binomial Fit
-    sm = max(sm,0)
-    sv = max(sv,0)
-    sm = min(1 + sm * 0.25, sm)  # min() to accommodate rad=1
-    sv = min(1 + sv * 0.25, sv)  # min() to accommodate rad=1
-    sm = sm / 2. * sqrt(2)
-    sv = sv / 2. * sqrt(2)
+    rm = max(rm,0)
+    rv = max(rv,0)
+    sm = min(1 + rm * 0.25, rm)  # min() to accommodate rad=1
+    sv = min(1 + rv * 0.25, rv)  # min() to accommodate rad=1
+    sm = bf ? sm / 2. * sqrt(2) : rm
+    sv = bf ? sv / 2. * sqrt(2) : rv
 
     # LUMA
     strv = gauss_constructor(sv,true)
@@ -847,324 +848,6 @@ function gauss_constructor(float rad, bool vert) {
        }
 
     str + pls }
-
-
-
-##    ex_guidedblur() port from WolframRhodium's VapourSynth function in muvsfunc.py
-##
-##    Guided Filter - fast edge-preserving smoothing algorithm
-##    Author: Kaiming He et al. (http://kaiminghe.com/eccv10/)
-##
-##    The guided filter computes the filtering output by considering the content of a guidance image.
-##    It can be used as an edge-preserving smoothing operator like the popular bilateral filter,
-##        but it has better behaviors near edges.
-##    The guided filter is also a more generic concept beyond smoothing:
-##    It can transfer the structures of the guidance image to the filtering output,
-##        enabling new filtering applications like detail enhancement, HDR compression,
-##        image matting/feathering, dehazing, joint upsampling, etc.
-##    All the internal calculations are done at 32-bit float.
-##
-##
-##    Args:
-##
-##        radius: (int) Box / Gaussian filter's radius.
-##            If box filter is used, the range of radius is 1 ~ 12(fast=False) or 1 ~ 12*subsampling_ratio in VapourSynth R38 or older
-##                because of the limitation of std.Convolution().
-##            For gaussian filter, the radius can be much larger, even reaching the width/height of the clip.
-##            Default is 2.
-##        guidance: (clip) Guidance clip used to compute the coefficient of the linear translation on 'input'.
-##            It must has the same clip properties as 'input'.
-##            If it is None, it will be set to input, with duplicate calculations being omitted.
-##            Default is None.
-##        regulation: (float) A criterion for judging whether a patch has high variance and should be preserved, or is flat and should be smoothed.
-##            Similar to the range variance in the bilateral filter.
-##            Default is 0.01.
-##        regulation_mode: (int) Tweak on regulation.
-##            It was mentioned in [1] that the local filters such as the Bilateral Filter (BF) or Guided Image Filter (GIF)
-##            would concentrate the blurring near these edges and introduce halos.
-##            The author of Weighted Guided Image Filter (WGIF) [3] argued that,
-##            the Lagrangian factor (regulation) in the GIF is fixed could be another major reason that the GIF produces halo artifacts.
-##            In [3], a WGIF was proposed to reduce the halo artifacts of the GIF.
-##            An edge aware factor was introduced to the constraint term of the GIF,
-##            the factor makes the edges preserved better in the result images and thus reduces the halo artifacts.
-##            In [4], a gradient domain guided image filter is proposed by incorporating an explicit first-order edge-aware constraint.
-##            The proposed filter is based on local optimization
-##            and the cost function is composed of a zeroth order data fidelity term and a first order regularization term.
-##            So the factors in the new local linear model can represent the images more accurately near edges.
-##            In addition, the edge-aware factor is multi-scale, which can separate edges of an image from fine details of the image better.
-##            0: Guided Filter [1]
-##            1: Weighted Guided Image Filter [3]
-##            2: Gradient Domain Guided Image Filter [4]
-##            Default is 0.
-##        use_gauss: (bool) Whether to use gaussian guided filter [1]. This replaces mean filter with gaussian filter.
-##            Guided filter is rotationally asymmetric and slightly biases to the x/y-axis because a box window is used in the filter design.
-##            The problem can be solved by using a gaussian weighted window instead. The resulting kernels are rotationally symmetric.
-##            The authors of [1] suggest that in practice the original guided filter is always good enough.
-##            Gaussian is performed by core.tcanny.TCanny(mode=-1).
-##            The sigma is set to r/sqrt(2).
-##            Default is True.
-##        fast: (bool) Whether to use fast guided filter [2].
-##            This method subsamples the filtering input image and the guidance image,
-##            computes the local linear coefficients, and upsamples these coefficients.
-##            The upsampled coefficients are adopted on the original guidance image to produce the output.
-##            This method reduces the time complexity from O(N) to O(N/s^2) for a subsampling ratio s.
-##            Default is False.
-##        subsampling_ratio: (float) Only works when fast=True.
-##            Generally should be no less than 'radius'.
-##            Default is 4.
-##        kernel1, kernel2: (string) Subsampling/upsampling kernels.
-##            Default is 'point'and 'bilinear'.
-##
-##    Ref:
-##        [1] He, K., Sun, J., & Tang, X. (2013). Guided image filtering.
-##            IEEE transactions on pattern analysis and machine intelligence, 35(6), 1397-1409.
-##        [2] He, K., & Sun, J. (2015). Fast guided filter. arXiv preprint arXiv:1505.00996.
-##        [3] http://kaiminghe.com/eccv10/index.html
-##        [4] Li, Z., Zheng, J., Zhu, Z., Yao, W., & Wu, S. (2015). Weighted guided image filtering.
-##            IEEE Transactions on Image Processing, 24(1), 120-129.
-##        [5] Kou, F., Chen, W., Wen, C., & Li, Z. (2015). Gradient domain guided image filtering.
-##            IEEE Transactions on Image Processing, 24(11), 4528-4539.
-##        [6] http://koufei.weebly.com/
-
-# ex_guidedblur(radius=r) is the slow (10% fps) but edge preserving equivalent of ex_blur(r-2) (with Defaults)
-# regulation_mode = 1 not working
-function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulation", int "regulation_mode", bool "use_gauss", bool "fast", \
-                               int "subsampling_ratio", string "kernel1", string "kernel2", int "UV", bool "fulls") {
-    rgb = isRGB(a)
-    isy = isy(a)
-    bi  = BitsPerComponent(a)
-
-    gd  = Default(guidance, Undefined)    # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
-    r   = Default(radius,        2)       # from 0.0 to 3.9 (use_gauss = false steping is in integer increments)
-    eps = Default(regulation, 0.01)
-    rm  = Default(regulation_mode, 0)     # 0: Original Guided Filter, 1: Weighted Guided Image Filter, 2: Gradient Domain Guided Image Filter
-    ga  = Default(use_gauss,   true)
-    fa  = Default(fast,       false)
-    s   = Default(subsampling_ratio, 4)
-    kn1 = Default(kernel1,   "Point")
-    kn2 = Default(kernel2,   "Bilinear")
-    UV  = Default(UV,    rgb ? 3 : 1)
-    fs  = Default(fulls, rgb)
-
-    isg = Defined(gd)
-    r   = min(r, 3.99)
-    w   = a.width()
-    h   = a.height()
-    p   =        a.ConvertBits(32)
-    I   = isg ? gd.ConvertBits(32) : p
-
-    # Back up guidance image
-    I_src = I
-
-    # Fast guided filter's subsampling
-    r = fa ?        float(r) /s               : r
-    p = fa ? p.RatioResize(1./s, "%", kernel=kn1) : p
-    I = fa ? I.RatioResize(1./s, "%", kernel=kn1) : I
-
-
-    function Filter(clip clp, float r, bool use_gauss, int UV) {
-        use_gauss ? clp.ex_blur(r<2?r:pow(2,r) , UV=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
-
-    function Filter_r1(clip clp,       bool use_gauss, int UV) {
-        use_gauss ? clp.removegrain(12,uv==3?12:-1)       :  clp.ex_boxblur(1     ,mode="mean", UV=uv) }
-
-
-    # Compute local linear coefficients.
-    mean_p   =       Filter(p,r,ga,uv)
-    mean_I   = isg ? Filter(I,r,ga,uv) : mean_p
-    I_square = Expr(I, "x dup *")
-    corr_I   =       Filter(I_square,r,ga,uv)
-    corr_Ip  = isg ? Filter(Expr(I, p, "x y *"),r,ga,uv) : corr_I
-
-    var_I    =       Expr(corr_I,  mean_I,       "x y dup * -")
-    cov_Ip   = isg ? Expr(corr_Ip, mean_I, mean_p, "x y z * -") : var_I
-
-
-    if (rm>0) {
-
-        if (r != 1) {
-
-            mean_I_1 = Filter_r1(I,       ga,uv)
-            corr_I_1 = Filter_r1(I_square,ga,uv)
-            var_I_1  = Expr(corr_I_1, mean_I_1, var_I, "x y dup * - z * sqrt")
-        }
-
-        weight_in = (rm == 1) ? var_I : var_I_1
-
-
-            if (rm == 1) {
-
-                a = ScriptClip(weight_in,"""
-                    # Edge-Aware Weighting, equation (5) in [3], or equation (9) in [4].
-                    avg = 1. / weight_in.AverageLuma()
-
-                    Expr(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + dup 1 swap / swap {avg} * / + /"))
-                """,args="weight_in, cov_Ip, var_I, eps", local=true)
-
-            } else {
-
-                a = ScriptClip(weight_in,"""
-                    # Edge-Aware Weighting, equation (5) in [3], or equation (9) in [4].
-                    avg = 1. / weight_in.AverageLuma()
-
-                    weight = Expr(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + dup 1 swap / swap {avg} * / + /"))
-
-                    # Compute the optimal value of a of Gradient Domain Guided Image Filter, equation (12) in [4]
-                    frameMean = weight.AverageLuma()
-                    frameMin  = weight.YPlaneMin()
-
-                    alpha = frameMean
-                    kk = -4 / (frameMin - alpha - 0.000001) # Add a small num to prevent divided by 0
-
-                    Expr(cov_Ip, weight_in, weight, var_I, Format("x {eps} 1 1 1 {kk} y {alpha} - * exp + / - * z / + a {eps} z / + / 0 max"))
-
-             """,args="weight_in, cov_Ip, var_I, eps", local=true) }
-
-    } else {
-        a = Expr(cov_Ip, var_I, Format("x y {eps} + /"))   # regulation_mode == 0, Original Guided Filter
-    }
-
-    b = Expr(mean_p, a, mean_I, "x y z * -")
-
-    mean_a = Filter(a,r,ga,uv)
-    mean_b = Filter(b,r,ga,uv)
-
-    # Fast guided filter's upsampling
-    ratio  = float(w)/round(float(w)/s)
-    mean_a = fa ? mean_a.RatioResize(ratio, "%", kernel=kn2) : mean_a
-    mean_b = fa ? mean_b.RatioResize(ratio, "%", kernel=kn2) : mean_b
-
-    # Linear translation
-    q = Expr(mean_a, I_src, mean_b, "x y * z +")
-    q
-
-    # Final bitdepth conversion
-    if (bi != 32) {
-        ConvertBits(16,dither=-1)
-        ConvertBits(bi,dither=1)
-    }  }
-
-
-
-##    ex_ANguidedblur() port from WolframRhodium's VapourSynth function in muvs
-##
-##    Anisotropic Guided Filtering
-##
-##    The guided filter and its subsequent derivatives have been widely employed in many image processing and computer vision applications
-##        primarily brought about by their low complexity and good edge-preservation properties. Despite this success, the different variants of
-##        the guided filter are unable to handle more aggressive filtering strengths leading to the manifestation of “detail halos”.
-##    At the same time, these existing filters perform poorly when the input and guide images have structural inconsistencies. In this paper,
-##        we demonstrate that these limitations are due to the guided filter operating as a variable-strength locally-isotropic filter that, in effect,
-##        acts as a weak anisotropic filter on the image. Our analysis shows that this behaviour stems from the use of unweighted averaging in the final steps
-##        of guided filter variants including the adaptive guided filter (AGF), weighted guided image filter (WGIF), and gradient-domain guided image filter (GGIF).
-##    We propose a novel filter, the Anisotropic Guided Filter (AnisGF), that utilises weighted averaging to achieve maximum diffusion while preserving strong edges in the image.
-##    The proposed weights are optimised based on the local neighbourhood variances to achieve strong anisotropic filtering
-##
-##
-##    Args:
-##
-##        radius: (float) Box / Gaussian filter's radius.
-##            Default is 2.
-##
-##        guidance: (clip) Guidance clip used to compute the coefficient of the linear translation on 'clip'.
-##            It must has the same clip properties as 'clip'.
-##            Default is Undefined.
-##
-##        gamma: (float) Positive scalar value that controls the smoothness of the guided filter.
-##            A small value preserves more detail while a large value promotes smoothing.
-##            Default is 0.01.
-##
-##        epsilon: (float) Positive scalar value that regularizes the anisotropic weights.
-##            A large value will promote more isotropy
-##            while a small value will emphasize the anisotropic behavior.
-##            Default is 2^(-8).
-##
-##        use_gauss: (bool) Whether to use gaussian guided filter.
-##            Default is True.
-##
-##        sigma: (bool) Scaled noise variance of the image.
-##            If it is None, it is estimated from the image.
-##            Default is False.
-##
-##        adaptive: (bool) Boolean flag that controls the behavior of the guided filter.
-##            It enables the adaptation of the guided filter regularizer (gamma)
-##            to better preserve details in the image.
-##            Default is True.
-##
-##    Ref:
-##        [1] C. N. Ochotorena and Y. Yamashita, "Anisotropic Guided Filtering,"
-##            in IEEE Transactions on Image Processing, vol. 29, pp. 1397-1412, 2020,
-##            doi: 10.1109/TIP.2019.2941326.
-
-function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma", bool "alpha", float "epsilon", bool "use_gauss", bool "sigma", bool "adaptive", int "UV", bool "fulls") {
-
-    rgb = isRGB(clp)
-    isy = isy(clp)
-    bi  = BitsPerComponent(clp)
-
-    gd  = Default(guidance, Undefined)    # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
-    r   = Default(radius,   2)
-    gm  = Default(gamma, 0.01)
-    al  = Default(alpha,    false)
-    ga  = Default(use_gauss, true)
-    eps = Default(epsilon, 0.003906250)
-    sm  = Default(sigma,    false)
-    ad  = Default(adaptive,  true)
-    UV  = Default(UV,    rgb ? 3 : 1)
-    fs  = Default(fulls, rgb)
-
-    isg = Defined(gd)
-    clp =      clp.ConvertBits(32)
-    gd  = isg ? gd.ConvertBits(32) : nop()
-
-    alpha = !al ? max(log10(gm) + 3, 0) : 1
-
-    if (!isg) {
-
-        X1 =                         clp.ex_boxblur(floor(r),mode="mean",UV=uv)
-        X2 = ex_lut(clp,"x dup *",UV=uv).ex_boxblur(floor(r),mode="mean",UV=uv)
-        W  = ex_lutxy(X1, X2, "y x dup * -",UV=uv)
-
-    } else {
-
-        G1  =                             guidance.ex_boxblur(floor(r),mode="mean",UV=uv)
-        G2  =     ex_lut(guidance,"x dup *",UV=uv).ex_boxblur(floor(r),mode="mean",UV=uv)
-        X1  =                                  clp.ex_boxblur(floor(r),mode="mean",UV=uv)
-        XG  = ex_lutxy(clp,guidance,"x y *",UV=uv).ex_boxblur(floor(r),mode="mean",UV=uv)
-        W   = ex_lutxy(G1, G2, "y x dup * -",UV=uv)
-    }
-
-    coeff = 0.0002 * (2 * r + 1) * gm
-    gamma = ad ? Format("dup {coeff} swap 0.000001 + /") : Format("{gm}")
-
-    A = !isg ? ex_lut(W,"x dup "+gamma+" + /",UV=uv)                 : \
-               ex_lutxyza(W,XG,X1,G1,"y z a * - x "+gamma+" + /",UV=uv)
-    B = !isg ? ex_lutxy (A,X1,   "1 x - y *",UV=uv)                  : \
-               ex_lutxyz(A,X1,G1,"y x z * -",UV=uv)
-
-    coeff = pow(2 * r + 1, 2)
-    div   = 1. / (6 / sqrt(3.141592653/2))
-    sigma = !sm ? ex_lut(isg?gd:clp,Format("x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 4 * + + + + x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 2 * - {div} *"),UV=uv) : nop()
-
-    W = Scriptclip(W,"""
-        avg = !sm ? string(pow(sigma.AverageLuma(),2))+" - 0 max" : ""
-        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"),UV=uv) """, args="W,coeff,alpha,eps,sm,sigma,uv", local=true)
-
-    WA = ex_lutxy(W,A,"x y *",UV=uv)
-    WB = ex_lutxy(W,B,"x y *",UV=uv)
-    A = ga ? WA.ex_blur(r<1.6?r:r*2-0.25) : WA.ex_boxblur(floor(r),mode="mean")
-    B = ga ? WB.ex_blur(r<1.6?r:r*2-0.25) : WB.ex_boxblur(floor(r),mode="mean")
-    W = ga ?  W.ex_blur(r<1.6?r:r*2-0.25) :  W.ex_boxblur(floor(r),mode="mean")
-
-    res = ex_lutxyza(!isg?clp:gd,A,B,W,"y x * z + a / 0 max",UV=uv)
-
-    res
-
-    if (bi != 32) {
-        ConvertBits(16,dither=-1)
-        ConvertBits(bi,dither=1)
-    }  }
-
 
 
 # 100% Dither_bilateral16(radius=2,thr=10,flat=1.0,u=1,v=1) (216fps) # Output is dirtier though
@@ -1412,13 +1095,60 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 
 
 
+#######################################################################
+##
+## ex_GaussianBlur() by Dogway (06-09-2021)
+## Large-sigma optimized gaussian blur filter
+##
+## Heavy mod from FRC_GaussianBlur42()
+## http://forum.doom9.net/showthread.php?p=1807156#post1807156
+##
+## It was profiled against ex_blur(bifit=false) so ex_blur(10,bifit=false) ~ ex_GaussianBlur(10)
+##
+## version 2013-10-23 raffriff42
+## version 2014-05-31 discrete hor. and vert. args
+## version 2017-05-21 bugfix: blockiness
+## version 2021-09-05 Optimized (~38% gain) and profiled against ex_blur(), also Y+UV args
+##
+
+function ex_GaussianBlur(clip C, float "rad", float "radv", int "Y", int "UV") {
+
+    rgb = isRGB(C)
+    isy = isy(C)
+
+    rad  = Default(rad,    10)
+    radv = Default(radv,  rad)
+    Y    = Default(Y,       3)
+    UV   = Default(UV,      3)  # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower
+
+
+    rad  = 1.221428*rad  +0.136   # Parametrized to gaussian like standard deviation
+    radv = 1.221428*radv +0.136   # Parametrized to gaussian like standard deviation
+
+    w0 = C.Width()
+    h0 = C.Height()
+    w1 = Round(w0/rad )/4
+    h1 = Round(h0/radv)/4
+
+    B = C.BicubicResize(
+    \         Min(Max(4, w1 * 4), w0),
+    \         Min(Max(4, h1 * 4), h0))
+
+           (rad<0.01 && radv<0.01)       ? C
+    \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize  (w0, h0, p=15)
+    \                                    : B.BicubicResize(w0, h0, 1, 0) # SoftCubic100
+
+    Y  < 3 ? !isy ? mergechroma(C,last) : last : last
+    UV < 3 ? !isy ? mergeluma  (C,last) : last : last }
+
+
 
 ##############################
 ##
 ## Median Blur
 ##
-## Replaces removegrain median modes, adaptivemedian, verticalcleaner, clense, degrainmedian, medianblur and medianblurtemporal plugins, and adds new modes.
-## Sorting Networks perform better with Prefetch(logical_cores*0.75) in multi-threading CPUs
+## Replaces removegrain medians, adaptivemedian, verticalcleaner, clense, degrainmedian, medianblur, medianblurtemporal, DeSaltPepper/SaltPepper and UnDot plugins, and adds new modes.
+## Sorting Networks perform better with Prefetch(logical_cores*0.75) in multi-threading CPUs.
 ##
 ## Requires AviSynth+ 3.7.1
 ##
@@ -1465,7 +1195,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 # WMF       - Gauss Weighted Median
 # AWM       - Mean Average Weighted Median                         (own algo)
 # PWM       - 50% weighted Percentile Weighted Median              (own algo)
-# RMF       - Recursive Median Filter. Computes the new median from previous pixel medians. *Proof of concept, actually runs faster with 2 passes.
+# RMF       - Recursive Median Filter. Computes the new median from previous pixel medians. *Proof of concept, actually runs faster with 2 passes of "median"
 # AMF       - Adaptive Median. Similar to undot but better at salt'n'pepper noise.                 -From VC Mohan AdaptiveMedian-
 # CAM       - Cross kernel Adaptive Median                         (own algo)
 # SNN       - Symmetric Nearest Neighbour Mean. Average of 4 closest pixels in opposing pairs.
@@ -1515,7 +1245,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                           mode=="TempGauss" ? 255 : \
                           mode=="SNN"       ?  20 : 4)    # Absolute Error threshold. Only for EMF, smart, SNN and DeGrainMedian modes
 
-    # Beware 'smart' mode threshold don't hold up between 8-bit and HBD
+    # Beware 'smart' mode threshold doesn't hold up between 8-bit and HBD
     th = mode=="smart" && bi > 8 ? bi == 32     ? \
          ex_bs(          thr-5, 8, bi, fulls=fs) : \
          ex_bs(pow(2,bi-8)*thr, 8, bi, fulls=fs) : \
@@ -3887,7 +3617,6 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
 # mt_expand() is 6% faster (6% slower when radius = 2)
 # modes: square, circle, disk, ring, diamond, plus, cross, vertical, horizontal
 # 'circle' + radius=2 is like calling mode="plus" twice but faster
-# 'disk' is an antialiased 'circle', slower but looks better. Inspired by ImageMagick morphology shapes.
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
@@ -4412,30 +4141,41 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
 
 
 
-# Performs declared expression with 'mode' mode from clip 'a' to neighbour pixels defined in 'shape' of clip 'b' (or 'a' if 'b' is undefined)
-function ex_luts(clip a, clip "b", string "expr", string "exprc", string "mode", string "pixels", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
+# Performs declared expression with 'mode' mode from clip 'a' to neighbour pixels defined in 'pixels' of clip 'b' (or 'a' if 'b' is undefined)
+# !! Beware, don't write variables in the expressions with capital letters (ie. A@), use instead lower case preceded with underscore (ie. _var@)
+function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf", string "mode", string "pixels", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
     isb  = Defined(b)
+    isc  = Defined(exprc)
     bi   = BitsPerComponent(a)
 
     str  = Default(expr,     " y ")
+    exprf= Default(exprf,     "")
     px   = Default(pixels,ex_shape())
     md   = Default(mode,     "avg")
     Y    = Default(Y,            3)
-    UV   = Default(UV,     rgb ? 3 : 1)
+    UV   = Default(UV,     rgb ? 3 : isc ? 3 : 1)
     fs   = Default(fulls,  rgb)
     cf   = Default(clamp_float, false)
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(rgb, bi)
 
+    md = md == "average"   ? "avg"          : \
+         md == "maximum"   ? "max"          : \
+         md == "minimum"   ? "min"          : \
+         md == "range"     ? "range"        : \
+         md == "standard deviation" ? "std" : \
+         md == "median"    ? "med"          : md
+
     px  = FindStr(px,"[") != 0 ? px : pixel_parser(px)
+    px0 = FindStr(px,"x[0,0]") == 0
 
     in  = FindStrInstance(px, "^")
-    med = md == "med" || md == "median" ? sel_med(in) : ""
+    med = md == "med" ? sel_med(in) : ""
+    med = isb ? ReplaceStr(med,  "X swap2", "Y swap2") : px0 ? ReplaceStr(med,  "X swap2", "x swap2") : med
 
-    px0 = FindStr(px,"x[0,0]") == 0
 
     op = md == "avg"   ? " + "              : \
          md == "max"   ? " max "            : \
@@ -4444,12 +4184,14 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "mode",
          md == "std"   ? " XX - abs dup * " : \
          md == "med"   ? ""                 : ""
 
-    vars = "A B C D E F G H I J K L M N O P Q R S T U V W Y Z " \
+    vars = "A B C D E F G H I J K L M N O P Q R S T U V W Z " \
           +"AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWYYZZ"
 
-    px  = isb ? ReplaceStr(px,  " x[", " y[")           : px
-    px  = isb ? ReplaceStr(px,  " y[0,0] ", " x[0,0] ") : px
-    str =       ReplaceStr(LCase(" "+str+" "),  " x ", " X ")
+    px  = isb  ? ReplaceStr(" "+px+" ",  " x[", " y[")       : px
+    px  = isb  ? ReplaceStr(    px,  " y[0,0] ", " x[0,0] ") : px
+    px  = isb  ?       px + " y[0,0] Y^ "                    : px
+    px  = isb && px0 ? px + " x[0,0] X^ "                    : px
+    str = px0  ? str : ReplaceStr(LCase(" "+str+" "),  " x ", " X ")
 
     V = "" expr="" exprM="X"
     len = px0 ? in : in-1
@@ -4461,24 +4203,26 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "mode",
                                                                      md == "std" ? i==0 ? op : op+" + " : i==0 ? " " : op)
 
     }
+        exprY = isb  ? ReplaceStr(" "+str+" ",  " y ",     " Y ") + (md == "med" ? "Y^ "          : \
+                                                                     md == "std" ? op+" + " : op) : ""
         exprX = !px0 ? ReplaceStr(" "+str+" ",  " y ",     " X ") + (md == "med" ? "X^ "          : \
                                                                      md == "std" ? op+" + " : op) : ""
         exprM = md == "std" ? exprM + string(1./in) + " * XX^ " : nop()
 
-    expr = md == "range" ? px +         expr + exprX + ReplaceStr(expr,  "max", "min") + " -" : \
-           md == "avg"   ? px +         expr + exprX + string(1./in) + " *"                   : \
-           md == "std"   ? px + exprM + expr + exprX + string(1./in) + " * sqrt"              : \
-           md == "med"   ? px +         expr + exprX + med                                    : \
-                           px +         expr + exprX
+    expr = md == "range" ? px +         expr + exprY + exprX + ReplaceStr(expr,  "max", "min") + " -" + exprf : \
+           md == "avg"   ? px +         expr + exprY + exprX + string(1./in) + " *"                   + exprf : \
+           md == "std"   ? px + exprM + expr + exprY + exprX + string(1./in) + " * sqrt"              + exprf : \
+           md == "med"   ? px +         expr + exprY + exprX + med                                    + exprf : \
+                           px +         expr + exprY + exprX                                          + exprf
 
     expr = ReplaceStr(expr, "  ", " ")
 
-    ystr =                          ex_Yexpr (expr,  Y, bi, rgb, fs)
-    cstr = Defined(exprc) ? exprc : ex_UVexpr(expr, UV, bi, rgb, fs)
+    ystr =               ex_Yexpr (expr,  Y, bi, rgb, fs)
+    cstr = isc ? exprc : ex_UVexpr(expr, UV, bi, rgb, fs)
     str  =             ex_dlut(ystr, bi, fs)
     cstr = rgb ? str : ex_dlut(cstr, bi, fs)
 
-    isb     ?                                                           \
+    isb     ?                                                                                 \
     isy     ?  Expr(a, b, str,      optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
     UV == 1 ?  Expr(a, b, str, "",  optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
                Expr(a, b, str, cstr,optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
@@ -4491,19 +4235,17 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "mode",
 
 
 # Outputs a string with the kernel shape in 'shape'
-function ex_shape(int "rad", int "radV", string "shape", bool "center") {
+# 'disk' is an antialiased 'circle', slower but looks better. Inspired by ImageMagick morphology shapes.
+function ex_shape(int "rad", int "radV", string "mode", bool "center") {
 
     rd = Default(rad,   1)           # integers from 0 to 8 (depends on mode)
     rv = Default(radV, rd)           # integers from 0 to 8 (depends on mode)
-    md = Default(shape, "square")
+    md = Default(mode,  "square")
     cn = Default(center,   true )
 
-    lim = md == "square"     ? rd>3 || rv>3 : \
-          md == "diamond"    ? rd>4 || rv>4 : \
-          md == "circle"     ? rd>4 || rv>4 : \
-          md == "disk"       ? rd>3 || rv>3 : \
-          md == "ring"       ? rd>8 || rv>8 : \
-          md == "plus"       ? rd>8 || rv>8 : \
+    # Soft limit
+    lim = md == "plus"       ? rd + rv > 16 : \
+          md == "cross"      ? rd + rv > 16 : \
           md == "horizontal" ? rd>8 || rv>8 : \
           md == "vertical"   ? rd>8 || rv>8 : false
 
@@ -4514,36 +4256,46 @@ function ex_shape(int "rad", int "radV", string "shape", bool "center") {
     krnlrd = krnlsz/2
     krnlrv = krnlsv/2
 
-    # 50 vars
-    vars = "A B C D E F G H I J K L M N O P Q R S T U V W Y Z " \
+    # 49 vars
+    vars = "A B C D E F G H I J K L M N O P Q R S T U V W Z " \
           +"AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWYYZZ"
 
+    # Fix anisotropy for 'cross'
+
     mode = md == "square"  ? """
-                            skip  =  false """                                                     : \
+                            skip  =  false """                                       : \
            md == "diamond" ? """
                             skip  = (abs(px) != 0 && abs(py) != 0) && \
-                                    (abs(px) > krnlrd - abs(py) || abs(py) > krnlrd - abs(px)) """ : \
+                                    (abs(pxr) > rtm - abs(pyr) ||     \
+                                     abs(pyr) > rtm - abs(pxr)) """                  : \
            md == "circle"  ? """
-                            skip  = (px*px + py*py) > krnlrd*krnlrd """                            : \
+                            skip  = (pxr*pxr + pyr*pyr) > rtm*rtm """                : \
            md == "disk"   ? """
-                            skip  = (px*px + py*py) > pow(krnlrd+0.3, 2) """                       : \
+                            skip  = (pxr*pxr + pyr*pyr) > pow(rtm+0.3,   2) """      : \
            md == "ring"   ? """
-                            skipo = (px*px + py*py) > pow(krnlrd+0.3,   2)
-                            skipi = (px*px + py*py) > pow(krnlrd+0.3-1, 2)
-                            skip  = skipo || !skipi """                                            : \
+                            skipo = (pxr*pxr + pyr*pyr) > pow(rtm+0.3,   2)
+                            skipi = (pxr*pxr + pyr*pyr) > pow(rtm+0.3-1, 2)
+                            skip  = skipo || !skipi """                              : \
            md == "plus"   ? """
-                            skip  =  px != 0 && py != 0 """                                        : \
+                            skip  =  px != 0 && py != 0 """                          : \
            md == "cross"  ? """
-                            skip  = (px + py != 0) && (abs(px) != abs(py)) """                     : \
+                            skip  = (px + py != 0) && (abs(px) != abs(py)) """       : \
            md == "horizontal" ? """
-                            skip  =  py != 0 """                                                   : \
+                            skip  =  py != 0 """                                     : \
            md == "vertical" ?  """
-                            skip  =  px != 0 """                                                   : ""
+                            skip  =  px != 0 """                                     : ""
+
+    rtm = min(krnlrd,krnlrv)
+    rt  = float(rtm)/max(krnlrd,krnlrv)
+    rty = krnlrd > krnlrv ? 1 : rt
+    rtx = krnlrv > krnlrd ? 1 : rt
 
     # x[0,0] is always "X^"
     krn = "" V = "" pos=1
     for (px = -krnlrd, krnlrd, 1) {
             for (py = -krnlrv, krnlrv, 1) {
+                pxr   = px * rtx
+                pyr   = py * rty
                 Eval(mode)
                 cnt  = abs(px) + abs(py) == 0
                 skip = skip || (!cn ? cnt : false)
@@ -4553,6 +4305,10 @@ function ex_shape(int "rad", int "radV", string "shape", bool "center") {
        }      }
 
     krn = md == "ring" && cn ? krn+" x[0,0] X^ " : krn
+
+    pxc = FindStrInstance(krn, "^")
+          Assert( pxc < 51, string(pxc)+": Maximum pixel fetching count reached for '"+md+"' mode.")
+
     return ReplaceStr(krn,  " ^", "^") }
 
 
@@ -4579,11 +4335,11 @@ function FindStrInstance(string haystack, string needle) {
 # ie: " 1 -1  1  0 0 0 -2 0 " -> "x[1,-1] A^ x[1,0] B^ x[-2,0] C^ x[0,0] X^ "
 function pixel_parser(string str) {
 
-    # cleanup
+    # Cleanup
     str = ReplaceStr(str, " ", "")
     len = StrLen(str)
 
-    vars = "A B C D E F G H I J K L M N O P Q R S T U V W Y Z " \
+    vars = "A B C D E F G H I J K L M N O P Q R S T U V W Z " \
           +"AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWYYZZ"
 
     # Extract X
@@ -4624,7 +4380,7 @@ function pixel_parser(string str) {
 function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls") {
 
     str = Default(str, "")
-    UV  = Default(UV, 1)
+    UV  = Default(UV,   1)
     bi  = Default(bits, 8)
     rgb = Default(rgb,   false)
     fs  = Default(fulls, rgb)
@@ -4651,7 +4407,7 @@ function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls")
 function ex_Yexpr(string "str", int "Y", int "bits", bool "rgb", bool "fulls") {
 
     str = Default(str, "")
-    Y   = Default(Y, 3)
+    Y   = Default(Y,    3)
     bi  = Default(bits, 8)
     rgb = Default(rgb,   false)
     fs  = Default(fulls, rgb)
@@ -4675,7 +4431,7 @@ function ex_UVf(bool rgb, int bits) {
     bits == 32 && !rgb ? "floatUV" : "none" }
 
 
-# Scales values from one bitdepth to another
+# Scales values from one bitdepth to another or/and from one scale to another
 function ex_bs(float var, int "ibits", int "obits", bool "ifulls", bool "fulls") {
 
     ibi = Default(ibits,  8)
@@ -4691,8 +4447,8 @@ function ex_bs(float var, int "ibits", int "obits", bool "ifulls", bool "fulls")
 
     v   = float(var)*pow(2, obi-ibi)
 
-    fsc = fs && !fso ? -v/257. : \
-         !fs &&  fso ?  v/256. : 0
+    fsc = fs && !fso ? -v/257.  : \
+         !fs &&  fso ?  v/256.  : 0
 
     vif = ib32 ? ob8 ? var*255. :     var*( 255*pow(2, obi-8)+(fso ? 255*pow(2, obi-8)/256. : 0) )     : nop()
     vof = ob32 ? ib8 ? var/255. : min(var/( 255*pow(2, ibi-8)+(fs  ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
@@ -4779,6 +4535,7 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     return msk }
 
 
+# From 35 -included- onwards not optimized enough
 function sel_med(int n) {
 
     even = n%2 == 0
@@ -5219,7 +4976,7 @@ function sel_med(int n) {
 
                 X swap2 clip"                                 : \
                                                                 \
-    n == 25  ? "D Y                   dup1 dup1 min D^ max Y^
+    n == 25  ? "D Z                   dup1 dup1 min D^ max Z^
                 L W                   dup1 dup1 min L^ max W^
                 H V                   dup1 dup1 min H^ max V^
                 A U                   dup1 dup1 min A^ max U^
@@ -5231,7 +4988,7 @@ function sel_med(int n) {
                 B M                   dup1 dup1 min B^ max M^
                 F K                   dup1 dup1 min F^ max K^
                 E G                   dup1 dup1 min E^ max G^
-                U Y                   dup1 dup1 min U^ max Y^
+                U Z                   dup1 dup1 min U^ max Z^
                 M W                   dup1 dup1 min M^ max W^
                 Q V                   dup1 dup1 min Q^ max V^
                 G T                   dup1 dup1 min G^ max T^
@@ -5243,7 +5000,7 @@ function sel_med(int n) {
                 I J                   dup1 dup1 min I^ max J^
                 C H                   dup1 dup1 min C^ max H^
                 A D                   dup1 dup1 min A^ max D^
-                W Y                   dup1 dup1 min W^ max Y^
+                W Z                   dup1 dup1 min W^ max Z^
                 T V                   dup1 dup1 min T^ max V^
                 L U                   dup1 dup1 min L^ max U^
                 P S                   dup1 dup1 min P^ max S^
@@ -5271,7 +5028,7 @@ function sel_med(int n) {
                 K M                   dup1 dup1 min K^ max M^
                 B I                   dup1 dup1 min B^ max I^
                 E H                   dup1 dup1 min E^ max H^
-                Q Y                             min Q^
+                Q Z                             min Q^
                 S W                   dup1 dup1 min S^ max W^
                 T U                             min T^
                 M R                   dup1 dup1 min M^ max R^
@@ -5316,9 +5073,9 @@ function sel_med(int n) {
 
                 X swap2 clip"                                 : \
                                                                 \
-    n == 27  ? "M AA                  dup1 dup1 min M^ max AA^
-                T Z                   dup1 dup1 min T^ max Z^
-                R Y                   dup1 dup1 min R^ max Y^
+    n == 27  ? "M BB                  dup1 dup1 min M^ max BB^
+                T AA                  dup1 dup1 min T^ max AA^
+                R Z                   dup1 dup1 min R^ max Z^
                 F W                   dup1 dup1 min F^ max W^
                 S V                   dup1 dup1 min S^ max V^
                 D U                   dup1 dup1 min D^ max U^
@@ -5329,8 +5086,8 @@ function sel_med(int n) {
                 C I                   dup1 dup1 min C^ max I^
                 E H                   dup1 dup1 min E^ max H^
                 B G                   dup1 dup1 min B^ max G^
-                W AA                  dup1 dup1 min W^ max AA^
-                G Z                   dup1 dup1 min G^ max Z^
+                W BB                  dup1 dup1 min W^ max BB^
+                G AA                  dup1 dup1 min G^ max AA^
                 H V                   dup1 dup1 min H^ max V^
                 N U                   dup1 dup1 min N^ max U^
                 B T                   dup1 dup1 min B^ max T^
@@ -5341,9 +5098,9 @@ function sel_med(int n) {
                 F M                   dup1 dup1 min F^ max M^
                 K L                   dup1 dup1 min K^ max L^
                 A D                   dup1 dup1 min A^ max D^
-                P AA                  dup1 dup1 min P^ max AA^
-                U Z                   dup1 dup1 min U^ max Z^
-                I Y                   dup1 dup1 min I^ max Y^
+                P BB                  dup1 dup1 min P^ max BB^
+                U AA                  dup1 dup1 min U^ max AA^
+                I Z                   dup1 dup1 min I^ max Z^
                 N W                   dup1 dup1 min N^ max W^
                 O T                   dup1 dup1 min O^ max T^
                 J S                   dup1 dup1 min J^ max S^
@@ -5353,8 +5110,8 @@ function sel_med(int n) {
                 G L                   dup1 dup1 min G^ max L^
                 A K                   dup1 dup1 min A^ max K^
                 B F                   dup1 dup1 min B^ max F^
-                Z AA                  dup1 dup1 min Z^ max AA^
-                Q Y                   dup1 dup1 min Q^ max Y^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                Q Z                   dup1 dup1 min Q^ max Z^
                 L W                   dup1 dup1 min L^ max W^
                 R V                   dup1 dup1 min R^ max V^
                 P U                   dup1 dup1 min P^ max U^
@@ -5366,8 +5123,8 @@ function sel_med(int n) {
                 C J                   dup1 dup1 min C^ max J^
                 E I                   dup1 dup1 min E^ max I^
                 A B                   dup1 dup1 min A^ max B^
-                U Z                   dup1 dup1 min U^ max Z^
-                V Y                   dup1 dup1 min V^ max Y^
+                U AA                  dup1 dup1 min U^ max AA^
+                V Z                   dup1 dup1 min V^ max Z^
                 T W                   dup1 dup1 min T^ max W^
                 Q S                   dup1 dup1 min Q^ max S^
                 I R                   dup1 dup1 min I^ max R^
@@ -5378,8 +5135,8 @@ function sel_med(int n) {
                 D G                   dup1 dup1 min D^ max G^
                 B F                   dup1 dup1 min B^ max F^
                 C E                   dup1 dup1 min C^ max E^
-                Y AA                            min Y^
-                W Z                   dup1 dup1 min W^ max Z^
+                Z BB                            min Z^
+                W AA                  dup1 dup1 min W^ max AA^
                 S V                   dup1 dup1 min S^ max V^
                 T U                   dup1 dup1 min T^ max U^
                 P R                   dup1 dup1 min P^ max R^
@@ -5391,7 +5148,7 @@ function sel_med(int n) {
                 F G                   dup1 dup1 min F^ max G^
                 B D                   dup1 dup1 min B^ max D^
                 A C                                    max C^
-                Y Z                   dup1 dup1 min Y^ max Z^
+                Z AA                  dup1 dup1 min Z^ max AA^
                 V W                             min V^
                 H T                   dup1 dup1 min H^ max T^
                 G S                   dup1 dup1 min G^ max S^
@@ -5402,8 +5159,8 @@ function sel_med(int n) {
                 I L                                    max L^
                 D E                                    max E^
                 B C                   dup1 dup1 min B^ max C^
-                Q Z                             min Q^
-                O Y                             min O^
+                Q AA                            min Q^
+                O Z                             min O^
                 T V                             min T^
                 S U                             min S^
                 N P                   dup1 dup1 min N^ max P^
@@ -5430,494 +5187,494 @@ function sel_med(int n) {
 
                 X swap2 clip"                                 : \
                                                                 \
-    n == 29  ? "BB CC                 dup1 dup1 min BB^ max CC^
-                Z AA                  dup1 dup1 min Z^ max AA^
-                W Y                   dup1 dup1 min W^ max Y^
-                U V                   dup1 dup1 min U^ max V^
-                S T                   dup1 dup1 min S^ max T^
-                Q R                   dup1 dup1 min Q^ max R^
-                O P                   dup1 dup1 min O^ max P^
-                M N                   dup1 dup1 min M^ max N^
-                K L                   dup1 dup1 min K^ max L^
-                I J                   dup1 dup1 min I^ max J^
-                G H                   dup1 dup1 min G^ max H^
-                E F                   dup1 dup1 min E^ max F^
-                C D                   dup1 dup1 min C^ max D^
-                A B                   dup1 dup1 min A^ max B^
-                B CC                  dup1 dup1 min B^ max CC^
-                A BB                  dup1 dup1 min A^ max BB^
-                D AA                  dup1 dup1 min D^ max AA^
-                C Z                   dup1 dup1 min C^ max Z^
-                F Y                   dup1 dup1 min F^ max Y^
-                E W                   dup1 dup1 min E^ max W^
-                H V                   dup1 dup1 min H^ max V^
-                G U                   dup1 dup1 min G^ max U^
-                J T                   dup1 dup1 min J^ max T^
-                I S                   dup1 dup1 min I^ max S^
-                L R                   dup1 dup1 min L^ max R^
-                K Q                   dup1 dup1 min K^ max Q^
-                N P                   dup1 dup1 min N^ max P^
-                M O                   dup1 dup1 min M^ max O^
-                V CC                  dup1 dup1 min V^ max CC^
-                H BB                  dup1 dup1 min H^ max BB^
-                Y AA                  dup1 dup1 min Y^ max AA^
-                W Z                   dup1 dup1 min W^ max Z^
-                B U                   dup1 dup1 min B^ max U^
-                P R                   dup1 dup1 min P^ max R^
-                N Q                   dup1 dup1 min N^ max Q^
-                L O                   dup1 dup1 min L^ max O^
-                K M                   dup1 dup1 min K^ max M^
-                A G                   dup1 dup1 min A^ max G^
-                D F                   dup1 dup1 min D^ max F^
-                C E                   dup1 dup1 min C^ max E^
-                J BB                  dup1 dup1 min J^ max BB^
-                R AA                  dup1 dup1 min R^ max AA^
-                F Y                   dup1 dup1 min F^ max Y^
-                E W                   dup1 dup1 min E^ max W^
-                T V                   dup1 dup1 min T^ max V^
-                B S                   dup1 dup1 min B^ max S^
-                O P                   dup1 dup1 min O^ max P^
-                M N                   dup1 dup1 min M^ max N^
-                C K                   dup1 dup1 min C^ max K^
-                G I                   dup1 dup1 min G^ max I^
-                V CC                  dup1 dup1 min V^ max CC^
-                F Z                   dup1 dup1 min F^ max Z^
-                P Y                   dup1 dup1 min P^ max Y^
-                D W                   dup1 dup1 min D^ max W^
-                S U                   dup1 dup1 min S^ max U^
-                O Q                   dup1 dup1 min O^ max Q^
-                L N                   dup1 dup1 min L^ max N^
-                E M                   dup1 dup1 min E^ max M^
-                H J                   dup1 dup1 min H^ max J^
-                A G                   dup1 dup1 min A^ max G^
-                AA CC                           min AA^
-                Y BB                            min Y^
-                Q Z                   dup1 dup1 min Q^ max Z^
-                O W                   dup1 dup1 min O^ max W^
+    n == 29  ? "CC DD                 dup1 dup1 min CC^ max DD^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                W Z                   dup1 dup1 min W^  max Z^
+                U V                   dup1 dup1 min U^  max V^
+                S T                   dup1 dup1 min S^  max T^
+                Q R                   dup1 dup1 min Q^  max R^
+                O P                   dup1 dup1 min O^  max P^
+                M N                   dup1 dup1 min M^  max N^
+                K L                   dup1 dup1 min K^  max L^
+                I J                   dup1 dup1 min I^  max J^
+                G H                   dup1 dup1 min G^  max H^
+                E F                   dup1 dup1 min E^  max F^
+                C D                   dup1 dup1 min C^  max D^
+                A B                   dup1 dup1 min A^  max B^
+                B DD                  dup1 dup1 min B^  max DD^
+                A CC                  dup1 dup1 min A^  max CC^
+                D BB                  dup1 dup1 min D^  max BB^
+                C AA                  dup1 dup1 min C^  max AA^
+                F Z                   dup1 dup1 min F^  max Z^
+                E W                   dup1 dup1 min E^  max W^
+                H V                   dup1 dup1 min H^  max V^
+                G U                   dup1 dup1 min G^  max U^
+                J T                   dup1 dup1 min J^  max T^
+                I S                   dup1 dup1 min I^  max S^
+                L R                   dup1 dup1 min L^  max R^
+                K Q                   dup1 dup1 min K^  max Q^
+                N P                   dup1 dup1 min N^  max P^
+                M O                   dup1 dup1 min M^  max O^
+                V DD                  dup1 dup1 min V^  max DD^
+                H CC                  dup1 dup1 min H^  max CC^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                W AA                  dup1 dup1 min W^  max AA^
+                B U                   dup1 dup1 min B^  max U^
+                P R                   dup1 dup1 min P^  max R^
+                N Q                   dup1 dup1 min N^  max Q^
+                L O                   dup1 dup1 min L^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                A G                   dup1 dup1 min A^  max G^
+                D F                   dup1 dup1 min D^  max F^
+                C E                   dup1 dup1 min C^  max E^
+                J CC                  dup1 dup1 min J^  max CC^
+                R BB                  dup1 dup1 min R^  max BB^
+                F Z                   dup1 dup1 min F^  max Z^
+                E W                   dup1 dup1 min E^  max W^
+                T V                   dup1 dup1 min T^  max V^
+                B S                   dup1 dup1 min B^  max S^
+                O P                   dup1 dup1 min O^  max P^
+                M N                   dup1 dup1 min M^  max N^
+                C K                   dup1 dup1 min C^  max K^
+                G I                   dup1 dup1 min G^  max I^
+                V DD                  dup1 dup1 min V^  max DD^
+                F AA                  dup1 dup1 min F^  max AA^
+                P Z                   dup1 dup1 min P^  max Z^
+                D W                   dup1 dup1 min D^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                O Q                   dup1 dup1 min O^  max Q^
+                L N                   dup1 dup1 min L^  max N^
+                E M                   dup1 dup1 min E^  max M^
+                H J                   dup1 dup1 min H^  max J^
+                A G                   dup1 dup1 min A^  max G^
+                BB DD                           min BB^
+                Z CC                            min Z^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                O W                   dup1 dup1 min O^  max W^
                 R V                             min R^
-                T U                   dup1 dup1 min T^ max U^
-                F N                   dup1 dup1 min F^ max N^
-                D L                   dup1 dup1 min D^ max L^
-                G K                                    max K^
-                H I                   dup1 dup1 min H^ max I^
-                B E                                    max E^
-                A C                                    max C^
-                U Z                             min U^
-                Q Y                   dup1 dup1 min Q^ max Y^
-                R W                   dup1 dup1 min R^ max W^
-                M T                   dup1 dup1 min M^ max T^
-                N S                   dup1 dup1 min N^ max S^
-                I P                   dup1 dup1 min I^ max P^
-                J O                   dup1 dup1 min J^ max O^
-                E L                   dup1 dup1 min E^ max L^
-                F K                   dup1 dup1 min F^ max K^
-                D H                                    max H^
-                S AA                            min S^
-                T Y                             min T^
+                T U                   dup1 dup1 min T^  max U^
+                F N                   dup1 dup1 min F^  max N^
+                D L                   dup1 dup1 min D^  max L^
+                G K                                     max K^
+                H I                   dup1 dup1 min H^  max I^
+                B E                                     max E^
+                A C                                     max C^
+                U AA                            min U^
+                Q Z                   dup1 dup1 min Q^  max Z^
+                R W                   dup1 dup1 min R^  max W^
+                M T                   dup1 dup1 min M^  max T^
+                N S                   dup1 dup1 min N^  max S^
+                I P                   dup1 dup1 min I^  max P^
+                J O                   dup1 dup1 min J^  max O^
+                E L                   dup1 dup1 min E^  max L^
+                F K                   dup1 dup1 min F^  max K^
+                D H                                     max H^
+                S BB                            min S^
+                T Z                             min T^
                 O W                             min O^
-                K U                   dup1 dup1 min K^ max U^
-                H R                   dup1 dup1 min H^ max R^
-                M Q                   dup1 dup1 min M^ max Q^
-                L P                   dup1 dup1 min L^ max P^
-                F N                                    max N^
-                C J                                    max J^
-                E I                                    max I^
+                K U                   dup1 dup1 min K^  max U^
+                H R                   dup1 dup1 min H^  max R^
+                M Q                   dup1 dup1 min M^  max Q^
+                L P                   dup1 dup1 min L^  max P^
+                F N                                     max N^
+                C J                                     max J^
+                E I                                     max I^
                 P U                             min P^
-                Q T                   dup1 dup1 min Q^ max T^
-                O R                   dup1 dup1 min O^ max R^
-                K N                   dup1 dup1 min K^ max N^
-                H M                                    max M^
-                I L                   dup1 dup1 min I^ max L^
+                Q T                   dup1 dup1 min Q^  max T^
+                O R                   dup1 dup1 min O^  max R^
+                K N                   dup1 dup1 min K^  max N^
+                H M                                     max M^
+                I L                   dup1 dup1 min I^  max L^
                 R T                             min R^
                 P S                             min P^
-                N Q                   dup1 dup1 min N^ max Q^
-                L O                   dup1 dup1 min L^ max O^
-                J M                                    max M^
-                I K                                    max K^
+                N Q                   dup1 dup1 min N^  max Q^
+                L O                   dup1 dup1 min L^  max O^
+                J M                                     max M^
+                I K                                     max K^
                 P R                             min P^
                 O Q                             min O^
-                L N                                    max N^
-                K M                                    max M^
-                O P                   dup1 dup1 min O^ max P^
-                M N                   dup1 dup1 min M^ max N^
+                L N                                     max N^
+                K M                                     max M^
+                O P                   dup1 dup1 min O^  max P^
+                M N                   dup1 dup1 min M^  max N^
                 N P                             min N^
-                M O                                    max O^
+                M O                                     max O^
                 N O                   dup1 dup1 max swap2 min
 
                 X swap2 clip"                                 : \
                                                                 \
-    n == 31  ? "DD EE                 dup1 dup1 min DD^ max EE^
-                BB CC                 dup1 dup1 min BB^ max CC^
-                Z AA                  dup1 dup1 min Z^ max AA^
-                W Y                   dup1 dup1 min W^ max Y^
-                U V                   dup1 dup1 min U^ max V^
-                S T                   dup1 dup1 min S^ max T^
-                Q R                   dup1 dup1 min Q^ max R^
-                O P                   dup1 dup1 min O^ max P^
-                M N                   dup1 dup1 min M^ max N^
-                K L                   dup1 dup1 min K^ max L^
-                I J                   dup1 dup1 min I^ max J^
-                G H                   dup1 dup1 min G^ max H^
-                E F                   dup1 dup1 min E^ max F^
-                C D                   dup1 dup1 min C^ max D^
-                A B                   dup1 dup1 min A^ max B^
-                CC EE                 dup1 dup1 min CC^ max EE^
-                BB DD                 dup1 dup1 min BB^ max DD^
-                Y AA                  dup1 dup1 min Y^ max AA^
-                W Z                   dup1 dup1 min W^ max Z^
-                T V                   dup1 dup1 min T^ max V^
-                S U                   dup1 dup1 min S^ max U^
-                P R                   dup1 dup1 min P^ max R^
-                O Q                   dup1 dup1 min O^ max Q^
-                L N                   dup1 dup1 min L^ max N^
-                K M                   dup1 dup1 min K^ max M^
-                H J                   dup1 dup1 min H^ max J^
-                G I                   dup1 dup1 min G^ max I^
-                D F                   dup1 dup1 min D^ max F^
-                C E                   dup1 dup1 min C^ max E^
-                AA EE                 dup1 dup1 min AA^ max EE^
-                Z DD                  dup1 dup1 min Z^ max DD^
-                Y CC                  dup1 dup1 min Y^ max CC^
-                W BB                  dup1 dup1 min W^ max BB^
-                R V                   dup1 dup1 min R^ max V^
-                Q U                   dup1 dup1 min Q^ max U^
-                P T                   dup1 dup1 min P^ max T^
-                O S                   dup1 dup1 min O^ max S^
-                J N                   dup1 dup1 min J^ max N^
-                I M                   dup1 dup1 min I^ max M^
-                H L                   dup1 dup1 min H^ max L^
-                G K                   dup1 dup1 min G^ max K^
-                B F                   dup1 dup1 min B^ max F^
-                A E                   dup1 dup1 min A^ max E^
-                V EE                  dup1 dup1 min V^ max EE^
-                U DD                  dup1 dup1 min U^ max DD^
-                T CC                  dup1 dup1 min T^ max CC^
-                S BB                  dup1 dup1 min S^ max BB^
-                R AA                  dup1 dup1 min R^ max AA^
-                Q Z                   dup1 dup1 min Q^ max Z^
-                P Y                   dup1 dup1 min P^ max Y^
-                O W                   dup1 dup1 min O^ max W^
-                F N                   dup1 dup1 min F^ max N^
-                E M                   dup1 dup1 min E^ max M^
-                D L                   dup1 dup1 min D^ max L^
-                C K                   dup1 dup1 min C^ max K^
-                B J                   dup1 dup1 min B^ max J^
-                A I                   dup1 dup1 min A^ max I^
-                N EE                            min N^
-                V DD                  dup1 dup1 min V^ max DD^
-                AA CC                 dup1 dup1 min AA^ max CC^
-                R BB                  dup1 dup1 min R^ max BB^
-                T Z                   dup1 dup1 min T^ max Z^
-                U Y                   dup1 dup1 min U^ max Y^
-                P W                   dup1 dup1 min P^ max W^
-                Q S                   dup1 dup1 min Q^ max S^
-                F M                   dup1 dup1 min F^ max M^
-                J L                   dup1 dup1 min J^ max L^
-                B K                   dup1 dup1 min B^ max K^
-                D I                   dup1 dup1 min D^ max I^
-                E H                   dup1 dup1 min E^ max H^
-                A C                   dup1 dup1 min A^ max C^
+    n == 31  ? "EE FF                 dup1 dup1 min EE^ max FF^
                 CC DD                 dup1 dup1 min CC^ max DD^
-                Z BB                  dup1 dup1 min Z^ max BB^
-                V AA                  dup1 dup1 min V^ max AA^
-                H Y                   dup1 dup1 min H^ max Y^
-                S W                   dup1 dup1 min S^ max W^
-                E U                   dup1 dup1 min E^ max U^
-                R T                   dup1 dup1 min R^ max T^
-                P Q                   dup1 dup1 min P^ max Q^
-                L M                   dup1 dup1 min L^ max M^
-                I K                   dup1 dup1 min I^ max K^
-                F J                   dup1 dup1 min F^ max J^
-                C G                   dup1 dup1 min C^ max G^
-                B D                   dup1 dup1 min B^ max D^
-                M DD                            min M^
-                L CC                            min L^
-                K BB                  dup1 dup1 min K^ max BB^
-                J AA                   dup1 dup1 min J^ max AA^
-                T Z                   dup1 dup1 min T^ max Z^
-                G W                   dup1 dup1 min G^ max W^
-                F V                   dup1 dup1 min F^ max V^
-                C S                   dup1 dup1 min C^ max S^
-                B R                   dup1 dup1 min B^ max R^
-                A Q                                    max Q^
-                D I                   dup1 dup1 min D^ max I^
-                M BB                            min M^
-                N AA                            min N^
-                I Z                   dup1 dup1 min I^ max Z^
-                L Y                             min L^
-                U W                   dup1 dup1 min U^ max W^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                W Z                   dup1 dup1 min W^  max Z^
+                U V                   dup1 dup1 min U^  max V^
+                S T                   dup1 dup1 min S^  max T^
+                Q R                   dup1 dup1 min Q^  max R^
+                O P                   dup1 dup1 min O^  max P^
+                M N                   dup1 dup1 min M^  max N^
+                K L                   dup1 dup1 min K^  max L^
+                I J                   dup1 dup1 min I^  max J^
+                G H                   dup1 dup1 min G^  max H^
+                E F                   dup1 dup1 min E^  max F^
+                C D                   dup1 dup1 min C^  max D^
+                A B                   dup1 dup1 min A^  max B^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                W AA                  dup1 dup1 min W^  max AA^
+                T V                   dup1 dup1 min T^  max V^
+                S U                   dup1 dup1 min S^  max U^
+                P R                   dup1 dup1 min P^  max R^
+                O Q                   dup1 dup1 min O^  max Q^
+                L N                   dup1 dup1 min L^  max N^
+                K M                   dup1 dup1 min K^  max M^
+                H J                   dup1 dup1 min H^  max J^
+                G I                   dup1 dup1 min G^  max I^
+                D F                   dup1 dup1 min D^  max F^
+                C E                   dup1 dup1 min C^  max E^
+                BB FF                 dup1 dup1 min BB^ max FF^
+                AA EE                 dup1 dup1 min AA^ max EE^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                W CC                  dup1 dup1 min W^  max CC^
+                R V                   dup1 dup1 min R^  max V^
+                Q U                   dup1 dup1 min Q^  max U^
+                P T                   dup1 dup1 min P^  max T^
+                O S                   dup1 dup1 min O^  max S^
+                J N                   dup1 dup1 min J^  max N^
+                I M                   dup1 dup1 min I^  max M^
+                H L                   dup1 dup1 min H^  max L^
+                G K                   dup1 dup1 min G^  max K^
+                B F                   dup1 dup1 min B^  max F^
+                A E                   dup1 dup1 min A^  max E^
+                V FF                  dup1 dup1 min V^  max FF^
+                U EE                  dup1 dup1 min U^  max EE^
+                T DD                  dup1 dup1 min T^  max DD^
+                S CC                  dup1 dup1 min S^  max CC^
+                R BB                  dup1 dup1 min R^  max BB^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                P Z                   dup1 dup1 min P^  max Z^
+                O W                   dup1 dup1 min O^  max W^
+                F N                   dup1 dup1 min F^  max N^
+                E M                   dup1 dup1 min E^  max M^
+                D L                   dup1 dup1 min D^  max L^
+                C K                   dup1 dup1 min C^  max K^
+                B J                   dup1 dup1 min B^  max J^
+                A I                   dup1 dup1 min A^  max I^
+                N FF                            min N^
+                V EE                  dup1 dup1 min V^  max EE^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                R CC                  dup1 dup1 min R^  max CC^
+                T AA                  dup1 dup1 min T^  max AA^
+                U Z                   dup1 dup1 min U^  max Z^
+                P W                   dup1 dup1 min P^  max W^
+                Q S                   dup1 dup1 min Q^  max S^
+                F M                   dup1 dup1 min F^  max M^
+                J L                   dup1 dup1 min J^  max L^
+                B K                   dup1 dup1 min B^  max K^
+                D I                   dup1 dup1 min D^  max I^
+                E H                   dup1 dup1 min E^  max H^
+                A C                   dup1 dup1 min A^  max C^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                AA CC                 dup1 dup1 min AA^ max CC^
+                V BB                  dup1 dup1 min V^  max BB^
+                H Z                   dup1 dup1 min H^  max Z^
+                S W                   dup1 dup1 min S^  max W^
+                E U                   dup1 dup1 min E^  max U^
+                R T                   dup1 dup1 min R^  max T^
+                P Q                   dup1 dup1 min P^  max Q^
+                L M                   dup1 dup1 min L^  max M^
+                I K                   dup1 dup1 min I^  max K^
+                F J                   dup1 dup1 min F^  max J^
+                C G                   dup1 dup1 min C^  max G^
+                B D                   dup1 dup1 min B^  max D^
+                M EE                            min M^
+                L DD                            min L^
+                K CC                  dup1 dup1 min K^  max CC^
+                J BB                  dup1 dup1 min J^  max BB^
+                T AA                  dup1 dup1 min T^  max AA^
+                G W                   dup1 dup1 min G^  max W^
+                F V                   dup1 dup1 min F^  max V^
+                C S                   dup1 dup1 min C^  max S^
+                B R                   dup1 dup1 min B^  max R^
+                A Q                                     max Q^
+                D I                   dup1 dup1 min D^  max I^
+                M CC                            min M^
+                N BB                            min N^
+                I AA                  dup1 dup1 min I^  max AA^
+                L Z                             min L^
+                U W                   dup1 dup1 min U^  max W^
                 J V                             min J^
-                D T                   dup1 dup1 min D^ max T^
-                G S                                    max S^
-                E Q                                    max Q^
-                B P                                    max P^
-                C O                                    max O^
-                F H                   dup1 dup1 min F^ max H^
-                N Z                             min N^
+                D T                   dup1 dup1 min D^  max T^
+                G S                                     max S^
+                E Q                                     max Q^
+                B P                                     max P^
+                C O                                     max O^
+                F H                   dup1 dup1 min F^  max H^
+                N AA                            min N^
                 M W                             min M^
-                I U                   dup1 dup1 min I^ max U^
-                H T                   dup1 dup1 min H^ max T^
-                K S                   dup1 dup1 min K^ max S^
-                J R                   dup1 dup1 min J^ max R^
-                F P                                    max P^
-                D O                                    max O^
-                L U                   dup1 dup1 min L^ max U^
-                M S                   dup1 dup1 min M^ max S^
+                I U                   dup1 dup1 min I^  max U^
+                H T                   dup1 dup1 min H^  max T^
+                K S                   dup1 dup1 min K^  max S^
+                J R                   dup1 dup1 min J^  max R^
+                F P                                     max P^
+                D O                                     max O^
+                L U                   dup1 dup1 min L^  max U^
+                M S                   dup1 dup1 min M^  max S^
                 N R                             min N^
-                H Q                   dup1 dup1 min H^ max Q^
-                J P                   dup1 dup1 min J^ max P^
-                K O                                    max O^
+                H Q                   dup1 dup1 min H^  max Q^
+                J P                   dup1 dup1 min J^  max P^
+                K O                                     max O^
                 N U                             min N^
                 S T                             min S^
-                M Q                   dup1 dup1 min M^ max Q^
-                L P                   dup1 dup1 min L^ max P^
-                H O                                    max O^
-                I J                                    max J^
-                Q S                   dup1 dup1 min Q^ max S^
-                N P                   dup1 dup1 min N^ max P^
-                M O                                    max O^
-                J L                                    max L^
+                M Q                   dup1 dup1 min M^  max Q^
+                L P                   dup1 dup1 min L^  max P^
+                H O                                     max O^
+                I J                                     max J^
+                Q S                   dup1 dup1 min Q^  max S^
+                N P                   dup1 dup1 min N^  max P^
+                M O                                     max O^
+                J L                                     max L^
                 P S                             min P^
-                N Q                   dup1 dup1 min N^ max Q^
-                L O                                    max O^
-                N O                                    max
+                N Q                   dup1 dup1 min N^  max Q^
+                L O                                     max O^
+                N O                                     max
                 P Q                             min
 
                 X swap2 clip"                                 : \
                                                                 \
-    n == 33  ? "FF GG                 dup1 dup1 min FF^ max GG^
-                DD EE                 dup1 dup1 min DD^ max EE^
-                BB CC                 dup1 dup1 min BB^ max CC^
-                Z AA                  dup1 dup1 min Z^ max AA^
-                W Y                   dup1 dup1 min W^ max Y^
-                U V                   dup1 dup1 min U^ max V^
-                S T                   dup1 dup1 min S^ max T^
-                Q R                   dup1 dup1 min Q^ max R^
-                O P                   dup1 dup1 min O^ max P^
-                M N                   dup1 dup1 min M^ max N^
-                K L                   dup1 dup1 min K^ max L^
-                I J                   dup1 dup1 min I^ max J^
-                G H                   dup1 dup1 min G^ max H^
-                E F                   dup1 dup1 min E^ max F^
-                C D                   dup1 dup1 min C^ max D^
-                A B                   dup1 dup1 min A^ max B^
+    n == 33  ? "GG HH                 dup1 dup1 min GG^ max HH^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                W Z                   dup1 dup1 min W^  max Z^
+                U V                   dup1 dup1 min U^  max V^
+                S T                   dup1 dup1 min S^  max T^
+                Q R                   dup1 dup1 min Q^  max R^
+                O P                   dup1 dup1 min O^  max P^
+                M N                   dup1 dup1 min M^  max N^
+                K L                   dup1 dup1 min K^  max L^
+                I J                   dup1 dup1 min I^  max J^
+                G H                   dup1 dup1 min G^  max H^
+                E F                   dup1 dup1 min E^  max F^
+                C D                   dup1 dup1 min C^  max D^
+                A B                   dup1 dup1 min A^  max B^
+                FF HH                 dup1 dup1 min FF^ max HH^
                 EE GG                 dup1 dup1 min EE^ max GG^
-                DD FF                 dup1 dup1 min DD^ max FF^
+                BB DD                 dup1 dup1 min BB^ max DD^
                 AA CC                 dup1 dup1 min AA^ max CC^
-                Z BB                  dup1 dup1 min Z^ max BB^
-                V Y                   dup1 dup1 min V^ max Y^
-                U W                   dup1 dup1 min U^ max W^
-                R T                   dup1 dup1 min R^ max T^
-                Q S                   dup1 dup1 min Q^ max S^
-                N P                   dup1 dup1 min N^ max P^
-                M O                   dup1 dup1 min M^ max O^
-                J L                   dup1 dup1 min J^ max L^
-                I K                   dup1 dup1 min I^ max K^
-                F H                   dup1 dup1 min F^ max H^
-                E G                   dup1 dup1 min E^ max G^
-                B D                   dup1 dup1 min B^ max D^
-                A C                   dup1 dup1 min A^ max C^
+                V Z                   dup1 dup1 min V^  max Z^
+                U W                   dup1 dup1 min U^  max W^
+                R T                   dup1 dup1 min R^  max T^
+                Q S                   dup1 dup1 min Q^  max S^
+                N P                   dup1 dup1 min N^  max P^
+                M O                   dup1 dup1 min M^  max O^
+                J L                   dup1 dup1 min J^  max L^
+                I K                   dup1 dup1 min I^  max K^
+                F H                   dup1 dup1 min F^  max H^
+                E G                   dup1 dup1 min E^  max G^
+                B D                   dup1 dup1 min B^  max D^
+                A C                   dup1 dup1 min A^  max C^
+                DD HH                 dup1 dup1 min DD^ max HH^
                 CC GG                 dup1 dup1 min CC^ max GG^
                 BB FF                 dup1 dup1 min BB^ max FF^
                 AA EE                 dup1 dup1 min AA^ max EE^
-                Z DD                  dup1 dup1 min Z^ max DD^
-                T Y                   dup1 dup1 min T^ max Y^
-                S W                   dup1 dup1 min S^ max W^
-                R V                   dup1 dup1 min R^ max V^
-                Q U                   dup1 dup1 min Q^ max U^
-                L P                   dup1 dup1 min L^ max P^
-                K O                   dup1 dup1 min K^ max O^
-                J N                   dup1 dup1 min J^ max N^
-                I M                   dup1 dup1 min I^ max M^
-                D H                   dup1 dup1 min D^ max H^
-                C G                   dup1 dup1 min C^ max G^
-                B F                   dup1 dup1 min B^ max F^
-                A E                   dup1 dup1 min A^ max E^
-                Y GG                  dup1 dup1 min Y^ max GG^
-                W FF                  dup1 dup1 min W^ max FF^
-                V EE                  dup1 dup1 min V^ max EE^
-                U DD                  dup1 dup1 min U^ max DD^
-                T CC                  dup1 dup1 min T^ max CC^
-                S BB                  dup1 dup1 min S^ max BB^
-                R AA                  dup1 dup1 min R^ max AA^
-                Q Z                   dup1 dup1 min Q^ max Z^
-                H P                   dup1 dup1 min H^ max P^
-                G O                   dup1 dup1 min G^ max O^
-                F N                   dup1 dup1 min F^ max N^
-                E M                   dup1 dup1 min E^ max M^
-                D L                   dup1 dup1 min D^ max L^
-                C K                   dup1 dup1 min C^ max K^
-                B J                   dup1 dup1 min B^ max J^
-                A I                   dup1 dup1 min A^ max I^
-                P GG                            min P^
-                Y FF                  dup1 dup1 min Y^ max FF^
+                T Z                   dup1 dup1 min T^  max Z^
+                S W                   dup1 dup1 min S^  max W^
+                R V                   dup1 dup1 min R^  max V^
+                Q U                   dup1 dup1 min Q^  max U^
+                L P                   dup1 dup1 min L^  max P^
+                K O                   dup1 dup1 min K^  max O^
+                J N                   dup1 dup1 min J^  max N^
+                I M                   dup1 dup1 min I^  max M^
+                D H                   dup1 dup1 min D^  max H^
+                C G                   dup1 dup1 min C^  max G^
+                B F                   dup1 dup1 min B^  max F^
+                A E                   dup1 dup1 min A^  max E^
+                Z HH                  dup1 dup1 min Z^  max HH^
+                W GG                  dup1 dup1 min W^  max GG^
+                V FF                  dup1 dup1 min V^  max FF^
+                U EE                  dup1 dup1 min U^  max EE^
+                T DD                  dup1 dup1 min T^  max DD^
+                S CC                  dup1 dup1 min S^  max CC^
+                R BB                  dup1 dup1 min R^  max BB^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                H P                   dup1 dup1 min H^  max P^
+                G O                   dup1 dup1 min G^  max O^
+                F N                   dup1 dup1 min F^  max N^
+                E M                   dup1 dup1 min E^  max M^
+                D L                   dup1 dup1 min D^  max L^
+                C K                   dup1 dup1 min C^  max K^
+                B J                   dup1 dup1 min B^  max J^
+                A I                   dup1 dup1 min A^  max I^
+                P HH                            min P^
+                Z GG                  dup1 dup1 min Z^  max GG^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                T EE                  dup1 dup1 min T^  max EE^
+                V CC                  dup1 dup1 min V^  max CC^
+                W BB                  dup1 dup1 min W^  max BB^
+                R AA                  dup1 dup1 min R^  max AA^
+                S U                   dup1 dup1 min S^  max U^
+                A Q                                     max Q^
+                H O                   dup1 dup1 min H^  max O^
+                L N                   dup1 dup1 min L^  max N^
+                D M                   dup1 dup1 min D^  max M^
+                F K                   dup1 dup1 min F^  max K^
+                G J                   dup1 dup1 min G^  max J^
+                B I                   dup1 dup1 min B^  max I^
+                C E                   dup1 dup1 min C^  max E^
+                FF GG                 dup1 dup1 min FF^ max GG^
                 CC EE                 dup1 dup1 min CC^ max EE^
-                T DD                  dup1 dup1 min T^ max DD^
-                V BB                  dup1 dup1 min V^ max BB^
-                W AA                  dup1 dup1 min W^ max AA^
-                R Z                   dup1 dup1 min R^ max Z^
-                S U                   dup1 dup1 min S^ max U^
-                A Q                                    max Q^
-                H O                   dup1 dup1 min H^ max O^
-                L N                   dup1 dup1 min L^ max N^
-                D M                   dup1 dup1 min D^ max M^
-                F K                   dup1 dup1 min F^ max K^
-                G J                   dup1 dup1 min G^ max J^
-                B I                   dup1 dup1 min B^ max I^
-                C E                   dup1 dup1 min C^ max E^
-                EE FF                 dup1 dup1 min EE^ max FF^
-                BB DD                 dup1 dup1 min BB^ max DD^
-                Y CC                  dup1 dup1 min Y^ max CC^
-                J AA                  dup1 dup1 min J^ max AA^
-                U Z                   dup1 dup1 min U^ max Z^
-                G W                   dup1 dup1 min G^ max W^
-                T V                   dup1 dup1 min T^ max V^
-                R S                   dup1 dup1 min R^ max S^
-                N O                   dup1 dup1 min N^ max O^
-                K M                   dup1 dup1 min K^ max M^
-                H L                   dup1 dup1 min H^ max L^
-                E I                   dup1 dup1 min E^ max I^
-                D F                   dup1 dup1 min D^ max F^
-                B C                   dup1 dup1 min B^ max C^
-                O FF                            min O^
-                N EE                            min N^
-                M DD                  dup1 dup1 min M^ max DD^
-                L CC                  dup1 dup1 min L^ max CC^
-                V BB                  dup1 dup1 min V^ max BB^
-                I Z                   dup1 dup1 min I^ max Z^
-                H Y                   dup1 dup1 min H^ max Y^
-                E U                   dup1 dup1 min E^ max U^
-                D T                   dup1 dup1 min D^ max T^
-                C S                                    max S^
-                B R                                    max R^
-                F K                   dup1 dup1 min F^ max K^
-                O DD                            min O^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                J BB                  dup1 dup1 min J^  max BB^
+                U AA                  dup1 dup1 min U^  max AA^
+                G W                   dup1 dup1 min G^  max W^
+                T V                   dup1 dup1 min T^  max V^
+                R S                   dup1 dup1 min R^  max S^
+                N O                   dup1 dup1 min N^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                H L                   dup1 dup1 min H^  max L^
+                E I                   dup1 dup1 min E^  max I^
+                D F                   dup1 dup1 min D^  max F^
+                B C                   dup1 dup1 min B^  max C^
+                O GG                            min O^
+                N FF                            min N^
+                M EE                  dup1 dup1 min M^  max EE^
+                L DD                  dup1 dup1 min L^  max DD^
+                V CC                  dup1 dup1 min V^  max CC^
+                I AA                  dup1 dup1 min I^  max AA^
+                H Z                   dup1 dup1 min H^  max Z^
+                E U                   dup1 dup1 min E^  max U^
+                D T                   dup1 dup1 min D^  max T^
+                C S                                     max S^
+                B R                                     max R^
+                F K                   dup1 dup1 min F^  max K^
+                O EE                            min O^
+                P DD                            min P^
+                K CC                  dup1 dup1 min K^  max CC^
+                N BB                            min N^
+                W AA                  dup1 dup1 min W^  max AA^
+                L Z                             min L^
+                F V                   dup1 dup1 min F^  max V^
+                I U                                     max U^
+                G S                                     max S^
+                D R                                     max R^
+                E Q                                     max Q^
+                H J                   dup1 dup1 min H^  max J^
                 P CC                            min P^
-                K BB                  dup1 dup1 min K^ max BB^
-                N AA                            min N^
-                W Z                   dup1 dup1 min W^ max Z^
-                L Y                             min L^
-                F V                   dup1 dup1 min F^ max V^
-                I U                                    max U^
-                G S                                    max S^
-                D R                                    max R^
-                E Q                                    max Q^
-                H J                   dup1 dup1 min H^ max J^
-                P BB                            min P^
-                O Z                             min O^
-                K W                   dup1 dup1 min K^ max W^
-                J V                   dup1 dup1 min J^ max V^
-                M U                   dup1 dup1 min M^ max U^
-                L T                   dup1 dup1 min L^ max T^
-                H R                                    max R^
-                F Q                                    max Q^
-                N W                   dup1 dup1 min N^ max W^
-                O U                   dup1 dup1 min O^ max U^
+                O AA                            min O^
+                K W                   dup1 dup1 min K^  max W^
+                J V                   dup1 dup1 min J^  max V^
+                M U                   dup1 dup1 min M^  max U^
+                L T                   dup1 dup1 min L^  max T^
+                H R                                     max R^
+                F Q                                     max Q^
+                N W                   dup1 dup1 min N^  max W^
+                O U                   dup1 dup1 min O^  max U^
                 P T                             min P^
-                J S                   dup1 dup1 min J^ max S^
-                L R                   dup1 dup1 min L^ max R^
-                M Q                                    max Q^
+                J S                   dup1 dup1 min J^  max S^
+                L R                   dup1 dup1 min L^  max R^
+                M Q                                     max Q^
                 P W                             min P^
                 U V                             min U^
-                O S                   dup1 dup1 min O^ max S^
-                N R                   dup1 dup1 min N^ max R^
-                J Q                                    max Q^
-                K L                                    max L^
+                O S                   dup1 dup1 min O^  max S^
+                N R                   dup1 dup1 min N^  max R^
+                J Q                                     max Q^
+                K L                                     max L^
                 S U                             min S^
                 P R                             min P^
-                O Q                                    max Q^
-                L N                                    max N^
+                O Q                                     max Q^
+                L N                                     max N^
                 P S                             min P^
-                N Q                                    max Q^
+                N Q                                     max Q^
                 P Q                   dup1 dup1 max swap2 min
 
                 X swap2 clip"                                 : \
                                                                 \
-    n == 37  ? "A B                   dup1 dup1 min A^ max B^
-                C D                   dup1 dup1 min C^ max D^
-                A C                   dup1 dup1 min A^ max C^
-                B D                   dup1 dup1 min B^ max D^
-                B C                   dup1 dup1 min B^ max C^
-                E F                   dup1 dup1 min E^ max F^
-                G H                   dup1 dup1 min G^ max H^
-                E G                   dup1 dup1 min E^ max G^
-                F H                   dup1 dup1 min F^ max H^
-                F G                   dup1 dup1 min F^ max G^
-                A E                   dup1 dup1 min A^ max E^
-                C G                   dup1 dup1 min C^ max G^
-                C E                   dup1 dup1 min C^ max E^
-                B F                   dup1 dup1 min B^ max F^
-                D H                   dup1 dup1 min D^ max H^
-                D F                   dup1 dup1 min D^ max F^
-                B C                   dup1 dup1 min B^ max C^
-                D E                   dup1 dup1 min D^ max E^
-                F G                   dup1 dup1 min F^ max G^
-                I J                   dup1 dup1 min I^ max J^
-                K L                   dup1 dup1 min K^ max L^
-                I K                   dup1 dup1 min I^ max K^
-                J L                   dup1 dup1 min J^ max L^
-                J K                   dup1 dup1 min J^ max K^
-                M N                   dup1 dup1 min M^ max N^
-                O P                   dup1 dup1 min O^ max P^
-                M O                   dup1 dup1 min M^ max O^
-                N P                   dup1 dup1 min N^ max P^
-                N O                   dup1 dup1 min N^ max O^
-                I M                   dup1 dup1 min I^ max M^
-                K O                   dup1 dup1 min K^ max O^
-                K M                   dup1 dup1 min K^ max M^
-                J N                   dup1 dup1 min J^ max N^
-                L P                   dup1 dup1 min L^ max P^
-                L N                   dup1 dup1 min L^ max N^
-                J K                   dup1 dup1 min J^ max K^
-                L M                   dup1 dup1 min L^ max M^
-                N O                   dup1 dup1 min N^ max O^
-                A I                   dup1 dup1 min A^ max I^
-                E M                   dup1 dup1 min E^ max M^
-                E I                   dup1 dup1 min E^ max I^
-                C K                   dup1 dup1 min C^ max K^
-                G O                   dup1 dup1 min G^ max O^
-                G K                   dup1 dup1 min G^ max K^
-                C E                   dup1 dup1 min C^ max E^
-                G I                   dup1 dup1 min G^ max I^
-                K M                   dup1 dup1 min K^ max M^
-                B J                   dup1 dup1 min B^ max J^
-                F N                   dup1 dup1 min F^ max N^
-                F J                   dup1 dup1 min F^ max J^
-                D L                   dup1 dup1 min D^ max L^
-                H P                   dup1 dup1 min H^ max P^
-                H L                   dup1 dup1 min H^ max L^
-                D F                   dup1 dup1 min D^ max F^
-                H J                   dup1 dup1 min H^ max J^
-                L N                   dup1 dup1 min L^ max N^
-                B C                   dup1 dup1 min B^ max C^
-                D E                   dup1 dup1 min D^ max E^
-                F G                   dup1 dup1 min F^ max G^
-                H I                   dup1 dup1 min H^ max I^
-                J K                   dup1 dup1 min J^ max K^
-                L M                   dup1 dup1 min L^ max M^
-                N O                   dup1 dup1 min N^ max O^
-                Q R                   dup1 dup1 min Q^ max R^
-                S T                   dup1 dup1 min S^ max T^
-                Q S                   dup1 dup1 min Q^ max S^
-                R T                   dup1 dup1 min R^ max T^
-                R S                   dup1 dup1 min R^ max S^
-                U V                   dup1 dup1 min U^ max V^
-                W Y                   dup1 dup1 min W^ max Y^
-                U W                   dup1 dup1 min U^ max W^
-                V Y                   dup1 dup1 min V^ max Y^
-                V W                   dup1 dup1 min V^ max W^
-                Q U                   dup1 dup1 min Q^ max U^
-                S W                   dup1 dup1 min S^ max W^
-                S U                   dup1 dup1 min S^ max U^
-                R V                   dup1 dup1 min R^ max V^
-                T Y                   dup1 dup1 min T^ max Y^
-                T V                   dup1 dup1 min T^ max V^
-                R S                   dup1 dup1 min R^ max S^
-                T U                   dup1 dup1 min T^ max U^
-                V W                   dup1 dup1 min V^ max W^
-                Z AA                  dup1 dup1 min Z^ max AA^
+    n == 35  ? "JJ A                  dup1 dup1 min JJ^ max A^
+                B C                   dup1 dup1 min B^  max C^
+                JJ B                  dup1 dup1 min JJ^ max B^
+                A C                   dup1 dup1 min A^  max C^
+                A B                   dup1 dup1 min A^  max B^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                D F                   dup1 dup1 min D^  max F^
+                E G                   dup1 dup1 min E^  max G^
+                E F                   dup1 dup1 min E^  max F^
+                JJ D                  dup1 dup1 min JJ^ max D^
+                B F                   dup1 dup1 min B^  max F^
+                B D                   dup1 dup1 min B^  max D^
+                A E                   dup1 dup1 min A^  max E^
+                C G                   dup1 dup1 min C^  max G^
+                C E                   dup1 dup1 min C^  max E^
+                A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                E F                   dup1 dup1 min E^  max F^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                H J                   dup1 dup1 min H^  max J^
+                I K                   dup1 dup1 min I^  max K^
+                I J                   dup1 dup1 min I^  max J^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                L N                   dup1 dup1 min L^  max N^
+                M O                   dup1 dup1 min M^  max O^
+                M N                   dup1 dup1 min M^  max N^
+                H L                   dup1 dup1 min H^  max L^
+                J N                   dup1 dup1 min J^  max N^
+                J L                   dup1 dup1 min J^  max L^
+                I M                   dup1 dup1 min I^  max M^
+                K O                   dup1 dup1 min K^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                JJ H                  dup1 dup1 min JJ^ max H^
+                D L                   dup1 dup1 min D^  max L^
+                D H                   dup1 dup1 min D^  max H^
+                B J                   dup1 dup1 min B^  max J^
+                F N                   dup1 dup1 min F^  max N^
+                F J                   dup1 dup1 min F^  max J^
+                B D                   dup1 dup1 min B^  max D^
+                F H                   dup1 dup1 min F^  max H^
+                J L                   dup1 dup1 min J^  max L^
+                A I                   dup1 dup1 min A^  max I^
+                E M                   dup1 dup1 min E^  max M^
+                E I                   dup1 dup1 min E^  max I^
+                C K                   dup1 dup1 min C^  max K^
+                G O                   dup1 dup1 min G^  max O^
+                G K                   dup1 dup1 min G^  max K^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                P Q                   dup1 dup1 min P^  max Q^
+                R S                   dup1 dup1 min R^  max S^
+                P R                   dup1 dup1 min P^  max R^
+                Q S                   dup1 dup1 min Q^  max S^
+                Q R                   dup1 dup1 min Q^  max R^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                T V                   dup1 dup1 min T^  max V^
+                U W                   dup1 dup1 min U^  max W^
+                U V                   dup1 dup1 min U^  max V^
+                P T                   dup1 dup1 min P^  max T^
+                R V                   dup1 dup1 min R^  max V^
+                R T                   dup1 dup1 min R^  max T^
+                Q U                   dup1 dup1 min Q^  max U^
+                S W                   dup1 dup1 min S^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                Z AA                  dup1 dup1 min Z^  max AA^
                 BB CC                 dup1 dup1 min BB^ max CC^
-                Z BB                  dup1 dup1 min Z^ max BB^
+                Z BB                  dup1 dup1 min Z^  max BB^
                 AA CC                 dup1 dup1 min AA^ max CC^
                 AA BB                 dup1 dup1 min AA^ max BB^
                 DD EE                 dup1 dup1 min DD^ max EE^
@@ -5925,7 +5682,7 @@ function sel_med(int n) {
                 DD FF                 dup1 dup1 min DD^ max FF^
                 EE GG                 dup1 dup1 min EE^ max GG^
                 EE FF                 dup1 dup1 min EE^ max FF^
-                Z DD                  dup1 dup1 min Z^ max DD^
+                Z DD                  dup1 dup1 min Z^  max DD^
                 BB FF                 dup1 dup1 min BB^ max FF^
                 BB DD                 dup1 dup1 min BB^ max DD^
                 AA EE                 dup1 dup1 min AA^ max EE^
@@ -5934,437 +5691,2005 @@ function sel_med(int n) {
                 AA BB                 dup1 dup1 min AA^ max BB^
                 CC DD                 dup1 dup1 min CC^ max DD^
                 EE FF                 dup1 dup1 min EE^ max FF^
-                Q Z                   dup1 dup1 min Q^ max Z^
-                U DD                  dup1 dup1 min U^ max DD^
-                U Z                   dup1 dup1 min U^ max Z^
-                S BB                  dup1 dup1 min S^ max BB^
-                W FF                  dup1 dup1 min W^ max FF^
-                W BB                  dup1 dup1 min W^ max BB^
-                S U                   dup1 dup1 min S^ max U^
-                W Z                   dup1 dup1 min W^ max Z^
+                P Z                   dup1 dup1 min P^  max Z^
+                T DD                  dup1 dup1 min T^  max DD^
+                T Z                   dup1 dup1 min T^  max Z^
+                R BB                  dup1 dup1 min R^  max BB^
+                V FF                  dup1 dup1 min V^  max FF^
+                V BB                  dup1 dup1 min V^  max BB^
+                R T                   dup1 dup1 min R^  max T^
+                V Z                   dup1 dup1 min V^  max Z^
                 BB DD                 dup1 dup1 min BB^ max DD^
-                R AA                  dup1 dup1 min R^ max AA^
-                V EE                  dup1 dup1 min V^ max EE^
-                V AA                  dup1 dup1 min V^ max AA^
-                T CC                  dup1 dup1 min T^ max CC^
-                Y GG                  dup1 dup1 min Y^ max GG^
-                Y CC                  dup1 dup1 min Y^ max CC^
-                T V                   dup1 dup1 min T^ max V^
-                Y AA                  dup1 dup1 min Y^ max AA^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                U EE                  dup1 dup1 min U^  max EE^
+                U AA                  dup1 dup1 min U^  max AA^
+                S CC                  dup1 dup1 min S^  max CC^
+                W GG                  dup1 dup1 min W^  max GG^
+                W CC                  dup1 dup1 min W^  max CC^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
                 CC EE                 dup1 dup1 min CC^ max EE^
-                R S                   dup1 dup1 min R^ max S^
-                T U                   dup1 dup1 min T^ max U^
-                V W                   dup1 dup1 min V^ max W^
-                Y Z                   dup1 dup1 min Y^ max Z^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
                 AA BB                 dup1 dup1 min AA^ max BB^
                 CC DD                 dup1 dup1 min CC^ max DD^
                 EE FF                 dup1 dup1 min EE^ max FF^
-                A Q                   dup1 dup1 min A^ max Q^
-                I Z                   dup1 dup1 min I^ max Z^
-                I Q                   dup1 dup1 min I^ max Q^
-                E U                   dup1 dup1 min E^ max U^
-                M DD                            min M^
-                M U                   dup1 dup1 min M^ max U^
-                E I                             min E^
-                M Q                   dup1 dup1 min M^ max Q^
-                U Z                   dup1 dup1 min U^ max Z^
-                C S                   dup1 dup1 min C^ max S^
-                K B                   dup1 dup1 min K^ max B^
-                K S                   dup1 dup1 min K^ max S^
-                G W                   dup1 dup1 min G^ max W^
-                O FF                            min O^
-                O W                   dup1 dup1 min O^ max W^
-                G K                                    max K^
-                O S                   dup1 dup1 min O^ max S^
-                W BB                            min W^
-                C E                   dup1 dup1 min C^ max E^
-                K M                   dup1 dup1 min K^ max M^
-                O Q                   dup1 dup1 min O^ max Q^
-                S U                   dup1 dup1 min S^ max U^
-                W Z                   dup1 dup1 min W^ max Z^
-                B R                   dup1 dup1 min B^ max R^
-                J AA                  dup1 dup1 min J^ max AA^
-                J R                   dup1 dup1 min J^ max R^
-                F V                   dup1 dup1 min F^ max V^
-                N EE                            min N^
-                N V                   dup1 dup1 min N^ max V^
-                F J                   dup1 dup1 min F^ max J^
-                N R                   dup1 dup1 min N^ max R^
-                V AA                  dup1 dup1 min V^ max AA^
-                D T                   dup1 dup1 min D^ max T^
-                L CC                  dup1 dup1 min L^ max CC^
-                L T                   dup1 dup1 min L^ max T^
-                H Y                   dup1 dup1 min H^ max Y^
-                P GG                            min P^
-                P Y                   dup1 dup1 min P^ max Y^
-                H L                   dup1 dup1 min H^ max L^
-                P T                   dup1 dup1 min P^ max T^
-                Y CC                            min Y^
-                D F                             min D^
-                H J                                    max J^
-                L N                   dup1 dup1 min L^ max N^
-                P R                   dup1 dup1 min P^ max R^
-                T V                   dup1 dup1 min T^ max V^
-                Y AA                            min Y^
-                B C                   dup1 dup1 min B^ max C^
-                D E                             min D^
-                J K                   dup1 dup1 min J^ max K^
-                L M                   dup1 dup1 min L^ max M^
-                N O                   dup1 dup1 min N^ max O^
-                P Q                   dup1 dup1 min P^ max Q^
-                R S                   dup1 dup1 min R^ max S^
-                T U                   dup1 dup1 min T^ max U^
-                V W                   dup1 dup1 min V^ max W^
-                Y Z                   dup1 dup1 min Y^ max Z^
+                JJ P                  dup1 dup1 min JJ^ max P^
+                H Z                   dup1 dup1 min H^  max Z^
+                H P                   dup1 dup1 min H^  max P^
+                D T                   dup1 dup1 min D^  max T^
+                L DD                            min L^
+                L T                   dup1 dup1 min L^  max T^
+                D H                   dup1 dup1 min D^  max H^
+                L P                   dup1 dup1 min L^  max P^
+                T Z                   dup1 dup1 min T^  max Z^
+                B R                   dup1 dup1 min B^  max R^
+                J BB                  dup1 dup1 min J^  max BB^
+                J R                   dup1 dup1 min J^  max R^
+                F V                   dup1 dup1 min F^  max V^
+                N FF                            min N^
+                N V                   dup1 dup1 min N^  max V^
+                F J                   dup1 dup1 min F^  max J^
+                N R                   dup1 dup1 min N^  max R^
+                V BB                            min V^
+                B D                             min B^
+                F H                                     max H^
+                J L                   dup1 dup1 min J^  max L^
+                N P                   dup1 dup1 min N^  max P^
+                R T                   dup1 dup1 min R^  max T^
+                V Z                   dup1 dup1 min V^  max Z^
+                A Q                   dup1 dup1 min A^  max Q^
+                I AA                  dup1 dup1 min I^  max AA^
+                I Q                   dup1 dup1 min I^  max Q^
+                E U                   dup1 dup1 min E^  max U^
+                M EE                            min M^
+                M U                   dup1 dup1 min M^  max U^
+                E I                                     max I^
+                M Q                   dup1 dup1 min M^  max Q^
+                U AA                  dup1 dup1 min U^  max AA^
+                C S                                     max S^
+                K CC                  dup1 dup1 min K^  max CC^
+                K S                   dup1 dup1 min K^  max S^
+                G W                   dup1 dup1 min G^  max W^
+                O GG                            min O^
+                O W                   dup1 dup1 min O^  max W^
+                G K                   dup1 dup1 min G^  max K^
+                O S                   dup1 dup1 min O^  max S^
+                W CC                            min W^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                O Q                   dup1 dup1 min O^  max Q^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                            min W^
+                A B                             min A^
+                G H                                     max H^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                O P                   dup1 dup1 min O^  max P^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                HH II                 dup1 dup1 min HH^ max II^
+                JJ HH                                   max HH^
+                P HH                  dup1 dup1 min P^  max HH^
+                H P                                     max P^
+                Z HH                            min Z^
+                L T                   dup1 dup1 min L^  max T^
+                L P                                     max P^
+                T Z                             min T^
+                J R                                     max R^
+                N V                             min N^
+                N R                   dup1 dup1 min N^  max R^
+                N P                                     max P^
+                R T                             min R^
+                A II                                    max II^
+                Q II                            min Q^
+                I Q                                     max Q^
+                M U                             min M^
+                M Q                                     max Q^
+                K S                                     max S^
+                O W                             min O^
+                O S                             min O^
+                O Q                   dup1 dup1 min O^  max Q^
+                Q R                             min
+                O P                                     max
+
+                X swap2 clip"                                 : \
+                                                                \
+    n == 37  ? "LL A                  dup1 dup1 min LL^ max A^
+                B C                   dup1 dup1 min B^  max C^
+                LL B                  dup1 dup1 min LL^ max B^
+                A C                   dup1 dup1 min A^  max C^
+                A B                   dup1 dup1 min A^  max B^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                D F                   dup1 dup1 min D^  max F^
+                E G                   dup1 dup1 min E^  max G^
+                E F                   dup1 dup1 min E^  max F^
+                LL D                  dup1 dup1 min LL^ max D^
+                B F                   dup1 dup1 min B^  max F^
+                B D                   dup1 dup1 min B^  max D^
+                A E                   dup1 dup1 min A^  max E^
+                C G                   dup1 dup1 min C^  max G^
+                C E                   dup1 dup1 min C^  max E^
+                A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                E F                   dup1 dup1 min E^  max F^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                H J                   dup1 dup1 min H^  max J^
+                I K                   dup1 dup1 min I^  max K^
+                I J                   dup1 dup1 min I^  max J^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                L N                   dup1 dup1 min L^  max N^
+                M O                   dup1 dup1 min M^  max O^
+                M N                   dup1 dup1 min M^  max N^
+                H L                   dup1 dup1 min H^  max L^
+                J N                   dup1 dup1 min J^  max N^
+                J L                   dup1 dup1 min J^  max L^
+                I M                   dup1 dup1 min I^  max M^
+                K O                   dup1 dup1 min K^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                LL H                  dup1 dup1 min LL^ max H^
+                D L                   dup1 dup1 min D^  max L^
+                D H                   dup1 dup1 min D^  max H^
+                B J                   dup1 dup1 min B^  max J^
+                F N                   dup1 dup1 min F^  max N^
+                F J                   dup1 dup1 min F^  max J^
+                B D                   dup1 dup1 min B^  max D^
+                F H                   dup1 dup1 min F^  max H^
+                J L                   dup1 dup1 min J^  max L^
+                A I                   dup1 dup1 min A^  max I^
+                E M                   dup1 dup1 min E^  max M^
+                E I                   dup1 dup1 min E^  max I^
+                C K                   dup1 dup1 min C^  max K^
+                G O                   dup1 dup1 min G^  max O^
+                G K                   dup1 dup1 min G^  max K^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                P Q                   dup1 dup1 min P^  max Q^
+                R S                   dup1 dup1 min R^  max S^
+                P R                   dup1 dup1 min P^  max R^
+                Q S                   dup1 dup1 min Q^  max S^
+                Q R                   dup1 dup1 min Q^  max R^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                T V                   dup1 dup1 min T^  max V^
+                U W                   dup1 dup1 min U^  max W^
+                U V                   dup1 dup1 min U^  max V^
+                P T                   dup1 dup1 min P^  max T^
+                R V                   dup1 dup1 min R^  max V^
+                R T                   dup1 dup1 min R^  max T^
+                Q U                   dup1 dup1 min Q^  max U^
+                S W                   dup1 dup1 min S^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                AA CC                 dup1 dup1 min AA^ max CC^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                EE GG                 dup1 dup1 min EE^ max GG^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                BB FF                 dup1 dup1 min BB^ max FF^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                AA EE                 dup1 dup1 min AA^ max EE^
+                CC GG                 dup1 dup1 min CC^ max GG^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                P Z                   dup1 dup1 min P^  max Z^
+                T DD                  dup1 dup1 min T^  max DD^
+                T Z                   dup1 dup1 min T^  max Z^
+                R BB                  dup1 dup1 min R^  max BB^
+                V FF                  dup1 dup1 min V^  max FF^
+                V BB                  dup1 dup1 min V^  max BB^
+                R T                   dup1 dup1 min R^  max T^
+                V Z                   dup1 dup1 min V^  max Z^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                U EE                  dup1 dup1 min U^  max EE^
+                U AA                  dup1 dup1 min U^  max AA^
+                S CC                  dup1 dup1 min S^  max CC^
+                W GG                  dup1 dup1 min W^  max GG^
+                W CC                  dup1 dup1 min W^  max CC^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                LL P                  dup1 dup1 min LL^ max P^
+                H Z                   dup1 dup1 min H^  max Z^
+                H P                   dup1 dup1 min H^  max P^
+                D T                   dup1 dup1 min D^  max T^
+                L DD                  dup1 dup1 min L^  max DD^
+                L T                   dup1 dup1 min L^  max T^
+                D H                             min D^
+                L P                   dup1 dup1 min L^  max P^
+                T Z                   dup1 dup1 min T^  max Z^
+                B R                   dup1 dup1 min B^  max R^
+                J BB                  dup1 dup1 min J^  max BB^
+                J R                   dup1 dup1 min J^  max R^
+                F V                   dup1 dup1 min F^  max V^
+                N FF                            min N^
+                N V                   dup1 dup1 min N^  max V^
+                F J                                     max J^
+                N R                   dup1 dup1 min N^  max R^
+                V BB                  dup1 dup1 min V^  max BB^
+                B D                   dup1 dup1 min B^  max D^
+                J L                   dup1 dup1 min J^  max L^
+                N P                   dup1 dup1 min N^  max P^
+                R T                   dup1 dup1 min R^  max T^
+                V Z                   dup1 dup1 min V^  max Z^
+                BB DD                           min BB^
+                A Q                   dup1 dup1 min A^  max Q^
+                I AA                  dup1 dup1 min I^  max AA^
+                I Q                   dup1 dup1 min I^  max Q^
+                E U                   dup1 dup1 min E^  max U^
+                M EE                            min M^
+                M U                   dup1 dup1 min M^  max U^
+                E I                   dup1 dup1 min E^  max I^
+                M Q                   dup1 dup1 min M^  max Q^
+                U AA                  dup1 dup1 min U^  max AA^
+                C S                   dup1 dup1 min C^  max S^
+                K CC                  dup1 dup1 min K^  max CC^
+                K S                   dup1 dup1 min K^  max S^
+                G W                   dup1 dup1 min G^  max W^
+                O GG                            min O^
+                O W                   dup1 dup1 min O^  max W^
+                G K                   dup1 dup1 min G^  max K^
+                O S                   dup1 dup1 min O^  max S^
+                W CC                            min W^
+                C E                             min C^
+                G I                                     max I^
+                K M                   dup1 dup1 min K^  max M^
+                O Q                   dup1 dup1 min O^  max Q^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                A B                   dup1 dup1 min A^  max B^
+                C D                             min C^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                O P                   dup1 dup1 min O^  max P^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                AA BB                           min AA^
                 HH II                 dup1 dup1 min HH^ max II^
                 JJ KK                 dup1 dup1 min JJ^ max KK^
                 HH JJ                 dup1 dup1 min HH^ max JJ^
                 II KK                 dup1 dup1 min II^ max KK^
                 II JJ                 dup1 dup1 min II^ max JJ^
-                A HH                                    max HH^
-                Q HH                                    max HH^
+                LL HH                                   max HH^
+                P HH                                    max HH^
                 Z HH                            min Z^
-                M U                                     max U^
-                U Z                             min U^
-                C JJ                                    max JJ^
-                S JJ                            min S^
-                K S                                     max S^
-                O W                             min O^
-                O S                                     max S^
-                S U                             min S^
-                B II                                    max II^
-                R II                            min R^
+                L T                                     max T^
+                T Z                             min T^
+                B JJ                                    max JJ^
+                R JJ                            min R^
                 J R                                     max R^
                 N V                             min N^
                 N R                                     max R^
-                D KK                                    max KK^
-                T KK                            min T^
-                L T                                     max T^
-                P Y                             min P^
-                P T                             min P^
-                P R                                     max R^
-                R S                   dup1 dup1 max swap2 min
+                R T                   dup1 dup1 min R^  max T^
+                A II                                    max II^
+                Q II                  dup1 dup1 min Q^  max II^
+                I Q                                     max Q^
+                AA II                           min AA^
+                M U                   dup1 dup1 min M^  max U^
+                M Q                             min M^
+                U AA                            min U^
+                C KK                                    max KK^
+                S KK                            min S^
+                K S                                     max S^
+                O W                             min O^
+                O S                   dup1 dup1 min O^  max S^
+                O Q                                     max Q^
+                S U                             min S^
+                S T                             min
+                Q R                                     max
 
                 X swap2 clip"                                 : \
                                                                 \
-    n == 49  ? "A B                dup1 dup1 min A^  max B^
-                C D                dup1 dup1 min C^  max D^
-                A C                dup1 dup1 min A^  max C^
-                B D                dup1 dup1 min B^  max D^
-                B C                dup1 dup1 min B^  max C^
-                E F                dup1 dup1 min E^  max F^
-                G H                dup1 dup1 min G^  max H^
-                E G                dup1 dup1 min E^  max G^
-                F H                dup1 dup1 min F^  max H^
-                F G                dup1 dup1 min F^  max G^
-                A E                dup1 dup1 min A^  max E^
-                C G                dup1 dup1 min C^  max G^
-                C E                dup1 dup1 min C^  max E^
-                B F                dup1 dup1 min B^  max F^
-                D H                dup1 dup1 min D^  max H^
-                D F                dup1 dup1 min D^  max F^
-                B C                dup1 dup1 min B^  max C^
-                D E                dup1 dup1 min D^  max E^
-                F G                dup1 dup1 min F^  max G^
-                I J                dup1 dup1 min I^  max J^
-                K L                dup1 dup1 min K^  max L^
-                I K                dup1 dup1 min I^  max K^
-                J L                dup1 dup1 min J^  max L^
-                J K                dup1 dup1 min J^  max K^
-                M N                dup1 dup1 min M^  max N^
-                O P                dup1 dup1 min O^  max P^
-                M O                dup1 dup1 min M^  max O^
-                N P                dup1 dup1 min N^  max P^
-                N O                dup1 dup1 min N^  max O^
-                I M                dup1 dup1 min I^  max M^
-                K O                dup1 dup1 min K^  max O^
-                K M                dup1 dup1 min K^  max M^
-                J N                dup1 dup1 min J^  max N^
-                L P                dup1 dup1 min L^  max P^
-                L N                dup1 dup1 min L^  max N^
-                J K                dup1 dup1 min J^  max K^
-                L M                dup1 dup1 min L^  max M^
-                N O                dup1 dup1 min N^  max O^
-                A I                dup1 dup1 min A^  max I^
-                E M                dup1 dup1 min E^  max M^
-                E I                dup1 dup1 min E^  max I^
-                C K                dup1 dup1 min C^  max K^
-                G O                dup1 dup1 min G^  max O^
-                G K                dup1 dup1 min G^  max K^
-                C E                dup1 dup1 min C^  max E^
-                G I                dup1 dup1 min G^  max I^
-                K M                dup1 dup1 min K^  max M^
-                B J                dup1 dup1 min B^  max J^
-                F N                dup1 dup1 min F^  max N^
-                F J                dup1 dup1 min F^  max J^
-                D L                dup1 dup1 min D^  max L^
-                H P                dup1 dup1 min H^  max P^
-                H L                dup1 dup1 min H^  max L^
-                D F                dup1 dup1 min D^  max F^
-                H J                dup1 dup1 min H^  max J^
-                L N                dup1 dup1 min L^  max N^
-                B C                dup1 dup1 min B^  max C^
-                D E                dup1 dup1 min D^  max E^
-                F G                dup1 dup1 min F^  max G^
-                H I                dup1 dup1 min H^  max I^
-                J K                dup1 dup1 min J^  max K^
-                L M                dup1 dup1 min L^  max M^
-                N O                dup1 dup1 min N^  max O^
-                Q R                dup1 dup1 min Q^  max R^
-                S T                dup1 dup1 min S^  max T^
-                Q S                dup1 dup1 min Q^  max S^
-                R T                dup1 dup1 min R^  max T^
-                R S                dup1 dup1 min R^  max S^
-                U V                dup1 dup1 min U^  max V^
-                W Y                dup1 dup1 min W^  max Y^
-                U W                dup1 dup1 min U^  max W^
-                V Y                dup1 dup1 min V^  max Y^
-                V W                dup1 dup1 min V^  max W^
-                Q U                dup1 dup1 min Q^  max U^
-                S W                dup1 dup1 min S^  max W^
-                S U                dup1 dup1 min S^  max U^
-                R V                dup1 dup1 min R^  max V^
-                T Y                dup1 dup1 min T^  max Y^
-                T V                dup1 dup1 min T^  max V^
-                R S                dup1 dup1 min R^  max S^
-                T U                dup1 dup1 min T^  max U^
-                V W                dup1 dup1 min V^  max W^
-                Z AA               dup1 dup1 min Z^  max AA^
-                BB CC              dup1 dup1 min BB^ max CC^
-                Z BB               dup1 dup1 min Z^  max BB^
-                AA CC              dup1 dup1 min AA^ max CC^
-                AA BB              dup1 dup1 min AA^ max BB^
-                DD EE              dup1 dup1 min DD^ max EE^
-                FF GG              dup1 dup1 min FF^ max GG^
-                DD FF              dup1 dup1 min DD^ max FF^
-                EE GG              dup1 dup1 min EE^ max GG^
-                EE FF              dup1 dup1 min EE^ max FF^
-                Z DD               dup1 dup1 min Z^  max DD^
-                BB FF              dup1 dup1 min BB^ max FF^
-                BB DD              dup1 dup1 min BB^ max DD^
-                AA EE              dup1 dup1 min AA^ max EE^
-                CC GG              dup1 dup1 min CC^ max GG^
-                CC EE              dup1 dup1 min CC^ max EE^
-                AA BB              dup1 dup1 min AA^ max BB^
-                CC DD              dup1 dup1 min CC^ max DD^
-                EE FF              dup1 dup1 min EE^ max FF^
-                Q Z                dup1 dup1 min Q^  max Z^
-                U DD               dup1 dup1 min U^  max DD^
-                U Z                dup1 dup1 min U^  max Z^
-                S BB               dup1 dup1 min S^  max BB^
-                W FF               dup1 dup1 min W^  max FF^
-                W BB               dup1 dup1 min W^  max BB^
-                S U                dup1 dup1 min S^  max U^
-                W Z                dup1 dup1 min W^  max Z^
-                BB DD              dup1 dup1 min BB^ max DD^
-                R AA               dup1 dup1 min R^  max AA^
-                V EE               dup1 dup1 min V^  max EE^
-                V AA               dup1 dup1 min V^  max AA^
-                T CC               dup1 dup1 min T^  max CC^
-                Y GG               dup1 dup1 min Y^  max GG^
-                Y CC               dup1 dup1 min Y^  max CC^
-                T V                dup1 dup1 min T^  max V^
-                Y AA               dup1 dup1 min Y^  max AA^
-                CC EE              dup1 dup1 min CC^ max EE^
-                R S                dup1 dup1 min R^  max S^
-                T U                dup1 dup1 min T^  max U^
-                V W                dup1 dup1 min V^  max W^
-                Y Z                dup1 dup1 min Y^  max Z^
-                AA BB              dup1 dup1 min AA^ max BB^
-                CC DD              dup1 dup1 min CC^ max DD^
-                EE FF              dup1 dup1 min EE^ max FF^
-                A Q                dup1 dup1 min A^  max Q^
-                I Z                dup1 dup1 min I^  max Z^
-                I Q                dup1 dup1 min I^  max Q^
-                E U                dup1 dup1 min E^  max U^
-                M DD               dup1 dup1 min M^  max DD^
-                M U                dup1 dup1 min M^  max U^
-                E I                dup1 dup1 min E^  max I^
-                M Q                dup1 dup1 min M^  max Q^
-                U Z                dup1 dup1 min U^  max Z^
-                C S                dup1 dup1 min C^  max S^
-                K BB               dup1 dup1 min K^  max BB^
-                K S                dup1 dup1 min K^  max S^
-                G W                dup1 dup1 min G^  max W^
-                O FF               dup1 dup1 min O^  max FF^
-                O W                dup1 dup1 min O^  max W^
-                G K                dup1 dup1 min G^  max K^
-                O S                dup1 dup1 min O^  max S^
-                W BB               dup1 dup1 min W^  max BB^
-                C E                dup1 dup1 min C^  max E^
-                G I                dup1 dup1 min G^  max I^
-                K M                dup1 dup1 min K^  max M^
-                O Q                dup1 dup1 min O^  max Q^
-                S U                dup1 dup1 min S^  max U^
-                W Z                dup1 dup1 min W^  max Z^
-                BB DD              dup1 dup1 min BB^ max DD^
-                B R                dup1 dup1 min B^  max R^
-                J AA               dup1 dup1 min J^  max AA^
-                J R                dup1 dup1 min J^  max R^
-                F V                dup1 dup1 min F^  max V^
-                N EE               dup1 dup1 min N^  max EE^
-                N V                dup1 dup1 min N^  max V^
-                F J                dup1 dup1 min F^  max J^
-                N R                dup1 dup1 min N^  max R^
-                V AA               dup1 dup1 min V^  max AA^
-                D T                dup1 dup1 min D^  max T^
-                L CC               dup1 dup1 min L^  max CC^
-                L T                dup1 dup1 min L^  max T^
-                H Y                dup1 dup1 min H^  max Y^
-                P GG               dup1 dup1 min P^  max GG^
-                P Y                dup1 dup1 min P^  max Y^
-                H L                dup1 dup1 min H^  max L^
-                P T                dup1 dup1 min P^  max T^
-                Y CC               dup1 dup1 min Y^  max CC^
-                D F                dup1 dup1 min D^  max F^
-                H J                dup1 dup1 min H^  max J^
-                L N                dup1 dup1 min L^  max N^
-                P R                dup1 dup1 min P^  max R^
-                T V                dup1 dup1 min T^  max V^
-                Y AA               dup1 dup1 min Y^  max AA^
-                CC EE                        min CC^
-                B C                dup1 dup1 min B^  max C^
-                D E                dup1 dup1 min D^  max E^
-                F G                dup1 dup1 min F^  max G^
-                H I                dup1 dup1 min H^  max I^
-                J K                dup1 dup1 min J^  max K^
-                L M                dup1 dup1 min L^  max M^
-                N O                dup1 dup1 min N^  max O^
-                P Q                dup1 dup1 min P^  max Q^
-                R S                dup1 dup1 min R^  max S^
-                T U                dup1 dup1 min T^  max U^
-                V W                dup1 dup1 min V^  max W^
-                Y Z                dup1 dup1 min Y^  max Z^
-                AA BB              dup1 dup1 min AA^ max BB^
-                CC DD                        min CC^
-                HH II              dup1 dup1 min HH^ max II^
-                JJ KK              dup1 dup1 min JJ^ max KK^
-                HH JJ              dup1 dup1 min HH^ max JJ^
-                II KK              dup1 dup1 min II^ max KK^
-                II JJ              dup1 dup1 min II^ max JJ^
-                LL MM              dup1 dup1 min LL^ max MM^
-                NN OO              dup1 dup1 min NN^ max OO^
-                LL NN              dup1 dup1 min LL^ max NN^
-                MM OO              dup1 dup1 min MM^ max OO^
-                MM NN              dup1 dup1 min MM^ max NN^
-                HH LL              dup1 dup1 min HH^ max LL^
-                JJ NN              dup1 dup1 min JJ^ max NN^
-                JJ LL              dup1 dup1 min JJ^ max LL^
-                II MM              dup1 dup1 min II^ max MM^
-                KK OO              dup1 dup1 min KK^ max OO^
-                KK MM              dup1 dup1 min KK^ max MM^
-                II JJ              dup1 dup1 min II^ max JJ^
-                KK LL              dup1 dup1 min KK^ max LL^
-                MM NN              dup1 dup1 min MM^ max NN^
-                PP QQ              dup1 dup1 min PP^ max QQ^
-                RR SS              dup1 dup1 min RR^ max SS^
-                PP RR              dup1 dup1 min PP^ max RR^
-                QQ SS              dup1 dup1 min QQ^ max SS^
-                QQ RR              dup1 dup1 min QQ^ max RR^
-                TT UU              dup1 dup1 min TT^ max UU^
-                VV WW              dup1 dup1 min VV^ max WW^
-                TT VV              dup1 dup1 min TT^ max VV^
-                UU WW              dup1 dup1 min UU^ max WW^
-                UU VV              dup1 dup1 min UU^ max VV^
-                PP TT              dup1 dup1 min PP^ max TT^
-                RR VV              dup1 dup1 min RR^ max VV^
-                RR TT              dup1 dup1 min RR^ max TT^
-                QQ UU              dup1 dup1 min QQ^ max UU^
-                SS WW              dup1 dup1 min SS^ max WW^
-                SS UU              dup1 dup1 min SS^ max UU^
-                QQ RR              dup1 dup1 min QQ^ max RR^
-                SS TT              dup1 dup1 min SS^ max TT^
-                UU VV              dup1 dup1 min UU^ max VV^
-                HH PP              dup1 dup1 min HH^ max PP^
-                LL TT              dup1 dup1 min LL^ max TT^
-                LL PP              dup1 dup1 min LL^ max PP^
-                JJ RR              dup1 dup1 min JJ^ max RR^
-                NN VV              dup1 dup1 min NN^ max VV^
-                NN RR              dup1 dup1 min NN^ max RR^
-                JJ LL              dup1 dup1 min JJ^ max LL^
-                NN PP              dup1 dup1 min NN^ max PP^
-                RR TT              dup1 dup1 min RR^ max TT^
-                II QQ              dup1 dup1 min II^ max QQ^
-                MM UU              dup1 dup1 min MM^ max UU^
-                MM QQ              dup1 dup1 min MM^ max QQ^
-                KK SS              dup1 dup1 min KK^ max SS^
-                OO WW              dup1 dup1 min OO^ max WW^
-                OO SS              dup1 dup1 min OO^ max SS^
-                KK MM              dup1 dup1 min KK^ max MM^
-                OO QQ              dup1 dup1 min OO^ max QQ^
-                SS UU              dup1 dup1 min SS^ max UU^
-                II JJ              dup1 dup1 min II^ max JJ^
-                KK LL              dup1 dup1 min KK^ max LL^
-                MM NN              dup1 dup1 min MM^ max NN^
-                OO PP              dup1 dup1 min OO^ max PP^
-                QQ RR              dup1 dup1 min QQ^ max RR^
-                SS TT              dup1 dup1 min SS^ max TT^
-                UU VV              dup1 dup1 min UU^ max VV^
-                LL PP              dup1 dup1 min LL^ max PP^
-                NN RR              dup1 dup1 min NN^ max RR^
-                JJ LL              dup1 dup1 min JJ^ max LL^
-                NN PP              dup1 dup1 min NN^ max PP^
-                RR TT              dup1 dup1 min RR^ max TT^
-                MM QQ              dup1 dup1 min MM^ max QQ^
-                OO SS              dup1 dup1 min OO^ max SS^
-                KK MM              dup1 dup1 min KK^ max MM^
-                OO QQ              dup1 dup1 min OO^ max QQ^
-                SS UU              dup1 dup1 min SS^ max UU^
-                II JJ              dup1 dup1 min II^ max JJ^
-                KK LL              dup1 dup1 min KK^ max LL^
-                MM NN              dup1 dup1 min MM^ max NN^
-                OO PP              dup1 dup1 min OO^ max PP^
-                QQ RR              dup1 dup1 min QQ^ max RR^
-                SS TT              dup1 dup1 min SS^ max TT^
-                UU VV              dup1 dup1 min UU^ max VV^
-                A HH                                 max HH^
-                Q HH                                 max HH^
-                I PP                                 max PP^
-                Z PP                         min Z^
-                Z HH                         min Z^
-                E LL                                 max LL^
-                U LL                         min U^
-                M TT                         min M^
-                M U                                  max U^
-                U Z                                  max Z^
-                C JJ                                 max JJ^
-                S JJ                                 max JJ^
-                K RR                                 max RR^
-                BB RR                        min BB^
-                BB JJ                        min BB^
-                G NN                                 max NN^
-                W NN                         min W^
-                O VV                         min O^
-                O W                                  max W^
-                W BB                         min W^
-                W Z                                  max Z^
-                B II                                 max II^
-                R II                                 max II^
-                J QQ                                 max QQ^
-                AA QQ                        min AA^
-                AA II                        min AA^
-                F MM                                 max MM^
-                V MM                         min V^
-                N UU                         min N^
-                N V                                  max V^
-                V AA                                 max AA^
-                D KK                                 max KK^
-                T KK                                 max KK^
-                L SS                                 max SS^
-                CC SS                        min CC^
-                CC KK                        min CC^
-                H OO                                 max OO^
-                Y OO                         min Y^
-                P WW                         min P^
-                P Y                                  max Y^
-                Y CC                         min Y^
-                Y AA                         min Y^
-                Y Z              dup1 dup1 max swap2 min
+    n == 39  ? "A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                A C                   dup1 dup1 min A^  max C^
+                B D                   dup1 dup1 min B^  max D^
+                B C                   dup1 dup1 min B^  max C^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                E G                   dup1 dup1 min E^  max G^
+                F H                   dup1 dup1 min F^  max H^
+                F G                   dup1 dup1 min F^  max G^
+                A E                   dup1 dup1 min A^  max E^
+                C G                   dup1 dup1 min C^  max G^
+                C E                   dup1 dup1 min C^  max E^
+                B F                   dup1 dup1 min B^  max F^
+                D H                   dup1 dup1 min D^  max H^
+                D F                   dup1 dup1 min D^  max F^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                I K                   dup1 dup1 min I^  max K^
+                J L                   dup1 dup1 min J^  max L^
+                J K                   dup1 dup1 min J^  max K^
+                M N                   dup1 dup1 min M^  max N^
+                O P                   dup1 dup1 min O^  max P^
+                M O                   dup1 dup1 min M^  max O^
+                N P                   dup1 dup1 min N^  max P^
+                N O                   dup1 dup1 min N^  max O^
+                I M                   dup1 dup1 min I^  max M^
+                K O                   dup1 dup1 min K^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                J N                   dup1 dup1 min J^  max N^
+                L P                   dup1 dup1 min L^  max P^
+                L N                   dup1 dup1 min L^  max N^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                A I                   dup1 dup1 min A^  max I^
+                E M                   dup1 dup1 min E^  max M^
+                E I                   dup1 dup1 min E^  max I^
+                C K                   dup1 dup1 min C^  max K^
+                G O                   dup1 dup1 min G^  max O^
+                G K                   dup1 dup1 min G^  max K^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                B J                   dup1 dup1 min B^  max J^
+                F N                   dup1 dup1 min F^  max N^
+                F J                   dup1 dup1 min F^  max J^
+                D L                   dup1 dup1 min D^  max L^
+                H P                   dup1 dup1 min H^  max P^
+                H L                   dup1 dup1 min H^  max L^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                Q S                   dup1 dup1 min Q^  max S^
+                R T                   dup1 dup1 min R^  max T^
+                R S                   dup1 dup1 min R^  max S^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                U W                   dup1 dup1 min U^  max W^
+                V Z                   dup1 dup1 min V^  max Z^
+                V W                   dup1 dup1 min V^  max W^
+                Q U                   dup1 dup1 min Q^  max U^
+                S W                   dup1 dup1 min S^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                R V                   dup1 dup1 min R^  max V^
+                T Z                   dup1 dup1 min T^  max Z^
+                T V                   dup1 dup1 min T^  max V^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                AA CC                 dup1 dup1 min AA^ max CC^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                GG HH                 dup1 dup1 min GG^ max HH^
+                EE GG                 dup1 dup1 min EE^ max GG^
+                FF HH                 dup1 dup1 min FF^ max HH^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                AA EE                 dup1 dup1 min AA^ max EE^
+                CC GG                 dup1 dup1 min CC^ max GG^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                BB FF                 dup1 dup1 min BB^ max FF^
+                DD HH                 dup1 dup1 min DD^ max HH^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                U EE                  dup1 dup1 min U^  max EE^
+                U AA                  dup1 dup1 min U^  max AA^
+                S CC                  dup1 dup1 min S^  max CC^
+                W GG                  dup1 dup1 min W^  max GG^
+                W CC                  dup1 dup1 min W^  max CC^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                R BB                  dup1 dup1 min R^  max BB^
+                V FF                  dup1 dup1 min V^  max FF^
+                V BB                  dup1 dup1 min V^  max BB^
+                T DD                  dup1 dup1 min T^  max DD^
+                Z HH                  dup1 dup1 min Z^  max HH^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                A Q                   dup1 dup1 min A^  max Q^
+                I AA                  dup1 dup1 min I^  max AA^
+                I Q                   dup1 dup1 min I^  max Q^
+                E U                   dup1 dup1 min E^  max U^
+                M EE                  dup1 dup1 min M^  max EE^
+                M U                   dup1 dup1 min M^  max U^
+                E I                   dup1 dup1 min E^  max I^
+                M Q                   dup1 dup1 min M^  max Q^
+                U AA                  dup1 dup1 min U^  max AA^
+                C S                   dup1 dup1 min C^  max S^
+                K CC                  dup1 dup1 min K^  max CC^
+                K S                   dup1 dup1 min K^  max S^
+                G W                   dup1 dup1 min G^  max W^
+                O GG                            min O^
+                O W                   dup1 dup1 min O^  max W^
+                G K                   dup1 dup1 min G^  max K^
+                O S                   dup1 dup1 min O^  max S^
+                W CC                  dup1 dup1 min W^  max CC^
+                C E                   dup1 dup1 min C^  max E^
+                G I                             min G^
+                K M                   dup1 dup1 min K^  max M^
+                O Q                   dup1 dup1 min O^  max Q^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                           min CC^
+                B R                   dup1 dup1 min B^  max R^
+                J BB                  dup1 dup1 min J^  max BB^
+                J R                   dup1 dup1 min J^  max R^
+                F V                   dup1 dup1 min F^  max V^
+                N FF                            min N^
+                N V                   dup1 dup1 min N^  max V^
+                F J                   dup1 dup1 min F^  max J^
+                N R                   dup1 dup1 min N^  max R^
+                V BB                  dup1 dup1 min V^  max BB^
+                D T                   dup1 dup1 min D^  max T^
+                L DD                  dup1 dup1 min L^  max DD^
+                L T                   dup1 dup1 min L^  max T^
+                H Z                   dup1 dup1 min H^  max Z^
+                P HH                            min P^
+                P Z                   dup1 dup1 min P^  max Z^
+                H L                   dup1 dup1 min H^  max L^
+                P T                   dup1 dup1 min P^  max T^
+                Z DD                            min Z^
+                D F                   dup1 dup1 min D^  max F^
+                H J                                     max J^
+                L N                   dup1 dup1 min L^  max N^
+                P R                   dup1 dup1 min P^  max R^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                             min F^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                P Q                   dup1 dup1 min P^  max Q^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                           min BB^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                KK LL                 dup1 dup1 min KK^ max LL^
+                II KK                 dup1 dup1 min II^ max KK^
+                JJ LL                 dup1 dup1 min JJ^ max LL^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                II MM                 dup1 dup1 min II^ max MM^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                JJ NN                 dup1 dup1 min JJ^ max NN^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                A II                                    max II^
+                Q II                                    max II^
+                AA II                           min AA^
+                E MM                                    max MM^
+                U MM                  dup1 dup1 min U^  max MM^
+                M U                                     max U^
+                U AA                            min U^
+                C KK                                    max KK^
+                S KK                            min S^
+                K S                                     max S^
+                O W                             min O^
+                O S                                     max S^
+                S U                   dup1 dup1 min S^  max U^
+                B JJ                                    max JJ^
+                R JJ                  dup1 dup1 min R^  max JJ^
+                J R                                     max R^
+                BB JJ                           min BB^
+                F NN                                    max NN^
+                V NN                            min V^
+                N V                   dup1 dup1 min N^  max V^
+                N R                                     max R^
+                V BB                            min V^
+                D LL                                    max LL^
+                T LL                  dup1 dup1 min T^  max LL^
+                L T                                     max T^
+                P Z                             min P^
+                P T                   dup1 dup1 min P^  max T^
+                P R                                     max R^
+                T V                             min T^
+                T U                             min
+                R S                                     max
+
+                X swap2 clip"                                 : \
+                                                                \
+    n == 41  ? "PP A                  dup1 dup1 min PP^ max A^
+                B C                   dup1 dup1 min B^  max C^
+                PP B                  dup1 dup1 min PP^ max B^
+                A C                   dup1 dup1 min A^  max C^
+                A B                   dup1 dup1 min A^  max B^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                D F                   dup1 dup1 min D^  max F^
+                E G                   dup1 dup1 min E^  max G^
+                E F                   dup1 dup1 min E^  max F^
+                PP D                  dup1 dup1 min PP^ max D^
+                B F                   dup1 dup1 min B^  max F^
+                B D                   dup1 dup1 min B^  max D^
+                A E                   dup1 dup1 min A^  max E^
+                C G                   dup1 dup1 min C^  max G^
+                C E                   dup1 dup1 min C^  max E^
+                A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                E F                   dup1 dup1 min E^  max F^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                H J                   dup1 dup1 min H^  max J^
+                I K                   dup1 dup1 min I^  max K^
+                I J                   dup1 dup1 min I^  max J^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                L N                   dup1 dup1 min L^  max N^
+                M O                   dup1 dup1 min M^  max O^
+                M N                   dup1 dup1 min M^  max N^
+                H L                   dup1 dup1 min H^  max L^
+                J N                   dup1 dup1 min J^  max N^
+                J L                   dup1 dup1 min J^  max L^
+                I M                   dup1 dup1 min I^  max M^
+                K O                   dup1 dup1 min K^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                PP H                  dup1 dup1 min PP^ max H^
+                D L                   dup1 dup1 min D^  max L^
+                D H                   dup1 dup1 min D^  max H^
+                B J                   dup1 dup1 min B^  max J^
+                F N                   dup1 dup1 min F^  max N^
+                F J                   dup1 dup1 min F^  max J^
+                B D                   dup1 dup1 min B^  max D^
+                F H                   dup1 dup1 min F^  max H^
+                J L                   dup1 dup1 min J^  max L^
+                A I                   dup1 dup1 min A^  max I^
+                E M                   dup1 dup1 min E^  max M^
+                E I                   dup1 dup1 min E^  max I^
+                C K                   dup1 dup1 min C^  max K^
+                G O                   dup1 dup1 min G^  max O^
+                G K                   dup1 dup1 min G^  max K^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                P Q                   dup1 dup1 min P^  max Q^
+                R S                   dup1 dup1 min R^  max S^
+                P R                   dup1 dup1 min P^  max R^
+                Q S                   dup1 dup1 min Q^  max S^
+                Q R                   dup1 dup1 min Q^  max R^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                T V                   dup1 dup1 min T^  max V^
+                U W                   dup1 dup1 min U^  max W^
+                U V                   dup1 dup1 min U^  max V^
+                P T                   dup1 dup1 min P^  max T^
+                R V                   dup1 dup1 min R^  max V^
+                R T                   dup1 dup1 min R^  max T^
+                Q U                   dup1 dup1 min Q^  max U^
+                S W                   dup1 dup1 min S^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                AA CC                 dup1 dup1 min AA^ max CC^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                EE GG                 dup1 dup1 min EE^ max GG^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                BB FF                 dup1 dup1 min BB^ max FF^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                AA EE                 dup1 dup1 min AA^ max EE^
+                CC GG                 dup1 dup1 min CC^ max GG^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                P Z                   dup1 dup1 min P^  max Z^
+                T DD                  dup1 dup1 min T^  max DD^
+                T Z                   dup1 dup1 min T^  max Z^
+                R BB                  dup1 dup1 min R^  max BB^
+                V FF                  dup1 dup1 min V^  max FF^
+                V BB                  dup1 dup1 min V^  max BB^
+                R T                   dup1 dup1 min R^  max T^
+                V Z                   dup1 dup1 min V^  max Z^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                U EE                  dup1 dup1 min U^  max EE^
+                U AA                  dup1 dup1 min U^  max AA^
+                S CC                  dup1 dup1 min S^  max CC^
+                W GG                  dup1 dup1 min W^  max GG^
+                W CC                  dup1 dup1 min W^  max CC^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                PP P                  dup1 dup1 min PP^ max P^
+                H Z                   dup1 dup1 min H^  max Z^
+                H P                   dup1 dup1 min H^  max P^
+                D T                   dup1 dup1 min D^  max T^
+                L DD                  dup1 dup1 min L^  max DD^
+                L T                   dup1 dup1 min L^  max T^
+                D H                   dup1 dup1 min D^  max H^
+                L P                   dup1 dup1 min L^  max P^
+                T Z                   dup1 dup1 min T^  max Z^
+                B R                   dup1 dup1 min B^  max R^
+                J BB                  dup1 dup1 min J^  max BB^
+                J R                   dup1 dup1 min J^  max R^
+                F V                   dup1 dup1 min F^  max V^
+                N FF                  dup1 dup1 min N^  max FF^
+                N V                   dup1 dup1 min N^  max V^
+                F J                   dup1 dup1 min F^  max J^
+                N R                   dup1 dup1 min N^  max R^
+                V BB                  dup1 dup1 min V^  max BB^
+                B D                   dup1 dup1 min B^  max D^
+                F H                   dup1 dup1 min F^  max H^
+                J L                   dup1 dup1 min J^  max L^
+                N P                   dup1 dup1 min N^  max P^
+                R T                   dup1 dup1 min R^  max T^
+                V Z                   dup1 dup1 min V^  max Z^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                A Q                   dup1 dup1 min A^  max Q^
+                I AA                  dup1 dup1 min I^  max AA^
+                I Q                   dup1 dup1 min I^  max Q^
+                E U                   dup1 dup1 min E^  max U^
+                M EE                  dup1 dup1 min M^  max EE^
+                M U                   dup1 dup1 min M^  max U^
+                E I                   dup1 dup1 min E^  max I^
+                M Q                   dup1 dup1 min M^  max Q^
+                U AA                  dup1 dup1 min U^  max AA^
+                C S                   dup1 dup1 min C^  max S^
+                K CC                  dup1 dup1 min K^  max CC^
+                K S                   dup1 dup1 min K^  max S^
+                G W                   dup1 dup1 min G^  max W^
+                O GG                            min O^
+                O W                   dup1 dup1 min O^  max W^
+                G K                   dup1 dup1 min G^  max K^
+                O S                   dup1 dup1 min O^  max S^
+                W CC                            min W^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                O Q                   dup1 dup1 min O^  max Q^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                I J                                     max J^
+                K L                   dup1 dup1 min K^  max L^
+                M N                   dup1 dup1 min M^  max N^
+                O P                   dup1 dup1 min O^  max P^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                AA BB                           min AA^
+                HH II                 dup1 dup1 min HH^ max II^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                HH JJ                 dup1 dup1 min HH^ max JJ^
+                II KK                 dup1 dup1 min II^ max KK^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                MM OO                 dup1 dup1 min MM^ max OO^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                HH LL                 dup1 dup1 min HH^ max LL^
+                JJ NN                 dup1 dup1 min JJ^ max NN^
+                JJ LL                 dup1 dup1 min JJ^ max LL^
+                II MM                 dup1 dup1 min II^ max MM^
+                KK OO                 dup1 dup1 min KK^ max OO^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                KK LL                 dup1 dup1 min KK^ max LL^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                JJ LL                 dup1 dup1 min JJ^ max LL^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                KK LL                 dup1 dup1 min KK^ max LL^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                JJ LL                 dup1 dup1 min JJ^ max LL^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                KK LL                 dup1 dup1 min KK^ max LL^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                PP HH                                   max HH^
+                P HH                                    max HH^
+                Z HH                            min Z^
+                D LL                                    max LL^
+                T LL                            min T^
+                L T                                     max T^
+                T Z                             min T^
+                B JJ                                    max JJ^
+                R JJ                            min R^
+                J R                                     max R^
+                F NN                                    max NN^
+                V NN                            min V^
+                N V                             min N^
+                N R                                     max R^
+                R T                                     max T^
+                A II                                    max II^
+                Q II                                    max II^
+                AA II                           min AA^
+                E MM                                    max MM^
+                U MM                            min U^
+                M U                                     max U^
+                U AA                            min U^
+                C KK                                    max KK^
+                S KK                            min S^
+                K S                                     max S^
+                G OO                                    max OO^
+                W OO                            min W^
+                O W                             min O^
+                O S                                     max S^
+                S U                             min S^
+                S T                   dup1 dup1 max swap2 min
+
+                X swap2 clip"                                 : \
+                                                                \
+    n == 43  ? "A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                A C                   dup1 dup1 min A^  max C^
+                B D                   dup1 dup1 min B^  max D^
+                B C                   dup1 dup1 min B^  max C^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                E G                   dup1 dup1 min E^  max G^
+                F H                   dup1 dup1 min F^  max H^
+                F G                   dup1 dup1 min F^  max G^
+                A E                   dup1 dup1 min A^  max E^
+                C G                   dup1 dup1 min C^  max G^
+                C E                   dup1 dup1 min C^  max E^
+                B F                   dup1 dup1 min B^  max F^
+                D H                   dup1 dup1 min D^  max H^
+                D F                   dup1 dup1 min D^  max F^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                I K                   dup1 dup1 min I^  max K^
+                J L                   dup1 dup1 min J^  max L^
+                J K                   dup1 dup1 min J^  max K^
+                M N                   dup1 dup1 min M^  max N^
+                O P                   dup1 dup1 min O^  max P^
+                M O                   dup1 dup1 min M^  max O^
+                N P                   dup1 dup1 min N^  max P^
+                N O                   dup1 dup1 min N^  max O^
+                I M                   dup1 dup1 min I^  max M^
+                K O                   dup1 dup1 min K^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                J N                   dup1 dup1 min J^  max N^
+                L P                   dup1 dup1 min L^  max P^
+                L N                   dup1 dup1 min L^  max N^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                A I                   dup1 dup1 min A^  max I^
+                E M                   dup1 dup1 min E^  max M^
+                E I                   dup1 dup1 min E^  max I^
+                C K                   dup1 dup1 min C^  max K^
+                G O                   dup1 dup1 min G^  max O^
+                G K                   dup1 dup1 min G^  max K^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                B J                   dup1 dup1 min B^  max J^
+                F N                   dup1 dup1 min F^  max N^
+                F J                   dup1 dup1 min F^  max J^
+                D L                   dup1 dup1 min D^  max L^
+                H P                   dup1 dup1 min H^  max P^
+                H L                   dup1 dup1 min H^  max L^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                Q S                   dup1 dup1 min Q^  max S^
+                R T                   dup1 dup1 min R^  max T^
+                R S                   dup1 dup1 min R^  max S^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                U W                   dup1 dup1 min U^  max W^
+                V Z                   dup1 dup1 min V^  max Z^
+                V W                   dup1 dup1 min V^  max W^
+                Q U                   dup1 dup1 min Q^  max U^
+                S W                   dup1 dup1 min S^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                R V                   dup1 dup1 min R^  max V^
+                T Z                   dup1 dup1 min T^  max Z^
+                T V                   dup1 dup1 min T^  max V^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                AA CC                 dup1 dup1 min AA^ max CC^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                GG HH                 dup1 dup1 min GG^ max HH^
+                EE GG                 dup1 dup1 min EE^ max GG^
+                FF HH                 dup1 dup1 min FF^ max HH^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                AA EE                 dup1 dup1 min AA^ max EE^
+                CC GG                 dup1 dup1 min CC^ max GG^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                BB FF                 dup1 dup1 min BB^ max FF^
+                DD HH                 dup1 dup1 min DD^ max HH^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                U EE                  dup1 dup1 min U^  max EE^
+                U AA                  dup1 dup1 min U^  max AA^
+                S CC                  dup1 dup1 min S^  max CC^
+                W GG                  dup1 dup1 min W^  max GG^
+                W CC                  dup1 dup1 min W^  max CC^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                R BB                  dup1 dup1 min R^  max BB^
+                V FF                  dup1 dup1 min V^  max FF^
+                V BB                  dup1 dup1 min V^  max BB^
+                T DD                  dup1 dup1 min T^  max DD^
+                Z HH                  dup1 dup1 min Z^  max HH^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                A Q                   dup1 dup1 min A^  max Q^
+                I AA                  dup1 dup1 min I^  max AA^
+                I Q                   dup1 dup1 min I^  max Q^
+                E U                   dup1 dup1 min E^  max U^
+                M EE                  dup1 dup1 min M^  max EE^
+                M U                   dup1 dup1 min M^  max U^
+                E I                   dup1 dup1 min E^  max I^
+                M Q                   dup1 dup1 min M^  max Q^
+                U AA                  dup1 dup1 min U^  max AA^
+                C S                   dup1 dup1 min C^  max S^
+                K CC                  dup1 dup1 min K^  max CC^
+                K S                   dup1 dup1 min K^  max S^
+                G W                   dup1 dup1 min G^  max W^
+                O GG                  dup1 dup1 min O^  max GG^
+                O W                   dup1 dup1 min O^  max W^
+                G K                   dup1 dup1 min G^  max K^
+                O S                   dup1 dup1 min O^  max S^
+                W CC                  dup1 dup1 min W^  max CC^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                O Q                   dup1 dup1 min O^  max Q^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                           min CC^
+                B R                   dup1 dup1 min B^  max R^
+                J BB                  dup1 dup1 min J^  max BB^
+                J R                   dup1 dup1 min J^  max R^
+                F V                   dup1 dup1 min F^  max V^
+                N FF                            min N^
+                N V                   dup1 dup1 min N^  max V^
+                F J                   dup1 dup1 min F^  max J^
+                N R                   dup1 dup1 min N^  max R^
+                V BB                  dup1 dup1 min V^  max BB^
+                D T                   dup1 dup1 min D^  max T^
+                L DD                  dup1 dup1 min L^  max DD^
+                L T                   dup1 dup1 min L^  max T^
+                H Z                   dup1 dup1 min H^  max Z^
+                P HH                            min P^
+                P Z                   dup1 dup1 min P^  max Z^
+                H L                   dup1 dup1 min H^  max L^
+                P T                   dup1 dup1 min P^  max T^
+                Z DD                            min Z^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                P R                   dup1 dup1 min P^  max R^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                P Q                   dup1 dup1 min P^  max Q^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                KK LL                 dup1 dup1 min KK^ max LL^
+                II KK                 dup1 dup1 min II^ max KK^
+                JJ LL                 dup1 dup1 min JJ^ max LL^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                OO PP                 dup1 dup1 min OO^ max PP^
+                MM OO                 dup1 dup1 min MM^ max OO^
+                NN PP                 dup1 dup1 min NN^ max PP^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                II MM                 dup1 dup1 min II^ max MM^
+                KK OO                 dup1 dup1 min KK^ max OO^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                JJ NN                 dup1 dup1 min JJ^ max NN^
+                LL PP                 dup1 dup1 min LL^ max PP^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                QQ RR                 dup1 dup1 min QQ^ max RR^
+                II QQ                 dup1 dup1 min II^ max QQ^
+                MM QQ                 dup1 dup1 min MM^ max QQ^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                OO QQ                 dup1 dup1 min OO^ max QQ^
+                JJ RR                 dup1 dup1 min JJ^ max RR^
+                NN RR                 dup1 dup1 min NN^ max RR^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                PP RR                 dup1 dup1 min PP^ max RR^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                PP QQ                 dup1 dup1 min PP^ max QQ^
+                MM QQ                 dup1 dup1 min MM^ max QQ^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                OO QQ                 dup1 dup1 min OO^ max QQ^
+                NN RR                 dup1 dup1 min NN^ max RR^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                PP RR                 dup1 dup1 min PP^ max RR^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                PP QQ                 dup1 dup1 min PP^ max QQ^
+                A II                                    max II^
+                Q II                                    max II^
+                I QQ                                    max QQ^
+                AA QQ                           min AA^
+                AA II                           min AA^
+                E MM                                    max MM^
+                U MM                            min U^
+                M U                                     max U^
+                U AA                  dup1 dup1 min U^  max AA^
+                C KK                                    max KK^
+                S KK                  dup1 dup1 min S^  max KK^
+                K S                                     max S^
+                CC KK                           min CC^
+                G OO                                    max OO^
+                W OO                            min W^
+                O W                   dup1 dup1 min O^  max W^
+                O S                                     max S^
+                W CC                            min W^
+                S U                                     max U^
+                W AA                            min W^
+                B JJ                                    max JJ^
+                R JJ                                    max JJ^
+                J RR                                    max RR^
+                BB RR                           min BB^
+                BB JJ                           min BB^
+                F NN                                    max NN^
+                V NN                            min V^
+                N V                                     max V^
+                V BB                            min V^
+                D LL                                    max LL^
+                T LL                            min T^
+                L T                                     max T^
+                H PP                                    max PP^
+                Z PP                            min Z^
+                P Z                             min P^
+                P T                                     max T^
+                T V                   dup1 dup1 min T^  max V^
+                V W                             min
+                T U                                     max
+
+                X swap2 clip"                                 : \
+                                                                \
+    n == 45  ? "A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                A C                   dup1 dup1 min A^  max C^
+                B D                   dup1 dup1 min B^  max D^
+                B C                   dup1 dup1 min B^  max C^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                E G                   dup1 dup1 min E^  max G^
+                F H                   dup1 dup1 min F^  max H^
+                F G                   dup1 dup1 min F^  max G^
+                A E                   dup1 dup1 min A^  max E^
+                C G                   dup1 dup1 min C^  max G^
+                C E                   dup1 dup1 min C^  max E^
+                B F                   dup1 dup1 min B^  max F^
+                D H                   dup1 dup1 min D^  max H^
+                D F                   dup1 dup1 min D^  max F^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                I K                   dup1 dup1 min I^  max K^
+                J L                   dup1 dup1 min J^  max L^
+                J K                   dup1 dup1 min J^  max K^
+                M N                   dup1 dup1 min M^  max N^
+                O P                   dup1 dup1 min O^  max P^
+                M O                   dup1 dup1 min M^  max O^
+                N P                   dup1 dup1 min N^  max P^
+                N O                   dup1 dup1 min N^  max O^
+                I M                   dup1 dup1 min I^  max M^
+                K O                   dup1 dup1 min K^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                J N                   dup1 dup1 min J^  max N^
+                L P                   dup1 dup1 min L^  max P^
+                L N                   dup1 dup1 min L^  max N^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                A I                   dup1 dup1 min A^  max I^
+                E M                   dup1 dup1 min E^  max M^
+                E I                   dup1 dup1 min E^  max I^
+                C K                   dup1 dup1 min C^  max K^
+                G O                   dup1 dup1 min G^  max O^
+                G K                   dup1 dup1 min G^  max K^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                B J                   dup1 dup1 min B^  max J^
+                F N                   dup1 dup1 min F^  max N^
+                F J                   dup1 dup1 min F^  max J^
+                D L                   dup1 dup1 min D^  max L^
+                H P                   dup1 dup1 min H^  max P^
+                H L                   dup1 dup1 min H^  max L^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                Q S                   dup1 dup1 min Q^  max S^
+                R T                   dup1 dup1 min R^  max T^
+                R S                   dup1 dup1 min R^  max S^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                U W                   dup1 dup1 min U^  max W^
+                V Z                   dup1 dup1 min V^  max Z^
+                V W                   dup1 dup1 min V^  max W^
+                Q U                   dup1 dup1 min Q^  max U^
+                S W                   dup1 dup1 min S^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                R V                   dup1 dup1 min R^  max V^
+                T Z                   dup1 dup1 min T^  max Z^
+                T V                   dup1 dup1 min T^  max V^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                AA CC                 dup1 dup1 min AA^ max CC^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                GG HH                 dup1 dup1 min GG^ max HH^
+                EE GG                 dup1 dup1 min EE^ max GG^
+                FF HH                 dup1 dup1 min FF^ max HH^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                AA EE                 dup1 dup1 min AA^ max EE^
+                CC GG                 dup1 dup1 min CC^ max GG^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                BB FF                 dup1 dup1 min BB^ max FF^
+                DD HH                 dup1 dup1 min DD^ max HH^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                U EE                  dup1 dup1 min U^  max EE^
+                U AA                  dup1 dup1 min U^  max AA^
+                S CC                  dup1 dup1 min S^  max CC^
+                W GG                  dup1 dup1 min W^  max GG^
+                W CC                  dup1 dup1 min W^  max CC^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                R BB                  dup1 dup1 min R^  max BB^
+                V FF                  dup1 dup1 min V^  max FF^
+                V BB                  dup1 dup1 min V^  max BB^
+                T DD                  dup1 dup1 min T^  max DD^
+                Z HH                  dup1 dup1 min Z^  max HH^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                A Q                   dup1 dup1 min A^  max Q^
+                I AA                  dup1 dup1 min I^  max AA^
+                I Q                   dup1 dup1 min I^  max Q^
+                E U                   dup1 dup1 min E^  max U^
+                M EE                  dup1 dup1 min M^  max EE^
+                M U                   dup1 dup1 min M^  max U^
+                E I                   dup1 dup1 min E^  max I^
+                M Q                   dup1 dup1 min M^  max Q^
+                U AA                  dup1 dup1 min U^  max AA^
+                C S                   dup1 dup1 min C^  max S^
+                K CC                  dup1 dup1 min K^  max CC^
+                K S                   dup1 dup1 min K^  max S^
+                G W                   dup1 dup1 min G^  max W^
+                O GG                            min O^
+                O W                   dup1 dup1 min O^  max W^
+                G K                   dup1 dup1 min G^  max K^
+                O S                   dup1 dup1 min O^  max S^
+                W CC                  dup1 dup1 min W^  max CC^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                O Q                   dup1 dup1 min O^  max Q^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                           min CC^
+                B R                   dup1 dup1 min B^  max R^
+                J BB                  dup1 dup1 min J^  max BB^
+                J R                   dup1 dup1 min J^  max R^
+                F V                   dup1 dup1 min F^  max V^
+                N FF                            min N^
+                N V                   dup1 dup1 min N^  max V^
+                F J                   dup1 dup1 min F^  max J^
+                N R                   dup1 dup1 min N^  max R^
+                V BB                  dup1 dup1 min V^  max BB^
+                D T                   dup1 dup1 min D^  max T^
+                L DD                  dup1 dup1 min L^  max DD^
+                L T                   dup1 dup1 min L^  max T^
+                H Z                   dup1 dup1 min H^  max Z^
+                P HH                            min P^
+                P Z                   dup1 dup1 min P^  max Z^
+                H L                   dup1 dup1 min H^  max L^
+                P T                   dup1 dup1 min P^  max T^
+                Z DD                            min Z^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                P R                   dup1 dup1 min P^  max R^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                P Q                   dup1 dup1 min P^  max Q^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                KK LL                 dup1 dup1 min KK^ max LL^
+                II KK                 dup1 dup1 min II^ max KK^
+                JJ LL                 dup1 dup1 min JJ^ max LL^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                OO PP                 dup1 dup1 min OO^ max PP^
+                MM OO                 dup1 dup1 min MM^ max OO^
+                NN PP                 dup1 dup1 min NN^ max PP^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                II MM                 dup1 dup1 min II^ max MM^
+                KK OO                 dup1 dup1 min KK^ max OO^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                JJ NN                 dup1 dup1 min JJ^ max NN^
+                LL PP                 dup1 dup1 min LL^ max PP^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                QQ RR                 dup1 dup1 min QQ^ max RR^
+                SS TT                 dup1 dup1 min SS^ max TT^
+                QQ SS                 dup1 dup1 min QQ^ max SS^
+                RR TT                 dup1 dup1 min RR^ max TT^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                II QQ                 dup1 dup1 min II^ max QQ^
+                MM QQ                 dup1 dup1 min MM^ max QQ^
+                KK SS                 dup1 dup1 min KK^ max SS^
+                OO SS                 dup1 dup1 min OO^ max SS^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                OO QQ                 dup1 dup1 min OO^ max QQ^
+                JJ RR                 dup1 dup1 min JJ^ max RR^
+                NN RR                 dup1 dup1 min NN^ max RR^
+                LL TT                 dup1 dup1 min LL^ max TT^
+                PP TT                 dup1 dup1 min PP^ max TT^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                PP RR                 dup1 dup1 min PP^ max RR^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                PP QQ                 dup1 dup1 min PP^ max QQ^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                MM QQ                 dup1 dup1 min MM^ max QQ^
+                OO SS                 dup1 dup1 min OO^ max SS^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                OO QQ                 dup1 dup1 min OO^ max QQ^
+                NN RR                 dup1 dup1 min NN^ max RR^
+                PP TT                 dup1 dup1 min PP^ max TT^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                PP RR                 dup1 dup1 min PP^ max RR^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                PP QQ                 dup1 dup1 min PP^ max QQ^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                A II                                    max II^
+                Q II                                    max II^
+                I QQ                                    max QQ^
+                AA QQ                           min AA^
+                AA II                           min AA^
+                E MM                                    max MM^
+                U MM                            min U^
+                M U                                     max U^
+                U AA                                    max AA^
+                C KK                                    max KK^
+                S KK                                    max KK^
+                K SS                                    max SS^
+                CC SS                           min CC^
+                CC KK                           min CC^
+                G OO                                    max OO^
+                W OO                            min W^
+                O W                                     max W^
+                W CC                            min W^
+                W AA                            min W^
+                B JJ                                    max JJ^
+                R JJ                                    max JJ^
+                J RR                                    max RR^
+                BB RR                           min BB^
+                BB JJ                           min BB^
+                F NN                                    max NN^
+                V NN                            min V^
+                N V                                     max V^
+                V BB                            min V^
+                D LL                                    max LL^
+                T LL                            min T^
+                L TT                            min L^
+                L T                                     max T^
+                H PP                                    max PP^
+                Z PP                            min Z^
+                P Z                             min P^
+                P T                                     max T^
+                T V                                     max V^
+                V W                 dup1 dup1 max swap2 min
+
+                X swap2 clip"                                 : \
+                                                                \
+    n == 47  ? "A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                A C                   dup1 dup1 min A^  max C^
+                B D                   dup1 dup1 min B^  max D^
+                B C                   dup1 dup1 min B^  max C^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                E G                   dup1 dup1 min E^  max G^
+                F H                   dup1 dup1 min F^  max H^
+                F G                   dup1 dup1 min F^  max G^
+                A E                   dup1 dup1 min A^  max E^
+                C G                   dup1 dup1 min C^  max G^
+                C E                   dup1 dup1 min C^  max E^
+                B F                   dup1 dup1 min B^  max F^
+                D H                   dup1 dup1 min D^  max H^
+                D F                   dup1 dup1 min D^  max F^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                I K                   dup1 dup1 min I^  max K^
+                J L                   dup1 dup1 min J^  max L^
+                J K                   dup1 dup1 min J^  max K^
+                M N                   dup1 dup1 min M^  max N^
+                O P                   dup1 dup1 min O^  max P^
+                M O                   dup1 dup1 min M^  max O^
+                N P                   dup1 dup1 min N^  max P^
+                N O                   dup1 dup1 min N^  max O^
+                I M                   dup1 dup1 min I^  max M^
+                K O                   dup1 dup1 min K^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                J N                   dup1 dup1 min J^  max N^
+                L P                   dup1 dup1 min L^  max P^
+                L N                   dup1 dup1 min L^  max N^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                A I                   dup1 dup1 min A^  max I^
+                E M                   dup1 dup1 min E^  max M^
+                E I                   dup1 dup1 min E^  max I^
+                C K                   dup1 dup1 min C^  max K^
+                G O                   dup1 dup1 min G^  max O^
+                G K                   dup1 dup1 min G^  max K^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                B J                   dup1 dup1 min B^  max J^
+                F N                   dup1 dup1 min F^  max N^
+                F J                   dup1 dup1 min F^  max J^
+                D L                   dup1 dup1 min D^  max L^
+                H P                   dup1 dup1 min H^  max P^
+                H L                   dup1 dup1 min H^  max L^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                Q S                   dup1 dup1 min Q^  max S^
+                R T                   dup1 dup1 min R^  max T^
+                R S                   dup1 dup1 min R^  max S^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                U W                   dup1 dup1 min U^  max W^
+                V Z                   dup1 dup1 min V^  max Z^
+                V W                   dup1 dup1 min V^  max W^
+                Q U                   dup1 dup1 min Q^  max U^
+                S W                   dup1 dup1 min S^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                R V                   dup1 dup1 min R^  max V^
+                T Z                   dup1 dup1 min T^  max Z^
+                T V                   dup1 dup1 min T^  max V^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                AA CC                 dup1 dup1 min AA^ max CC^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                GG HH                 dup1 dup1 min GG^ max HH^
+                EE GG                 dup1 dup1 min EE^ max GG^
+                FF HH                 dup1 dup1 min FF^ max HH^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                AA EE                 dup1 dup1 min AA^ max EE^
+                CC GG                 dup1 dup1 min CC^ max GG^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                BB FF                 dup1 dup1 min BB^ max FF^
+                DD HH                 dup1 dup1 min DD^ max HH^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                U EE                  dup1 dup1 min U^  max EE^
+                U AA                  dup1 dup1 min U^  max AA^
+                S CC                  dup1 dup1 min S^  max CC^
+                W GG                  dup1 dup1 min W^  max GG^
+                W CC                  dup1 dup1 min W^  max CC^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                R BB                  dup1 dup1 min R^  max BB^
+                V FF                  dup1 dup1 min V^  max FF^
+                V BB                  dup1 dup1 min V^  max BB^
+                T DD                  dup1 dup1 min T^  max DD^
+                Z HH                  dup1 dup1 min Z^  max HH^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                A Q                   dup1 dup1 min A^  max Q^
+                I AA                  dup1 dup1 min I^  max AA^
+                I Q                   dup1 dup1 min I^  max Q^
+                E U                   dup1 dup1 min E^  max U^
+                M EE                  dup1 dup1 min M^  max EE^
+                M U                   dup1 dup1 min M^  max U^
+                E I                   dup1 dup1 min E^  max I^
+                M Q                   dup1 dup1 min M^  max Q^
+                U AA                  dup1 dup1 min U^  max AA^
+                C S                   dup1 dup1 min C^  max S^
+                K CC                  dup1 dup1 min K^  max CC^
+                K S                   dup1 dup1 min K^  max S^
+                G W                   dup1 dup1 min G^  max W^
+                O GG                  dup1 dup1 min O^  max GG^
+                O W                   dup1 dup1 min O^  max W^
+                G K                   dup1 dup1 min G^  max K^
+                O S                   dup1 dup1 min O^  max S^
+                W CC                  dup1 dup1 min W^  max CC^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                O Q                   dup1 dup1 min O^  max Q^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                B R                   dup1 dup1 min B^  max R^
+                J BB                  dup1 dup1 min J^  max BB^
+                J R                   dup1 dup1 min J^  max R^
+                F V                   dup1 dup1 min F^  max V^
+                N FF                  dup1 dup1 min N^  max FF^
+                N V                   dup1 dup1 min N^  max V^
+                F J                   dup1 dup1 min F^  max J^
+                N R                   dup1 dup1 min N^  max R^
+                V BB                  dup1 dup1 min V^  max BB^
+                D T                   dup1 dup1 min D^  max T^
+                L DD                  dup1 dup1 min L^  max DD^
+                L T                   dup1 dup1 min L^  max T^
+                H Z                   dup1 dup1 min H^  max Z^
+                P HH                            min P^
+                P Z                   dup1 dup1 min P^  max Z^
+                H L                   dup1 dup1 min H^  max L^
+                P T                   dup1 dup1 min P^  max T^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                P R                   dup1 dup1 min P^  max R^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                DD FF                           min DD^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                P Q                   dup1 dup1 min P^  max Q^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                           min DD^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                KK LL                 dup1 dup1 min KK^ max LL^
+                II KK                 dup1 dup1 min II^ max KK^
+                JJ LL                 dup1 dup1 min JJ^ max LL^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                OO PP                 dup1 dup1 min OO^ max PP^
+                MM OO                 dup1 dup1 min MM^ max OO^
+                NN PP                 dup1 dup1 min NN^ max PP^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                II MM                 dup1 dup1 min II^ max MM^
+                KK OO                 dup1 dup1 min KK^ max OO^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                JJ NN                 dup1 dup1 min JJ^ max NN^
+                LL PP                 dup1 dup1 min LL^ max PP^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                QQ RR                 dup1 dup1 min QQ^ max RR^
+                SS TT                 dup1 dup1 min SS^ max TT^
+                QQ SS                 dup1 dup1 min QQ^ max SS^
+                RR TT                 dup1 dup1 min RR^ max TT^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                UU VV                 dup1 dup1 min UU^ max VV^
+                QQ UU                 dup1 dup1 min QQ^ max UU^
+                SS UU                 dup1 dup1 min SS^ max UU^
+                RR VV                 dup1 dup1 min RR^ max VV^
+                TT VV                 dup1 dup1 min TT^ max VV^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                TT UU                 dup1 dup1 min TT^ max UU^
+                II QQ                 dup1 dup1 min II^ max QQ^
+                MM UU                 dup1 dup1 min MM^ max UU^
+                MM QQ                 dup1 dup1 min MM^ max QQ^
+                KK SS                 dup1 dup1 min KK^ max SS^
+                OO SS                 dup1 dup1 min OO^ max SS^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                OO QQ                 dup1 dup1 min OO^ max QQ^
+                SS UU                 dup1 dup1 min SS^ max UU^
+                JJ RR                 dup1 dup1 min JJ^ max RR^
+                NN VV                 dup1 dup1 min NN^ max VV^
+                NN RR                 dup1 dup1 min NN^ max RR^
+                LL TT                 dup1 dup1 min LL^ max TT^
+                PP TT                 dup1 dup1 min PP^ max TT^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                PP RR                 dup1 dup1 min PP^ max RR^
+                TT VV                 dup1 dup1 min TT^ max VV^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                PP QQ                 dup1 dup1 min PP^ max QQ^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                TT UU                 dup1 dup1 min TT^ max UU^
+                MM QQ                 dup1 dup1 min MM^ max QQ^
+                OO SS                 dup1 dup1 min OO^ max SS^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                OO QQ                 dup1 dup1 min OO^ max QQ^
+                SS UU                 dup1 dup1 min SS^ max UU^
+                NN RR                 dup1 dup1 min NN^ max RR^
+                PP TT                 dup1 dup1 min PP^ max TT^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                PP RR                 dup1 dup1 min PP^ max RR^
+                TT VV                 dup1 dup1 min TT^ max VV^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                PP QQ                 dup1 dup1 min PP^ max QQ^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                TT UU                 dup1 dup1 min TT^ max UU^
+                A II                                    max II^
+                Q II                                    max II^
+                I QQ                                    max QQ^
+                AA QQ                           min AA^
+                AA II                           min AA^
+                E MM                                    max MM^
+                U MM                            min U^
+                M UU                            min M^
+                M U                                     max U^
+                U AA                                    max AA^
+                C KK                                    max KK^
+                S KK                                    max KK^
+                K SS                                    max SS^
+                CC SS                           min CC^
+                CC KK                 dup1 dup1 min CC^ max KK^
+                G OO                                    max OO^
+                W OO                            min W^
+                O W                                     max W^
+                W CC                            min W^
+                W AA                  dup1 dup1 min W^  max AA^
+                B JJ                                    max JJ^
+                R JJ                                    max JJ^
+                J RR                                    max RR^
+                BB RR                           min BB^
+                BB JJ                           min BB^
+                F NN                                    max NN^
+                V NN                            min V^
+                N VV                            min N^
+                N V                                     max V^
+                V BB                  dup1 dup1 min V^  max BB^
+                D LL                                    max LL^
+                T LL                  dup1 dup1 min T^  max LL^
+                L TT                  dup1 dup1 min L^  max TT^
+                DD TT                           min DD^
+                L T                                     max T^
+                DD LL                           min DD^
+                H PP                                    max PP^
+                Z PP                            min Z^
+                P Z                   dup1 dup1 min P^  max Z^
+                P T                                     max T^
+                Z DD                            min Z^
+                T V                                     max V^
+                Z BB                            min Z^
+                Z AA                            min
+                V W                                     max
+
+                X swap2 clip"                                 : \
+                                                                \
+    n == 49  ? "A B                   dup1 dup1 min A^  max B^
+                C D                   dup1 dup1 min C^  max D^
+                A C                   dup1 dup1 min A^  max C^
+                B D                   dup1 dup1 min B^  max D^
+                B C                   dup1 dup1 min B^  max C^
+                E F                   dup1 dup1 min E^  max F^
+                G H                   dup1 dup1 min G^  max H^
+                E G                   dup1 dup1 min E^  max G^
+                F H                   dup1 dup1 min F^  max H^
+                F G                   dup1 dup1 min F^  max G^
+                A E                   dup1 dup1 min A^  max E^
+                C G                   dup1 dup1 min C^  max G^
+                C E                   dup1 dup1 min C^  max E^
+                B F                   dup1 dup1 min B^  max F^
+                D H                   dup1 dup1 min D^  max H^
+                D F                   dup1 dup1 min D^  max F^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                I J                   dup1 dup1 min I^  max J^
+                K L                   dup1 dup1 min K^  max L^
+                I K                   dup1 dup1 min I^  max K^
+                J L                   dup1 dup1 min J^  max L^
+                J K                   dup1 dup1 min J^  max K^
+                M N                   dup1 dup1 min M^  max N^
+                O P                   dup1 dup1 min O^  max P^
+                M O                   dup1 dup1 min M^  max O^
+                N P                   dup1 dup1 min N^  max P^
+                N O                   dup1 dup1 min N^  max O^
+                I M                   dup1 dup1 min I^  max M^
+                K O                   dup1 dup1 min K^  max O^
+                K M                   dup1 dup1 min K^  max M^
+                J N                   dup1 dup1 min J^  max N^
+                L P                   dup1 dup1 min L^  max P^
+                L N                   dup1 dup1 min L^  max N^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                A I                   dup1 dup1 min A^  max I^
+                E M                   dup1 dup1 min E^  max M^
+                E I                   dup1 dup1 min E^  max I^
+                C K                   dup1 dup1 min C^  max K^
+                G O                   dup1 dup1 min G^  max O^
+                G K                   dup1 dup1 min G^  max K^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                B J                   dup1 dup1 min B^  max J^
+                F N                   dup1 dup1 min F^  max N^
+                F J                   dup1 dup1 min F^  max J^
+                D L                   dup1 dup1 min D^  max L^
+                H P                   dup1 dup1 min H^  max P^
+                H L                   dup1 dup1 min H^  max L^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                Q R                   dup1 dup1 min Q^  max R^
+                S T                   dup1 dup1 min S^  max T^
+                Q S                   dup1 dup1 min Q^  max S^
+                R T                   dup1 dup1 min R^  max T^
+                R S                   dup1 dup1 min R^  max S^
+                U V                   dup1 dup1 min U^  max V^
+                W Z                   dup1 dup1 min W^  max Z^
+                U W                   dup1 dup1 min U^  max W^
+                V Z                   dup1 dup1 min V^  max Z^
+                V W                   dup1 dup1 min V^  max W^
+                Q U                   dup1 dup1 min Q^  max U^
+                S W                   dup1 dup1 min S^  max W^
+                S U                   dup1 dup1 min S^  max U^
+                R V                   dup1 dup1 min R^  max V^
+                T Z                   dup1 dup1 min T^  max Z^
+                T V                   dup1 dup1 min T^  max V^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                AA BB                 dup1 dup1 min AA^ max BB^
+                CC DD                 dup1 dup1 min CC^ max DD^
+                AA CC                 dup1 dup1 min AA^ max CC^
+                BB DD                 dup1 dup1 min BB^ max DD^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                EE FF                 dup1 dup1 min EE^ max FF^
+                GG HH                 dup1 dup1 min GG^ max HH^
+                EE GG                 dup1 dup1 min EE^ max GG^
+                FF HH                 dup1 dup1 min FF^ max HH^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                AA EE                 dup1 dup1 min AA^ max EE^
+                CC GG                 dup1 dup1 min CC^ max GG^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                BB FF                 dup1 dup1 min BB^ max FF^
+                DD HH                 dup1 dup1 min DD^ max HH^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                Q AA                  dup1 dup1 min Q^  max AA^
+                U EE                  dup1 dup1 min U^  max EE^
+                U AA                  dup1 dup1 min U^  max AA^
+                S CC                  dup1 dup1 min S^  max CC^
+                W GG                  dup1 dup1 min W^  max GG^
+                W CC                  dup1 dup1 min W^  max CC^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                R BB                  dup1 dup1 min R^  max BB^
+                V FF                  dup1 dup1 min V^  max FF^
+                V BB                  dup1 dup1 min V^  max BB^
+                T DD                  dup1 dup1 min T^  max DD^
+                Z HH                  dup1 dup1 min Z^  max HH^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                DD FF                 dup1 dup1 min DD^ max FF^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                 dup1 dup1 min DD^ max EE^
+                FF GG                 dup1 dup1 min FF^ max GG^
+                A Q                   dup1 dup1 min A^  max Q^
+                I AA                  dup1 dup1 min I^  max AA^
+                I Q                   dup1 dup1 min I^  max Q^
+                E U                   dup1 dup1 min E^  max U^
+                M EE                  dup1 dup1 min M^  max EE^
+                M U                   dup1 dup1 min M^  max U^
+                E I                   dup1 dup1 min E^  max I^
+                M Q                   dup1 dup1 min M^  max Q^
+                U AA                  dup1 dup1 min U^  max AA^
+                C S                   dup1 dup1 min C^  max S^
+                K CC                  dup1 dup1 min K^  max CC^
+                K S                   dup1 dup1 min K^  max S^
+                G W                   dup1 dup1 min G^  max W^
+                O GG                  dup1 dup1 min O^  max GG^
+                O W                   dup1 dup1 min O^  max W^
+                G K                   dup1 dup1 min G^  max K^
+                O S                   dup1 dup1 min O^  max S^
+                W CC                  dup1 dup1 min W^  max CC^
+                C E                   dup1 dup1 min C^  max E^
+                G I                   dup1 dup1 min G^  max I^
+                K M                   dup1 dup1 min K^  max M^
+                O Q                   dup1 dup1 min O^  max Q^
+                S U                   dup1 dup1 min S^  max U^
+                W AA                  dup1 dup1 min W^  max AA^
+                CC EE                 dup1 dup1 min CC^ max EE^
+                B R                   dup1 dup1 min B^  max R^
+                J BB                  dup1 dup1 min J^  max BB^
+                J R                   dup1 dup1 min J^  max R^
+                F V                   dup1 dup1 min F^  max V^
+                N FF                  dup1 dup1 min N^  max FF^
+                N V                   dup1 dup1 min N^  max V^
+                F J                   dup1 dup1 min F^  max J^
+                N R                   dup1 dup1 min N^  max R^
+                V BB                  dup1 dup1 min V^  max BB^
+                D T                   dup1 dup1 min D^  max T^
+                L DD                  dup1 dup1 min L^  max DD^
+                L T                   dup1 dup1 min L^  max T^
+                H Z                   dup1 dup1 min H^  max Z^
+                P HH                  dup1 dup1 min P^  max HH^
+                P Z                   dup1 dup1 min P^  max Z^
+                H L                   dup1 dup1 min H^  max L^
+                P T                   dup1 dup1 min P^  max T^
+                Z DD                  dup1 dup1 min Z^  max DD^
+                D F                   dup1 dup1 min D^  max F^
+                H J                   dup1 dup1 min H^  max J^
+                L N                   dup1 dup1 min L^  max N^
+                P R                   dup1 dup1 min P^  max R^
+                T V                   dup1 dup1 min T^  max V^
+                Z BB                  dup1 dup1 min Z^  max BB^
+                DD FF                           min DD^
+                B C                   dup1 dup1 min B^  max C^
+                D E                   dup1 dup1 min D^  max E^
+                F G                   dup1 dup1 min F^  max G^
+                H I                   dup1 dup1 min H^  max I^
+                J K                   dup1 dup1 min J^  max K^
+                L M                   dup1 dup1 min L^  max M^
+                N O                   dup1 dup1 min N^  max O^
+                P Q                   dup1 dup1 min P^  max Q^
+                R S                   dup1 dup1 min R^  max S^
+                T U                   dup1 dup1 min T^  max U^
+                V W                   dup1 dup1 min V^  max W^
+                Z AA                  dup1 dup1 min Z^  max AA^
+                BB CC                 dup1 dup1 min BB^ max CC^
+                DD EE                           min DD^
+                II JJ                 dup1 dup1 min II^ max JJ^
+                KK LL                 dup1 dup1 min KK^ max LL^
+                II KK                 dup1 dup1 min II^ max KK^
+                JJ LL                 dup1 dup1 min JJ^ max LL^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                MM NN                 dup1 dup1 min MM^ max NN^
+                OO PP                 dup1 dup1 min OO^ max PP^
+                MM OO                 dup1 dup1 min MM^ max OO^
+                NN PP                 dup1 dup1 min NN^ max PP^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                II MM                 dup1 dup1 min II^ max MM^
+                KK OO                 dup1 dup1 min KK^ max OO^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                JJ NN                 dup1 dup1 min JJ^ max NN^
+                LL PP                 dup1 dup1 min LL^ max PP^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                QQ RR                 dup1 dup1 min QQ^ max RR^
+                SS TT                 dup1 dup1 min SS^ max TT^
+                QQ SS                 dup1 dup1 min QQ^ max SS^
+                RR TT                 dup1 dup1 min RR^ max TT^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                UU VV                 dup1 dup1 min UU^ max VV^
+                WW YY                 dup1 dup1 min WW^ max YY^
+                UU WW                 dup1 dup1 min UU^ max WW^
+                VV YY                 dup1 dup1 min VV^ max YY^
+                VV WW                 dup1 dup1 min VV^ max WW^
+                QQ UU                 dup1 dup1 min QQ^ max UU^
+                SS WW                 dup1 dup1 min SS^ max WW^
+                SS UU                 dup1 dup1 min SS^ max UU^
+                RR VV                 dup1 dup1 min RR^ max VV^
+                TT YY                 dup1 dup1 min TT^ max YY^
+                TT VV                 dup1 dup1 min TT^ max VV^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                TT UU                 dup1 dup1 min TT^ max UU^
+                VV WW                 dup1 dup1 min VV^ max WW^
+                II QQ                 dup1 dup1 min II^ max QQ^
+                MM UU                 dup1 dup1 min MM^ max UU^
+                MM QQ                 dup1 dup1 min MM^ max QQ^
+                KK SS                 dup1 dup1 min KK^ max SS^
+                OO WW                 dup1 dup1 min OO^ max WW^
+                OO SS                 dup1 dup1 min OO^ max SS^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                OO QQ                 dup1 dup1 min OO^ max QQ^
+                SS UU                 dup1 dup1 min SS^ max UU^
+                JJ RR                 dup1 dup1 min JJ^ max RR^
+                NN VV                 dup1 dup1 min NN^ max VV^
+                NN RR                 dup1 dup1 min NN^ max RR^
+                LL TT                 dup1 dup1 min LL^ max TT^
+                PP YY                 dup1 dup1 min PP^ max YY^
+                PP TT                 dup1 dup1 min PP^ max TT^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                PP RR                 dup1 dup1 min PP^ max RR^
+                TT VV                 dup1 dup1 min TT^ max VV^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                PP QQ                 dup1 dup1 min PP^ max QQ^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                TT UU                 dup1 dup1 min TT^ max UU^
+                VV WW                 dup1 dup1 min VV^ max WW^
+                MM QQ                 dup1 dup1 min MM^ max QQ^
+                OO SS                 dup1 dup1 min OO^ max SS^
+                KK MM                 dup1 dup1 min KK^ max MM^
+                OO QQ                 dup1 dup1 min OO^ max QQ^
+                SS UU                 dup1 dup1 min SS^ max UU^
+                NN RR                 dup1 dup1 min NN^ max RR^
+                PP TT                 dup1 dup1 min PP^ max TT^
+                LL NN                 dup1 dup1 min LL^ max NN^
+                PP RR                 dup1 dup1 min PP^ max RR^
+                TT VV                 dup1 dup1 min TT^ max VV^
+                JJ KK                 dup1 dup1 min JJ^ max KK^
+                LL MM                 dup1 dup1 min LL^ max MM^
+                NN OO                 dup1 dup1 min NN^ max OO^
+                PP QQ                 dup1 dup1 min PP^ max QQ^
+                RR SS                 dup1 dup1 min RR^ max SS^
+                TT UU                 dup1 dup1 min TT^ max UU^
+                VV WW                 dup1 dup1 min VV^ max WW^
+                A II                                    max II^
+                Q II                                    max II^
+                I QQ                                    max QQ^
+                AA QQ                           min AA^
+                AA II                           min AA^
+                E MM                                    max MM^
+                U MM                            min U^
+                M UU                            min M^
+                M U                                     max U^
+                U AA                                    max AA^
+                C KK                                    max KK^
+                S KK                                    max KK^
+                K SS                                    max SS^
+                CC SS                           min CC^
+                CC KK                           min CC^
+                G OO                                    max OO^
+                W OO                            min W^
+                O WW                            min O^
+                O W                                     max W^
+                W CC                            min W^
+                W AA                                    max AA^
+                B JJ                                    max JJ^
+                R JJ                                    max JJ^
+                J RR                                    max RR^
+                BB RR                           min BB^
+                BB JJ                           min BB^
+                F NN                                    max NN^
+                V NN                            min V^
+                N VV                            min N^
+                N V                                     max V^
+                V BB                                    max BB^
+                D LL                                    max LL^
+                T LL                                    max LL^
+                L TT                                    max TT^
+                DD TT                           min DD^
+                DD LL                           min DD^
+                H PP                                    max PP^
+                Z PP                            min Z^
+                P YY                            min P^
+                P Z                                     max Z^
+                Z DD                            min Z^
+                Z BB                            min Z^
+                Z AA                  dup1 dup1 max swap2 min
 
                 X swap2 clip"                                : \
                                                                \
                 Assert (false, string(n)+": Max input number reached.")
-
-    med = even ? ReplaceStr(med, "X swap2 clip", "+ 0.500001 *") : med
 
     return med }
