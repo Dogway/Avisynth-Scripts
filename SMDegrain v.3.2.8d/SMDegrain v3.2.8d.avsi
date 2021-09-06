@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.7d      by Dogway - 01 Sept 2021                              ###
+###                       v3.2.8d      by Dogway - 07 Sept 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -170,7 +170,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                                          pref.ConditionalFilter(pref.ex_Luma_Rebuild(S0=1.0,c=Amp,uv=Chr,tv_range=tv,fulls=fs),  \
                                                          pref, function[tv]() {propNumElements("_ColorRange") > 0 ? propGetInt("_ColorRange") == 1 : tv}, local=true)
 
-    pref8      = bi > 8  ? pref.ConvertBits(8,dither=-1, fulls=fs)              : pref
+    pref8      = bi > 8  ? pref.ConvertBits(8, dither=-1, fulls=fs)             : pref
     pref8      = UHDhalf ? pref8.BilinearResize(nw+nw%2, nh+nh%2, src_top=-0.5) : pref8  # todo: fix for MPEG1 to top_left (UHD default)
 
 
@@ -455,7 +455,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 ########################################################
 #                                                      #
-# HELPER FUNCTIONS: For Prefilter                      #
+#     HELPER FUNCTIONS: For Prefilter                  #
 #                                                      #
 ########################################################
 
@@ -474,7 +474,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 ## Output is different by default, medians have been replaced with edge retaining versions...
 ## and a following blur to mimic the old fat lines (needed?). Enable 'old' for old output.
 
-function ex_MinBlur(clip clp, int "r", int "UV", bool "planar", string "mode", bool "sharp", bool "old", int "Y", bool "fulls") {
+function ex_MinBlur(clip clp, int "r", int "UV", string "mode", bool "sharp", bool "old", int "Y", bool "fulls") {
 
     r       = Default(r,  1)
     UV      = Default(UV, 3)
@@ -495,10 +495,10 @@ function ex_MinBlur(clip clp, int "r", int "UV", bool "planar", string "mode", b
     med   = mode=="median"
     rg4v  = med && (r<=1)
 
-    blurstr = mode == "median"          ? """ex_median(              "smart", UV=uv)""" : \
-              mode == "blur"            ? """ex_boxblur(r*2, r*2, "weighted", UV=uv)""" : \
-              mode == "blur_horizontal" ? """ex_boxblur(r*2,   0, "weighted", UV=uv)""" : \
-              mode == "blur_vertical"   ? """ex_boxblur(0,   r*2, "weighted", UV=uv)""" : \
+    blurstr = mode == "median"          ? """ex_median(              "smart", UV=uv, fulls=fs)""" : \
+              mode == "blur"            ? """ex_boxblur(r*2, r*2, "weighted", UV=uv)"""           : \
+              mode == "blur_horizontal" ? """ex_boxblur(r*2,   0, "weighted", UV=uv)"""           : \
+              mode == "blur_vertical"   ? """ex_boxblur(0,   r*2, "weighted", UV=uv)"""           : \
               mode
 
     rg12D = (r==0) ? ex_makediff(clp,clp.ex_sbr(Y=Y,UV=UV,fulls=fs),Y=Y,UV=UV,fulls=fs)                                                   : \
@@ -583,7 +583,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 
 
 
-## ex_retinex()   by Dogway (31-08-2021)
+## ex_retinex()   by Dogway (01-09-2021)
 ##
 ## Multi-Scale Retinex
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
@@ -601,25 +601,24 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ## Dependencies:
 ##               ExTools
 ##               GradePack
-##               FRC_GaussianBlur42 (inside FrameRateConverter)
 ##
-function ex_retinex(clip a, float "sigma", int "percentile", bool "tv_range", int "UV", bool "fulls") {
+function ex_retinex(clip a, float "sigma", int "per", bool "tv_range", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     bi  = BitsPerComponent(a)
 
     r  = Default(sigma,       1)     # from 1 to 5 roughly (leave it at 1 for the most time)
-    p  = Default(percentile, 10)     # percentile for min & max for automatic levels (crop black borders beforehand)
+    p  = Default(per,        10)     # min & max percentile for automatic levels (crop black borders beforehand)
     tv = Default(tv_range, !rgb)     # range of input clip
     UV = Default(UV,          3)     # Set to 3 to convert Chroma to PC range
     fs = Default(fulls,     rgb)
 
     p = p < 1 ? 0 : max(p,1)/100.
-    w = max(a.Width(),a.Height()) * r
+    w = max(a.Width(),a.Height())
 
-    b = a.FRC_GaussianBlur42(w*0.015)
-    c = a.FRC_GaussianBlur42(w/2.*0.5).FRC_GaussianBlur42(w/2.*0.5)
-    d = ScriptClip(a,"""ex_lut(a,Format(""+string(a.AverageLuma())+""),UV=rgb?3:1)""",args="a,rgb")
+    b = a.ex_gaussianblur(w*0.015 * r)
+    c = a.ex_gaussianblur(w*0.05  * r)
+    d = ScriptClip(a,"ex_lut(a,string(rgb?a.AverageG():a.AverageLuma()),UV=rgb?3:1)",args="a,rgb")
 
     rangePC =                        tv ? "ymin - ymax ymin - /" : "range_max /"
     str     = Format("x "+rangePC+" A@ log y 0.200001 * z 0.100001 * a 0.700001 * + + "+rangePC+" A * log / 1 swap - range_max *")
@@ -627,12 +626,18 @@ function ex_retinex(clip a, float "sigma", int "percentile", bool "tv_range", in
 
     MSR     = ex_lutxyza(a,b,c,d, str, strC, UV=uv, fulls=fs)
 
-    ScriptClip(MSR,"""
+    ScriptClip(MSR,"
+    
+    pmin  = rgb ? (MSR.GPlaneMin(p) + MSR.GPlaneMin(p,-2) + MSR.GPlaneMin(p,2)) / 3. : \
+                  (MSR.YPlaneMin(p) + MSR.YPlaneMin(p,-2) + MSR.YPlaneMin(p,2)) / 3.
+                  
+    pmax  = rgb ? (MSR.GPlaneMax(p) + MSR.GPlaneMax(p,-2) + MSR.GPlaneMax(p,2)) / 3. : \
+                  (MSR.YPlaneMax(p) + MSR.YPlaneMax(p,-2) + MSR.YPlaneMax(p,2)) / 3.
 
-    min  = ex_bs((MSR.YPlaneMin(p) + MSR.YPlaneMin(p,-2) + MSR.YPlaneMin(p,2)) / 3., bi, 8, ifulls=fs)
-    max  = ex_bs((MSR.YPlaneMax(p) + MSR.YPlaneMax(p,-2) + MSR.YPlaneMax(p,2)) / 3., bi, 8, ifulls=fs)
+    min  = ex_bs(pmin, bi, 8, ifulls=fs)
+    max  = ex_bs(pmax, bi, 8, ifulls=fs)
 
-    min > 0 || max < 255 ? MSR.ex_levels(min,1.0,max,0,255,false,1,fs) : MSR""",args="MSR,p,bi,fs",local=true) }
+    min > 0 || max < 255 ? MSR.ex_levels(min,1.0,max,0,255,false,rgb?3:1,fs) : MSR",args="MSR,p,rgb,bi,fs",local=true) }
 
 
 
@@ -678,14 +683,14 @@ function ex_BM3D(clip a, float "sigma", int "radius", int "UV") {
 
     ch = !(isy || UV!=3)
     ch ? ConverttoYUV444(a,chromaresample="spline16") : a
-    ConvertBits(bits=32)
+    ConvertBits(bits=32, fulls=fs)
 
     BM3D_CUDA(sigma=[s,ch?s/2:0,ch?s/2:0], radius=r, chroma=ch, fast=true, extractor_exp=6)
     BM3D_VAggregate(radius=r)
 
     if (bi < 32) {
-        ConvertBits(bits=16, dither=-1)
-        ConvertBits(bits=bi, dither= 1)
+        ConvertBits(bits=16, dither=-1, fulls=fs)
+        ConvertBits(bits=bi, dither= 1, fulls=fs)
     }
     ch ? MatchColorFormat(a) : mergechroma(a) }
 
@@ -722,8 +727,8 @@ function ex_KNLMeansCL (clip input, String "device_type", int "device_id", bool 
                 rNL_lsb = drclip ? (chr420 ? StackVertical(  urclip, vrclip)  : \
                                              StackHorizontal(urclip, vrclip)) : nop()
 
-                nlc     =          StackHorizontal(ConvertToY(input),  NL_lsb)
-                nlrc    = drclip ? StackHorizontal(ConvertToY(rclip) ,rNL_lsb) : Undefined
+                nlc     =          StackHorizontal(ExtractY(input),  NL_lsb)
+                nlrc    = drclip ? StackHorizontal(ExtractY(rclip) ,rNL_lsb) : Undefined
 
                 nlc     = Eval("nlc.KNLMeansCL(D=d, A=a, h=h, device_type=device_type, device_id=deviceid, rclip=nlrc, channels=cnl" + knlm_params + ")")
 
