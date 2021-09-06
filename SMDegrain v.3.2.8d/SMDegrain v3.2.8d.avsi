@@ -583,7 +583,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 
 
 
-## ex_retinex()   by Dogway (01-09-2021)
+## ex_retinex()   by Dogway (06-09-2021)
 ##
 ## Multi-Scale Retinex
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
