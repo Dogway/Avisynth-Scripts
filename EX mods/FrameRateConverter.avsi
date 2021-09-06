@@ -1,12 +1,12 @@
 # Frame Rate Converter ex mod
-# Version: 1.4.8  (15-08-2021)
+# Version: 1.5.0  (06-09-2021)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (1.4.6) (07-08-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
+# Dogway (1.5.0) (06-09-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools.avsi, Utils-r41.avsi and AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -88,7 +88,7 @@
 ##                 Other values provide a result in-between to eliminate ghost effects. Default = 40.
 ##
 ##
-## Presets
+## PRESETS
 ## Faster:  Basic interpolation
 ## Fast:    MRecalculate
 ## Normal:  MRecalculate with DCT=4
@@ -175,7 +175,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     ## "B" - Blending, "BHard" - No blending
     B = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
     BHard  = C.ChangeFps (NewNum, NewDen)
-    C_luma = C.ConvertToY()
+    C_luma = C.ExtractY()
     Blank  = BlankClip(C_luma, color_yuv=$000000)
     bi     = C.BitsPerComponent()
 
@@ -218,6 +218,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     fwd2  = CalcDiff ? Recalculate ? MRecalculate(super, fwd2, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100) : fwd : nop()
     bak2  = CalcDiff ? Recalculate ? MRecalculate(super, bak2, mt=true, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100) : bak : nop()
     Flow2 = CalcDiff ? MFlowFps(C, superR, bak2, fwd2, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255) : nop()
+
     # Get raw mask again
     EM2    = CalcDiff ? MaskThr > 0 ? C_luma.MMask(bak2, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank : nop()
     EMfwd2 = CalcDiff ? MaskThr > 0 ? C_luma.MMask(fwd2, ml=255, kind=1, gamma=1/gam, thSCD2=SkipOver) : EM2 : nop()
@@ -225,12 +226,14 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EMocc2 = CalcDiff ? MaskOcc > 0 ? C_luma.MMask(bak2, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).ex_inpand() : Blank : nop()
     EM2    = CalcDiff ? MaskOcc > 0 ? ex_blend(EM2,EMocc2,"lighten",0.4,UV=1,tv_range=false,fulls=fs)  : EM2 : nop()
     # Get difference mask between two versions
+
     thb    = ex_bs(60,8,bi,fulls=fs)
     EMdiff = CalcDiff ? ex_makediff(EM, EM2, dif=false, fulls=fs)
     \       .BicubicResize(round(wb)*4, round(hb)*4)
-    \       .Expr(ex_dlut(Format("x[-2,0] x[-1,-1] max x[-1,0] max x[-1,1] max x[0,-2] max x[0,-1] max x[0,1] max x[0,2] max x[1,-1] max x[1,0] max x[1,1] max x[2,0] max x max {thb} > range_max 0 ?"), bi, fs))
+    \       .ex_lut(Format("x[-2,0] x[-1,-1] max x[-1,0] max x[-1,1] max x[0,-2] max x[0,-1] max x[0,1] max x[0,2] max x[1,-1] max x[1,0] max x[1,1] max x[2,0] max x max {thb} > range_max 0 ?"), fulls=fs)
     \       .ex_boxblur(4,mode="weighted")
     \       .BicubicResize(w, h) : nop()
+
     # Apply mask to Flow / EM
     EMdiff = CalcDiff ? OutFps ? EMdiff.ChangeFPS(NewNum, NewDen) : EMdiff : nop()
     Flow   = CalcDiff ? ex_merge(Flow, Flow2, EMdiff.MatchColorFormat(Flow,"PC.601"), luma=true, UV=3, fulls=fs) : Flow
@@ -242,9 +245,9 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
 
     # Create skip mask
     SkipThrb = ex_bs(SkipThr,8,bi,fulls=fs)
-    EMskip = EM.BicubicResize(wb4, hb4)
-    \       .Expr(ex_dlut(Format("x[-1,0] x[0,-1] max x[0,1] max x[1,0] max x max {SkipThrb} > range_max 0 ?"), bi, fs))
-    OutSkip = EMskip.BicubicResize(w, h)
+    EMskip   = EM.BicubicResize(wb4, hb4)
+    \         .ex_lut(Format("x[-1,0] x[0,-1] max x[0,1] max x[1,0] max x max {SkipThrb} > range_max 0 ?"), fulls=fs)
+    OutSkip  = EMskip.BicubicResize(w, h)
 
     ## Create artifact correction mask
     OutRaw   = EM
@@ -252,8 +255,8 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     ## Expand 'circle' with binarize
     ## Blur(0.6)
     EM = EM.BicubicResize(wb4, hb4)
-    \       .Expr(ex_dlut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {MaskThrb} > range_max 0 ?"), bi, fs))
-    \       .Expr("x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 4 * x[-1,1] x[1,1] x 14 * x[-1,-1] x[1,-1] + + + + + 1 34 / *")
+    \       .ex_lut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {MaskThrb} > range_max 0 ?"), fulls=fs)
+    \       .ex_lut("x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 4 * x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 14 * + + + + + 0.029411765 *", fulls=fs)
     \       .BicubicResize(w, h)
 
     # Mask: Stripes
@@ -262,9 +265,9 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     \      .BicubicResize(round(wb)*4, round(hb)*4)
     \      .ContinuousMask(22)
     EMstp = EMstp.BicubicResize(EMstp.Width()/2, EMstp.Height()/2)
-    \      .Expr(ex_dlut(Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min x min {thb} > range_max 0 ?"), bi, fs))
+    \      .ex_lut(Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min x min {thb} > range_max 0 ?"), fulls=fs)
     \      .ex_expand(2,mode="circle").ex_expand(2,mode="square").ex_expand(2,mode="circle").ex_expand()
-    \      .FRC_GaussianBlur42(2.8)
+    \      .ex_GaussianBlur(2.1)
     \      .BicubicResize(w, h)
 
     ## "M" - Apply artifact removal
@@ -279,8 +282,8 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     M  = BlendOver > 0 ? ConditionalFilter(EMskip, M, M2,    "AverageLuma", "<", string(BlendOver)) : M
 
     # Prepare Output=Over: Mask(cyan), Stripes(yellow)
-    FlowOver =       ex_blend(Flow,    CombinePlanes(Blank, EM, EM,       planes="RGB").MatchColorFormat(Flow,    "PC.601"), "add",0.4,UV=1,tv_range=false,fulls=fs)
-    FlowOver = Stp ? ex_blend(FlowOver,CombinePlanes(EMstp, EMstp, Blank, planes="RGB").MatchColorFormat(FlowOver,"PC.601"), "add",0.4,UV=1,tv_range=false,fulls=fs) : FlowOver
+    FlowOver =       ex_blend(Flow,    CombinePlanes(Blank, EM, EM,       planes="RGB").MatchColorFormat(Flow,    "PC.601"), "add", 0.4, UV=1, tv_range=false, fulls=fs)
+    FlowOver = Stp ? ex_blend(FlowOver,CombinePlanes(EMstp, EMstp, Blank, planes="RGB").MatchColorFormat(FlowOver,"PC.601"), "add", 0.4, UV=1, tv_range=false, fulls=fs) : FlowOver
 
     # Output modes
     R=  (Oput==0)                              [** auto: artifact masking     *]
@@ -342,51 +345,4 @@ function InterpolateDoubles(clip C, float "Thr", bool "Show", string "Preset", i
     Flow = (Show) ? Flow.Subtitle("FRAME FIXED",size=30,text_color=$0000FF,align=5) : Flow
 
     return ConditionalFilter(PrevC, Flow, C, "YDifferenceToNext", "lessthan", string(thr))
-}
-
-
-
-
-#######################################################################
-### Emulate [[VariableBlur/GaussianBlur]]
-##  For YUV, effective chroma blur varies depending on source
-##  color subsampling - YUV444 has *more* chroma blur, others less.
-##
-## @ var - works like GaussianBlur's varY
-## @ rad - blur radius (<var> squared); overrides <var>
-## @ vvar, vrad - vertical var & rad; default same as horizontal
-## @ p  - final [[GaussResize]] sharpness. Default 19
-##        (if > 25, blockiness; if < 15, loss of contrast)
-##
-## version 2013-10-23 raffriff42
-## version 2014-05-31 discrete hor. and vert. args
-## version 2017-05-21 bugfix: blockiness
-##
-function FRC_GaussianBlur42(clip C,
-\               float "var", float "rad",
-\               float "vvar", float "vrad", float "p")
-{
-    var = Max(0.0, Float(Default(var, 1.0)))
-    rad = Max(1.0, Float(Default(rad, Pow(var, 0.5))))
-    var = Pow(Min(Max(0.0, rad), 60.0), 1.9) ## arbitrary max radius = 60
-
-    vvar = Max(0.0, Float(Default(vvar, var)))
-    vrad = Max(1.0, Float(Default(vrad, Pow(vvar, 0.5))))
-    vvar = Pow(Min(Max(0.0, vrad), 60.0), 1.9)
-    p    = Default(p, 19)
-
-    w0 = C.Width()
-    h0 = C.Height()
-    w1 = round(w0/rad)
-    h1 = round(h0/vrad)
-
-    B = C.BilinearResize(
-    \         Min(Max(4, w1 + (w1 % 2)), w0),
-    \         Min(Max(4, h1 + (h1 % 2)), h0))
-
-    B = B.ex_boxblur(2,mode="weighted",UV=3)
-
-    return (var<0.01 && vvar<0.01)       ? C
-    \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize(w0, h0, p=p)
-    \                                    : B.BilinearResize(w0, h0)
 }
