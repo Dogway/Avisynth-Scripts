@@ -718,7 +718,7 @@ function SeeSaw( clip  input, clip "denoised",
     (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),     fulls=fs)
 
       Slimit>=0  ? ex_lutxy(last, sharpdiff,   Format("y range_half {SLIM} + > x {SLIM} - y range_half {SLIM} - < x {SLIM} + x y range_half - - ? ?"), fulls=fs) : \
-                   ex_lutxy(last, sharpdiff,   Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?"),                , fulls=fs)
+                   ex_lutxy(last, sharpdiff,   Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?"),                  fulls=fs)
 
     isy ? last : CombinePlanes(last, input, planes="YUV", sample_clip=input) }
 
@@ -786,10 +786,10 @@ function SeeSaw2( clip  input, clip "denoised",
     ex_SootheSS2(last, tame, sootheT, sootheS, true, 2, fs)
     sharpdiff = ex_makediff(tame, last, fulls=fs)
 
-    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),   , fulls=fs)
+    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?")    , fulls=fs)
 
       Slimit>=0  ? ex_lutxy(last, sharpdiff,   Format("y range_half {SLIM} + > x {SLIM} - y range_half {SLIM} - < x {SLIM} + x y range_half - - ? ?"), fulls=fs) : \
-                   ex_lutxy(last, sharpdiff,   Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?"),                , fulls=fs)
+                   ex_lutxy(last, sharpdiff,   Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?")                 , fulls=fs)
 
     isy ? last : CombinePlanes(last, input, planes="YUV", sample_clip=input) }
 
