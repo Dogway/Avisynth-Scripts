@@ -4306,6 +4306,7 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center") {
 
     krn = md == "ring" && cn ? krn+" x[0,0] X^ " : krn
 
+    # Hard limit
     pxc = FindStrInstance(krn, "^")
           Assert( pxc < 51, string(pxc)+": Maximum pixel fetching count reached for '"+md+"' mode.")
 
@@ -6400,7 +6401,7 @@ function sel_med(int n) {
                 J BB                  dup1 dup1 min J^  max BB^
                 J R                   dup1 dup1 min J^  max R^
                 F V                   dup1 dup1 min F^  max V^
-                N FF                  dup1 dup1 min N^  max FF^
+                N FF                            min N^
                 N V                   dup1 dup1 min N^  max V^
                 F J                   dup1 dup1 min F^  max J^
                 N R                   dup1 dup1 min N^  max R^
@@ -6411,12 +6412,12 @@ function sel_med(int n) {
                 N P                   dup1 dup1 min N^  max P^
                 R T                   dup1 dup1 min R^  max T^
                 V Z                   dup1 dup1 min V^  max Z^
-                BB DD                 dup1 dup1 min BB^ max DD^
+                BB DD                           min BB^
                 A Q                   dup1 dup1 min A^  max Q^
                 I AA                  dup1 dup1 min I^  max AA^
                 I Q                   dup1 dup1 min I^  max Q^
                 E U                   dup1 dup1 min E^  max U^
-                M EE                  dup1 dup1 min M^  max EE^
+                M EE                            min M^
                 M U                   dup1 dup1 min M^  max U^
                 E I                   dup1 dup1 min E^  max I^
                 M Q                   dup1 dup1 min M^  max Q^
@@ -6439,7 +6440,7 @@ function sel_med(int n) {
                 A B                   dup1 dup1 min A^  max B^
                 C D                   dup1 dup1 min C^  max D^
                 E F                   dup1 dup1 min E^  max F^
-                G H                   dup1 dup1 min G^  max H^
+                G H                             min G^
                 I J                                     max J^
                 K L                   dup1 dup1 min K^  max L^
                 M N                   dup1 dup1 min M^  max N^
@@ -7206,7 +7207,7 @@ function sel_med(int n) {
                 K CC                  dup1 dup1 min K^  max CC^
                 K S                   dup1 dup1 min K^  max S^
                 G W                   dup1 dup1 min G^  max W^
-                O GG                  dup1 dup1 min O^  max GG^
+                O GG                            min O^
                 O W                   dup1 dup1 min O^  max W^
                 G K                   dup1 dup1 min G^  max K^
                 O S                   dup1 dup1 min O^  max S^
@@ -7513,7 +7514,7 @@ function sel_med(int n) {
                 K CC                  dup1 dup1 min K^  max CC^
                 K S                   dup1 dup1 min K^  max S^
                 G W                   dup1 dup1 min G^  max W^
-                O GG                  dup1 dup1 min O^  max GG^
+                O GG                            min O^
                 O W                   dup1 dup1 min O^  max W^
                 G K                   dup1 dup1 min G^  max K^
                 O S                   dup1 dup1 min O^  max S^
@@ -7538,7 +7539,7 @@ function sel_med(int n) {
                 L DD                  dup1 dup1 min L^  max DD^
                 L T                   dup1 dup1 min L^  max T^
                 H Z                   dup1 dup1 min H^  max Z^
-                P HH                  dup1 dup1 min P^  max HH^
+                P HH                            min P^
                 P Z                   dup1 dup1 min P^  max Z^
                 H L                   dup1 dup1 min H^  max L^
                 P T                   dup1 dup1 min P^  max T^
