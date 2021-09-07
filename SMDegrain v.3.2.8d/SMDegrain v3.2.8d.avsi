@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.8d      by Dogway - 06 Sept 2021                              ###
+###                       v3.2.8d      by Dogway - 07 Sept 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -156,7 +156,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                  (prefilter== 3) ?  ex_merge(dfttest(inputP,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1),inputP,                                                 \
                                                     inputP.ex_lut(Format("x ymin < range_max x {Lthres} > 0 range_max x ymin - range_max {Lthres} ymin - / * - ? ?"),UV=1,fulls=fs), luma=chroma, UV=chr, fulls=fs) : \
                                  (prefilter== 4) ?  inputP.ex_KNLMeansCL(device_type="GPU", device_id=device_id, chroma=chroma, a=1,d=1,h=7.0)                                                                      : \
-                                 (prefilter== 5) ?  inputP.ex_BM3D(sigma=5,radius=1,UV=Chr)                                                                                                                         : \
+                                 (prefilter== 5) ?  inputP.ex_BM3D(sigma=5,radius=1,CUDA=true,UV=Chr,fulls=fs)                                                                                                      : \
                                                     Assert(false, "prefilter must be between -1~5: "+string(prefilter))                                                                                             : \
                                  inputP
 
@@ -239,9 +239,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 bv1  = !isInter             ? !GlobalR ?  bv1.MScaleVect() :  bv1 : nop()             fv1  = !isInter             ? !GlobalR ?  fv1.MScaleVect() :  fv1 : nop()
                 bv2  = (isInter ||  tr > 1) ? !GlobalR ?  bv2.MScaleVect() :  bv2 : nop()             fv2  = (isInter ||  tr > 1) ? !GlobalR ?  fv2.MScaleVect() :  fv2 : nop()
                 bv3  = !isInter && (tr > 2) ? !GlobalR ?  bv3.MScaleVect() :  bv3 : nop()             fv3  = !isInter && (tr > 2) ? !GlobalR ?  fv3.MScaleVect() :  fv3 : nop()
-                bv4  =              t2 > 3  ? !GlobalR ?  bv4.MScaleVect() :  bv4 : nop()             fv4  =                 t2 > 3  ? !GlobalR ?  fv4.MScaleVect() :  fv4 : nop()
+                bv4  =              t2 > 3  ? !GlobalR ?  bv4.MScaleVect() :  bv4 : nop()             fv4  =              t2 > 3  ? !GlobalR ?  fv4.MScaleVect() :  fv4 : nop()
                 bv5  = !isInter && (tr > 4) ? !GlobalR ?  bv5.MScaleVect() :  bv5 : nop()             fv5  = !isInter && (tr > 4) ? !GlobalR ?  fv5.MScaleVect() :  fv5 : nop()
-                bv6  =              t2 > 5  ? !GlobalR ?  bv6.MScaleVect() :  bv6 : nop()             fv6  =                 t2 > 5  ? !GlobalR ?  fv6.MScaleVect() :  fv6 : nop()
+                bv6  =              t2 > 5  ? !GlobalR ?  bv6.MScaleVect() :  bv6 : nop()             fv6  =              t2 > 5  ? !GlobalR ?  fv6.MScaleVect() :  fv6 : nop()
                 bv8  =  isInter && (tr > 3) ? !GlobalR ?  bv8.MScaleVect() :  bv8 : nop()             fv8  =  isInter && (tr > 3) ? !GlobalR ?  fv8.MScaleVect() :  fv8 : nop()
                 bv10 =  isInter && (tr > 4) ? !GlobalR ? bv10.MScaleVect() : bv10 : nop()             fv10 =  isInter && (tr > 4) ? !GlobalR ? fv10.MScaleVect() : fv10 : nop()
                 bv12 =  isInter && (tr > 5) ? !GlobalR ? bv12.MScaleVect() : bv12 : nop()             fv12 =  isInter && (tr > 5) ? !GlobalR ? fv12.MScaleVect() : fv12 : nop()
@@ -627,10 +627,10 @@ function ex_retinex(clip a, float "sigma", int "per", bool "tv_range", int "UV",
     MSR     = ex_lutxyza(a,b,c,d, str, strC, UV=uv, fulls=fs)
 
     ScriptClip(MSR,"
-    
+
     pmin  = rgb ? (MSR.GPlaneMin(p) + MSR.GPlaneMin(p,-2) + MSR.GPlaneMin(p,2)) / 3. : \
                   (MSR.YPlaneMin(p) + MSR.YPlaneMin(p,-2) + MSR.YPlaneMin(p,2)) / 3.
-                  
+
     pmax  = rgb ? (MSR.GPlaneMax(p) + MSR.GPlaneMax(p,-2) + MSR.GPlaneMax(p,2)) / 3. : \
                   (MSR.YPlaneMax(p) + MSR.YPlaneMax(p,-2) + MSR.YPlaneMax(p,2)) / 3.
 
@@ -671,7 +671,7 @@ function ex_retinex(clip a, float "sigma", int "per", bool "tv_range", int "UV",
 #   | "vn"    || 4/4    | 2/2    | 5/6      | 1/1/1/1 |
 #   ---------------------------------------------------
 
-function ex_BM3D(clip a, float "sigma", int "radius", int "UV") {
+function ex_BM3D(clip a, float "sigma", int "radius", bool "CUDA", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -679,14 +679,17 @@ function ex_BM3D(clip a, float "sigma", int "radius", int "UV") {
 
     s  = Default(sigma,    3)
     r  = Default(radius,   1)
-    UV = Default(UV, rgb ? 3 : 1)
+    cd = Default(CUDA,  true)
+    UV = Default(UV,    rgb ? 3 : 1)
+    fs = Default(fulls, rgb)
 
     ch = !(isy || UV!=3)
     ch ? ConverttoYUV444(a,chromaresample="spline16") : a
     ConvertBits(bits=32, fulls=fs)
 
-    BM3D_CUDA(sigma=[s,ch?s/2:0,ch?s/2:0], radius=r, chroma=ch, fast=true, extractor_exp=6)
-    BM3D_VAggregate(radius=r)
+    cd ? BM3D_CUDA(sigma=[s,ch?s/2:0,ch?s/2:0], radius=r, chroma=ch, fast=true, extractor_exp=6) : \
+         BM3D_CPU( sigma=[s,ch?s/2:0,ch?s/2:0], radius=r, chroma=ch)
+         BM3D_VAggregate(radius=r)
 
     if (bi < 32) {
         ConvertBits(bits=16, dither=-1, fulls=fs)
