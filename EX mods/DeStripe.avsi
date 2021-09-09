@@ -9,6 +9,7 @@
 ## "thr is strength, rad is "how big are the (whatevers)" offset is "how far apart are they" rad goes from 1 to 5, offset from 1 to 4, thr from 1 to bignumber"
 ##
 
+# revise thr in HBD
 function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV", bool "fulls") {
 
     rgb  = isRGB(C)
@@ -47,9 +48,7 @@ function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV", bool "f
                             offset == 2 ? ex_luts(Diff, mode="med", pixels = "0 -4 0 -3          0 0         0 3 0 4", expr = expr, UV=uv, fulls=fs) : \
                                           ex_luts(Diff, mode="med", pixels = "0 -4               0 0             0 4", expr = expr, UV=uv, fulls=fs) : MedianDiff
 
-    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv, fulls=fs)
-
-    UV == 1 ? mergechroma(last, C, 1) : last }
+    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv, fulls=fs) }
 
 
 
@@ -91,6 +90,4 @@ function DeStripeV(Clip C, int "rad", int "offset", int "thr", int "UV",  bool "
                             offset == 2 ? ex_luts(Diff, mode="med", pixels = "-4 0 -3 0          0 0         3 0 4 0", expr = expr, UV=uv, fulls=fs) : \
                                           ex_luts(Diff, mode="med", pixels = "-4 0               0 0             4 0", expr = expr, UV=uv, fulls=fs) : MedianDiff
 
-    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv, fulls=fs)
-
-    UV == 1 ? mergechroma(last, C, 1) : last }
+    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv, fulls=fs) }
