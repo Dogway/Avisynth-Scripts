@@ -1116,10 +1116,10 @@ function ex_GaussianBlur(clip C, float "sigma", float "sigmaV", int "Y", int "UV
     rgb = isRGB(C)
     isy = isy(C)
 
-    rad  = Default(sigma,      10)
-    radv = Default(sigmaV,  sigma)
+    rad  = Default(sigma,    10)
+    radv = Default(sigmaV,  rad)
     Y    = Default(Y,       3)
-    UV   = Default(UV,      3)  # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower
+    UV   = Default(UV,      3)    # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower
 
 
     rad  = 1.221428*rad  +0.136   # Parametrized to gaussian like standard deviation
