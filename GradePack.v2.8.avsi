@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v2.7 (01-09-2021)               ##
+###           Grade Pack v2.8 (09-09-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
@@ -121,7 +121,8 @@ function ex_vibrance (clip c, val Sat, float "bias", string "mode", clip "Rc", b
 
 ###
 ###                 v3.0 (19-01-2014)
-### ex_contrast() - v5.0 (15-07-2021)
+###                 v5.0 (15-07-2021)
+### ex_contrast() - v6.0 (09-09-2021)
 ###
 ###
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
@@ -132,7 +133,7 @@ function ex_vibrance (clip c, val Sat, float "bias", string "mode", clip "Rc", b
 ###
 ### Apply over gamma encoded clip
 ###
-### Example: ex_contrast(0.7, 0.0, 127.5, true)
+### Example: ex_contrast(0.7, 1.0, 127.5, true)
 ###
 ####################################
 
@@ -143,26 +144,25 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     isy   = isy(c)
     bi    = BitsPerComponent(c)
 
+    UV    = Default(UV, Defined(sat) || rgb ? 3 : 1)
     cont  = Default(cont, 0.0)             # [-1.0 to +1.0] can set further though
-    sat   = Default(sat,  cont/1.5)        # [-1.0 to +1.0]
+    sat   = Default(sat,  (cont+3)/3)      # [ 0.0 to +inf]
     pivot = Default(pivot, 127.5)          # Pivot: 64 to 192 (roughly)
     tv    = Default(tv_range, !rgb)        # TV or PC. Luma range of your source
-    UV    = Default(UV, Defined(sat) || rgb ? 3 : 1)
     fs    = Default(fulls,     rgb)
+
+    pivot = ex_bs(pivot, 8, 32, fulls=fs, tv_out=tv) # Pivot to float TV levels
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
+    rangePC  = tv ? "x ymin - ymax ymin - /"                   : "x range_max /"
+    rangeTV  = tv ? "ymax ymin - * ymin +"                     : "  range_max *"
+    rangePCc = tv ? "x range_half - range_max cmax cmin - / *" : "x range_half -"
+    rangeTVc = tv ? "cmax cmin - range_max / * range_half +"   : "  range_half +"
 
-    rangePC  = tv ? "x ymin - ymax ymin - /" : "x range_max /"
-    rangeTV  = tv ? "ymax ymin - * ymin +"   : "  range_max *"
-
-    rangePCc = tv ? "x range_half - range_max cmax cmin - / * range_half +" : "x"
-    rangeTVc = tv ?   "range_half - cmax cmin - range_max / * range_half +" : ""
-
-    sat    = sat != 0. ? (1.-max(min(sat, 1.), -1.))/2. - 0.5 : 0.
     cont   = pow(cont + sign(cont), 3.)
     rcont  = 1. / cont
-    pivot  = pivot / 255.
+
     knee   = 1. / (1. + exp(cont *  pivot))
     shldr  = 1. / (1. + exp(cont * (pivot - 1.)))
     shmkn  = shldr - knee
@@ -172,7 +172,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     yconti = "{pivot} 1 "+rangePC+" {shmkn} * {knee} + / 1 - log {rcont} * - "+rangeTV+""
     str    = cont != 0. ? ex_dlut(Format(cont > 0. ? ycont : yconti), bi, fs) : ""
 
-    cstr = sat != 0. ? Format(""+string(1. - sat)+" "+rangePCc+" dup swap2 * range_max swap1 swap2 - {sat} * + "+rangeTVc+"") : ""
+    cstr = sat != 1. ? Format(""+rangePCc+" {sat} * "+rangeTVc+"") : ""
     cstr = rgb ? str : ex_dlut(ex_UVexpr(cstr, UV, bi, rgb, fs), bi, fs)
 
     isy     ? Expr(c, str                                    ) : \
@@ -182,7 +182,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
 
 ###
-### ex_levels() - v2.1 (01-09-2021)
+### ex_levels() - v3.0 (09-09-2021)
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
@@ -216,13 +216,15 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
-    rangePC = tv ? "x ymin - range_max ymax ymin - / *" : "x"
-    rangeTV = tv ? " ymax ymin - range_max / * ymin + " : ""
+    rangePC  = tv ? "x ymin - range_max ymax ymin - / *"        : "x"
+    rangeTV  = tv ? " ymax ymin - range_max / * ymin + "        : ""
+    rangePCc = tv ? "x range_half - range_max cmax cmin - / * " : "x range_half - "
+    rangeTVc = tv ?   "cmax cmin - range_max / * range_half +"  : "range_half +"
 
-    ilo = ex_bs( tv ? (ilo-16)*255./219. : ilo, 8, bi, fulls=fs)
-    ihi = ex_bs( tv ? (ihi-16)*255./219. : ihi, 8, bi, fulls=fs)
-    olo = ex_bs( tv ? (olo-16)*255./219. : olo, 8, bi, fulls=fs)
-    ohi = ex_bs( tv ? (ohi-16)*255./219. : ohi, 8, bi, fulls=fs)
+    ilo = ex_bs( ilo, 8, bi, fulls=fs, tv_in=tv)
+    ihi = ex_bs( ihi, 8, bi, fulls=fs, tv_in=tv)
+    olo = ex_bs( olo, 8, bi, fulls=fs, tv_in=tv)
+    ohi = ex_bs( ohi, 8, bi, fulls=fs, tv_in=tv)
     iho = ihi - ilo
     oho = ohi - olo
 
@@ -230,9 +232,15 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     iioo = (gam == 1.0) && (iho == oho) ? gm+string(oho) : Format("1 {iho} / * "+gm+" {oho} dup swap2 *")
     str  = ex_dlut(Format(""+rangePC+" {ilo} - 0 max "+iioo+" swap1 min {olo} + "+rangeTV+""), bi, fs)
 
-    isy     ? Expr(c, str                                                          ) : \
-    UV == 1 ? Expr(c, str, ""                                                      ) : \
-              Expr(c, str, ex_UVexpr(str, UV, bi,rgb), scale_inputs=ex_UVf(rgb, bi)) }
+    crg  = ex_bs( tv ? 224 : 255, 8, bi, fulls=fs)
+    oho  = oho / float(crg)
+    iho  = crg / float(iho)
+    rt   = oho * iho
+    cstr = ex_dlut(Format(""+rangePCc+" {rt} * "+rangeTVc+"  "), bi, fs)
+
+    isy     ? Expr(c, str                                      ) : \
+    UV == 1 ? Expr(c, str, ""                                  ) : \
+              Expr(c, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 ###
@@ -249,8 +257,11 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ###
 ####################################
 
-# Overlay(mode="multiply")        is 44% slower
-# Overlay_MTools(mode="multiply") is 13% slower
+# 100% ex_blend(a,mode="multiply")
+#  92% Overlay_MTools(mode="multiply")             # only in PC range
+#  56% OverlayPlus(a,mode="multiply",chroma=false) # only in PC range
+#  56% Overlay(mode="multiply")                    # only in PC range
+
 function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range", int "UV",  bool "fulls") {
 
     rgb  = isRGB(a)
@@ -397,7 +408,7 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV", bool "fulls") {
     rgb  = IsRGB(c)
 
     bits = Default(bits,  3)    # Valid range: 0 - 7
-    mode = Default(mode, -1)    # Valid modes: -1, 0 and 1
+    md   = Default(mode, -1)    # Valid modes: -1: round  0: Bayer ordered  1: Floyd-Steinberg ED  2: Sierra-2-4A ED  3: Stucki ED  4: Atkinson ED  5: Ostromoukhov ED  6: Void & cluster ordered  7: Quasirandom
     UV   = Default(UV,    rgb ? 3 : 2)
     fs   = Default(fulls, rgb)
 
@@ -406,7 +417,9 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV", bool "fulls") {
 
     ConvertBits(c,16,fulls=fs)
     ex_lut ("x "+mul+" /", y=3, UV=UV,fulls=fs)
-    ConvertBits(8,dither=mode,fulls=fs)
+    md < 2 ? ConvertBits(8,dither=md, fulls=fs) : \
+    md > 4 ? fmtc_bitdepth(bits=8, dmode=md+2)  : \
+             fmtc_bitdepth(bits=8, dmode=md+1)
     ex_lut ("x "+mul+" *", y=3, UV=UV,fulls=fs)
     ConvertBits(BitsPerComponent(c),fulls=fs) }
 
