@@ -5,6 +5,7 @@
 ###                           4.7.1  (01-04-2021)   ## -> Finally fixed PadResize() (for real), added nnedi3 to RatioResize, added automatic dynamic cropping function: MatteCrop()
 ###   Resizers Functions Pack 4.8.3  (20-05-2021)   ## -> Updated MatteCrop(), Ratioresize() and PadResize() and Overall improvements
 ###   Resizers Functions Pack 5.0    (20-07-2021)   ## -> Removed legacy functions SpliceResize, Dither_addborders8 and LinearResize (superseeded by ConvertFormat)
+###   Resizers Functions Pack 5.1    (09-09-2021)   ## -> Maintenance update
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -58,40 +59,40 @@
 ###############################################################################
 
 
-function RatioResize(clip s, val "ratio", string "mode", int "PreW", int "PreH", int "mod", string "kernel", float "b", float "c", float "p")
-{
-r     = Default(ratio,      0.911)
-mode  = Default(mode,       "PAR")
-mod   = Default(mod,      isrgb(s) ? 1 : 2)
-w     = Default(PreW,  s.width ())
-h     = Default(PreH,  s.height())
-kernel= Default(kernel,"spline36")
+function RatioResize(clip s, float "ratio", string "mode", int "PreW", int "PreH", int "mod", string "kernel", float "b", float "c", float "p") {
 
-assert(!IsInt(ratio) && IsFloat(ratio), "'Ratio' must be a float number")
+    r     = Default(ratio,      0.5)
+    mode  = Default(mode,       "%")
+    mod   = Default(mod,      isrgb(s) ? 1 : 2)
+    w     = Default(PreW,  s.width ())
+    h     = Default(PreH,  s.height())
+    kernel= Default(kernel,"spline36")
 
-v  = (mode=="adjust2w")   ? h/(w/r)
-\  : (mode=="adjust2h")   ? w/(h/r)
-\  : (mode=="DAR")        ? w/(w/(h*r))
-\  : (mode=="DARconform") ? w*(w/(h*r))
-\  : (mode=="PAR"         \
-   || mode=="%")          ? w*r : nop()
-h1 = (mode=="%")          ? h*r : nop()
+    r = float(r)
 
-Vmod= round(v/mod)*mod
+    v  = (mode=="adjust2w")   ? h/(w/r)
+    \  : (mode=="adjust2h")   ? w/(h/r)
+    \  : (mode=="DAR")        ? w/(w/(h*r))
+    \  : (mode=="DARconform") ? w*(w/(h*r))
+    \  : (mode=="PAR"         \
+       || mode=="%")          ? w*r : nop()
+    h1 = (mode=="%")          ? h*r : nop()
 
-op = (mode=="DAR")
-\ || (mode=="DARconform")
-\ || (mode=="PAR")        ? "Vmod,h"
-\  : (mode=="%")          ? "Vmod,round(h1/mod)*mod"
-\  : (mode=="adjust2w")   ? "round(r),Vmod"
-\  : (mode=="adjust2h")   ? "Vmod,round(r)"
-\  :  Assert(false, "Wrong Ratio mode")
+    Vmod= round(v/mod)*mod
+
+    op = (mode=="DAR")
+    \ || (mode=="DARconform")
+    \ || (mode=="PAR")        ? "Vmod,h"
+    \  : (mode=="%")          ? "Vmod,round(h1/mod)*mod"
+    \  : (mode=="adjust2w")   ? "round(r),Vmod"
+    \  : (mode=="adjust2h")   ? "Vmod,round(r)"
+    \  :  Assert(false, "Wrong Ratio mode")
 
 
-kernel == "nnedi3" ? Eval("nnedi3_resize16(s," + String(op) + ")"    ) : \
-kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p)") : \
-kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c)") : \
-                     Eval(kernel + "Resize(s," + String(op) + ")"    )
+    kernel == "nnedi3" ? Eval("nnedi3_resize16(s," + String(op) + ")"    ) : \
+    kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p)") : \
+    kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c)") : \
+                         Eval(kernel + "Resize(s," + String(op) + ")"    )
 }
 
 ##############################
@@ -215,6 +216,7 @@ rgh=(r  > 0) ? crop(width()-r,0,0,0,true).fliphorizontal()  : last
 ###
 ### Dependencies:
 ### ------------
+###   ExTools
 ###   EdgeFixer      (http://avisynth.nl/index.php/EdgeFixer)
 ###   SCSelect_HBD   (https://forum.doom9.org/showthread.php?t=182392)
 ###   MasksPack      (https://github.com/Dogway/Avisynth-Scripts)
@@ -232,7 +234,6 @@ s
 w      = width()
 h      = height()
 
-bdpth   = BitLShift(1, BitsPerComponent(c)-8)
 contoy  = !isy()
 fullchr = contoy ? ExtractU().width() == w : true
 
@@ -253,11 +254,11 @@ p      = Default(p, 100.0)
 addw==0 ? Assert( addh>0, "You need to scan borders for at least one of the dimension") : nop()
 addh==0 ? Assert( addw>0, "You need to scan borders for at least one of the dimension") : nop()
 
-thr    = thr*bdpth
+thr    = ex_bs(thr, 8, bi, fulls=fs)
 addwz  = addw > 0
 addhz  = addh > 0
 
-avgY = contoy ? converttoy() : last
+avgY = contoy ? ExtractY() : last
 avg  = avgY.RatioResize(320.0,  "adjust2w",kernel="bilinear")
 avg  = avg.TemporalSoften(10,255,255,10,2)
 avg  = avg.TemporalSoften(10,255,255,10,2)
