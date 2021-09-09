@@ -6,7 +6,7 @@
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
 ###               2020.04.06     by A.SONY.    ###
-###               2021.08.12 mix by Dogway     ###
+###               2021.09.09 mix by Dogway     ###
 ###                                            ###
 ##################################################
 ###
@@ -18,6 +18,9 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2021.09.09 mx
+###      - Remove Zs_RF_Shared dependency
 ###
 ### 2021.08.12 mx
 ###      - Update ex_bs()
@@ -79,9 +82,8 @@
 ### -> AddGrainC         [v1.8.2]
 ### -> RgTools           [v1.2]
 ### -> MaskTools2        [v2.2.26]
-### -> neo_f3kdb         [r6]
-### -> ExTools           [v4.6.0]
-### -> Zs_RF_Shared      [V1.154]
+### -> neo_f3kdb         [r6]       (Optional)
+### -> ExTools           [v5.5.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -97,18 +99,13 @@ function GrainFactory3mod(clip clp,
  \                        float "ontop_cgrain",
  \                        bool  "ontop_const",
  \                        bool  "fulls",
+ \                        bool  "tv_range",
  \                        bool  "use_sAverageLumaMask" )
 {
 
 
 Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
-fullchr = clp.is444()
-nochr   = clp.isy()
-bi      = BitsPerComponent(clp)
-
-dorealm4s = !(fullchr || nochr)
-m4v = dorealm4s ? 2 : 0
 
 g1str        = Default( g1str,         13 )  # [ 0 - ???] strength of luma grain / for dark areas
                                              # positive value for AddGrainC strength, negative value for f3kdb grain strength
@@ -145,27 +142,29 @@ ontop_cgrain = Default( ontop_cgrain,   0 )  # [ 0 - ???] additional chroma grai
                                              # positive value for AddGrainC strength, negative value for f3kdb grain strength
 ontop_const  = Default( ontop_const, false)  # AddGrainC "constant" parameter of ontop clip
 use_ALMask   = Default( use_sAverageLumaMask, false)
-fs           = Default( fulls, false)
+tv           = Default( tv_range, true)
+fs           = Default( fulls,   false)
 
 
 #-----------------------------------------------------------------------------------
 
+bi   = BitsPerComponent(clp)
 o    = clp
 ox   = o.width()
 oy   = o.height()
 oblr = o.removegrain(19,-1)
-sx1  = m4_sh(ox/float(g1size),m4v)
-sy1  = m4_sh(oy/float(g1size),m4v)
-sx1a = m4_sh((ox+sx1)/2.0,m4v)
-sy1a = m4_sh((oy+sy1)/2.0,m4v)
-sx2  = m4_sh(ox/float(g2size),m4v)
-sy2  = m4_sh(oy/float(g2size),m4v)
-sx2a = m4_sh((ox+sx2)/2.0,m4v)
-sy2a = m4_sh((oy+sy2)/2.0,m4v)
-sx3  = m4_sh(ox/float(g3size),m4v)
-sy3  = m4_sh(oy/float(g3size),m4v)
-sx3a = m4_sh((ox+sx3)/2.0,m4v)
-sy3a = m4_sh((oy+sy3)/2.0,m4v)
+sx1  = m4(ox/float(g1size))
+sy1  = m4(oy/float(g1size))
+sx1a = m4((ox+sx1)/2.0)
+sy1a = m4((oy+sy1)/2.0)
+sx2  = m4(ox/float(g2size))
+sy2  = m4(oy/float(g2size))
+sx2a = m4((ox+sx2)/2.0)
+sy2a = m4((oy+sy2)/2.0)
+sx3  = m4(ox/float(g3size))
+sy3  = m4(oy/float(g3size))
+sx3a = m4((ox+sx3)/2.0)
+sy3a = m4((oy+sy3)/2.0)
 
 b1   = g1shrp/(-50.0) + 1.0
 b2   = g2shrp/(-50.0) + 1.0
@@ -190,10 +189,10 @@ T1ah = hlf-T1a
 T2ah = hlf-T2a
 T3ah = hlf-T3a
 
-th1str = ex_bs(th1, 8, bi, fulls=fs)
-th2str = ex_bs(th2, 8, bi, fulls=fs)
-th3str = ex_bs(th3, 8, bi, fulls=fs)
-th4str = ex_bs(th4, 8, bi, fulls=fs)
+th1str = ex_bs(th1, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
+th2str = ex_bs(th2, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
+th3str = ex_bs(th3, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
+th4str = ex_bs(th4, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
 
 tmpavg = temp_avg/100.0
 
@@ -273,5 +272,9 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 #-----------------------------------------------------------------------------------
 
 result = o.ex_makediff(grainlayer, ochroma?3:2, fulls=fs)
+msk    = o.ScriptClip("ex_lut(str=string(AverageLuma()),UV=1)")
 
-use_ALMask ? mt_merge(result,o,o.sAverageLumaMask(), luma=chroma, U=ochroma?3:2,V=ochroma?3:2) : result  }
+use_ALMask ? mt_merge(result, o, msk, luma=chroma, U=ochroma?3:2,V=ochroma?3:2) : result  }
+
+
+function m4(float x) {return( x<16?16:int(round(x/4.0)*4)) }

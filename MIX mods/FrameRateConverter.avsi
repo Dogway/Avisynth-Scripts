@@ -141,7 +141,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     Prefilter     = Default(Prefilter, C)
     Debug         = Default(Debug,    false)
     fs            = Default(fulls,    false)
-    tv            = Default(tv_range, false)
+    tv            = Default(tv_range,  true)
     BlendRatio    = Default(BlendRatio, 40)
     OutFps        = OPut > 3  # Whether output has altered frame rate
     wb            = w/BlkSize
@@ -261,7 +261,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
 
     # Mask: Stripes
     thb   = ex_bs(82,8,bi,fulls=fs)
-    EMstp = C.StripeMask(blksize=BlkSize, blksizev=BlkSizeV, str=min(SkipThr*2+20, 255), strf=min(SkipThr+10, 255), thr=23, fullRange=tv)
+    EMstp = C.StripeMask(blksize=BlkSize, blksizev=BlkSizeV, str=min(SkipThr*2+20, 255), strf=min(SkipThr+10, 255), thr=23, fullRange=!tv)
     \      .BicubicResize(round(wb)*4, round(hb)*4)
     \      .ContinuousMask(22)
     EMstp = EMstp.BicubicResize(EMstp.Width()/2, EMstp.Height()/2)
