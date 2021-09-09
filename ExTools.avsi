@@ -4537,16 +4537,16 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     bstr    = p_float ? "S" : string(bits)
 
     mskYs   =  isy(msk)               ? msk          : msk.ExtractY()
-    mskYr   =  !wh                    ? mskYs        : mskYs.ConvertBits(8,dither=-1,fulls=fs).BilinearResize(w, h).ConvertBits(bits,fulls=fs)
+    mskYr   =  !wh                    ? mskYs        : mskYs.ConvertBits(8,dither=-1,fulls=fulls).BilinearResize(w, h).ConvertBits(bits,fulls=fulls)
 
     w       =  isYV411(a)             ? round(w/4.0) : round(w/2.0)
     h       =  isYV411(a) || is422(a) ?            h : round(h/2.0)
 
     mskC    = (is444  (a) || rgb)     ? mskYr : \
-                                        mskYs.ConvertBits(8,dither=-1, fulls=fs).BilinearResize(w+w%2,h+h%2)
+                                        mskYs.ConvertBits(8,dither=-1, fulls=fulls).BilinearResize(w+w%2,h+h%2)
 
-    mskC    = luma ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32,fulls=fs) : \
-                               mskC.ConvertBits(bits,fulls=fs)                       : \
+    mskC    = luma ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32,fulls=fulls) : \
+                               mskC.ConvertBits(bits,fulls=fulls)                       : \
                      BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000)
 
     msk     = CombinePlanes(mskYr, mskC, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
