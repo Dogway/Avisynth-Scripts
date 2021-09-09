@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v5.4     (06-09-2021)              ##
+###           ExTools v5.5     (09-09-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -262,14 +262,14 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV", bool
     isRGB(msk) ? Assert (!lm, "'luma=true' unsupported for RGB masks.") : nop()
 
     b =  isya && !isyb ? b.ExtractY()                          : \
-        !isya &&  isyb ? mskY_to_YYY(a, b, false, rgb, UV, bi) : b
+        !isya &&  isyb ? mskY_to_YYY(a, b, false, rgb, UV, bi, fs) : b
 
     msk = isya ? isym ? msk           : \
                         ExtractY(msk) : \
           lm  || isym ||                \
           width (msk)!=width (a) ||     \
           height(msk)!=height(a)      ? \
-          mskY_to_YYY(a, msk, lm, rgb, UV, bi) : msk
+          mskY_to_YYY(a, msk, lm, rgb, UV, bi, fs) : msk
 
      str = "x x y - z 1 range_max / * * -"
 
@@ -1111,13 +1111,13 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ## version 2021-09-05 Optimized (~38% gain) and profiled against ex_blur(), also Y+UV args
 ##
 
-function ex_GaussianBlur(clip C, float "rad", float "radv", int "Y", int "UV") {
+function ex_GaussianBlur(clip C, float "sigma", float "sigmaV", int "Y", int "UV") {
 
     rgb = isRGB(C)
     isy = isy(C)
 
-    rad  = Default(rad,    10)
-    radv = Default(radv,  rad)
+    rad  = Default(sigma,      10)
+    radv = Default(sigmaV,  sigma)
     Y    = Default(Y,       3)
     UV   = Default(UV,      3)  # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower
 
@@ -4002,7 +4002,7 @@ function ex_hitormiss(clip a, int "radius", string "mode", int "UV", bool "fulls
 
 
 # mt_edge() is 14% faster (varies with kernel)
-# "canny" is a bit too complex so that's better used in a plugin (ie. vsTCanny)
+# "canny" is a bit too complex (requires mt_hysteresis) so that's better used in a plugin (ie. vsTCanny)
 
 # Recommended: prewitt, scharr, frei-chen, and FDoG (slow)
 #
@@ -4241,7 +4241,7 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center") {
     rd = Default(rad,   1)           # integers from 0 to 8 (depends on mode)
     rv = Default(radV, rd)           # integers from 0 to 8 (depends on mode)
     md = Default(mode,  "square")
-    cn = Default(center,   true )
+    cn = Default(center, md!="ring" )
 
     # Soft limit
     lim = md == "plus"       ? rd + rv > 16 : \
@@ -4432,13 +4432,16 @@ function ex_UVf(bool rgb, int bits) {
     bits == 32 && !rgb ? "floatUV" : "none" }
 
 
-# Scales values from one bitdepth to another or/and from one scale to another
-function ex_bs(float var, int "ibits", int "obits", bool "ifulls", bool "fulls") {
+# Pixel Value Converter (unsigned)
+# Convert values from one bitdepth to another or/and from one scale to another or/and from one (luma) range to another
+function ex_bs(float var, int "ibits", int "obits", bool "ifulls", bool "fulls", bool "tv_in", bool "tv_out") {
 
-    ibi = Default(ibits,  8)
-    obi = Default(obits, 16)
+    ibi = Default(ibits,    8)
+    obi = Default(obits,   16)
     fs  = Default(ifulls,  false)
-    fso = Default(fulls, fs)
+    fso = Default(fulls,   fs)
+    tvi = Default(tv_in,   false)
+    tvo = Default(tv_out,  false)
 
     ib32 = ibi == 32   ob32 = obi == 32
     ib8  = ibi == 8    ob8  = obi == 8
@@ -4454,11 +4457,21 @@ function ex_bs(float var, int "ibits", int "obits", bool "ifulls", bool "fulls")
     vif = ib32 ? ob8 ? var*255. :     var*( 255*pow(2, obi-8)+(fso ? 255*pow(2, obi-8)/256. : 0) )     : nop()
     vof = ob32 ? ib8 ? var/255. : min(var/( 255*pow(2, ibi-8)+(fs  ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
 
-    ob32 ? ib32 ? var : vof : ib32 ? round(vif) : round(v+fsc) }
+
+    out = ob32 ? ib32 ? var : vof : ib32 ? vif : v+fsc
+
+    tv  = tvi != tvo ? tvi ? Eval(ex_dlut(Format("(({out} - ymin) / (ymax - ymin)) * range_max"), obi, fso)) : \
+                             Eval(ex_dlut(Format("( {out} * (ymax - ymin)) / range_max + ymin"),  obi, fso)) : out
+
+    ob32 ? tv : round(Eval(ex_dlut(Format("min(range_max,max(0,{tv}))"), obi, fso))) }
 
 
 
 # HBD constants 3D look up table
+#
+# * YUV and RGB mid-grey is 127.5 (rounded to 128) for PC range levels,
+#   this translates to a value of 125.5 in TV range levels. Chroma is always centered, so 128 regardless.
+
 function ex_dlut(string "str", int "bits", bool "fulls") {
 
     str  = Default(str, "")
@@ -4477,16 +4490,17 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 
 
     #                           8-bit UINT      10-bit UINT          12-bit UINT          14-bit UINT            16-bit UINT         24-bit UINT               32-bit Ufloat
-    range_min  = Select (bitd,  [  0.,  0.],    [   0.,   0.   ],    [   0.,   0.   ],    [    0.,    0.   ],    [    0.,    0.],    [       0.,       0.],    [       0.,       0.])
-    ymin       = Select (bitd,  [ 16., 16.],    [  64.,  64.   ],    [ 256., 257.   ],    [ 1024., 1028.   ],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
-    cmin       = Select (bitd,  [ 16., 16.],    [  64.,  64.   ],    [ 256., 257.   ],    [ 1024., 1028.   ],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
-    range_half = Select (bitd,  [128.,128.],    [ 512., 514.   ],    [2048.,2056.   ],    [ 8192., 8224.   ],    [32768.,32896.],    [ 8388608., 8421376.],    [ 128/255., 128/255.])
-    yrange     = Select (bitd,  [219.,219.],    [ 876., 879.   ],    [3504.,3517.688],    [14016.,14070.750],    [56064.,56283.],    [14352384.,14408448.],    [ 219/255., 219/255.])
-    crange     = Select (bitd,  [224.,224.],    [ 896., 899.500],    [3584.,3598.   ],    [14336.,14392.   ],    [57344.,57568.],    [14680064.,14737408.],    [ 224/255., 224/255.])
-    ymax       = Select (bitd,  [235.,235.],    [ 940., 943.672],    [3760.,3774.688],    [15040.,15098.750],    [60160.,60395.],    [15400960.,15461120.],    [ 235/255., 235/255.])
-    cmax       = Select (bitd,  [240.,240.],    [ 960., 963.750],    [3840.,3855.   ],    [15360.,15420.   ],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
-    range_max  = Select (bitd,  [255.,255.],    [1020.,1023.984],    [4080.,4095.938],    [16320.,16383.750],    [65280.,65535.],    [16711680.,16776960.],    [       1.,       1.])
-    range_size = Select (bitd,  [256.,256.],    [1024.,1024.   ],    [4096.,4096.   ],    [16384.,16384.   ],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
+    range_min   = Select (bitd,  [  0.,  0.],    [   0.,   0.   ],    [   0.,   0.   ],    [    0.,    0.   ],    [    0.,    0.],    [       0.,       0.],    [       0.,       0.])
+    ymin        = Select (bitd,  [ 16., 16.],    [  64.,  64.   ],    [ 256., 257.   ],    [ 1024., 1028.   ],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
+    cmin        = Select (bitd,  [ 16., 16.],    [  64.,  64.   ],    [ 256., 257.   ],    [ 1024., 1028.   ],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
+    ygrey       = Select (bitd,  [126.,126.],    [ 502., 504.   ],    [2008.,2016.   ],    [ 8032., 8063.   ],    [32128.,32254.],    [ 8224768., 8256896.],    [ 125.5/255.,125.5/255.])
+    range_half  = Select (bitd,  [128.,128.],    [ 512., 514.   ],    [2048.,2056.   ],    [ 8192., 8224.   ],    [32768.,32896.],    [ 8388608., 8421376.],    [ 128/255., 128/255.])
+    yrange      = Select (bitd,  [219.,219.],    [ 876., 879.   ],    [3504.,3517.688],    [14016.,14070.750],    [56064.,56283.],    [14352384.,14408448.],    [ 219/255., 219/255.])
+    crange      = Select (bitd,  [224.,224.],    [ 896., 899.500],    [3584.,3598.   ],    [14336.,14392.   ],    [57344.,57568.],    [14680064.,14737408.],    [ 224/255., 224/255.])
+    ymax        = Select (bitd,  [235.,235.],    [ 940., 943.672],    [3760.,3774.688],    [15040.,15098.750],    [60160.,60395.],    [15400960.,15461120.],    [ 235/255., 235/255.])
+    cmax        = Select (bitd,  [240.,240.],    [ 960., 963.750],    [3840.,3855.   ],    [15360.,15420.   ],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
+    range_max   = Select (bitd,  [255.,255.],    [1020.,1023.984],    [4080.,4095.938],    [16320.,16383.750],    [65280.,65535.],    [16711680.,16776960.],    [       1.,       1.])
+    range_size  = Select (bitd,  [256.,256.],    [1024.,1024.   ],    [4096.,4096.   ],    [16384.,16384.   ],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
 
     fs  = fs ? 1 : 0
     str = ReplaceStr(str, "ymax ymin - range_max /", string(yrange[fs]/range_max[fs]))
@@ -4499,21 +4513,20 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     str = ReplaceStr(str, "cmax ymin -",             string(crange[fs]))
     str = ReplaceStr(str, "cmax cmin -",             string(crange[fs]))
 
-    if (bits != 8 && bits != 32) {
-        str = ReplaceStr(str, "ymax",                string(ymax[fs]))
-        str = ReplaceStr(str, "cmax",                string(cmax[fs]))
-        str = ReplaceStr(str, "ymin",                string(ymin[fs]))
-        str = ReplaceStr(str, "cmin",                string(cmin[fs]))
-        str = ReplaceStr(str, "range_min",           string(range_min[fs]))
-        str = ReplaceStr(str, "range_half",          string(range_half[fs]))
-        str = ReplaceStr(str, "range_max",           string(range_max[fs]))
-        str = ReplaceStr(str, "range_size",          string(range_size[fs]))
-    }
+    str = ReplaceStr(str, "ygrey",                   string(ygrey[fs]))
+    str = ReplaceStr(str, "ymax",                    string(ymax[fs]))
+    str = ReplaceStr(str, "cmax",                    string(cmax[fs]))
+    str = ReplaceStr(str, "ymin",                    string(ymin[fs]))
+    str = ReplaceStr(str, "cmin",                    string(cmin[fs]))
+    str = ReplaceStr(str, "range_min",               string(range_min[fs]))
+    str = ReplaceStr(str, "range_half",              string(range_half[fs]))
+    str = ReplaceStr(str, "range_max",               string(range_max[fs]))
+    str = ReplaceStr(str, "range_size",              string(range_size[fs]))
 
     return str }
 
 
-function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits") {
+function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits", bool "fulls") {
 
     w  = width (a)
     h  = height(a)
@@ -4524,13 +4537,18 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     bstr    = p_float ? "S" : string(bits)
 
     mskYs   =  isy(msk)               ? msk          : msk.ExtractY()
-    mskYr   =  !wh                    ? mskYs        : mskYs.ConvertBits(8,dither=-1).BilinearResize(w, h).ConvertBits(bits)
+    mskYr   =  !wh                    ? mskYs        : mskYs.ConvertBits(8,dither=-1,fulls=fs).BilinearResize(w, h).ConvertBits(bits,fulls=fs)
 
     w       =  isYV411(a)             ? round(w/4.0) : round(w/2.0)
     h       =  isYV411(a) || is422(a) ?            h : round(h/2.0)
 
-    mskC    = (is444  (a) || rgb)     ?                               mskYr : mskYs.ConvertBits(8,dither=-1).BilinearResize(      w+w%2,       h+h%2)
-    mskC    = luma ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32) : mskC.ConvertBits(bits) : BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000)
+    mskC    = (is444  (a) || rgb)     ? mskYr : \
+                                        mskYs.ConvertBits(8,dither=-1, fulls=fs).BilinearResize(w+w%2,h+h%2)
+
+    mskC    = luma ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32,fulls=fs) : \
+                               mskC.ConvertBits(bits,fulls=fs)                       : \
+                     BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+bstr,color_yuv=$000000)
+
     msk     = CombinePlanes(mskYr, mskC, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
 
     return msk }
