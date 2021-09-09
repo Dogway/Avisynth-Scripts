@@ -1,13 +1,14 @@
 ##############################
-# FastLineDarken 2.0 MOD ex  #
+# FastLineDarken 2.1 MOD ex  #
 ##############################
 #
 # Written by Vectrangle    (http://forum.doom9.org/showthread.php?t=82125)
 # Didée: - Speed Boost, Updated: 11th May 2007
 # Dogway - added protection option. 12-May-2011
 # Dogway - 2.0ex Updated to internal Expr(). 27-May-2021
+# Dogway - 2.1ex Updated to ExTools.         09-Sept-2021
 #
-#  * requires mt_masktools v2
+#  * requires ExTools v5.5
 #  * requires yv12 input
 #
 # Usage is FastLineDarkenMOD(strength, prot, luma_cap, threshold, thinning),
@@ -36,6 +37,7 @@
 #                        inherently darken the remaining pixels in each line a little. Default 0.
 #
 # Changelog:
+#  2.1  - Updated to latest ExTools
 #  2.0  - Converted all masktools2 calls to internal Expr(). Supports HBD.
 #  1.4  - added protection option. Prevents darkest lines to be over darkened thus creating artifacts (i.e. aliasing, clipping...)
 #       - Optmized the code as suggested by Didée for possible faster processing. It also deals with the green screen bug.
@@ -48,7 +50,7 @@
 #
 
 
-function FastLineDarkenMOD( clip c, int "strength", int "prot", int "luma_cap", int "threshold", int "thinning")
+function FastLineDarkenMOD( clip c, int "strength", int "prot", int "luma_cap", int "threshold", int "thinning", bool "fulls")
 {
 ## parameters ##
 str        = Default(strength, 50) / 128.
@@ -56,16 +58,20 @@ lum        = Default(luma_cap, 191)
 protection = Default(prot,5)
 thr        = Default(threshold, 4)
 thinning   = Default(thinning,0)
-thn        = thinning /16.
+fs         = Default(fulls, false)
 
 Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
+bi  = BitsPerComponent(c)
+thr = ex_bs(thr, 8, bi, fulls=fs)
+lum = ex_bs(lum, 8, bi, fulls=fs)
+thn = thinning / 16.
+
 ## filtering ##
 exin    = c.ex_expand(thres=255/(protection+1)).ex_inpand()
-diff    = Expr(c,exin,Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? range_half +"), "x", scale_inputs="allf")
-linemask= Expr(diff.ex_inpand(),Format("x range_half - {thn} * range_max +"), scale_inputs="allf").ex_boxblur(1,mode="mean",UV=1)
-thick   = Expr(c, exin, Format("y {lum} < y {lum} ? x {thr} + > x y {lum} < y {lum} ? - 0 ? {str} * x +"), "x", scale_inputs="allf")
-thin    = Expr(c.ex_expand(),diff,Format("x y range_half - {str} 1 + * +"), scale_inputs="allf")
+diff    = ex_lutxy(c, exin,Format("y {lum} min A@ x {thr} + > x A - 0 ? range_half +"), UV=1, fulls=fs)
+linemask= ex_lut(diff.ex_inpand(),Format("x range_half - {thn} * range_max +"), UV=1, fulls=fs).ex_boxblur(1,mode="mean",UV=1)
+thick   = ex_lutxy(c, exin, Format("y {lum} min A@ x {thr} + > x A - 0 ? {str} * x +"), UV=1, fulls=fs)
+thin    = ex_lutxy(c.ex_expand(),diff,Format("x y range_half - {str} 1 + * +"),  UV=1, fulls=fs)
 
-(thinning == 0) ? thick : ex_merge(thin,thick,linemask,UV=2)
-return mergechroma(c)}
+(thinning == 0) ? thick : ex_merge(thin,thick,linemask,UV=2,fulls=fs) }
