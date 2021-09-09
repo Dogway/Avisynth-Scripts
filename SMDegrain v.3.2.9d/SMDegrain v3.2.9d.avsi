@@ -8,7 +8,7 @@
 ###                                                                                          ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.2.8d      by Dogway - 07 Sept 2021                              ###
+###                       v3.2.9d      by Dogway - 09 Sept 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -146,7 +146,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     # Prefilter & Motion Filter
 
     Mfilter = MFilterB ? MFilter : inputP
-    Lthres  = ex_bs(75, 8, bi, fulls=fs)
+    Lthres  = ex_bs(75, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
 
     pref   = !GlobalR ? preclip ? prefilter                                                                                                                                                                         : \
                                  (prefilter==-1) ?  inputP                                                                                                                                                          : \
@@ -166,7 +166,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     nw = round(w/2.0)
     nh = round(h/2.0)
     pref       = Defined(tv_range) && tv || Str >  1.0 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,uv=Chr,tv_range=tv,fulls=fs)                        : \
-                 Defined(tv_range) && tv || Str == 1.0 ? pref.ex_retinex(1,tv_range=tv,UV=Chr,fulls=fs)                                        : \
+                 Defined(tv_range) && tv || Str == 1.0 ? pref.ex_retinex(tv_range=tv,UV=Chr,fulls=fs)                                          : \
                                                          pref.ConditionalFilter(pref.ex_Luma_Rebuild(S0=1.0,c=Amp,uv=Chr,tv_range=tv,fulls=fs),  \
                                                          pref, function[tv]() {propNumElements("_ColorRange") > 0 ? propGetInt("_ColorRange") == 1 : tv}, local=true)
 
@@ -374,7 +374,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         w3sq  = round(w3*1.01)
 
           # Panel Separator
-
+        pref   = Str == 1 && !chroma ? CombinePlanes(pref, inputP, planes=rgb?"RGB":"YUV", pixel_type=PixelType(input)) : pref
         blkclp = BlankClip(isInter?assumeframebased(pref):pref,length=1,pixel_type=p_type,color=$161616)
                  \.crop(0,isInter?h/2%8:h%8,0,0,true).separatefields().assumeframebased().separatefields()
 
@@ -583,11 +583,12 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 
 
 
-## ex_retinex()   by Dogway (06-09-2021)
+## ex_retinex()   by Dogway (09-09-2021)
 ##
 ## Multi-Scale Retinex
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
-## Output is PC range. Performance is 30% of ex_Luma_Rebuild() although still fast and quality isn't comparable.
+## Output is PC range. Performance is by default 50% of ex_Luma_Rebuild() although still fast and quality isn't comparable.
+## lvl=2 uses auto-levels so performance drops to 25% of ex_Luma_Rebuild(), and some smooth flicker should arise.
 ##
 ## "Contrast enhancement is a classic image restoration technique that traditionally has been performed using forms of histogram equalization.
 ## While effective these techniques often introduce unrealistic tonal rendition in real-world scenes. This paper explores the use of Retinex theory to perform
@@ -601,43 +602,73 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ## Dependencies:
 ##               ExTools
 ##               GradePack
+##               ResizersPack
 ##
-function ex_retinex(clip a, float "sigma", int "per", bool "tv_range", int "UV", bool "fulls") {
 
-    rgb = isRGB(a)
-    bi  = BitsPerComponent(a)
+function ex_retinex(clip clp, int "lvl", float "sigma", bool "tv_range", int "UV", bool "fulls") {
 
-    r  = Default(sigma,       1)     # from 1 to 5 roughly (leave it at 1 for the most time)
-    p  = Default(per,        10)     # min & max percentile for automatic levels (crop black borders beforehand)
-    tv = Default(tv_range, !rgb)     # range of input clip
-    UV = Default(UV,          3)     # Set to 3 to convert Chroma to PC range
-    fs = Default(fulls,     rgb)
+    rgb = isRGB(clp)
+    bi  = BitsPerComponent(clp)
 
-    p = p < 1 ? 0 : max(p,1)/100.
-    w = max(a.Width(),a.Height())
+    lvl = Default(lvl,         1)         # 0: MSR output   1: Fixed levels output  2: auto-levels
+    r   = Default(sigma,       1)         # from 1 to 5 roughly (leave it at 1 for the most time)
+    tv  = Default(tv_range, !rgb)         # range of input clip
+    UV  = Default(UV,        rgb ? 3 : 1) # Set to 3 to convert Chroma to PC range
+    fs  = Default(fulls,     rgb)
 
-    b = a.ex_gaussianblur(w*0.015 * r)
-    c = a.ex_gaussianblur(w*0.05  * r)
-    d = ScriptClip(a,"ex_lut(a,string(rgb?a.AverageG():a.AverageLuma()),UV=rgb?3:1)",args="a,rgb")
+    w = max(clp.Width(),clp.Height())
+    a = !rgb ? clp.ExtractY() : clp
+    y = a.ConvertBits(8,dither=-1, fulls=fs)
+
+    b = y.ex_gaussianblur(w*0.015 * r).ConvertBits(bi, fulls=fs)
+    c = y.ex_gaussianblur(w*0.05  * r).ConvertBits(bi, fulls=fs)
+    d = ScriptClip(y,"ex_lut(y,string(rgb?y.AverageG():y.AverageLuma()),UV=rgb?3:1)",args="y,rgb").ConvertBits(bi, fulls=fs)
 
     rangePC =                        tv ? "ymin - ymax ymin - /" : "range_max /"
     str     = Format("x "+rangePC+" A@ log y 0.200001 * z 0.100001 * a 0.700001 * + + "+rangePC+" A * log / 1 swap - range_max *")
-    strC    = rgb ? str : UV == 3 && tv ? "x cmin - range_max cmax cmin - / *" : ""
+    cstr    = rgb ? str : UV == 3 && tv ? "x cmin - range_max cmax cmin - / *" : ""
 
-    MSR     = ex_lutxyza(a,b,c,d, str, strC, UV=uv, fulls=fs)
+    MSR     = ex_lutxyza(a,b,c,d, str, cstr, UV=uv, fulls=fs)
 
-    ScriptClip(MSR,"
 
-    pmin  = rgb ? (MSR.GPlaneMin(p) + MSR.GPlaneMin(p,-2) + MSR.GPlaneMin(p,2)) / 3. : \
-                  (MSR.YPlaneMin(p) + MSR.YPlaneMin(p,-2) + MSR.YPlaneMin(p,2)) / 3.
+    if        (lvl==0) {
 
-    pmax  = rgb ? (MSR.GPlaneMax(p) + MSR.GPlaneMax(p,-2) + MSR.GPlaneMax(p,2)) / 3. : \
-                  (MSR.YPlaneMax(p) + MSR.YPlaneMax(p,-2) + MSR.YPlaneMax(p,2)) / 3.
+        MSR
 
-    min  = ex_bs(pmin, bi, 8, ifulls=fs)
-    max  = ex_bs(pmax, bi, 8, ifulls=fs)
+    } else if (lvl==1) {
 
-    min > 0 || max < 255 ? MSR.ex_levels(min,1.0,max,0,255,false,rgb?3:1,fs) : MSR",args="MSR,p,rgb,bi,fs",local=true) }
+        MSR.ex_levels(40, 1.0, 255-20, 0, 255,false,rgb?3:1,fs)
+
+    } else {
+
+        RR      = MSR.ConvertBits(8, dither=-1, fulls=fs).RatioResize(0.20,"%",kernel="Bilinear")
+
+        b2 = RR.selectevery(1,-2)
+        b  = RR.selectevery(1,-1)
+        f  = RR.selectevery(1,+1)
+        f2 = RR.selectevery(1,+2)
+
+        TS      = Expr(RR,b2,b,f,f2,"x y z a b + + + + 0.200001 *")
+
+        b2 = TS.selectevery(1,-2)
+        b  = TS.selectevery(1,-1)
+        f  = TS.selectevery(1,+1)
+        f2 = TS.selectevery(1,+2)
+
+        TS      = Expr(TS,b2,b,f,f2,"x y z a b + + + + 0.200001 *")
+
+        ScriptClip(MSR,"
+
+        pmin  = rgb ? TS.GPlaneMin(0.25) : \
+                      TS.YPlaneMin(0.25)
+
+        pmax  = rgb ? TS.GPlaneMax(0)    : \
+                      TS.YPlaneMax(0)
+
+        pmin > 0 || pmax < 255 ? MSR.ex_levels(pmin,1.0,pmax,0,255,false,rgb?3:1,fs) : MSR",args="MSR,TS,rgb,fs",local=true)
+    }
+
+    UV == 3 ? CombinePlanes(last, clp, planes=rgb?"RGB":"YUV", pixel_type=PixelType(clp)) : last }
 
 
 
