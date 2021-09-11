@@ -15,6 +15,9 @@
 #
 # --- LATEST CHANGES ---
 #
+# v3.61mx
+# - EdiExtPre removed, UseEdiExt become int parameter, 0=false, 1=true, 2=same as old UseEdiExt+EdiExtPre
+#
 # v3.60mx
 # - Update to latest ExTools
 # - Added 'fulls' to ConvertBits()
@@ -46,7 +49,7 @@
 #
 # v3.378s
 # - added tr0=-2 same as -1 but with Vinverse_avsi
-# - added EdiExtPre to use Vinverse_avsi with useEdiExt
+# - added EdiExtPre to use Vinverse_avsi with UseEdiExt
 #
 # v3.377s
 # - added n16d (same as lsbd but use 16bit avs+ HBD)
@@ -97,7 +100,7 @@
 # - added DftDither to controle dfttest dither Parameter
 #
 # v3.352s
-# - added useEdiExt
+# - added UseEdiExt
 # - added tr0=-1 to use the EdiExt clip (if there is no EdiExt clip then it will not work)
 # - rep0 now will be 0 if tr0 < 1
 #
@@ -226,8 +229,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                     float "NoiseRestore", string "NoiseDeint", bool "StabilizeNoise", int "InputType", float "ProgSADMask", int "FPSDivisor", \
                     int "ShutterBlur", float "ShutterAngleSrc", float "ShutterAngleOut", int "SBlurLimit", bool "Border", bool "Precise", string "Tuning", \
                     bool "ShowSettings", string "GlobalNames", string "PrevGlobals", int "ForceTR", \
-                    val "BT", val "DetailRestore", val "MotionBlur", val "MBlurLimit", val "NoiseBypass", float "Str", float "Amp", bool "TV_range", bool "useEdiExt", \
-                    int "DftDither", bool "n16", String "device_type", int "device_id", bool "n16d", bool "ESearchP", bool "EdiExtPre", bool "Refinemotion", bool "fulls" )
+                    val "BT", val "DetailRestore", val "MotionBlur", val "MBlurLimit", val "NoiseBypass", float "Str", float "Amp", bool "TV_range", int "UseEdiExt", \
+                    int "DftDither", bool "n16", String "device_type", int "device_id", bool "n16d", bool "ESearchP", bool "Refinemotion", bool "fulls" )
 {
     # EdiMode="RepcYadif"/"cYadif" require the Yadif plugin, which doesn't autoload. Typically the calling script would load it.
 
@@ -242,8 +245,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # Presets
     n16           = Default( n16,       false)
     n16d          = Default( n16d,      false)
-    useEdiExt     = Default( useEdiExt, false)
-    EdiExtPre     = Default( EdiExtPre, false)
+    UseEdiExt     = Default( useEdiExt,     0)
     ESearchP      = Default( ESearchP,  false)
     fs            = Default( fulls,     false)
     Str           = Default( Str,        3.0 )
@@ -252,6 +254,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     RefineMotion  = Default( RefineMotion,      false)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+    Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "UseEdiExt need EdiExt to work")
     bi      = Input.BitsPerComponent()
     bi8     = bi == 8
 
@@ -522,10 +525,10 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     planarClip = yuy2 ? clip.nonyuy2clipin(true) : clip
 
     # Bob the input as a starting point for motion search clip
-    bobbed = (InputType == 0) ? useEdiExt ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true) : EdiExt : planarClip.sh_Bob( 0,0.5 ) : \
+    bobbed = (InputType == 0) ? UseEdiExt > 0 ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true) : EdiExt : planarClip.sh_Bob( 0,0.5 ) : \
              (InputType == 1) ? planarClip                                                                                    : \
                                 planarClip.ex_boxblur( 0, 1, "weighted", UV=3)
-    bobbed = (InputType == 0) && useEdiExt && EdiExtPre ? bi8 ? bobbed.vinverse() : bobbed.ex_vinverse() : bobbed
+    bobbed = (InputType == 0) && UseEdiExt > 1 ? bi8 ? bobbed.vinverse() : bobbed.ex_vinverse() : bobbed
 
     # If required, get any existing global clips with a matching "GlobalNames" setting. Unmatched values get NOP (= 0)
     srchClip  = QTGMC_GetUserGlobal( GlobalNames, "srchClip",  ReuseGlobals )
@@ -556,8 +559,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     ts2 = (!srchcheck && TR0 > 1) ? bobbed.TemporalSoften( 2, 255, CMts, 28, 2 ) : nop()  # 0.20  0.20  0.20  0.20  0.20
 
     # Combine linear weightings to give binomial weightings - TR0=0: (1), TR0=1: (1:2:1), TR0=2: (1:4:6:4:1) # * uh! this is more like (1:3:12:3:1)
-    domtr02 = TR0 == -2 && !(InputType == 0 && useEdiExt && EdiExtPre)
-    domtr01 = TR0 == -1 && !(InputType == 0 && useEdiExt && EdiExtPre)
+    domtr02 = TR0 == -2 && !(InputType == 0 && UseEdiExt > 1)
+    domtr01 = TR0 == -1 && !(InputType == 0 && UseEdiExt > 1)
     binomial0 = srchcheck        ? nop() : \
       domtr02 && Defined(EdiExt) ? isyuy2(EdiExt) ? bi8 ? EdiExt.nonyuy2clipin(true).vinverse() : EdiExt.nonyuy2clipin(true).ex_vinverse() : bi8 ? EdiExt.vinverse() : EdiExt.ex_vinverse() : TR0 == -2 ? bobbed : \
       domtr01 && Defined(EdiExt) ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true) : EdiExt : TR0 == -1 ? bobbed                                              : \
