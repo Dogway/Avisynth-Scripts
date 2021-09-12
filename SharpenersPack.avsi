@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v1.0  (06-09-2021)                             ###
+###        Sharpeners Pack v1.1  (12-09-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -67,7 +67,7 @@
 ###########################################################################
 ###
 ###
-### Adaptive_Sharpen() - v1.3 (12-08-2021)
+### Adaptive_Sharpen() - v1.4 (12-09-2021)
 ###
 ### https://forum.doom9.org/showthread.php?t=182881
 ###
@@ -82,7 +82,7 @@
 ### "It sharpens the picture by adjusting the slope of the gradient values inbetween the local min/max interval.
 ###  Effectively, edges are sharpened without oversharpening (halos) (but risk to make them jaggy)."
 ###
-### Dependencies: > AviSynth+ 3.7.1
+### Dependencies: > AviSynth+ 3.7.1 test12 (https://forum.doom9.org/showthread.php?t=181351)
 ###                 ExTools
 ###
 ### Example: Adaptive_Sharpen(1.0)
@@ -146,10 +146,10 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     sbe = ex_dlut(Format("
            x[-1,1] A@ x[0,1]  B@ max x[1,1] C@ x[-1,0] D@ max max x[1,0] E@ x[-1,-1] F@ max x[0,-1] G@ x[1,-1] H@ max max max
            x[0,2]  I@ x[-2,0] J@ max x[2,0] K@ x[0,-2] L@ max max x[0,0] X@ max max {r_max} * {sbe_l} + M^
-           x[0,3]  I B          {sbe_m} + + + {r_max} * M / {sbe_h} -
-           x[0,-3] G L          {sbe_m} + + + {r_max} * M / {sbe_h} - *
-           x[-3,0] J D          {sbe_m} + + + {r_max} * M / {sbe_h} -
-           x[3,0]  E K          {sbe_m} + + + {r_max} * M / {sbe_h} - * +
+           x[0,3]   I        B  {sbe_m} + + + {r_max} * M / {sbe_h} -
+           x[0,-3]  G        L  {sbe_m} + + + {r_max} * M / {sbe_h} - *
+           x[-3,0]  J        D  {sbe_m} + + + {r_max} * M / {sbe_h} -
+           x[3,0]   E        K  {sbe_m} + + + {r_max} * M / {sbe_h} - * +
            x[-1,2]  x[-2,1]  A  {sbe_m} + + + {r_max} * M / {sbe_h} -
            x[2,-1]  x[1,-2]  H  {sbe_m} + + + {r_max} * M / {sbe_h} - * +
            x[1,2]   x[2,1]   C  {sbe_m} + + + {r_max} * M / {sbe_h} -
@@ -183,33 +183,29 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
                        J  x[-2,1] N@  - abs
                        J          B   - abs
                        J          C   - abs + + +
-                       J  x[0,2]  F@  - abs T^
-                       J  x[-2,0] I@  - abs W^
-               T W + 0.500001 * + {r_max} * A swap / Y min C0^
+                       J  x[0,2]  F@  - abs T@
+                       J  x[-2,0] I@  - abs W@ + 0.500001 * + {r_max} * A swap / Y min C0^
 
                        L  x[1,2]  O@  - abs
                        L  x[2,1]  P@  - abs
                        L          B   - abs
                        L          D   - abs + + +
-                       L          F   - abs U^
-                       L  x[2,0]  H@  - abs V^
-               U V + 0.500001 * + {r_max} * A swap / Y min C2^
+                       L          F   - abs U@
+                       L  x[2,0]  H@  - abs V@ + 0.500001 * + {r_max} * A swap / Y min C2^
 
                        K  x[-1,-2]    - abs
                        K  x[2,-1] Q@  - abs
                        K          E   - abs
                        K          C   - abs + + +
-                       K  x[0,-2] G@  - abs JJ^
-                       K          I   - abs LL^
-               JJ LL + 0.500001 * + {r_max} * A swap / Y min C5^
+                       K  x[0,-2] G@  - abs JJ@
+                       K          I   - abs LL@ + 0.500001 * + {r_max} * A swap / Y min C5^
 
                        M  x[1,-2] R@  - abs
                        M          Q   - abs
                        M          E   - abs
                        M          D   - abs + + +
-                       M          G   - abs KK^
-                       M          H   - abs MM^
-               KK MM + 0.500001 * + {r_max} * A swap / Y min C7^
+                       M          G   - abs KK@
+                       M          H   - abs MM@ + 0.500001 * + {r_max} * A swap / Y min C7^
 
                        F          O   - abs
                        F          N   - abs
@@ -244,31 +240,18 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
                 C9  C11 0.250001 * + C5 max 0.250001 max C5 + 0.500001 * C5^
                 C10 C11 0.250001 * + C7 max 0.250001 max C7 + 0.500001 * C7^
 
-                y[-1,1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LA^
-                y[0,1]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LB^
-                y[1,1]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LC^
-                y[-1,0]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LD^
-                y[1,0]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LE^
-                y[-1,-1] {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LF^
-                y[0,-1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LG^
-                y[1,-1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LH^
-                y[0,2]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LI^
-                y[-2,0]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LJ^
-                y[2,0]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LK^
-                y[0,-2]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LL^
-
-                LA C0  * WA^
-                LB X   * WB^
-                LC C2  * WC^
-                LD X   * WD^
-                LE X   * WE^
-                LF C5  * WF^
-                LG X   * WG^
-                LH C7  * WH^
-                LI C8  * WI^
-                LJ C9  * WJ^
-                LK C10 * WK^
-                LL C11 * WL^
+                y[-1,1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LA@ C0  * WA^
+                y[0,1]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LB@ X   * WB^
+                y[1,1]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LC@ C2  * WC^
+                y[-1,0]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LD@ X   * WD^
+                y[1,0]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LE@ X   * WE^
+                y[-1,-1] {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LF@ C5  * WF^
+                y[0,-1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LG@ X   * WG^
+                y[1,-1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LH@ C7  * WH^
+                y[0,2]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LI@ C8  * WI^
+                y[-2,0]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LJ@ C9  * WJ^
+                y[2,0]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LK@ C10 * WK^
+                y[0,-2]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.980001 * 2.97 swap - * * 0.01 + LL@ C11 * WL^
 
                 J {r_max} * 0.06 + 2.4 ^ WA *
                 B {r_max} * 0.06 + 2.4 ^ WB * +
@@ -387,14 +370,13 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
             1 {scale_cs} - {scale_lim} * P {scale_cs} * + P min P^
             1 {scale_cs} - {scale_lim} * N {scale_cs} * + N min N^
 
-            y range_half - {r_max} * 0 1 clip Y@ 0 max U@ P 24 * min 2 * P / 2.718281828 swap ^ E@ 1 - E 1 + / P * SP^
-            Y                                    0 min V@ N 24 * min 2 * N / 2.718281828 swap ^ E@ 1 - E 1 + / N * SN^
+            {L_compr_high} {L_compr_low} - z {r_max} * Z@ * {L_compr_low} + CX@ y range_half - {r_max} * 0 1 clip Y@ 0 max dup {pm_p} ^ swap swap2 *
+            swap P 24 * min 2 * P / 2.718281828 swap ^ dup 1 - swap 1 + / P *
+            abs {pm_p} ^ 1 CX - abs * + 1 {pm_p} / ^
 
-            {L_compr_high} {L_compr_low} - z {r_max} * Z@ * {L_compr_low} + CX^
-            {D_compr_high} {D_compr_low} - Z              * {D_compr_low} + CY^
-
-            U {pm_p} ^ CX *  SP abs {pm_p} ^ 1 CX - abs * + 1 {pm_p} / ^
-            V {pm_p} ^ CY *  SN abs {pm_p} ^ 1 CY - abs * + 1 {pm_p} / ^ -
+            {D_compr_high} {D_compr_low} - Z              * {D_compr_low} + CY@ Y 0 min dup {pm_p} ^ swap swap2 *
+            swap N 24 * min 2 * N / 2.718281828 swap ^ dup 1 - swap 1 + / N *
+            abs {pm_p} ^ 1 CY - abs * + 1 {pm_p} / ^ -
 
             X + range_max *
             "), bi, fs)
@@ -497,17 +479,18 @@ function ex_unsharp(clip a, float "rad", float "radV", float "str", int "th", in
 
 
 
+# Port of UnsharpMask_avsi.avsi by real.finder
 
-function UnsharpMask_HBD(clip clp, float "str", int "rad", float "threshold", int "UV", bool "fulls") {
+function UnsharpMask_HBD(clip clp, float "str", int "rad", float "thres", int "UV", bool "fulls") {
 
     bi  = BitsPerComponent(clp)
     rgb = isRGB(clp)
 
-    str    = Default(str, 64)
+    str    = Default(str,   64)
     rd     = Default(rad,    3)
-    thres  = Default(threshold, 8)
-    UV     = Default(UV,      rgb ? 3 : 1)
-    fs     = Default(fulls,   rgb)
+    thres  = Default(thres,  8)
+    UV     = Default(UV,    rgb ? 3 : 1)
+    fs     = Default(fulls, rgb)
 
     rd    = rd - 1
     str   = str/128.
@@ -584,7 +567,7 @@ function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "
 ###  (https://forum.doom9.org/showthread.php?p=1076276#post1076276)
 ###  (https://forum.doom9.org/showthread.php?p=1076491#post1076491)
 ###
-###  ex_ContraSharpening() v3.0 (12 Augu 2021)
+###  ex_ContraSharpening() v3.1 (12 Sept 2021)
 ###  - Mod and port to ExTools by Dogway
 ###
 ###
@@ -609,13 +592,13 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
     pmax = ex_lutxyz(original, cb1, cf1, "x y max z max",UV=1)
     pmin = ex_lutxyz(original, cb1, cf1, "x y min z min",UV=1)""") : nop()
 
-    s    = denoised.ex_MinBlur(HD?2:1,1,fulls=fs)                                           # Damp down remaining spots of the denoised clip.
+    s    = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                        # Damp down remaining spots of the denoised clip.
 
     allD = ex_makediff(original,denoised,UV=1,fulls=fs)                                     # The difference achieved by the denoising.
     ssD  = ex_makediff(s,HD?s.removegrain(12,-1).\
                               removegrain(20,-1):\
                             s.removegrain(12,-1),UV=1,fulls=fs)                             # The difference of a simple kernel blur.
-    ssDD = ssD.repair(HD?ssD.repair(allD,1):allD,1)                                         # Limit the difference to the max of what the denoising removed locally.
+    ssDD = ssD.repair(HD?ssD.repair(allD,1,-1):allD,1,-1)                                   # Limit the difference to the max of what the denoising removed locally.
 
     ssDD = SSDD.ex_lutxy(ssD,"x range_half - abs y range_half - abs < x y ?",UV=1,fulls=fs) # abs(diff) after limiting may not be bigger than before.
 
@@ -709,10 +692,10 @@ function SeeSaw( clip  input, clip "denoised",
     head   = tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, 4, fs)
     head   = head.mt_merge(tame, tame.mt_edge("prewitt", 0, 255, 0, 0, U=1, V=1).mt_expand().removegrain(20, -1))
 
-    (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1, -1)                                                                               : \
-                             repair(tame.lanczosresize(xss, yss).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, -.2, .6), 1, -1, -1).lanczosresize(ox, oy)
+    (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1)                                                                              : \
+                             repair(tame.lanczosresize(xss, yss).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, -.2, .6), 1, -1).lanczosresize(ox, oy)
 
-    ex_SootheSS2(last, tame, sootheT, sootheS, false, 2, fs)
+    ex_SootheSS2(last, tame, sootheT, sootheS, false, fs)
     sharpdiff = ex_makediff(tame, last, fulls=fs)
 
     (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),     fulls=fs)
@@ -780,10 +763,10 @@ function SeeSaw2( clip  input, clip "denoised",
     head   = tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, 4, fs)
     head   = head.mt_merge(tame, tame.mt_edge("prewitt", 0, 255, 0, 0, U=1, V=1).mt_expand().removegrain(1, -1))
 
-    (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1, -1)                                                                                  : \
-                             repair(tame.spline36resize(xss, yss).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, 0.75, 1.0), 1, -1, -1).lanczosresize(ox, oy)
+    (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1)                                                                                 : \
+                             repair(tame.spline36resize(xss, yss).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, 0.75, 1.0), 1, -1).lanczosresize(ox, oy)
 
-    ex_SootheSS2(last, tame, sootheT, sootheS, true, 2, fs)
+    ex_SootheSS2(last, tame, sootheT, sootheS, true, fs)
     sharpdiff = ex_makediff(tame, last, fulls=fs)
 
     (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?")    , fulls=fs)
@@ -807,13 +790,13 @@ function ex_sharpen22(clip clp, float strength, float power, float zp, float lod
     HDMPr = 1. / hidmp
     HDMP  = (hidmp==0) ? "" : Format("A abs {HDMPr} * dup dup dup * * * 1 + /")
 
-    ex_lutxy( clp, clp.RemoveGrain(rgmode,-1,-1), Format("x dup y == swap dup dup y - A@ abs {ZRPr} * {PWR} ^ {ZRP} * {STR} * A dup * dup {DMP} + / * A dup abs / * "+HDMP+" + ?"), UV=1, fulls=fulls, scale_inputs=fs ? "allf" : "all") }
+    ex_lutxy( clp, clp.RemoveGrain(rgmode,-1), Format("x dup y == swap dup dup y - A@ abs {ZRPr} * {PWR} ^ {ZRP} * {STR} * A dup * dup {DMP} + / * A dup abs / * "+HDMP+" + ?"), UV=1, fulls=fulls, scale_inputs=fs ? "allf" : "all") }
 
 
 
 # =======  Soothe() function to stabilize sharpening  =======
 
-function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool "SootheSS2", int "UV", bool "fulls") {
+function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool "SootheSS2", bool "fulls") {
 
     bi       = BitsPerComponent(sharp)
     sootheT  = Default(sootheT, 25 )
@@ -825,9 +808,9 @@ function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool 
     SootheSS2= Default(SootheSS2, false)
     fs       = Default(fulls,     false)
 
-    ex_makediff(orig,sharp,fulls=fs)
+    ex_makediff(orig,sharp,UV=1,fulls=fs)
 
-    (sootheS==0) ? last : ex_lutxy( last, last.removegrain(SootheSS2 ? 1 : 20, -1,-1),
+    (sootheS==0) ? last : ex_lutxy( last, last.removegrain(SootheSS2 ? 1 : 20, -1),
      \             Format("x range_half - X@ y range_half - Y@ * 0 < X 0.010001 * {SSPT} * range_half + X abs Y abs > x {SSPT} * y 100 {SSPT} - * + 0.010001 * x ? ?"),UV=1,fulls=fs)
 
     (sootheT==0) ? last : ex_lutxy( last, last.temporalsoften(1,255,0,32,2),
@@ -836,7 +819,7 @@ function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool 
     (sootheT>-1) ? last : ex_lutxy( last, last.temporalsoften(1,255,0,32,2),
      \             Format("x range_half - X@ y range_half - Y@ * 0 < X 0.010001 * {ST}   * range_half + X abs Y abs > x {ST}   * y 100 {ST}   - * + 0.010001 * x ? ?"),UV=1,fulls=fs)
 
-    ex_makediff(orig,last,UV=uv,fulls=fs) }
+    ex_makediff(orig,last,UV=1,fulls=fs) }
 
 
 
@@ -891,7 +874,7 @@ function FineSharp(clip c, float "sstr", int "mode", float "cstr", float "xstr",
 
     shrp = (cstr<0.01) ? shrp : shrp.ex_makediff(shrpD.ex_lut(Format("x range_half - {CSTR} * range_half +"),fulls=fs).removegrain(rg,-1), UV=1, fulls=fs)
 
-           (xstr<0.01) ? shrp : ex_lutxy(shrp, shrp.removegrain(20,-1),"x dup y - 9.690001 * +", UV=1, fulls=fs).repair(shrp,12,0).mergeluma(shrp,1.0-xstr) }
+           (xstr<0.01) ? shrp : ex_lutxy(shrp, shrp.removegrain(20,-1),"x dup y - 9.690001 * +", UV=1, fulls=fs).repair(shrp,12,-1).mergeluma(shrp,1.0-xstr) }
 
 
 
@@ -1017,7 +1000,7 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
 
     clp = isy(a) ? a : a.ExtractY()
 
-    bright_limit = soft==true ? clp.ex_boxblur(0.5,mode="weighted") : clp #.sharpen(1.0)#.blur(1.58)
+    bright_limit = soft ? clp.ex_boxblur(0.5,mode="weighted") : clp #.sharpen(1.0)#.blur(1.58)
 
     dark_limit   = bright_limit.ex_inpand(rad).ex_boxblur(rad,mode="weighted").mt_inflate().mt_deflate()
     dark_limit   = ss ?   dark_limit.lanczosresize(round(ox*ss_x/8)*8,round(oy*ss_y/8)*8) : dark_limit
@@ -1056,26 +1039,27 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
 
 function MedianSharp (clip a, int "str", float "pwr", int "UV", bool "fulls") {
 
-    str = Default( str,    4 )
-    pwr = Default( pwr, 1.62 )
-    UV  = Default(UV,         3)
-    fs  = Default(fulls,  false)
+    str = Default( str,      4 )
+    pwr = Default( pwr,   1.62 )
+    UV  = Default( UV,       3 )
+    fs  = Default( fulls, false)
 
     bi   = BitsPerComponent(a)
     pwr2 = 1. / pow(pwr, 2)
     pwr3 =      pow(pwr, 3)
     rpwr = 1. / pwr
     pass = round(str/1.5)
+    rc   = UV == 3
 
-    b    = str==1 ? a.removegrain(4,UV==3?4:-1)   : \
+    b    = str==1 ? a.removegrain(4,rc?4:-1)      : \
            str==2 ? a.ex_median("median5", UV=UV) : \
            str==3 ? a.ex_median("median7", UV=UV) : \
                     a.medianblur(str,pass,pass)
 
-    c    = a.repair(b,1)
+    c    = a.repair(b,1,rc?1:-1)
 
     for (i = 0, max(0,pass-1), 1) {
-        c = c.repair(c) }
+        c = c.repair(c,1,rc?1:-1) }
 
     ex_lutxy(a, c, Format("x dup y - A@ abs {pwr2} * {rpwr} ^ {pwr3} * A dup abs {pwr} + / * +"), UV=UV, scale_inputs=fs ? "allf" : "all") }
 
@@ -1307,11 +1291,11 @@ function SSW(clip c) {
 
 Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int "lmode", int "thresh", bool "fulls") {
 
-    strh   = Default(str,     7)
-    strv   = Default(strv, strh)
-    Radh   = Default(Rad,     1)
-    Radv   = Default(Radv, Radh)
-    lmode  = Default(lmode,   1)
+    strh   = Default(str,      7)
+    strv   = Default(strv,  strh)
+    Radh   = Default(Rad,      1)
+    Radv   = Default(Radv,  Radh)
+    lmode  = Default(lmode,    1)
     thresh = Default(thresh, 720)
     fs     = Default(fulls,  false)
 
@@ -1409,6 +1393,7 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
     cstrv = Default(cstrv, cstrh)
     fs    = Default(fulls,  false)
 
+    isy     = isy(c)
     bi      = BitsPerComponent(c)
 
     strv2   = ex_bs(pow(strv,0.5), 8, bi, fulls=fs)
@@ -1456,7 +1441,7 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
                                                                                        B A B - - 0 max 0.550001 * + "), UV=1, fulls=fs)
 
     HPSharp = Expr(C, lp_V, lp_H, minmax_G_V, minmax_G_H, DeEmphasis, Format("x y - X@ a {un} max * a X abs - {un} max /
-                                                                              y z - X@ b {un} max * b X abs - {un} max / + c +" ),"")
+                                                                              y z - X@ b {un} max * b X abs - {un} max / + c +" ), isy ? Undefined() : "")
 
     ReEmphasis = HPSharp.ex_lut(Format("x[-2,0] x[2,0] + 6 * x[-1,0] x[1,0] + 15 * x[-3,0] x[3,0] + + + x[0,0] {reh} * - {dih2} * "), UV=1, fulls=fs). \
                          ex_lut(Format("x[0,-2] x[0,2] + 6 * x[0,-1] x[0,1] + 15 * x[0,-3] x[0,3] + + + x[0,0] {rev} * - {div2} * "), UV=1, fulls=fs)
@@ -1469,7 +1454,7 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
     Gauss_H = ReEmphasis.ex_boxblur(3,0,mode="weighted")
 
     # Although I do prefer the " 0 max" look after each "* *"
-    Expr(ReEmphasis, Gauss_V, V, Gauss_H, H, Format("x y - z * {thr2gv} {cstrv} * * x a - b * {thr2gh} {cstrh} * * x + +"), "", scale_inputs= fs ? "allf" : "all") }
+    Expr(ReEmphasis, Gauss_V, V, Gauss_H, H, Format("x y - z * {thr2gv} {cstrv} * * x a - b * {thr2gh} {cstrh} * * x + +"), isy ? Undefined() : "", scale_inputs= fs ? "allf" : "all") }
 
 
 
@@ -1498,6 +1483,7 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
     kernel = Default(kernel, 2)
 
     blank = BlankClip(C,color=$828282)
+    isy   = isy(c)
     bi    = BitsPerComponent(c)
     THR2  = ex_bs(pow(THR,0.5),   8, bi, fulls=fs)
     THR3  = ex_bs(pow(THR*2,0.5), 8, bi, fulls=fs)
@@ -1523,7 +1509,7 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
     s2  = Diff1.ex_lut(Format("x range_half - {str} * range_half +"), UV=1, fulls=fs)
     s2b = s1.NLLV(1,false,fs).NLLH(1,false,fs)  # is s1. a bug?
 
-    Expr(C, s1, s1b, s2, s2b, "x y a + + z - b -","") }
+    Expr(C, s1, s1b, s2, s2b, "x y a + + z - b -", isy ? Undefined() : "") }
 
 
 
@@ -1558,7 +1544,8 @@ function TMed2(Clip c, float "thresh", int "rad", int "mode", int "kernel", bool
 
 function NLHH2(Clip C, bool "fulls") {
 
-    bi = BitsPerComponent(c)
+    isy = isy(c)
+    bi  = BitsPerComponent(c)
 
     fs = Default(fulls, false)
 
@@ -1569,12 +1556,13 @@ function NLHH2(Clip C, bool "fulls") {
 
     Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
                                               x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +","", scale_inputs = fs ? "allf" : "all")
+                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
       }
 
 function NLHV2(Clip C, bool "fulls") {
 
-    bi = BitsPerComponent(c)
+    isy = isy(c)
+    bi  = BitsPerComponent(c)
 
     fs = Default(fulls, false)
 
@@ -1585,11 +1573,12 @@ function NLHV2(Clip C, bool "fulls") {
 
     Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
                                               x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +","", scale_inputs = fs ? "allf" : "all")
+                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
     }
 
 function NLLH(Clip C, int "rad", bool "var4", bool "fulls") {
 
+    isy = isy(c)
     bi  = BitsPerComponent(c)
 
     rad = Default(rad, 1)
@@ -1603,11 +1592,12 @@ function NLLH(Clip C, int "rad", bool "var4", bool "fulls") {
 
     Expr(C, B1, B2, B3, B4, "y x - S@ abs X^  x z - T@ abs Y^  S T X Y * A@ 1 + * A Y 1.915 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
                                               a x - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.025 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +","", scale_inputs = fs ? "allf" : "all")
+                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
     }
 
 function NLLV(Clip C, int "rad", bool "var4", bool "fulls") {
 
+    isy = isy(c)
     bi  = BitsPerComponent(c)
 
     rad = Default(rad, 1)
@@ -1621,7 +1611,7 @@ function NLLV(Clip C, int "rad", bool "var4", bool "fulls") {
 
     Expr(C, B1, B2, B3, B4, "y x - S@ abs X^  x z - T@ abs Y^  S T X Y * A@ 1 + * A Y 1.915 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
                                               a x - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.025 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +","", scale_inputs = fs ? "allf" : "all")
+                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
     }
 
 
@@ -1667,9 +1657,9 @@ function YAHR(clip clp, bool "fulls") {
     b1D   = ex_makediff(clp,b1,UV=1,fulls=fs)
 
     w1    = clp.aWarpSharp(depth=32,blurlevel=2,thresh=0.5)
-    w1b1  =  w1.ex_minblur(2,1,fulls=fs).removegrain(11,-1)
+    w1b1  =  w1.ex_minblur(2,UV=1,fulls=fs).removegrain(11,-1)
     w1b1D = ex_makediff(w1,w1b1,UV=1,fulls=fs)
 
-    DD    = b1D.repair(w1b1D,13)
+    DD    = b1D.repair(w1b1D,13,-1)
 
     ex_lutxyz(clp, b1D, DD, "x y range_half + z range_half + - -", UV=1, fulls=fs) }
