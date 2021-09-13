@@ -362,7 +362,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     ChromaMotion = Default( ChromaMotion, Select( pNum,  true,      true,     true,     false,    false,    false,    false,    false,    false,     false,     false ) )
     Precise      = Default( Precise,      Select( pNum,  true,      true,     false,    false,    false,    false,    false,    false,    false,     false,     false ) )
     ProgSADMask  = Default( ProgSADMask,  Select( pNum,  10.0,      10.0,     10.0,     10.0,     10.0,     0.0,      0.0,      0.0,      0.0,       0.0,       0.0        ) )
-    Refinemotion = Default( Refinemotion, Select( pNum,  true,      true,     false,    false,    false,    false,    false,    false,    false,     false,     false ) )
+#    Refinemotion = Default( Refinemotion, Select( pNum,  true,      true,     false,    false,    false,    false,    false,    false,    false,     false,     false ) )
+    Refinemotion = Default( Refinemotion, false) #https://github.com/Dogway/Avisynth-Scripts/pull/23#issuecomment-918586163
 
     # Noise presets                                           Slower     Slow       Medium     Fast       Faster
     Denoiser       = Default( Denoiser,       Select( npNum, "dfttest", "dfttest", "dfttest", "fft3df",  "fft3df" ) )
