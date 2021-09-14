@@ -13,7 +13,7 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
     bias    = Default( bias,   25 )
     biasC   = Default( biasC,  50 )
     RGmode  = Default( RGmode,  4 )
-    RGmodeC = Default( RGmodeC, 0 )
+    RGmodeC = Default( RGmodeC,-1 )
     HD      = Default( HD,  (w > 1099 ||  h > 599) )
     radius  = Default( radius,  round(h/540.0) )
     fs      = Default( fulls, rgb )
@@ -35,6 +35,6 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
                              "x y - abs 0 <= x dup {LIM1c} + y < x {LIM2c} + x {LIM1c} - y > x {LIM2c} - x {CTH} {BIAc} - * y {BIAc} * + 1 {CTH} / * ? ? ?" )
 
 
-    ex_lutxy( clp, HD ? clp.ex_MinBlur(radius,uv=uv) : clp.removegrain(RGmode,RGmodeC), expr, exprC, scale_inputs=limit<0 ? "floatf" : "none", Y=yy, UV=uv, fulls=fs)
+    ex_lutxy( clp, HD ? clp.ex_MinBlur(radius,uv=uv) : clp.removegrain(RGmode,RGmodeC), expr, exprC, scale_inputs=limit<0 ? fs ? "floatf" : "float" : "none", Y=yy, UV=uv, fulls=fs)
 
 }
