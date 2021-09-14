@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v1.1  (12-09-2021)                             ###
+###        Sharpeners Pack v1.2  (14-09-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -567,7 +567,7 @@ function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "
 ###  (https://forum.doom9.org/showthread.php?p=1076276#post1076276)
 ###  (https://forum.doom9.org/showthread.php?p=1076491#post1076491)
 ###
-###  ex_ContraSharpening() v3.1 (12 Sept 2021)
+###  ex_ContraSharpening() v3.2 (14 Sept 2021)
 ###  - Mod and port to ExTools by Dogway
 ###
 ###
@@ -582,28 +582,29 @@ function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "
 function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC", int "overshoot", bool "fulls") {
 
     HD        = Default(HD,    false)
-    MC        = Default(MC,    false)  # Enable to switch from spatial to temporal limiting
-    overshoot = Default(overshoot, 0)
+    MC        = Default(MC,    false)  # Enable to switch from spatial to temporal limiting (output a bit sharper than original though)
+    os        = Default(overshoot, 0)  # Raise to allow more sharpening when temporal limiting (MC=true)
     fs        = Default(fulls, false)
 
     MC ? Eval("""
-    cb1  = original.MCompensate(Super, cb1)
-    cf1  = original.MCompensate(Super, cf1)
+    cb1  = original.MCompensate(Super, cb1, mt=true)
+    cf1  = original.MCompensate(Super, cf1, mt=true)
     pmax = ex_lutxyz(original, cb1, cf1, "x y max z max",UV=1)
     pmin = ex_lutxyz(original, cb1, cf1, "x y min z min",UV=1)""") : nop()
 
-    s    = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                        # Damp down remaining spots of the denoised clip.
+    s    = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                                          # Damp down remaining spots of the denoised clip.
 
-    allD = ex_makediff(original,denoised,UV=1,fulls=fs)                                     # The difference achieved by the denoising.
+    allD = ex_makediff(original,denoised,UV=1,fulls=fs)                                                       # The difference achieved by the denoising.
     ssD  = ex_makediff(s,HD?s.removegrain(12,-1).\
                               removegrain(20,-1):\
-                            s.removegrain(12,-1),UV=1,fulls=fs)                             # The difference of a simple kernel blur.
-    ssDD = ssD.repair(HD?ssD.repair(allD,1,-1):allD,1,-1)                                   # Limit the difference to the max of what the denoising removed locally.
+                            s.removegrain(12,-1),UV=1,fulls=fs)                                               # The difference of a simple kernel blur.
+    ssDD = ssD.repair(HD?ssD.repair(allD,1,-1):allD,1,-1)                                                     # Limit the difference to the max of what the denoising removed locally.
 
-    ssDD = SSDD.ex_lutxy(ssD,"x range_half - abs y range_half - abs < x y ?",UV=1,fulls=fs) # abs(diff) after limiting may not be bigger than before.
-
-    denoised.ex_adddiff(MC?ssD:ssDD,UV=1,fulls=fs)                                          # Apply the limited difference. (Sharpening is just inverse blurring)
-    MC ? ex_clamp(last,pmax,pmin,overshoot,overshoot,UV=1,fulls=fs) : last }
+    dif  = "x y + range_half - "
+    MC ? ex_lutxyza(denoised,ssD,pmax,pmin,os==0?dif+"z min a max":Format(dif+"z {os} + min a {os} - max"),UV=1,fulls=fs) : \
+         ex_lutxyz (denoised,ssDD,ssD,"y range_half - X@ abs z range_half - Y@ abs < X Y ? x +",UV=1,fulls=fs) # abs(diff) after limiting may not be bigger than before.
+                                                                                                               # Apply the limited difference " x +" (Sharpening is just inverse blurring)
+    }
 
 
 
@@ -782,6 +783,7 @@ function SeeSaw2( clip  input, clip "denoised",
 function ex_sharpen22(clip clp, float strength, float power, float zp, float lodmp, float hidmp, int rgmode, bool fulls) {
 
     bi    = BitsPerComponent(clp)
+    fs    = Default(fulls, false)
     STR   = strength
     PWR   = 1.0/power
     ZRP   = ZP
@@ -790,7 +792,7 @@ function ex_sharpen22(clip clp, float strength, float power, float zp, float lod
     HDMPr = 1. / hidmp
     HDMP  = (hidmp==0) ? "" : Format("A abs {HDMPr} * dup dup dup * * * 1 + /")
 
-    ex_lutxy( clp, clp.RemoveGrain(rgmode,-1), Format("x dup y == swap dup dup y - A@ abs {ZRPr} * {PWR} ^ {ZRP} * {STR} * A dup * dup {DMP} + / * A dup abs / * "+HDMP+" + ?"), UV=1, fulls=fulls, scale_inputs=fs ? "allf" : "all") }
+    ex_lutxy( clp, clp.RemoveGrain(rgmode,-1), Format("x dup y == swap dup dup y - A@ abs {ZRPr} * {PWR} ^ {ZRP} * {STR} * A dup * dup {DMP} + / * A dup abs / * "+HDMP+" + ?"), UV=1, fulls=fs, scale_inputs=fs ? "allf" : "all") }
 
 
 
@@ -874,7 +876,7 @@ function FineSharp(clip c, float "sstr", int "mode", float "cstr", float "xstr",
 
     shrp = (cstr<0.01) ? shrp : shrp.ex_makediff(shrpD.ex_lut(Format("x range_half - {CSTR} * range_half +"),fulls=fs).removegrain(rg,-1), UV=1, fulls=fs)
 
-           (xstr<0.01) ? shrp : ex_lutxy(shrp, shrp.removegrain(20,-1),"x dup y - 9.690001 * +", UV=1, fulls=fs).repair(shrp,12,-1).mergeluma(shrp,1.0-xstr) }
+           (xstr<0.01) ? shrp : ex_lutxy(shrp, shrp.removegrain(20,-1),"x dup y - 9.690001 * +", UV=1, fulls=fs).repair(shrp,12,0).mergeluma(shrp,1.0-xstr) }
 
 
 
@@ -1039,7 +1041,7 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
 
 function MedianSharp (clip a, int "str", float "pwr", int "UV", bool "fulls") {
 
-    str = Default( str,      4 )
+    str = Default( str,      3 )
     pwr = Default( pwr,   1.62 )
     UV  = Default( UV,       3 )
     fs  = Default( fulls, false)
@@ -1509,7 +1511,8 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
     s2  = Diff1.ex_lut(Format("x range_half - {str} * range_half +"), UV=1, fulls=fs)
     s2b = s1.NLLV(1,false,fs).NLLH(1,false,fs)  # is s1. a bug?
 
-    Expr(C, s1, s1b, s2, s2b, "x y a + + z - b -", isy ? Undefined() : "") }
+    Expr(C, s1, s1b, s2, s2b, "y z - a b - x + +", isy ? Undefined() : "") }
+
 
 
 
