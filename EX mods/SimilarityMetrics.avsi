@@ -418,7 +418,7 @@ All the internal calculations are done at 32-bit float.
 # If it's a float, it specifies the "sigmaX" of vsTCanny.
 # If it's function, it acts as a general smoother.
 #---------------
-# kernel (default "z_BicubicResize"): Resample kernel.
+# kernel (default "BicubicResize"): Resample kernel.
 #---------------
 # epsilon (default 0.000001)
 #---------------
@@ -435,7 +435,7 @@ SSIM_downsample(1280,532)
 */
 ###
 /*
-SSIM_downsample(1280,532, resample_args="b=-0.6, c=0", dither="error_diffusion", smooth="""generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)""")
+SSIM_downsample(1280,532, resample_args="b=-0.6, c=0", dither="error_diffusion", smooth="""ex_boxblur(1,mode="mean",UV=1)""")
 # Downsampling with custom kernel arguments, custom smooth function and dither.
 */
 
@@ -454,7 +454,7 @@ SSIM_downsample(1280,532, resample_args="b=-0.6, c=0", dither="error_diffusion",
 function SSIM_downsample(clip c, int target_width, int target_height, val "smooth", string "kernel", float "epsilon", string "resample_args", bool "dither", bool "fulls")
 {
     smooth  = Default(smooth, 1.5)
-    kernel  = Default(kernel, "z_BicubicResize")
+    kernel  = Default(kernel, "BicubicResize")
     epsilon = Default(epsilon, 0.000001)
     dither  = Default(dither, false)
     fs      = Default(fulls,  false)
