@@ -511,8 +511,8 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
 
     # BLUR
     if (md=="gaussian") {
-        sg  > 2 ? ex_gaussianblur(sg,UV=uv)    : \
-                  ex_blur(sg,bifit=false,UV=uv)
+        sg  => 2 ? ex_gaussianblur(sg,UV=uv)    : \
+                   ex_blur(sg,bifit=false,UV=uv)
     } else {
                   ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
     }
@@ -558,14 +558,14 @@ function ex_invert(clip a, bool "tv_range", int "UV", bool "fulls") {
 
 
 # mt_lutspa() is same speed (instant when spatial)
-function ex_lutspa(clip a, string "mode", string "str", int "UV", bool "fulls") {
+function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
 
     mode = Default(mode, "absolute")
-    str  = Default(str, "x")
+    str  = Default(expr, "x")
     UV   = Default(UV,    rgb ? 3 : 1)
     fs   = Default(fulls, rgb)
 
@@ -818,8 +818,8 @@ function binom_coeffs(n, k) {
 #  90% ex_boxblur(1,mode="weighted",UV=1) # binomial weighted mean
 #  88% ablur(1, 1, chroma=1)              # against ex_boxblur(2,mode="weighted",UV=1)
 #  85% BinomialBlur(0.5*sqrt(2),U=1,V=1)  # only in 8-bit
-#  81% vsTCanny(0.5*sqrt(2),sigma_vY=0.5*sqrt(2),mode=-1,u=1,v=1) # binomial weighted mean
-#  70% ex_blur(1,UV=1)                    # true gaussian blur (output differs -more precise-)
+#  81% vsTCanny(0.5*sqrt(2),sigma_vY=0.5*sqrt(2),mode=-1,u=1,v=1) # true gaussian blur (fastest for mid size sigma)
+#  70% ex_blur(1,UV=1)                    # true gaussian blur
 #  68% blur(1.00)                         # weighted mean of [1 2 1]
 #  65% generalconvolution(matrix="1 2 1 2 4 2 1 2 1",chroma=false)
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
@@ -1166,6 +1166,10 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ## version 2017-05-21 bugfix: blockiness
 ## version 2021-09-05 Optimized (~38% gain) and profiled against ex_blur(), also Y+UV args
 ##
+##
+## 100% ex_gaussianblur(6)  (483fps)                    (gaussian approximation, fastest for large sigma)
+##  40% vsTCanny(sigmaY=6, sigma_vY=6, mode=-1,u=1,v=1) (true gaussian, fastest for mid sigma)
+##  17% ex_blur(rad,bifit=false,UV=1)                   (true gaussian, best for low sigma)
 
 function ex_GaussianBlur(clip C, float "sigma", float "sigmaV", int "Y", int "UV") {
 
@@ -1174,12 +1178,12 @@ function ex_GaussianBlur(clip C, float "sigma", float "sigmaV", int "Y", int "UV
 
     rad  = Default(sigma,    10)
     radv = Default(sigmaV,  rad)
-    Y    = Default(Y,       3)
-    UV   = Default(UV,      3)    # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower (ExtractY()/CombinePlanes() was slower)
+    Y    = Default(Y,         3)
+    UV   = Default(UV,        3)   # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower (ExtractY()/CombinePlanes() was slower)
 
 
-    rad  = 1.221428*rad  +0.136   # Parametrized to gaussian like standard deviation
-    radv = 1.221428*radv +0.136   # Parametrized to gaussian like standard deviation
+    rad  = 1.221428*rad  + 0.136   # Parametrized to gaussian like standard deviation
+    radv = 1.221428*radv + 0.136   # Parametrized to gaussian like standard deviation
 
     w0 = C.Width()
     h0 = C.Height()
@@ -4003,6 +4007,7 @@ function ex_hitormiss(clip a, int "radius", string "mode", int "UV", bool "fulls
 # 21 modes:
 # prewitt   - (8d) Technically, a discrete differentiation operator, an approximation of the gradient magnitude in 45º increments
 # hprewitt  - (4d) Half Prewitt
+# qprewitt  - (2d) Quarter Prewitt
 # sobel     - (2d) The famous Sobel-Feldman operator for weighted derivatives of an image
 # mtsobel   - (2d) masktools2 simplified version of the sobel operator
 # scharr    - (2d) Refined sobel operator to more accurately calculate 1st derivatives for a 3x3 kernel
@@ -4035,6 +4040,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     fs   = Default(fulls, rgb)
 
     th   = mode=="prewitt"   ?  [10, 100] : \
+           mode=="qprewitt"  ?  [ 0, 255] : \
            mode=="hprewitt"  ?  [10, 100] : \
            mode=="mtsobel"   ?  [ 5,  25] : \
            mode=="sobel"     ?  [20,  60] : \
@@ -4065,6 +4071,9 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
           mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                                   \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                                     \
                              +"G A B + + F - H - E - D G E + + C - H - B - max E H F + + B - A - G - B H C + + E - G - D - max max max "+th+""                                                         : \
+                                                                                                                                                                                                         \
+          mode=="qprewitt"   ? "x[-1,-1] A^ x[0,-1] B^ x[1,-1] C^ x[-1,0] D^ x[1,0] E^ x[-1,1] F^ x[0,1] G^ x[1,1] H^ "                                                                                  \
+                             +"A D F + + C - E - H -  A B C + + F - G - H - max "+th+""                                                                                                                : \
                                                                                                                                                                                                          \
           mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ x[-1,-1] F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                                   \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "+th+""                                                             : \
@@ -4127,7 +4136,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
           mode=="Std"       ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ A B C D E F G H + + + + + + + 0.125001 * J^ "                                       \
                              +"A J - dup * B J - dup * C J - dup * D J - dup * E J - dup * F J - dup * G J - dup * H J - dup * + + + + + + + 0.125001 * sqrt 8 * "+th+""                               : \
                                                                                                                                                                                                          \
-                             ex_dlut(mode, bi, fs)
+                             ex_dlut(mode+th, bi, fs)
 
     isy     ? Expr(a, str                                                               ) : \
     UV == 1 ? Expr(a, str, ""                                                           ) : \
@@ -4272,9 +4281,9 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center") {
            md == "plus"   ? """
                             skip  =  px != 0 && py != 0 """                          : \
            md == "cross"  ? """
-                            skipi = round(abs(pxr))/(round(abs(pyr))+0.001)
-                            skipo = round(abs(pyr))/(round(abs(pxr))+0.001)
-                            skip  = skipi != skipo  """                              : \
+                            skipo = round(abs(pxr))/(round(abs(pyr))+0.001)
+                            skipi = round(abs(pyr))/(round(abs(pxr))+0.001)
+                            skip  = skipo != skipi  """                              : \
            md == "horizontal" ? """
                             skip  =  py != 0 """                                     : \
            md == "vertical" ?  """
@@ -4332,6 +4341,7 @@ function FindStrInstance(string haystack, string needle) {
 function pixel_parser(string str) {
 
     # Cleanup
+    str = ReplaceStr(str, ",", "")
     str = ReplaceStr(str, " ", "")
     len = StrLen(str)
 
