@@ -289,7 +289,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             global Super           = super_render
             global cb1             = !isMult ? (isInter ? bv2 : bv1) : vmulti.SelectEvery (tr2, 0)
             global cf1             = !isMult ? (isInter ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)") : nop()
-                           Eval("
+                                Eval("
             CClip = (isCClip ?  ((isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip)) : (inputP))")
 
         } else { nop() }
@@ -589,13 +589,13 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
         tv       ?        "x ymin - 0 max range_max ymax ymin - / * "               : \
                           ""
 
-    ec = tv ? "x cmin - range_max cmax cmin - / *" : "x"
+    ec = tv ? "x cmin - range_max cmax cmin - / *" : ""
 
     ex_lut(src, e, rgb ? e : ec, Y=y, UV=uv, fulls=fs) }
 
 
 
-## ex_retinex()   by Dogway (09-09-2021)
+## ex_retinex()   by Dogway (15-09-2021)
 ##
 ## Multi-Scale Retinex
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
@@ -745,7 +745,7 @@ function ex_BM3D(clip a, float "sigma", int "radius", bool "CUDA", int "UV", boo
 
 
 
-## ex_KNLMeansCL() - KNLMeansCL wrapper by Dogway (12-09-2021)
+## ex_KNLMeansCL() - KNLMeansCL wrapper by Dogway (15-09-2021)
 ##
 
 function ex_KNLMeansCL (clip c, String "device_type", int "device_id", bool "chroma", float "h", int "d", int "a", String "knlm_params", clip "rclip") {
@@ -769,7 +769,7 @@ function ex_KNLMeansCL (clip c, String "device_type", int "device_id", bool "chr
     wclip   = dwclip ? rclip : Undefined()
 
     # Beware chroma placement, revise
-    If (stacked) {
+    If (stacked && !rgb) {
 
         Uclip   =          ExtractU(c)
         Uwclip  = dwclip ? ExtractU(wclip) : nop()
