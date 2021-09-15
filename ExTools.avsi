@@ -511,7 +511,7 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
 
     # BLUR
     if (md=="gaussian") {
-        sg  => 2 ? ex_gaussianblur(sg,UV=uv)    : \
+        sg  >= 2 ? ex_gaussianblur(sg,UV=uv)    : \
                    ex_blur(sg,bifit=false,UV=uv)
     } else {
                   ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
