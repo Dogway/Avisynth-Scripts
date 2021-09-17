@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v5.6     (12-09-2021)              ##
+###           ExTools v5.7     (17-09-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -135,33 +135,36 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 
 
 # mt_makediff() is 5% slower
-function ex_makediff(clip a, clip b, int "Y", int "UV", bool "dif", bool "aug", bool "fulls") {
+function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", int "Y", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    aug = Default(aug,   false)
+    aug = Defined(aug) ? isBool(aug) ? aug ? 50 : 1 : aug : 1
     Y   = Default(Y,         3)
-    UV  = Default(UV,  rgb ? 3 : aug ? 128 : 1)
-    dif = Default(dif,    true)
-    fs  = Default(fulls,   rgb)
+    UV  = Default(UV,  rgb ? 3 : aug > 1 ? 128 : 1)
+    dif = Default(dif,       true)
+    tv  = Default(tv_range, false)   # Enable to mimic Subtract(), "ygrey" centered instead of "range_half"
+    fs  = Default(fulls,     rgb)
 
-    str = aug ? "x y - abs 50 *"     : \
-          dif ? "x y - range_half +" : \
-                "x y -"
+    gr  =             tv ? "ygrey" : "range_half"
+    str = Format(aug > 1 ? "x y - abs {aug} *"    : \
+                 dif     ? "x y - "+gr+" +"       : \
+                           "x y -")
 
-    str  = dif && fs ? ex_dlut(str, bi, fs) : str
     ystr = ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
+    str  = dif ? ex_dlut(ystr, bi, fs) : str
+    cstr = dif ? ex_dlut(cstr, bi, fs) : cstr
 
-    isy     ? Expr(a, b, ystr                                    ) : \
-    UV == 1 ? Expr(a, b, ystr, ""                                ) : \
-              Expr(a, b, ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isy     ? Expr(a, b, str                                    ) : \
+    UV == 1 ? Expr(a, b, str, ""                                ) : \
+              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_adddiff() is 5% slower
-function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "fulls") {
+function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_range", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -169,19 +172,22 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "fulls")
 
     Y   = Default(Y,         3)
     UV  = Default(UV,  rgb ? 3 : 1)
-    dif = Default(dif,    true)
+    dif = Default(dif,       true)
+    tv  = Default(tv_range, false)
     fs  = Default(fulls,   rgb)
 
-    str = dif ? "x y + range_half -" : \
+    gr  = tv  ? "ygrey" : "range_half"
+    str = dif ? "x y + "+gr+" -"      : \
                 "x y +"
 
-    str  = dif && fs ? ex_dlut(str, bi, fs) : str
     ystr = ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
+    str  = dif ? ex_dlut(ystr, bi, fs) : str
+    cstr = dif ? ex_dlut(cstr, bi, fs) : cstr
 
-    isy     ? Expr(a, b, ystr                                    ) : \
-    UV == 1 ? Expr(a, b, ystr, ""                                ) : \
-              Expr(a, b, ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isy     ? Expr(a, b, str                                    ) : \
+    UV == 1 ? Expr(a, b, str, ""                                ) : \
+              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", bool "fulls") {
@@ -234,12 +240,11 @@ function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV",
         mode == "max"   ? "x "+th1+" y "+th2+" max"         : \
                           Assert (false, "Unsupported logic mode.")
 
-    str  = ex_dlut  (str,     bi,      fs)
-    cstr = ex_UVexpr(str, UV, bi, rgb, fs)
+    str  = ex_dlut(str, bi, fs)
 
-    isy     ? Expr(a, b, str                                    ) : \
-    UV == 1 ? Expr(a, b, str, ""                                ) : \
-              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isy     ? Expr(a, b, str                                                               ) : \
+    UV == 1 ? Expr(a, b, str, ""                                                           ) : \
+              Expr(a, b, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # mt_merge() is 5% slower on                  Y clips / masks
@@ -271,7 +276,7 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV", bool
           height(msk)!=height(a)      ? \
           mskY_to_YYY(a, msk, lm, rgb, UV, bi, fs) : msk
 
-     str = "x x y - z 1 range_max / * * -"
+     str = "x dup y - z 1 range_max / * * -"
 
      str = ex_dlut  ( str,     bi,      fs)
     ystr = ex_Yexpr ( str,  Y, bi, rgb, fs)
@@ -300,11 +305,9 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
     str = (os == 0) && (us == 0) ?        "x y min z max"              : \
                                    Format("x y {os} + min z {us} - max")
 
-    cstr = ex_UVexpr(str, UV, bi, rgb, fs)
-
-    isy     ? Expr(a, hi, lo, str,                                     optSingleMode=false) : \
-    UV == 1 ? Expr(a, hi, lo, str, "",                                 optSingleMode=false) : \
-              Expr(a, hi, lo, str, cstr, scale_inputs=ex_UVf(rgb, bi), optSingleMode=false) }
+    isy     ? Expr(a, hi, lo, str,                                                                optSingleMode=false) : \
+    UV == 1 ? Expr(a, hi, lo, str, "",                                                            optSingleMode=false) : \
+              Expr(a, hi, lo, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false) }
 
 
 # mt_binarize() is 12% slower than ex_binarize()
@@ -340,7 +343,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     lox = lo < 0   hix = hi < 0
     lox && hix ? Assert (false, "'lo' or 'hi': At least one bound should be binarized.") : nop()
 
-    bs  = rgb ? a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298967,0.586421,0.114612]) : a.ConvertBits(8,dither=-1,fulls=fs)
+    bs  = rgb ?  a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298967,0.586421,0.114612]) : a.ConvertBits(8,dither=-1,fulls=fs)
     a   = rgb ? bs.ConvertBits(bi,fulls=fs) : a
     br  = bs.width() > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
     isy = rgb || isy
@@ -460,11 +463,10 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
                               "x {th} > "+hi+" "+lo+" ?")
         }
 
-    cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
-    isy     ?  Expr(a, str                                    )   : \
-    UV == 1 ?  Expr(a, str, ""                                )   : \
-               Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi))
+    isy     ?  Expr(a, str                                                               ) : \
+    UV == 1 ?  Expr(a, str, ""                                                           ) : \
+               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi))
 
     sm      ? ex_boxblur(0.3, mode="weighted", UV=1, fulls=fulls) : last } }
 
@@ -514,12 +516,11 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
         sg  >= 2 ? ex_gaussianblur(sg,UV=uv)    : \
                    ex_blur(sg,bifit=false,UV=uv)
     } else {
-                  ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
+                   ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
     }
 
     # THRESHOLD
     str  = Format("y x {th} * "+(in ? ">" : "<")+" 0 range_max ?")
-    cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
     isy     ? Expr(last, integral, str                                                        ) : \
     UV == 1 ? Expr(last, integral, str,  ""                                                   ) : \
@@ -540,17 +541,21 @@ function ex_invert(clip a, bool "tv_range", int "UV", bool "fulls") {
     if (tv) {
 
         rmax = ex_bs(255, 8, bi, fulls=fs)
-        rdif = ex_bs(4,   8, bi, fulls=fs)
+        rdif = ex_bs(  4, 8, bi, fulls=fs)
+        rdifc= ex_bs(  1, 8, bi, fulls=fs)
         tvr  = rmax - rdif
+        tvcr = rmax + rdifc
 
-        str  = Format("{tvr} x -")
+        str  = Format("{tvr}  x -")
+        cstr = Format("{tvcr} x -")
+        cstr = ex_UVexpr(cstr, UV, bi, rgb, fs)
 
     } else {
 
         str  = "range_max x -"
         str  = ex_dlut  (str,     bi,      fs)
-    }
         cstr = ex_UVexpr(str, UV, bi, rgb, fs)
+    }
 
     isy     ?  Expr(a, str                                    ) : \
     UV == 1 ?  Expr(a, str, ""                                ) : \
@@ -575,8 +580,8 @@ function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls")
           mode=="relative" ? ReplaceStr(ReplaceStr(" "+str+" "," y "," syr "), " x ", " sxr ")  : \
                              Assert (false, "Unsupported lutspa mode.")
 
-    str  = ex_dlut(str, bi, fs)
     cstr = ex_dlut( ex_UVexpr(str, UV, bi, rgb, fs), bi, fs)
+    str  = ex_dlut(str, bi, fs)
 
     isy     ?  Expr(a, str                                    ) : \
     UV == 1 ?  Expr(a, str, ""                                ) : \
@@ -584,36 +589,6 @@ function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls")
     tem     ?  last : trim(last,0,-1).Loop(FrameCount(a))     }
 
 
-
-# Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
-# https://forum.doom9.org/showthread.php?p=891788#post891788
-# Optimization and port to EX mod from real.finder's HBD mod. by Dogway (20-08-2021)
-
-# Vinverse_avsi() is 69% slower with Prefetch(physical cores) and 53% slower with Prefetch(logical cores)
-function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem", bool "fulls") {
-
-    rgb  = isRGB(clp)
-    bi   = BitsPerComponent(clp)
-
-    sstr = Default(sstr, 2.7)       # strength of contra sharpening
-    amnt = Default(amnt, 255)       # change no pixel by more than this (Default=255: unrestricted)
-    dcus = Defined(custem)
-    UV   = Default(UV,    rgb ? 3 : 1)
-    fs   = Default(fulls, rgb)
-
-    amnt = ex_bs(amnt, 8, bi, fulls=fs)
-
-    vblur  =  clp.ex_boxblur(0, 1, "weighted", UV=uv)
-    vblurD =  dcus ? ex_makediff(clp, vblur, UV=uv, fulls=fs)  : nop()
-
-    VshrpD = !dcus ? ex_lutxy(vblur, vblur.ex_boxblur(0, 2, "weighted", UV=uv), Format("x dup y - {sstr} * + x - range_half +"), UV=uv, fulls=fs) : nop()
-
-    VlimD  =  dcus ? ex_lutxyz(clp,   VblurD, custem, "x z - 0 range_half - max A@ y       range_half -     B@ * 0 < A abs B abs < A range_half + y ? C@ range_half - 0.250001 * range_half + C ? z + range_half -", UV=uv, fulls=fs) : \
-                     ex_lutxyz(VshrpD,   clp,  Vblur, "x       range_half -     A@ y z - 0 range_half - max B@ * 0 < A abs B abs < x B range_half + ? C@ range_half - 0.250001 * range_half + C ? z + range_half -", UV=uv, fulls=fs)
-
-    (amnt > 254) ? VlimD : \
-    (amnt ==  0) ?   clp : \
-    ex_lutxy(clp,  VlimD, Format("y x {amnt} - x {amnt} + clip"), UV=uv, fulls=fs) }
 
 
 
@@ -1090,7 +1065,7 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", string "mo
     strv = md == "SNN" ? "x[0,0] X@  x[-1,1] A@ - abs X x[1,-1]  H@ - abs + M@
                           X          x[0,1]  B@ - abs X x[0,-1]  G@ - abs + N@ min
                           X          x[1,1]  C@ - abs X x[-1,-1] F@ - abs + O@ min
-                          X          x[-1,0] D@ - abs X x[1,0]   E@ - abs + P@ min W^
+                          X          x[-1,0] D@ - abs X x[1,0]   E@ - abs +    min W^
                           W M == A H + W N == B G + W O == C F + D E + ? ? ? 0.500001 *" : strv
 
     rv == 0 ?      a                                                                  : \
@@ -3538,8 +3513,8 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
                             dup X + swap X swap - a swap2 clip"                                                                                                    : \
                                                                                                                                                                      \
         mode == "temp4"  ? "a y z min N@ - 0 max dup + N + y z max M@ min O^
-                            M M a - 0 max dup + - N max P^
-                            N O == M P == or a x P O clip ?"                                                                                                       : \
+                            M dup a - 0 max dup + - N max P@
+                              M == N O == or a x P O clip ?"                                                                                                       : \
                                                                                                                                                                      \
                             Assert (false, mode+"Unsupported repair mode.")
 
@@ -4040,7 +4015,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     fs   = Default(fulls, rgb)
 
     th   = mode=="prewitt"   ?  [10, 100] : \
-           mode=="qprewitt"  ?  [ 0, 255] : \
+           mode=="qprewitt"  ?  [10, 100] : \
            mode=="hprewitt"  ?  [10, 100] : \
            mode=="mtsobel"   ?  [ 5,  25] : \
            mode=="sobel"     ?  [20,  60] : \
@@ -4066,7 +4041,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     lo = ex_bs(Defined(lo) ? lo : th[0], 8, bi, fulls=fs)
     hi = ex_bs(Defined(hi) ? hi : th[1], 8, bi, fulls=fs)
 
-    th  = (lo == 0) && (hi == ex_bs(255, 8, bi, fulls=fs)) ? "" : ex_dlut(Format("{lo} - range_max {hi} {lo} - / *"), bi, fs)
+    th  = (lo == 0) && (hi == ex_bs(255, 8, bi, fulls=fs)) ? "" : ex_dlut(Format(" {lo} - range_max {hi} {lo} - / *"), bi, fs)
     str =                                                                                                                                                                                                \
           mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                                   \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                                     \
@@ -4194,36 +4169,39 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     px  = isb  ? ReplaceStr(    px,  " y[0,0] ", " x[0,0] ") : px
     px  = isb  ?       px + " y[0,0] Y^ "                    : px
     px  = isb && px0 ? px + " x[0,0] X^ "                    : px
+    nex = ReplaceStr(str,  " ", "") == "y"
     str = px0  ? str : ReplaceStr(LCase(" "+str+" "),  " x ", " X ")
 
-    V = "" expr="" exprM="X"
+    V = "" expr="" exprS="X"
     len = px0 ? in : in-1
     for (i = 0, len-1, 1) {
 
         V     = ReplaceStr(MidStr(vars,i==0 ? 1 : i*2+1,2), " ", "")
-        exprM = md == "std" ? exprM + " " + V + " " + " + " : nop()
+        exprS = md == "std" ? exprS + " " + V + " " + " + " : " "
         expr  = expr + ReplaceStr(" "+str+" ",  " y ", " "+V+" ") + (md == "med" ? V+"^ " : \
                                                                      md == "std" ? i==0 ? op : op+" + " : i==0 ? " " : op)
 
     }
         exprY = isb  ? ReplaceStr(" "+str+" ",  " y ",     " Y ") + (md == "med" ? "Y^ "          : \
-                                                                     md == "std" ? op+" + " : op) : ""
+                                                                     md == "std" ? op+" + " : op) : " "
         exprX = !px0 ? ReplaceStr(" "+str+" ",  " y ",     " X ") + (md == "med" ? "X^ "          : \
-                                                                     md == "std" ? op+" + " : op) : ""
-        exprM = md == "std" ? exprM + string(1./in) + " * XX^ " : nop()
+                                                                     md == "std" ? op+" + " : op) : " "
 
-    expr = md == "range" ? px +         expr + exprY + exprX + ReplaceStr(expr,  "max", "min") + " -" + exprf : \
-           md == "avg"   ? px +         expr + exprY + exprX + string(1./in) + " *"                   + exprf : \
-           md == "std"   ? px + exprM + expr + exprY + exprX + string(1./in) + " * sqrt"              + exprf : \
-           md == "med"   ? px +         expr + exprY + exprX + med                                    + exprf : \
-                           px +         expr + exprY + exprX                                          + exprf
+        exprS = exprS + string(1./in) + " * XX^ " + expr + exprY + exprX
+        exprM = nex ? " "                         : expr + exprY + exprX
+
+    expr = md == "range" ? px + expr + exprY + exprX + ReplaceStr(expr,  "max", "min") + " - " + exprf : \
+           md == "avg"   ? px + expr + exprY + exprX + string(1./in) + " * "                   + exprf : \
+           md == "std"   ? px + exprS                + string(1./in) + " * sqrt "              + exprf : \
+           md == "med"   ? px + exprM                + med                                     + exprf : \
+                           px + expr + exprY + exprX                                           + exprf
 
     expr = ReplaceStr(expr, "  ", " ")
 
     ystr =               ex_Yexpr (expr,  Y, bi, rgb, fs)
     cstr = isc ? exprc : ex_UVexpr(expr, UV, bi, rgb, fs)
-    str  =             ex_dlut(ystr, bi, fs)
-    cstr = rgb ? str : ex_dlut(cstr, bi, fs)
+    str  =               ex_dlut(ystr, bi, fs)
+    cstr = rgb ?   str : ex_dlut(cstr, bi, fs)
 
     isb     ?                                                                                 \
     isy     ?  Expr(a, b, str,      optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
@@ -4232,7 +4210,6 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     isy     ?  Expr(a,    str,      optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
     UV == 1 ?  Expr(a,    str, "",  optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
                Expr(a,    str, cstr,optSingleMode = false, scale_inputs=si, clamp_float=cf) }
-
 
 
 
@@ -4393,7 +4370,8 @@ function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls")
 
     bd  = bi == 32 && !rgb ? 0.5 : 0
 
-    str = rgb ? str : ReplaceStr(str, "ymax", "cmax")
+    str = rgb ? str : ReplaceStr(str, "ymax",  "cmax")
+    str = rgb ? str : ReplaceStr(str, "ygrey", "range_half")
 
     # "" is the same as "copy first"
     str = UV == 1   ? ""          : \
@@ -4568,14 +4546,14 @@ function sel_med(int n) {
     med =                                                      \
                                                                \
     n == 3  ?  "A B                   dup1 dup1 max swap2 min
-                X swap2 clip"                                : \
+                X swap2 clip "                               : \
                                                                \
     n == 5  ?  "A B                   dup1 dup1 min swap2 max
                 C D                   dup1 dup1 min swap2 max
                 swap1  swap2                    min
                 swap2                                     max
                                       dup1 dup1 max swap2 min
-                X swap2 clip"                                : \
+                X swap2 clip "                               : \
                                                                \
     n == 7  ?  "A B                   dup1 dup1 min swap2 max
                 C D                   dup1 dup1 min swap2 max
@@ -4589,7 +4567,7 @@ function sel_med(int n) {
                 swap4  swap1  swap3                       max
                 swap3                           min
                 swap2                                     max
-                X swap2 clip"                                : \
+                X swap2 clip "                               : \
                                                                \
     n == 9  ?  "A B                   dup1 dup1 min swap2 max
                 C D                   dup1 dup1 min swap2 max
@@ -4608,7 +4586,7 @@ function sel_med(int n) {
                 swap3                           min
                 swap2                                     max
                                       dup1 dup1 max swap2 min
-                X swap2 clip"                                : \
+                X swap2 clip "                               : \
                                                                \
     n == 11  ? "B J                   dup1 dup1 min B^ max J^
                 A I                   dup1 dup1 min A^ max I^
@@ -4640,7 +4618,7 @@ function sel_med(int n) {
                 D E                                    max
                 F G                             min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 13  ? "D L                   dup1 dup1 min D^ max L^
                 E K                   dup1 dup1 min E^ max K^
@@ -4673,7 +4651,7 @@ function sel_med(int n) {
                 D G                                    max G^
                 F G                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 15  ? "K N                   dup1 dup1 min K^ max N^
                 E M                   dup1 dup1 min E^ max M^
@@ -4721,7 +4699,7 @@ function sel_med(int n) {
                 F G                                    max
                 H I                             min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 17  ? "K P                   dup1 dup1 min K^ max P^
                 L O                   dup1 dup1 min L^ max O^
@@ -4775,7 +4753,7 @@ function sel_med(int n) {
                 F H                                    max H^
                 H I                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 19  ? "L R                   dup1 dup1 min L^ max R^
                 H Q                   dup1 dup1 min H^ max Q^
@@ -4844,7 +4822,7 @@ function sel_med(int n) {
                 H I                                    max I^
                 I J                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 21  ? "H T                   dup1 dup1 min H^ max T^
                 G S                   dup1 dup1 min G^ max S^
@@ -4914,7 +4892,7 @@ function sel_med(int n) {
                 I J                                    max J^
                 J K                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 23  ? "U V                   dup1 dup1 min U^ max V^
                 S T                   dup1 dup1 min S^ max T^
@@ -4998,7 +4976,7 @@ function sel_med(int n) {
                 J K                                    max K^
                 K L                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 25  ? "D Z                   dup1 dup1 min D^ max Z^
                 L W                   dup1 dup1 min L^ max W^
@@ -5095,7 +5073,7 @@ function sel_med(int n) {
                 J M                                    max M^
                 L M                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 27  ? "M BB                  dup1 dup1 min M^ max BB^
                 T AA                  dup1 dup1 min T^ max AA^
@@ -5209,7 +5187,7 @@ function sel_med(int n) {
                 K N                                    max N^
                 M N                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 29  ? "CC DD                 dup1 dup1 min CC^ max DD^
                 AA BB                 dup1 dup1 min AA^ max BB^
@@ -5325,7 +5303,7 @@ function sel_med(int n) {
                 M O                                     max O^
                 N O                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 31  ? "EE FF                 dup1 dup1 min EE^ max FF^
                 CC DD                 dup1 dup1 min CC^ max DD^
@@ -5464,7 +5442,7 @@ function sel_med(int n) {
                 N O                                     max
                 P Q                             min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 33  ? "GG HH                 dup1 dup1 min GG^ max HH^
                 EE FF                 dup1 dup1 min EE^ max FF^
@@ -5612,7 +5590,7 @@ function sel_med(int n) {
                 N Q                                     max Q^
                 P Q                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 35  ? "JJ A                  dup1 dup1 min JJ^ max A^
                 B C                   dup1 dup1 min B^  max C^
@@ -5822,7 +5800,7 @@ function sel_med(int n) {
                 Q R                             min
                 O P                                     max
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 37  ? "LL A                  dup1 dup1 min LL^ max A^
                 B C                   dup1 dup1 min B^  max C^
@@ -6042,7 +6020,7 @@ function sel_med(int n) {
                 S T                             min
                 Q R                                     max
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 39  ? "A B                   dup1 dup1 min A^  max B^
                 C D                   dup1 dup1 min C^  max D^
@@ -6283,7 +6261,7 @@ function sel_med(int n) {
                 T U                             min
                 R S                                     max
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 41  ? "PP A                  dup1 dup1 min PP^ max A^
                 B C                   dup1 dup1 min B^  max C^
@@ -6534,7 +6512,7 @@ function sel_med(int n) {
                 S U                             min S^
                 S T                   dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 43  ? "A B                   dup1 dup1 min A^  max B^
                 C D                   dup1 dup1 min C^  max D^
@@ -6806,7 +6784,7 @@ function sel_med(int n) {
                 V W                             min
                 T U                                     max
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 45  ? "A B                   dup1 dup1 min A^  max B^
                 C D                   dup1 dup1 min C^  max D^
@@ -7089,7 +7067,7 @@ function sel_med(int n) {
                 T V                                     max V^
                 V W                 dup1 dup1 max swap2 min
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 47  ? "A B                   dup1 dup1 min A^  max B^
                 C D                   dup1 dup1 min C^  max D^
@@ -7396,7 +7374,7 @@ function sel_med(int n) {
                 Z AA                            min
                 V W                                     max
 
-                X swap2 clip"                                 : \
+                X swap2 clip "                                : \
                                                                 \
     n == 49  ? "A B                   dup1 dup1 min A^  max B^
                 C D                   dup1 dup1 min C^  max D^
@@ -7712,7 +7690,7 @@ function sel_med(int n) {
                 Z BB                            min Z^
                 Z AA                  dup1 dup1 max swap2 min
 
-                X swap2 clip"                                : \
+                X swap2 clip "                               : \
                                                                \
                 Assert (false, string(n)+": Max input number reached.")
 
