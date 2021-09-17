@@ -1,12 +1,13 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v2.8 (09-09-2021)               ##
+###           Grade Pack v2.9 (15-09-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
+###                                                      ##
 ###########################################################
 ###
 ### Look transforms pack for grading and look tone adjustments.
@@ -122,7 +123,7 @@ function ex_vibrance (clip c, val Sat, float "bias", string "mode", clip "Rc", b
 ###
 ###                 v3.0 (19-01-2014)
 ###                 v5.0 (15-07-2021)
-### ex_contrast() - v6.0 (09-09-2021)
+### ex_contrast() - v6.1 (15-09-2021)
 ###
 ###
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
@@ -175,14 +176,14 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     cstr = sat != 1. ? Format(""+rangePCc+" {sat} * "+rangeTVc+"") : ""
     cstr = rgb ? str : ex_dlut(ex_UVexpr(cstr, UV, bi, rgb, fs), bi, fs)
 
-    isy     ? Expr(c, str                                    ) : \
-    UV == 1 ? Expr(c, str, ""                                ) : \
-              Expr(c, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isy     ? Expr(c, str                                                                ) : \
+    UV == 1 ? Expr(c, str, ""                                                            ) : \
+              Expr(c, str, ex_UVexpr(cstr, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 
 ###
-### ex_levels() - v3.0 (09-09-2021)
+### ex_levels() - v3.1 (15-09-2021)
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
@@ -238,13 +239,13 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     rt   = oho * iho
     cstr = ex_dlut(Format(""+rangePCc+" {rt} * "+rangeTVc+"  "), bi, fs)
 
-    isy     ? Expr(c, str                                      ) : \
-    UV == 1 ? Expr(c, str, ""                                  ) : \
-              Expr(c, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isy     ? Expr(c, str                                                                ) : \
+    UV == 1 ? Expr(c, str, ""                                                            ) : \
+              Expr(c, str, ex_UVexpr(cstr, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi)) }
 
 
 ###
-### ex_blend() - v2.1 (01-09-2021)
+### ex_blend() - v2.2 (15-09-2021)
 ###
 ###
 ### Works like Overlay() but supports more modes, better handling of TV range and performs much faster in either 8-bit or HBD.
@@ -262,14 +263,15 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 #  56% OverlayPlus(a,mode="multiply",chroma=false) # only in PC range
 #  56% Overlay(mode="multiply")                    # only in PC range
 
-function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range", int "UV",  bool "fulls") {
+function ex_blend(clip a, clip b, string "mode", float "opacity", float "watermark", bool "tv_range", int "UV",  bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
 
     md   = Default(mode, "multiply")
-    op   = Default(opacity, 1.0)
+    op   = Default(opacity,   1.0)
+    wm   = Default(watermark, 1.0)  # 0.0 to 2.0. At default 1.0 behaves like 'blend'
     tv   = Default(tv_range, !rgb)  # TV or PC. Luma range of your source
     UV   = Default(UV,        rgb ? 3 : 1)
     fs   = Default(fulls,     rgb)
@@ -297,6 +299,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", bool "tv_range
                                                                                                                                                                                   \
         md == "blend"        ? iso ? "y" : "x {opr} * y {op} * + "                                                                                                              : \
         md == "interpolation"? ""+rngmx+" 0.500001 pi x "+srcmx+" "+V+" * "+rngmx+" / cos 0.250001 * - pi y "+srcmx+" * "+rngmx+" / cos 0.250001 * - * "                        : \
+        md == "watermark"    ? "x "+srcmx+" A^ y "+srcmx+" "+rngmx+" B@ / 0 max 1 {wm} {op} ^ / ^  B * "                                                                        : \
                              \
         md == "lighter"      ? "see footer"                                                                                                                                     : \
         md == "lighten"      ? "x "+V+" y max "                                                                                                                                 : \
@@ -391,12 +394,12 @@ function ex_glow(clip a, int "radius", int "thres", float "opacity", bool "tv_ra
         bop = md == "fib" ? floor(pow((1+sqrt(5))/2,i)/sqrt(5)+0.5)               :\
                             floor(0.618033988749895*pow(1.839286755214161,i)+0.5)
         bop = min((1./ bop) * 10, 1)
-        str = str + Format("""ex_blend("""+c+"""ex_kawase(b,{i},md,{uv},{fs}),"screen",{bop},false,{uv},{fs})""")+dot
+        str = str + Format("""ex_blend("""+c+"""ex_kawase(b,{i},md,{uv},{fs}),"screen",{bop},1,false,{uv},{fs})""")+dot
            }
 
     Eval(str)
     d = ex_makediff(last,b,dif=false,UV=uv,fulls=fs).moncurve_r(2.222222,0.0,false,tv,uv,fs)
-    rd != 0 ? ex_blend(a,d,"screen",op,tv,uv,fs) : a }
+    rd != 0 ? ex_blend(a,d,"screen",op,1,tv,uv,fs) : a }
 
 
 
@@ -416,11 +419,15 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV", bool "fulls") {
     bits = max(min(bits,7),0)
 
     ConvertBits(c,16,fulls=fs)
+
     ex_lut ("x "+mul+" /", y=3, UV=UV,fulls=fs)
+
     md < 2 ? ConvertBits(8,dither=md, fulls=fs) : \
     md > 4 ? fmtc_bitdepth(bits=8, dmode=md+2)  : \
              fmtc_bitdepth(bits=8, dmode=md+1)
+
     ex_lut ("x "+mul+" *", y=3, UV=UV,fulls=fs)
+
     ConvertBits(BitsPerComponent(c),fulls=fs) }
 
 
@@ -449,9 +456,9 @@ function Vignette (clip c, float "Vignette", bool "show", bool "fulls") {
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
 
-    msk = Expr(c, ex_dlut(Format("sx width 2 /  - abs width 2 / / range_max * 1.5 {str} 2 / + ^ range_max / 0 max "+ \
-                                 "sy height 2 / - abs width 2 / / range_max * 1.5 {str} 2 / + ^ range_max / 0 max "+ \
-                                 "+ range_max min range_max - abs "), bi, fs), "range_half","range_half")
+    msk = ex_lut(c, Format("sx  width 0.500001 * - abs width 0.500001 * / range_max * 1.5 {str} 0.500001 * + ^ range_max / 0 max "+ \
+                           "sy height 0.500001 * - abs width 0.500001 * / range_max * 1.5 {str} 0.500001 * + ^ range_max / 0 max "+ \
+                           "+ range_max min range_max - abs "), UV=128, fulls=fs)
 
     show ? msk : ex_blend(msk, c, mode="multiply", UV=4, fulls=fs) }
 
