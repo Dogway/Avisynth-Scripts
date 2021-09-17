@@ -618,6 +618,7 @@ function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls")
 # Benchmark:
 # 100% removegrain(20,-1) (485fps)
 #  91% ex_boxblur(1,mode="mean",UV=1)
+#  90% MiniDeen(radiusY=1, thrY=255, u=1,v=1) # crumbles from rad=3 onwards
 #  69% blur(1.58)
 #  67% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
 #  65% Dither_box_filter16(2,U=1,V=1)   # with ConverttoStacked() and ConvertfromStacked()
@@ -4143,7 +4144,10 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     md = md == "average"   ? "avg"          : \
          md == "maximum"   ? "max"          : \
          md == "minimum"   ? "min"          : \
-         md == "range"     ? "range"        : \
+         md == "range"     ? "rng"          : \
+         md == "range-"    ? "rngmin"       : \
+         md == "min/max"   ? "rng"          : \
+         md == "inline"    ? "rngmin"       : \
          md == "standard deviation" ? "std" : \
          md == "median"    ? "med"          : md
 
@@ -4158,7 +4162,8 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     op = md == "avg"   ? " + "              : \
          md == "max"   ? " max "            : \
          md == "min"   ? " min "            : \
-         md == "range" ? " max "            : \
+         md == "rng"   ? " max "            : \
+         md == "rngmin"? " min "            : \
          md == "std"   ? " XX - abs dup * " : \
          md == "med"   ? ""                 : ""
 
@@ -4190,11 +4195,12 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
         exprS = exprS + string(1./in) + " * XX^ " + expr + exprY + exprX
         exprM = nex ? " "                         : expr + exprY + exprX
 
-    expr = md == "range" ? px + expr + exprY + exprX + ReplaceStr(expr,  "max", "min") + " - " + exprf : \
-           md == "avg"   ? px + expr + exprY + exprX + string(1./in) + " * "                   + exprf : \
-           md == "std"   ? px + exprS                + string(1./in) + " * sqrt "              + exprf : \
-           md == "med"   ? px + exprM                + med                                     + exprf : \
-                           px + expr + exprY + exprX                                           + exprf
+    expr = md == "rng"    ? px + expr + exprY + exprX + ReplaceStr(expr,  "max", "min") + " - " + exprf : \
+           md == "rngmin" ? px + expr + exprY + exprX + " x swap - "                            + exprf : \
+           md == "avg"    ? px + expr + exprY + exprX + string(1./in) + " * "                   + exprf : \
+           md == "std"    ? px + exprS                + string(1./in) + " * sqrt "              + exprf : \
+           md == "med"    ? px + exprM                + med                                     + exprf : \
+                            px + expr + exprY + exprX                                           + exprf
 
     expr = ReplaceStr(expr, "  ", " ")
 
