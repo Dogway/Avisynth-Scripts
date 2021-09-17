@@ -4005,13 +4005,14 @@ function ex_hitormiss(clip a, int "radius", string "mode", int "UV", bool "fulls
 # kirsch    - (8d) or Kirsch compass kernel is a non-linear edge detector that finds the maximum edge strength in 45º increments
 
 
-function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "fulls") {
+function ex_edge(clip a, string "mode", int "lo", int "hi", bool "invert", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
 
     mode = Default(mode, "mtsobel")
+    in   = Default(invert,  false)
     UV   = Default(UV,    rgb ? 3 : 1)
     fs   = Default(fulls, rgb)
 
@@ -4043,6 +4044,8 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", int "UV", bool "full
     hi = ex_bs(Defined(hi) ? hi : th[1], 8, bi, fulls=fs)
 
     th  = (lo == 0) && (hi == ex_bs(255, 8, bi, fulls=fs)) ? "" : ex_dlut(Format(" {lo} - range_max {hi} {lo} - / *"), bi, fs)
+    th  = in ? th + " range_max swap -" : th
+
     str =                                                                                                                                                                                                \
           mode=="prewitt"   ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ "                                                                                   \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                                     \
