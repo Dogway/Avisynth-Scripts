@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v1.3  (17-09-2021)                             ###
+###        Sharpeners Pack v1.4  (17-09-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -9,7 +9,6 @@
 ###       Adaptive Sharpen                                                ###
 ###   Dogway:                                                             ###
 ###       ex_unsharp                                                      ###
-###       SharpenComplex2                                                 ###
 ###       UnsharpMask_HBD                                                 ###
 ###   Didée:                                                              ###
 ###       ex_ContraSharpening                                             ###
@@ -27,6 +26,11 @@
 ###       ReCon                                                           ###
 ###       blah                                                            ###
 ###       MedSharp                                                        ###
+###   Other:                                                              ###
+###       SharpenComplex2 (uncredited)                                    ###
+###       MultiSharpen    (uncredited)                                    ###
+###       pSharpen                                                        ###
+###       CASm                                                            ###
 ###                                                                       ###
 #############################################################################
 ###
@@ -505,56 +509,6 @@ function UnsharpMask_HBD(clip clp, float "str", int "rad", float "thres", int "U
 
 
 
-
-### SharpenComplex2() by ??? (??-11-2011)
-### port of MPC-HC's Sharpen Complex 2 to AviSynth+
-###
-### http://www.avisynth.nl/index.php/SharpenComplex2_source
-### http://forum.doom9.org/showthread.php?t=158385
-###
-### ExTools port by Dogway (04-09-2021)
-###
-### str0 is the non-edge unsharp amount, default 2.0
-### str1 is the edge unsharp amount, default 1.125
-### k0 is the non-edge blur kernel, default "3 14 3"
-### k1 is the edge blur kernel, default "1 1 1"
-### edgethr is the threshold for an edge on an arbitrary scale, default 0.2
-### if debug is true, then the edge mask is returned instead
-###
-### Recommendation: just use a regular unsharp filter, don't bother with this
-### unless you're going to set the unsharp amount/kernels (in which case this
-### script actually becomes useful; the default edge/non-edge filters are
-### sufficiently similar to be pointless).
-
-function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "k1", float "edgethr", bool "debug", bool "fulls") {
-
-    str0 = Default(str0, 2.0)   # corresponds to CoefFlou
-    str1 = Default(str1, 1.125) # corresponds to Sharpen_val1 * 9
-
-    k0 = Default(k0, 0.5)  # "3 14 3" ~ Gaussian blur with sigma^2=0.3
-    k1 = Default(k1,   1)  # "1 1 1" ~ Gaussian blur with sigma^2=1/3=0.333...
-    #the 3 14 3 kernel is derived from assuming linear interpolation in the original
-    #code; you can set it to other kernels based on other interpolators, but bear in
-    #mind that blurrier interpolators lead to more sharpening
-
-    dg  = Default(debug,false)
-    thr = Default(edgethr,0.2)  # corresponds to SharpenEdge
-    fs  = Default(fulls,  false)
-
-    thr=round(255*thr)
-
-    src
-
-    unsharp0=ex_lutxy(src,ex_boxblur(k0, mode="weighted"), Format("x dup y - {str0} * +"), UV=1, fulls=fs)
-    unsharp1=ex_lutxy(src,ex_boxblur(k1, mode="mean"),     Format("x dup y - {str1} * +"), UV=1, fulls=fs)
-
-    msk = ex_edge(mode="sobel", lo=thr-5, hi=thr, UV=1, fulls=fs)
-
-    dg? msk.grayscale() : ex_merge(unsharp0, unsharp1, msk, UV=1, fulls=fs) }
-
-
-
-
 #######################
 ###                 ###
 ###     DIDÉE's     ###
@@ -830,7 +784,7 @@ function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool 
     Calls SeeSaw() multiple times. Requires SeeSaw script + SeeSaw requirements.
 
     https://forum.doom9.org/showthread.php?t=174309&page=2
-    Inspired by InGoldie. Here http://forum.doom9.org/showthread.php?p=1748707#post1748707 (as usual, thread deleted)
+    Inspired by InGoldie: http://forum.doom9.org/showthread.php?p=1748707#post1748707 (as usual, thread deleted)
 
     Times, Number of iterations.
     IG, smoother/soother, can be:-
@@ -840,13 +794,13 @@ function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool 
     Remaining args as for SeeSaw().
 */
 
-Function SeeSawMulti(clip  c, Int "Times",Val  "IG",
+Function SeeSawMulti(clip  c, int "Times", val "IG",
     \    int "NRlimit",int "NRlimit2",
     \    float "Sstr",   int "Slimit", float "Spower", float "SdampLo", float "SdampHi", float "Szp",
     \    float "bias",   int "Smode",    int "sootheT",  int "sootheS", float "ssx",     float "ssy",
     \    Float "BlurVal",Float "BlurMult", bool "fulls") {
 
-    Function SeeSawMulti_LO(clip c, Int Times,Val "IG",
+    Function SeeSawMulti_LO(clip c, int Times, val "IG",
         \    int   "NRlimit",int "NRlimit2",
         \    float "Sstr",   int "Slimit", float "Spower", float "SdampLo", float "SdampHi", float "Szp",
         \    float "bias",   int "Smode",    int "sootheT",  int "sootheS", float "ssx",     float "ssy",
@@ -865,16 +819,16 @@ Function SeeSawMulti(clip  c, Int "Times",Val  "IG",
            ex_blur(BlurVal)
            }
 
-        for (times = 0, times, 1) {
-             times == 0 ? last : \
-             SeeSawMulti_Lo(Times-1, IG, NRlimit, NRlimit2, Sstr, Slimit, Spower, SdampLo, SdampHi, Szp, bias, Smode, sootheT, sootheS, ssx, ssy, BlurVal*BlurMult, BlurMult, fulls) }
+        for (i = 0, times, 1) {
+             i == 0 ? last : \
+             SeeSawMulti_Lo(i-1, IG, NRlimit, NRlimit2, Sstr, Slimit, Spower, SdampLo, SdampHi, Szp, bias, Smode, sootheT, sootheS, ssx, ssy, BlurVal*BlurMult, BlurMult, fulls) }
         }
 
     Times = Default(Times, 1)
     c
-    for (times = 0, times, 1) {
-         times == 0 ? last : \
-         SeeSawMulti_Lo(Times-1, IG, NRlimit, NRlimit2, Sstr, Slimit, Spower, SdampLo, SdampHi, Szp, bias, Smode, sootheT, sootheS, ssx, ssy, BlurVal, BlurMult, fulls) }
+    for (i = 0, times, 1) {
+         i == 0 ? last : \
+         SeeSawMulti_Lo(i-1, IG, NRlimit, NRlimit2, Sstr, Slimit, Spower, SdampLo, SdampHi, Szp, bias, Smode, sootheT, sootheS, ssx, ssy, BlurVal, BlurMult, fulls) }
     }
 
 
@@ -1049,7 +1003,7 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
     Sstr      = str/100.0
     rad       = max(min(rad,5),1)
     overshoot = max(overshoot,0)
-    ox        = a.width()
+    ox        = a.width ()
     oy        = a.height()
     ss        = ss_x != 1.0 || ss_y != 1.0
 
@@ -1718,4 +1672,165 @@ function YAHR(clip clp, bool "fulls") {
 
     DD    = b1D.repair(w1b1D,13,-1)
 
-    ex_lutxyz(clp, b1D, DD, "x y range_half + z range_half + - -", UV=1, fulls=fs) }
+    ex_lutxyz(clp, b1D, DD, "x y z - -", UV=1, fulls=fs) }
+
+
+
+
+
+### SharpenComplex2() by ??? (??-11-2011)
+### port of MPC-HC's Sharpen Complex 2 to AviSynth+
+###
+### http://www.avisynth.nl/index.php/SharpenComplex2_source
+### http://forum.doom9.org/showthread.php?t=158385
+###
+### ExTools port by Dogway (04-09-2021)
+###
+### str0 is the non-edge unsharp amount, default 2.0
+### str1 is the edge unsharp amount, default 1.125
+### k0 is the non-edge blur kernel, default "3 14 3"
+### k1 is the edge blur kernel, default "1 1 1"
+### edgethr is the threshold for an edge on an arbitrary scale, default 0.2
+### if debug is true, then the edge mask is returned instead
+###
+### Recommendation: just use a regular unsharp filter, don't bother with this
+### unless you're going to set the unsharp amount/kernels (in which case this
+### script actually becomes useful; the default edge/non-edge filters are
+### sufficiently similar to be pointless).
+
+function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "k1", float "edgethr", bool "debug", bool "fulls") {
+
+    str0 = Default(str0, 2.0)   # corresponds to CoefFlou
+    str1 = Default(str1, 1.125) # corresponds to Sharpen_val1 * 9
+
+    k0   = Default(k0, 0.5)     # "3 14 3" ~ Gaussian blur with sigma^2=0.3
+    k1   = Default(k1,   1)     # "1 1 1" ~ Gaussian blur with sigma^2=1/3=0.333...
+                                # the 3 14 3 kernel is derived from assuming linear interpolation in the original code
+                                # you can set it to other kernels based on other interpolators, but bear in
+                                # mind that blurrier interpolators lead to more sharpening
+    dg   = Default(debug, false)
+    thr  = Default(edgethr,0.2) # corresponds to SharpenEdge
+    fs   = Default(fulls, false)
+
+    thr=round(255*thr)
+
+    src
+
+    unsharp0=ex_lutxy(src,ex_boxblur(k0, mode="weighted"), Format("x dup y - {str0} * +"), UV=1, fulls=fs)
+    unsharp1=ex_lutxy(src,ex_boxblur(k1, mode="mean"),     Format("x dup y - {str1} * +"), UV=1, fulls=fs)
+
+    msk = ex_edge(mode="sobel", lo=thr-5, hi=thr, UV=1, fulls=fs)
+
+    dg ? msk.grayscale() : ex_merge(unsharp0, unsharp1, msk, UV=1, fulls=fs) }
+
+
+
+# Uncredited (from StaxRip)
+# Very primitive sharpening using internal functions without limiting .
+function MultiSharpen(clip C, int multi, float "sharpen", float "blur")
+{
+    shrp = Min(Max(0.0, Default(sharpen, 0.6)), 1.0)
+    blr  = Min(Max(0.0, Default(blur,    0.3)), 1.0)
+    C
+    for (i=multi, 1, -1) {
+        Sharpen(shrp).Blur(blr)
+    }
+    return Last
+}
+
+
+
+##  pSharpen() by ilpippo80 (02-07-2005)
+##  Performs two-point sharpening to avoid overshoot.
+##
+##  https://forum.doom9.org/showthread.php?p=681194#post681194
+##
+##  ported to masktools2 by colours (02-08-2015)
+##  ss_x and ss_y fix    by colours (16-03-2016)
+##  Optimized            by Dogway  (17-09-2021)
+
+function pSharpen   (clip clp,
+                    \int "strength", int "threshold",
+                    \float "ss_x", float "ss_y",
+                    \int "dest_x", int "dest_y") {
+
+    # getting the input image size
+    ox = clp.width ()
+    oy = clp.height()
+
+    # parsing the input values
+    strength  = Default(strength,  25)    # 0 to 100. Strength of the sharpening (up until the overshoot correction threshold, see below). Value of 100 will set all pixels to either their local min or max; value of 0 will make the filter do nothing.
+    threshold = Default(threshold, 75)    # 0 to 100. How close to the min/max a pixel can be sharpened before the overshoot correction (compression) kicks in. Higher values make the overshoot correction more of a hard limiting, while lower values soften the compression. Value of 0 makes the filter do nothing.
+    ss_x      = Float(Default(ss_x, 1.0)) # The horizontal and vertical supersampling factors, respectively. Higher values will reduce aliasing, at the expense of speed.
+    ss_y      = Float(Default(ss_y, 1.0))
+    dest_x    = Default(dest_x, ox)       # Final image size; defaults to the dimensions of the input clip.
+    dest_y    = Default(dest_y, oy)
+
+    strength  = strength <0 ? 0 : strength >100 ? 100 : strength
+    threshold = threshold<0 ? 0 : threshold>100 ? 100 : threshold
+    ss_x = ss_x<1.0? 1.0 : ss_x
+    ss_y = ss_y<1.0? 1.0 : ss_y
+
+    # oversampling
+    ss  = ss_x!=1.0 || ss_y!=1.0 ? clp.lanczosresize(round(ox*ss_x/8)*8,round(oy*ss_y/8)*8) : clp
+    clp = ss
+
+    # calculating the max and min in every 3*3 square
+    # and normalizing max and val to values from 0 to (max-min)
+    nmax = ss.ex_luts(mode="range")
+    nval = ss.ex_luts(mode="range-")
+
+    # initializing the strings used to obtain the output luma value
+    s    = strength  /100.
+    t    = threshold /100.
+    x0   = t*(1.0-s)/(1.0-(1.0-t)*(1.0-s))
+    expr = Format("x y / 2 * 1 - abs X@ {x0} < {s} 1 = x y 0.500001 * Y@ = 0 Y ? X 1 {s} - / ? X 1 {t} - * {t} + ? x y 0.500001 * > 1 -1 ? * 1 + y * 0.500001 * 0 max")
+
+    # calculates the new luma value pushing it towards min or max
+    nval = ex_lutxy(nval,nmax,expr)
+
+    # normalizing val to values from min to max
+    val = average(nval,1,ss.mt_inpand(),1)
+
+    # applying the new luma value to the original clip
+    clp = clp.mergeluma(val)
+
+    # resizing the image to the output values
+    clp = ss_x!=1.0 || ss_y!=1.0 || dest_x!=ox || dest_y!=oy ? clp.lanczosresize(dest_x,dest_y) : clp
+
+    return clp }
+
+
+# CASm
+#
+# An improved sharpening script based on CAS and aWarpSharp2
+#
+# Original work      by Atak_Snajpera for RipBot264
+# Renamed and modded by JKyle 2021-04-22 for StaxRip
+# Optimization       by Dogway 2021-09-17
+#
+# ---Requirements---
+#
+# Core plugins:
+#    CAS
+#    ExTools
+#    GradePack
+#
+# ---Parameters---
+#
+# float "strength" (default: 1.0)
+# ----------------------------
+# Same as CAS's parameter.
+# Must be between 0.0 and 1.0.
+#
+function CASm(clip a, float "strength") {
+
+    str = Default(strength, 1.0)
+
+    IntenMsk = a.ExtractY().ex_levels(0,2,255,0,255,tv_range=false)
+    EdgeMsk  = IntenMsk.ex_edge("sobel",0,80,invert=true).ex_levels(0,2,255,0,255,tv_range=false).ex_boxblur(1,mode="weighted")
+    ShrpMsk  = ex_blend(IntenMsk, EdgeMsk, mode="Multiply", opacity=1.0, tv_range=false)
+    Shrp     = CAS(a, str)
+    video    = mt_merge(a, Shrp, ShrpMsk, U=2,V=2)
+
+    return video }
