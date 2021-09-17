@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.63 mix mod by Dogway 2021, based on 3.382s            #
+#     QTGMC 3.64 mix mod by Dogway 2021, based on 3.382s            #
 #                                                                   #
 #   A high quality deinterlacer using motion-compensated temporal   #
 #  smoothing, with a range of features for quality and convenience  #
@@ -14,6 +14,10 @@
 # Full documentation is in the 'QTGMC' html file that may comes with this script, or even better see avisynth wiki
 #
 # --- LATEST CHANGES ---
+#
+# v3.64mx
+# - Optimize thin var expression
+# - Attach optimized ex_vinverse()
 #
 # v3.63mx
 # - re-add bomt var
@@ -754,8 +758,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     noiseWindow = yuy2 && (Denoiser == "fft3df") && NoiseTR > 0 ? noiseWindow.nonyuy2clipout(true) : noiseWindow
     noiseWindow = (NoiseProcess != 0) && n16d ? noiseWindow.ConvertBits(16,fulls=fs) : noiseWindow
     dnWindow = (NoiseProcess == 0)         ? nop() : \
-               (Denoiser == "dfttest")     ? noiseWindow.dfttest( Y=true, U=ChromaNoise, V=ChromaNoise, sigma=Sigma*4, tbsize=noiseTD, threads=1, Dither=1 )    : \
-               (Denoiser == "KNLMeansCL")  ? noiseWindow.ex_KNLMeansCL(Chroma=ChromaNoise, a=2, d=NoiseTR, h=Sigma, device_type=device_type, device_id=device_id )            : \
+               (Denoiser == "dfttest")     ? noiseWindow.dfttest( Y=true, U=ChromaNoise, V=ChromaNoise, sigma=Sigma*4, tbsize=noiseTD, threads=1, Dither=1 )       : \
+               (Denoiser == "KNLMeansCL")  ? noiseWindow.ex_KNLMeansCL(Chroma=ChromaNoise, a=2, d=NoiseTR, h=Sigma, device_type=device_type, device_id=device_id ) : \
                                              noiseWindow.FFT3DFilter( sigma=Sigma, bt=noiseTD, ncpu=Threads, plane=ChromaNoise ? 3 : 0)
     dnwindow = (Denoiser == "KNLMeansCL" || Denoiser == "dfttest") && (NoiseProcess != 0) && yuy2 ? dnWindow.nonyuy2clipout(true) : dnWindow
     dnwindow = (NoiseProcess != 0) && n16d ? dnwindow.ConvertBits(bi,dither=-1,fulls=fs) : dnwindow
@@ -871,7 +875,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     SVThinSc  =  SVThin * 6.0
     vertMedD  = (SVthin > 0.0) ? ex_lutxy( lossed1, lossed1.ex_median(mode="vertical", UV=1), Format("y x - {SVThinSc} * range_half +"), clamp_float=true, UV=1, fulls=fs  )               : nop()
     vertMedD  = (SVthin > 0.0) ? (vertMedD.ex_boxblur( 1, 0, "weighted", UV=1 )) : nop()
-    thin      = (SVthin > 0.0) ? ex_lutxyz( vertMedD, vertMedD.RemoveGrain( 12, -1 ), resharp, "y range_half - abs x range_half - abs > y range_half ? z + range_half -", UV=2, fulls=fs  ) : resharp
+    thin      = (SVthin > 0.0) ? ex_lutxyz( vertMedD, vertMedD.RemoveGrain( 12, -1 ), resharp, "y range_half - Y@ abs x range_half - abs > Y z + z ?", UV=2, fulls=fs  ) : resharp
 
     # Back blend the blurred difference between sharpened & unsharpened clip, before (1st) sharpness limiting (Sbb == 1,3). A small fidelity improvement
     backBlend1 = (Sbb != 1 && Sbb != 3) ? thin                                                                                      : \
@@ -1261,3 +1265,36 @@ function QTGMC_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
     catch (e) { ret = nop() }
     return ret
 }
+
+
+
+
+
+# Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
+# https://forum.doom9.org/showthread.php?p=891788#post891788
+# Optimization and port to EX mod from real.finder's HBD mod. by Dogway (15-09-2021)
+
+# Vinverse_avsi() is 70% slower with Prefetch(physical cores) and 60% slower with Prefetch(logical cores)
+function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem", bool "fulls") {
+
+    rgb  = isRGB(clp)
+    bi   = BitsPerComponent(clp)
+
+    sstr = Default(sstr, 2.7)       # strength of contra sharpening
+    amnt = Default(amnt, 255)       # change no pixel by more than this (Default=255: unrestricted)
+    dcus = Defined(custem)
+    UV   = Default(UV,    rgb ? 3 : 1)
+    fs   = Default(fulls, rgb)
+
+    amntb  = ex_bs(amnt, 8, bi, fulls=fs)
+
+    vblur  =  clp.ex_boxblur(0, 1, "weighted", UV=uv)
+    vblurD =  dcus ? ex_makediff(clp, vblur, UV=uv, fulls=fs)  : nop()
+
+    VshrpD = !dcus ? ex_lutxy(vblur, vblur.ex_boxblur(0, 2, "weighted", UV=uv), Format("x dup y - {sstr} * + x - range_half +"), UV=uv, fulls=fs) : nop()
+
+    sl     = (amnt > 254) ? "" : Format(" x {amntb} - x {amntb} + clip")
+    VlimD  =  dcus ? ex_lutxyz(clp, VblurD, custem, "x z -          A@ y range_half - B@ * 0 < A abs B abs < A B ? dup 0.250001 * swap1 ? z +" + sl, UV=uv, fulls=fs) : \
+                     ex_lutxyz(clp, VshrpD, Vblur,  "y range_half - A@ x z -          B@ * 0 < A abs B abs < A B ? dup 0.250001 * swap1 ? z +" + sl, UV=uv, fulls=fs)
+
+             (amnt ==  0) ?    clp : VlimD }
