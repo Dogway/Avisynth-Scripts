@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v1.2  (14-09-2021)                             ###
+###        Sharpeners Pack v1.3  (17-09-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -14,6 +14,7 @@
 ###   Didée:                                                              ###
 ###       ex_ContraSharpening                                             ###
 ###       SeeSaw                                                          ###
+###       SeeSawMulti                                                     ###
 ###       FineSharp                                                       ###
 ###       NonlinUSM                                                       ###
 ###       SlopeBend                                                       ###
@@ -696,21 +697,20 @@ function SeeSaw( clip  input, clip "denoised",
     (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1)                                                                              : \
                              repair(tame.lanczosresize(xss, yss).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, -.2, .6), 1, -1).lanczosresize(ox, oy)
 
-    ex_SootheSS2(last, tame, sootheT, sootheS, false, fs)
-    sharpdiff = ex_makediff(tame, last, fulls=fs)
+    soothe = ex_SootheSS2(last, tame, sootheT, sootheS, false, fs)
 
-    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),     fulls=fs)
+    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),fulls=fs)
 
-      Slimit>=0  ? ex_lutxy(last, sharpdiff,   Format("y range_half {SLIM} + > x {SLIM} - y range_half {SLIM} - < x {SLIM} + x y range_half - - ? ?"), fulls=fs) : \
-                   ex_lutxy(last, sharpdiff,   Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?"),                  fulls=fs)
+      Slimit>=0  ? ex_lutxyz(last, soothe, tame, Format("z y - Z@ {SLIM} > x {SLIM} - Z 0 {SLIM} - < x {SLIM} + x Z - ? ?"), fulls=fs) : \
+                   ex_lutxyz(last, soothe, tame, Format("z y - Z@ 0 == x dup Z abs 1 {limit} / ^ Z dup abs / * - ?"),        fulls=fs)
 
     isy ? last : CombinePlanes(last, input, planes="YUV", sample_clip=input) }
 
 
 #
-#  SeeSaw2 ( modified for standard definition dvds. by jeremy duncan november 11, 2008 )
+#  SeeSaw2 ( modified for standard definition DVDs. by jeremy duncan november 11, 2008 )
 #
-# - If you use a different resolution than standard definition dvd. Disable supersampling ssx by setting it to 1.0
+# - If you use a different resolution than standard definition DVD. Disable supersampling ssx by setting it to 1.0
 #
 # =======  Main function  =======
 
@@ -767,13 +767,12 @@ function SeeSaw2( clip  input, clip "denoised",
     (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1)                                                                                 : \
                              repair(tame.spline36resize(xss, yss).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, 0.75, 1.0), 1, -1).lanczosresize(ox, oy)
 
-    ex_SootheSS2(last, tame, sootheT, sootheS, true, fs)
-    sharpdiff = ex_makediff(tame, last, fulls=fs)
+    soothe = ex_SootheSS2(last, tame, sootheT, sootheS, true, fs)
 
-    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?")    , fulls=fs)
+    (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"), fulls=fs)
 
-      Slimit>=0  ? ex_lutxy(last, sharpdiff,   Format("y range_half {SLIM} + > x {SLIM} - y range_half {SLIM} - < x {SLIM} + x y range_half - - ? ?"), fulls=fs) : \
-                   ex_lutxy(last, sharpdiff,   Format("y range_half == x dup y range_half - Y@ abs 1 {limit} / ^ Y dup abs / * - ?")                 , fulls=fs)
+      Slimit>=0  ? ex_lutxyz(last, soothe, tame, Format("z y - Z@ {SLIM} > x {SLIM} - Z 0 {SLIM} - < x {SLIM} + x Z - ? ?"), fulls=fs) : \
+                   ex_lutxyz(last, soothe, tame, Format("z y - Z@ 0 == x dup Z abs 1 {limit} / ^ Z dup abs / * - ?"),        fulls=fs)
 
     isy ? last : CombinePlanes(last, input, planes="YUV", sample_clip=input) }
 
@@ -823,6 +822,60 @@ function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool 
 
     ex_makediff(orig,last,UV=1,fulls=fs) }
 
+
+
+
+/*
+    SeeSawMulti() by StainlessS (15-02-2017)
+    Calls SeeSaw() multiple times. Requires SeeSaw script + SeeSaw requirements.
+
+    https://forum.doom9.org/showthread.php?t=174309&page=2
+    Inspired by InGoldie. Here http://forum.doom9.org/showthread.php?p=1748707#post1748707 (as usual, thread deleted)
+
+    Times, Number of iterations.
+    IG, smoother/soother, can be:-
+        Undefined, uses SeeSaw builtin smoothing at every iteration.
+        Denoised Clip, Used at every iteration.
+        Function String, Denoise applied to source, or result of previous iteration.
+    Remaining args as for SeeSaw().
+*/
+
+Function SeeSawMulti(clip  c, Int "Times",Val  "IG",
+    \    int "NRlimit",int "NRlimit2",
+    \    float "Sstr",   int "Slimit", float "Spower", float "SdampLo", float "SdampHi", float "Szp",
+    \    float "bias",   int "Smode",    int "sootheT",  int "sootheS", float "ssx",     float "ssy",
+    \    Float "BlurVal",Float "BlurMult", bool "fulls") {
+
+    Function SeeSawMulti_LO(clip c, Int Times,Val "IG",
+        \    int   "NRlimit",int "NRlimit2",
+        \    float "Sstr",   int "Slimit", float "Spower", float "SdampLo", float "SdampHi", float "Szp",
+        \    float "bias",   int "Smode",    int "sootheT",  int "sootheS", float "ssx",     float "ssy",
+        \    Float "BlurVal",Float "BlurMult", bool "fulls") {
+
+        c
+
+        dn = (IG.IsClip()) ? IG : (IG.IsString()) ? Eval(IG) : Undefined()
+
+        BlurVal  = Default(BlurVal,0.0)
+        BlurMult = Default(BlurMult,1.0)
+
+        SeeSaw(dn, NRlimit, NRlimit2, Sstr, Slimit, Spower, SdampLo, SdampHi, Szp, bias, Smode, sootheT, sootheS, ssx, ssy, fulls)
+
+        if (0<Times && Blurval>0.0) {
+           ex_blur(BlurVal)
+           }
+
+        for (times = 0, times, 1) {
+             times == 0 ? last : \
+             SeeSawMulti_Lo(Times-1, IG, NRlimit, NRlimit2, Sstr, Slimit, Spower, SdampLo, SdampHi, Szp, bias, Smode, sootheT, sootheS, ssx, ssy, BlurVal*BlurMult, BlurMult, fulls) }
+        }
+
+    Times = Default(Times, 1)
+    c
+    for (times = 0, times, 1) {
+         times == 0 ? last : \
+         SeeSawMulti_Lo(Times-1, IG, NRlimit, NRlimit2, Sstr, Slimit, Spower, SdampLo, SdampHi, Szp, bias, Smode, sootheT, sootheS, ssx, ssy, BlurVal, BlurMult, fulls) }
+    }
 
 
 
