@@ -198,7 +198,7 @@
 #
 # Core scripts:
 #   Zs_RF_Shared (1.154 or above) (for sh_Bob)
-#   ExTools      (5.5 or above)
+#   ExTools      (5.7 or above)
 #
 # Additional plugins and scripts:
 #   NNEDI2, NNEDI, EEDI3, EEDI2, TDeInt - if selected directly or via a source-match preset
