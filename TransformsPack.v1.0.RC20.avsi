@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC20  (15-09-2021)           ##
+###    Transforms Pack v1.0 RC21  (16-09-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -33,7 +33,7 @@ function ColorSpace (clip clp, string "source", string "target", bool "gamut", b
 
     source  = Default (source, "Rec709")
     target  = Default (target, source)
-    gamut   = Default (gamut,  source != target)   # convert gamut
+    gamut   = Default (gamut, source != target)    # convert gamut
     gamma   = Default (gamma, true)                # convert gamma
     tv_in   = Default (tv_range_in,  !isRGBc )
     tv_out  = Default (tv_range_out, tv_in )
@@ -171,14 +171,15 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 # YDzDx    - HDR version of XYZ. Requires at least 10-bit for no visible quantization.
 # YDuDv    - HDR version of CIE Luv. Requires only 8-bit for no visible quantization.
 # XYZ      -
-# Yxy      - Chroma normalized XYZ space which gives full luma/chroma decorrelation.
+# Yxy/xyY  - Chroma normalized XYZ space which gives full luma/chroma decorrelation.
 # Jzazbz   -
 # JzCzhz   -
 # HSV      -
 # Duv      -
 # CIELuv   -
+# CIEDuDv  - HDR version of CIE Luv
 # CIELab   -
-# CIEsLab  -
+# CIEsLab  - CIE simple Lab
 # HunterLab- A more perceptually uniform version of CIELab
 
 
@@ -228,8 +229,9 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 # Sphinx - Continuation of Sinc and Jinc. interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
 # ICBI (Iterative Curve Based Interpolation) is a single image superresolution technique described in Fast artifact-free image interpolation by Andrea Giachetti and Nicola Asuni, presented at BMVC 2008
 
-function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", string "fmt_o", string "cs_in", string "cs_out", bool "tv_range_in", bool "tv_range_out", bool "gamma", string "cplace_in", string "cplace_out", \
-                        string "scale_space", string "kernel", string "kernel_c", float "p", int "mod", float "src_left", float "src_top", float "src_width", float "src_height", bool "noring", bool "UVrecon", bool "fulls") {
+function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", string "fmt_o", string "cs_in", string "cs_out", bool "tv_range_in", bool "tv_range_out", bool "linear_in", bool "linear_out",        \
+                        bool "gamma", string "cplace_in", string "cplace_out", string "kernel", string "kernel_c", float "src_left", float "src_top", float "src_width", float "src_height", \
+                        string "scale_space", float "p", int "mod", bool "nomoiree", bool "noring", bool "UVrecon", bool "fulls", bool "fulld", bool "debug") {
 
     clp
     w          = width ()
@@ -239,18 +241,18 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
     bdpth      = BitsPerComponent()
 
 
-    nw         = Default (width,  1)             # 0.0 to 10.0 is a multiplier. 12 to inf is absolute target width
-    nh         = Default (height, 1)             # 0.0 to 10.0 is a multiplier. 12 to inf is absolute target height
-    fmt_i      = Default (fmt_i, p_type)
-    fmt_o      = Default (fmt_o, fmt_o)
-    i_fmt      = Format_fuzzy_search (fmt_i==""?p_type:fmt_i, bdpth)
-    o_fmt      = Format_fuzzy_search (fmt_o==""?p_type:fmt_o, bdpth)
-    isRGBc     = fmt_i=="RGB"
-    isRGBout   = fmt_o=="RGB"
+    nw         = Default (width,   1)             # 0.0 to 10.0 is a multiplier. 12 to inf is absolute target width
+    nh         = Default (height, nw)             # 0.0 to 10.0 is a multiplier. 12 to inf is absolute target height
+    fmt_i      = Default (fmt_i,    "")
+    fmt_o      = Default (fmt_o, fmt_i)
+    i_fmt      = Format_fuzzy_search (fmt_i=="" ? p_type : fmt_i, bdpth)
+    o_fmt      = Format_fuzzy_search (fmt_o=="" ? p_type : fmt_o, bdpth)
+    isRGBi     = i_fmt[0]=="RGB"
+    isRGBo     = o_fmt[0]=="RGB"
 
-    isRGBc ? ConvertToPlanarRGB() : last
+    isRGBi ? ConvertToPlanarRGB() : last
 
-    mod        = Default (mod, isRGBout ? 1 : 2) # mod size for resizing. ie: 1, 2, 4, 8, 16...
+    mod        = Default (mod, isRGBo ? 1 : 2) # mod size for resizing. ie: 1, 2, 4, 8, 16...
 
     nw         = isInt(nw) && nw<=10 ? float(nw) : isFloat(nw) && nw>10. ? int(nw) : nw
     nh         = isInt(nh) && nh<=10 ? float(nh) : isFloat(nh) && nh>10. ? int(nh) : nh
@@ -258,28 +260,32 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
     nh         =  nh<=10. ? h*nh : nh            nh     = round(nh/mod)*mod
     isUHD      = ( w > 2599 ||   h > 1499)       isnUHD = (nw > 2599 ||  nh > 1499)
     isHD       = ( w > 1099 ||   h > 599 )       isnHD  = (nw > 1099 ||  nh > 599 )
+    wr         = float(nw) / w                   hr     = float(nh) / h
+    rat        = max(abs(wr - 1),abs(hr - 1)) == abs(wr - 1) ? wr : hr
 
-    cs_in      = Default (cs_in,   isRGBc || fc ? "jpeg"                  : isUHD  ? "2020" : isHD  ? "709"   : "601")
-    cs_out     = Default (cs_out, (cs_in == "jpeg" || cs_in == "srgb") && isRGBout ? "srgb" : isnUHD ? "2020" : isnHD ? "709" : "601")
-    isGamma    = Default (gamma,   cs_in != cs_out )
-    tv_in      = Default (tv_range_in,                         !(isRGBc   || cs_in =="sRGB" || cs_in =="jpeg" || cs_in =="jpg") )
-    tv_out     = Default (tv_range_out, cs_out == "" ? tv_in : !(isRGBout || cs_out=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") )
+    cs_in      = Default (cs_in,   isRGBi || fc ? "jpeg"                : isUHD  ? "2020" : isHD  ? "709"   : "601")
+    cs_out     = Default (cs_out, (cs_in == "jpeg" || cs_in == "srgb") && isRGBo ? "srgb" : isnUHD ? "2020" : isnHD ? "709" : "601")
+    linei      = Default (linear_in,  false)
+    lineo      = Default (linear_out, false)
+    tv_in      = Default (tv_range_in,                         !(isRGBi || cs_in =="sRGB" || cs_in =="jpeg" || cs_in =="jpg") )
+    tv_out     = Default (tv_range_out, cs_out == "" ? tv_in : !(isRGBo || cs_out=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") )
     kernel     = Default (kernel,   (w>nw||h>nh)?"Didee":"Precise")
-    kernel_c   = Default (kernel_c, (w>nw||h>nh)?"Didee":"Precise")
+    kernel_c   = Default (kernel_c, kernel)
     space      = Default (scale_space, "gamma")  # resizing space: "gamma", "linear", "sigmoid" or "log" for quasi-log. Assumes gamma encoded input.
     cplace_in  = Default (cplace_in,   "")       # Assumes default from format
     cplace_out = Default (cplace_out,  "")       # Assumes default from format
-    p          = Default (p, 0.75)
+    p          = Default (p,         15)
     src_left   = Default (src_left, 0.0)
     src_top    = Default (src_top,  0.0)
     src_width  = Default (src_width,  w)
     src_height = Default (src_height, h)
     noring     = Default (noring,  false)
+    nomoir     = Default (nomoiree,false)
     recon      = Default (UVrecon, false)
     fs         = Default (fulls,   false)
 
 
-    ##### Data extraction and normalization + Asserts ############
+    ############ Data extraction and normalization + Asserts ############
 
                  Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
     !(isInt(nw) || isInt(nh) || isFloat(nw) || isFloat(nh))                  ? \
@@ -292,36 +298,37 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
     cs_out   = cs_out != "" ? Matrix_fuzzy_search (cs_out) : cs_in
     space    = space  != "" ? space : "gamma"
 
+    isGamma  = Default (gamma, (cs_in != cs_out) || (linei!=lineo))
     isSpace  = cs_in    !=  cs_out
     isFrmt   = i_fmt[0] !=  o_fmt[0]
     isScale  = nw!=w    ||  nh!=h
 
     coef_i   =           Matrix_coef(cs_in)
     coef_o   = isSpace ? Matrix_coef(cs_out) : coef_i
-    s_gam    =                      moncurve_coef (cs_in)
-    t_gam    = isSpace && isGamma ? moncurve_coef (cs_out) : s_gam
+    s_gam    =           moncurve_coef (linei?"linear":cs_in)
+    t_gam    = isGamma ? moncurve_coef (lineo?"linear":cs_out) : s_gam
     bc       = bicubic_coeffs(kernel)
     bc_b     = bc[1]>=0.?bc[0]:1/3.
     bc_c     = bc[1]>=0.?bc[1]:1/3.
     kernel   = bc[1]>=0. ? "Bicubic" : kernel
 
-    i_type4  = i_fmt[1] == "444"            o_type4  = o_fmt[1] == "444"
-    i_type2  = i_fmt[1] == "422"            o_type2  = o_fmt[1] == "422"
-    i_type1  = i_fmt[1] == "411"            o_type1  = o_fmt[1] == "411"
-    i_type10 = i_fmt[1] == "410"            o_type10 = o_fmt[1] == "410"
+    i_type4  = i_fmt[1] == "444"         o_type4  = o_fmt[1] == "444"
+    i_type2  = i_fmt[1] == "422"         o_type2  = o_fmt[1] == "422"
+    i_type1  = i_fmt[1] == "411"         o_type1  = o_fmt[1] == "411"
+    i_type10 = i_fmt[1] == "410"         o_type10 = o_fmt[1] == "410"
 
     cow      = i_type4 ?  w : i_type1 || i_type10 ? round( w/4.0) : round( w/2.0)
     coh      = i_type4 ||     i_type1 || i_type2  ?             h : round( h/2.0)
     cnw      = o_type4 ? nw : o_type1 || o_type10 ? round(nw/4.0) : round(nw/2.0)
     cnh      = o_type4 ||     o_type1 || o_type2  ?            nh : round(nh/2.0)
 
-     i_type1 || o_type1         ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411")      : nop()
-     !i_type10 || !o_type10     ? Assert(false,      "Unsupported Pixel Type: YUV410")          : nop()
-     !isRGBc                    ? Assert( h%2==0, "Clip Height is not mod2."  )                 : nop()
-     i_type2||i_fmt[1]=="420"   ? Assert( w%2==0, "Clip Width is not mod2."   )                 : nop()
-     i_type1                    ? Assert( w%4==0, "Clip Width is not mod4."   )                 : nop()
+     i_type1  || o_type1        ? Assert(bdpth == 8, "Unsupported Pixel Type: HBD YUV411")      : nop()
+     i_type10 || o_type10       ? Assert(false,     "Unsupported Pixel Type: YUV410")           : nop()
+     !isRGBi                    ? Assert(h%2==0,  "Clip Height is not mod2." )                  : nop()
+     i_type2||i_fmt[1]=="420"   ? Assert(w%2==0,  "Clip Width is not mod2." )                   : nop()
+     i_type1                    ? Assert(w%4==0,  "Clip Width is not mod4." )                   : nop()
      o_type1                    ? Assert(nw%4==0, "Target Width is not mod4." )                 : nop()
-    !(isRGBout ||  o_type4 || (cnw>cow || cnh>coh))                                             ? \
+    !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                               ? \
                                   Assert(!recon, "Invalid settings for chroma reconstruction.") : nop()
 
 
@@ -361,22 +368,25 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
 
     src_nul = kernel == "ResizeShader" || kernel == "SSIM"
     src_box = kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144"
-    src_wh  = src_box ? Format(",sw=[{src_width}],sh=[{src_height}]") : Format(",src_width={src_width},src_height={src_height}")
-    src_whc = src_box ? Format(",sw=[{cow}],      sh=[{coh}]")        : Format(",src_width={cow},      src_height={coh}")
-    src_c   = src_nul ? "" : src_box ? Format(",sx=[{src_left}],sy=[{src_top}]"+src_wh+")") : Format(",src_left={src_left},src_top={src_top}"+src_wh+")")
-    Ynr     = Format(".Repair(BicubicResize(Y,{nw},{nh},0,0"+src_c+",1)")
+    src_wh  = src_box ? Format(",sw={src_width},sh={src_height}") : Format(",src_width={src_width},src_height={src_height}")
+    src_whc = src_box ? Format(",sw={cow},     sh={coh}")        : Format(",src_width={cow},      src_height={coh}")
+    fmtcb   = Format(".ConvertBits({bdpth},fulls={fs})")
+    src_c   = src_nul ? "" : src_box ? Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr
+    src_nr  = Format(",src_left={src_left},src_top={src_top}"+src_wh+")")
+    Ynr     = Format(".Repair(BicubicResize(Y,{nw},{nh},0,0"+src_nr+",1)")
 
     cplacei  = chroma_placement(cow, coh, cs_in,  i_fmt[0]+i_fmt[1], cplace_in )
     cplaceo  = chroma_placement(cnw, cnh, cs_out, o_fmt[0]+o_fmt[1], cplace_out)
 
     if (!isSpace && !isFrmt) {
 
-        UVr = isRGBc ? 3 : 1
+        UVr = isRGBi ? 3 : 1
         space == "linear"  ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, UVr, fs)                                       : \
         space == "sigmoid" ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, UVr, fs).ex_contrast(-1.15,0,191,false,UVr,fs) : \
         space == "log"     ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, UVr, fs).ACEScct_f(UV=UVr,fulls=fs)            : \
                              last
 
+        nomoir ? ex_blur((1. / rat) / 2., bifit=false) : last
         Ynr   = ReplaceStr(Ynr, "(Y,", "(")
         Eval("" + resampler + src_c + (noring ? Ynr : ""))
 
@@ -386,13 +396,13 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
                              last
 
         tv_in != tv_out ? space == "gamma"   ? SMPTE_legal(tv_out,3,  3,fs) : \
-                          isScale && !isRGBc ? SMPTE_legal(tv_out,1,  3,fs) : \
+                          isScale && !isRGBi ? SMPTE_legal(tv_out,1,  3,fs) : \
                          !isScale            ? SMPTE_legal(tv_out,UVr,3,fs) : last : last
 
-    } else if (!isRGBc) {
+    } else if (!isRGBi) {
 
 
-        if (isScale && (isRGBout || !isSpace)) {
+        if (isScale && (isRGBo || !isSpace)) {
 
             space == "linear"  ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, 1, fs)                                     : \
             space == "sigmoid" ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, 1, fs).ex_contrast(-1.15,0,191,false,1,fs) : \
@@ -404,8 +414,8 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
         Cb  = ExtractU()
         Cr  = ExtractV()
 
-        fcnw = isSpace && !isRGBout ? w : cnw
-        fcnh = isSpace && !isRGBout ? h : cnh
+        fcnw = isSpace && !isRGBo ? w : cnw
+        fcnh = isSpace && !isRGBo ? h : cnh
 
 
         if (recon && !i_type4) {
@@ -423,27 +433,28 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
         } else {
 
             point   = kernel=="Point" ? "+1.0" : ""
-            cplaceH = ",src_left="+string(cplaceo[0]+cplacei[0]+src_left)+point
-            cplaceV = ",src_top ="+string(cplaceo[1]+cplacei[1]+src_top)
+            cplaceH = (src_box ? ",sx=" : ",src_left=")+string(cplaceo[0]+cplacei[0]+src_left)+point
+            cplaceV = (src_box ? ",sy=" :  ",src_top=")+string(cplaceo[1]+cplacei[1]+src_top)
 
             str  = ReplaceStr(ReplaceStr(resampler, "("+string(nw), "("+string(fcnw)), ","+string(nh), ","+string(fcnh))
             str  = (fcnw==cow && fcnh==coh) ? Format("PointResize({fcnw},{fcnh}") : str
-            Cb   = Eval("Cb." + str + (src_nul ? "" : (cplaceH + cplaceV + src_whc)) + ")")
-            Cr   = Eval("Cr." + str + (src_nul ? "" : (cplaceH + cplaceV + src_whc)) + ")")
+            Cb   = Eval("Cb." + str + (src_nul ? "" : (cplaceH + cplaceV + src_whc)) + ")" + fmtcb)
+            Cr   = Eval("Cr." + str + (src_nul ? "" : (cplaceH + cplaceV + src_whc)) + ")" + fmtcb)
             }
 
 
-        if (isScale && (isRGBout || !isSpace)) {
+        if (isScale && (isRGBo || !isSpace)) {
 
+            Y     = nomoir ? Y.ex_blur((1. / rat) / 2., bifit=false) : Y
             Y     = Eval("Y." + resampler + src_c + (noring ? Ynr : ""))
-            Y     = space == "linear"                  ? Y.                                   moncurve_r(s_gam[0], s_gam[1], false, !(isRGBout || !tv_out), 1, fs) : \
-                    space == "sigmoid"                 ? Y.ex_contrast(1.15,0,191,false,1,fs).moncurve_r(s_gam[0], s_gam[1], false, !(isRGBout || !tv_out), 1, fs) : \
-                    space == "log"                     ? Y.ACEScct_r(UV=1,fulls=fs).          moncurve_r(s_gam[0], s_gam[1], false, !(isRGBout || !tv_out), 1, fs) : \
+            Y     = space == "linear"                  ? Y.                                   moncurve_r(s_gam[0], s_gam[1], false, !(isRGBo || !tv_out), 1, fs) : \
+                    space == "sigmoid"                 ? Y.ex_contrast(1.15,0,191,false,1,fs).moncurve_r(s_gam[0], s_gam[1], false, !(isRGBo || !tv_out), 1, fs) : \
+                    space == "log"                     ? Y.ACEScct_r(UV=1,fulls=fs).          moncurve_r(s_gam[0], s_gam[1], false, !(isRGBo || !tv_out), 1, fs) : \
                                                          Y
             }
 
 
-        if (!isRGBout && !isSpace) {
+        if (!isRGBo && !isSpace) {
 
             CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+o_fmt[1]+o_fmt[2])
             tv_in != tv_out ? space == "gamma" ? SMPTE_legal(tv_out,3,  3,fs) : \
@@ -452,7 +463,7 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
             }
 
 
-        if (isRGBout || isSpace) {
+        if (isRGBo || isSpace) {
 
             if (i_fmt[0]=="YcCbcCrc") {
 
@@ -499,21 +510,21 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
 
         !isSpace ? CombinePlanes(R, G, B, planes="RGB") : last } }
 
-    if (isRGBc) {
+    if (isRGBi) {
 
-        isSpace ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, 3, fs) : last
+        isSpace || isGamma ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, 3, fs) : last
         R = ExtractR()
         G = ExtractG()
         B = ExtractB()
 
-    } else if (isSpace) {
+    } else if (isSpace || isGamma) {
 
         R = R.moncurve_f(s_gam[0], s_gam[1], false, false, 1, fs)
         G = G.moncurve_f(s_gam[0], s_gam[1], false, false, 1, fs)
         B = B.moncurve_f(s_gam[0], s_gam[1], false, false, 1, fs)
      }
 
-    if (isSpace) {
+    if (isSpace || isGamma) {
 
         mata = RGB_to_XYZ  (cs_in,         list=true)
         matw = c_adaptation(cs_in, cs_out, list=true)
@@ -525,10 +536,10 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
         Bo = Expr(R, G, B, "x "+string(mat[2])+" * y "+string(mat[5])+" * + z "+string(mat[8])+" * +", optSingleMode=true)
         R = Ro  G = Go  B = Bo
 
-        isRGBout ? CombinePlanes(Ro, Go, Bo, planes="RGB") : last
+        isRGBo ? CombinePlanes(Ro, Go, Bo, planes="RGB") : last
 
 
-    if (isRGBc && isRGBout && isScale) {
+    if (isRGBi && isRGBo && isScale) {
 
 
         RGB  = space == "linear"  ? moncurve_f(s_gam[0], s_gam[1], false, false, 3, fs)                                         : \
@@ -537,6 +548,7 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
                isSpace            ? moncurve_r(t_gam[0], t_gam[1], false, tv_out, 3, fs)                                        : \
                                     last
 
+        RGB   = nomoir ? RGB.ex_blur((1. / rat) / 2.,bifit=false) : RGB
         RGBnr = ReplaceStr(Ynr, "(Y,", "(RGB,")
         RGB   = Eval("RGB." + resampler + src_c + (noring ? RGBnr : ""))
 
@@ -545,16 +557,16 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
                space == "log"     ? RGB.ACEScct_r(UV=3,fulls=fs).          moncurve_r(t_gam[0], t_gam[1], false, tv_out, 3, fs) : \
                                     RGB
 
-        } else if (isRGBout) {
+        } else if (isRGBo) {
 
-               isSpace            ? moncurve_r(t_gam[0], t_gam[1], false, tv_out, 3, fs) : last
+               moncurve_r(t_gam[0], t_gam[1], false, tv_out, 3, fs)
         } }
 
-    if (!isRGBout && isSpace || isRGBc && isFrmt) {
+    if (!isRGBo && isSpace || isRGBi && isFrmt) {
 
-        R = isSpace ? R.moncurve_r(t_gam[0], t_gam[1], isRGBc && !isSpace && tv_in, false, 1, fs) : R
-        G = isSpace ? G.moncurve_r(t_gam[0], t_gam[1], isRGBc && !isSpace && tv_in, false, 1, fs) : G
-        B = isSpace ? B.moncurve_r(t_gam[0], t_gam[1], isRGBc && !isSpace && tv_in, false, 1, fs) : B
+        R = isSpace || isGamma ? R.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && tv_in, false, 1, fs) : R
+        G = isSpace || isGamma ? G.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && tv_in, false, 1, fs) : G
+        B = isSpace || isGamma ? B.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && tv_in, false, 1, fs) : B
 
         if (o_fmt[0]=="YcCbcCrc") {
 
@@ -608,15 +620,16 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
             }
 
         point   = kernel=="Point" ? "+1.0" : ""
-        cplaceH = ",src_left="+string(cplaceo[0]+cplacei[0]+src_left)+point
-        cplaceV = ",src_top ="+string(cplaceo[1]+cplacei[1]+src_top)
+        cplaceH = (src_box ? ",sx=" : ",src_left=")+string(cplaceo[0]+cplacei[0]+src_left)+point
+        cplaceV = (src_box ? ",sy=" :  ",src_top=")+string(cplaceo[1]+cplacei[1]+src_top)
 
         str  = ReplaceStr(ReplaceStr(resampler, "("+string(nw), "("+string(cnw)), ","+string(nh), ","+string(cnh))
         str  = (cnw==cow && cnh==coh) ? Format("PointResize({cnw},{cnh}") : str
-        Cb   = Eval("Cb." + str + (src_nul ? "" : (cplaceH + cplaceV + src_wh)) + ")")
-        Cr   = Eval("Cr." + str + (src_nul ? "" : (cplaceH + cplaceV + src_wh)) + ")")
+        Cb   = Eval("Cb." + str + (src_nul ? "" : (cplaceH + cplaceV + src_wh)) + ")" + fmtcb)
+        Cr   = Eval("Cr." + str + (src_nul ? "" : (cplaceH + cplaceV + src_wh)) + ")" + fmtcb)
 
         if (isScale) {
+            Y    = nomoir ? Y.ex_blur((1. / rat) / 2., bifit=false) : Y
             Y    = Eval("Y." + resampler + src_c + (noring ? Ynr : ""))
 
             Y    = space == "linear"  ? Y.                                   moncurve_r(t_gam[0], t_gam[1], false, tv_out, 1, fs) : \
@@ -1185,7 +1198,7 @@ function moncurve_r (clip c, float "gamma", float "alpha", bool "tv_range_in", b
                            Format("range_min "+rangePC+" max {igam} ^ "+rangeTV+"")
 
     str    =        ex_dlut( str, bi, fs)
-    cstr   = !rgb ? ex_dlut(tv_in && !tv_out  ? "x cmin - range_max cmax cmin - / *" : \
+    cstr   = !rgb ? ex_dlut(tv_in && !tv_out ? "x cmin - range_max cmax cmin - / *" : \
                            !tv_in &&  tv_out ? "x cmax cmin - range_max / * cmin +" : "", bi, fs) : str
 
     gamma <= 1.0 ? last                                                                      : \
@@ -1293,7 +1306,7 @@ function Format_fuzzy_search (clip c, string format, int bits) {
 
 
     rgb  = isRGB(c)
-    Up   = rgb ? c : ExtractU(c)
+    Up   = rgb || isy(c) ? c : ExtractU(c)
     rw   = width (Up) / float(width (c))
     rh   = height(Up) / float(height(c))
     a    = int(rw * 4.)
@@ -1427,7 +1440,7 @@ function bicubic_coeffs (string kernel) {
 # Photoshop saves as 420 up to level 6, 422 for above
 function chroma_placement (clip a, int UVw, int UVh, string matrix, string format, string "cplace") {
 
-    plane      = isRGB(a) ? a : ExtractU(a)
+    plane      = isRGB(a) || isy(a) ? a : ExtractU(a)
     rw         = width (plane) / float(UVw)      # source/target UV dimensions
     rh         = height(plane) / float(UVh)
 
@@ -1585,6 +1598,7 @@ function moncurve_coef (string matrix) {
 \   : (matrix == "DCI-P3"     ) ? 6
 \   : (matrix == "ACEScg"     ) ? 7
 \   : (matrix == "ACES2065"   ) ? 7
+\   : (matrix == "linear"     ) ? 7
 \   : (matrix == "240M"       ) ? 2
 \   : (matrix == "470BG"      ) ? 3
 \   : Assert (false, "Unsupported Color Space.")
