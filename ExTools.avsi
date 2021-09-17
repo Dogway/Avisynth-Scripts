@@ -3553,21 +3553,25 @@ function ex_repair(clip a, clip b, string "mode", int "UV", bool "fulls") {
 ## Outline: To reveal the outer edge of a shape
 ##   ex_makediff(ex_expand(n), a, dif=false)
 ##   or
-##   ex_hitormiss(mode="outline") # faster
+##   ex_luts(mode="range+",pixels=ex_shape(n)) # faster
+##   or
+##   ex_hitormiss(mode="outline")              # binary only
 ##
 ## Inline: To reveal the inner edge of a shape
 ##   ex_makediff(a, ex_inpand(n), dif=false)
 ##   or
-##   ex_hitormiss(mode="inline") # faster
+##   ex_luts(mode="range-",pixels=ex_shape(n)) # faster
+##   or
+##   ex_hitormiss(mode="inline")               # binary only
 ##
 ## Gradient Magnitude: To reveal the boundary of elements in a binary image
 ##   ex_makediff(ex_expand(n), ex_inpand(n), dif=false)
 ##   or
-##   ex_edge("min/max")          # faster
+##   ex_edge("min/max")                        # faster
 ##   or
-##   ex_hitormiss(mode="boundary")
+##   ex_luts(mode="range",pixels=ex_shape(n))  # faster for higher radii
 ##   or
-##   ex_luts(mode="range",pixels=ex_shape(n)) # faster for higher radii
+##   ex_hitormiss(mode="boundary")             # binary only
 ##
 ## Top Hat:   (a - opening) To reveal bright elements (use kernel wisely) over dark backgrounds on a greyscale image
 ##   ex_makediff(a, ex_inpand(n).ex_expand(n), dif=false)
@@ -4149,10 +4153,21 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
          md == "minimum"   ? "min"          : \
          md == "range"     ? "rng"          : \
          md == "range-"    ? "rngmin"       : \
+         md == "range+"    ? "rngmax"       : \
          md == "min/max"   ? "rng"          : \
          md == "inline"    ? "rngmin"       : \
+         md == "outline"   ? "rngmax"       : \
          md == "standard deviation" ? "std" : \
          md == "median"    ? "med"          : md
+
+    op = md == "avg"   ? " + "              : \
+         md == "max"   ? " max "            : \
+         md == "min"   ? " min "            : \
+         md == "rng"   ? " max "            : \
+         md == "rngmin"? " min "            : \
+         md == "rngmax"? " max "            : \
+         md == "std"   ? " XX - abs dup * " : \
+         md == "med"   ? ""                 : ""
 
     px  = FindStr(px,"[") != 0 ? px : pixel_parser(px)
     px0 = FindStr(px,"x[0,0]") == 0
@@ -4161,14 +4176,6 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     med = md == "med" ? sel_med(in) : ""
     med = isb ? ReplaceStr(med,  "X swap2", "Y swap2") : px0 ? ReplaceStr(med,  "X swap2", "x swap2") : med
 
-
-    op = md == "avg"   ? " + "              : \
-         md == "max"   ? " max "            : \
-         md == "min"   ? " min "            : \
-         md == "rng"   ? " max "            : \
-         md == "rngmin"? " min "            : \
-         md == "std"   ? " XX - abs dup * " : \
-         md == "med"   ? ""                 : ""
 
     vars = "A B C D E F G H I J K L M N O P Q R S T U V W Z " \
           +"AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWYYZZ"
@@ -4199,7 +4206,8 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
         exprM = nex ? " "                         : expr + exprY + exprX
 
     expr = md == "rng"    ? px + expr + exprY + exprX + ReplaceStr(expr,  "max", "min") + " - " + exprf : \
-           md == "rngmin" ? px + expr + exprY + exprX + " x swap - "                            + exprf : \
+           md == "rngmin" ? px + expr + exprY + exprX + " X swap - "                            + exprf : \
+           md == "rngmax" ? px + expr + exprY + exprX + " X  - "                                + exprf : \
            md == "avg"    ? px + expr + exprY + exprX + string(1./in) + " * "                   + exprf : \
            md == "std"    ? px + exprS                + string(1./in) + " * sqrt "              + exprf : \
            md == "med"    ? px + exprM                + med                                     + exprf : \
