@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v3.2 mix - 14 September 2021                              ###
+###                                v3.3 ex - 18 September 2021                               ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,35 +20,40 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v3.2mx : - Expressions optimizations
+### v3.3ex : - Lmode=5 for temporal limiting
+###          - Optimization for mt_inflate()
+###
+### v3.2ex : - Expressions optimizations
 ###          - New preset 'mid'
 ###
-### v3.1mx : - Rebase to latest ExTools for ex_bs()
+### v3.1ex : - Rebase to latest ExTools for ex_bs()
 ###
-### v3.0mx : - Optimizations
+### v3.0ex : - Optimizations
 ###
-### v2.9mx : - Bugfix for HBD
+### v2.9ex : - Bugfix for HBD
 ###
-### v2.8mx : - Rebase to latest ExTools for ex_bs()
+### v2.8ex : - Rebase to latest ExTools for ex_bs()
 ###
-### v2.7mx : - Revert to removegrain(20) (mathematically correct)
+### v2.7ex : - Revert to removegrain(20) (mathematically correct)
 ###          - Add internal HD mode
+###          - Rebase to latest ExTools
 ###
-### v2.6mx : - Expressions cleanup
+### v2.6ex : - Expressions cleanup
+###          - Rebase to latest ExTools
 ###
-### v2.5mx : - Expressions optimizations
+### v2.5ex : - Expressions optimizations
 ###
-### v2.4mx : - Expressions fix and optimizations
+### v2.4ex : - Expressions fix and optimizations
 ###
-### v2.3mx : - Expression optimizations
+### v2.3ex : - Expression optimizations
 ###
-### v2.2mx : - "fulls" argument
+### v2.2ex : - "fulls" argument
 ###          - Rebasing with latest ExTools
 ###          - Removed old checks (YUY2 and old AVS support)
 ###          - Expression optimizations
 ###          - Default is now "slow"
 ###
-### v2.193mx:- Removed < AviSynth+ 3.5 support
+### v2.193ex:- Removed < AviSynth+ 3.5 support
 ###          - Replaced with internal Expr() wrappers.
 ###          - Replaced UnsharpMask_avsi with faster UnsharpMask_HBD
 ###
@@ -131,7 +136,7 @@
 ### -> Masktools2   (v2.2.26 or up)
 ### -> RgTools      (v1.2 or up)
 ### -> Zs_RF_Shared (v1.154)           [for Source]
-### -> ExTools      (v5.6)
+### -> ExTools      (v5.8)
 ### -> SharpenersPack                  [for Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use avs+ then make sure it's the last one
@@ -236,7 +241,7 @@
 ### | LIMITING |
 ### +----------+
 ###
-### Lmode [int: ...,0,1,2,3,4]
+### Lmode [int: ...,0,1,2,3,4,5]
 ### --------------------------
 ### Limit mode:
 ###    <0 : Limit with repair (ex: Lmode=-1 --> repair(1), Lmode=-5 --> repair(5)...)
@@ -245,6 +250,7 @@
 ###    =2 : Limit to over/undershoot on edges and no limit on not-edges
 ###    =3 : Limit to zero on edges and to over/undershoot on not-edges
 ###    =4 : Limit to over/undershoot on edges and to over/undershoot2 on not-edges
+###    =5 : Limit to over/undershoot on edges and to over/undershoot2 on not-edges in temporal domain
 ###
 ### overshoot [int]
 ### ---------------
@@ -463,7 +469,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v3.2mix"
+    version = "v3.3ex"
     preset  = Default(preset,"mid")
     num     = preset=="old" ? 0 : preset=="slow" ? 1 : preset=="mid" || preset=="medium" ? 2 : preset=="fast" ? 3 : 4
 
@@ -474,7 +480,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     fs   = Default(fulls,   false)
     tv   = Default(tv_range, true)
 
-    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
     Assert(num != 4, chr(10) + """Preset must be "old", "slow", "mid" or "fast" !""" + chr(10))
 
     #                                                                           OLD                  SLOW                 MEDIUM                  FAST
@@ -514,23 +520,23 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
     Assert(!isYUY2(inclip), chr(10) + "LSFmod: Unsupported format: YUY2" + chr(10))
     Assert(!isRGB(inclip),  chr(10) + "LSFmod: Unsupported format: RGB"  + chr(10))
-    Assert( ( strength >= 0 )                                            , chr(10) + "'strength' have not a correct value! [>=0]"          + chr(10))
-    Assert( ( Smode >= 1 && Smode <= 6 )                                 , chr(10) + "'Smode' have not a correct value! [1,2,3,4,5,6]"     + chr(10))
-    Assert( ( Smethod >= 1 && Smethod <= 4 )                             , chr(10) + "'Smethod' have not a correct value! [1,2,3,4]"       + chr(10))
-    Assert( ( Szrp >= 1 && Szrp <= 255 )                                 , chr(10) + "'Szrp' have not a correct value! [1...255]"          + chr(10))
-    Assert( ( Spwr >= 1 )                                                , chr(10) + "'Spwr' have not a correct value! [>=1]"              + chr(10))
-    Assert( ( SdmpLo >= 0 && SdmpLo <= 255 )                             , chr(10) + "'SdmpLo' have not a correct value! [0...255]"        + chr(10))
-    Assert( ( SdmpHi >= 0 && SdmpHi <= 255 )                             , chr(10) + "'SdmpHi' have not a correct value! [0...255]"        + chr(10))
-    Assert( ( Lmode <= 4 )                                               , chr(10) + "'Lmode' have not a correct value! [...-1,0,1,2,3,4]" + chr(10))
-    Assert( ( overshoot >= 0 && overshoot <= 255 )                       , chr(10) + "'overshoot' have not a correct value! [0...255]"     + chr(10))
-    Assert( ( undershoot >= 0 && undershoot <= 255 )                     , chr(10) + "'undershoot' have not a correct value! [0...255]"    + chr(10))
-    Assert( ( overshoot2 >= 0 && overshoot2 <= 255 )                     , chr(10) + "'overshoot2' have not a correct value! [0...255]"    + chr(10))
-    Assert( ( undershoot2 >= 0 && undershoot2 <= 255 )                   , chr(10) + "'undershoot2' have not a correct value! [0...255]"   + chr(10))
-    Assert( ( soft >= -2 && soft <= 100 )                                , chr(10) + "'soft' have not a correct value! [-2,-1,0,1...100]"  + chr(10))
-    Assert( ( keep >= 0 && keep <= 100 )                                 , chr(10) + "'keep' have not a correct value! [0...100]"          + chr(10))
-    Assert( ( edgemode >= -1 && edgemode <= 2 )                          , chr(10) + "'edgemode' have not a correct value! [-1,0,1,2]"     + chr(10))
-    Assert( ( ss_x >= 1.0 )                                              , chr(10) + "'ss_x' have not a correct value! [>=1.0]"            + chr(10))
-    Assert( ( ss_y >= 1.0 )                                              , chr(10) + "'ss_y' have not a correct value! [>=1.0]"            + chr(10))
+    Assert( ( strength >= 0 )                                            , chr(10) + "'strength' have not a correct value! [>=0]"            + chr(10))
+    Assert( ( Smode >= 1 && Smode <= 6 )                                 , chr(10) + "'Smode' have not a correct value! [1,2,3,4,5,6]"       + chr(10))
+    Assert( ( Smethod >= 1 && Smethod <= 4 )                             , chr(10) + "'Smethod' have not a correct value! [1,2,3,4]"         + chr(10))
+    Assert( ( Szrp >= 1 && Szrp <= 255 )                                 , chr(10) + "'Szrp' have not a correct value! [1...255]"            + chr(10))
+    Assert( ( Spwr >= 1 )                                                , chr(10) + "'Spwr' have not a correct value! [>=1]"                + chr(10))
+    Assert( ( SdmpLo >= 0 && SdmpLo <= 255 )                             , chr(10) + "'SdmpLo' have not a correct value! [0...255]"          + chr(10))
+    Assert( ( SdmpHi >= 0 && SdmpHi <= 255 )                             , chr(10) + "'SdmpHi' have not a correct value! [0...255]"          + chr(10))
+    Assert( ( Lmode <= 5 )                                               , chr(10) + "'Lmode' have not a correct value! [...-1,0,1,2,3,4,5]" + chr(10))
+    Assert( ( overshoot >= 0 && overshoot <= 255 )                       , chr(10) + "'overshoot' have not a correct value! [0...255]"       + chr(10))
+    Assert( ( undershoot >= 0 && undershoot <= 255 )                     , chr(10) + "'undershoot' have not a correct value! [0...255]"      + chr(10))
+    Assert( ( overshoot2 >= 0 && overshoot2 <= 255 )                     , chr(10) + "'overshoot2' have not a correct value! [0...255]"      + chr(10))
+    Assert( ( undershoot2 >= 0 && undershoot2 <= 255 )                   , chr(10) + "'undershoot2' have not a correct value! [0...255]"     + chr(10))
+    Assert( ( soft >= -2 && soft <= 100 )                                , chr(10) + "'soft' have not a correct value! [-2,-1,0,1...100]"    + chr(10))
+    Assert( ( keep >= 0 && keep <= 100 )                                 , chr(10) + "'keep' have not a correct value! [0...100]"            + chr(10))
+    Assert( ( edgemode >= -1 && edgemode <= 2 )                          , chr(10) + "'edgemode' have not a correct value! [-1,0,1,2]"       + chr(10))
+    Assert( ( ss_x >= 1.0 )                                              , chr(10) + "'ss_x' have not a correct value! [>=1.0]"              + chr(10))
+    Assert( ( ss_y >= 1.0 )                                              , chr(10) + "'ss_y' have not a correct value! [>=1.0]"              + chr(10))
 
     soft = soft!=-1  ? soft : sqrt( (((ss_x+ss_y)/2.0-1.0)*100.0) ) * 10
     soft = soft!=-2  ? soft : int( (1.0+(2.0/(ss_x+ss_y))) * sqrt(strength) )
@@ -555,20 +561,20 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     ### SHARP
     tmp  = ss_x > 1.0 || ss_y > 1.0 ? input.spline36resize(xxs,yys) : input
     pre  = preblur=="OFF" ? tmp
-    \    : preblur=="ON"  ? tmp.ex_lutxyz(ex_makediff(tmp,tmp.removegrain(12,-1), UV=1, fulls=fs)
-    \                                    ,ex_makediff(tmp,tmp.removegrain(4, -1), UV=1, fulls=fs),"y range_half - A@ z range_half - B@ * 0 < x A abs B abs < A B ? x swap - ?", UV=1, fulls=fs)
+    \    : preblur=="ON"  ? tmp.ex_lutxyz(ex_makediff(tmp,tmp.ex_boxblur(1,mode="weighted",UV=1), UV=1, fulls=fs)
+    \                                    ,ex_makediff(tmp,tmp.ex_median("median",UV=1), UV=1, fulls=fs),"y range_half - A@ z range_half - B@ * 0 < x A abs B abs < A B ? x swap - ?", UV=1, fulls=fs)
     \    : Eval("tmp."+preblur)
 
-    dark_limit   = pre.mt_inpand()
-    bright_limit = pre.mt_expand()
+    dark_limit   = pre.ex_inpand()
+    bright_limit = pre.ex_expand()
     minmaxavg    = Merge(dark_limit,bright_limit,0.5)
 
-    method = Smethod==1   ? isHD ?       pre.removegrain(12,-1).removegrain(20,-1) :       pre.removegrain(12,-1)
+    method = Smethod==1   ? isHD ?       pre.ex_boxblur(3,mode="weighted",UV=1) :       pre.ex_boxblur(1,mode="weighted",UV=1)
     \      : Smethod==2   ? minmaxavg
-    \      :                isHD ? minmaxavg.removegrain(12,-1).removegrain(20,-1) : minmaxavg.removegrain(12,-1)
+    \      :                isHD ? minmaxavg.ex_boxblur(3,mode="weighted",UV=1) : minmaxavg.ex_boxblur(1,mode="weighted",UV=1)
 
     sec    = ex_bs(tv ? 0.51 : 0.594, 8, bi, fulls=fs)
-    secstr = Format("x y < x {sec} + x y > x {sec} - x ? ?")  # "x y x 2 + min y x 2 - max clip" or "y x 2 + min x 2 - max " # faster but 95% not 100% match (replicates ex_clamp() )
+    secstr = Format("x y < x {sec} + x y > x {sec} - x ? ?")
     method = secure==true ? method.ex_lutxy(pre,secstr, UV=1, fulls=fs)
     \      :                method
 
@@ -591,6 +597,35 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     \         : preblur!="OFF"           ? tmp.ex_lutxyz(pre,pre.CAS(min(Str, 1)), "x y z - range_half + - range_half +", UV=1, fulls=fs) : secure ? pre.CAS(min(Str, 1)).ex_lutxy(pre,secstr, UV=1, fulls=fs) : pre.CAS(min(Str, 1))
 
 
+    dg = Eval("try { cb1.isclip() } catch(error_msg) { false }")
+    if (Lmode==5) {
+
+        if (!dg) {
+
+            blcksze   = (ox > 2599 ||  oy > 1499) ? 32 : isHD ? 16 : 8
+            scaleCSAD = isHD ?   1 : 0
+
+            pre       = pre.ConvertBits(8, dither=-1, fulls=fs)
+            superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=true, mt=true)   # bug can't disable chroma otherwise luma isn't processed
+            super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=true, mt=true, levels=1)
+
+            cb1 = superfilt.MAnalyse(isb = false, chroma=true, blksize = blcksze, overlap=blcksze/2, delta = 1, temporal=true, truemotion=true, mt=true)
+            cf1 = superfilt.MAnalyse(isb = true,  chroma=true, blksize = blcksze, overlap=blcksze/2, delta = 1, temporal=true, truemotion=true, mt=true)
+            cb1 =     super.Mrecalculate(cb1,     chroma=true, blksize = blcksze/2, overlap=blcksze/4, thSAD=110, scaleCSAD=scaleCSAD, truemotion=true, mt=true)
+            cf1 =     super.Mrecalculate(cf1,     chroma=true, blksize = blcksze/2, overlap=blcksze/4, thSAD=110, scaleCSAD=scaleCSAD, truemotion=true, mt=true)
+        }
+
+        cb1    = pre.MCompensate(super, cb1, mt=true).ConvertBits(bi, fulls=fs)
+        cf1    = pre.MCompensate(super, cf1, mt=true).ConvertBits(bi, fulls=fs)
+        os     = ex_bs(overshoot,   8, bi, fulls=fs)      us     = ex_bs(undershoot,  8, bi, fulls=fs)
+        os2    = ex_bs(overshoot2,  8, bi, fulls=fs)      us2    = ex_bs(undershoot2, 8, bi, fulls=fs)
+        os     = os  == 0 ? "" : Format("{os}  +")        us     = us  == 0 ? "" : Format("{us}  -")
+        os2    = os2 == 0 ? "" : Format("{os2} +")        us2    = us2 == 0 ? "" : Format("{us2} -")
+        normalT= Expr(normsharp,bright_limit,dark_limit,cb1,cf1,"x y a max b max "+os+"  min z a min b min "+us+"  max")
+        secondT= Expr(normsharp,bright_limit,dark_limit,cb1,cf1,"x y a max b max "+os2+" min z a min b min "+us2+" max")
+
+    }
+
     ### LIMIT
     normal = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot),  round(undershoot),  UV=1, fulls=fs)
     second = ex_clamp(normsharp, bright_limit, dark_limit, round(overshoot2), round(undershoot2), UV=1, fulls=fs)
@@ -605,21 +640,24 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     \     :              tmp.ex_edge(mode=Format("x[1,1] A@ x[1,0] B@ max x[1,-1] C@ max x[-1,1] D@ max x[-1,0] E@ max x[-1,-1] F@ max x[0,1] G@ max x[0,-1] H@ max x[0,0] O@ max " \
                                                 +"A B min C min G min O min H min D min E min F min - 1 {emHQn} / * 0.86 ^ 0 max range_max *"),                              lo=0, hi=255, UV=1, fulls=fs)
 
+    edgei  = edge.ex_inflate()
+
     limit1 = Lmode<0  ? normsharp.repair(tmp,abs(Lmode),-1)
     \      : Lmode==0 ? normsharp
     \      : Lmode==1 ? normal
-    \      : Lmode==2 ? mt_merge(normsharp, normal, edge.mt_inflate())
-    \      : Lmode==3 ? mt_merge(normal,    zero,   edge.mt_inflate())
-    \      :            mt_merge(second,    normal, edge.mt_inflate())
+    \      : Lmode==2 ? ex_merge(normsharp, normal,  edgei, fulls=fs)
+    \      : Lmode==3 ? ex_merge(normal,    zero,    edgei, fulls=fs)
+    \      : Lmode==4 ? ex_merge(second,    normal,  edgei, fulls=fs)
+    \      :            ex_merge(secondT,   normalT, edgei, fulls=fs)
 
     limit2 = edgemode==0 ? limit1
-    \      : edgemode==1 ? mt_merge(tmp,limit1,edge.mt_inflate().mt_inflate().removegrain(12,-1))
-    \      :               mt_merge(limit1,tmp,edge.mt_inflate().mt_inflate().removegrain(12,-1))
+    \      : edgemode==1 ? ex_merge(tmp,limit1,edgei.ex_inflate().ex_boxblur(1,mode="weighted",UV=1), fulls=fs)
+    \      :               ex_merge(limit1,tmp,edgei.ex_inflate().ex_boxblur(1,mode="weighted",UV=1), fulls=fs)
 
 
     ### SOFT
     sharpdiff = ex_makediff(tmp,limit2, UV=1, fulls=fs)
-    sharpdiff = ex_lutxy(sharpdiff,sharpdiff.removegrain(20,-1), Format("x range_half - abs y range_half - abs > y {soft} * x 100 {soft} - * + 0.01 * x ?"), UV=1, fulls=fs)
+    sharpdiff = ex_lutxy(sharpdiff,sharpdiff.ex_boxblur(1,mode="mean",UV=1), Format("x range_half - abs y range_half - abs > y {soft} * x 100 {soft} - * + 0.01 * x ?"), UV=1, fulls=fs)
 
     PP1 = soft==0 ? limit2 : ex_makediff(tmp,sharpdiff, UV=1, fulls=fs)
 
