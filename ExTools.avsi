@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v5.7     (17-09-2021)              ##
+###           ExTools v5.8     (18-09-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -636,7 +636,7 @@ function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls")
 #
 # ex_boxblur(2,mode="weighted") same to ex_blur(2.5) and ex_boxblur(1,mode="mean").ex_boxblur(1,mode="mean"), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
 #
-function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int "UV", bool "fulls") {
+function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int "Y", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -650,6 +650,7 @@ function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int 
     fbox3 = rd == 0.3  && rv == 0.3
     fbox4 = rd == 0.15 && rv == 0.15
 
+    Y  = Default( Y,           3)
     UV = Default(UV,    rgb  ? 3 : 1)
     md = Default(mode,  "mean")
     fs = Default(fulls, rgb)
@@ -761,21 +762,24 @@ function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int 
                                   +"X swap2 clip" : "" : krnv + plsv + string(1./divy) + " *"
 
 
-    strv =          md == "weighted" ? strv : \
-           fbox  || md == "bokeh"    ? str  : \
-           krnv + plsv + string(1./divy) + " *"
+    strv  =          md == "weighted" ? strv : \
+            fbox  || md == "bokeh"    ? str  : \
+            krnv + plsv + string(1./divy) + " *"
 
-    strh =          md == "weighted" ? strh : \
-           krnh + plsh + string(1./divx) + " *"
+    strh  =          md == "weighted" ? strh : \
+            krnh + plsh + string(1./divx) + " *"
 
-    rv == 0 ?      a                                                                  : \
-    isy     ? Expr(a,    strv                                                       ) : \
-    UV == 1 ? Expr(a,    strv, ""                                                   ) : \
-              Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
-    rd == 0 || fbox || fbox2 || fbox3 || fbox4 || md=="bokeh"  ? last                 : \
-    isy     ? Expr(last, strh                                                       ) : \
-    UV == 1 ? Expr(last, strh, ""                                                   ) : \
-              Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
+    ystrv = ex_Yexpr (strv, Y, bi, rgb, fs)
+    ystrh = ex_Yexpr (strh, Y, bi, rgb, fs)
+
+    rv == 0 ?      a                                                                   : \
+    isy     ? Expr(a,    ystrv                                                       ) : \
+    UV == 1 ? Expr(a,    ystrv, ""                                                   ) : \
+              Expr(a,    ystrv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
+    rd == 0 || fbox || fbox2 || fbox3 || fbox4 || md=="bokeh"  ? last                  : \
+    isy     ? Expr(last, ystrh                                                       ) : \
+    UV == 1 ? Expr(last, ystrh, ""                                                   ) : \
+              Expr(last, ystrh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
 
 
 function binom_coeffs(n, k) {
@@ -805,7 +809,7 @@ function binom_coeffs(n, k) {
 #
 # ex_blur() is the reference blur function, with correct gaussian coefficients and chroma subsampling adapted sigma.
 # Also includes a gamma aware option for more correct defocus on non-scalar clips.
-function ex_blur(clip a, float "radius", float "radiusV", bool "bifit", string "gamma", int "UV", bool "fulls") {
+function ex_blur(clip a, float "radius", float "radiusV", bool "bifit", string "gamma", int "Y", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -815,6 +819,7 @@ function ex_blur(clip a, float "radius", float "radiusV", bool "bifit", string "
     rv = Default(radiusv, rm)
     bf = Default(bifit, true)           # false: true gaussian distribution  true: binomial distribution fit (like blur() or ex_boxblur(mode="weighted") )
     gm = Default(gamma, "none")         # Set matrix for gamma encoded clips (ie. 601, 709, 2020...) Requires TransformsPack
+    Y  = Default( Y,          3)
     UV = Default(UV,    rgb ? 3 : 1)
     fs = Default(fulls, rgb)
 
@@ -845,6 +850,9 @@ function ex_blur(clip a, float "radius", float "radiusV", bool "bifit", string "
         s_gam  = moncurve_coef(matrix)
         a      = moncurve_f(a, s_gam[0], s_gam[1], !rgb, false, UV, fs)
     }
+
+    strv = ex_Yexpr (strv, Y, bi, rgb, fs)
+    strh = ex_Yexpr (strh, Y, bi, rgb, fs)
 
     sv == 0 ?      a                                                                   : \
     isy     ? Expr(a,    strv                                                        ) : \
@@ -1267,7 +1275,7 @@ function ex_GaussianBlur(clip C, float "sigma", float "sigmaV", int "Y", int "UV
 # SNN (Symmetric Nearest Neighbour Median) is not implemented due to low edge integrity protection. -removegrain(9)-
 # *SmartMedian and SmartMedian2 from RemoveGrainHD are not included. With radius=1 output is blotchy and jagged lines, with radius=2 it's like strong undot, it protects lines to some degree
 
-function ex_median(clip a, string "mode", float "thres", bool "recursion", int "UV", bool "fulls") {
+function ex_median(clip a, string "mode", float "thres", bool "recursion", int "Y", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -1275,6 +1283,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 
     mode = Default(mode,     "median")
     rc   = Default(recursion,   false)               # Use recursion for temporal modes. Performance penalty for little improvement though
+    Y    = Default( Y,          3)
     UV   = Default(UV,    rgb ? 3 : 1)
     fs   = Default(fulls, rgb)
     thr  = Default(thres, mode=="EMF"       ?   9 : \
@@ -3118,6 +3127,8 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
     temp  = mode == "medianT" || mode == "medianST" || mode == "ML3D" || mode == "ML3Dex" || mode == "BDM" || mode == "MMF" || mode == "SixNN" || mode == "PML" ||  temp5 || \
             mode == "DGM0"  || mode == "DGM1" || mode == "DGM2"  || mode == "DGM3" || mode == "DGM4"  || mode == "DGM5"
 
+    ystr  = ex_Yexpr (str, Y, bi, rgb, fs)
+
     if (temp) {
 
         b  =         rc ? a.selectevery(1,-1).ex_median(mode,thr,false,UV,fs) : a.selectevery(1,-1)
@@ -3126,18 +3137,18 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
         f2 = temp5 ?                                                            a.selectevery(1,+2) : nop()
 
        !temp5                                                                                                             ? \
-        isy     ? Expr(a, b,     f,     str,                                  optSingleMode = false                     ) : \
-        UV == 1 ? Expr(a, b,     f,     str, "",                              optSingleMode = false                     ) : \
-                  Expr(a, b,     f,     str, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = false, scale_inputs="none") : \
-        isy     ? Expr(a, b2, b, f, f2, str,                                  optSingleMode = false                     ) : \
-        UV == 1 ? Expr(a, b2, b, f, f2, str, "",                              optSingleMode = false                     ) : \
-                  Expr(a, b2, b, f, f2, str, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = false, scale_inputs="none")
+        isy     ? Expr(a, b,     f,     ystr,                                  optSingleMode = false                     ) : \
+        UV == 1 ? Expr(a, b,     f,     ystr, "",                              optSingleMode = false                     ) : \
+                  Expr(a, b,     f,     ystr, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = false, scale_inputs="none") : \
+        isy     ? Expr(a, b2, b, f, f2, ystr,                                  optSingleMode = false                     ) : \
+        UV == 1 ? Expr(a, b2, b, f, f2, ystr, "",                              optSingleMode = false                     ) : \
+                  Expr(a, b2, b, f, f2, ystr, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = false, scale_inputs="none")
 
     } else {
 
-        isy     ? Expr(a, str,                                  optSingleMode = mode == "PWM"                           ) : \
-        UV == 1 ? Expr(a, str, "",                              optSingleMode = mode == "PWM"                           ) : \
-                  Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = mode == "PWM",       scale_inputs="none") } }
+        isy     ? Expr(a, ystr,                                  optSingleMode = mode == "PWM"                           ) : \
+        UV == 1 ? Expr(a, ystr, "",                              optSingleMode = mode == "PWM"                           ) : \
+                  Expr(a, ystr, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = mode == "PWM",       scale_inputs="none") } }
 
 
 
@@ -4462,8 +4473,9 @@ function ex_bs(float var, int "ibits", int "obits", bool "ifulls", bool "fulls",
 
     tv  = tvi != tvo ? tvi ? Eval(ex_dlut(Format("(({out} - ymin) / (ymax - ymin)) * range_max"), obi, fso)) : \
                              Eval(ex_dlut(Format("( {out} * (ymax - ymin)) / range_max + ymin"),  obi, fso)) : out
+    tv  = tvi != tvo ?       Eval(ex_dlut(Format("min(range_max,max(0,{tv}))"), obi, fso))                   : out
 
-    ob32 ? tv : round(Eval(ex_dlut(Format("min(range_max,max(0,{tv}))"), obi, fso))) }
+    ob32 ? tv : round(tv) }
 
 
 
