@@ -392,7 +392,11 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
 
 
-
+#######################
+###                 ###
+###     Dogway's    ###
+###                 ###
+#######################
 
 ######################################################
 ###
@@ -1333,7 +1337,7 @@ Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int
 
     minmaxmed_v   = ex_lutxyz(Max_V, Min_V, Med_V, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.062501 *
                                                                                X                     Y   min B@ 0.250001 * +
-                                                                           B A B - - 0 max z range_half - abs + 0.343750 * + "), UV=1, fulls=fs)
+                                                                           B A B - - 0 max z range_half - abs + 0.343750 * +"), UV=1, fulls=fs)
 
     Max_H = ex_luts( C, mode = "max", pixels = ex_shape(Radh, mode="horizontal", center=false), expr = expr, UV=1, fulls=fs)
     Min_H = ex_luts( C, mode = "min", pixels = ex_shape(Radh, mode="horizontal", center=false), expr = expr, UV=1, fulls=fs)
@@ -1342,25 +1346,25 @@ Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int
 
     minmaxmed_h   = ex_lutxyz(Max_H, Min_H, Med_H, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.062501 *
                                                                                X                     Y   min B@ 0.250001 * +
-                                                                           B A B - - 0 max z range_half - abs + 0.343750 * + "), UV=1, fulls=fs)
+                                                                           B A B - - 0 max z range_half - abs + 0.343750 * +"), UV=1, fulls=fs)
 
     Blur_V =                C.NLLV(   1,true, fs)
     Blur_V = Rad > 1 ? Blur_V.NLLV(Radv,true, fs) : Blur_V
 
-    Sharp_V = lmode == 0 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - z * {thr2gv8} {strv8} * * 128 + "),                                              UV=1, scale_inputs=si, fulls=fs) : C
-    Sharp_V = lmode == 1 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + X z 0.5 ^ * {thrstrh} * 128 + ? "), UV=1, scale_inputs=si, fulls=fs) : Sharp_V
-    Sharp_V = lmode == 2 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + z 0 > X {strv8} * 128 + 128 ? ? "), UV=1, scale_inputs=si, fulls=fs) : Sharp_V
-    Sharp_V = lmode == 3 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + X {strv8} * 128 + ? "),             UV=1, scale_inputs=si, fulls=fs) : Sharp_V
-    Sharp_V = lmode == 4 ? ex_lutxy (C, Blur_V,              Format(" x y - {strv8} * 128 + "),                                                              UV=1, scale_inputs=si, fulls=fs) : Sharp_V
+    Sharp_V = lmode == 0 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - z * {thr2gv8} {strv8} * * 128 +"),                                              UV=1, scale_inputs=si, fulls=fs) : C
+    Sharp_V = lmode == 1 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + X z 0.5 ^ * {thrstrh} * 128 + ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_V
+    Sharp_V = lmode == 2 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + z 0 > X {strv8} * 128 + 128 ? ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_V
+    Sharp_V = lmode == 3 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + X {strv8} * 128 + ?"),             UV=1, scale_inputs=si, fulls=fs) : Sharp_V
+    Sharp_V = lmode == 4 ? ex_lutxy (C, Blur_V,              Format(" x y - {strv8} * 128 +"),                                                              UV=1, scale_inputs=si, fulls=fs) : Sharp_V
 
     Blur_H =                C.NLLH(   1,true, fs)
     Blur_H = Rad > 1 ? Blur_H.NLLH(Radh,true, fs) : Blur_H
 
-    Sharp_H = lmode == 0 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - z * {thr2gh8} {strh8} * * 128 + "),                                              UV=1, scale_inputs=si, fulls=fs) : C
-    Sharp_H = lmode == 1 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + X z 0.5 ^ * {thrstrv} * 128 + ? "), UV=1, scale_inputs=si, fulls=fs) : Sharp_H
-    Sharp_H = lmode == 2 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + z 0 > X {strh8} * 128 + 128 ? ? "), UV=1, scale_inputs=si, fulls=fs) : Sharp_H
-    Sharp_H = lmode == 3 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + X {strh8} * 128 + ? "),             UV=1, scale_inputs=si, fulls=fs) : Sharp_H
-    Sharp_H = lmode == 4 ? ex_lutxy (C, Blur_H,              Format(" x y - {strh8} * 128 + "),                                                              UV=1, scale_inputs=si, fulls=fs) : Sharp_H
+    Sharp_H = lmode == 0 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - z * {thr2gh8} {strh8} * * 128 +"),                                              UV=1, scale_inputs=si, fulls=fs) : C
+    Sharp_H = lmode == 1 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + X z 0.5 ^ * {thrstrv} * 128 + ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_H
+    Sharp_H = lmode == 2 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + z 0 > X {strh8} * 128 + 128 ? ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_H
+    Sharp_H = lmode == 3 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + X {strh8} * 128 + ?"),             UV=1, scale_inputs=si, fulls=fs) : Sharp_H
+    Sharp_H = lmode == 4 ? ex_lutxy (C, Blur_H,              Format(" x y - {strh8} * 128 +"),                                                              UV=1, scale_inputs=si, fulls=fs) : Sharp_H
 
     ex_lutxyz(C, Sharp_V, Sharp_H, "x y z + + range_half - range_half -", UV=1, fulls=fs) }
 
@@ -1428,8 +1432,8 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
     lp_V =    C.NLLV(1,true,fs)
     lp_H = lp_V.NLLH(1,true,fs)
 
-    DeEmphasis = lp_H.YAHR(fs).YAHR(fs).ex_lut(Format("x[-2,0] x[2,0] + 6 * x[-1,0] x[1,0] + 15 * x[-3,0] x[3,0] x[0,0] {reh} * + + + + {dih1} * "), UV=1, fulls=fs). \
-                                        ex_lut(Format("x[0,-2] x[0,2] + 6 * x[0,-1] x[0,1] + 15 * x[0,-3] x[0,3] x[0,0] {reh} * + + + + {div1} * "), UV=1, fulls=fs)
+    DeEmphasis = lp_H.YAHR(fs).YAHR(fs).ex_lut(Format("x[-2,0] x[2,0] + 6 * x[-1,0] x[1,0] + 15 * x[-3,0] x[3,0] x[0,0] {reh} * + + + + {dih1} *"), UV=1, fulls=fs). \
+                                        ex_lut(Format("x[0,-2] x[0,2] + 6 * x[0,-1] x[0,1] + 15 * x[0,-3] x[0,3] x[0,0] {reh} * + + + + {div1} *"), UV=1, fulls=fs)
 
     exprv = Format("x y - dup dup abs {un} + dup swap2 * swap {strv} {un} >= {strv2} {strv} ? + / - range_half +")
     exprh = Format("x y - dup dup abs {un} + dup swap2 * swap {strh} {un} >= {strh2} {strh} ? + / - range_half +")
@@ -1440,20 +1444,20 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
 
     minmax_G_V   = ex_lutxy(Max_V, Min_V, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.100001 *
                                                                       X                     Y   min B@ 0.350001 * +
-                                                                                       B A B - - 0 max 0.550001 * + "), UV=1, fulls=fs)
+                                                                                       B A B - - 0 max 0.550001 * +"), UV=1, fulls=fs)
 
     Max_H = ex_luts( C, mode = "max", pixels = ex_shape(1, mode="vertical", center=false), expr = exprh, UV=1, fulls=fs)
     Min_H = ex_luts( C, mode = "min", pixels = ex_shape(1, mode="vertical", center=false), expr = exprh, UV=1, fulls=fs)
 
     minmax_G_H   = ex_lutxy(Max_H, Min_H, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.100001 *
                                                                       X                     Y   min B@ 0.350001 * +
-                                                                                       B A B - - 0 max 0.550001 * + "), UV=1, fulls=fs)
+                                                                                       B A B - - 0 max 0.550001 * +"), UV=1, fulls=fs)
 
     HPSharp = Expr(C, lp_V, lp_H, minmax_G_V, minmax_G_H, DeEmphasis, Format("x y - X@ a {un} max * a X abs - {un} max /
                                                                               y z - X@ b {un} max * b X abs - {un} max / + c +" ), isy ? Undefined() : "")
 
-    ReEmphasis = HPSharp.ex_lut(Format("x[-2,0] x[2,0] + 6 * x[-1,0] x[1,0] + 15 * x[-3,0] x[3,0] + + + x[0,0] {reh} * - {dih2} * "), UV=1, fulls=fs). \
-                         ex_lut(Format("x[0,-2] x[0,2] + 6 * x[0,-1] x[0,1] + 15 * x[0,-3] x[0,3] + + + x[0,0] {rev} * - {div2} * "), UV=1, fulls=fs)
+    ReEmphasis = HPSharp.ex_lut(Format("x[-2,0] x[2,0] + 6 * x[-1,0] x[1,0] + 15 * x[-3,0] x[3,0] + + + x[0,0] {reh} * - {dih2} *"), UV=1, fulls=fs). \
+                         ex_lut(Format("x[0,-2] x[0,2] + 6 * x[0,-1] x[0,1] + 15 * x[0,-3] x[0,3] + + + x[0,0] {rev} * - {div2} *"), UV=1, fulls=fs)
 
     V = ex_luts(ReEmphasis, mode="med", pixels = ex_shape(2, mode="vertical")   , expr = exprm, exprf = " range_half - abs", UV=1, fulls=fs)
     H = ex_luts(ReEmphasis, mode="med", pixels = ex_shape(2, mode="horizontal") , expr = exprm, exprf = " range_half - abs", UV=1, fulls=fs)
@@ -1510,7 +1514,7 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
     Diff2 = ex_luts(C, Lowpass_NR_2, mode="med", pixels = ex_shape(RAD, mode="square", center=false), \
                                                    expr = Format("x y - dup dup abs {un} + dup swap2 * swap {THR1} 2 * {un} >= {THR3} {THR1} 2 * ? + / - range_half +"), UV=1, fulls=fs)
 
-    mask1 = ex_lut(Diff1, "x range_half - range_max * ", UV=1, fulls=fs)
+    mask1 = ex_lut(Diff1, "x range_half - range_max *", UV=1, fulls=fs)
 
     s1  = ex_merge(Diff2, blank, mask1, UV=1, fulls=fs).ex_lut(Format("x range_half - {str} 0.500001 * * range_half +"), UV=1, fulls=fs)
     s1b = s1.NLLV(1,false,fs).NLLH(1,false,fs)
@@ -1663,7 +1667,7 @@ function YAHR(clip clp, bool "fulls") {
 
     fs    = Default(fulls, false)
 
-    b1    = clp.ex_minblur(2,1,fulls=fs).removegrain(11,-1)
+    b1    = clp.ex_minblur(2,UV=1,fulls=fs).removegrain(11,-1)
     b1D   = ex_makediff(clp,b1,UV=1,fulls=fs)
 
     w1    = clp.aWarpSharp(depth=32,blurlevel=2,thresh=0.5)
@@ -1675,7 +1679,11 @@ function YAHR(clip clp, bool "fulls") {
     ex_lutxyz(clp, b1D, DD, "x y z - -", UV=1, fulls=fs) }
 
 
-
+#######################
+###                 ###
+###      Other      ###
+###                 ###
+#######################
 
 
 ### SharpenComplex2() by ??? (??-11-2011)
@@ -1754,11 +1762,9 @@ function pSharpen   (clip clp,
                     \float "ss_x", float "ss_y",
                     \int "dest_x", int "dest_y") {
 
-    # getting the input image size
     ox = clp.width ()
     oy = clp.height()
 
-    # parsing the input values
     strength  = Default(strength,  25)    # 0 to 100. Strength of the sharpening (up until the overshoot correction threshold, see below). Value of 100 will set all pixels to either their local min or max; value of 0 will make the filter do nothing.
     threshold = Default(threshold, 75)    # 0 to 100. How close to the min/max a pixel can be sharpened before the overshoot correction (compression) kicks in. Higher values make the overshoot correction more of a hard limiting, while lower values soften the compression. Value of 0 makes the filter do nothing.
     ss_x      = Float(Default(ss_x, 1.0)) # The horizontal and vertical supersampling factors, respectively. Higher values will reduce aliasing, at the expense of speed.
@@ -1777,8 +1783,8 @@ function pSharpen   (clip clp,
 
     # calculating the max and min in every 3*3 square
     # and normalizing max and val to values from 0 to (max-min)
-    nmax = ss.ex_luts(mode="range")
-    nval = ss.ex_luts(mode="range-")
+    nmax = ss.ex_luts(mode="range" ,UV=1)
+    nval = ss.ex_luts(mode="range-",UV=1)
 
     # initializing the strings used to obtain the output luma value
     s    = strength  /100.
@@ -1787,16 +1793,13 @@ function pSharpen   (clip clp,
     expr = Format("x y / 2 * 1 - abs X@ {x0} < {s} 1 = x y 0.500001 * Y@ = 0 Y ? X 1 {s} - / ? X 1 {t} - * {t} + ? x y 0.500001 * > 1 -1 ? * 1 + y * 0.500001 * 0 max")
 
     # calculates the new luma value pushing it towards min or max
-    nval = ex_lutxy(nval,nmax,expr)
+    nval = ex_lutxy(nval,nmax,expr,UV=1)
 
     # normalizing val to values from min to max
-    val = average(nval,1,ss.mt_inpand(),1)
-
-    # applying the new luma value to the original clip
-    clp = clp.mergeluma(val)
+    clp  = ex_adddiff(nval,ss.mt_inpand(),dif=false,UV=1)
 
     # resizing the image to the output values
-    clp = ss_x!=1.0 || ss_y!=1.0 || dest_x!=ox || dest_y!=oy ? clp.lanczosresize(dest_x,dest_y) : clp
+    clp  = ss_x!=1.0 || ss_y!=1.0 || dest_x!=ox || dest_y!=oy ? clp.lanczosresize(dest_x,dest_y) : clp
 
     return clp }
 
@@ -1831,6 +1834,6 @@ function CASm(clip a, float "strength") {
     EdgeMsk  = IntenMsk.ex_edge("sobel",0,80,invert=true).ex_levels(0,2,255,0,255,tv_range=false).ex_boxblur(1,mode="weighted")
     ShrpMsk  = ex_blend(IntenMsk, EdgeMsk, mode="Multiply", opacity=1.0, tv_range=false)
     Shrp     = CAS(a, str)
-    video    = mt_merge(a, Shrp, ShrpMsk, U=2,V=2)
+    video    = ex_merge(a, Shrp, ShrpMsk, UV=2)
 
     return video }
