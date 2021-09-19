@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v1.4  (17-09-2021)                             ###
+###        Sharpeners Pack v1.5  (19-09-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -526,7 +526,7 @@ function UnsharpMask_HBD(clip clp, float "str", int "rad", float "thres", int "U
 ###  (https://forum.doom9.org/showthread.php?p=1076276#post1076276)
 ###  (https://forum.doom9.org/showthread.php?p=1076491#post1076491)
 ###
-###  ex_ContraSharpening() v3.2 (14 Sept 2021)
+###  ex_ContraSharpening() v3.3 (19 Sept 2021)
 ###  - Mod and port to ExTools by Dogway
 ###
 ###
@@ -544,26 +544,36 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
     MC        = Default(MC,    false)  # Enable to switch from spatial to temporal limiting (output a bit sharper than original though)
     os        = Default(overshoot, 0)  # Raise to allow more sharpening when temporal limiting (MC=true)
     fs        = Default(fulls, false)
-
-    MC ? Eval("""
-    cb1  = original.MCompensate(Super, cb1, mt=true)
-    cf1  = original.MCompensate(Super, cf1, mt=true)
-    pmax = ex_lutxyz(original, cb1, cf1, "x y max z max",UV=1)
-    pmin = ex_lutxyz(original, cb1, cf1, "x y min z min",UV=1)""") : nop()
+    bi        = BitsPerComponent(denoised)
 
     s    = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                                          # Damp down remaining spots of the denoised clip.
-
-    allD = ex_makediff(original,denoised,UV=1,fulls=fs)                                                       # The difference achieved by the denoising.
     ssD  = ex_makediff(s,HD?s.removegrain(12,-1).\
                               removegrain(20,-1):\
                             s.removegrain(12,-1),UV=1,fulls=fs)                                               # The difference of a simple kernel blur.
-    ssDD = ssD.repair(HD?ssD.repair(allD,1,-1):allD,1,-1)                                                     # Limit the difference to the max of what the denoising removed locally.
 
-    dif  = "x y + range_half - "
-    MC ? ex_lutxyza(denoised,ssD,pmax,pmin,os==0?dif+"z min a max":Format(dif+"z {os} + min a {os} - max"),UV=1,fulls=fs) : \
-         ex_lutxyz (denoised,ssDD,ssD,"y range_half - X@ abs z range_half - Y@ abs < X Y ? x +",UV=1,fulls=fs) # abs(diff) after limiting may not be bigger than before.
-                                                                                                               # Apply the limited difference " x +" (Sharpening is just inverse blurring)
+    isg  = Eval("try { cb1.isclip() } catch(error_msg) { false }")
+
+    if !(MC && isg) {
+
+        allD = ex_makediff(original,denoised,UV=1,fulls=fs)                                                   # The difference achieved by the denoising.
+        ssDD = ssD.repair(HD?ssD.repair(allD,1,-1):allD,1,-1)                                                 # Limit the difference to the max of what the denoising removed locally.
+        ex_lutxyz (denoised,ssDD,ssD,"y range_half - X@ abs z range_half - Y@ abs < X Y ? x +",UV=1,fulls=fs) # abs(diff) after limiting may not be bigger than before.
+                                                                                                              # Apply the limited difference " x +" (Sharpening is just inverse blurring)
+    } else {
+
+        cb1  = original.MCompensate(Super, cb1, mt=true).ConvertBits(bi, fulls=fs)
+        cf1  = original.MCompensate(Super, cf1, mt=true).ConvertBits(bi, fulls=fs)
+
+        addif = " x y + range_half - "
+        pmax  = " z a max b max "
+        pmin  = " z a min b min "
+        Tlim0 =  addif+pmax+" min "+pmin+" max"
+        Tlim1 =  Format(addif+pmax+" {os} + min "+pmin+" {os} - max")
+        Expr(denoised, ssD, original, cb1, cf1, os==0 ? Tlim0 : Tlim1, isy(denoised) ? Undefined() : "")
+
     }
+
+
 
 
 
@@ -1781,7 +1791,7 @@ function pSharpen   (clip clp,
     ss  = ss_x!=1.0 || ss_y!=1.0 ? clp.lanczosresize(round(ox*ss_x/8)*8,round(oy*ss_y/8)*8) : clp
     clp = ss
 
-    # calculating the max and min in every 3*3 square
+    # calculating the max and min in every 3x3 square
     # and normalizing max and val to values from 0 to (max-min)
     nmax = ss.ex_luts(mode="range" ,UV=1)
     nval = ss.ex_luts(mode="range-",UV=1)
@@ -1790,7 +1800,7 @@ function pSharpen   (clip clp,
     s    = strength  /100.
     t    = threshold /100.
     x0   = t*(1.0-s)/(1.0-(1.0-t)*(1.0-s))
-    expr = Format("x y / 2 * 1 - abs X@ {x0} < {s} 1 = x y 0.500001 * Y@ = 0 Y ? X 1 {s} - / ? X 1 {t} - * {t} + ? x y 0.500001 * > 1 -1 ? * 1 + y * 0.500001 * 0 max")
+    expr = Format("x y 0.500001 * 1 - abs X@ {x0} < {s} 1 = x y 0.500001 * Y@ = 0 Y ? X 1 {s} - / ? X 1 {t} - * {t} + ? x y 0.500001 * > 1 -1 ? * 1 + y * 0.500001 * 0 max")
 
     # calculates the new luma value pushing it towards min or max
     nval = ex_lutxy(nval,nmax,expr,UV=1)
