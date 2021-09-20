@@ -553,7 +553,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 
     isg  = Eval("try { cb1.isclip() } catch(error_msg) { false }")
 
-    if !(MC && isg) {
+    if (!(MC && isg)) {
 
         allD = ex_makediff(original,denoised,UV=1,fulls=fs)                                                   # The difference achieved by the denoising.
         ssDD = ssD.repair(HD?ssD.repair(allD,1,-1):allD,1,-1)                                                 # Limit the difference to the max of what the denoising removed locally.
@@ -571,7 +571,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
         Tlim1 =  Format(addif+pmax+" {os} + min "+pmin+" {os} - max")
         Expr(denoised, ssD, original, cb1, cf1, os==0 ? Tlim0 : Tlim1, isy(denoised) ? Undefined() : "")
 
-    }
+    } }
 
 
 
