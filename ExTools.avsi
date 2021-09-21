@@ -4140,7 +4140,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", bool "invert", int "
 
 # Performs declared expression with 'mode' mode from clip 'a' to neighbour pixels defined in 'pixels' of clip 'b' (or 'a' if 'b' is undefined)
 # !! Beware, don't write variables in the expressions with capital letters (ie. A@), use instead lower case preceded with underscore (ie. _var@)
-function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf", string "mode", string "pixels", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
+function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf", string "mode", string "pixels", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "optSingleMode", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -4155,6 +4155,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     Y    = Default(Y,            3)
     UV   = Default(UV,     rgb ? 3 : isc ? 3 : 1)
     fs   = Default(fulls,  rgb)
+    opt  = Default(optSingleMode,false)
     cf   = Default(clamp_float, false)
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(rgb, bi)
@@ -4231,13 +4232,14 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     str  =               ex_dlut(ystr, bi, fs)
     cstr = rgb ?   str : ex_dlut(cstr, bi, fs)
 
-    isb     ?                                                                                 \
-    isy     ?  Expr(a, b, str,      optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
-    UV == 1 ?  Expr(a, b, str, "",  optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
-               Expr(a, b, str, cstr,optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
-    isy     ?  Expr(a,    str,      optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
-    UV == 1 ?  Expr(a,    str, "",  optSingleMode = false, scale_inputs=si, clamp_float=cf) : \
-               Expr(a,    str, cstr,optSingleMode = false, scale_inputs=si, clamp_float=cf) }
+    isb     ?                                                                               \
+    isy     ?  Expr(a, b, str,      optSingleMode = opt, scale_inputs=si, clamp_float=cf) : \
+    UV == 1 ?  Expr(a, b, str, "",  optSingleMode = opt, scale_inputs=si, clamp_float=cf) : \
+               Expr(a, b, str, cstr,optSingleMode = opt, scale_inputs=si, clamp_float=cf) : \
+    isy     ?  Expr(a,    str,      optSingleMode = opt, scale_inputs=si, clamp_float=cf) : \
+    UV == 1 ?  Expr(a,    str, "",  optSingleMode = opt, scale_inputs=si, clamp_float=cf) : \
+               Expr(a,    str, cstr,optSingleMode = opt, scale_inputs=si, clamp_float=cf) }
+
 
 
 
