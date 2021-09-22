@@ -163,10 +163,10 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     CalcDiff    = Select (num,  false,    false,   false,   false,    true,      true,   false)
 
     # Overrides
-    Dctre     = Default(DctRe, DctRe)
-    Dct       = Default(Dct,    Dctn)
-    BlendOver = Defined(BlendOver) ? BlendOver : BlendOvern
-    SkipOver  = Defined(SkipOver)  ? SkipOver  : SkipOvern
+    Dctre     = Default(Dct, DctRe)
+    Dct       = Default(Dct, Dctn)
+    BlendOver = Default(BlendOver, BlendOvern)
+    SkipOver  = Default(SkipOver,  SkipOvern)
 
     Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
     Assert(MaskThr >= 0 && MaskThr <= 255, String(MaskThr, "FrameRateConverter: MaskThr must be between 0 and 255 {%.f}"))
@@ -177,13 +177,13 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver, "FrameRateConverter: SkipOver must be greater than BlendOver")
     Assert(CalcDiff || OPut!=7, "FrameRateConverter: You can only use Output='Diff' when using Preset=slower or slowest")
 
-    ## "B" - Blending, "BHard" - No blending
+    # "B" - Blending, "BHard" - No blending
     B = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
     BHard  = C.ChangeFps (NewNum, NewDen)
     C_luma = C.ExtractY()
     Blank  = BlankClip(C_luma, color_yuv=$000000)
 
-    ## Adjust parameters for different block sizes, causing stronger or weaker masks
+    # Adjust parameters for different block sizes, causing stronger or weaker masks
     blk      = Max(BlkSize, BlkSizeV)
     MaskThr  = MaskThr + (blk<=4  ? -40  : \
                           blk<=6  ? -30  : \
@@ -222,7 +222,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
                          DctRe==3 ? 1.09 : \
                          DctRe==4 ? 1.28 : 1
 
-    ## jm_fps interpolation
+    # jm_fps interpolation
     superfilt =                 MSuper(prefilter.ConvertBits(8,dither=-1,fulls=fs), hpad=16, vpad=16,           sharp=1, rfilter=4)             # all levels for MAnalyse
     super     = CalcPrefilter ? MSuper(        C.ConvertBits(8,dither=-1,fulls=fs), hpad=16, vpad=16, levels=1, sharp=1, rfilter=4) : superfilt # one level is enough for MRecalculate
     superR    =                 MSuper(        C,                                   hpad=16, vpad=16, levels=1, sharp=1, rfilter=4)
@@ -232,7 +232,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     bak = Recalculate ? MRecalculate(super, bak, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe, mt=true) : bak
     Flow = MFlowFps(C, superR, bak, fwd, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255)
 
-    ## "EM" - error or artifact mask
+    # "EM" - error or artifact mask
     # Mask: SAD
     EM    = MaskThr > 0 ? C_luma.MMask(bak, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank
     # Mask: Temporal blending
@@ -242,7 +242,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
 
     # Mask: Occlusion
     EMocc = MaskOcc > 0 ? C_luma.MMask(bak, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand() : Blank
-    EM    = MaskOcc > 0 ? ex_blend(EM,EMocc,"lighten",0.4,UV=1,tv_range=false,fulls=fs)          : EM
+    EM    = MaskOcc > 0 ? ex_blend(EM, EMocc,"lighten",0.4,UV=1,tv_range=false,fulls=fs)         : EM
     EM    = dct_mult!=1 || dct_pow!=1 ? ex_lut(EM,Format("x {dct_mult} * {dct_pow} ^"),fulls=fs) : EM
 
     ## For CalcDiff, calculate a 2nd version and create mask to restore from 2nd version the areas that look better
