@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v5.8     (18-09-2021)              ##
+###           ExTools v5.9     (22-09-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -144,7 +144,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", int
     aug = Defined(aug) ? isBool(aug) ? aug ? 50 : 1 : aug : 1
     Y   = Default(Y,         3)
     UV  = Default(UV,  rgb ? 3 : aug > 1 ? 128 : 1)
-    dif = Default(dif,       true)
+    dif = Default(dif,     bi!=32)
     tv  = Default(tv_range, false)   # Enable to mimic Subtract(), "ygrey" centered instead of "range_half"
     fs  = Default(fulls,     rgb)
 
@@ -172,7 +172,7 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_rang
 
     Y   = Default(Y,         3)
     UV  = Default(UV,  rgb ? 3 : 1)
-    dif = Default(dif,       true)
+    dif = Default(dif,     bi!=32)
     tv  = Default(tv_range, false)
     fs  = Default(fulls,   rgb)
 
@@ -512,12 +512,7 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
     integral = last
 
     # BLUR
-    if (md=="gaussian") {
-        sg  >= 2 ? ex_gaussianblur(sg,UV=uv)    : \
-                   ex_blur(sg,bifit=false,UV=uv)
-    } else {
-                   ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
-    }
+    md=="gaussian" ? ex_gaussianblur(sg,pad=false,UV=uv) : ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
 
     # THRESHOLD
     str  = Format("y x {th} * "+(in ? ">" : "<")+" 0 range_max ?")
@@ -1137,7 +1132,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 
 #######################################################################
 ##
-## ex_GaussianBlur() by Dogway (06-09-2021)
+## ex_GaussianBlur() by Dogway (22-09-2021)
 ## Large-sigma optimized gaussian blur filter
 ##
 ## Heavy mod from FRC_GaussianBlur42()
@@ -1149,41 +1144,48 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ## version 2014-05-31 discrete hor. and vert. args
 ## version 2017-05-21 bugfix: blockiness
 ## version 2021-09-05 Optimized (~38% gain) and profiled against ex_blur(), also Y+UV args
+## version 2021-09-22 Added padding to protect borders and fallback to ex_blur() for low sigma
 ##
 ##
 ## 100% ex_gaussianblur(6)  (483fps)                    (gaussian approximation, fastest for large sigma)
 ##  40% vsTCanny(sigmaY=6, sigma_vY=6, mode=-1,u=1,v=1) (true gaussian, fastest for mid sigma)
 ##  17% ex_blur(rad,bifit=false,UV=1)                   (true gaussian, best for low sigma)
 
-function ex_GaussianBlur(clip C, float "sigma", float "sigmaV", int "Y", int "UV") {
 
-    rgb = isRGB(C)
-    isy = isy(C)
+function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", int "Y", int "UV") {
 
-    rad  = Default(sigma,    10)
-    radv = Default(sigmaV,  rad)
+    rgb = isRGB(a)
+    isy = isy(a)
+
+    rd   = Default(sigma,    10)
+    rv   = Default(sigmaV,   rd)
+    pad  = Default(pad,    true)
     Y    = Default(Y,         3)
-    UV   = Default(UV,        3)   # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower (ExtractY()/CombinePlanes() was slower)
+    UV   = Default(UV,        3) # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower (ExtractY()/CombinePlanes() was slower)
 
 
-    rad  = 1.221428*rad  + 0.136   # Parametrized to gaussian like standard deviation
-    radv = 1.221428*radv + 0.136   # Parametrized to gaussian like standard deviation
+    rad  = pad ? 1.15*rd : 1.221428*rd + 0.136   # Parametrized to gaussian like standard deviation
+    radv = pad ? 1.15*rv : 1.221428*rv + 0.136   # Parametrized to gaussian like standard deviation
 
-    w0 = C.Width()
-    h0 = C.Height()
+    w0 = a.Width()
+    h0 = a.Height()
+    p  = pad ? 64 : 0
+
     w1 = Round(w0/rad )/4
     h1 = Round(h0/radv)/4
+    w1 = Min(Max(4, w1 * 4), w0)
+    h1 = Min(Max(4, h1 * 4), h0)
 
-    B = C.BicubicResize(
-    \         Min(Max(4, w1 * 4), w0),
-    \         Min(Max(4, h1 * 4), h0))
+    B = a.BicubicResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) # extend borders before resizing
 
-           (rad<0.01 && radv<0.01)       ? C
-    \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize  (w0, h0, p=15)
-    \                                    : B.BicubicResize(w0, h0, 1, 0) # SoftCubic100
+           (rad<0.01 && radv<0.01)       ? a
+    \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize  (w0+p+p, h0+p+p, p=15)
+    \                                    : B.BicubicResize(w0+p+p, h0+p+p, 1, 0) # SoftCubic100 (same as GaussResize(p=21) )
 
-    Y  < 3 ? !isy ? mergechroma(C,last) : last : last
-    UV < 3 ? !isy ? mergeluma  (C,last) : last : last }
+    Y  < 3 ? !isy ? mergechroma(a,last) : last : last
+    UV < 3 ? !isy ? mergeluma  (a,last) : last : last
+              pad ? crop(p, p, -p, -p)         : last
+    min(rd,rv) < 2.0 ? a.ex_blur(rd,rv,false,Undefined(),Y,UV,fs) : last }
 
 
 
