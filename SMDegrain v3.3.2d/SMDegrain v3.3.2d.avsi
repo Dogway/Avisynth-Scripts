@@ -6,9 +6,10 @@
 ###                                                                                          ###
 ###          Special Thanks: Sagekilla, Didée, cretindesalpes, Gavino and MVtools people     ###
 ###                                                                                          ###
+###                       v0.4.0d      by Dogway - 03 Sep  2011                              ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.3.1d      by Dogway - 22 Sept 2021                              ###
+###                       v3.3.2d      by Dogway - 23 Sept 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -36,12 +37,14 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     p_type = input.PixelType()
 
     md           = Default( mode, "MDegrain")
+    rc           = LeftStr(md, 1) == "r"
+    md           = rc ? MidStr(md, 2) : md
     T3           = md == "medianT"  || md == "MedianST" || md == "ML3DEx"
     T5           = md == "medianT5" || md == "STWM"     || md == "GaussT5"
     TS           = md == "TemporalSoften"
 
     tr           = Default( tr,       2 )
-    tr           = T3 ? 1 : T5 ? 2 : tr
+    tr           = T3 ? 1 : T5 ? 2 : TS ? min(7,tr) : tr
     thSAD        = Default( thSAD,  300 )
     thSAD2=thSAD/2
     thSADC       = Default( thSADC, thSAD2)
@@ -273,10 +276,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 for (i = 1, min(tr,7), 1) {
 
-                       Eval(Format("b{i}c = !isMult ? mfilter.MCompensate(super_render, bv{i}, thSAD={thSAD}, thSCD1={thSCD1}, thSCD2={thSCD2}, mt=true) : nop()"))
-                       Eval(Format("f{i}c = !isMult ? mfilter.MCompensate(super_render, fv{i}, thSAD={thSAD}, thSCD1={thSCD1}, thSCD2={thSCD2}, mt=true) : nop()"))
-                !TS  ? Eval(Format("b{i}c = repair(b{i}c, mfilter, 3, plane==0?-1:3)")) : nop()
-                !TS  ? Eval(Format("f{i}c = repair(f{i}c, mfilter, 3, plane==0?-1:3)")) : nop()
+                    gcv = i==1 && isShrp && isCntr && !SLimit ? "global " : ""
+
+                    Eval(      Format(      "b{i}c = !isMult ? mfilter.MCompensate(super_render, bv{i}, thSAD={thSAD}, thSCD1={thSCD1}, thSCD2={thSCD2}, mt=true) : nop()"))
+                    Eval(      Format(      "f{i}c = !isMult ? mfilter.MCompensate(super_render, fv{i}, thSAD={thSAD}, thSCD1={thSCD1}, thSCD2={thSCD2}, mt=true) : nop()"))
+                    Eval(gcv + Format(TS  ? "b{i}c = b{i}c" : "b{i}c = repair(b{i}c, mfilter, 3, plane==0?-1:3)"))
+                    Eval(gcv + Format(TS  ? "f{i}c = f{i}c" : "f{i}c = repair(f{i}c, mfilter, 3, plane==0?-1:3)"))
 
                 }
 
@@ -291,8 +296,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 \ :               interleave(                          f1c, mfilter, b1c                          )
 
 
-                output = TS ? inter.TemporalSoften(tr,limit,plane==0?0:limitc,15,2)                             : \
-                              inter.ex_median(mode=md, recursion=false, Y=plane!=3?3:1, UV=plane!=0?3:1, fulls=fs)
+                output = TS ? inter.TemporalSoften(tr,limit,plane==0?0:limitc,15,2)                            : \
+                              inter.ex_median(mode=md, recursion=rc, Y=plane!=3?3:1, UV=plane!=0?3:1, fulls=fs)
 
                 output = isMult ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:TS?tr:1)*2+1,T5?2:TS?tr:1)
 
@@ -322,14 +327,14 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         if (!GlobalO && isShrp) {
 
-            isCntr && !SLimit ? Eval("
+            !SLimit && (!isCntr || (isCntr && md == "MDegrain")) ? Eval("""
             global Super           = super_render
             global cb1             = !isMult ? (isInter ? bv2 : bv1) : vmulti.SelectEvery (tr2, 0)
-            global cf1             = !isMult ? (isInter ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)") : nop()
-                                Eval("
-            CClip = (isCClip ?  ((isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip)) : (inputP))")
+            global cf1             = !isMult ? (isInter ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)""") : nop()
 
-        } else { nop() }
+            CClip = isCClip ? (isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip) : inputP
+
+        }
 
 
         # Globals Output
@@ -384,9 +389,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         # Output
 
-        output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, fulls=fs) : \
-                                      SLimit ?  LSFmod(output,source=CClip,preset="slow",strength=Contrasharp,Smode=5,Lmode=0,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25,fulls=fs) : \
-                                                LSFmod(output,             preset="slow",strength=Contrasharp,Smode=5,Lmode=6,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25,fulls=fs) : output
+        output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, overshoot=TS?100:0, fulls=fs) : \
+                                      SLimit ? LSFmod(output,source=CClip,preset="slow",strength=Contrasharp,Smode=5,Lmode=0,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25,fulls=fs) : \
+                                               LSFmod(output,             preset="slow",strength=Contrasharp,Smode=5,Lmode=6,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25,fulls=fs) : output
 
                  !GlobalO ? (isInter ? output.weave() : output) : input
 
@@ -460,7 +465,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.3.1",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.3.2",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
