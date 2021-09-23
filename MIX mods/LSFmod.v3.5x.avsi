@@ -12,13 +12,17 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v3.4 mix - 19 September 2021                              ###
+###                                v3.5 mix - 23 September 2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v3.5mx : - Additional checker for creation of motion vectors if SS is used
+###          - and repair its motion compensated vectors
+###          - Cosmetics
 ###
 ### v3.4mx : - Lmode=5 for zero limiting on not-edges
 ###          - Lmode=6 is now temporal limiting
@@ -141,7 +145,7 @@
 ### -> Masktools2   (v2.2.26 or up)
 ### -> RgTools      (v1.2 or up)
 ### -> Zs_RF_Shared (v1.154)           [for Source]
-### -> ExTools      (v5.8)
+### -> ExTools      (v5.9)
 ### -> SharpenersPack                  [for Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use avs+ then make sure it's the last one
@@ -475,7 +479,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v3.4mix"
+    version = "v3.5mix"
     preset  = Default(preset,"mid")
     num     = preset=="old" ? 0 : preset=="slow" ? 1 : preset=="mid" || preset=="medium" ? 2 : preset=="fast" ? 3 : 4
 
@@ -565,7 +569,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     source = sode ? sisupscale || sislumaonly ? source : source.ExtractY() : source
 
 
-    ### SHARP
+    ### SHARP (preblur="ON" looks like a mini MinBlur() )
     tmp  = ss_x > 1.0 || ss_y > 1.0 ? input.spline36resize(xxs,yys) : input
     pre  = preblur=="OFF" ? tmp
     \    : preblur=="ON"  ? tmp.ex_lutxyz(ex_makediff(tmp,tmp.removegrain(12,-1), UV=1, fulls=fs)
@@ -621,8 +625,9 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     # Temporal limiting
     if (Lmode==6) {
 
-        dg = Eval("try { cb1.isclip() } catch(error_msg) { false }")
-        if (!dg) {
+        isg = Eval("try { cb1.isclip() && cf1.isclip() } catch(error_msg) { false }") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them ourselves.
+
+        if (!isg || (ss_x > 1.0 || ss_y > 1.0)) {
 
             blcksze   = (ox > 2599 ||  oy > 1499) ? 32 : isHD ? 16 : 8
             scaleCSAD = isHD ?   1 : 0
@@ -631,18 +636,16 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
             superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=true, mt=true)   # bug can't disable chroma otherwise luma isn't processed
             super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=true, mt=true, levels=1)
 
-            cb1 = superfilt.MAnalyse(isb = false, chroma=true, blksize = blcksze, overlap=blcksze/2, delta = 1, temporal=true, truemotion=true, mt=true)
-            cf1 = superfilt.MAnalyse(isb = true,  chroma=true, blksize = blcksze, overlap=blcksze/2, delta = 1, temporal=true, truemotion=true, mt=true)
+            cb1 = superfilt.MAnalyse(isb = false, chroma=true, blksize = blcksze,  overlap=blcksze/2, delta = 1, temporal=true,       truemotion=true, mt=true)
+            cf1 = superfilt.MAnalyse(isb = true,  chroma=true, blksize = blcksze,  overlap=blcksze/2, delta = 1, temporal=true,       truemotion=true, mt=true)
             cb1 =     super.Mrecalculate(cb1,     chroma=true, blksize = blcksze/2, overlap=blcksze/4, thSAD=110, scaleCSAD=scaleCSAD, truemotion=true, mt=true)
             cf1 =     super.Mrecalculate(cf1,     chroma=true, blksize = blcksze/2, overlap=blcksze/4, thSAD=110, scaleCSAD=scaleCSAD, truemotion=true, mt=true)
         }
 
-        cb1     = pre.MCompensate(super, cb1, mt=true).ConvertBits(bi, fulls=fs)
-        cf1     = pre.MCompensate(super, cf1, mt=true).ConvertBits(bi, fulls=fs)
+        cb1     = repair(pre.MCompensate(super, cb1, mt=true), pre, 3, -1).ConvertBits(bi, fulls=fs)
+        cf1     = repair(pre.MCompensate(super, cf1, mt=true), pre, 3, -1).ConvertBits(bi, fulls=fs)
         os      = ex_bs(overshoot,   8, bi, fulls=fs)      us     = ex_bs(undershoot,  8, bi, fulls=fs)
-        os2     = ex_bs(overshoot2,  8, bi, fulls=fs)      us2    = ex_bs(undershoot2, 8, bi, fulls=fs)
         os      = os  == 0 ? "" : Format("{os}  +")        us     = us  == 0 ? "" : Format("{us}  -")
-        os2     = os2 == 0 ? "" : Format("{os2} +")        us2    = us2 == 0 ? "" : Format("{us2} -")
         normalT = ex_lutxyza(tmp,normsharp,cb1,cf1,Format("y x z max a max "+os+" min x z min a min "+us+" max"),UV=1)
     }
 
@@ -692,14 +695,12 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     out = sisupscale ?                PP2.spline36resize(dest_x,dest_y)
     \   : (ss_x > 1.0 || ss_y > 1.0)? PP2.spline36resize(dest_x,dest_y)
     \   :                             PP2
-    in  = sisupscale ?  input.spline36resize(dest_x,dest_y)
-    \   :                                    input
 
     if (sode) {
 
-        no  =           normsharp.spline36resize(dest_x,dest_y)
-        src = sisupscale ? source.spline36resize(dest_x,dest_y)
-        \   :                                    source
+        in  = sisupscale ?     input.spline36resize(dest_x, dest_y) : input
+        no  =              normsharp.spline36resize(dest_x, dest_y)
+        src = sisupscale ?    source.spline36resize(dest_x, dest_y) : source
 
         srcD   = ex_makediff(in, src, UV=1, fulls=fs)
         shrpD  = ex_makediff(in, no,  UV=1, fulls=fs)
