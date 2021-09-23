@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v1.6  (21-09-2021)                             ###
+###        Sharpeners Pack v1.7  (23-09-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -528,7 +528,7 @@ function UnsharpMask_HBD(clip clp, float "str", int "rad", float "thres", int "U
 ###  (https://forum.doom9.org/showthread.php?p=1076276#post1076276)
 ###  (https://forum.doom9.org/showthread.php?p=1076491#post1076491)
 ###
-###  ex_ContraSharpening() v3.3 (19 Sept 2021)
+###  ex_ContraSharpening() v3.4 (23 Sept 2021)
 ###  - Mod and port to ExTools by Dogway
 ###
 ###
@@ -542,20 +542,24 @@ function UnsharpMask_HBD(clip clp, float "str", int "rad", float "thres", int "U
 
 function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC", int "overshoot", bool "fulls") {
 
-    HD        = Default(HD,    false)
-    MC        = Default(MC,    false)  # Enable to switch from spatial to temporal limiting (output a bit sharper than original though)
-    os        = Default(overshoot, 0)  # Raise to allow more sharpening when temporal limiting (MC=true)
-    fs        = Default(fulls, false)
-    bi        = BitsPerComponent(denoised)
+    HD  = Default(HD,    false)
+    MC  = Default(MC,    false)  # Enable to switch from spatial to temporal limiting (output a bit sharper than original though)
+    os  = Default(overshoot, 0)  # Raise to allow more sharpening (overshoots) when temporal limiting (MC=true). Also required if 'original' is too noisy
+    fs  = Default(fulls, false)
+    bi  = BitsPerComponent(denoised)
+    os  = ex_bs(os, 8, bi, fulls=fs)
 
-    s    = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                                          # Damp down remaining spots of the denoised clip.
-    ssD  = ex_makediff(s,HD?s.removegrain(12,-1).\
-                              removegrain(20,-1):\
-                            s.removegrain(12,-1),UV=1,fulls=fs)                                               # The difference of a simple kernel blur.
+    isc = Eval("try { f1c.isclip() && b1c.isclip() } catch(error_msg) { false }") # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
+    isg = Eval("try { cb1.isclip() && cf1.isclip() } catch(error_msg) { false }") # if MC=true; otherwise reuse MAnalyze'd vectors to compensate ourselves
 
-    isg  = Eval("try { cb1.isclip() } catch(error_msg) { false }")
 
-    if (!(MC && isg)) {
+    s   = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                                           # Damp down remaining spots of the denoised clip.
+    ssD = ex_makediff(s,HD?s.removegrain(12,-1).\
+                             removegrain(20,-1):\
+                           s.removegrain(12,-1),UV=1,fulls=fs)                                                # The difference of a simple kernel blur.
+
+
+    if (!(MC && (isg || isc))) {
 
         allD = ex_makediff(original,denoised,UV=1,fulls=fs)                                                   # The difference achieved by the denoising.
         ssDD = ssD.repair(HD?ssD.repair(allD,1,-1):allD,1,-1)                                                 # Limit the difference to the max of what the denoising removed locally.
@@ -563,8 +567,8 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
                                                                                                               # Apply the limited difference " x +" (Sharpening is just inverse blurring)
     } else {
 
-        cb1  = original.MCompensate(Super, cb1, mt=true).ConvertBits(bi, fulls=fs)
-        cf1  = original.MCompensate(Super, cf1, mt=true).ConvertBits(bi, fulls=fs)
+        cb1  = isc ? b1c.ConvertBits(bi, fulls=fs) : original.MCompensate(Super, cb1, mt=true).ConvertBits(bi, fulls=fs)
+        cf1  = isc ? f1c.ConvertBits(bi, fulls=fs) : original.MCompensate(Super, cf1, mt=true).ConvertBits(bi, fulls=fs)
 
         addif = " x y + range_half - "
         pmax  = " z a max b max "
@@ -574,7 +578,6 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
         Expr(denoised, ssD, original, cb1, cf1, os==0 ? Tlim0 : Tlim1, isy(denoised) ? Undefined() : "")
 
     } }
-
 
 
 
@@ -1788,12 +1791,13 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
         ref            = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
         sharp          = NLErrors(ref, a, h1, sharp)
         dif            = ex_makediff(sharp, ref)
-        dif            = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100)
+        dif            = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
         sharp          = ex_adddiff(src, dif)
         sharp          = CutOff(src, sharp, cutoff_1, 0)
         local_error    = NLErrors(src, radius, h2, src)
-        local_limit    = ex_makeadddiff(src, local_error)
-        limited        = ex_lutxyz(sharp, local_limit, src, "x z - abs y z - abs > y x ?")
+#        local_limit    = ex_makeadddiff(src, local_error)
+#        limited        = ex_lutxyz(sharp, local_limit, src, "x z - abs y z - abs > y x ?")
+        limited        = ex_lutxyz(sharp, src, local_error, "x y - abs y z - Y@ abs > Y x ?")
         clp            = Shrink(limited)
         return clp }
 
@@ -1873,9 +1877,9 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     superf             = isS && isF ? ex_makediff(superf, super)        : Undefined()
     blankdif           = ex_lut(src, "0")
     pre                = src.ConvertBits(8, dither=-1, fulls=fs)
-    supersearch        = MSuper(pre,                                      pelclip=super,  rfilter=4, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true)
-    superdif           = MSuper(ref.ConvertBits(8, dither=-1, fulls=fs),  pelclip=superf, rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true).ConvertBits(32, fulls=fs)
-    superflex          = MSuper(src3.ConvertBits(8, dither=-1, fulls=fs), pelclip=super3, rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true) # Bug? whatif isS && isF is false?
+    supersearch        = MSuper(pre,                                      pelclip=super.ConvertBits(8, dither=-1, fulls=fs),  rfilter=4, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true)
+    superdif           = MSuper(ref.ConvertBits(8, dither=-1, fulls=fs),  pelclip=superf.ConvertBits(8, dither=-1, fulls=fs), rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true).ConvertBits(32, fulls=fs)
+    superflex          = MSuper(src3.ConvertBits(8, dither=-1, fulls=fs), pelclip=super3.ConvertBits(8, dither=-1, fulls=fs), rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true) # Bug? whatif isS && isF is false?
 #   vmulti             = MAnalyse(supersearch, radius=radius, overlap=64, blksize=128, search=3, truemotion=False, trymany=True, levels=0, badrange=-24, divide=0, dct=0, chroma=False, mt=true)
     vmulti             = MAnalyse(supersearch, delta=radius, overlap=32, blksize=64, search=3, truemotion=False, trymany=True, levels=0, badrange=-24, divide=0, dct=0, chroma=False, mt=true)
 #   vmulti             = MRecalculate(supersearch, vmulti, overlap=32, blksize=64, thsad=me_sad, truemotion=False, search=3, smooth=1, divide=0, dct=0, chroma=False, mt=true)
@@ -1958,8 +1962,8 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         convDD             = ex_boxblur(DD, 1, mode="weighted")
         dif                = ex_lutxyz(DD, convDD, dif, "x y - A@ x * 0 < z A abs x abs < A x ? z swap - ?")
         convD              = ex_boxblur(dif, 1, mode="weighted")
-        dif                = ex_lutxy(dif, convD, "y abs x abs > y 0 ?")
-        clp                = ex_adddiff(src, dif)
+        clp                = ex_lutxyz(dif, convD, src, "y abs x abs > y z + z ? ")
+#        clp                = ex_adddiff(src, dif)
         return clp }
 
     function NLErrors(clip src, int a, float h, clip rclip) {
