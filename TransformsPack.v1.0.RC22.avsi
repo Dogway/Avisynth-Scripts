@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC21  (16-09-2021)           ##
+###    Transforms Pack v1.0 RC22  (01-10-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -135,12 +135,32 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 ###
 ###
 ### Similar to avsresize's z_ConvertFormat() but more flexible, more options and more features:
-### Chroma reconstruction, scale_space, noring, mod size, ratio resize, kernel/matrix aliases (supports any resizer), etc
+### Chroma reconstruction, scale_space, noring, mod size, ratio resize, kernel/matrix aliases (supports any resizer), presets, show settings, etc
 ###
 ### Dependencies: AviSynth+ 3.7.1 and over
 ###
 ###
-### Example: High quality JPEG decoding and conversion to RGB
+### Example 1 - Limited YUV to full RGB:
+###     ConvertFormat(1,1,"YUV","RGB")
+###
+### Example 2 - Scale HD Rec.709 YUV to SD Rec.601 YUV:
+###     ConvertFormat(720,0) # 0 stands for automatic size given width/height ratio
+###     or
+###     ConvertFormat(preset="DVD-NTSC")
+###
+### Example 3 - YUV420 to YUV444 and scale up by 2x with chroma reconstruction and noring (cs_out to "" or "none" to skip color space autoconversion):
+###     ConvertFormat(2,2,fmt_o="444",cs_out="",kernel="FSRCC",noring=true,UVRecon=true)
+###
+### Example 4 - Scale down by 2 an image with no moirée in sigmoid space:
+###     ConvertFormat(0.5,scale_space="sigmoid",kernel="RobiSharp",nomoiree=true)
+###
+### Example 5 - Scale width to 1280 and height to half:
+###     ConvertFormat(1280,0.5)
+###
+### Example 6 - Convert from YUV444 to YUV422 and TV range to PC range:
+###     ConvertFormat(1,1,fmt_o="422",tv_range_out=false)
+###
+### Example 7: High quality JPEG decoding and conversion to RGB
 ###   MP_Pipeline("""
 ###   ### platform: win32
 ###   JPEGSource("source.jpg",rec=3)
@@ -156,31 +176,49 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 ####################################
 
 
-# List of Color Models-Formats:
+# List of Color Models:
+# With *: Color Appearance Models (CAM) (Perceptually Uniform to various degrees)
+# With +: HDR aware
+# With -: Implemented
 #
-# RGB      - RGB color model for channels Red, Green, and Blue. Normally found in interleaved packing format. AviSynth works best with planar RGB so a conversion is first needed.
-# YCbCr    - Color format based on human perception of luma and chroma contribution. Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green.
-# YUVr     - "YUV RCT". Same as YUV but fully reversible to RGB
-# sYUV     - "Sharp YUV". Same as YUV but luma-weighted chroma subsampling, retaining chroma fidelity.
-# YcCbcCrc -
-# xvYCC    -
-# OPP      -
-# YCgCo    - Better luma/chroma decorrelation and compression efficiency than YCbCr
-# YCgCoR   - Same as YCgCo but losslessly reversible to RGB
-# ICtCp    - HDR version of YUV.
-# YDzDx    - HDR version of XYZ. Requires at least 10-bit for no visible quantization.
-# YDuDv    - HDR version of CIE Luv. Requires only 8-bit for no visible quantization.
-# XYZ      -
-# Yxy/xyY  - Chroma normalized XYZ space which gives full luma/chroma decorrelation.
-# Jzazbz   -
-# JzCzhz   -
-# HSV      -
-# Duv      -
-# CIELuv   -
-# CIEDuDv  - HDR version of CIE Luv
-# CIELab   -
-# CIEsLab  - CIE simple Lab
-# HunterLab- A more perceptually uniform version of CIELab
+#-RGB+         - RGB color model for channels Red, Green, and Blue. Normally found in interleaved packing format. AviSynth works best with planar RGB so a conversion is first needed.
+#-YCbCr        - Color format based on human perception of luma and chroma contribution. Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green.
+#-YUVr         - "YUV RCT". Same as YUV but fully reversible to RGB
+# sYUV         - "Sharp YUV". Same as YUV but luma-weighted chroma subsampling, retaining chroma fidelity.
+#-YcCbcCrc     -
+# xvYCC        -
+# OPP          -
+#-YCgCo        - Better luma/chroma decorrelation and compression efficiency than YCbCr
+#-YCgCoR       - Same as YCgCo but losslessly reversible to RGB
+#-XYZ          -
+#-YDzDx+       - HDR version of XYZ. Requires at least 10-bit for no visible quantization.
+# YCxCz        - Color Space for image fidelity metrics. It's a first step space, you have to "filter" it and then convert to Lab to retrieve error delta.
+# DCI XYZ      - XYZ space in DCI illuminant. In effect it's just a container for DCI-P3 in XYZ coordinates for delivery to theaters.
+# Yxy/xyY      - Chroma normalized XYZ space which gives full luma/chroma decorrelation.
+#-HSV          - Cylindrical representation of RGB. Not recommended as it doesn't take into account human luminance perception
+#-Duv*         -
+# HunterLab*   - A more perceptually uniform version of CIELab
+#-CIELab*      -
+# CIELch(ab)*  - HCL (polar coordinates or cylindrical) version of CIELab
+# CIEsLab*     - CIE simple Lab
+# R-Lab*       - Ruderman Lab space, using log luma and different weights for ab
+#-CIELuv*      -
+# CIELch(uv)*  - HCL (polar coordinates or cylindrical) version of CIELuv
+# HSLuv*       - A cylindrical HSL type adaptation of CIELuv
+# CIEDuDv*+    - or YDuDv. HDR version of CIE Luv. Requires only 8-bit for no visible quantization.
+# CIECAM97s*   -
+# JzAzBz*+     - A uniform color space designed for HDR color.
+# JzCzhz*+     - HCL (polar coordinates or cylindrical) version of JzAzBz
+#-IPT*         - A more uniform color space in SDR colors. There's a version called hdrIPT
+# ICtCp+       - BT.2100 (HDR + Rec.2020) version of IPT. HDR version of YCbCr.
+# ITP*+        - Perceptually uniform color space version of ICtCp, used extensively in error metrics by scaling Ct by 0.5. This transformation is the basis of the Rec.2124 wide gamut color difference metric D.itp
+# IPTPQc2*+    - Improved HDR10 version of ICtCp. Since it's a propietary space no much information is known.
+# CIECAM02*    -
+# CIECAM02Jch* -
+# CAM16*       - Not yet a CIE standard. Improves on CIECAM02 and can be made uniform with CAM16-UCS.
+#-Oklab*       - An uniform (UCS) space for SDR color. Simple to compute yet powerful. Takes CAM16 lightness and chroma, and IPT for hue.
+#-OkLch*       - The cylindrical form of Oklab
+# iCAM         - An image (not only color) appearance metric model to not only compute perceived difference in lightness, hue or chroma, but also contrast, sharpness or graininess. Involves converting to IPT, low-pass filtering in linear space, convert to non-linearity, then to Jch model and QM if necessary for the metrics.
 
 
 # Resizer Plugins:
@@ -231,7 +269,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
 function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", string "fmt_o", string "cs_in", string "cs_out", bool "tv_range_in", bool "tv_range_out", bool "linear_in", bool "linear_out",        \
                         bool "gamma", string "cplace_in", string "cplace_out", string "kernel", string "kernel_c", float "src_left", float "src_top", float "src_width", float "src_height", \
-                        string "scale_space", float "p", int "mod", bool "nomoiree", bool "noring", bool "UVrecon", bool "fulls", bool "fulld", bool "debug") {
+                        string "scale_space", float "p", int "mod", bool "nomoiree", bool "noring", bool "UVrecon", bool "fulls", bool "fulld", bool "show") {
 
     clp
     w          = width ()
@@ -258,12 +296,16 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
     nh         = isInt(nh) && nh<=10 ? float(nh) : isFloat(nh) && nh>10. ? int(nh) : nh
     nw         =  nw<=10. ? w*nw : nw            nw     = round(nw/mod)*mod
     nh         =  nh<=10. ? h*nh : nh            nh     = round(nh/mod)*mod
+
+    nw         =  nw == 0 ? round((w*(nh/float(h)))/mod)*mod : nw
+    nh         =  nh == 0 ? round((h*(nw/float(w)))/mod)*mod : nh
+
     isUHD      = ( w > 2599 ||   h > 1499)       isnUHD = (nw > 2599 ||  nh > 1499)
     isHD       = ( w > 1099 ||   h > 599 )       isnHD  = (nw > 1099 ||  nh > 599 )
     wr         = float(nw) / w                   hr     = float(nh) / h
     rat        = max(abs(wr - 1),abs(hr - 1)) == abs(wr - 1) ? wr : hr
 
-    cs_in      = Default (cs_in,   isRGBi || fc ? "jpeg"                : isUHD  ? "2020" : isHD  ? "709"   : "601")
+    cs_in      = Default (cs_in,   isRGBi || fc ? "jpeg"                : isUHD  ? "2020" : isHD   ? "709"  : "601")
     cs_out     = Default (cs_out, (cs_in == "jpeg" || cs_in == "srgb") && isRGBo ? "srgb" : isnUHD ? "2020" : isnHD ? "709" : "601")
     linei      = Default (linear_in,  false)
     lineo      = Default (linear_out, false)
@@ -283,6 +325,23 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
     nomoir     = Default (nomoiree,false)
     recon      = Default (UVrecon, false)
     fs         = Default (fulls,   false)
+    dg         = Default (show,    false)
+
+
+    # PRESETS
+    #                                    UHD        HD    DVD-NTSC    DVD-PAL        DV    CRT-NTSC    CRT-PAL     Master     Archival      Grade     Theater    JPEG2000       JPG
+#    fmt_o         = Select (num,    "ICtCp",  "YCbCr",    "YCbCr",   "YCbCr",  "YCbCr",     "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",     "YUVr",  "YCbCr")
+#    cs_out        = Select (num,     "2020",    "709",      "601",   "470BG",        4,     "601",     "601",  "DCI-P3",  "ACES2065",  "ACESCCt",   "DCI-P3",     "sRGB",    "601")
+#    Jab           = Select (num,      "420",    "420",      "420",     "420",    "410",     "411",     "411",     "444",       "444",      "444",      "444",      "444",    "422")
+#    tv_out        = Select (num,       true,     true,       true,      true,    false,      true,      true,     false,       false,      false,      false,      false,    false)
+#    cplace_out    = Select (num, "top_left",  "MPEG2",    "MPEG2",   "MPEG2",     "DV",   "MPEG1",   "MPEG1",  "center",    "center",   "center",    "MPEG1",    "MPEG1",  "MPEG1")
+#    D             = Select (num,      "D65",    "D65",      "D65",     "D65",        4,     "601",     "601",       "E",       "D60",      "D60",        "E",      "D65",    "D65")
+#    EOTF          = Select (num,       "PQ",    "709",      "601",     "470",        4,     "601",     "601",     "DCI",    "linear",      "log",      "DCI",     "sRGB",    "601")
+#    PAR           = Select (num,          1,         1,     "601",     "470",        4,     "601",     "601",         1,           1,          1,          1,          1,        1)
+#    cdc           = Select (num,     "H265",    "H264",    "H262",    "H262",   "H261",        "",        "",    "TIFF",       "PIZ",      "PIZ", "JPEG2000", "JPEG2000",    "JPG")
+#    cont          = Select (num,       "TS",      "TS",     "VOB",     "VOB",  "MPEG2",        "",        "",    "TIFF",       "EXR",      "EXR", "JPEG2000", "JPEG2000",    "JPG")
+#    bit           = Select (num,         10,         8,         8,         8,        8,        "",        "",        16,          16,         32,         12,          8,        8)
+
 
 
     ############ Data extraction and normalization + Asserts ############
@@ -294,14 +353,15 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
                  Assert(false, "Invalid space type.")                        : nop()
 
 
-    cs_in    =                Matrix_fuzzy_search (cs_in)
-    cs_out   = cs_out != "" ? Matrix_fuzzy_search (cs_out) : cs_in
-    space    = space  != "" ? space : "gamma"
+    cs_in    = cs_in  != "" && cs_in  != "none" ? Matrix_fuzzy_search (cs_in)  : "Rec709"
+    cs_out   = cs_out != "" && cs_out != "none" ? Matrix_fuzzy_search (cs_out) : cs_in
+    space    = space  != "" && space  != "none" ? space : "gamma"
 
     isGamma  = Default (gamma, (cs_in != cs_out) || (linei!=lineo))
     isSpace  = cs_in    !=  cs_out
     isFrmt   = i_fmt[0] !=  o_fmt[0]
     isScale  = nw!=w    ||  nh!=h
+    isJab    = i_fmt[1] !=  o_fmt[1]
 
     coef_i   =           Matrix_coef(cs_in)
     coef_o   = isSpace ? Matrix_coef(cs_out) : coef_i
@@ -371,20 +431,20 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
     src_wh  = src_box ? Format(",sw={src_width},sh={src_height}") : Format(",src_width={src_width},src_height={src_height}")
     src_whc = src_box ? Format(",sw={cow},     sh={coh}")        : Format(",src_width={cow},      src_height={coh}")
     fmtcb   = Format(".ConvertBits({bdpth},fulls={fs})")
-    src_c   = src_nul ? "" : src_box ? Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr
     src_nr  = Format(",src_left={src_left},src_top={src_top}"+src_wh+")")
-    Ynr     = Format(".Repair(BicubicResize(Y,{nw},{nh},0,0"+src_nr+",1)")
+    src_c   = src_nul ? "" : src_box ? Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr
+    Ynr     = Format(".Repair(BicubicResize(Y,{nw},{nh},0,0"+src_nr+",1)")  # check here if I need -1 for chroma
 
     cplacei  = chroma_placement(cow, coh, cs_in,  i_fmt[0]+i_fmt[1], cplace_in )
     cplaceo  = chroma_placement(cnw, cnh, cs_out, o_fmt[0]+o_fmt[1], cplace_out)
 
-    if (!isSpace && !isFrmt) {
+    if (!isSpace && !isFrmt && !isJab) {
 
         UVr = isRGBi ? 3 : 1
         space == "linear"  ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, UVr, fs)                                       : \
         space == "sigmoid" ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, UVr, fs).ex_contrast(-1.15,0,191,false,UVr,fs) : \
         space == "log"     ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, UVr, fs).ACEScct_f(UV=UVr,fulls=fs)            : \
-                             last
+                   isGamma ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, UVr, fs)                                       : last
 
         nomoir ? ex_blur((1. / rat) / 2., bifit=false) : last
         Ynr   = ReplaceStr(Ynr, "(Y,", "(")
@@ -393,11 +453,11 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
         space == "linear"  ?                                      moncurve_r(t_gam[0], t_gam[1], false, tv_out, UVr, fs) : \
         space == "sigmoid" ? ex_contrast(1.15,0,191,false,UVr,fs).moncurve_r(t_gam[0], t_gam[1], false, tv_out, UVr, fs) : \
         space == "log"     ? ACEScct_r(UV=UVr,fulls=fs).          moncurve_r(t_gam[0], t_gam[1], false, tv_out, UVr, fs) : \
-                             last
+                   isGamma ?                                      moncurve_r(t_gam[0], t_gam[1], false, tv_out, UVr, fs) : last
 
-        tv_in != tv_out ? space == "gamma"   ? SMPTE_legal(tv_out,3,  3,fs) : \
-                          isScale && !isRGBi ? SMPTE_legal(tv_out,1,  3,fs) : \
-                         !isScale            ? SMPTE_legal(tv_out,UVr,3,fs) : last : last
+        tv_in != tv_out ? space == "gamma"    ?     SMPTE_legal(tv_out,3,  3,fs) : \
+                          isScale && !isRGBi  ?     SMPTE_legal(tv_out,1,  3,fs) : \
+                         !isScale && !isGamma ? clp.SMPTE_legal(tv_out,UVr,3,fs) : last : last
 
     } else if (!isRGBi) {
 
@@ -542,10 +602,10 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
     if (isRGBi && isRGBo && isScale) {
 
 
-        RGB  = space == "linear"  ? moncurve_f(s_gam[0], s_gam[1], false, false, 3, fs)                                         : \
-               space == "sigmoid" ? moncurve_f(s_gam[0], s_gam[1], false, false, 3, fs).ex_contrast(-1.15,0,191,false,3,fs)     : \
-               space == "log"     ? moncurve_f(s_gam[0], s_gam[1], false, false, 3, fs).ACEScct_f(UV=3,fulls=fs)                : \
-               isSpace            ? moncurve_r(t_gam[0], t_gam[1], false, tv_out, 3, fs)                                        : \
+        RGB  = space == "linear"  ? isSpace || isGamma ?                                last : moncurve_f(s_gam[0], s_gam[1], false, false, 3, fs)                                     : \
+               space == "sigmoid" ? isSpace || isGamma ? ex_contrast(-1.15,0,191,false,3,fs) : moncurve_f(s_gam[0], s_gam[1], false, false, 3, fs).ex_contrast(-1.15,0,191,false,3,fs) : \
+               space == "log"     ? isSpace || isGamma ? ACEScct_f(UV=3,fulls=fs)            : moncurve_f(s_gam[0], s_gam[1], false, false, 3, fs).ACEScct_f(UV=3,fulls=fs)            : \
+               isSpace            ?                                                            moncurve_r(t_gam[0], t_gam[1], false, tv_out, 3, fs)                                    : \
                                     last
 
         RGB   = nomoir ? RGB.ex_blur((1. / rat) / 2.,bifit=false) : RGB
@@ -643,7 +703,23 @@ function ConvertFormat (clip clp, val "width", val "height", string "fmt_i", str
 
         }
 
-    }
+        if (dg) {
+            i_jab  = i_fmt[1]
+            i_fmt  = i_fmt[0]
+            o_jab  = o_fmt[1]
+            o_fmt  = o_fmt[0]
+            tv_in  = tv_in  ? "Lim" : "Full"
+            tv_out = tv_out ? "Lim" : "Full"
+
+            Subtitle(       "\n SETTINGS:", size=nw/50,lsp=4)
+            Subtitle(Format("\n\n\n\n                                IN      OUT \n " \
+                           +"colorspace: {cs_in} {cs_out} \n " \
+                           +"format:         {i_fmt}      {o_fmt} \n " \
+                           +"jab:               {i_jab}        {o_jab} \n " \
+                           +"range:          {tv_in}        {tv_out} \n " \
+                           +"cplace: {cplace_in} {cplace_out} \n " \
+                           +"kernel:         {kernel} \n noring:         {noring} \n nomoir:        {nomoir} \n recon:          {recon} "),size=nw/75,lsp=4)
+    } }
 
 
 
@@ -936,7 +1012,7 @@ function RGB_to_YCgCo (clip R, clip G, clip B, bool tv_in, bool tv_out, bool ful
 
     Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + ",             bi, fs), optSingleMode=true)
     Cg = Expr(R, G, B, ex_dlut("y 0.5  * x z + 0.25 * - range_half +", bi, fs), optSingleMode=true)
-    Co = Expr(R,    B, ex_dlut("x 0.5  * y 0.5  *     - range_half +", bi, fs), optSingleMode=false)
+    Co = Expr(R,    B, ex_dlut("x y - 0.5  *            range_half +", bi, fs), optSingleMode=false)
 
     [Y, Cg, Co] }
 
@@ -1035,19 +1111,57 @@ function YDzDx_to_XYZ (clip Y, clip Dz, clip Dx, bool tv_in, bool tv_out, bool f
     [X, Y, Z] }
 
 
-# XYZ to CIE Luv -D65 based- (process in linear space) (32-bit float recommended)
-function XYZ_to_Luv (clip X, clip Y, clip Z, bool tv_in, bool tv_out, bool fulls) {
+# WIP. XYZ to CIE Lab -D65 based- (process in linear space) Normalized to 0-1
+function XYZ_to_Lab (clip X, clip Y, clip Z, bool Jch, bool fulls) {
 
     bi = BitsPerComponent(Y)
+    cy = Default (Jch,   false)
     fs = Default (fulls, false)
 
-    Yr    = 1 / 0.329016  # its reciprocal
+    ep    = pow(24. / 116, 3)               # 0.00885645167903563081717167575546 (or 216 / 24389.)
+    coef  = pow(24. / 116, 2) * 3           # 0.12841854934601664684898929845422 (or 108 / 841)
+    coefr = pow(24. / 116, -2) * (1 / 3.)   # 7.78703703703703703703703703703703 (or 841 / 108)  reciprocal of above
+    rW    = [95.0449218275099, 100., 108.8916648430471] # Reference White: Normalization to Y=100 of reciprocal of illuminant
+
+    L = Expr(Y,               Format("x "+string(rW[1])+" / Y@ {ep} > Y 0.333333333 ^ Y {coefr} * 16 116 / + ? 116 * 16 - "+" 9 /"), optSingleMode=false)
+    a = Expr(X, Y,    ex_dlut(Format("x "+string(rW[0])+" / X@ {ep} > X 0.333333333 ^ X {coefr} * 16 116 / + ?
+                                      y "+string(rW[1])+" / Y@ {ep} > Y 0.333333333 ^ Y {coefr} * 16 116 / + ? - 500 * "+" 13.45 /"), bi, fs), optSingleMode=true)
+    b = Expr(   Y, Z, ex_dlut(Format("x "+string(rW[1])+" / Y@ {ep} > Y 0.333333333 ^ Y {coefr} * 16 116 / + ?
+                                      y "+string(rW[2])+" / Z@ {ep} > Z 0.333333333 ^ Z {coefr} * 16 116 / + ? - 200 * "+" 12.3  /"), bi, fs), optSingleMode=true)
+
+    CombinePlanes(L, a, b, planes="RGB") }
+
+
+# WIP. CIE Lab to XYZ (can remove range_half entries if processed in 32-bit)
+function Lab_to_XYZ (clip L, clip a, clip b, bool "Jch", bool "fulls") {
+
+    bi = BitsPerComponent(L)
+    cy = Default (Jch,   false)
+    fs = Default (fulls, false)
+
+    ep    = 24  / 116.          # 0.20689655172413793103448275862069
+    ep2   = pow(ep, 3)          # 0.00885645167903563081717167575546 (or 216 / 24389.)
+    coef  = pow(ep, 2) * 3      # 0.12841854934601664684898929845422 (or 108 / 841)
+    kappa = 24389 / 27.         # 903.296296296296296296296296296296
+    rW    = [95.0449218275099, 100., 108.8916648430471] # Reference White: Normalization to Y=100 of reciprocal of illuminant
+
+    Y = Expr( L,    Format("x 100 * 16 + 116 / Y@                 {ep} > Y 3 ^ Y 16 116 / - {coef} * ?                          "), optSingleMode=false)
+    X = Expr( L, a, Format("x 100 * 16 + 116 / y 100 * 500 / + X@ {ep} > X 3 ^ X 16 116 / - {coef} * ? "+string(rW[0])+" * 100 /"), optSingleMode=false)
+    Z = Expr( L, b, Format("x 100 * 16 + 116 / y 100 * 200 / - Z@ {ep} > Z 3 ^ Z 16 116 / - {coef} * ? "+string(rW[2])+" * 100 /"), optSingleMode=false)
+
+    CombinePlanes(X, Y, Z, planes="RGB") }
+
+
+
+# XYZ to CIE Luv -D65 based- (process in linear space) (32-bit float recommended)
+function XYZ_to_Luv (clip X, clip Y, clip Z, bool Jch, bool tv_in, bool tv_out, bool fulls) {
+
+    bi = BitsPerComponent(Y)
+    cy = Default (Jch,   false)
+    fs = Default (fulls, false)
+
     ep    = 216 / 24389.
     kappa = 24389 / 27.
-
-    nrm = ex_bs(255, 8, bi, fulls=fs)
-    mat = RGB_to_XYZ  (L, "sRGB", list=true)
-    mat = MatrixDot([nrm, nrm, nrm], mat)
 
     rW    = [95.0449218275099, 100., 108.8916648430471]
 
@@ -1062,9 +1176,10 @@ function XYZ_to_Luv (clip X, clip Y, clip Z, bool tv_in, bool tv_out, bool fulls
 
 #http://www.brucelindbloom.com/index.html?Eqn_Luv_to_XYZ.html
 # CIE Luv to XYZ (can remove range_half entries if processed in 32-bit)
-function Luv_to_XYZ (clip L, clip u, clip v, bool tv_in, bool tv_out, bool fulls) {
+function Luv_to_XYZ (clip L, clip u, clip v, bool Jch, bool tv_in, bool tv_out, bool fulls) {
 
     bi = BitsPerComponent(L)
+    cy = Default (Jch,   false)
     fs = Default (fulls, false)
 
     ep    = 216 / 24389.
@@ -1072,9 +1187,6 @@ function Luv_to_XYZ (clip L, clip u, clip v, bool tv_in, bool tv_out, bool fulls
     exk   = ep * kappa
     D65N  = [0.312713, 0.329016, 0.358271]
     Wr    = [95.0449218275099, 100., 108.8916648430471]
-
-    mat = RGB_to_XYZ  (L, "sRGB", list=true)
-    mat = MatrixDot([0.312713, 0.329016, 0.358271], mat)
 
     detu  = (4 * D65N[0] / (D65N[0] + 15 * D65N[1] + 3 * D65N[2]))
     detv  = (9 * D65N[1] / (D65N[0] + 15 * D65N[1] + 3 * D65N[2]))
@@ -1111,25 +1223,270 @@ function Duv_to_Luv (clip Y, clip Du, clip Dv, bool fulls) {
     [Y, u, v] }
 
 
-# XYZ to CIE Lab -D65 based- (process in linear space) (32-bit float recommended)
-function XYZ_to_Lab (clip X, clip Y, clip Z, bool tv_in, bool tv_out, bool fulls) {
+# RGB' (gamma encoded) to HSV
+function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "fulls") {
 
-    bi = BitsPerComponent(Y)
-    fs = Default (fulls, false)
+    isy = isy(RGB)
+    bi  = BitsPerComponent(RGB)
 
-    Yr    = 1 / 0.329016  # its reciprocal
-    ep    = 216 / 24389.
-    kappa = 24389 / 27.
-    rW    = [95.0449218275099, 100., 108.8916648430471]
+    tv  = Default (tv_range, false)
+    fs  = Default (fulls,    false)
 
-    L = Expr(Y,               Format("x {ep} > x 0.333333333 ^ 116 * 16 - x {kappa} * ? 0.01 *"),                                                     optSingleMode=false)
-    a = Expr(X, Y,    ex_dlut(Format("x "+string(rW[0])+" * 0.333333333 ^ y "+string(rW[1])+" * 0.333333333 ^ - 500 * 0.01 * range_half +"), bi, fs), optSingleMode=true)
-    b = Expr(   Y, Z, ex_dlut(Format("x "+string(rW[1])+" * 0.333333333 ^ y "+string(rW[2])+" * 0.333333333 ^ - 200 * 0.01 * range_half +"), bi, fs), optSingleMode=true)
+    clp = !isy ? ExtractClip(RGB) : nop()
+    R   = !isy ? clp[0] :    RGB
+    G   = !isy ? clp[1] :     G
+    B   = !isy ? clp[2] :      B
 
-    [L, a, b ] }
+    rangePC  = tv ? "ymin - ymax ymin - /" : bi == 32 ? "" : "range_max /"
+    rangeTV  = tv ? "ymax ymin - * ymin +" : bi == 32 ? "" : "range_max *"
+
+    V = Expr(R, G, B,    "z y max x max", optSingleMode=false)                                                         # Lightness Hexcone
+    S = Expr(R, G, B, V, "a 0 == 0 a z y min x min - "+rangePC+" a "+rangePC+" / ? "+rangeTV+"", optSingleMode=false)  # Hexagonal Chroma
+    H = Expr(R, G, B, V, "60 a z y min x min - "+rangePC+" S@ / D^
+                          a 0 == S a / 0 == or 0
+                          x a == y z - "+rangePC+" D * 360 + 360 %
+                          y a == z x - "+rangePC+" D * 120 + 360 %
+                          z a == x y - "+rangePC+" D * 240 + 360 % 0 ? ? ? ? 0.002777778 range_max * * ", optSingleMode=true)
+
+    CombinePlanes(H, S, V, planes="RGB") }
+
+
+function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "fulls") {
+
+    isy = isy(HSV)
+    bi  = BitsPerComponent(HSV)
+
+    tv  = Default (tv_range, false)
+    fs  = Default (fulls,    false)
+
+    clp = !isy ? ExtractClip(HSV) : nop()
+    H   = !isy ? clp[0] :    HSV
+    S   = !isy ? clp[1] :     S
+    V   = !isy ? clp[2] :      V
+
+    rangePC  = tv ? "ymin - ymax ymin - /" : bi == 32 ? "" : "range_max /"
+    rangeTV  = tv ? "ymax ymin - * ymin +" : bi == 32 ? "" : "range_max *"
+
+    m = "0 1 clip 1 - y "+rangePC+" * 1 + z "+rangePC+" * "+rangeTV
+    R = Expr(H, S, V, "  x "+rangePC+" 6 * 3 - abs 1 - "+m, optSingleMode=false)
+    G = Expr(H, S, V, "2 x "+rangePC+" 6 * 2 - abs   - "+m, optSingleMode=false)
+    B = Expr(H, S, V, "2 x "+rangePC+" 6 * 4 - abs   - "+m, optSingleMode=false)
+
+    CombinePlanes(R, G, B, planes="RGB") }
 
 
 
+# RGB linear to IPT (original PT range scaled from -1 +1 to 0 +1)
+function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "fulls") {
+
+    isy = isy(RGB)
+    bi  = BitsPerComponent(RGB)
+
+    mat = Default (matrix, "Rec709")
+    cy  = Default (Jch,   false)    # enable to convert to JCh (cylindrical IPT) in the range 0 to 1.
+    fs  = Default (fulls, false)
+
+	mat = Matrix_fuzzy_search(mat)
+    clp = !isy ? ExtractClip(RGB) : nop()
+    R   = !isy ? clp[0] :    RGB
+    G   = !isy ? clp[1] :     G
+    B   = !isy ? clp[2] :      B
+
+    LMS = [0.4002, 0.7075, -0.0807, \
+          -0.2280, 1.1500,  0.0612, \
+           0.0000, 0.0000,  0.9184]
+
+    IPT = [0.4000,  4.4550,  0.8056, \
+           0.4000, -4.8510,  0.3572, \
+           0.2000,  0.3960, -1.1628]
+
+    mata = RGB_to_XYZ (R, mat, list=true)
+    LMS  = MatrixTranspose(LMS)
+    LMS  = MatrixDot(mata, LMS)
+
+    L = Expr(R,G,B, "x "+string(LMS[0])+" * y "+string(LMS[3])+" * + z "+string(LMS[6])+" * + dup dup 0 >= swap 0.43 ^ swap -1 * 0.43 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+    M = Expr(R,G,B, "x "+string(LMS[1])+" * y "+string(LMS[4])+" * + z "+string(LMS[7])+" * + dup dup 0 >= swap 0.43 ^ swap -1 * 0.43 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+    S = Expr(R,G,B, "x "+string(LMS[2])+" * y "+string(LMS[5])+" * + z "+string(LMS[8])+" * + dup dup 0 >= swap 0.43 ^ swap -1 * 0.43 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+
+
+        I  = Expr(L,M,S, " x "+string(IPT[0])+" * y "+string(IPT[3])+" * + z "+string(IPT[6])+" * +", optSingleMode=true,scale_inputs="none")
+
+    if (!cy) {
+
+        P  = Expr(L,M,S, " x "+string(IPT[1])+" * y "+string(IPT[4])+" * + z "+string(IPT[7])+" * + 1 + 0.5 *", optSingleMode=true,scale_inputs="none")
+        T  = Expr(L,M,S, " x "+string(IPT[2])+" * y "+string(IPT[5])+" * + z "+string(IPT[8])+" * + 1 + 0.5 *", optSingleMode=true,scale_inputs="none")
+             CombinePlanes(I, P, T, planes="RGB")
+
+    } else {
+
+        C  = Expr(L,M,S, " x "+string(IPT[1])+" * y "+string(IPT[4])+" * + z "+string(IPT[7])+" * + dup *
+                           x "+string(IPT[2])+" * y "+string(IPT[5])+" * + z "+string(IPT[8])+" * + dup * + sqrt pi *", optSingleMode=true,scale_inputs="none")  # maybe normalize with 4.956244 instead
+        h  = Expr(L,M,S, " x "+string(IPT[1])+" * y "+string(IPT[4])+" * + z "+string(IPT[7])+" * +
+                           x "+string(IPT[2])+" * y "+string(IPT[5])+" * + z "+string(IPT[8])+" * + swap atan2 pi + pi 2 * /", optSingleMode=true,scale_inputs="none")
+             CombinePlanes(I, C, h, planes="RGB")
+    } }
+
+
+function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", bool "fulls") {
+
+    isy = isy(RGB)
+    bi  = BitsPerComponent(IPT)
+
+    mat = Default (matrix, "Rec709")
+    cy  = Default (Jch,   false)   # enable to convert from Jch (cylindrical IPT) in the range 0 to 1.
+    fs  = Default (fulls, false)
+
+	mat = Matrix_fuzzy_search(mat)
+    clp = !isy ? ExtractClip(IPT) : nop()
+    I   = !isy ? clp[0] : IPT
+    P   = !isy ? clp[1] :  P
+    T   = !isy ? clp[2] :   T
+
+    IPT = [0.4000,  4.4550,  0.8056, \
+           0.4000, -4.8510,  0.3572, \
+           0.2000,  0.3960, -1.1628]
+
+    LMS = [0.4002, 0.7075, -0.0807, \
+          -0.2280, 1.1500,  0.0612, \
+           0.0000, 0.0000,  0.9184]
+
+    IPT  = MatrixInvert(IPT)
+
+        nm = !cy ? "2 * 1 -" : ""
+
+    if (!cy) {
+
+        L = Expr(I, P, T, "x "+string(IPT[0])+"  * y "+nm+" "+string(IPT[3])+"  * + z "+nm+" "+string(IPT[6])+" * + dup dup 0 >= swap 1 0.43 / ^ swap -1 * 1 0.43 / ^ -1 * ?", optSingleMode=true)
+        M = Expr(I, P, T, "x "+string(IPT[1])+"  * y "+nm+" "+string(IPT[4])+"  * + z "+nm+" "+string(IPT[7])+" * + dup dup 0 >= swap 1 0.43 / ^ swap -1 * 1 0.43 / ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+        S = Expr(I, P, T, "x "+string(IPT[2])+"  * y "+nm+" "+string(IPT[5])+"  * + z "+nm+" "+string(IPT[8])+" * + dup dup 0 >= swap 1 0.43 / ^ swap -1 * 1 0.43 / ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+
+    } else {
+
+        L = Expr(I, P, T, "x "+string(IPT[0])+" * z pi 2 * * pi - H@ cos y pi / Y@ * "+string(IPT[3])+" * + H sin Y * "+string(IPT[6])+" * + dup dup 0 >= swap 1 0.43 / ^ swap -1 * 1 0.43 / ^ -1 * ?", optSingleMode=true)
+        M = Expr(I, P, T, "x "+string(IPT[1])+" * z pi 2 * * pi - H@ cos y pi / Y@ * "+string(IPT[4])+" * + H sin Y * "+string(IPT[7])+" * + dup dup 0 >= swap 1 0.43 / ^ swap -1 * 1 0.43 / ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+        S = Expr(I, P, T, "x "+string(IPT[2])+" * z pi 2 * * pi - H@ cos y pi / Y@ * "+string(IPT[5])+" * + H sin Y * "+string(IPT[8])+" * + dup dup 0 >= swap 1 0.43 / ^ swap -1 * 1 0.43 / ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+    }
+
+
+    LMS  = MatrixTranspose(LMS)
+    LMS  = MatrixInvert(LMS)
+    mata = XYZ_to_RGB (I, mat, list=true)
+    RGB  = MatrixDot(LMS, mata)
+
+    R = Expr(L,M,S, "x "+string(RGB[0])+" * y "+string(RGB[3])+" * + z "+string(RGB[6])+" * + ", optSingleMode=true)
+    G = Expr(L,M,S, "x "+string(RGB[1])+" * y "+string(RGB[4])+" * + z "+string(RGB[7])+" * + ", optSingleMode=true)
+    B = Expr(L,M,S, "x "+string(RGB[2])+" * y "+string(RGB[5])+" * + z "+string(RGB[8])+" * + ", optSingleMode=true)
+
+    CombinePlanes(R, G, B, planes="RGB") }
+
+
+
+# RGB linear to Oklab (original ab range scaled from -1 +1 to 0 +1)
+function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "fulls") {
+
+    isy = isy(RGB)
+    bi  = BitsPerComponent(RGB)
+
+    mat = Default (matrix, "Rec709")
+    cy  = Default (Jch,   false)    # enable to convert to Oklch (cylindrical Oklab) in the range 0 to 1.
+    fs  = Default (fulls, false)
+
+	mat = Matrix_fuzzy_search(mat)
+    clp = !isy ? ExtractClip(RGB) : nop()
+    R   = !isy ? clp[0] :    RGB
+    G   = !isy ? clp[1] :     G
+    B   = !isy ? clp[2] :      B
+
+    # LMS version matrix of Oklab
+    M1 = [0.8189330101, 0.3618667424, -0.1288597137, \
+          0.0329845436, 0.9293118715,  0.0361456387, \
+          0.0482003018, 0.2643662691,  0.6338517070]
+
+    M2 = [0.2104542553,  0.7936177850, -0.0040720468, \
+          1.9779984951, -2.4285922050,  0.4505937099, \
+          0.0259040371,  0.7827717662, -0.8086757660]
+
+    mata = RGB_to_XYZ (R, mat, list=true)
+    M1   = MatrixTranspose(M1)
+    LMS  = MatrixDot(mata, M1)
+    M2   = MatrixTranspose(M2)
+
+    L = Expr(R,G,B, "x "+string(LMS[0])+" * y "+string(LMS[3])+" * + z "+string(LMS[6])+" * + dup dup 0 >= swap 0.333333333 ^ swap -1 * 0.333333333 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+    M = Expr(R,G,B, "x "+string(LMS[1])+" * y "+string(LMS[4])+" * + z "+string(LMS[7])+" * + dup dup 0 >= swap 0.333333333 ^ swap -1 * 0.333333333 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+    S = Expr(R,G,B, "x "+string(LMS[2])+" * y "+string(LMS[5])+" * + z "+string(LMS[8])+" * + dup dup 0 >= swap 0.333333333 ^ swap -1 * 0.333333333 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+
+
+        Lk = Expr(L,M,S, " x "+string(M2[0])+" * y "+string(M2[3])+" * + z "+string(M2[6])+" * +",           optSingleMode=true,scale_inputs="none")
+
+    if (!cy) {
+
+        a  = Expr(L,M,S, " x "+string(M2[1])+" * y "+string(M2[4])+" * + z "+string(M2[7])+" * + 1 + 0.5 *", optSingleMode=true,scale_inputs="none")
+        b  = Expr(L,M,S, " x "+string(M2[2])+" * y "+string(M2[5])+" * + z "+string(M2[8])+" * + 1 + 0.5 *", optSingleMode=true,scale_inputs="none")
+             CombinePlanes(Lk, a, b, planes="RGB")
+
+    } else {
+
+        C  = Expr(L,M,S, " x "+string(M2[1])+" * y "+string(M2[4])+" * + z "+string(M2[7])+" * + dup *
+                           x "+string(M2[2])+" * y "+string(M2[5])+" * + z "+string(M2[8])+" * + dup * + sqrt pi *", optSingleMode=true,scale_inputs="none")
+        h  = Expr(L,M,S, " x "+string(M2[1])+" * y "+string(M2[4])+" * + z "+string(M2[7])+" * +
+                           x "+string(M2[2])+" * y "+string(M2[5])+" * + z "+string(M2[8])+" * + swap atan2 pi + pi 2 * /", optSingleMode=true,scale_inputs="none")
+             CombinePlanes(Lk, C, h, planes="RGB")
+    } }
+
+
+
+function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix", bool "fulls") {
+
+    isy = isy(Lab)
+    bi  = BitsPerComponent(Lab)
+
+    mat = Default (matrix, "Rec709")
+    cy  = Default (Jch,   false)   # enable to convert from Oklch (cylindrical Oklab) in the range 0 to 1.
+    fs  = Default (fulls, false)
+
+	mat = Matrix_fuzzy_search(mat)
+    clp = !isy ? ExtractClip(Lab) : nop()
+    Lk  = !isy ? clp[0] :    Lab
+    a   = !isy ? clp[1] :     a
+    b   = !isy ? clp[2] :      b
+
+    # LMS matrix version of Oklab
+    M1 = [0.8189330101, 0.3618667424, -0.1288597137, \
+          0.0329845436, 0.9293118715,  0.0361456387, \
+          0.0482003018, 0.2643662691,  0.6338517070]
+
+    M2 = [0.2104542553,  0.7936177850, -0.0040720468, \
+          1.9779984951, -2.4285922050,  0.4505937099, \
+          0.0259040371,  0.7827717662, -0.8086757660]
+
+    M2  = MatrixTranspose(M2)
+    Lab = MatrixInvert(M2)
+
+        nm = !cy ? "2 * 1 -" : ""
+
+    if (!cy) {
+
+        L = Expr(Lk, a, b, "x "+string(Lab[0])+"  * y "+nm+" "+string(Lab[3])+"  * + z "+nm+" "+string(Lab[6])+" * + dup dup 0 >= swap 3 ^ swap -1 * 3 ^ -1 * ?", optSingleMode=true)
+        M = Expr(Lk, a, b, "x "+string(Lab[1])+"  * y "+nm+" "+string(Lab[4])+"  * + z "+nm+" "+string(Lab[7])+" * + dup dup 0 >= swap 3 ^ swap -1 * 3 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+        S = Expr(Lk, a, b, "x "+string(Lab[2])+"  * y "+nm+" "+string(Lab[5])+"  * + z "+nm+" "+string(Lab[8])+" * + dup dup 0 >= swap 3 ^ swap -1 * 3 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+
+    } else {
+
+        L = Expr(Lk, a, b, "x "+string(Lab[0])+" * z pi 2 * * pi - H@ cos y pi / Y@ * "+string(Lab[3])+" * + H sin Y * "+string(Lab[6])+" * + dup dup 0 >= swap 3 ^ swap -1 * 3 ^ -1 * ?", optSingleMode=true)
+        M = Expr(Lk, a, b, "x "+string(Lab[1])+" * z pi 2 * * pi - H@ cos y pi / Y@ * "+string(Lab[4])+" * + H sin Y * "+string(Lab[7])+" * + dup dup 0 >= swap 3 ^ swap -1 * 3 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+        S = Expr(Lk, a, b, "x "+string(Lab[2])+" * z pi 2 * * pi - H@ cos y pi / Y@ * "+string(Lab[5])+" * + H sin Y * "+string(Lab[8])+" * + dup dup 0 >= swap 3 ^ swap -1 * 3 ^ -1 * ?", optSingleMode=true,scale_inputs="none")
+    }
+
+    M1   = MatrixTranspose(M1)
+    XYZ  = MatrixInvert(M1)
+    mata = XYZ_to_RGB(Lk, mat, list=true)
+    RGB  = MatrixDot(XYZ, mata)
+
+    R = Expr(L,M,S, "x "+string(RGB[0])+" * y "+string(RGB[3])+" * + z "+string(RGB[6])+" * + ", optSingleMode=true)
+    G = Expr(L,M,S, "x "+string(RGB[1])+" * y "+string(RGB[4])+" * + z "+string(RGB[7])+" * + ", optSingleMode=true)
+    B = Expr(L,M,S, "x "+string(RGB[2])+" * y "+string(RGB[5])+" * + z "+string(RGB[8])+" * + ", optSingleMode=true)
+
+    CombinePlanes(R, G, B, planes="RGB") }
 
 
 ####### FUNCTION TRANSFORMS #######
@@ -1514,6 +1871,9 @@ function Matrix_fuzzy_search (string matrix) {
 \   : (matrix == "PAL"          ) ? "470BG"
 \   : (FindStr(matrix,"470" )>0 ) ? "470BG"
 \   : (FindStr(matrix,"625" )>0 ) ? "470BG"
+\   : (matrix == "OPP"          ) ? "OPP"
+\   : (matrix == "OOO"          ) ? "OPP"
+\   : (matrix == "Opponent"     ) ? "OPP"
 \   : Assert (false, "Unsupported Color Space.")
 
        matrix }
@@ -1558,8 +1918,8 @@ function Matrix_coef (string matrix) {
 \   : (matrix == "AWG"            ) ? 2
 \   :                                 1
 
-    #                    NTSC 1953/YCbCr   ITU-R BT.709/sRGB  ITU-R BT.601    Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Adobe Wide Gamut  Display-P3/D65P3  DCI-P3            AP1                AP0
-    #                    SMPTE 470M        IEC 61966-2-1      SMPTE 170M      SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  AWG               SMPTE RP 432-1    SMPTE RP 431-2    ACEScg             SMPTE ST 2065-1
+    #                    NTSC 1953/YCbCr   ITU-R BT.709/sRGB ITU-R BT.601     Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Adobe Wide Gamut   Display-P3/D65P3  DCI-P3            AP1                AP0
+    #                    SMPTE 470M        IEC 61966-2-1     SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg             SMPTE ST 2065-1
     pr = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],  [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.7347, 0.2653],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
     pg = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],  [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.1152, 0.8264],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
     pb = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],  [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.1566, 0.0177],  [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
@@ -1634,7 +1994,7 @@ function moncurve_coef (string matrix) {
             */
 
     #                                                SMPTE-C    / BT-2020           Y’PbPr 601              PAL/SECAM                      Rec.709  AdobeRGB  DCI-P3  AP1/AP0  Rec.709
-    #                       sRGB                     SMPTE 170M / BT-2020           SMPTE 240M              BT-470BG                       BT-1886  AdobeRGB  DCI-P3  ACES     BT-1886a
+    #                       sRGB                     SMPTE 170M / BT-2020           SMPTE 240M              BT-470BG                       BT-1886  AdobeRGB  DCI-P3  ACES/LIN BT-1886a
     t_gamma = Select(t_num, 2.40                   , 1/0.45                       , 1/0.45                , 2.80                         , 2.40   , 563/256., 2.60  , 1.0      , 2.60   )
     t_alpha = Select(t_num, 0.055                  , 0.099296826809442940347282759, 0.1115                , 0.099296826809442940347282759, 0      , 0       , 0     , 0        , 0      )
     t_beta  = Select(t_num, 0.00303993463977843    , 0.018053968510807807335869592, 0.02280681818181818182, 0.00410749063249639977       , 0      , 0       , 0     , 0        , 0.35/pow(0.35, 3.0-2.6))
@@ -1649,46 +2009,50 @@ function RGB_to_XYZ (clip rgb, string cspace, bool "list") {
 
     list = Default(list, false)
 
-    matrix =        cspace == "sRGB"   || cspace == "Rec709"                                            ?  \
-                                        [ 0.41241079568862915, 0.21264933049678802, 0.01933175697922707,   \
-                                          0.35758456587791443, 0.71516913175582890, 0.11919485777616501,   \
-                                          0.18045382201671600, 0.07218152284622192, 0.95039016008377080] : \
-                    cspace == "Rec601" || cspace == "240M"                                              ?  \
-                                        [ 0.39354196190834045, 0.21238772571086884, 0.0187400933355093,    \
-                                          0.36525884270668030, 0.70106136798858640, 0.1119341626763344,    \
-                                          0.19164848327636720, 0.08655092865228653, 0.9582424163818359]  : \
-                    FindStr(cspace, "ec2")>0                                                            ?  \
-                                        [ 0.63697350025177000, 0.24840137362480164, 0.00000000000000000,   \
-                                          0.15294560790061950, 0.67799961566925050, 0.04253686964511871,   \
-                                          0.11785808950662613, 0.03913172334432602, 1.06084382534027100] : \
-                    cspace == "DCI-P3"                                                                  ?  \
-                                        [ 0.44516983628273010, 0.20949168503284454, 0.00000000000000000,   \
-                                          0.27713435888290405, 0.72159516811370850, 0.04706055670976639,   \
-                                          0.17228263616561890, 0.06891304999589920, 0.90735518932342530] : \
-                    cspace == "Display-P3"                                                              ?  \
-                                        [ 0.48659050464630127, 0.22898375988006592, 0.00000000000000000,   \
-                                          0.26566821336746216, 0.69173991680145260, 0.04511347413063049,   \
-                                          0.19819043576717377, 0.07927616685628891, 1.04380297660827640] : \
-                    cspace == "AdobeRGB"                                                                ?  \
-                                        [ 0.57666999101638790, 0.29734000563621520, 0.02703000046312809,   \
-                                          0.18556000292301178, 0.62735998630523680, 0.07068999856710434,   \
-                                          0.18822999298572540, 0.07529000192880630, 0.99133998155593870] : \
-                    cspace == "AWG"                                                                     ?  \
-                                        [ 0.71650063991546630, 0.258728206157684300, 0.00000000000000000,  \
-                                          0.10102055221796036, 0.724682152271270800, 0.05121181160211563,  \
-                                          0.14677436649799347, 0.016589440405368805, 0.77389270067214970]: \
-                    cspace == "ACEScg"                                                                  ?  \
-                                        [ 0.66332850000000000, 0.27258800000000000, 0.00000000000000000,   \
-                                          0.13399166000000000, 0.67401860000000000, 0.00406035300000000,   \
-                                          0.15532595000000000, 0.05339329000000000, 1.00476470000000000] : \
-                    cspace == "ACES2065"                                                                ?  \
-                                        [ 0.95253682136535640000,  0.34396082162857056, 0.0000000000000000,\
-                                          0.00000000000000000000,  0.74020814895629880, 0.0000000000000000,\
+    matrix =        cspace == "sRGB"   || cspace == "Rec709"                                             ?  \
+                                        [ 0.41241079568862915, 0.21264933049678802, 0.01933175697922707,    \
+                                          0.35758456587791443, 0.71516913175582890, 0.11919485777616501,    \
+                                          0.18045382201671600, 0.07218152284622192, 0.95039016008377080]  : \
+                    cspace == "Rec601" || cspace == "240M"                                               ?  \
+                                        [ 0.39354196190834045, 0.21238772571086884, 0.0187400933355093,     \
+                                          0.36525884270668030, 0.70106136798858640, 0.1119341626763344,     \
+                                          0.19164848327636720, 0.08655092865228653, 0.9582424163818359]   : \
+                    FindStr(cspace, "ec2")>0                                                             ?  \
+                                        [ 0.63697350025177000, 0.24840137362480164, 0.00000000000000000,    \
+                                          0.15294560790061950, 0.67799961566925050, 0.04253686964511871,    \
+                                          0.11785808950662613, 0.03913172334432602, 1.06084382534027100]  : \
+                    cspace == "DCI-P3"                                                                   ?  \
+                                        [ 0.44516983628273010, 0.20949168503284454, 0.00000000000000000,    \
+                                          0.27713435888290405, 0.72159516811370850, 0.04706055670976639,    \
+                                          0.17228263616561890, 0.06891304999589920, 0.90735518932342530]  : \
+                    cspace == "Display-P3"                                                               ?  \
+                                        [ 0.48659050464630127, 0.22898375988006592, 0.00000000000000000,    \
+                                          0.26566821336746216, 0.69173991680145260, 0.04511347413063049,    \
+                                          0.19819043576717377, 0.07927616685628891, 1.04380297660827640]  : \
+                    cspace == "AdobeRGB"                                                                 ?  \
+                                        [ 0.57666999101638790, 0.29734000563621520, 0.02703000046312809,    \
+                                          0.18556000292301178, 0.62735998630523680, 0.07068999856710434,    \
+                                          0.18822999298572540, 0.07529000192880630, 0.99133998155593870]  : \
+                    cspace == "AWG"                                                                      ?  \
+                                        [ 0.71650063991546630, 0.258728206157684300, 0.00000000000000000,   \
+                                          0.10102055221796036, 0.724682152271270800, 0.05121181160211563,   \
+                                          0.14677436649799347, 0.016589440405368805, 0.77389270067214970]:  \
+                    cspace == "ACEScg"                                                                   ?  \
+                                        [ 0.66332850000000000, 0.27258800000000000, 0.00000000000000000,    \
+                                          0.13399166000000000, 0.67401860000000000, 0.00406035300000000,    \
+                                          0.15532595000000000, 0.05339329000000000, 1.00476470000000000]  : \
+                    cspace == "ACES2065"                                                                 ?  \
+                                        [ 0.95253682136535640000,  0.34396082162857056, 0.0000000000000000, \
+                                          0.00000000000000000000,  0.74020814895629880, 0.0000000000000000, \
                                           0.00010931033466476947, -0.08416896313428879, 1.0088251829147339]:\
-                    cspace == "470BG"                                                                   ?  \
-                                        [ 0.43057379126548767, 0.22201462090015410, 0.02018314599990845,   \
-                                          0.34154993295669556, 0.70665508508682250, 0.12955342233181000,   \
-                                          0.17832535505294800, 0.07133013755083084, 0.93918019533157350] : \
+                    cspace == "470BG"                                                                    ?  \
+                                        [ 0.43057379126548767, 0.22201462090015410, 0.02018314599990845,    \
+                                          0.34154993295669556, 0.70665508508682250, 0.12955342233181000,    \
+                                          0.17832535505294800, 0.07133013755083084, 0.93918019533157350]  : \
+                    cspace == "OPP"                                                                      ?  \
+                                        [ 0.93410000000000000, -1.70130000000000000, 0.16770000000000000,   \
+                                          0.94500000000000000,  0.49860000000000000, 0.05220000000000000,   \
+                                          0.81570000000000000,  0.30470000000000000, 1.94220000000000000] : \
                     Assert(false,"Unsupported Color Space.")
 
     list ? matrix : MatrixClip(rgb, matrix) }
@@ -1739,7 +2103,11 @@ function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
                                         [  3.0632193088531494, -0.96924340724945070,  0.06787130981683731,     \
                                           -1.3933255672454834,  1.87596678733825680, -0.22883385419845580,     \
                                           -0.4758017063140869,  0.04155505821108818,  1.06925129890441900]   : \
-                     Assert(false,"Unsupported Color Space.")
+                    cspace == "OPP"                                                                         ?  \
+                                        [  0.24300000000000000,  0.85600000000000000, -0.04400000000000000,    \
+                                          -0.45740000000000000,  0.42790000000000000,  0.02800000000000000,    \
+                                          -0.03030000000000000, -0.42660000000000000,  0.52900000000000000]  : \
+                    Assert(false,"Unsupported Color Space.")
 
     list ? matrix : MatrixClip(rgb, matrix) }
 
@@ -1803,17 +2171,27 @@ function c_adaptation (clip c, string "source", string "target", bool "tv_range"
 
 
 
-####### MATRIX FUNCTIONS #######
+####### ARRAY FUNCTIONS #######
+
+function ExtractClip ( clip clp) {
+
+    isRGB(clp) ? [ExtractR(clp),ExtractG(clp),ExtractB(clp)] : \
+                 [ExtractY(clp),ExtractU(clp),ExtractV(clp)] }
 
 
-function MatrixClip ( clip rgb, float_array mat) {
+function MatrixClip ( clip clp, float_array mat, string "fmt_o") {
+
+    rgb   = isRGB(clp)
+    fmt_o = Default(fmt_o, rgb ? "RGB" : "YUV")
+
+    CLPa = ExtractClip(clp)
 
     # clip · 3x3
-    R = DotClip(rgb,[mat[0],mat[3],mat[6]])
-    G = DotClip(rgb,[mat[1],mat[4],mat[7]])
-    B = DotClip(rgb,[mat[2],mat[5],mat[8]])
+    C = DotClipA(CLPa,[mat[0],mat[3],mat[6]])
+    L = DotClipA(CLPa,[mat[1],mat[4],mat[7]])
+    P = DotClipA(CLPa,[mat[2],mat[5],mat[8]])
 
-    CombinePlanes(R, G, B, planes="RGB", sample_clip=rgb) }
+    CombinePlanes(C, L, P, planes=fmt_o) }
 
 
 function MatrixDot ( float_array mat1, \
