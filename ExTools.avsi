@@ -4589,7 +4589,7 @@ function atanT(bool "expand", bool "negative") {
     ng = Default(negative, true) # also approximates for negative 'x'
 
     # atan(x) -> Taylor + polynomial + Taylor series piecewise function from -0.8 to inf
-    e8   = "swap dup dup * X2@ XX * X3@ 0.333333333 * - X2 X3 * X5@ 0.200001 * + X5 X2 * X7@ 0.142857143 * - X7 X2 * 0.111111111 * +  X7 X3 * 0.0909090909 * -" # from -0.8 to 0.8
+    e8   = "swap dup dup * X2@ XX * X3@ 0.333333333 * - X2 X3 * X5@ 0.2 * + X5 X2 * X7@ 0.142857143 * - X7 X2 * 0.111111111 * +  X7 X3 * 0.0909090909 * -" # from -0.8 to 0.8
     e16  = "0.021622 XX 1.00976 * A1@ + X2 0.245982 * A2@ -"               # up to 1.65
     els  = "pi 0.5 * 1 X3 3 * / 1 XX / 1 X5 5 * / 1 X7 7 * / + + - A7@ + " # from  1.65 onwards
     atpf = "XX@ dup 0.8 <= "+e8+" "+e16+" ? "
@@ -4666,6 +4666,7 @@ function cosT(bool "expand") {
 
     return ex ? cosTP : cosT }
 
+
 # Returns an approximation of sin(x) for 0 <= x <= pi for near 300% speed increase (before AVS+ 3.7.1 test 19)
 function sinT() {
 
@@ -4677,6 +4678,8 @@ function sinT() {
     return sinT }
 
 
+
+# Select Median
 # From 35 -included- onwards not optimized enough
 function sel_med(int n) {
 
