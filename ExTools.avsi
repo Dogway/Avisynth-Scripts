@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v5.9     (22-09-2021)              ##
+###           ExTools v6.0     (02-10-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -315,7 +315,6 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
 # lo=-1 | hi=-1 replaces lo|hi with source "x"
 #
 # Dependencies:
-#               GRunT          ('dynamic' and 'otsu' modes)
 #               ResizersPack   ('dynamic' and 'otsu' modes)
 #               TransformsPack (for RGB inputs)
 #
@@ -354,78 +353,79 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
         bnth = (rgb ? 255 : 219) / 10.
         off  =  rgb ?   0 :  16
 
-        ScriptClip(a,"""
-        thr1 =br.ex_binarize(bnth+off,true,UV=UV,fulls=fs)
-        bin1 =thr1.AverageLuma()
-        thr2 =bnth * 2 + off
-        thr2 =Expr(thr1,br,Format("range_max x - y {thr2} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
-        bin2 =thr2.AverageLuma()
-        thr3 =bnth * 3 + off
-        thr3 =Expr(thr2,br,Format("range_max x - y {thr3} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
-        bin3 =thr3.AverageLuma()
-        thr4 =bnth * 4 + off
-        thr4 =Expr(thr3,br,Format("range_max x - y {thr4} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
-        bin4 =thr4.AverageLuma()
-        thr5 =bnth * 5 + off
-        thr5 =Expr(thr4,br,Format("range_max x - y {thr5} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
-        bin5 =thr5.AverageLuma()
-        thr6 =bnth * 6 + off
-        thr6 =Expr(thr5,br,Format("range_max x - y {thr6} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
-        bin6 =thr6.AverageLuma()
-        thr7 =bnth * 7 + off
-        thr7 =Expr(thr6,br,Format("range_max x - y {thr7} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
-        bin7 =thr7.AverageLuma()
-        thr8 =bnth * 8 + off
-        thr8 =Expr(thr7,br,Format("range_max x - y {thr8} < range_max 0 ? * range_max /"), isy ? Undefined() : "")
-        bin8 =thr8.AverageLuma()
-        thr9 =bnth * 9 + off
-        thr10=br.Expr(Format("x {thr9} > range_max 0 ?"), isy ? Undefined() : "")
-        thr9 =Expr(thr8,thr10,"range_max x - range_max y - * range_max /", isy ? Undefined() : "")
-        bin9 =thr9.AverageLuma()
-        bin10=thr10.AverageLuma()
+        ScriptClip(a, function [a,br,bnth,off,in,sm,lo,hi,UV,bi,fs,isy] () {
 
-        hist = [bin1, bin2, bin3, bin4, bin5, bin6, bin7, bin8, bin9, bin10]
+            thr1 =br.ex_binarize(bnth+off,true,UV=UV,fulls=fs)
+            bin1 =thr1.AverageLuma()
+            thr2 =bnth * 2 + off
+            thr2 =ex_lutxy(thr1,br,Format("range_max x - y {thr2} < range_max 0 ? * range_max /"), UV=1, fulls=fs)
+            bin2 =thr2.AverageLuma()
+            thr3 =bnth * 3 + off
+            thr3 =ex_lutxy(thr2,br,Format("range_max x - y {thr3} < range_max 0 ? * range_max /"), UV=1, fulls=fs)
+            bin3 =thr3.AverageLuma()
+            thr4 =bnth * 4 + off
+            thr4 =ex_lutxy(thr3,br,Format("range_max x - y {thr4} < range_max 0 ? * range_max /"), UV=1, fulls=fs)
+            bin4 =thr4.AverageLuma()
+            thr5 =bnth * 5 + off
+            thr5 =ex_lutxy(thr4,br,Format("range_max x - y {thr5} < range_max 0 ? * range_max /"), UV=1, fulls=fs)
+            bin5 =thr5.AverageLuma()
+            thr6 =bnth * 6 + off
+            thr6 =ex_lutxy(thr5,br,Format("range_max x - y {thr6} < range_max 0 ? * range_max /"), UV=1, fulls=fs)
+            bin6 =thr6.AverageLuma()
+            thr7 =bnth * 7 + off
+            thr7 =ex_lutxy(thr6,br,Format("range_max x - y {thr7} < range_max 0 ? * range_max /"), UV=1, fulls=fs)
+            bin7 =thr7.AverageLuma()
+            thr8 =bnth * 8 + off
+            thr8 =ex_lutxy(thr7,br,Format("range_max x - y {thr8} < range_max 0 ? * range_max /"), UV=1, fulls=fs)
+            bin8 =thr8.AverageLuma()
+            thr9 =bnth * 9 + off
+            thr10=br.ex_lut(Format("x {thr9} > range_max 0 ?"), UV=1, fulls=fs)
+            thr9 =ex_lutxy(thr8,thr10,"range_max x - range_max y - * range_max /", UV=1, fulls=fs)
+            bin9 =thr9.AverageLuma()
+            bin10=thr10.AverageLuma()
 
-        for (t = 0, 9, 1) {
+            hist = [bin1, bin2, bin3, bin4, bin5, bin6, bin7, bin8, bin9, bin10]
 
-            B = 0  F = 0  Mb = 0 Mf = 0
-            for (i = 0, t, 1) {
-                B  = B  + hist[i]
-                Mb = Mb + hist[i] * i
+            for (t = 0, 9, 1) {
+
+                B = 0  F = 0  Mb = 0 Mf = 0
+                for (i = 0, t, 1) {
+                    B  = B  + hist[i]
+                    Mb = Mb + hist[i] * i
+                }
+                    Mb = B != 0 ? Mb / B : 0
+
+                for (i = t+1, 9, 1) {
+                    F  = F  + hist[i]
+                    Mf = Mf + hist[i] * i
+                }
+                    Mf = F != 0 ? Mf / F : 0
+
+                Wb = B / (B + F)
+                Wf = F / (B + F)
+
+                # Between class variance for each 't'
+                Eval(Format("th{t} = Wb * Wf * pow(Mb - Mf, 2) "))
             }
-                Mb = B != 0 ? Mb / B : 0
 
-            for (i = t+1, 9, 1) {
-                F  = F  + hist[i]
-                Mf = Mf + hist[i] * i
-            }
-                Mf = F != 0 ? Mf / F : 0
+            th = max(max(max(max(max(max(max(max(max(th0,th1),th2),th3),th4),th5),th6),th7),th8),th9)
+            th = th == th0 ? 1 : th == th1 ? 2 : th == th2 ? 3 : th == th3 ? 4 : th == th4 ? 5 : th == th5 ? 6 : th == th6 ? 7 : th == th7 ? 8 : th == th8 ? 9 : 10
+            th = (th*bnth+off)-bnth/2
 
-            Wb = B / (B + F)
-            Wf = F / (B + F)
+            ex_binarize(a,th,in,sm,"simple",lo,hi,isy ? 1 : UV,fs)
 
-            # Between class variance for each 't'
-            Eval(Format("th{t} = Wb * Wf * pow(Mb - Mf, 2) "))
-        }
-
-        th = max(max(max(max(max(max(max(max(max(th0,th1),th2),th3),th4),th5),th6),th7),th8),th9)
-        th = th == th0 ? 1 : th == th1 ? 2 : th == th2 ? 3 : th == th3 ? 4 : th == th4 ? 5 : th == th5 ? 6 : th == th6 ? 7 : th == th7 ? 8 : th == th8 ? 9 : 10
-        th = (th*bnth+off)-bnth/2
-
-        ex_binarize(a,th,in,sm,"simple",lo,hi,isy ? 1 : UV,fs)
-
-        """,args="a,br,bnth,off,in,sm,lo,hi,UV,bi,fs,isy",local=true)
+        } )
 
         rgb ? CombinePlanes(last, last, last, planes="RGB") : last
 
     } else if (md=="dynamic") {
 
-        ScriptClip(a,"""
+        ScriptClip(a, function [a,br,in,sm,lo,hi,UV,fs,isy] () {
 
-        th = (AverageLuma(br,-2)+AverageLuma(br,0)+AverageLuma(br,2))*0.333333333
-        ex_binarize(a,th,in,sm,"simple",lo,hi,isy ? 1 : UV,fs)
+            th = (AverageLuma(br,-2)+AverageLuma(br,0)+AverageLuma(br,2))*0.333333333
+            ex_binarize(a,th,in,sm,"simple",lo,hi,isy ? 1 : UV,fs)
 
-        """,args="a,br,in,sm,lo,hi,UV,fs,isy",local=true)
+        } )
 
         rgb ? CombinePlanes(last, last, last, planes="RGB") : last
 
@@ -711,24 +711,24 @@ function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int 
    }
 
     strv =       md == "weighted" ?                                                                                                                                  \
-                 fbox             ? "x[-1,1] x[1,1] x[-1,-1] x[1,-1] + + + 0.500001 * x[0,1] x[-1,0] x[1,0] x[0,-1] x[0,0] 2 * + + + + + 0.125001 *"               : \
+                 fbox             ? "x[-1,1] x[1,1] x[-1,-1] x[1,-1] + + + 0.5 * x[0,1] x[-1,0] x[1,0] x[0,-1] x[0,0] 2 * + + + + + 0.125 *"                       : \
                  fbox2            ? "x[0,1] x[-1,0] x[0,0] 3  * x[1,0] x[0,-1] + + + + 0.142857143 *"                                                              : \
-                 fbox3            ? "x[0,1] x[-1,0] x[0,0] 6  * x[1,0] x[0,-1] + + + + 0.100001    *"                                                              : \
-                 fbox4            ? "x[0,1] x[-1,0] x[0,0] 12 * x[1,0] x[0,-1] + + + + 0.062501    *"                                                              : \
+                 fbox3            ? "x[0,1] x[-1,0] x[0,0] 6  * x[1,0] x[0,-1] + + + + 0.1         *"                                                              : \
+                 fbox4            ? "x[0,1] x[-1,0] x[0,0] 12 * x[1,0] x[0,-1] + + + + 0.0625      *"                                                              : \
                  rv == 0.5        ? "x[0,1]  x[0,0] 5  * x[0,-1] + + 0.142857143 *"                                                                                : \
-                 rv == 0.3        ? "x[0,1]  x[0,0] 8  * x[0,-1] + + 0.100001    *"                                                                                : \
+                 rv == 0.3        ? "x[0,1]  x[0,0] 8  * x[0,-1] + + 0.1         *"                                                                                : \
                  rv == 0.15       ? "x[0,1]  x[0,0] 16 * x[0,-1] + + 0.055555555 *"                                                                                : \
                                     krnv + plsv + (rv > 7 ? string(divy)+" /" : string(1./divy)+" *") : ""
 
     strh =       md == "weighted" ?                                                                                                                                  \
                  rd == 0.5        ? "x[-1,0] x[0,0] 5  * x[1,0]  + + 0.142857143 *"                                                                                : \
-                 rd == 0.3        ? "x[-1,0] x[0,0] 8  * x[1,0]  + + 0.100001    *"                                                                                : \
+                 rd == 0.3        ? "x[-1,0] x[0,0] 8  * x[1,0]  + + 0.1         *"                                                                                : \
                  rd == 0.15       ? "x[-1,0] x[0,0] 16 * x[1,0]  + + 0.055555555 *"                                                                                : \
                                     krnh + plsh + (rd > 7 ? string(divx)+" /" : string(1./divx)+" *") : ""
 
 
-    str = fbox ? md == "rg19"     ?"x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + 0.125001 *"                                        : \
-                 md == "bokeh"    ?"x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 0.250001 *"                                                                                : \
+    str = fbox ? md == "rg19"     ?"x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + 0.125 *"                                           : \
+                 md == "bokeh"    ?"x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 0.25 *"                                                                                    : \
                  md == "mean"     ?"x[-1,1] x[0,1] x[1,1] x[-1,0] x[1,0] x[0,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + 0.111111111 *"                            : \
                  md == "trimmed"  ?"x[-1,1] A@ x[0,1] B@ x[1,1] C@ x[-1,0] D@ x[0,0] E@ x[1,0] F@ x[-1,-1] G@ x[0,-1] H@ x[1,-1] I@ + + + + + + + + 0.111111111 * * X^ " \
                                   +"F I  dup1 dup1 min F^ max I^ "                                                                                                   \
@@ -886,8 +886,8 @@ function gauss_constructor(float rad, bool vert) {
 
 
 # 100% Dither_bilateral16(radius=2,thr=10,flat=1.0,u=1,v=1) (216fps) # Output is dirtier though
+#  77% ex_bilateral(1,dejaggie=false)
 #  59% vsTBilateral(diameterY=3, sdevY=4, idevY=4.0, u=1, v=1)
-#  53% ex_bilateral(1,dejaggie=false)
 #  43% TBilateral(3,3,chroma=false)                                  # only supports 8-bits
 #
 function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", float "sthres", bool "dejaggie", int "UV", bool "fulls") {
@@ -926,8 +926,8 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
 
         Vv    = Vv + " " + V
         wg    = exp(pow(sqrt(pow(py,2))/st,2))
-        krnv2 = i != krnlrv ? Format(krnv2 + krnv1 + V + "@ "+Vc+" - "+dj+" {it} * dup * 0.500001 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv2
-        krnv3 = i == krnlrv ? Format(                V + "  "+Vc+" - "+dj+" {it} * dup * 0.500001 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv3
+        krnv2 = i != krnlrv ? Format(krnv2 + krnv1 + V + "@ "+Vc+" - "+dj+" {it} * dup * 0.5 * "+expT(5)+" {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv2
+        krnv3 = i == krnlrv ? Format(                V + "  "+Vc+" - "+dj+" {it} * dup * 0.5 * "+expT(5)+" {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnv3
         plsv  = i == 0 ? "" : plsv + " + " }
 
 
@@ -943,8 +943,8 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
 
         Vh    = Vh + " " + V
         wg    = exp(pow(sqrt(pow(px,2))/st,2))
-        krnh2 = i != krnlrd ? Format(krnh2 + krnh1 + V + "@ "+Vc+" - "+dj+" {it} * dup * 0.500001 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh2
-        krnh3 = i == krnlrd ? Format(                V + "  "+Vc+" - "+dj+" {it} * dup * 0.500001 * exp {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh3
+        krnh2 = i != krnlrd ? Format(krnh2 + krnh1 + V + "@ "+Vc+" - "+dj+" {it} * dup * 0.5 * "+expT(5)+" {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh2
+        krnh3 = i == krnlrd ? Format(                V + "  "+Vc+" - "+dj+" {it} * dup * 0.5 * "+expT(5)+" {wg} * 1 swap / "+V+" swap "+V+"@ * ") : krnh3
         plsh  = i == 0 ? "" : plsh + " + " }
 
     strv = "x[0,0] " + Vc + "^ " + krnv2 + krnv3 + plsv + Vv + plsv + "1 swap / *"
@@ -1026,7 +1026,7 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
 # modes:
 # SG  - Savitzky-Golay (S-G) smoothing filter (similar to Gaussian blur)
 # SNN - Symmetrical Nearest Neighbour based pair average
-function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", string "mode", int "UV", bool "fulls") {
+function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limit", string "mode", int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -1035,6 +1035,7 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", string "mo
     rd = Default(radius,  1)            # from 0 to 3
     rv = Default(radiusV, rd)           # from 0 to 3
     sh = Default(sharp, false)          # Sharp version of S-G mode
+    lm = Default(limit,    sh)          # Enable limiting for Sharp smoothing
     md = Default(mode,  "SG")
     UV = Default(UV,    rgb ? 3 : 1)
     fs = Default(fulls, rgb)
@@ -1070,7 +1071,7 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", string "mo
                           X          x[0,1]  B@ - abs X x[0,-1]  G@ - abs + N@ min
                           X          x[1,1]  C@ - abs X x[-1,-1] F@ - abs + O@ min
                           X          x[-1,0] D@ - abs X x[1,0]   E@ - abs +    min W^
-                          W M == A H + W N == B G + W O == C F + D E + ? ? ? 0.500001 *" : strv
+                          W M == A H + W N == B G + W O == C F + D E + ? ? ? 0.5 *"   : strv
 
     rv == 0 ?      a                                                                  : \
     isy     ? Expr(a,    strv                                                       ) : \
@@ -1079,7 +1080,9 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", string "mo
     rd == 0 || md == "SNN" ? last                                                     : \
     isy     ? Expr(last, strh                                                       ) : \
     UV == 1 ? Expr(last, strh, ""                                                   ) : \
-              Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
+              Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none")
+
+    lm && sh ? ex_luts(last,a,mode="clamp",pixels=ex_shape(min(1,rd),min(1,rv)),UV=uv) : last }
 
 
 
@@ -1118,9 +1121,9 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
               md == "fib"  ? floor(pow((1+sqrt(5))/2,i)/sqrt(5)+0.5)               : \
               md == "trib" ? floor(0.618033988749895*pow(1.839286755214161,i)+0.5) : \
                              i
-        krn =                         Format("x[-{px},{px}] x[{px},{px}] x[-{px},-{px}] x[{px},-{px}]         x[0,0] + + + + 0.200001 *")
+        krn =                         Format("x[-{px},{px}] x[{px},{px}] x[-{px},-{px}] x[{px},-{px}]         x[0,0] + + + + 0.2 *")
         pxc = max(0, px - 1)
-        krc = is444(a) || rgb ? krn : Format("x[-{pxc},{pxc}] x[{pxc},{pxc}] x[-{pxc},-{pxc}] x[{pxc},-{pxc}] x[0,0] + + + + 0.200001 *")
+        krc = is444(a) || rgb ? krn : Format("x[-{pxc},{pxc}] x[{pxc},{pxc}] x[-{pxc},-{pxc}] x[{pxc},-{pxc}] x[0,0] + + + + 0.2 *")
         str = str + Format(isy     ?   "Expr(  "+c+"     "+Chr(34)+krn+Chr(34)+"                                                                                        )"   : \
                            UV == 1 ?   "Expr(  "+c+"     "+Chr(34)+krn+Chr(34)+",               "+Chr(34)+" "+Chr(34)+"                                                 )"   : \
                                      """Expr("""+c+""" """+Chr(34)+krn+Chr(34)+""", ex_UVexpr("""+Chr(34)+krc+Chr(34)+""", {UV}, {bi}, {rgb}, {fs}), scale_inputs="none")""")+dot
@@ -1832,7 +1835,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 
                             x swap2 clip"                                                                                                                                     : \
                                                                                                                                                                                 \
-        mode == "CAM"    ? "x[0,2] A^ x[0,-2] G^ x[-2,0] C^ x[2,0] E^ x[-1,0] D@ x[1,0] F@ x[0,1] B@ x[0,-1] H@ x[0,0] X@ + + + + 0.200001 * M^
+        mode == "CAM"    ? "x[0,2] A^ x[0,-2] G^ x[-2,0] C^ x[2,0] E^ x[-1,0] D@ x[1,0] F@ x[0,1] B@ x[0,-1] H@ x[0,0] X@ + + + + 0.2 * M^
                             A B                   dup1 dup1 min swap2 max
                             C D                   dup1 dup1 min swap2 max
                             E F                   dup1 dup1 min swap2 max
@@ -1866,15 +1869,15 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                             X         x[1,1]  C@ - abs X x[-1,-1] F@ - abs O@ min Y^
                             X         x[-1,0] D@ - abs X x[1,0]   E@ - abs P@ min Z^
 
-                            L {th} < L M == H A ? X ? W {th} < W N == G B ? X ? Y {th} < Y O == F C ? X ? Z {th} < Z P == E D ? X ? + + + 0.250001 *")              : \
-                                                                                                                                                                      \
+                            L {th} < L M == H A ? X ? W {th} < W N == G B ? X ? Y {th} < Y O == F C ? X ? Z {th} < Z P == E D ? X ? + + + 0.25 *")                            : \
+                                                                                                                                                                                \
         mode == "kuwahara"?"x[-2,2] A@ x[-1,2] B@ x[0,2] C@ x[-2,1] F@ x[-1,1] G@ x[0,1] H@ x[-2,0] K@ x[-1,0] L@ x[0,0] M@ + + + + + + + + 0.111111111 * W^
                             C x[1,2] D@ x[2,2] E@ H x[1,1] I@ x[2,1] J@ M x[1,0] N@ x[2,0] O@                               + + + + + + + + 0.111111111 * WW^
                             K L M x[-2,-1] P@ x[-1,-1] Q@ x[0,-1] R@ x[-2,-2] U@ x[-1,-2] V@ x[0,-2] X@                     + + + + + + + + 0.111111111 * WWW^
                             A W   - dup * B W   - dup * C W   - dup * F W   - dup * G W   - dup * H W   - dup * K W   - dup * L W   - dup * M W   - dup * + + + + + + + + AA^
                             C WW  - dup * D WW  - dup * E WW  - dup * H WW  - dup * I WW  - dup * J WW  - dup * M WW  - dup * N WW  - dup * O WW  - dup * + + + + + + + + BB^
                             K WWW - dup * L WWW - dup * M WWW - dup * P WWW - dup * Q WWW - dup * R WWW - dup * U WWW - dup * V WWW - dup * X WWW - dup * + + + + + + + + CC^
-                            AA BB min CC min EE@ AA == W EE BB == WW EE CC == WWW M N O R x[1,-1] x[2,-1] X x[1,-2] x[2,-2] + + + + + + + + 0.111111111 * ? ? ?" : \
+                            AA BB min CC min EE@ AA == W EE BB == WW EE CC == WWW M N O R x[1,-1] x[2,-1] X x[1,-2] x[2,-2] + + + + + + + + 0.111111111 * ? ? ?"    : \
                                                                                                                                                                       \
         mode == "PWM"    ? "x[-1,1]  x[0,1]       dup1 dup1 min swap2 max
                             x[1,1]   x[-1,0]      dup1 dup1 min swap2 max
@@ -1903,9 +1906,9 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                             swap8  swap1  swap4   dup1 dup1 min swap2 max
                             swap5  swap8  swap6  swap7  swap5  swap6  swap1  swap5  swap1  swap4  swap3  swap2  swap1
                             A^ B^ C^ D^ E^ F^ G^ H^ I^
-                            A B C + + R@ dup D E F G H I + + + + + + 0.500001 * W@ - abs Z^
+                            A B C + + R@ dup D E F G H I + + + + + + 0.5 * W@ - abs Z^
                             R     D  +                                                  W  - abs Y^ R D E + + W - abs X^ R D E F + + + W - abs V^
-                            Z Y < B C + Y X < C D + X V < D E + E F + ? ? ? 0.500001 *"                                                                             : \
+                            Z Y < B C + Y X < C D + X V < D E + E F + ? ? ? 0.5 *"                                                                                  : \
                                                                                                                                                                       \
         mode == "AWM"  ?   "x[-1,1] A@ x[0,1] B@ x[1,1] C@ x[-1,0] D@ x[0,0] x[1,0] F@ x[-1,-1] G@ x[0,-1] H@ x[1,-1] I@ + + + + + + + + 0.111111111 * W^
                             F I                   dup1 dup1 min F^ max I^
@@ -2214,8 +2217,8 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                                                   dup1 dup1 max swap2 min
                             x swap2 clip"                                                                                                                           : \
                                                                                                                                                                       \
-        mode == "cartoon"? "x[-1,1] A@ x[1,-1] H@ + x[0,1] B@ x[0,-1] G@ + max x[1,1] C@ x[-1,-1] F@ + max x[-1,0] D@ x[1,0] E@ + max 0.500001 * "                    \
-                          +"A H +                          B G + min                  C F +            min         D E +          min 0.500001 * x swap2 clip"      : \
+        mode == "cartoon"? "x[-1,1] A@ x[1,-1] H@ + x[0,1] B@ x[0,-1] G@ + max x[1,1] C@ x[-1,-1] F@ + max x[-1,0] D@ x[1,0] E@ + max 0.5 * "                         \
+                          +"A H +                          B G + min                  C F +            min         D E +          min 0.5 * x swap2 clip"           : \
                                                                                                                                                                       \
         mode == "edgeS"  ? "x[-1,1] x[1,-1]  dup1 dup1 min swap2 max
                             x[0,1]  x[0,-1]  dup1 dup1 min swap2 max
@@ -2295,7 +2298,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                             x swap2 clip M@ x swap - abs {th} <= M x ?")                                                                                            : \
                                                                                                                                                                       \
         mode == "smart" ?   Format("
-                            x[-1,1] A@ x[0,1] B@ x[1,1] C@ x[-1,0] D@ x[1,0] E@ x[-1,-1] F@ x[0,-1] G@ x[1,-1] H@ + + + + + + + 0.125001 * W^
+                            x[-1,1] A@ x[0,1] B@ x[1,1] C@ x[-1,0] D@ x[1,0] E@ x[-1,-1] F@ x[0,-1] G@ x[1,-1] H@ + + + + + + + 0.125 * W^
                             A B                   dup1 dup1 min swap2 max
                             C D                   dup1 dup1 min swap2 max
                             E F                   dup1 dup1 min swap2 max
@@ -2314,7 +2317,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                             swap2                                     max
                                                   dup1 dup1 min swap2 max
                             E^ D^ H^
-                              W - dup * H W - dup * + 0.790001 *
+                              W - dup * H W - dup * + 0.79 *
                               x - abs {th} <= x D E clip x ?")                                                                                                      : \
                                                                                                                                                                       \
         mode == "CWM" ?    "x[-1,1] x[0,1]        dup1 dup1 min I^ max J^
@@ -2720,7 +2723,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                                AL == M BB AJ == K BB AK == L BB AI == J BB AG == H BB AH == I BB AF == G BB AD == E BB AE == F BB AC == D BB AA == B BB AB == C A ? ? ? ? ? ? ? ? ? ? ? ?
                             Z@ x swap - abs {th} > x Z ?")                                                                                                         : \
                                                                                                                                                                      \
-        mode == "GaussT5" ? "z a + 4 * y b x 6 * + + + 0.062501 * "+TGth                                                                                           : \
+        mode == "GaussT5" ? "z a + 4 * y b x 6 * + + + 0.0625 * "+TGth                                                                                             : \
                                                                                                                                                                      \
         mode == "medianT" ? "y z dup1 dup1 min swap2 max swap1 x max min"                                                                                          : \
                                                                                                                                                                      \
@@ -4068,13 +4071,13 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", bool "invert", int "
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "                                                                     \
                              +"G A B + + F - H - E - D G E + + C - H - B - max E H F + + B - A - G - B H C + + E - G - D - max max max "+th+""                                                         : \
                                                                                                                                                                                                          \
-          mode=="qprewitt"   ? "x[-1,-1] A^ x[0,-1] B^ x[1,-1] C^ x[-1,0] D^ x[1,0] E^ x[-1,1] F^ x[0,1] G^ x[1,1] H^ "                                                                                  \
+          mode=="qprewitt"  ? "x[-1,-1] A^ x[0,-1] B^ x[1,-1] C^ x[-1,0] D^ x[1,0] E^ x[-1,1] F^ x[0,1] G^ x[1,1] H^ "                                                                                   \
                              +"A D F + + C - E - H -  A B C + + F - G - H - max "+th+""                                                                                                                : \
                                                                                                                                                                                                          \
           mode=="hprewitt"  ? "x[1,1] A^ x[1,0] 2 * B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] 2 * E^ x[-1,-1] F^ x[0,1] 2 * G^ x[0,-1] 2 * H^ "                                                                   \
                              +"A B C + + D - E - F - A G D + + C - H - F - max F E D + + C - B - A - F H C + + D - G - A - max max "+th+""                                                             : \
                                                                                                                                                                                                          \
-          mode=="mtsobel"   ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 0.500001 * "+th+""                                                                            : \
+          mode=="mtsobel"   ? "x[1,0] A^ x[0,1] B^ x[-1,0] C^ x[0,-1] D^ A B + C - D - C D + A - B - max 0.5 * "+th+""                                                                                 : \
                                                                                                                                                                                                          \
           mode=="sobel"     ? "x[1,-1] C@ x[1,1] I@ + x[-1,-1] A@ - x[-1,1] G@ - x[1,0] x[-1,0] - 2 * + dup * G I + A - C - x[0,1] x[0,-1] - 2 * + dup * + sqrt "+th+""                                : \
                                                                                                                                                                                                          \
@@ -4082,7 +4085,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", bool "invert", int "
                                                                                                                                                                                                          \
           mode=="frei-chen" ? "x[1,1] C@ x[1,-1] H@ + x[-1,1] A@ - x[1,0] x[-1,0] - 1.414213562 * + x[-1,-1] F@ - dup * F H + C - A - x[0,-1] x[0,1] - 1.414213562 * + dup * + sqrt "+th+""            : \
                                                                                                                                                                                                          \
-          mode=="roberts"   ? "x[0,0] A^ x[1,0] 0.500001 * B^ x[0,1] 0.500001 * C^ A B - C - B A - C + max "+th+""                                                                                     : \
+          mode=="roberts"   ? "x[0,0] A^ x[1,0] 0.5 * B^ x[0,1] 0.5 * C^ A B - C - B A - C + max "+th+""                                                                                               : \
                                                                                                                                                                                                          \
           mode=="kayyali"   ? "x[1,1] 3 * A^ x[-1,1] 3 * B^ x[-1,-1] 3 * C^ x[1,-1] 3 * D^ B A - C + D - A B - C - D + max "+th+""                                                                     : \
                                                                                                                                                                                                          \
@@ -4092,20 +4095,20 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", bool "invert", int "
                                                                                                                                                                                                          \
           mode=="FDoG"      ? "x[-2,2] A^ x[-1,2] B^ x[0,2] C^ x[1,2] D^ x[2,2] E^ x[-2,1] F^ x[-1,1] 2 * G^ x[0,1] H^ x[1,1] 2 * I^ x[2,1] J^ x[-2,0] K^ x[-1,0] L^ "                                   \
                              +"x[1,0] N^ x[2,0] O^ x[-2,-1] P^ x[-1,-1] 2 * Q^ x[0,-1] R^ x[1,-1] 2 * S^ x[2,-1] T^ x[-2,-2] U^ x[-1,-2] V^ x[0,-2] W^ x[1,-2] X^ x[2,-2] Y^ "                           \
-                             +"A B Q U V G + + + + + D E I S X Y + + + + + - F P + J T + - 2 * + K L + N O + - 3 * + 0.500001 * dup * "                                                                  \
-                             +"Y P Q U S T + + + + + F G I J A E + + + + + - X V + B D + - 2 * + R W + H C + - 3 * + 0.500001 * dup * + sqrt "+th+""                                                   : \
+                             +"A B Q U V G + + + + + D E I S X Y + + + + + - F P + J T + - 2 * + K L + N O + - 3 * + 0.5 * dup * "                                                                       \
+                             +"Y P Q U S T + + + + + F G I J A E + + + + + - X V + B D + - 2 * + R W + H C + - 3 * + 0.5 * dup * + sqrt "+th+""                                                        : \
                                                                                                                                                                                                          \
           mode=="DoG"       ? "x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ "                               \
-                             +"F G H I J K L M A 4 * + + + + + + + + B C D E + + + Z@ 2 * + 0.050001 * A 2 * Z + 0.166666666 * - 25 * "+th+""                                                          : \
+                             +"F G H I J K L M A 4 * + + + + + + + + B C D E + + + Z@ 2 * + 0.05 * A 2 * Z + 0.166666666 * - 25 * "+th+""                                                              : \
                                                                                                                                                                                                          \
           mode=="DoB"       ? "x[-1,1] x[0,1] x[1,1] x[-1,0] x[0,0] x[1,0] x[-1,-1] x[0,-1] x[1,-1] + + + + + + + + Z@ "                                                                                 \
-                             +"x[-2,2] x[-1,2] x[0,2] x[1,2] x[2,2] x[-2,1] x[2,1] x[-2,0] x[2,0] x[-2,-1] x[2,-1] x[-2,-2] x[-1,-2] x[0,-2] x[1,-2] x[2,-2] + + + + + + + + + + + + + + + + 0.040001 * "\
+                             +"x[-2,2] x[-1,2] x[0,2] x[1,2] x[2,2] x[-2,1] x[2,1] x[-2,0] x[2,0] x[-2,-1] x[2,-1] x[-2,-2] x[-1,-2] x[0,-2] x[1,-2] x[2,-2] + + + + + + + + + + + + + + + + 0.04 * "    \
                              +"Z 0.111111111 * - 25 * "+th+""                                                                                                                                          : \
                                                                                                                                                                                                          \
           mode=="LoG"       ? "x[0,2] x[0,-2] x[2,0] x[-2,0] x[0,1] 2 * x[0,-1] 2 * x[1,0] 2 * x[-1,0] 2 * x[-1,1] x[-1,-1] x[1,1] x[1,-1] + + + + + + + + + + + x[0,0] 16 * - "+th+""                 : \
                                                                                                                                                                                                          \
           mode=="laplace"   ? "x[-1,1] B@ x[0,1] C@ x[1,1] D@ x[-1,0] E@ x[1,0] F@ x[-1,-1] G@ x[0,-1] H@ x[1,-1] I@ "                                                                                   \
-                             +"+ + + + + + + x[0,0] 8 * A@ - A B C D E F G H I + + + + + + + - max 0.125001 * "+th+""                                                                                  : \
+                             +"+ + + + + + + x[0,0] 8 * A@ - A B C D E F G H I + + + + + + + - max 0.125 * "+th+""                                                                                     : \
                                                                                                                                                                                                          \
           mode=="cartoon"   ? "x[1,-1] x[0,-1] 2 * - x[0,0] + "+th+""                                                                                                                                  : \
                                                                                                                                                                                                          \
@@ -4127,10 +4130,10 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", bool "invert", int "
                              +"F K O + + 2 * A T B G L P U + + + + + + + D - I - M - R - X - E - Y - J N S + + 2 * - "                                                                                   \
                              +"B C D + + 2 * A E F G H I J + + + + + + + O - P - Q - R - S - T - Y - U V X + + 2 * - max "                                                                               \
                              +"J N S + + 2 * D I M R X E Y + + + + + + + A - T - B - G - L - P - U - F K O + + 2 * - "                                                                                   \
-                             +"U V X + + 2 * O P Q R S T Y + + + + + + + A - E - F - G - H - I - J - B C D + + 2 * - max max 0.200001 * "+th+""                                                        : \
+                             +"U V X + + 2 * O P Q R S T Y + + + + + + + A - E - F - G - H - I - J - B C D + + 2 * - max max 0.2 * "+th+""                                                             : \
                                                                                                                                                                                                          \
-          mode=="Std"       ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ A B C D E F G H + + + + + + + 0.125001 * J^ "                                       \
-                             +"A J - dup * B J - dup * C J - dup * D J - dup * E J - dup * F J - dup * G J - dup * H J - dup * + + + + + + + 0.125001 * sqrt 8 * "+th+""                               : \
+          mode=="Std"       ? "x[1,1] A^ x[1,0] B^ x[1,-1] C^ x[-1,1] D^ x[-1,0] E^ x[-1,-1] F^ x[0,1] G^ x[0,-1] H^ A B C D E F G H + + + + + + + 0.125 * J^ "                                          \
+                             +"A J - dup * B J - dup * C J - dup * D J - dup * E J - dup * F J - dup * G J - dup * H J - dup * + + + + + + + 0.125 * sqrt 8 * "+th+""                                  : \
                                                                                                                                                                                                          \
                              ex_dlut(mode+th, bi, fs)
 
@@ -4165,6 +4168,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     md = md == "average"   ? "avg"          : \
          md == "maximum"   ? "max"          : \
          md == "minimum"   ? "min"          : \
+         md == "clamp"     ? "clp"          : \
          md == "range"     ? "rng"          : \
          md == "range-"    ? "rngmin"       : \
          md == "range+"    ? "rngmax"       : \
@@ -4177,6 +4181,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     op = md == "avg"   ? " + "              : \
          md == "max"   ? " max "            : \
          md == "min"   ? " min "            : \
+         md == "clp"   ? " max "            : \
          md == "rng"   ? " max "            : \
          md == "rngmin"? " min "            : \
          md == "rngmax"? " max "            : \
@@ -4219,13 +4224,14 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
         exprS = exprS + string(1./in) + " * XX^ " + expr + exprY + exprX
         exprM = nex ? " "                         : expr + exprY + exprX
 
-    expr = md == "rng"    ? px + expr + exprY + exprX + ReplaceStr(expr,  "max", "min") + " - " + exprf : \
-           md == "rngmin" ? px + expr + exprY + exprX + " X swap - "                            + exprf : \
-           md == "rngmax" ? px + expr + exprY + exprX + " X  - "                                + exprf : \
-           md == "avg"    ? px + expr + exprY + exprX + string(1./in) + " * "                   + exprf : \
-           md == "std"    ? px + exprS                + string(1./in) + " * sqrt "              + exprf : \
-           md == "med"    ? px + exprM                + med                                     + exprf : \
-                            px + expr + exprY + exprX                                           + exprf
+    expr = md == "clp"    ? px + " x " + expr + exprY + " min " + ReplaceStr(expr      +exprY, "max", "min") + " max " + exprf : \
+           md == "rng"    ? px + expr + exprY + exprX           + ReplaceStr(expr+exprX+exprY, "max", "min") + " - "   + exprf : \
+           md == "rngmin" ? px + expr + exprY + exprX + " X swap - "                                                   + exprf : \
+           md == "rngmax" ? px + expr + exprY + exprX + " X  - "                                                       + exprf : \
+           md == "avg"    ? px + expr + exprY + exprX + string(1./in) + " * "                                          + exprf : \
+           md == "std"    ? px + exprS                + string(1./in) + " * sqrt "                                     + exprf : \
+           md == "med"    ? px + exprM                + med                                                            + exprf : \
+                            px + expr + exprY + exprX                                                                  + exprf
 
     expr = ReplaceStr(expr, "  ", " ")
 
@@ -4568,6 +4574,107 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     msk     = CombinePlanes(mskYr, mskC, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
 
     return msk }
+
+
+
+
+####### OPERATOR APPROXIMATIONS #######
+
+
+# Returns the Taylor series for atan(x), actually Taylor + polynomial + Taylor piecewise function for a 400% speed increase
+# Use expand (Default true) to compute atan for larger values beyond -1.65 and 1.65
+function atanT(bool "expand", bool "negative") {
+
+    ex = Default(expand,   true) # approx. also includes from x=-1.65 and x=1.65 to infinity
+    ng = Default(negative, true) # also approximates for negative 'x'
+
+    # atan(x) -> Taylor + polynomial + Taylor series piecewise function from -0.8 to inf
+    e8   = "swap dup dup * X2@ XX * X3@ 0.333333333 * - X2 X3 * X5@ 0.200001 * + X5 X2 * X7@ 0.142857143 * - X7 X2 * 0.111111111 * +  X7 X3 * 0.0909090909 * -" # from -0.8 to 0.8
+    e16  = "0.021622 XX 1.00976 * A1@ + X2 0.245982 * A2@ -"               # up to 1.65
+    els  = "pi 0.5 * 1 X3 3 * / 1 XX / 1 X5 5 * / 1 X7 7 * / + + - A7@ + " # from  1.65 onwards
+    atpf = "XX@ dup 0.8 <= "+e8+" "+e16+" ? "
+    atp  = "XX@ dup 0.8 <= "+e8+" XX 1.65 >= "+els+" "+e16+" ? ?"
+
+    # for -X
+    er16 = "A2 A1 + 0.021622 -"                                            # up to -1.65
+    elrs = "A7 pi 0.5 * -"                                                 # from  -1.65 onwards
+    atnf = "XX@ dup -0.8 >= XX 0.8 <= & "+e8+" XX 0.8  >  "+e16+" "+er16+" ? ?"
+    atn  = "XX@ dup -0.8 >= XX 0.8 <= & "+e8+" XX 1.65 >= "+els+" XX -1.65 <= "+elrs+" XX 0.8 > "+e16+" "+er16+" ? ? ? ?"
+
+    return ex ? ng ? atn : atp : ng ? atnf : atpf }
+
+
+# Returns the Taylor series for atan2(x,y) for a 500% speed increase
+function atan2T(bool "expand") {
+
+    ex = Default(expand, true) # Enable for values beyond -1.65 and 1.65
+
+    # Taylor + polynomial + Taylor series piecewise function
+    atan2  = "ZZ@ dup abs / SX^ YY@ dup abs / SY@ dup * YY ZZ / "+atanT(ex)+" * 1 SX - 0.5 * SY dup dup * - 1 + * pi * +"
+
+    return atan2 }
+
+
+# Returns an approximation of exp(x)
+# Polynomial degree 11 starts to fail at value 212. Degree 11 slower than Expr() 'exp' by 10%
+function expT(int "degree") {
+
+    d = Default(degree, 11)
+    d = max(min(d,11),5)
+
+    # Maclaurin series - 11th degree polynomial. -3.55 <= x <= +3.4
+    exp11  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
+              X3 X2 * X5@ 0.008333333 * + X3 dup * 0.001388888 * + X4 X3 * 0.0001984127 * + X4 dup * 0.000024802 * +
+              X5 X4 * 0.000002756 * + X5 dup * dup XX * 39916800 / swap 3628800 / + +"
+
+    # Maclaurin series - 9th degree polynomial. -2.8 <= x <= +2.6
+    exp9  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
+             X3 X2 * X5@ 0.008333333 * + X3 dup * 0.001388888 * + X4 X3 * 0.0001984127 * + X4 dup * 0.000024802 * +
+             X5 X4 * 0.000002756 * + "
+
+    # Maclaurin series - 7th degree polynomial. -2 <= x <= +2
+    exp7  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
+             X3 X2 * 0.008333333 * + X3 dup * 0.001388888 * + X4 X3 * 0.0001984127 * +"
+
+    # Maclaurin series - 5th degree polynomial. -1.3 <= x <= +1.2
+    exp5  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * 0.041666666 * +
+             X3 X2 * 0.008333333 * +"
+
+    return d==5 ? exp5 : d==7 ? exp7 : d==9 ? exp9 : exp11 }
+
+
+# WIP. Returns an approximation of cos(x) for -1.7 <= x <= 1.7 for near 300% speed increase (before AVS+ 3.7.1 test 19)
+# For range 0 <= x <= pi use expand=true
+function cosT(bool "expand") {
+
+    ex = Default(expand, true)
+
+    # Bhaskara I
+    cosT  = "dup * X2@ 4 * pi dup * dup X2 + swap2 - swap /"
+
+    # Taylor series
+    # -1.7 <= x <= 1.7
+    # cosT  = "dup * X2@ 0.5 * 1 swap - X2 dup * X4@ 0.041666666 * + X4 X2 * 0.001388888 * -"
+    # 0 <= x <= pi
+    # cosTP = "pi 0.5 * - XX@ 0.00000367321 swap - XX dup * X2@ 0.0000018366 * + X2 XX * X3@ 0.166666666 * + X2 dup * 0.00000015305 * - X2 X3 * 0.008333333 * -"
+
+    # 0 <= x <= pi (by offset+invert: 0 <= x <= pi/2 )
+    # cosTP  = "1 2 sqrt / S@ dup X pi 0.25 * - X@ * - X dup * X2@ S 0.5 * * - X2 X * X3@ S 0.166666666 * * + X2 dup * S 0.041666666 * * +"  # this Taylor around pi/4, but worse result than below
+    cosTP  = "XX dup * X2@ 0.5 * 1 swap - X2 dup * X4@ 0.041574811029363 * + X4 X2 * 0.001292112506266 * -" # 0.00129 to fix discontinuity at pi/2
+    cosTP  = "XX@ pi 0.5 * <= "+cosTP+" dup pi swap - -1 * ? 0 max" # might need a '0 max' or '-1 max' at the end to avoid avs crash
+#    cosTP  = "XX@ pi 0.5 * <= "+cosTP+" 0 ? " # might need a '0 max' or '-1 max' at the end to avoid avs crash
+
+    return ex ? cosTP : cosT }
+
+# Returns an approximation of sin(x) for 0 <= x <= pi for near 300% speed increase (before AVS+ 3.7.1 test 19)
+function sinT() {
+
+    # Bhaskara I  ( 16x(pi-x) / 5pi^2-4x(pi-x) )
+    sinT  = "XX@ pi swap - P@ XX 4 * X4@ * pi dup * 5 * swap - X4 4 * P * swap /"
+    # Taylor series (14% slower than above but perfect match to sin(x) )
+    # sinT  = "pi 0.5 * swap - dup * X2@ 0.5 * 1 swap - X2 dup * X4@ 0.041666666 * + X4 X2 * 0.001388888 * -"
+
+    return sinT }
 
 
 # From 35 -included- onwards not optimized enough
