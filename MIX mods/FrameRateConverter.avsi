@@ -1,12 +1,12 @@
 # Frame Rate Converter mix mod
-# Version: 2.0.0  (20-09-2021)
+# Version: 2.1.0  (06-10-2021)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (2.0.0) (20-09-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools and AviSynth+ 3.5+)
+# Dogway (2.1.0) (06-10-2021) replaced masktools2 with internal HBD aware Expr() wrappers, + cosmetics. (Requires ExTools and AviSynth+ 3.5+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 ### Increases the frame rate with interpolation and fine artifact removal.
 ##
 ## YV12/YV24/Y8/YUY2
-## Requires: FrameRateConverter.dll, MaskTools2, MvTools2, RGTools, GRunT (for debug only), ExTools and Utils-r41
+## Requires: FrameRateConverter.dll, MaskTools2, MvTools2, RGTools and ExTools
 ##
 ## @ NewNum      - The new framerate numerator (if FrameDouble = false, default = 60)
 ##
@@ -270,7 +270,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     # Apply mask to Flow / EM
     EMdiff = CalcDiff ? OutFps ? EMdiff.ChangeFPS(NewNum, NewDen) : EMdiff : nop()
     Flow   = CalcDiff ? mt_merge(Flow, Flow2, EMdiff, luma=true, U=3,V=3) : Flow
-    EM     = CalcDiff ? mt_merge(EM, EM2, EMdiff, luma=true, U=3,V=3)     : EM
+    EM     = CalcDiff ? mt_merge(EM,     EM2, EMdiff, luma=true, U=3,V=3) : EM
 
 
     # Last mask frame is white. Replace with previous frame.
@@ -288,9 +288,9 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     # Expand 'circle' with binarize
     # Blur(0.6)
     EM = EM.BicubicResize(wb4, hb4)
-    \       .ex_lut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {MaskThrb} > range_max 0 ?"), fulls=fs)
-    \       .ex_blur(0.85)
-    \       .BicubicResize(w, h)
+    \      .ex_lut(Format("x[0,0] x[-1,0] max x[0,-1] max x[0,1] max x[1,0] max {MaskThrb} > range_max 0 ?"), fulls=fs)
+    \      .ex_blur(0.85)
+    \      .BicubicResize(w, h)
 
     # Mask: Stripes
     thb   = ex_bs(82,8,bi,fulls=fs)
@@ -299,7 +299,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     \      .ContinuousMask(22)
     EMstp = EMstp.BicubicResize(EMstp.Width()/2, EMstp.Height()/2)
     \      .ex_lut(Format("x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min x min {thb} > range_max 0 ?"), fulls=fs)
-    \      .ex_expand(2,mode="circle").ex_expand(2,mode="square").ex_expand(2,mode="circle").mt_expand()
+    \      .ex_expand(3,mode="circle").ex_expand(5,mode="ring")
     \      .ex_GaussianBlur(3.5)
     \      .BicubicResize(w, h)
 
@@ -309,7 +309,7 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     EMstp  =   OutFps ?  EMstp.ChangeFPS(NewNum, NewDen) : EMstp
     EMm    = mskY_to_YYY(Flow, EM,    true, false, 3, bi, fs)
     EMstpm = mskY_to_YYY(Flow, EMstp, true, false, 3, bi, fs)
-    M = Stp && OutFps ? ex_lutxyza(Flow, B, EMm, EMstpm, "x dup y - z 1 range_max / A@ * * - dup y - a A * * -", UV=3) : \
+    M = Stp && OutFps ? ex_lutxyza(Flow, B, EMm, EMstpm, "x dup y - z 1 range_max / A@ * * - dup y - a A * * -", UV=3, fulls=fs) : \
                OutFps ? mt_merge  (Flow, B, EM, luma=true, U=3,V=3) : Flow
 
     ## Apply BlendOver and SkipOver
@@ -343,9 +343,12 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
 
     # Debug: display AverageLuma values of Skip, Mask and Raw
     ShowRaw = OutFps ? OutRaw.ChangeFPS(NewNum, NewDen) : OutRaw
-    R = Debug ? R.ScriptClip("""Skip = EMskip.AverageLuma()
-    \           SkipSoft = BlendOver > 0 && Skip >= BlendOver && (Skip < SkipOver || SkipOver == 0)
-    \           Subtitle("BlkSize: " + string(BlkSize) +
+    R = Debug ? R.ScriptClip(function [EM,EMskip,EMstp,EMdiff,ShowRaw,BlkSize,SkipOver,BlendOver,CalcDiff,Stp] () {
+
+                Skip     = EMskip.AverageLuma()
+                SkipSoft = BlendOver > 0 && Skip >= BlendOver && (Skip < SkipOver || SkipOver == 0)
+
+                Subtitle("BlkSize: " + string(BlkSize) +
     \           (SkipSoft ? " - Blend" : "") +
     \           (SkipOver > 0 && Skip >= SkipOver ? " - Skip" : "") +
     \           "\nSkip:  " + string(Skip, "%.4f") +
@@ -353,7 +356,8 @@ function FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset"
     \           "\nMask: " + string(EM.AverageLuma, "%.4f") +
     \           (CalcDiff ? "\nDiff:    " + string(EMdiff.AverageLuma, "%.4f") : "") +
     \           (Stp ? "\nStripes: " + string(EMstp.AverageLuma, "%.4f") : "")
-    \           , lsp=0)""", args = "EM,EMskip,EMstp,EMdiff,ShowRaw,BlkSize,SkipOver,BlendOver,CalcDiff,Stp", Local=true) : R
+    \           , lsp=0)
+                } ) : R
     return R
 }
 
@@ -413,5 +417,5 @@ function StripeMask(clip C, int "blksize", int "blksizev", int "str", int "strf"
     mask2f = mask2.DeleteFrame(0).DuplicateFrame(C.FrameCount() - 2)
 
     return strf > 0 ?
-    \    ex_lutxyza(mask1, mask2, mask1f, mask2f, Format("x x y y z {strf} a {strf} 0 ? ? ? ?"), UV=1) :
-    \    ex_lutxy(mask1, mask2, "x x y y 0 ? ?", UV=1) }
+    \    ex_lutxyza(mask1, mask2, mask1f, mask2f, Format("x dup y dup z {strf} a {strf} 0 ? ? ? ?"), UV=1) :
+    \    ex_lutxy  (mask1, mask2, "x dup y dup 0 ? ?", UV=1) }
