@@ -12,13 +12,16 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v3.5 mix - 23 September 2021                              ###
+###                                v3.6 mix - 06 October 2021                                ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v3.6mx : - Add thSAD for MCompensate
+###          - Cosmetics
 ###
 ### v3.5mx : - Additional checker for creation of motion vectors if SS is used
 ###          - and repair its motion compensated vectors
@@ -142,10 +145,10 @@
 ### | DEPENDENCIES |
 ### +--------------+
 ###
-### -> Masktools2   (v2.2.26 or up)
+### -> Masktools2   (v2.2.28 or up)
 ### -> RgTools      (v1.2 or up)
 ### -> Zs_RF_Shared (v1.154)           [for Source]
-### -> ExTools      (v5.9)
+### -> ExTools      (v6.0 or up)
 ### -> SharpenersPack                  [for Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use avs+ then make sure it's the last one
@@ -479,7 +482,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v3.5mix"
+    version = "v3.6mix"
     preset  = Default(preset,"mid")
     num     = preset=="old" ? 0 : preset=="slow" ? 1 : preset=="mid" || preset=="medium" ? 2 : preset=="fast" ? 3 : 4
 
@@ -577,9 +580,9 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     \    : Eval("tmp."+preblur)
 
 
+    # Top is a 4-way sobel, Bottom a min/max
     rhlf  = ex_bs(128, 8, bi, fulls=fs)
     emHQn = ex_bs(32,  8, bi, fulls=fs)
-    # Top is a 4-way sobel, Bottom a min/max
     edge  = edgemaskHQ ? tmp.ex_edge(mode=Format("x[-1,1] A@ x[0,1] 2 * B@ x[1,1] C@ + + x[-1,-1] F@ - x[0,-1] 2 * G@ - x[1,-1] H@ - F G H + + A - B - C - max "                    \
                                                 +"A C - x[-1,0] 2 * D@ + x[1,0] 2 * E@ - F + H - C A - D - E + F - H + max max 2 * 1 {rhlf} / * 0.86 ^ 0 max range_max *"),  lo=0, hi=255, UV=1, fulls=fs)
     \     :              tmp.ex_edge(mode=Format("x[1,1] A@ x[1,0] B@ max x[1,-1] C@ max x[-1,1] D@ max x[-1,0] E@ max x[-1,-1] F@ max x[0,1] G@ max x[0,-1] H@ max x[0,0] O@ max " \
@@ -591,7 +594,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     dark_limit2   = pre.ex_inpand(2,mode="circle")   # for HD or ss_x >= 1.5 (Optional)
     bright_limit  = pre.mt_expand()
     bright_limit2 = pre.ex_expand(2,mode="circle")   # for HD or ss_x >= 1.5 (Optional)
-    minmaxavg     = Merge(dark_limit ,bright_limit, 0.5)
+    minmaxavg     = Merge(dark_limit, bright_limit, 0.5)
     minmaxavg2    = Merge(dark_limit2,bright_limit2,0.5)
     minmaxavg     = Lrad == 1 ? minmaxavg : mt_merge(minmaxavg,minmaxavg2,edgei)
 
@@ -642,8 +645,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
             cf1 =     super.Mrecalculate(cf1,     chroma=true, blksize = blcksze/2, overlap=blcksze/4, thSAD=110, scaleCSAD=scaleCSAD, truemotion=true, mt=true)
         }
 
-        cb1     = repair(pre.MCompensate(super, cb1, mt=true), pre, 3, -1).ConvertBits(bi, fulls=fs)
-        cf1     = repair(pre.MCompensate(super, cf1, mt=true), pre, 3, -1).ConvertBits(bi, fulls=fs)
+        cb1     = repair(pre.MCompensate(super, cb1, thSAD=220, mt=true), pre, 3, -1).ConvertBits(bi, fulls=fs)
+        cf1     = repair(pre.MCompensate(super, cf1, thSAD=220, mt=true), pre, 3, -1).ConvertBits(bi, fulls=fs)
         os      = ex_bs(overshoot,   8, bi, fulls=fs)      us     = ex_bs(undershoot,  8, bi, fulls=fs)
         os      = os  == 0 ? "" : Format("{os}  +")        us     = us  == 0 ? "" : Format("{us}  -")
         normalT = ex_lutxyza(tmp,normsharp,cb1,cf1,Format("y x z max a max "+os+" min x z min a min "+us+" max"),UV=1)
@@ -660,8 +663,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     normal2 = os10 ? zero2 : ex_clamp(normsharp, bright_limit2, dark_limit2, round(overshoot),  round(undershoot),  UV=1, fulls=fs)
 
 
-    # really like mode=5 and 6
-    limit1 = Lmode<0  ? normsharp.repair(isHD ? normsharp.repair(tmp,abs(Lmode),-1) : tmp, abs(Lmode),-1)
+    # really like Lmode=5 and 6
+    limit1 = Lmode <0 ? normsharp.repair(isHD ? normsharp.repair(tmp,abs(Lmode),-1) : tmp, abs(Lmode),-1)
     \      : Lmode==0 ? normsharp
     \      : Lmode==1 ? normal
     \      : Lmode==2 ?                          Lrad ==1 ? mt_merge(normsharp, normal,  edgei) : mt_merge(normsharp, normal2,  edgei)
@@ -696,6 +699,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     \   : (ss_x > 1.0 || ss_y > 1.0)? PP2.spline36resize(dest_x,dest_y)
     \   :                             PP2
 
+    ### CONTRA
     if (sode) {
 
         in  = sisupscale ?     input.spline36resize(dest_x, dest_y) : input
