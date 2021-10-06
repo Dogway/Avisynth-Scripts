@@ -11,7 +11,7 @@
 ###   SSIM                                                                ###
 ###   BSSIM                                                               ###
 ###   SSIM_downsample                                                     ###
-###   +Helper function                                                    ###
+###   +Helper functions                                                   ###
 ###                                                                       ###
 #############################################################################
 
@@ -243,7 +243,7 @@ function MDSI(clip clip1, clip clip2, int "down_scale", float "alpha", bool "sho
             propSet("_FrameMDSI", pow(AverageLuma(Expr(gcs, "x "+ String(AverageLuma(gcs)) +" - abs")), 0.25), 0)
         })
 
-    return show ? ScriptClip("""Subtitle(show_maps?ex_invert():last,"FrameMDSI: " + String(propGetFloat("_FrameMDSI")))""",args="show_maps") : last }
+    return show ? ScriptClip(function [show_maps] () { Subtitle(show_maps?ex_invert():last,"FrameMDSI: " + String(propGetFloat("_FrameMDSI"))) } ) : last }
 
 
 
