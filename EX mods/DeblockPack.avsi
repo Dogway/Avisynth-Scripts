@@ -40,6 +40,10 @@
 ### http://videoprocessing.forumer.com/viewtopic.php?p=413
 ### https://forum.doom9.org/showthread.php?p=751174#post751174
 ###
+### Dependencies:
+###             Deblock
+###             DCTFilter
+###
 ### Changelog:
 ###
 ### Changes 2005-11-17: (Didée)
@@ -597,7 +601,6 @@ function GenBlockMask(clip src) {
 
 
 ## fft3d deblock
-
 function DeblockMT(clip a, int "UV", bool "fulls") {
 
     rgb  = isRGB(a)
@@ -627,7 +630,6 @@ function MCDeblockMT(clip a, int "UV", bool "fulls") {
 
 ### Sames as DeblockMT but with temporal stabilization
 ### Soothe(last,MyDeblock(),keep=0)
-
 function Soothe(clip sharp, clip orig, int "keep", bool "fulls") {
 
     keep = Default(keep,   24)
@@ -642,10 +644,10 @@ function Soothe(clip sharp, clip orig, int "keep", bool "fulls") {
                                                  * range_half + X abs Y abs > x {KP}
                                                  * y 100 {KP} - * + 0.01 * x ? ? z swap - range_half +"),UV=1,fulls=fs) }
 
+
 ### As before but using Clense() (temporal median) instead of TemporalSoften() (temporal blur). Also handles chroma.
+### https://forum.doom9.org/showthread.php?p=1367334#post1367334
 ### SootheCl(last,MyDeblock(),keep=0,UV=3)
-
-
 function SootheCL(clip sharp, clip orig, int "keep", int "UV", bool "fulls") {
 
     keep = Default(keep,   24)
