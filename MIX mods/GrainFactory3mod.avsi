@@ -84,7 +84,7 @@
 ### |  REQUIREMENTS  |
 ### +----------------+
 ###
-### -> AddGrainC         [v1.8.2]
+### -> AddGrainC         [v1.8.3]
 ### -> RgTools           [v1.2]
 ### -> MaskTools2        [v2.2.28]
 ### -> neo_f3kdb         [r6]       (Optional)
