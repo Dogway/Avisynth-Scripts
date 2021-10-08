@@ -317,7 +317,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                          md == "medianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
                                             inter.ex_median(mode=md, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1, fulls=fs)
 
-                output = isMult || TS || (md == "medianTn") ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
+                output = isMult || TS || (md == "medianTn") ? output.selectevery(tr*2+1, tr)  : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
 
                 output = mfilterB ? ex_merge(output, mfilter, Mavg, luma=true, UV=plane0?3:1) : output
 
@@ -448,7 +448,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
           # Panel Separator
         pref   = Str == 1 && !chroma ? CombinePlanes(pref, inputP, planes=rgb?"RGB":"YUV", pixel_type=PixelType(input)) : pref
-        blkclp = BlankClip(isInter?assumeframebased(pref):pref,length=1,pixel_type=p_type,color=$161616)
+        blkclp = BlankClip(isInter?assumeframebased(pref):pref,length=1,pixel_type=p_type,color=$161616,channels=0)
                  \.crop(0,isInter?h/2%8:h%8,0,0,true).separatefields().assumeframebased().separatefields()
 
         Interleave(selecteven(blkclp).addborders(2,0,0,0,color=$7f7f7f).crop(0,0,-2,0,true),selectodd(blkclp))
@@ -658,7 +658,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 
 
 
-## ex_retinex()   by Dogway (15-09-2021)
+## ex_retinex()   by Dogway (08-10-2021)
 ##
 ## Multi-Scale Retinex
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
