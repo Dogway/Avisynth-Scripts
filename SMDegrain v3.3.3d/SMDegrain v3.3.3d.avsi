@@ -30,7 +30,7 @@
 ###              nnedi3                 (for subpixel=3)
 ###              LSFmod/SharpenersPack  (for Contrasharp)
 ###              Average                (for mfilter + (Contrasharp or mode!=MDegrain) )
-###              GradePack+ResizersPack (for Str=0.0~1.0 -ex_retinex()-)
+###              GradePack              (for Str=0.0~1.0 -ex_retinex()-)
 ###              RGTools                (for prefilter=0-2 and Contrasharp)
 ###              DFTTest                (for prefilter=3)
 ###              KNLMeansCL             (for prefilter=4)
