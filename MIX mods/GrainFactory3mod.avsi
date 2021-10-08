@@ -6,7 +6,7 @@
 ###                                            ###
 ###            v1.2 - 06 April 2012            ###
 ###               2020.04.06     by A.SONY.    ###
-###               2021.09.09 mix by Dogway     ###
+###               2021.10.08 mix by Dogway     ###
 ###                                            ###
 ##################################################
 ###
@@ -18,6 +18,11 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2021.10.08 mx
+###      - Rebase with latest ExTools
+###      - Rename m4() to avoid dup name
+###      - Disable blankclip audio track
 ###
 ### 2021.09.09 mx
 ###      - Remove Zs_RF_Shared dependency
@@ -81,9 +86,9 @@
 ###
 ### -> AddGrainC         [v1.8.2]
 ### -> RgTools           [v1.2]
-### -> MaskTools2        [v2.2.26]
+### -> MaskTools2        [v2.2.28]
 ### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v5.5.0]
+### -> ExTools           [v6.0.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -153,18 +158,18 @@ o    = clp
 ox   = o.width()
 oy   = o.height()
 oblr = o.removegrain(19,-1)
-sx1  = m4(ox/float(g1size))
-sy1  = m4(oy/float(g1size))
-sx1a = m4((ox+sx1)/2.0)
-sy1a = m4((oy+sy1)/2.0)
-sx2  = m4(ox/float(g2size))
-sy2  = m4(oy/float(g2size))
-sx2a = m4((ox+sx2)/2.0)
-sy2a = m4((oy+sy2)/2.0)
-sx3  = m4(ox/float(g3size))
-sy3  = m4(oy/float(g3size))
-sx3a = m4((ox+sx3)/2.0)
-sy3a = m4((oy+sy3)/2.0)
+sx1  = gr_m4(ox/float(g1size))
+sy1  = gr_m4(oy/float(g1size))
+sx1a = gr_m4((ox+sx1)/2.0)
+sy1a = gr_m4((oy+sy1)/2.0)
+sx2  = gr_m4(ox/float(g2size))
+sy2  = gr_m4(oy/float(g2size))
+sx2a = gr_m4((ox+sx2)/2.0)
+sy2a = gr_m4((oy+sy2)/2.0)
+sx3  = gr_m4(ox/float(g3size))
+sy3  = gr_m4(oy/float(g3size))
+sx3a = gr_m4((ox+sx3)/2.0)
+sy3a = gr_m4((oy+sy3)/2.0)
 
 b1   = g1shrp/(-50.0) + 1.0
 b2   = g2shrp/(-50.0) + 1.0
@@ -207,7 +212,7 @@ BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] {T3ah} * - {hlfr} *")
 
 #-----------------------------------------------------------------------------------
 
-grainlayer1 = blankclip(o, width=sx1, height=sy1, color_yuv=$808080)
+grainlayer1 = blankclip(o, width=sx1, height=sy1, color_yuv=$808080, channels=0)
 grainlayer1 = (g1str>0   || g1cstr>0)   ? grainlayer1.AddGrainC(g1str>0?g1str:0, g1cstr>0?g1cstr:0, 0, 0, constant=g1const)
 \           : grainLayer1
 grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g1str<=-1?Int(-g1str):0, grainC=g1cstr<=-1?Int(-g1cstr):0, dynamic_grain=!g1const, random_algo_grain=1)
@@ -215,7 +220,7 @@ grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer1 = (g1tex==0)
 \           ? grainlayer1
-\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
+\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=chroma?3:1, fulls=fs), UV=chroma?3:1, fulls=fs)
 
 grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
 \           : (g1size > 1.5) ? grainlayer1.bicubicresize(sx1a,sy1a, b1a,c1a).bicubicresize(ox,oy, b1a,c1a)
@@ -224,7 +229,7 @@ grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
 
 #-----------------------------------------------------------------------------------
 
-grainlayer2 = blankclip(o, width=sx2, height=sy2, color_yuv=$808080)
+grainlayer2 = blankclip(o, width=sx2, height=sy2, color_yuv=$808080, channels=0)
 grainlayer2 = (g2str>0   || g2cstr>0)   ? grainlayer2.AddGrainC(g2str>0?g2str:0, g2cstr>0?g2cstr:0, 0, 0, constant=g2const)
 \           : grainLayer2
 grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g2str<=-1?Int(-g2str):0, grainC=g2cstr<=-1?Int(-g2cstr):0, dynamic_grain=!g2const, random_algo_grain=1)
@@ -232,7 +237,7 @@ grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer2 = (g2tex==0)
 \           ? grainlayer2
-\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
+\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=chroma?3:1, fulls=fs), UV=chroma?3:1, fulls=fs)
 
 grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
 \           : (g2size > 1.5) ? grainlayer2.bicubicresize(sx2a,sy2a, b2a,c2a).bicubicresize(ox,oy, b2a,c2a)
@@ -240,7 +245,7 @@ grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
 
 #-----------------------------------------------------------------------------------
 
-grainlayer3 = blankclip(o, width=sx3, height=sy3, color_yuv=$808080)
+grainlayer3 = blankclip(o, width=sx3, height=sy3, color_yuv=$808080, channels=0)
 grainlayer3 = (g3str>0   || g3cstr>0)   ? grainlayer3.AddGrainC(g3str>0?g3str:0, g3cstr>0?g3cstr:0, 0, 0, constant=g3const)
 \           : grainLayer3
 grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g3str<=-1?Int(-g3str):0, grainC=g3cstr<=-1?Int(-g3cstr):0, dynamic_grain=!g3const, random_algo_grain=1)
@@ -248,7 +253,7 @@ grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer3 = (g3tex==0)
 \           ? grainlayer3
-\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=chroma?3:1, fulls=fs), chroma?3:1, fulls=fs)
+\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=chroma?3:1, fulls=fs), UV=chroma?3:1, fulls=fs)
 
 grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 \           : (g3size > 1.5) ? grainlayer3.bicubicresize(sx3a,sy3a, b3a,c3a).bicubicresize(ox,oy, b3a,c3a)
@@ -271,10 +276,10 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 
 #-----------------------------------------------------------------------------------
 
-result = o.ex_makediff(grainlayer, ochroma?3:2, fulls=fs)
-msk    = o.ScriptClip("ex_lut(str=string(AverageLuma()),UV=1)")
+result = o.ex_makediff(grainlayer, UV=ochroma?3:2, fulls=fs)
+msk    = o.ScriptClip("ex_lut(str=string(AverageLuma(last)),UV=1)")
 
-use_ALMask ? mt_merge(result, o, msk, luma=chroma, U=ochroma?3:2,V=ochroma?3:2) : result  }
+use_ALMask ? mt_merge(result, o, msk, luma=chroma, U=ochroma?3:2,V=ochroma?3:2) : result }
 
 
-function m4(float x) {return( x<16?16:int(round(x/4.0)*4)) }
+function gr_m4(float x) {return( x<16?16:int(round(x/4.0)*4)) }
