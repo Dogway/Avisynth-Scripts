@@ -276,6 +276,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         if (!GlobalO) {
 
             # Masking when mfilter is used
+
             if (MFilterB) {
                                MMin   = plane0 ? mfilter : mfilter.ExtractY()
                                MMskV  = isMult ? MMask(MMin, vmulti, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2) : nop()
@@ -284,8 +285,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                     Eval(      Format(  "Mb{i}c = isMult ? MMskV.SelectEvery(tr2,{i})   : MMask(MMin, bv{i}, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
                     Eval(      Format(  "Mf{i}c = isMult ? MMskV.SelectEvery(tr2,{i}+1) : MMask(MMin, fv{i}, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
                     Eval(      Format("""MMsk   = MMsk + ({i}!=1 ? "," : "") + string(Format("Mb{i}c, 1./(tr*2), Mf{i}c, 1./(tr*2)"))"""))
-                } }
+                }
 
+                Mavg   = isShrp || (md != "MDegrain") ? Eval("Average("+MMsk+")") : nop() }
 
             if (md != "MDegrain") {
 
@@ -317,7 +319,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 output = isMult || TS || (md == "medianTn") ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
 
-                output = mfilterB ? ex_merge(output, mfilter, Eval("Average("+MMsk+")"), luma=true, UV=plane0?3:1) : output
+                output = mfilterB ? ex_merge(output, mfilter, Mavg, luma=true, UV=plane0?3:1) : output
 
             } else {
 
@@ -352,7 +354,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 global cf1             = !isMult ? (isInter ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)""") : nop()
 
                 CClip = isCClip  ? (isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip)       : \
-                                    mfilterB && isShrp && SLimit ? ex_merge(inputP, mfilter, Eval("Average("+MMsk+")"), luma=true, UV=plane0?3:1) : inputP
+                                    mfilterB && isShrp && SLimit ? ex_merge(inputP, mfilter, Mavg, luma=true, UV=plane0?3:1)       : inputP
 
         }
 
