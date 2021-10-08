@@ -9,7 +9,7 @@
 ###                       v0.4.0d      by Dogway - 03 Sep  2011                              ###
 ###                       v3.1.2d      by Dogway - 21 July 2015                              ###
 ###                       v3.1.2.111s  by A.SONY.- 09 Febr 2021                              ###
-###                       v3.3.2d      by Dogway - 23 Sept 2021                              ###
+###                       v3.3.3d      by Dogway - 08 Oct  2021                              ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -30,20 +30,22 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,  \
                   int "device_id", bool "trymany", int "divide"   , int "srfilter", int "threads"      , bool "UHDhalf"     , bool "fulls") {
 
-    rgb    = isRGB(input)
     bi     = BitsPerComponent(input)
     w      = input.width ()
     h      = input.height()
     p_type = input.PixelType()
+    rgb    = FindStr(p_type, "RGB") > 0
 
     md           = Default( mode, "MDegrain")
+    tr           = Default( tr,       2 )
     rc           = LeftStr(md, 1) == "r"
     md           = rc ? MidStr(md, 2) : md
-    T3           = md == "medianT"  || md == "MedianST" || md == "ML3DEx"
-    T5           = md == "medianT5" || md == "STWM"     || md == "GaussT5"
+
+    md           = FindStr(md, "medianT") > 0 ? "medianTn" : md
+    T3           = md == "MedianST" || md == "ML3DEx"  || md == "Hybrid"   || md == "TL3D"
+    T5           = md == "STWM"     || md == "GaussT5" || md == "GaussST5" || md == "MedianSTS"
     TS           = md == "TemporalSoften"
 
-    tr           = Default( tr,       2 )
     tr           = T3 ? 1 : T5 ? 2 : TS ? min(7,tr) : tr
     thSAD        = Default( thSAD,  300 )
     thSAD2=thSAD/2
@@ -107,6 +109,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     U            = plane0 && plane!=2 ? 3 : 2
     V            = plane0 && plane!=1 ? 3 : 2
 
+
     scaleCSAD = is420(input)   ? isHD ? 1 :  0 : \
                 is422(input)   ? isHD ? 1 :  0 : \
                 is444(input)   ? isHD ? 1 :  1 : \
@@ -127,7 +130,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
     # Error Report
-                      Assert(IsVersionOrGreater(3,5,0),    "Update AviSynth+ version")
+                      Assert(IsVersionOrGreater(3,7,1),    "Update AviSynth+ version")
                       Assert(blksize==4 || blksize==8 || blksize==16 || blksize==32,"MAnalyse: Block's size must be 4x4, 8x4, 8x8, 16x2, 16x8, 16x16, 32x16, 32x32")
                       Assert(overlap <= blk2,              "Overlap must be at least half blksize or less")
                       Assert(overlap == overlap-overlap%2, "MAnalyse: overlap must be an even figure")
@@ -182,8 +185,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                             pref.ConditionalFilter(pref.ex_Luma_Rebuild(S0=1.0,uv=Chr,tv_range=tv,fulls=fs),        \
                                             pref, function[tv]() {propNumElements("_ColorRange") > 0 ? propGetInt("_ColorRange") == 1 : tv}, local=true)
 
-    pref8      = bi > 8  ? pref.ConvertBits(8, dither=-1, fulls=fs)             : pref
-    pref8      = UHDhalf ? pref8.BilinearResize(nw+nw%2, nh+nh%2, src_top=-0.5) : pref8  # todo: fix for MPEG1 to top_left (UHD default)
+    pref8      = bi > 8  ? pref.ConvertBits(8, dither=-1, fulls=fs)                      : pref
+    pref8      = UHDhalf ? pref8.BilinearResize(nw+nw%2, nh+nh%2, src_left=0, src_top=0) : pref8
 
 
     If (sShow ? false : !Show) {
@@ -264,7 +267,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 tr2    = tr*2
                 vmulti =                   !GlobalR ? super_search.MAnalyse( multi=true,overlap=    overlap,blksize=    blksize,   search=search,chroma=chroma,truemotion=truemotion, divide=divide, delta = isInter ? tr2 : tr, dct=dct,searchparam=searchparam,pelsearch=pelsearch, temporal=TS, trymany=trymany, scaleCSAD=scaleCSAD, mt=true) : vmulti
-                vmulti = RefineMotion   ? (!GlobalR ? MRecalculate (Recalculate, vmulti,overlap=halfoverlap,blksize=halfblksize, thSAD=halfthSAD,chroma=chroma,truemotion=truemotion, divide=divide,    tr = isInter ? tr2 : tr, dct=dct, scaleCSAD=scaleCSAD, mt=true) :                                                    vmulti) : vmulti
+                vmulti = RefineMotion   ? (!GlobalR ? MRecalculate (Recalculate, vmulti,overlap=halfoverlap,blksize=halfblksize, thSAD=halfthSAD,chroma=chroma,truemotion=truemotion, divide=divide,    tr = isInter ? tr2 : tr, dct=dct, scaleCSAD=scaleCSAD, mt=true) :                                                                  vmulti) : vmulti
                 vmulti =                   !GlobalR ? (isInter ? vmulti.SelectEvery (4, 2, 3) : vmulti) : vmulti.SelectRangeEvery (Rtr*2, tr2, 0, false)
                 vmulti =                   !GlobalR && UHDhalf ? vmulti.MScaleVect()          : vmulti
                                  }
@@ -272,34 +275,49 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         if (!GlobalO) {
 
+            # Masking when mfilter is used
+            if (MFilterB) {
+                               MMin   = plane0 ? mfilter : mfilter.ExtractY()
+                               MMskV  = isMult ? MMask(MMin, vmulti, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2) : nop()
+                               MMsk   = ""
+                for (i = 1, min(tr,7), 1) {
+                    Eval(      Format(  "Mb{i}c = isMult ? MMskV.SelectEvery(tr2,{i})   : MMask(MMin, bv{i}, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
+                    Eval(      Format(  "Mf{i}c = isMult ? MMskV.SelectEvery(tr2,{i}+1) : MMask(MMin, fv{i}, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
+                    Eval(      Format("""MMsk   = MMsk + ({i}!=1 ? "," : "") + string(Format("Mb{i}c, 1./(tr*2), Mf{i}c, 1./(tr*2)"))"""))
+                } }
+
+
             if (md != "MDegrain") {
+
 
                 for (i = 1, min(tr,7), 1) {
 
                     gcv = i==1 && isShrp && isCntr && !SLimit ? "global " : ""
 
-                    Eval(      Format(      "b{i}c = !isMult ? mfilter.MCompensate(super_render, bv{i}, thSAD={thSAD}, thSCD1={thSCD1}, thSCD2={thSCD2}, mt=true) : nop()"))
-                    Eval(      Format(      "f{i}c = !isMult ? mfilter.MCompensate(super_render, fv{i}, thSAD={thSAD}, thSCD1={thSCD1}, thSCD2={thSCD2}, mt=true) : nop()"))
-                    Eval(gcv + Format(TS  ? "b{i}c = b{i}c" : "b{i}c = repair(b{i}c, mfilter, 3, plane==0?-1:3)"))
-                    Eval(gcv + Format(TS  ? "f{i}c = f{i}c" : "f{i}c = repair(f{i}c, mfilter, 3, plane==0?-1:3)"))
+                    Eval(      Format(      "b{i}c = !isMult ? inputP.MCompensate(super_render, bv{i}, thSAD=thSAD, thSAD2=halfthSAD, thSCD1=thSCD1, thSCD2=thSCD2, mt=true) : nop()"))
+                    Eval(      Format(      "f{i}c = !isMult ? inputP.MCompensate(super_render, fv{i}, thSAD=thSAD, thSAD2=halfthSAD, thSCD1=thSCD1, thSCD2=thSCD2, mt=true) : nop()"))
+                    Eval(gcv + Format(TS  ? "b{i}c = b{i}c" : """b{i}c = ex_repair(b{i}c, inputP, "undot3", UV=U!=2||V!=2 ? 3 : 1)"""))
+                    Eval(gcv + Format(TS  ? "f{i}c = f{i}c" : """f{i}c = ex_repair(f{i}c, inputP, "undot3", UV=U!=2||V!=2 ? 3 : 1)"""))
 
                 }
 
-                cmulti=  isMult ? mfilter.MCompensate(super_render, vmulti, thSAD=thSAD, thSCD1=thSCD1, thSCD2=thSCD2, mt=true, center=true, tr=tr) : nop()
 
-                inter =  isMult ? cmulti
-                \ :     (tr==6) ? interleave( f6c, f5c, f4c, f3c, f2c, f1c, mfilter, b1c, b2c, b3c, b4c, b5c, b6c )
-                \ :     (tr==5) ? interleave(      f5c, f4c, f3c, f2c, f1c, mfilter, b1c, b2c, b3c, b4c, b5c      )
-                \ :     (tr==4) ? interleave(           f4c, f3c, f2c, f1c, mfilter, b1c, b2c, b3c, b4c           )
-                \ :     (tr==3) ? interleave(                f3c, f2c, f1c, mfilter, b1c, b2c, b3c                )
-                \ :     (tr==2) ? interleave(                     f2c, f1c, mfilter, b1c, b2c                     )
-                \ :               interleave(                          f1c, mfilter, b1c                          )
+                inter =  isMult ? inputP.MCompensate(super_render, vmulti, thSAD=thSAD, thSCD1=thSCD1, thSCD2=thSCD2, mt=true, center=true, tr=tr)
+                \ :     (tr==6) ? interleave( f6c, f5c, f4c, f3c, f2c, f1c, inputP, b1c, b2c, b3c, b4c, b5c, b6c )
+                \ :     (tr==5) ? interleave(      f5c, f4c, f3c, f2c, f1c, inputP, b1c, b2c, b3c, b4c, b5c      )
+                \ :     (tr==4) ? interleave(           f4c, f3c, f2c, f1c, inputP, b1c, b2c, b3c, b4c           )
+                \ :     (tr==3) ? interleave(                f3c, f2c, f1c, inputP, b1c, b2c, b3c                )
+                \ :     (tr==2) ? interleave(                     f2c, f1c, inputP, b1c, b2c                     )
+                \ :               interleave(                          f1c, inputP, b1c                          )
 
 
-                output = TS ? inter.TemporalSoften(tr,limit,plane==0?0:limitc,15,2)                            : \
-                              inter.ex_median(mode=md, recursion=rc, Y=plane!=3?3:1, UV=plane!=0?3:1, fulls=fs)
+                output = TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                             : \
+                         md == "medianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
+                                            inter.ex_median(mode=md, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1, fulls=fs)
 
-                output = isMult ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:TS?tr:1)*2+1,T5?2:TS?tr:1)
+                output = isMult || TS || (md == "medianTn") ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
+
+                output = mfilterB ? ex_merge(output, mfilter, Eval("Average("+MMsk+")"), luma=true, UV=plane0?3:1) : output
 
             } else {
 
@@ -328,11 +346,13 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         if (!GlobalO && isShrp) {
 
             !SLimit && (!isCntr || (isCntr && md == "MDegrain")) ? Eval("""
-            global Super           = super_render
-            global cb1             = !isMult ? (isInter ? bv2 : bv1) : vmulti.SelectEvery (tr2, 0)
-            global cf1             = !isMult ? (isInter ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)""") : nop()
 
-            CClip = isCClip ? (isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip) : inputP
+                global Super           = super_render
+                global cb1             = !isMult ? (isInter ? bv2 : bv1) : vmulti.SelectEvery (tr2, 0)
+                global cf1             = !isMult ? (isInter ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)""") : nop()
+
+                CClip = isCClip  ? (isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip)       : \
+                                    mfilterB && isShrp && SLimit ? ex_merge(inputP, mfilter, Eval("Average("+MMsk+")"), luma=true, UV=plane0?3:1) : inputP
 
         }
 
@@ -386,8 +406,6 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         ")) : nop()
 
 
-
-        # Output
 
         output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, overshoot=TS?100:0, fulls=fs) : \
                                       SLimit ? LSFmod(output,source=CClip,preset="slow",strength=Contrasharp,Smode=5,Lmode=0,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25,fulls=fs) : \
@@ -465,7 +483,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.3.2",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.3.3",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -668,7 +686,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
     lvl = Default(lvl,          1)         # 0: MSR output   1: Fixed levels output  2: auto-levels
     lo  = Default(lo, lvl==1?40:4)         # value in PC levels of low  level for normalization in lvl=1. For lvl=2 the divisor for the low level percentile (Reminder: crop black borders)
-    hi  = Default(hi,   255-lo/3.)         # value in PC levels of high level for normalization in lvl=1.
+    hi  = Default(hi,   255-lo/2.)         # value in PC levels of high level for normalization in lvl=1.
     r   = Default(sigma,        1)         # from 1 to 5 roughly (leave it at 1 for the most time)
     tv  = Default(tv_range, !rgb)          # range of input clip
     UV  = Default(UV,        rgb ? 3 : 1)  # Set to 3 to convert Chroma to PC range
@@ -680,10 +698,10 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
     y = a.ConvertBits(8, dither=-1, fulls=fs)
     b = y.ex_GaussianBlur(w*0.015 * r,pad=false).ConvertBits(bi, fulls=fs)
     c = y.ex_GaussianBlur(w*0.05  * r,pad=false).ConvertBits(bi, fulls=fs)
-    d = y.ScriptClip("ex_lut(y,string(rgb?y.AverageG():y.AverageLuma()),UV=rgb?3:1)",args="y,rgb").ConvertBits(bi, fulls=fs)
+    d = y.ScriptClip(function [y,rgb] () { ex_lut(y,string(rgb?y.AverageG():y.AverageLuma()),UV=rgb?3:1) } ).ConvertBits(bi, fulls=fs)
 
     rangePC =                        tv ? "ymin - ymax ymin - /" : "range_max /"
-    str     = Format("x "+rangePC+" A@ log y 0.200001 * z 0.100001 * a 0.700001 * + + "+rangePC+" A * log / 1 swap - range_max *")
+    str     = Format("x "+rangePC+" 0.01 + 0.99 * A@ log y 0.2 * z 0.1 * a 0.7 * + + "+rangePC+" A * log / 1 swap - range_max *")
     cstr    = rgb ? str : UV == 3 && tv ? "x cmin - range_max cmax cmin - / *" : ""
 
     MSR     = ex_lutxyza(a,b,c,d, str, cstr, UV=uv, fulls=fs)
@@ -706,24 +724,25 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
         f   = RR.selectevery(1,+1)
         f2  = RR.selectevery(1,+2)
 
-        TS  = Expr(RR,b2,b,f,f2,"x y z a b + + + + 0.200001 *")
+        TS  = Expr(RR,b2,b,f,f2,"x y z a b + + + + 0.2 *")
 
         b2  = TS.selectevery(1,-2)
         b   = TS.selectevery(1,-1)
         f   = TS.selectevery(1,+1)
         f2  = TS.selectevery(1,+2)
 
-        TS  = Expr(TS,b2,b,f,f2,"x y z a b + + + + 0.200001 *")
+        TS  = Expr(TS,b2,b,f,f2,"x y z a b + + + + 0.2 *")
 
-        ScriptClip(MSR,"
+        ScriptClip(MSR, function [MSR,TS,rgb,fs,lo] () {
 
-        pmin = rgb ? TS.GPlaneMin(1./lo) : \
-                     TS.YPlaneMin(1./lo)
+            pmin = rgb ? TS.GPlaneMin(1./lo) : \
+                         TS.YPlaneMin(1./lo)
 
-        pmax = rgb ? TS.GPlaneMax(0)     : \
-                     TS.YPlaneMax(0)
+            pmax = rgb ? TS.GPlaneMax(0)     : \
+                         TS.YPlaneMax(0)
 
-        pmin > 0 || pmax < 255 ? MSR.ex_levels(pmin,1.0,pmax,0,255,false,rgb?3:1,fs) : MSR",args="MSR,TS,rgb,fs,lo",local=true)
+            pmin > 0 || pmax < 255 ? MSR.ex_levels(pmin,1.0,pmax,0,255,false,rgb?3:1,fs) : MSR
+        } )
     }
 
     UV == 3 ? CombinePlanes(last, clp, planes=rgb?"RGB":"YUV", pixel_type=PixelType(clp)) : last }
