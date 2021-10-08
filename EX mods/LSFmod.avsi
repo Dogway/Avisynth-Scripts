@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v3.6 ex - 06 October 2021                                 ###
+###                                v3.6 ex - 08 October 2021                                 ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -21,6 +21,7 @@
 ### +-----------+
 ###
 ### v3.6ex : - Add thSAD for MCompensate
+###          - Fix ex_repair() calls
 ###          - Cosmetics
 ###
 ### v3.5ex : - Additional checker for creation of motion vectors if SS is used
@@ -148,7 +149,7 @@
 ### +--------------+
 ###
 ### -> Zs_RF_Shared (v1.154)           [for Source]
-### -> ExTools      (v6.0 or up)
+### -> ExTools      (v6.1 or up)
 ### -> SharpenersPack                  [for Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use avs+ then make sure it's the last one
@@ -645,8 +646,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
             cf1 =     super.Mrecalculate(cf1,     chroma=true, blksize = blcksze/2, overlap=blcksze/4, thSAD=110, scaleCSAD=scaleCSAD, truemotion=true, mt=true)
         }
 
-        cb1     = ex_repair(pre.MCompensate(super, cb1, thSAD=220, mt=true), pre, 3, UV=1).ConvertBits(bi, fulls=fs)
-        cf1     = ex_repair(pre.MCompensate(super, cf1, thSAD=220, mt=true), pre, 3, UV=1).ConvertBits(bi, fulls=fs)
+        cb1     = ex_repair(pre.MCompensate(super, cb1, thSAD=220, mt=true), pre, "undot3", UV=1).ConvertBits(bi, fulls=fs)
+        cf1     = ex_repair(pre.MCompensate(super, cf1, thSAD=220, mt=true), pre, "undot3", UV=1).ConvertBits(bi, fulls=fs)
         os      = ex_bs(overshoot,   8, bi, fulls=fs)      us     = ex_bs(undershoot,  8, bi, fulls=fs)
         os      = os  == 0 ? "" : Format("{os}  +")        us     = us  == 0 ? "" : Format("{us}  -")
         normalT = ex_lutxyza(tmp,normsharp,cb1,cf1,Format("y x z max a max "+os+" min x z min a min "+us+" max"),UV=1)
@@ -664,7 +665,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     # really like Lmode=5 and 6
-    limit1 = Lmode <0 ? normsharp.ex_repair(isHD ? normsharp.ex_repair(tmp,abs(Lmode), UV=1) : tmp, abs(Lmode),UV=1)
+    Lm     = string(max(abs(Lmode),1))
+    limit1 = Lmode <0 ? normsharp.ex_repair(isHD ? normsharp.ex_repair(tmp,"undot"+Lm, UV=1) : tmp, "undot"+Lm, UV=1)
     \      : Lmode==0 ? normsharp
     \      : Lmode==1 ? normal
     \      : Lmode==2 ?                          Lrad ==1 ? ex_merge(normsharp, normal,  edgei) : ex_merge(normsharp, normal2,  edgei)
@@ -710,7 +712,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
         shrpD  = ex_makediff(in, no,  UV=1, fulls=fs)
         srcDP  =  srcD.sh_Padding(4,4,4,4)
         shrpDP = shrpD.sh_Padding(4,4,4,4)
-        shrpL  = shrpDP.ex_repair(isHD?shrpDP.ex_repair(srcDP,max(abs(Lmode),1),-1):srcDP,max(abs(Lmode),1),UV=1).crop(4,4,-4,-4,true)
+        shrpL  = shrpDP.ex_repair(isHD?shrpDP.ex_repair(srcDP,"undot"+Lm,UV=1):srcDP,"undot"+Lm,UV=1).crop(4,4,-4,-4,true)
         out    = ex_lutxyz(in,shrpL,shrpD, "y range_half - X@ abs z range_half - Y@ abs < X Y ? x swap -", UV=1, fulls=fs)
     }
 
