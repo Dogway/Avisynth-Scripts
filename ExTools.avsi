@@ -1177,7 +1177,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ##  40% vsTCanny(6,sigma_vY=6,mode=-1,u=1,v=1) (true gaussian, fastest for mid sigma)
 ##  17% ex_blur(6,bifit=false,UV=1)            (true gaussian, best for low sigma)
 
-function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", int "Y", int "UV") {
+function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool "mblur", int "Y", int "UV") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -1185,6 +1185,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", int 
     rd   = Default(sigma,    10)
     rv   = Default(sigmaV,   rd)
     pad  = Default(pad,    true)
+    mb   = Default(mblur,  true) # minimum blur. Default true to swap to ex_blur() for low sigmas
     Y    = Default(Y,         3)
     UV   = Default(UV,        3) # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower (ExtractY()/CombinePlanes() was slower)
 
@@ -1205,14 +1206,14 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", int 
                             a.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) # extend borders before resizing
 
            (rad<0.01 && radv<0.01)       ? a
-    \    : (rd <2.00 && rv  <2.00)       ? a.ex_blur(rd,rv,false,Undefined(),Y,UV,!rgb)
+    \    : (rd <2.00 && rv  <2.00) && mb ? a.ex_blur(rd,rv,false,Undefined(),Y,UV,!rgb)
     \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize  (w0+p+p, h0+p+p, p=15)
     \                                    : B.BicubicResize(w0+p+p, h0+p+p, 1, 0) # SoftCubic100 (same as GaussResize(p=21) )
 
-    if (!(rd<2.00 && rv<2.00)) {
+    if (!((rd<2.00 && rv<2.00) && mb)) {
+       pad ? crop(p, p, -p, -p)         : last 
     Y  < 3 ? !isy ? mergechroma(a,last) : last : last
-    UV < 3 ? !isy ? mergeluma  (a,last) : last : last
-              pad ? crop(p, p, -p, -p)         : last } }
+    UV < 3 ? !isy ? mergeluma  (a,last) : last : last } }
 
 
 ##############################
