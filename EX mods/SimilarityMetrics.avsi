@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v1.0  (15-09-2021)                     ###
+###        Similarity Metrics Pack v1.1  (12-10-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -14,7 +14,6 @@
 ###   +Helper functions                                                   ###
 ###                                                                       ###
 #############################################################################
-
 
 
 /*
@@ -38,7 +37,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ 3.7.1+, ExTools.
+### Requirements - AviSynth+ 3.7.1+, fmtconv and ExTools.
 
 
 ### Usage ###
@@ -47,7 +46,7 @@ Ref:
 ###
 ## Parameters ##
 #---------------
-# clip1: The distorted clip, will be copied to output if "show_map" is False.
+# clip1: The distorted clip (YUV 32-bit float), will be copied to output if "show_map" is False.
 #---------------
 # clip2: Reference clip, must be of the same format and dimension as the "clip1".
 #---------------
@@ -64,7 +63,7 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Ported to ExTools (14% speed gain) by Dogway
+# Ported to ExTools (17% speed gain) by Dogway
 #---------------
 # Changed global scope of quality_map to local.
 #---------------
@@ -82,7 +81,7 @@ function GMSD(clip clip1, clip clip2, bool "downsample", float "c", bool "show_m
     downscl  = Default(downsample, true)
     show_map = Default(show_map,  false)
     show     = Default(show,       true)
-    fs       = Default(fulls,     false)
+    fs       = Default(fulls,      true)
 
     w1 = clip1.Width ()
     h1 = clip1.Height()
@@ -95,16 +94,11 @@ function GMSD(clip clip1, clip clip2, bool "downsample", float "c", bool "show_m
 
     clip1_src = clip1
 
-    clip1 = y ?
-    \ ExtractY(clip1).ConvertBits(32, fulls=fs) :
-    \ u ?
-    \ ExtractU(clip1).ConvertBits(32, fulls=fs) :
-    \ ExtractV(clip1).ConvertBits(32, fulls=fs)
-    clip2 = y ?
-    \ ExtractY(clip2).ConvertBits(32, fulls=fs) :
-    \ u ?
-    \ ExtractU(clip2).ConvertBits(32, fulls=fs) :
-    \ ExtractV(clip2).ConvertBits(32, fulls=fs)
+    clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
+    clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
+
+    clip1 = clip1.ConvertBits(32, fulld=fs)
+    clip2 = clip2.ConvertBits(32, fulld=fs)
 
     if (downscl)
     {
@@ -113,15 +107,19 @@ function GMSD(clip clip1, clip clip2, bool "downsample", float "c", bool "show_m
     }
 
 
-    quality_map = ex_lutxy(ex_edge(clip1, "qprewitt", 0, 255),  \
-                           ex_edge(clip2, "qprewitt", 0, 255), Format("x y * sqrt 2 * {c} + x y + {c} + /"))
-
+    # qprewitt with custom normalization
+    krn = ex_shape(1,center=false)
+    quality_map = ex_lutxy(ex_edge(clip1, krn+"A D F + + C - E - H - abs dup *
+                                               A B C + + F - G - H - abs dup * +", 0, 255),  \
+                           ex_edge(clip2, krn+"A D F + + C - E - H - abs dup *
+                                               A B C + + F - G - H - abs dup * +", 0, 255), Format("x y * sqrt 2 * {c} + x y + {c} + /"))
 
     last = show_map ?
-    \ ScriptClip(quality_map, """propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr("x "+ String(AverageLuma()) +" - x "+ String(AverageLuma()) +" - *"))), 0)""") :
+    \ ScriptClip(quality_map, """propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr("x "+ String(AverageLuma(last)) +" - x "+ String(AverageLuma(last)) +" - *"))), 0)""") :
     \ ScriptClip(clip1_src, function [quality_map] ()
         {
-            propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr(quality_map, "x "+ String(AverageLuma(quality_map)) +" - x "+ String(AverageLuma(quality_map)) +" - *"))), 0)
+            avg = String(AverageLuma(quality_map))
+            propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr(quality_map, "x "+ avg +" - x "+ avg +" - *"))), 0)
         })
 
 
@@ -151,7 +149,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ >=3.7.1, ExTools, TransformsPack.
+### Requirements - AviSynth+ 3.7.1+, ExTools, TransformsPack.
 
 
 ### Usage ###
@@ -160,7 +158,7 @@ Ref:
 ###
 ## Parameters ##
 #---------------
-# clip1: The first clip to be evaluated (32-bit RGB), will be copied to output.
+# clip1: The first clip to be evaluated (RGB 32-bit float), will be copied to output.
 #---------------
 # clip2: The second clip, to be compared with the first one.
 #---------------
@@ -175,7 +173,7 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Ported to ExTools and TransformsPack (44% speed gain) by Dogway
+# Ported to ExTools and TransformsPack (28% speed gain) by Dogway
 #---------------
 # Changed global scope of gcs to local.
 #---------------
@@ -213,13 +211,13 @@ function MDSI(clip clip1, clip clip2, int "down_scale", float "alpha", bool "sho
     down1 = [ExtractR(down1),ExtractG(down1),ExtractB(down1)]
     down2 = [ExtractR(down2),ExtractG(down2),ExtractB(down2)]
 
-    l1 = DotClipA(down1,[0.298967,0.586421,0.114612])
-    l2 = DotClipA(down2,[0.298967,0.586421,0.114612])
+    l1 = DotClipA(down1,[0.298967,0.586421,0.114612])  # Consider converting properly in linear light with greyscale_rgb()
+    l2 = DotClipA(down2,[0.298967,0.586421,0.114612])  # Consider converting properly in linear light with greyscale_rgb()
     f  = Merge(l1, l2)
 
-    g_r = ex_edge(l1, "qprewitt",0,255)
-    g_d = ex_edge(l2, "qprewitt",0,255)
-    g_f = ex_edge(f,  "qprewitt",0,255)
+    g_r = ex_edge(l1, "qprewitt", 0, 255)
+    g_d = ex_edge(l2, "qprewitt", 0, 255)
+    g_f = ex_edge(f,  "qprewitt", 0, 255)
 
     gs_hvs = ex_lutxyz(g_r, g_d, g_f, Format("x y * 2 * {c1} + x dup * X@ y dup * Y@ {c1} + + /
                                               x z * 2 * {c2} +         X  z dup * Z@ {c2} + + / +
@@ -233,7 +231,6 @@ function MDSI(clip clip1, clip clip2, int "down_scale", float "alpha", bool "sho
     gcs = ex_lutxy(gs_hvs, cs, Format("x {alpha} * y 1 {alpha} - * + 0 1 clip 0.25 ^"), UV=1)
 
 
-    # SHOW
     gs_hvs = show ? gs_hvs.Subtitle("gs_hvs",y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : gs_hvs
     cs     = show ?     cs.Subtitle("cs"    ,y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : cs
     gcs    = show ?    gcs.Subtitle("gcs"   ,y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : gcs
@@ -271,7 +268,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ 3.7.1+, vsTCanny.
+### Requirements - AviSynth+ 3.7.1+, vsTCanny, fmtconv and ExTools.
 
 
 ### Usage ###
@@ -280,7 +277,7 @@ Ref:
 ###
 ## Parameters ##
 #---------------
-# clip1: The distorted clip, will be copied to output if "show_map" is False.
+# clip1: The distorted clip (YUV 32-bit float), will be copied to output if "show_map" is False.
 #---------------
 # clip2: Reference clip, must be of the same format and dimension as the "clip1".
 #---------------
@@ -301,7 +298,7 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Sanitized by Dogway
+# Sanitized and optimized by Dogway (18% speed gain)
 #---------------
 # Changed global scope of ssim_map to local.
 #---------------
@@ -336,16 +333,11 @@ function vsSSIM(clip clip1, clip clip2, bool "downsample", float "k1", float "k2
 
     clip1_src = clip1
 
-    clip1 = y ?
-    \ ExtractY(clip1).ConvertBits(32, fulls=fs) :
-    \ u ?
-    \ ExtractU(clip1).ConvertBits(32, fulls=fs) :
-    \ ExtractV(clip1).ConvertBits(32, fulls=fs)
-    clip2 = y ?
-    \ ExtractY(clip2).ConvertBits(32, fulls=fs) :
-    \ u ?
-    \ ExtractU(clip2).ConvertBits(32, fulls=fs) :
-    \ ExtractV(clip2).ConvertBits(32, fulls=fs)
+    clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
+    clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
+
+    clip1 = clip1.ConvertBits(32, fulls=fs)
+    clip2 = clip2.ConvertBits(32, fulls=fs)
 
     if (downscl)
     {
@@ -353,23 +345,21 @@ function vsSSIM(clip clip1, clip clip2, bool "downsample", float "k1", float "k2
         clip2 = _IQA_downsample(clip2)
     }
 
-
     mu1     = vsTCanny(clip1, sigmay=stddev, mode=-1) # gaussian blur
     mu2     = vsTCanny(clip2, sigmay=stddev, mode=-1)
     mu1_sq  = ex_lut(mu1,      "x dup *")
     mu2_sq  = ex_lut(mu2,      "x dup *")
-    mu1_mu2 = ex_lutxy(mu1, mu2, "x y *")
     sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut(clip1,        "x dup *"), sigmay=stddev, mode=-1)
     sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut(clip2,        "x dup *"), sigmay=stddev, mode=-1)
     sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x y *"), sigmay=stddev, mode=-1)
 
     ssim_map = c1 > 0.0 && c2 > 0.0 ?
-    \ Expr(mu1_mu2, sigmay12_pls_mu1_mu2, mu1_sq, mu2_sq, sigmay1_sq_pls_mu1_sq, mu1_sq, sigmay2_sq_pls_mu2_sq, mu2_sq, Format("x 2 * {c1} + y x - 2 * {c2} + * z a + {c1} + b c - d e - + {c2} + * /")) :
-    \ Expr(Expr(mu1_sq, mu2_sq, Format("x y + {c1} +")), Expr(sigmay1_sq_pls_mu1_sq, mu1_sq, sigmay2_sq_pls_mu2_sq, mu2_sq, Format("x y - z a - + {c2} +")), mu1_mu2, sigmay12_pls_mu1_mu2, Format("'x y * X@ 0 > z 2 * {c1} + a z - 2 * {c2} + * X / x 0 = not y 0 = and z 2 * {c1} + x / 1 ? ?"))
+    \ Expr(sigmay12_pls_mu1_mu2, mu1_sq, mu2_sq, sigmay1_sq_pls_mu1_sq, mu1_sq, sigmay2_sq_pls_mu2_sq, mu2_sq, Format("y z * X@ 2 * {c1} + x X - 2 * {c2} + * y z + {c1} + a b - c d - + {c2} + * /")) :
+    \ Expr(Expr(mu1_sq, mu2_sq, Format("x y + {c1} +")), Expr(sigmay1_sq_pls_mu1_sq, mu1_sq, sigmay2_sq_pls_mu2_sq, mu2_sq, Format("x y - z a - + {c2} +")), mu1, mu2, sigmay12_pls_mu1_mu2, Format("'x y * X@ 0 > z a * 2 * A@ {c1} + b 2 * A - {c2} + * X / x 0 = not y 0 = and A {c1} + x / 1 ? ?"))
 
 
     last = show_map ?
-    \ ScriptClip(ssim_map, """propSet("_PlaneSSIM", AverageLuma(), 0)""") :
+    \ ScriptClip(ssim_map, """propSet("_PlaneSSIM", AverageLuma(last), 0)""") :
     \ ScriptClip(clip1_src, function [ssim_map] ()
         {
             propSet("_PlaneSSIM", AverageLuma(ssim_map), 0)
@@ -398,7 +388,7 @@ All the internal calculations are done at 32-bit float.
 */
 
 
-### Requirements - AviSynth+, avsresize, vsTCanny.
+### Requirements - AviSynth+, vsTCanny, and ExTools.
 
 
 ### Usage ###
@@ -501,15 +491,24 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
 
 
 # BSSIM_MOD() by zorr
-# Needs StainlessS's RT_Stats plugin for the standard deviation
+# Needs SSIM v0.25.1 (8-bit only), and StainlessS's RT_Stats for the standard deviation
 
-function BSSIM_MOD(clip source, clip filtered, float ssim) {
+function BSSIM_MOD(clip source, clip filtered) {
 
-    stddev_orig = RT_YPlaneStdev(source)
-    stddev_alt  = RT_YPlaneStdev(filtered)
+    blurred = source.ex_blur(1.2,bifit=false,UV=1)
 
-    mul = (2*stddev_orig*stddev_alt) / (stddev_orig*stddev_orig + stddev_alt*stddev_alt)
-    return mul*ssim }
+    scharr_orig    = ex_edge(source, "pscharr",0,255)
+    scharr_blurred = ex_edge(blurred,"pscharr",0,255)
+
+    final = ScriptClip(  function [source, blurred, scharr_orig, scharr_blurred] () {
+        ssim        = SSIM_FRAME(source, blurred)    # Requires SSIM v0.25.1 (8-bit only). Bug, triggers 'invalid argument' error.
+        stddev_orig = RT_YPlaneStdev(scharr_orig)    # scharr_orig
+        stddev_alt  = RT_YPlaneStdev(scharr_blurred) # scharr_alt
+
+        bssim = ssim * (2*stddev_orig*stddev_alt) / (stddev_orig*stddev_orig + stddev_alt*stddev_alt)
+        return source.SubTitle(Format("SSIM {ssim} BSSIM {bssim}"))
+    } ) }
+
 
 
 
