@@ -21,7 +21,7 @@ BernsteinFilter https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1
 GPA https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L315
 XDoG https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L417
 sbr_detail https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L453
-
+chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/bffb6fa6b9f78f2e02e309b6e8fb606b471b0958/lvsfunc/recon.py#L22
 */
 
 
@@ -29,7 +29,7 @@ sbr_detail https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a
 
 #######################################################################
 ###                                                                 ###
-###    yugefunc  v0.1 (06-09-2021)                                  ###
+###    yugefunc  v0.2 (13-10-2021)                                  ###
 ###                                                                 ###
 ###    Collection of VapourSynth functions ported to AviSynth+      ###
 ###                                                                 ###
@@ -124,7 +124,7 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    gd  = Default(guidance, Undefined)    # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
+    gd  = Default(guidance, Undefined())  # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
     r   = Default(radius,        2)       # from 0.0 to 3.9 (use_gauss = false steping is in integer increments)
     eps = Default(regulation, 0.01)
     rm  = Default(regulation_mode, 0)     # 0: Original Guided Filter, 1: Weighted Guided Image Filter, 2: Gradient Domain Guided Image Filter
@@ -147,27 +147,27 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     I_src = I
 
     # Fast guided filter's subsampling
-    r = fa ?        float(r) /s               : r
+    r = fa ?        float(r) /s                   : r
     p = fa ? p.RatioResize(1./s, "%", kernel=kn1) : p
     I = fa ? I.RatioResize(1./s, "%", kernel=kn1) : I
 
 
     function Filter(clip clp, float r, bool use_gauss, int UV) {
-        use_gauss ? clp.ex_blur(r<2?r:pow(2,r) , UV=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
+        use_gauss ? clp.ex_blur(r/2.*sqrt(2), bifit=false, UV=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
 
     function Filter_r1(clip clp,       bool use_gauss, int UV) {
-        use_gauss ? clp.removegrain(12,uv==3?12:-1)     : clp.ex_boxblur(1       ,mode="mean", UV=uv) }
+        use_gauss ? clp.removegrain(12,uv==3?12:-1)               : clp.ex_boxblur(1       ,mode="mean", UV=uv) }
 
 
     # Compute local linear coefficients.
     mean_p   =       Filter(p,r,ga,uv)
     mean_I   = isg ? Filter(I,r,ga,uv) : mean_p
-    I_square = Expr(I, "x dup *")
+    I_square = ex_lut(I, "x dup *", UV=uv)
     corr_I   =       Filter(I_square,r,ga,uv)
-    corr_Ip  = isg ? Filter(Expr(I, p, "x y *"),r,ga,uv) : corr_I
+    corr_Ip  = isg ? Filter(ex_lutxy(I, p, "x y *", UV=uv),r,ga,uv) : corr_I
 
-    var_I    =       Expr(corr_I,  mean_I,       "x y dup * -")
-    cov_Ip   = isg ? Expr(corr_Ip, mean_I, mean_p, "x y z * -") : var_I
+    var_I    =       ex_lutxy (corr_I,  mean_I,         "x y dup * -", UV=uv)
+    cov_Ip   = isg ? ex_lutxyz(corr_Ip, mean_I, mean_p, "x y z   * -", UV=uv) : var_I
 
 
     if (rm>0) {
@@ -176,7 +176,7 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
 
             mean_I_1 = Filter_r1(I,       ga,uv)
             corr_I_1 = Filter_r1(I_square,ga,uv)
-            var_I_1  = Expr(corr_I_1, mean_I_1, var_I, "x y dup * - z * sqrt")
+            var_I_1  = ex_lutxyz(corr_I_1, mean_I_1, var_I, "x y dup * - z * sqrt", UV=uv)
         }
 
         weight_in = (rm == 1) ? var_I : var_I_1
@@ -184,20 +184,20 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
 
             if (rm == 1) {
 
-                a = ScriptClip(weight_in,"""
+                a = ScriptClip(weight_in, function [weight_in, cov_Ip, var_I, eps] () {
                     # Edge-Aware Weighting, equation (5) in [3], or equation (9) in [4].
                     avg = 1. / weight_in.AverageLuma()
 
-                    Expr(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + dup 1 swap / swap {avg} * / + /"))
-                """,args="weight_in, cov_Ip, var_I, eps", local=true)
+                    ex_lutxyz(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + dup 1 swap / swap {avg} * / + /"), UV=uv)
+                } )
 
             } else {
 
-                a = ScriptClip(weight_in,"""
+                a = ScriptClip(weight_in, function [weight_in, cov_Ip, var_I, eps] () {
                     # Edge-Aware Weighting, equation (5) in [3], or equation (9) in [4].
                     avg = 1. / weight_in.AverageLuma()
 
-                    weight = Expr(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + dup 1 swap / swap {avg} * / + /"))
+                    weight = ex_lutxyz(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + dup 1 swap / swap {avg} * / + /"), UV=uv)
 
                     # Compute the optimal value of a of Gradient Domain Guided Image Filter, equation (12) in [4]
                     frameMean = weight.AverageLuma()
@@ -206,12 +206,12 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
                     alpha = frameMean
                     kk = -4 / (frameMin - alpha - 0.000001) # Add a small num to prevent divided by 0
 
-                    Expr(cov_Ip, weight_in, weight, var_I, Format("x {eps} 1 1 1 {kk} y {alpha} - * exp + / - * z / + a {eps} z / + / 0 max"))
+                    ex_lutxyza(cov_Ip, weight_in, weight, var_I, Format("x {eps} 1 1 1 {kk} y {alpha} - * exp + / - * z / + a {eps} z / + / 0 max"), UV=uv)
 
-             """,args="weight_in, cov_Ip, var_I, eps", local=true) }
+             } ) }
 
     } else {
-        a = Expr(cov_Ip, var_I, Format("x y {eps} + /"))   # regulation_mode == 0, Original Guided Filter
+        a = ex_lutxy(cov_Ip, var_I, Format("x y {eps} + /"), UV=uv)   # regulation_mode == 0, Original Guided Filter
     }
 
     b = Expr(mean_p, a, mean_I, "x y z * -")
@@ -225,18 +225,19 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     mean_b = fa ? mean_b.RatioResize(ratio, "%", kernel=kn2) : mean_b
 
     # Linear translation
-    q = Expr(mean_a, I_src, mean_b, "x y * z +")
+    q = ex_lutxyz(mean_a, I_src, mean_b, "x y * z +", UV=uv)
     q
 
     # Final bitdepth conversion
     if (bi != 32) {
         ConvertBits(16,dither=-1, fulls=fs)
         ConvertBits(bi,dither= 1, fulls=fs)
-    }  }
+    } }
 
 
 
 ##    ex_ANguidedblur() port from WolframRhodium's VapourSynth function in muvs
+##    (https://github.com/WolframRhodium/muvsfunc/wiki/muvs-tutorial#anisotropic-guided-filtering)
 ##
 ##    Anisotropic Guided Filtering
 ##
@@ -292,7 +293,7 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     isy = isy(clp)
     bi  = BitsPerComponent(clp)
 
-    gd  = Default(guidance, Undefined)    # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
+    gd  = Default(guidance, Undefined())  # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
     r   = Default(radius,   2)
     gm  = Default(gamma, 0.01)
     al  = Default(alpha,    false)
@@ -309,6 +310,7 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
 
     alpha = !al ? max(log10(gm) + 3, 0) : 1
 
+
     if (!isg) {
 
         X1 =                         clp.ex_boxblur(floor(r),mode="mean",UV=uv)
@@ -317,10 +319,10 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
 
     } else {
 
-        G1  =                             guidance.ex_boxblur(floor(r),mode="mean",UV=uv)
-        G2  =     ex_lut(guidance,"x dup *",UV=uv).ex_boxblur(floor(r),mode="mean",UV=uv)
-        X1  =                                  clp.ex_boxblur(floor(r),mode="mean",UV=uv)
-        XG  = ex_lutxy(clp,guidance,"x y *",UV=uv).ex_boxblur(floor(r),mode="mean",UV=uv)
+        G1  =                              guidance.ex_boxblur(floor(r),mode="mean",UV=uv)
+        G2  =     ex_lut(guidance,"x dup *" ,UV=uv).ex_boxblur(floor(r),mode="mean",UV=uv)
+        X1  =                                   clp.ex_boxblur(floor(r),mode="mean",UV=uv)
+        XG  = ex_lutxy(clp,guidance,"x y *" ,UV=uv).ex_boxblur(floor(r),mode="mean",UV=uv)
         W   = ex_lutxy(G1, G2, "y x dup * -",UV=uv)
     }
 
@@ -333,18 +335,19 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
                ex_lutxyz(A,X1,G1,"y x z * -",UV=uv)
 
     coeff = pow(2 * r + 1, 2)
-    div   = 1. / (6 / sqrt(3.141592653/2))
+    div   = sqrt(pi/2) / 6
+    # unsharp mask with custom divisor
     sigma = !sm ? ex_lut(isg?gd:clp,Format("x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 4 * + + + + x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 2 * - {div} *"),UV=uv) : nop()
 
-    W = Scriptclip(W,"""
+    W = Scriptclip(W, function [W,coeff,alpha,eps,sm,sigma,uv] () {
         avg = !sm ? string(pow(sigma.AverageLuma(),2))+" - 0 max" : ""
-        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"),UV=uv) """, args="W,coeff,alpha,eps,sm,sigma,uv", local=true)
+        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"),UV=uv, fulls=fs) } )
 
     WA = ex_lutxy(W,A,"x y *",UV=uv)
     WB = ex_lutxy(W,B,"x y *",UV=uv)
-    A = ga ? WA.ex_blur(r<1.6?r:r*2-0.25) : WA.ex_boxblur(floor(r),mode="mean")
-    B = ga ? WB.ex_blur(r<1.6?r:r*2-0.25) : WB.ex_boxblur(floor(r),mode="mean")
-    W = ga ?  W.ex_blur(r<1.6?r:r*2-0.25) :  W.ex_boxblur(floor(r),mode="mean")
+    A = ga ? WA.ex_blur(r/2.+0.25,bifit=false) : WA.ex_boxblur(floor(r),mode="mean")
+    B = ga ? WB.ex_blur(r/2.+0.25,bifit=false) : WB.ex_boxblur(floor(r),mode="mean")
+    W = ga ?  W.ex_blur(r/2.+0.25,bifit=false) :  W.ex_boxblur(floor(r),mode="mean")
 
     res = ex_lutxyza(!isg?clp:gd,A,B,W,"y x * z + a / 0 max",UV=uv)
 
