@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v1.1  (12-10-2021)                     ###
+###        Similarity Metrics Pack v1.3  (15-10-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -208,8 +208,8 @@ function MDSI(clip clip1, clip clip2, int "down_scale", float "alpha", bool "sho
     \ Bilinearresize(clip2, Int(RoundHalfToEven(Float(w2) / down_scale)), Int(RoundHalfToEven(Float(h2) / down_scale))) :
     \ clip2
 
-    down1 = [ExtractR(down1),ExtractG(down1),ExtractB(down1)]
-    down2 = [ExtractR(down2),ExtractG(down2),ExtractB(down2)]
+    down1 = ExtractClip(down1)
+    down2 = ExtractClip(down2)
 
     l1 = DotClipA(down1,[0.298967,0.586421,0.114612])  # Consider converting properly in linear light with greyscale_rgb()
     l2 = DotClipA(down2,[0.298967,0.586421,0.114612])  # Consider converting properly in linear light with greyscale_rgb()
@@ -298,7 +298,7 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Sanitized and optimized by Dogway (18% speed gain)
+# Sanitized and optimized by Dogway (21% speed gain)
 #---------------
 # Changed global scope of ssim_map to local.
 #---------------
@@ -345,16 +345,16 @@ function vsSSIM(clip clip1, clip clip2, bool "downsample", float "k1", float "k2
         clip2 = _IQA_downsample(clip2)
     }
 
-    mu1     = vsTCanny(clip1, sigmay=stddev, mode=-1) # gaussian blur
-    mu2     = vsTCanny(clip2, sigmay=stddev, mode=-1)
+    mu1     = vsTCanny(clip1, sigmay=stddev, sigma_vY=stddev, mode=-1) # gaussian blur
+    mu2     = vsTCanny(clip2, sigmay=stddev, sigma_vY=stddev, mode=-1)
     mu1_sq  = ex_lut(mu1,      "x dup *")
     mu2_sq  = ex_lut(mu2,      "x dup *")
-    sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut(clip1,        "x dup *"), sigmay=stddev, mode=-1)
-    sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut(clip2,        "x dup *"), sigmay=stddev, mode=-1)
-    sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x y *"), sigmay=stddev, mode=-1)
+    sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut(clip1,        "x dup *"), sigmay=stddev, sigma_vY=stddev, mode=-1)
+    sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut(clip2,        "x dup *"), sigmay=stddev, sigma_vY=stddev, mode=-1)
+    sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x y *"), sigmay=stddev, sigma_vY=stddev, mode=-1)
 
     ssim_map = c1 > 0.0 && c2 > 0.0 ?
-    \ Expr(sigmay12_pls_mu1_mu2, mu1_sq, mu2_sq, sigmay1_sq_pls_mu1_sq, mu1_sq, sigmay2_sq_pls_mu2_sq, mu2_sq, Format("y z * X@ 2 * {c1} + x X - 2 * {c2} + * y z + {c1} + a b - c d - + {c2} + * /")) :
+    \ Expr(sigmay12_pls_mu1_mu2, mu1_sq, mu2_sq, sigmay1_sq_pls_mu1_sq, sigmay2_sq_pls_mu2_sq, mu1, mu2, Format("c d * X@ 2 * {c1} + x X - 2 * {c2} + * y z + {c1} + a y - b z - + {c2} + * /")) :
     \ Expr(Expr(mu1_sq, mu2_sq, Format("x y + {c1} +")), Expr(sigmay1_sq_pls_mu1_sq, mu1_sq, sigmay2_sq_pls_mu2_sq, mu2_sq, Format("x y - z a - + {c2} +")), mu1, mu2, sigmay12_pls_mu1_mu2, Format("'x y * X@ 0 > z a * 2 * A@ {c1} + b 2 * A - {c2} + * X / x 0 = not y 0 = and A {c1} + x / 1 ? ?"))
 
 
@@ -363,10 +363,48 @@ function vsSSIM(clip clip1, clip clip2, bool "downsample", float "k1", float "k2
     \ ScriptClip(clip1_src, function [ssim_map] ()
         {
             propSet("_PlaneSSIM", AverageLuma(ssim_map), 0)
-        })
+        } )
 
 
     return show ? ScriptClip("""Subtitle("PlaneSSIM: " + String(propGetFloat("_PlaneSSIM")))""") : last }
+
+
+
+# BSSIM() by zorr
+# Adapted by Dogway for optimization and read '_PlaneSSIM' frame property
+#
+# PlaneSSIM = false -> Needs SSIM v0.25.1 (8-bit only)
+# PlaneSSIM = true  -> Needs frame property "_PlaneSSIM" by prior running vsSSIM()
+
+# Dependencies:
+#     ExTools
+#     StainlessS's RT_Stats for the standard deviation
+
+function BSSIM(clip source, clip blurred, bool "PlaneSSIM", bool "show", bool "fulls") {
+
+    show = Default(show,      false)
+    PS   = Default(PlaneSSIM, false)  # Set to True if the clip has the _PlaneSSIM frame property
+    fs   = Default(fulls,     false)
+
+    source8        =  source.ConvertBits(8, dither=-1, fulls=fs)
+    blurred8       = blurred.ConvertBits(8, dither=-1, fulls=fs)
+
+    scharr_orig    = ex_edge(source8,  "pscharr",0,255)
+    scharr_blurred = ex_edge(blurred8, "pscharr",0,255)
+
+    ScriptClip(source, function [source, source8, blurred8, scharr_orig, scharr_blurred, PS, show] () {
+
+        SSIM        = PS ? propGetFloat(source,"_PlaneSSIM") : \
+                           SSIM_FRAME(source8, blurred8) # only works on 8-bit
+        stddev_orig = RT_YPlaneStdev(scharr_orig)        # only works on 8-bit (output is also 8-bit)
+        stddev_alt  = RT_YPlaneStdev(scharr_blurred)     # only works on 8-bit (output is also 8-bit)
+
+        bssim = SSIM * (2*stddev_orig*stddev_alt) / (stddev_orig*stddev_orig + stddev_alt*stddev_alt)
+
+        propSet("_PlaneBSSIM", bssim, 0)
+
+        return show ? Subtitle("PlaneBSSIM: " + String(bssim)) : last } ) }
+
 
 
 
@@ -490,26 +528,6 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
 }
 
 
-# BSSIM_MOD() by zorr
-# Needs SSIM v0.25.1 (8-bit only), and StainlessS's RT_Stats for the standard deviation
-
-function BSSIM_MOD(clip source, clip filtered) {
-
-    blurred = source.ex_blur(1.2,bifit=false,UV=1)
-
-    scharr_orig    = ex_edge(source, "pscharr",0,255)
-    scharr_blurred = ex_edge(blurred,"pscharr",0,255)
-
-    final = ScriptClip(  function [source, blurred, scharr_orig, scharr_blurred] () {
-        ssim        = SSIM_FRAME(source, blurred)    # Requires SSIM v0.25.1 (8-bit only). Bug, triggers 'invalid argument' error.
-        stddev_orig = RT_YPlaneStdev(scharr_orig)    # scharr_orig
-        stddev_alt  = RT_YPlaneStdev(scharr_blurred) # scharr_alt
-
-        bssim = ssim * (2*stddev_orig*stddev_alt) / (stddev_orig*stddev_orig + stddev_alt*stddev_alt)
-        return source.SubTitle(Format("SSIM {ssim} BSSIM {bssim}"))
-    } ) }
-
-
 
 
 
@@ -524,7 +542,7 @@ function BSSIM_MOD(clip source, clip filtered) {
 This function is a port of the VapourSynth _IQA_downsample - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L3613
 
 Downsampler for Image Quality Assessment model.
-The “clip” is first filtered by a 2x2 average filter, and then down-sampled by a factor of 2.
+The “clip” is down-sampled by a factor of 2 with a 'Box' kernel.
 */
 
 
@@ -546,33 +564,62 @@ function _IQA_downsample(clip c)
 }
 
 
+
 /*
 Round half to even - https://en.wikipedia.org/wiki/Rounding#Round_half_to_even
 
-Returned value is float.
+### Changelog ###
+#---------------
+# Added output value type (int or float) and edited RoundHalfToEven_mod2() to accept any mod type
+#---------------
+# Initial version
 */
 
+# Looks bugged as -24.5 should return -24 and not -25
+function RoundHalfToEven(float n, string "type") {
 
-function RoundHalfToEven(float n)
-{
-    if (Frac(n) == 0.0) { return n }
-    else if (Frac(n) == 0.5)
-    {
+    tp  = Default(type, "int")
+    flt = tp != "int"
+
+    if (Frac(n) == 0.0) {
+
+        n = n
+
+    } else if (Frac(n) == 0.5) {
+
         f = Floor(n)
-        return f % 2 == 0 ? f : Ceil(n)
+        n = f % 2 == 0 ? f : Ceil(n)
+
+    } else {
+
+        n = Round(n)
     }
-    else { return Round(n) }
-}
 
-function RoundHalfToEven_mod2(val n)
-{
-    q = n / 2.0
+       return flt ? float(n) : round(n)
+    }
 
-    if (Frac(q) == 0.0) { return n }
-    else if (Frac(q) == 0.5)
-    {
+
+
+function RoundHalfToEven_mod(float n, int "mod", string "type") {
+
+    tp   = Default(type, "int")
+    mod  = float(Default(mod, 2))
+    flt = tp != "int"
+
+    q = n / mod
+
+    if (Frac(q) == 0.0) {
+
+        n = n
+
+    } else if (Frac(q) == 0.5) {
+
         f = Floor(q)
-        return f % 2 == 0 ? f * 2.0 : Ceil(q) * 2.0
+        n = f % 2 == 0 ? f * mod : Ceil(q) * mod
+
+    } else {
+        n = Round(q) * mod
     }
-    else { return Round(q) * 2.0 }
-}
+
+       return flt ? float(n) : round(n)
+    }
