@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v1.8  (02-10-2021)                             ###
+###        Sharpeners Pack v1.9  (18-10-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -123,7 +123,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     UV           = Default(UV,              rgb ? 3 : 1)
     fs           = Default(fulls,           rgb)
 
-    r_max    = 1./ex_bs(255,      8, bi, fulls=fs)
+    r_max    = 1. / ex_bs(255,    8, bi, fulls=fs)
     a_eps    = ex_bs(2.55,        8, bi, fulls=fs)
     a_offset = ex_bs(a_offset,    8, bi, fulls=fs)
     a_off_ep = a_offset - a_eps
@@ -549,8 +549,8 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
     bi  = BitsPerComponent(denoised)
     os  = ex_bs(os, 8, bi, fulls=fs)
 
-    isc = Eval("try { f1c.isclip() && b1c.isclip() } catch(error_msg) { false }") # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
-    isg = Eval("try { cb1.isclip() && cf1.isclip() } catch(error_msg) { false }") # if MC=true; otherwise reuse MAnalyze'd vectors to compensate ourselves
+    isc = MC ? Eval("try { f1c.isclip() && b1c.isclip() } catch(error_msg) { false }") : false # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
+    isg = MC ? Eval("try { cb1.isclip() && cf1.isclip() } catch(error_msg) { false }") : false # if MC=true; otherwise reuse MAnalyze'd vectors to compensate ourselves
 
 
     s   = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                                           # Damp down remaining spots of the denoised clip.
@@ -956,8 +956,8 @@ function FineSharp(clip c, float "sstr", int "mode", float "cstr", float "xstr",
 
 function NonlinUSM(clip o, float "str", float "z", float "pow", float "rad", float "ldmp", int "UV", bool "fulls") {
 
-    rgb  = isRGB(o)
-    bi   = BitsPerComponent(o)
+    rgb = isRGB(o)
+    bi  = BitsPerComponent(o)
 
     str = default(str,  0.7)   # strength
     z   = default(z,    6.0)   # zero point
@@ -1031,15 +1031,15 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
     bright_limit = soft ? clp.ex_boxblur(0.5,mode="weighted") : clp #.sharpen(1.0)#.blur(1.58)
 
     dark_limit   = bright_limit.ex_inpand(rad).ex_boxblur(rad,mode="weighted").mt_inflate().mt_deflate()
-    dark_limit   = ss ?   dark_limit.lanczosresize(round(ox*ss_x/8)*8,round(oy*ss_y/8)*8) : dark_limit
+    dark_limit   = ss ?   dark_limit.lanczosresize(nmod(ox*ss_x,8),nmod(oy*ss_y,8)) : dark_limit
 
     bright_limit = bright_limit.ex_expand(rad).ex_boxblur(rad,mode="weighted").mt_deflate().mt_inflate()
-    bright_limit = ss ? bright_limit.lanczosresize(round(ox*ss_x/8)*8,round(oy*ss_y/8)*8) : bright_limit
+    bright_limit = ss ? bright_limit.lanczosresize(nmod(ox*ss_x,8),nmod(oy*ss_y,8)) : bright_limit
 
 
     minmaxavg    = Merge(bright_limit,dark_limit)  # Pseudomedian
 
-    tmp          = ss ? clp.lanczosresize(round(ox*ss_x/8)*8,round(oy*ss_y/8)*8) : clp
+    tmp          = ss ? clp.lanczosresize(nmod(ox*ss_x,8),nmod(oy*ss_y,8)) : clp
 
     assign_dark  = ex_lutxy (tmp, minmaxavg, "y x - 0 < 0 range_max ?", fulls=fs)
 
@@ -1192,8 +1192,8 @@ function SSSharpFaster(clip c, float "str", int "hthr", int "hbias", bool "fulls
 ###
 ### https://forum.doom9.org/showthread.php?t=132330
 ###
-### Rad must be a multiple of 0.25 when ss=true, or 1 when ss=false. usable range is 0.25 to ~8,
-### using a rad that is not close to the radius of the bluring present in your source will
+### Rad must be a multiple of 0.25 when ss=true, or 1 when ss=false. Usable range is 0.25 to ~8.
+### Using a rad that is not close to the radius of the bluring present in your source will
 ### give suboptimal results. Higher iter, with lower strength will give more precise masking
 ### (less halos for same sharpening) but will be very slow.
 ###
@@ -1265,14 +1265,14 @@ function halomaskM(clip c, int "hthr", int "hbias", int "agmrad", bool "fulls") 
 
     hthr   = Default(hthr,   256)
     hbias  = Default(hbias, -128)
-    agmrad = Default(agmrad, 1)   # from 1 to 3 max
-    fs     = Default(fulls,  false)
+    agmrad = Default(agmrad,   1)   # from 1 to 3 max
+    fs     = Default(fulls, false)
 
-    bi    = BitsPerComponent(c)
-    hbias = ex_bs(hbias, 8, bi, fulls=fs)
+    bi     = BitsPerComponent(c)
+    hbias  = ex_bs(hbias, 8, bi, fulls=fs)
 
-    Mblur = (agmrad==1) ? c.removegrain(4,-1) : c.ex_median(agmrad==2 ? "median5" : "median7", UV=1, fulls=fs)
-    Gblur =               c.ex_boxblur(agmrad*2, mode="weighted", UV=1, fulls=fs)
+    Mblur  = (agmrad==1) ? c.removegrain(4,-1) : c.ex_median(agmrad==2 ? "median5" : "median7", UV=1, fulls=fs)
+    Gblur  =               c.ex_boxblur(agmrad*2, mode="weighted", UV=1, fulls=fs)
 
     ex_lutxy(Mblur, Gblur, Format("y x - abs {hthr} * {hbias} +"), UV=1, fulls=fs) }
 
@@ -1411,15 +1411,15 @@ Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int
 
 function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re", float "rev",  float "cstr", float "cstrv", bool "fulls") {
 
-    strh  = Default(Str, 4)
-    strv  = Default(strv, strh)
-    deh   = Default(de, 0.2)
-    dev   = Default(dev, deh)
-    reh   = Default(re, deh/2)
-    rev   = Default(rev, reh)
-    cstrh = Default(cstr, 0.5)
+    strh  = Default(Str,       4)
+    strv  = Default(strv,   strh)
+    deh   = Default(de,      0.2)
+    dev   = Default(dev,     deh)
+    reh   = Default(re,    deh/2)
+    rev   = Default(rev,     reh)
+    cstrh = Default(cstr,    0.5)
     cstrv = Default(cstrv, cstrh)
-    fs    = Default(fulls,  false)
+    fs    = Default(fulls, false)
 
     isy     = isy(c)
     bi      = BitsPerComponent(c)
@@ -1550,9 +1550,9 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
 function TMed2(Clip c, float "thresh", int "rad", int "mode", int "kernel", bool "fulls") {
 
     THR    = Default(thresh, 255)
-    RAD    = Default(rad, 1)
-    Mode   = Default(mode, 1)
-    kernel = Default(kernel, 1)
+    RAD    = Default(rad,      1)
+    Mode   = Default(mode,     1)
+    kernel = Default(kernel,   1)
     fs     = Default(fulls, false)
 
     bi    = BitsPerComponent(c)
@@ -1716,6 +1716,16 @@ function YAHR(clip clp, bool "fulls") {
 ##   - C
 ##       ref = plum_Basic(clp)
 ##       clp = plum_Final(clp, ref, plum_Super(clp, pel=2), plum_Super(ref, pel=2), pel=2)
+##
+##
+##    Dependencies:
+##                  ExTools
+##                  ResizersPack
+##                  manyPlus
+##                  KNLMeansCL
+##                  nnedi3
+##                  mvtools2
+##
 
 
 
@@ -1737,7 +1747,7 @@ function plum_Super(clip src, int "pel", bool "fulls") {
     AssumeFrameBased()
     rgb ? RGB2OPP() : isy() ? last : ExtractY()
 
-    Pad(64, 64, 64, 64)
+    PadBorders(64, 64, 64, 64)
     nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
 
     return last }
@@ -1746,13 +1756,13 @@ function plum_Super(clip src, int "pel", bool "fulls") {
 function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2", int "radius", float "wn", float "scale", int "cutoff") {
 
     strength   = Default(strength, 3.2)
-    a          = Default(a, 32)
-    h1         = Default(h1, 6.4)
-    h2         = Default(h2, 64.0)
-    radius     = Default(radius, 1)
-    wn         = Default(wn, 0.48)
-    scale      = Default(scale, 0.28)
-    cutoff     = Default(cutoff, 24)
+    a          = Default(a,         32)
+    h1         = Default(h1,       6.4)
+    h2         = Default(h2,      64.0)
+    radius     = Default(radius,     1)
+    wn         = Default(wn,      0.48)
+    scale      = Default(scale,   0.28)
+    cutoff     = Default(cutoff,    24)
 
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
@@ -1782,16 +1792,17 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     cutoff_1           = cutoff
     cutoff_2           = int(max(1.0, c2 * pow(cutoff, 2.0) * log(1.0 + 1.0 / (c2 * cutoff))) + 0.5)
     strength_floor     = floor(strength)
-    strength_ceil      = ceil(strength)
+    strength_ceil      =  ceil(strength)
 
-    function inline1(clip src, int a, float h1, float h2, int radius, float wn, int cutoff_1, float scale) {
-        sharp          = Deconvolution(src, radius, wn, int(a / 2 + 0.5), scale)
+    function inline(clip src, int a, float h1, float h2, int radius, float wn, int cutoff_1, float scale) {
+        sharp          = Deconvolution(src, radius, wn, int(a / 2. + 0.5), scale)
 #        sharp          = nnedi3_rpow2(sharp,rfactor=2,nns=4,nsize=0,qual=2,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
         sharp          = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
         ref            = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
         sharp          = NLErrors(ref, a, h1, sharp)
         dif            = ex_makediff(sharp, ref)
-        dif            = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
+#        dif            = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
+        dif            = GaussResize(dif, src.width(), src.height(), p=100) # like PointResize but with centered chroma
         sharp          = ex_adddiff(src, dif)
         sharp          = CutOff(src, sharp, cutoff_1, 0)
         local_error    = NLErrors(src, radius, h2, src)
@@ -1803,10 +1814,10 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
 
     sharp              = src
     for (i = 0, strength_floor, 1) {
-        sharp          = inline1(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
+        sharp          = inline(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
     }
     if (strength_floor != strength_ceil) {
-        sharp_ceil      = inline1(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
+        sharp_ceil      = inline(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
         sharp           = Merge(sharp, sharp_ceil, strength - strength_floor)
     }
     sharp_nr            = NLErrors(sharp, a, h3, sharp)
@@ -1816,17 +1827,17 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
 
 function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius", int "pel", int "sad", float "flexibility", int "strength", float "lstr", float "pstr", int "ldmp", int "cutoff", float "freq_margin", bool "fulls") {
 
-    strength    = Default(strength, 3.2)
-    radius      = Default(radius, 6)
-    pel         = Default(pel, 2)
-    sad         = Default(sad, 400)
+    strength    = Default(strength,     3.2)
+    radius      = Default(radius,         6)
+    pel         = Default(pel,            2)
+    sad         = Default(sad,          400)
     flexibility = Default(flexibility, 0.64)
-    lstr        = Default(lstr, 1.49)
-    pstr        = Default(pstr, 1.272)
-    ldmp        = Default(ldmp, 0)
-    freq_margin = Default(freq_margin, 20)
-    cutoff      = Default(cutoff, 12)
-    fs          = Default(fulls, false)
+    lstr        = Default(lstr,        1.49)
+    pstr        = Default(pstr,       1.272)
+    ldmp        = Default(ldmp,           0)
+    freq_margin = Default(freq_margin,   20)
+    cutoff      = Default(cutoff,        12)
+    fs          = Default(fulls,      false)
 
     clr = src
     isy = isy(src)
@@ -1869,8 +1880,8 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 
     constant           = 0.0009948813682897925944723492342
     me_sad             = round(constant * pow(sad, 2.0) * log(1.0 + 1.0 / (constant * sad)))
-    src                = Pad(src, 64, 64, 64, 64)
-    ref                = Pad(ref, 64, 64, 64, 64)
+    src                = PadBorders(src, 64, 64, 64, 64)
+    ref                = PadBorders(ref, 64, 64, 64, 64)
     src3               = Merge(src, ref, flexibility)
     ref                = ex_makediff(ref, src)
     super3             = isS && isF ? Merge(super, superf, flexibility) : Undefined()
@@ -1917,37 +1928,20 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     # this is just for blurring
     function CutOff(clip low, clip hi, int p, int margin) {
 
-        function inline2(clip src, int p) {
-            upsmp         = GaussResize(src,  src.width()*2, src.height()*2, p=100)
-            clp           = GaussResize(upsmp, src.width(),  src.height(),   p=p)
-            return clp }
+        upsmp         = GaussResize(hi,     hi.width()*2,  hi.height()*2, p=100)
+        clp1          = GaussResize(upsmp,  hi.width(),    hi.height(),   p=p+margin)
 
-    clp                = ex_makeadddiff(hi, inline2(hi, p+margin), inline2(low, p))
-    return clp }
+        upsmp         = GaussResize(low,   low.width()*2, low.height()*2, p=100)
+        clp2          = GaussResize(upsmp, low.width(),   low.height(),   p=p)
 
+        clp           = ex_makeadddiff(hi, clp1, clp2)
 
-    function Pad(clip src, int left, int right, int top, int bottom) {
-        w                  = src.width()
-        h                  = src.height()
-        clp                = PointResize(src, w+left+right, h+top+bottom, -left, -top, w+left+right, h+top+bottom)
         return clp }
-
-    function RGB2OPP(clip a, bool fulls) {
-
-        clp = ExtractClip(a)
-
-        RGB_to_OPP(clp[0],clp[1],clp[2],fulls) }
-
-    function OPP2RGB(clip a, bool fulls) {
-
-        clp = ExtractClip(a)
-
-        OPP_to_RGB(clp[0],clp[1],clp[2],fulls) }
 
 
     function Deconvolution(clip src, int radius, float wn, int fr, float scale) {
-        pad4               = (radius+fr)/4*4
-        src                = Pad(src, pad4, pad4, pad4, pad4)
+        pad4               = nmod(radius+fr,4)
+        src                = PadBorders(src, pad4, pad4, pad4, pad4)
 #       sharp              = FQSharp(src, x=radius, y=radius, wn=wn, fr=fr, scale=scale, line=0)
         sharp              = F2QSharp(src.SeparateFields(), x=radius, y=radius, wn=wn, frad=round(fr), scale=scale, psf="line").Weave()
         sharp              = CutOff(src, sharp, 1, 0)
@@ -2100,7 +2094,7 @@ function pSharpen   (clip clp,
     ss_y = ss_y<1.0? 1.0 : ss_y
 
     # oversampling
-    ss  = ss_x!=1.0 || ss_y!=1.0 ? clp.lanczosresize(round(ox*ss_x/8)*8,round(oy*ss_y/8)*8) : clp
+    ss  = ss_x!=1.0 || ss_y!=1.0 ? clp.lanczosresize(nmod(ox*ss_x,8),nmod(oy*ss_y,8)) : clp
     clp = ss
 
     # calculating the max and min in every 3x3 square
