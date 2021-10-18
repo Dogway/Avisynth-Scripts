@@ -7,7 +7,7 @@
 ###                           4.8.3  (20-05-2021)   ## -> Updated MatteCrop(), Ratioresize() and PadResize() and Overall improvements
 ###                           5.0    (20-07-2021)   ## -> Removed legacy functions SpliceResize, Dither_addborders8 and LinearResize (superseeded by ConvertFormat)
 ###                           5.1    (09-09-2021)   ## -> Maintenance update
-###   Resizers Functions Pack 6.0    (15-10-2021)   ## -> mmod() and nmod() functions. Replace PadMirror() with PadBorders(). Optimize MatteCrop()
+###   Resizers Functions Pack 6.1    (18-10-2021)   ## -> mmod() and nmod() functions. Replace PadMirror() with PadBorders(). Optimize MatteCrop()
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -102,22 +102,23 @@ function RatioResize(clip s, float "ratio", string "mode", int "PreW", int "PreH
 ### PadResize()
 ###
 ### Write target size and image will crop or pad...
-### depending on source dimensions by adding black borders or a mirror border.
+### depending on source dimensions by adding black borders, mirroring borders or extending them depending on 'mode'.
 ###
 ### bias:  From -100 to +100, to slide the frame within the resolution (ie. an asymmetrical matte)
 ###
 
-function PadResize(clip c, int "width_dst", int "height_dst", float "biasW", float "biasH", string "mode", int "mod") {
+function PadResize(clip c, int "width_dst", int "height_dst", int "mod", string "mode", float "biasW", float "biasH") {
 
     c
-    w = width()
-    h = height()
+    rgb = isRGB()
+    w   = width()
+    h   = height()
 
     width_dst  = Default(width_dst, w)
     height_dst = Default(height_dst, h)
     bw     = Default(biasW, 0.)
     bh     = Default(biasH, 0.)
-    md     = Default(mode, "$000000" )  # 'Dilate', 'Mirror' or color code (ie. "$000000")
+    md     = Default(mode, rgb?"$000000":"$108080") # 'Dilate', 'Mirror' or color code (ie. "$008080" for YUV PC black or $108080 for YUV TV black)
     mod    = Default(mod, 2)
 
     fullchr = isy() ? true : isRGB(c) || ExtractU().width() == w
@@ -148,7 +149,7 @@ function PadResize(clip c, int "width_dst", int "height_dst", float "biasW", flo
     vsb = sign(y)>0 ? fullchr && mod == 1 ? fv2 : fv2-fv2%mod : 0
 
     LeftStr(md,1)!="$" ? PadBorders(hsl+bw1,vst+bh1,hsr+bw2,vsb+bh2,md)     : \
-                         AddBorders(hsl+bw1,vst+bh1,hsr+bw2,vsb+bh2,Eval(md))
+                         AddBorders(hsl+bw1,vst+bh1,hsr+bw2,vsb+bh2,color_yuv = Eval(md))
 
     hsl = sign(x)>0 ? 0 : fullchr && mod == 1 ? fh1 : fh1-fh1%mod
     vst = sign(y)>0 ? 0 : fullchr && mod == 1 ? fv1 : fv1+fv1%mod
@@ -165,7 +166,7 @@ function PadResize(clip c, int "width_dst", int "height_dst", float "biasW", flo
 ###
 ### Superseeds Addborders(), old PadMirror() and Didée's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804#post1596804)
 ### in one single filter.
-### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders.
+### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (http://avisynth.nl/index.php/Color_presets).
 ###
 ### 'Dilate' is slightly faster than 'Mirror' (and probably filter friendlier)
 ### Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (http://forum.doom9.org/showthread.php?p=518131#post518131)
@@ -180,7 +181,7 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     t  = Default( abs(top),    0 )
     r  = Default( abs(right),  0 )
     b  = Default( abs(bottom), 0 )
-    md = Default( mode, "Dilate" )  # 'Dilate', 'Mirror' or color code (ie. "$000000")
+    md = Default( mode, "Dilate" )  # 'Dilate', 'Mirror' or color code (ie. "$008080" for YUV PC black or $108080 for YUV TV black)
 
     l  = !rgb && !isy ? nmod(l,2) : l
     t  = !rgb && !isy ? nmod(t,2) : t
@@ -208,7 +209,8 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 
     } else if (LeftStr(md,1)=="$") {
 
-        AddBorders(l,t,r,b,Eval(md))
+        rgb ? AddBorders(l,t,r,b, Eval(md))           : \
+              AddBorders(l,t,r,b, color_yuv = Eval(md))
 
     } else {
 
@@ -244,7 +246,7 @@ function mmod(clip c, int "modH", int "modV", string "mode", int "color")
 
 ###
 #
-#  nmod() - Rounding numbers by Dogway (13-10-2021)
+#  nmod() - Rounding numbers by Dogway (18-10-2021)
 #
 #  Description from SmoothD2c:
 #
@@ -258,13 +260,14 @@ function mmod(clip c, int "modH", int "modV", string "mode", int "color")
 
 function  nmod(float n, int "mod", int "min", bool "bankers") {
 
-    mod = Default(mod, 4)
-    bnk = Default(bankers, false)    # Use bankers' rounding
+    mod = Default(mod, 2)
+    bnk = Default(bankers, false)    # Use bankers' rounding. Requires SimilarityMetrics
     dm  = Defined(min)               # Set 'min' to 16 for at-least n=16
+    un  = Undefined()
 
-    return ( dm && n < max(mod,min) ? max(mod,min)                  : \
-              bnk && mod!=1         ? RoundHalfToEven_mod(n, mod)   : \
-                                      round( float(n) / mod ) * mod ) }
+    return ( dm && nmod(n,mod,un,bnk) < max(mod,min) ? max(mod,min)                  : \
+              bnk && mod!=1                          ? RoundHalfToEven_mod(n, mod)   : \
+                                                       round( float(n) / mod ) * mod ) }
 
 
 
@@ -414,9 +417,9 @@ function MatteCrop(clip s, int "width", int "height", float "thr", bool "CropMor
 
         mode == 0 ? PadResize(w,h) : \
         mode == 1 ? PadResize(w,h) : \
-        mode == 2 ? RatioResize(float(w),"adjust2w", kernel=kernel, b=b, c=c, p=p).PadResize(w,h,mode="$000000") : \
+        mode == 2 ? RatioResize(float(w),"adjust2w", kernel=kernel, b=b, c=c, p=p).PadResize(w,h) : \
                     LBox ? \
-                    RatioResize(float(w),"adjust2w", kernel=kernel, b=b, c=c, p=p).PadResize(w,h,mode="$000000") : PadResize(w,h)
+                    RatioResize(float(w),"adjust2w", kernel=kernel, b=b, c=c, p=p).PadResize(w,h) : PadResize(w,h)
     } )
 
     mode == 0 ? PadResize(nw,nh) : \
