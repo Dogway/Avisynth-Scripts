@@ -1,7 +1,8 @@
 ###                                                            ##
 ###                                                            ##
 ###                     2.4            (15-04-2015)            ##
-### Mask functions Pack 2.8 By Dogway  (22-06-2021)            ## Updated BoxMask(), FlatMask() and LumaMask() to internal functions (faster and HBD support)
+###                     2.8 By Dogway  (22-06-2021)            ## Updated BoxMask(), FlatMask() and LumaMask() to internal functions (faster and HBD support)
+### Mask functions Pack 2.9 By Dogway  (18-10-2021)            ## 
 ###                                                            ##
 ### https://forum.doom9.org/showthread.php?t=182881            ##
 ###                                                            ##
@@ -32,8 +33,8 @@ fs      = Default(fulls, false)
 
 bdpth = BitsPerComponent(clp)
 
-LetterBox(BlankClip(clp,1,pixel_type="Y"+string(bdpth),color_yuv=upper?$000000:$ffffff).killaudio(),y1,height(clp)-y2,x1,width(clp)-x2,color_yuv=upper?$ffffff:$000000)
-format ? MatchColorFormat(clp) : last
+LetterBox(BlankClip(clp,1,pixel_type="Y"+string(bdpth),color_yuv=upper?$000000:$ffffff,channels=0),y1,height(clp)-y2,x1,width(clp)-x2,color_yuv=upper?$ffffff:$000000)
+format ? MatchClip(clp) : last
 
 !show ? last : ex_blend(clp,last,"softlight",fulls=fs) }
 
@@ -88,7 +89,7 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
     e1 = c4ma.mt_edge (mode="prewitt", thY1=0, thY2=255)
     e2 = c4ma.mt_edge (mode="min/max", thY1=0, thY2=255)
     ex_makediff (e1, e2, dif=false, fulls=fs)
-    ex_lut (ex_dlut("x 0 max range_max / 0.25 ^ range_max *", bi, fs), fulls=fs)
+    ex_lut ("x 0 max range_max / 0.25 ^ range_max *", fulls=fs)
     mt_deflate().mt_deflate ()
 
     luma ? mt_logic(c4ma.ex_binarize(th,fulls=fs),"min") : last
@@ -102,8 +103,8 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
     BicubicResize (w, h, 1, 0)
 
     var  = show  ? 128 : 1
-    up   = ex_bs(10, bi, fs)
-    code = ex_dlut(Format(upper ? "range_max x {up} - {str} * -" : "x {up} - {str} *"), bi, fs)
+    up   = ex_bs(10, 8, bi, fulls=fs)
+    code = Format(upper ? "range_max x {up} - {str} * -" : "x {up} - {str} *")
     msk  = ex_lut (code,UV=var,fulls=fs)
     msk  = exten ? !upper ? msk.ex_invert(fulls=fs).ex_expand(2).ex_invert(fulls=fs).ex_inpand(2) : msk.mt_expand() : msk
     show ? msk : mt_merge(filtered,raw,msk,luma=true, y=3, u=3, v=3) }
@@ -174,9 +175,9 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
 
 function LumaMask(clip filtered, clip raw, int "b", int "w", bool "invert", bool "smooth", bool "show", int "UV", bool "fulls") {
 
-bi   = BitsPerComponent(raw)
-isy  = isy(filtered)
 rgb  = isRGB(raw)
+isy  = isy(filtered)
+bi   = BitsPerComponent(raw)
 
 raw      = Default(raw, filtered)
 LO       = Default(b, 24)
@@ -187,8 +188,8 @@ show     = Default(show,   false)
 fs       = Default(fulls,  false)
 UV       = Default(UV,  !isy ? 128 : 1)
 
-LO       = ex_bs(LO,bi,fs)
-HI       = ex_bs(HI,bi,fs)
+LO       = ex_bs(LO, 8, bi, fulls=fs)
+HI       = ex_bs(HI, 8, bi, fulls=fs)
 
 code     = upper ? Format("x {LO} < range_max x {HI} > 0 range_max   x {LO} - range_max {HI} {LO} - / * - ? ?") : \
                    Format("x {LO} < 0         x {HI} >   range_max 0 x {LO} - range_max {LO} {HI} - / * - ? ?")
@@ -196,7 +197,7 @@ code     = upper ? Format("x {LO} < range_max x {HI} > 0 range_max   x {LO} - ra
 str      = ex_dlut(code, bi, fs)
 cstr     = ex_UVexpr("", UV, bi, rgb, fs)
 
-msk      = Expr(raw, str, cstr, scale_inputs=ex_UVf(bi))
+msk      = Expr(raw, str, cstr, scale_inputs=ex_UVf(rgb, bi))
 msk      = smooth ? msk.removegrain(22,0) : msk
 
 show  ?  msk : mt_merge(raw,filtered,msk,true) }
