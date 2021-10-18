@@ -1,7 +1,7 @@
 ###
-### Logo v12.3  (https://forum.doom9.org/showthread.php?t=182881)
+### Logo v13.0  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (15-09-2021) By Dogway
+###  (13-10-2021) By Dogway
 ###
 ### With help from Gavino and Didée   (http://forum.doom9.org/showthread.php?t=160285)
 ### Blending Modes adapted from:Blend_MT_alpha3 (http://forum.doom9.org/showthread.php?p=1400434#post1400434)
@@ -14,7 +14,7 @@
 ### -For help on parameters, read the #comments right next to the "Default()" column.
 ###
 ### Dependencies:
-###    AviSynth+ 3.5+
+###    AviSynth+ 3.5+, masktools2, ExTools, GradePack, ResizersPack, TransformsPack and Immaavs (for GIFs)
 ###
 ### Todo / Known bugs:
 ###   -Add interlaced support
@@ -31,6 +31,8 @@
 ###   -Better matte workaround
 ###
 ### Changelog:
+###
+### 13.0 -Replace with MatchClip() from TransformsPack, and nmod() and mmod() from ResizersPack
 ###
 ### 12.3 -Rebase to latest ex_blend()
 ###
@@ -148,16 +150,16 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     \           : ImageSource(path, start=start, end= end == -1 ? start : end2, use_Devil=true, pixel_type="RGB32")
 
 
-    logo0 = PAR !=  1.0  ? logo0.BicubicResize(round(logo0.Width()/par),logo0.Height(),0.0,0.75).mmod2()
-    \                    : logo0.mmod2()
+    logo0 = PAR !=  1.0  ? logo0.BicubicResize(nmod(logo0.Width()/par,2),nmod(logo0.Height(),2),0.0,0.75)
+    \                    : logo0.mmod(2)
     logo0 = logo0.addborders(x,abs(y),w,h).crop(0,0,-logo0.Width()-x,-logo0.Height()-abs(y),true).ex_blur(Sblur/par,Sblur,UV=Ch?3:2)
 
     lw = mat ? logo0.Width () : nop()
     lh = mat ? logo0.Height() : nop()
 
-    msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(lw*2,lh*2).ex_inpand(2,mode="plus").BicubicResize(lw,lh,-0.5,0.25).MatchColorFormat(c)
-    \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).MatchColorFormat(c)
-    logo0 = logo0.MatchColorFormat(c).AssumeFPS(fps)
+    msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(lw*2,lh*2).ex_inpand(2,mode="plus").BicubicResize(lw,lh,-0.5,0.25).MatchClip(c)
+    \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).MatchClip(c)
+    logo0 = logo0.MatchClip(c).AssumeFPS(fps)
 
 
     V = c.trim(start,end)
@@ -171,9 +173,3 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     \ (start>0 ?  (end == 0 || end == Fc || end == -1 && start == Fc ? c.trim(0,start == 1 ? -1 : start-1)+V :
      \ c.trim(0,start == 1 ? -1 : start-1)+V+c.trim(end == -1 ? start+1 : end2+1,0)) :
       \ V+c.trim(end == -1 ? start+1 : end2+1,0)) }
-
-
-function mmod2(clip c){
-    bh = 2 - ((c.Width()-1)%2 + 1)
-    bv = 2 - ((c.Height()-1)%2 + 1)
-    c.crop(bh/2,bv/2,-bh,-bv,true)}
