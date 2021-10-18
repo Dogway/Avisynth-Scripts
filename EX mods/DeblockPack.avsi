@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v1.1  (21-09-2021)                                ###
+###        Deblock Pack v1.2  (18-10-2021)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -86,7 +86,7 @@
 ###
 ### Changes 2021-09-21: (Dogway)
 ### - Ported to ExTools
-### - Optimized expressions
+### - Optimized expressions (29% speed increase)
 
 function Deblock_QED ( clip clp, int "quant1", int "quant2",
  \                     int "aOff1", int "bOff1", int "aOff2", int "bOff2", string "exdeblock1", string "exdeblock2", int "UV", bool "fulls"  ) {
@@ -190,7 +190,15 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
 ##      ref_s = oyster_Basic(clp, sup, short_time=True)
 ##      clp   = oyster_Deblocking(clp, ref_f, block_step=2)
 ##      clp   = oyster_Deringing (clp, ref_s, sigma=24.0, h=10.8, block_step=2)
-
+##
+##    Dependencies:
+##                  ExTools
+##                  ResizersPack
+##                  mvtools2
+##                  KNLMeansCL
+##                  BM3D
+##                  DFTTest
+##                  nnedi3
 
 
 function oyster_Super(clip src, int "pel") {
@@ -210,8 +218,8 @@ function oyster_Super(clip src, int "pel") {
     AssumeFrameBased()
     rgb ? RGB2OPP() : last
 
-#    Pad(128, 128, 128, 128)
-    Pad(64, 64, 64, 64)
+#    PadBorders(128, 128, 128, 128)
+    PadBorders(64, 64, 64, 64)
 #    nnedi3_rpow2(rfactor=pel,nns=4,nsize=0,qual=2,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
     nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
 
@@ -223,7 +231,7 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
 
     super      = Default(super, Undefined())
     radius     = Default(radius, 6)
-    pel        = Default(pel, 2)
+    pel        = Default(pel,    2)
     sad        = Default(sad, 2000)
     short_time = Default(short_time, false)
     color      = Default(color, !isy(src))
@@ -247,8 +255,8 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
     src   = AssumeFrameBased(src)
     super = Defined(super) ? super : AssumeFrameBased(super)
 
-#    src         = Pad(src, 128, 128, 128, 128)
-    src         = Pad(src, 64, 64, 64, 64)
+#    src         = PadBorders(src, 128, 128, 128, 128)
+    src         = PadBorders(src, 64, 64, 64, 64)
     pre         = src.ConvertBits(8, dither=-1, fulls=false)
     supersoft   = MSuper(pre, pelclip=super, rfilter=4, pel=pel, chroma=color, hpad=0, vpad=0, sharp=2, levels=0)
     supersharp  = MSuper(pre, pelclip=super, rfilter=2, pel=pel, chroma=color, hpad=0, vpad=0, sharp=2, levels=0).ConvertBits(32, fulls=false)
@@ -285,20 +293,20 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
 
 function oyster_Deringing(clip src, clip ref, int "radius", float "sigma", float "mse0", float "mse1", float "hard_thr", int "block_size", int "block_step", int "group_size", int "bm_range", int "bm_step", int "ps_num", int "ps_range", int "ps_step", string "lowpass", bool "color") {
 
-    radius      = Default(radius, 6)
-    h           = Default(h, 6.4)
-    sigma       = Default(sigma, 16.0)
+    radius      = Default(radius,       6)
+    h           = Default(h,          6.4)
+    sigma       = Default(sigma,     16.0)
 #    mse0        = Default(mse0, sigma * 160.0 + 1200.0)
 #    mse1        = Default(mse1, sigma * 120.0 + 800.0)
-#    hard_thr    = Default(hard_thr, 3.2)
-    block_size  = Default(block_size, 8)
-    block_step  = Default(block_step, 1)
+#    hard_thr    = Default(hard_thr,  3.2)
+    block_size  = Default(block_size,   8)
+    block_step  = Default(block_step,   1)
 #    group_size  = Default(group_size, 32)
-    bm_range    = Default(bm_range, 24)
-#    bm_step     = Default(bm_step, 1)
-    ps_num      = Default(ps_num, 2)
-    ps_range    = Default(ps_range, 8)
-#    ps_step     = Default(ps_step, 1)
+    bm_range    = Default(bm_range,    24)
+#    bm_step     = Default(bm_step,     1)
+    ps_num      = Default(ps_num,       2)
+    ps_range    = Default(ps_range,     8)
+#    ps_step     = Default(ps_step,     1)
     lowpass     = Default(lowpass, Format("0.0:{sigma} 0.48:1024.0 1.0:1024.0"))
     color       = Default(color, !isy(src))
 
@@ -332,19 +340,18 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "sigma", float
     strength0 = h
     strength1 = h * pow(c1 * h, c2) * log(1.0 + 1.0 / pow(c1 * h, c2))
 
-    function oy_loop(flt, init, src, n) {
+    function oy_loop(clip flt, clip init, clip src, int n, float strength0, float strength1, float strength2, bool color) {
+            strength2        = n * strength0 / 4. + strength1 * (1 - n / 4.)
+            window           = int(32. / pow(2, n))
+            flt              = n == 4 ? init : flt
+            dif              = ex_makediff(src, flt)
+            dif              = NLMeans(dif, 0, window, 1, strength2, flt, color)
+            fnl              = ex_adddiff(flt, dif)
+            n                = n - 1
+            n == -1 ? fnl : oy_loop(fnl, init, src, n, strength0, strength1, strength2, color) }
 
-        strength2        = n * strength0 / 4 + strength1 * (1 - n / 4)
-        window           = int(32 / pow(2, n))
-        flt              = n == 4 ? init : flt
-        dif              = ex_makediff(src, flt)
-        dif              = NLMeans(dif, 0, window, 1, strength2, flt, color)
-        fnl              = ex_adddiff(flt, dif)
-        n                = n - 1
-        n == -1 ? fnl : oy_loop(fnl, init, src, n) }
 
-
-    ref     = FreqMerge(src, ref, block_size / 2 * 2 + 1, lowpass)
+    ref     = FreqMerge(src, ref, nmod(block_size,2) + 1, lowpass)
     dif     = ex_makediff(src, ref)
 #    dif     = BM3D_CUDA(dif, ref, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
 #                         block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
@@ -352,14 +359,14 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "sigma", float
     dif     = BM3D_CPU(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif     = BM3D_VAggregate(dif, radius)
     ref     = ex_adddiff(ref, dif)
-    refined = oy_loop(None, ref, src, 4)
+    refined = oy_loop(Undefined(), ref, src, 4, strength0, strength1, strength2, color)
 #    bm3d    = BM3D_CUDA(refined, ref, radius=radius, th_mse=mse1, sigma=sigma, \
 #                         block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                         ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
     bm3d    = BM3D_CPU(refined, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     bm3d    = BM3D_VAggregate(bm3d, radius)
-    bm3d    = FreqMerge(refined, bm3d, block_size / 2 * 2 + 1, lowpass)
-    clp     = oy_loop(None, bm3d, refined, 4)
+    bm3d    = FreqMerge(refined, bm3d, nmod(block_size,2) + 1, lowpass)
+    clp     = oy_loop(Undefined(), bm3d, refined, 4, strength0, strength1, strength2, color)
 
     clp     = rgb ? OPP2RGB(clp) : clp
     return clp }
@@ -369,20 +376,20 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "sigma", float
 function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", float "mse0", float "mse1", float "hard_thr", int "block_size", int "block_step", int "group_size", int "bm_range", int "bm_step", int "ps_num", int "ps_range", int "ps_step", float "thr", float "elast", string "lowpass") {
 
 
-    radius      = Default(radius, 6)
-    sigma       = Default(sigma, 16.0)
+    radius      = Default(radius,       6)
+    sigma       = Default(sigma,     16.0)
 #    mse0        = Default(mse0, sigma * 160.0 + 1200.0)
 #    mse1        = Default(mse0, sigma * 120.0 + 800.0)
-#    hard_thr    = Default(hard_thr, 3.2)
-    block_size  = Default(block_size, 8)
-    block_step  = Default(block_step, 1)
+#    hard_thr    = Default(hard_thr,  3.2)
+    block_size  = Default(block_size,   8)
+    block_step  = Default(block_step,   1)
 #    group_size  = Default(group_size, 32)
-    bm_range    = Default(bm_range, 24)
-#    bm_step     = Default(bm_step, 1)
-    ps_num      = Default(ps_num, 2)
-    ps_range    = Default(ps_range, 8)
-#    ps_step     = Default(ps_step, 1)
-    thr         = Default(thr, 0.03125)
+    bm_range    = Default(bm_range,    24)
+#    bm_step     = Default(bm_step,     1)
+    ps_num      = Default(ps_num,       2)
+    ps_range    = Default(ps_range,     8)
+#    ps_step     = Default(ps_step,     1)
+    thr         = Default(thr,    0.03125)
     elast       = Default(elast, 0.015625)
     lowpass     = Default(lowpass, Format("0.0:{sigma} 0.48:1024.0 1.0:1024.0"))
     color       = !isy(src)
@@ -413,8 +420,8 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     src       = AssumeFrameBased(src)
     ref       = AssumeFrameBased(ref)
 
-    msk       = GenBlockMask(ExtractY(src))
-    ref       = FreqMerge(src, ref, block_size / 2 * 2 + 1, lowpass)
+    msk       = ex_lutspa(ExtractY(src),mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?",fulls=false)
+    ref       = FreqMerge(src, ref, nmod(block_size,2) + 1, lowpass)
     ref       = ThrMerge(src, ref, thr=thr, elast=elast)
     dif       = ex_makediff(src, ref)
 #    dif       = BM3D_CUDA(dif, ref, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
@@ -430,7 +437,7 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     dif       = BM3D_CPU(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif       = BM3D_VAggregate(dif, radius)
     ref       = ex_adddiff(ref, dif)
-    clp       = mt_merge(src, ref, msk, luma=true)
+    clp       = ex_merge(src, ref, msk, luma=true)
 
     clp       = rgb ? OPP2RGB(clp) : clp
     return clp }
@@ -439,20 +446,20 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
 
 function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "sigma", float "mse0", float "mse1", float "hard_thr", int "block_size", int "block_step", int "group_size", int "bm_range", int "bm_step", int "ps_num", int "ps_range", int "ps_step", string "lowpass") {
 
-    radius      = Default(radius,   6)
-    h           = Default(h,      6.4)
-    sigma       = Default(sigma, 16.0)
+    radius      = Default(radius,       6)
+    h           = Default(h,          6.4)
+    sigma       = Default(sigma,     16.0)
 #    mse0        = Default(mse0, sigma * 160.0 + 1200.0)
 #    mse1        = Default(mse0, sigma * 120.0 + 800.0)
-#    hard_thr    = Default(hard_thr, 3.2)
-    block_size  = Default(block_size, 8)
-    block_step  = Default(block_step, 1)
+#    hard_thr    = Default(hard_thr,  3.2)
+    block_size  = Default(block_size,   8)
+    block_step  = Default(block_step,   1)
 #    group_size  = Default(group_size, 32)
-    bm_range    = Default(bm_range, 24)
-#    bm_step     = Default(bm_step,  1)
-    ps_num      = Default(ps_num,   2)
-    ps_range    = Default(ps_range, 8)
-#    ps_step     = Default(ps_step,  1)
+    bm_range    = Default(bm_range,    24)
+#    bm_step     = Default(bm_step,     1)
+    ps_num      = Default(ps_num,       2)
+    ps_range    = Default(ps_range,     8)
+#    ps_step     = Default(ps_step,     1)
     lowpass     = Default(lowpass, "0.0:0.0 0.12:1024.0 1.0:1024.0")
     color       = !isy(src)
 
@@ -478,8 +485,8 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
     src      = AssumeFrameBased(src)
     ref      = AssumeFrameBased(ref)
 
-    msk      = GenBlockMask(ExtractY(src))
-    cleansed = NLMeans(ref, radius, block_size, ceil(block_size / 2), h, ref, color)
+    msk      = ex_lutspa(ExtractY(src),mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?",fulls=false)
+    cleansed = NLMeans(ref, radius, block_size, ceil(block_size / 2.), h, ref, color)
     dif      = ex_makediff(ref, cleansed)
 #    dif      = BM3D_CUDA(dif, cleansed, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
 #                          block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
@@ -494,9 +501,9 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
     dif      = BM3D_CPU(dif, cleansed, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif      = BM3D_VAggregate(dif, radius)
     cleansed = ex_adddiff(cleansed, dif)
-    ref      = FreqMerge(cleansed, ref, block_size / 2 * 2 + 1, lowpass)
-    src      = FreqMerge(cleansed, src, block_size / 2 * 2 + 1, lowpass)
-    clp      = mt_merge(src, ref, msk, luma=True)
+    ref      = FreqMerge(cleansed, ref, nmod(block_size,2) + 1, lowpass)
+    src      = FreqMerge(cleansed, src, nmod(block_size,2) + 1, lowpass)
+    clp      = ex_merge(src, ref, msk, luma=True)
 
     clp      = rgb ? OPP2RGB(clp) : clp
     return clp }
@@ -511,17 +518,6 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
 #                                   #
 #####################################
 
-function RGB2OPP(clip a, bool fulls) {
-
-    clp = ExtractClip(a)
-
-    RGB_to_OPP(clp[0],clp[1],clp[2],fulls) }
-
-function OPP2RGB(clip a, bool fulls) {
-
-    clp = ExtractClip(a)
-
-    OPP_to_RGB(clp[0],clp[1],clp[2],fulls) }
 
 function FreqMerge(clip low, clip hi, int sbsize, string slocation) {
     hif = DFTTest(hi,  sbsize=sbsize, sstring=slocation, smode=0, sosize=0, tbsize=1, tosize=0, tmode=0, dither=1, threads=1)
@@ -529,17 +525,12 @@ function FreqMerge(clip low, clip hi, int sbsize, string slocation) {
     clp = ex_makeadddiff(hi, hif, lof)
     return clp }
 
-function Pad(src, left, right, top, bottom) {
-    w   = src.width()
-    h   = src.height()
-    clp = PointResize(src, w+left+right, h+top+bottom, -left, -top, w+left+right, h+top+bottom)
-    return clp }
 
 function NLMeans(clip src, int d, int a, int s, float h, clip rclip, bool color) {
 
     function duplicate(clip src, int d) {
         if (d > 0) {
-                blank   = ex_lut(src, "0", UV=1)
+                blank   = ex_lut(src.trim(0,-1), "0", UV=1)
            for (i = 1, d, 1) {
                 blank   = blank + blank
             }
@@ -549,42 +540,40 @@ function NLMeans(clip src, int d, int a, int s, float h, clip rclip, bool color)
         }
         return clp }
 
-    pad                  = AddBorders(src, a+s, a+s, a+s, a+s)
-    pad                  = duplicate(pad, d)
+    pad                 = AddBorders(src, a+s, a+s, a+s, a+s)
+    pad                 = duplicate(pad, d)
 
     if (Defined(rclip)) {
-       rclip             = AddBorders(rclip, a+s, a+s, a+s, a+s)
-       rclip             = duplicate(rclip, d)
+       rclip            = AddBorders(rclip, a+s, a+s, a+s, a+s)
+       rclip            = duplicate(rclip, d)
     } else {
-       rclip             = Undefined()
+       rclip            = Undefined()
     }
 
-    nlm                  = KNLMeansCL(pad, d=d, a=a, s=s, h=h, channels=color ? "YUV" : "Y", wref=1.0, rclip=rclip)
-    clp                  = Crop(nlm, a+s, a+s, -a-s, -a-s)
+    nlm                 = KNLMeansCL(pad, d=d, a=a, s=s, h=h, channels=color ? "YUV" : "Y", wref=1.0, rclip=rclip)
+    clp                 = Crop(nlm, a+s, a+s, -a-s, -a-s)
 
     return clp.trim(d,src.framecount()-d) }
+
 
 function ThrMerge(clip flt, clip src, clip "ref", float "thr", float "elast") {
 
     thr   = Default(thr, 0.0009765625)
     ref   = Defined(ref) ? ref : src
-    elast = Defined(elast) ? elast : thr / 2
+    elast = Defined(elast) ? elast : thr / 2.
 
     BDif  = ex_lut(src, "0")
-    PDif  = ex_lutxy(flt, src, "x y -", clamp_float=true)
-    PRef  = ex_lutxy(flt, ref, "x y -", clamp_float=true)
+    PDif  = ex_lutxy  (flt, src, "x y -", clamp_float=true)
+    PRef  = ex_lutxy  (flt, ref, "x y -", clamp_float=true)
     PBLD  = ex_lutxyz(PDif, BDif, PRef, Format("x {thr} {elast} + z - 2 {elast} * / * y {elast} z + {thr} - 2 {elast} * / * +"))
-    NDif  = ex_lutxy(flt, src, "y x -", clamp_float=true)
-    NRef  = ex_lutxy(flt, ref, "y x -", clamp_float=true)
+    NDif  = ex_lutxy  (flt, src, "y x -", clamp_float=true)
+    NRef  = ex_lutxy  (flt, ref, "y x -", clamp_float=true)
     NBLD  = ex_lutxyz(NDif, BDif, NRef, Format("x {thr} {elast} + z - 2 {elast} * / * y {elast} z + {thr} - 2 {elast} * / * +"))
     BLD   = ex_makeadddiff(PBLD, NBLD, src)
-    UDN   = ex_lutxyz(flt, ref, BLD, Format("x y - abs {thr} {elast} - > z x ?"))
+    UDN   = ex_lutxyz (flt, ref, BLD, Format("x y - abs {thr} {elast} - > z x ?"))
     clp   = ex_lutxyza(flt, ref, UDN, src, Format("x y - abs {thr} {elast} + < z a ?"))
 
     return clp }
-
-function GenBlockMask(clip src) {
-    ex_lutspa(src,mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?",UV=128, fulls=false) }
 
 
 
@@ -711,7 +700,7 @@ function MSUDeCor(clip a, int "UV") {
 
     UV = Default(UV, 3)
     #d=t.ConvertToRGB32(matrix="rec709").MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).ConvertBackToYUY2(matrix="rec709").ConvertToYV12() #use if MPEG2
-    d  = a.ConvertToPlanarRGB().MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).MatchColorFormat(a)
+    d  = a.ConvertToPlanarRGB().MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).MatchClip(a)
 
     s1 = ex_makediff(d, a, UV=uv).ex_boxblur(1, mode="mean", UV=uv)
 
@@ -755,10 +744,10 @@ function SmoothDeblock1(clip orig, int "passes", int "density", int "inclOrig", 
 
     passes        = 3#fixed for now
     inclOrig      = Default(inclOrig,1)
-    density       = Default(density,2)
+    density       = Default(density, 2)
     pregainoffset = Default(pregainoffset,0)
     pregain       = Default(pregain,10)
-    gain          = Default(gain,10)
+    gain          = Default(gain,   10)
     b1            = Default(adaption_blursmall,"1")
     b2            = Default(adaption_blurbig,"1 1 2 2 2 1 1")
     wieghtMX      = Default(wieghtMX,"04center255border0smooth_1")
@@ -772,7 +761,7 @@ function SmoothDeblock1(clip orig, int "passes", int "density", int "inclOrig", 
     sdl8=((sdl8.height() % 32)==0) ? sdl8 : StackVertical  (sdl8,sdl8.crop(0,sdl8.height()-32+(sdl8.height() % 32),-0,-0  ).FlipVertical())
     sdl8=sdl8.SmoothDeblockLayer(5,density,mx2,mxs,"DCTFilter",DCTorig=1)
     sdl8=sdl8.GaussResize(sdl8.width()*2,sdl8.height()*2,p=20).crop(0,0,orig.width(),orig.height())
-    #sdl8=sdl8.mt_convolution("1 2 1","1 2 1",UV=3)
+    #sdl8=sdl8.ex_boxblur(1,mode="weighted",UV=3)
     sdl5=orig.SmoothDeblockLayer(5,density,mx2,mxs,"DCTFilter")
     sdl3=orig.SmoothDeblockLayer(3,density,mx2,mxs,"DCTFilter")
     qd8=orig.QuantDiff(6)
@@ -811,7 +800,7 @@ function SmoothDeblock2(clip orig, int "passes", int "density", int "inclOrig", 
     sdl8=((sdl8.height() % 32)==0) ? sdl8 : StackVertical  (sdl8,sdl8.crop(0,sdl8.height()-32+(sdl8.height() % 32),-0,-0  ).FlipVertical())
     sdl8=sdl8.SmoothDeblockLayer(5,density,mx2,mxs,"DCTFilter",DCTorig=1)
     sdl8=sdl8.GaussResize(sdl8.width()*2,sdl8.height()*2,p=20).crop(0,0,orig.width(),orig.height())
-    #sdl8=sdl8.mt_convolution("1 2 1","1 2 1",UV=3)
+    #sdl8=sdl8.ex_boxblur(1,mode="weighted",UV=3)
     sdl5=orig.SmoothDeblockLayer(5,density,mx2,mxs,"DCTFilter")
     sdl3=orig.SmoothDeblockLayer(3,density,mx2,mxs,"DCTFilter")
     am8=orig.AdaptionMaskDiff(sdl8,6,pregain,pregainoffset,gain,thresh,adaption_blur,expands=5)
@@ -844,7 +833,7 @@ function SmoothDeblock3(clip orig, int "passes", int "density", int "inclOrig", 
     sdl8=((sdl8.height() % 32)==0) ? sdl8 : StackVertical  (sdl8,sdl8.crop(0,sdl8.height()-32+(sdl8.height() % 32),-0,-0  ).FlipVertical())
     sdl8=sdl8.SmoothDeblockLayer(5,density,mx2,mxs,"DCTFilter",DCTorig=1)
     sdl8=sdl8.GaussResize(sdl8.width()*2,sdl8.height()*2,p=20).crop(0,0,orig.width(),orig.height())
-    #sdl8=sdl8.mt_convolution("1 2 1","1 2 1",UV=3)
+    #sdl8=sdl8.ex_boxblur(1,mode="weighted",UV=3)
     sdl5=orig.SmoothDeblockLayer(5,density,mx2,mxs,"DCTFilter")
     sdl3=orig.SmoothDeblockLayer(3,density,mx2,mxs,"DCTFilter")
     am8=orig.AdaptionMaskDiff(sdl8,6,pregain,pregainoffset,gain,thresh,adaption_blur,expands=5).ex_lutxy(bdm,"range_max range_max x - y * range_max / -",UV=3)#   255-((255-x)*y)/255 = x+255-y-x*(255-y)/255
@@ -882,7 +871,7 @@ function SmoothDeblock4(clip orig, int "passes", int "density", int "inclOrig", 
     sdl8=((sdl8.height() % 32)==0) ? sdl8 : StackVertical  (sdl8,sdl8.crop(0,sdl8.height()-32+(sdl8.height() % 32),-0,-0  ).FlipVertical())
     sdl8=sdl8.SmoothDeblockLayer(5,density,mx2,mxs,"DCTFilter",DCTorig=1)
     sdl8=sdl8.GaussResize(sdl8.width()*2,sdl8.height()*2,p=20).crop(0,0,orig.width(),orig.height())
-    #sdl8=sdl8.mt_convolution("1 2 1","1 2 1",UV=3)
+    #sdl8=sdl8.ex_boxblur(1,mode="weighted",UV=3)
     sdl5=orig.SmoothDeblockLayer(5,density,mx2,mxs,"DCTFilter")
     sdl3=orig.SmoothDeblockLayer(3,density,mx2,mxs,"DCTFilter")
     qd8=orig.QuantDiff(6)
@@ -994,23 +983,23 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
     Assert( ( cWarpToLuma >= 0  &&  cWarpToLuma <=   8 ), chr(10) + "'cWarpToLuma' wrong value! [0-8]" + chr(10))
     Assert( ( downSize    >= 1  &&  downSize    <=   4 ), chr(10) + "'downSize' wrong value! [1-4]" + chr(10))
     Assert( ( ncpu        >= 1  &&  ncpu        <=   4 ), chr(10) + "'ncpu' wrong value! [1-4]" + chr(10))
-    Assert( ( ow          ==        m4(ow)             ), chr(10) + "'clip width'  must be a multiple of 4" + chr(10))
-    Assert( ( oh          ==        m4(oh)             ), chr(10) + "'clip height' must be a multiple of 4" + chr(10))
+    Assert( ( ow          ==        nmod(ow,4)         ), chr(10) + "'clip width'  must be a multiple of 4" + chr(10))
+    Assert( ( oh          ==        nmod(oh,4)         ), chr(10) + "'clip height' must be a multiple of 4" + chr(10))
 
 
    sd1 = clp
 
-   sd1 = (downSize    > 1) ? sd1.Lanczos4Resize(m32(ow/downSize), m32(oh/downSize)) : sd1
+   sd1 = (downSize    > 1) ? sd1.Lanczos4Resize(nmod(ow/downSize,32), nmod(oh/downSize,32)) : sd1
    sd1 = (cWarpToLuma > 0) ? sd1.colorWarpToLuma(strength=cWarpToLuma)    : sd1
 
-   zw1 = (Cpr == 0)  ?  sd1.ylevels( 0, 1.0, 255, 0, 0, fs)  :  sd1.buildZmask(cpr=cpr)
+   zw1 = (Cpr == 0)  ?  sd1.ex_Ylevels( 0, 1.0, 255, 0, 0, fs)  :  sd1.buildZmask(cpr=cpr)
 
 
    u2  = sd1.UToY()
    v2  = sd1.VToY()
 
-   cw   = u2.width()
-   ch   = u2.height()
+   cw  = u2.width()
+   ch  = u2.height()
 
    zwuv = zw1.Lanczos4Resize(cw, ch)
 
@@ -1112,19 +1101,6 @@ The ZW arguments control the filtering strength by changing the number of origin
 #                                           #
 #############################################
 
-###
-# m4  "mod-4"   see "Crop restrictions" in http://avisynth.org/mediawiki/Crop
-#               m4 is used in may scripts that do resizing.
-# m8  "mod-8"   is used so that cropping will occur on luma block (8x8) boundaries
-#               and that resizing will produce an integer number of luma blocks.
-# m16 "mod-16"  is used so that cropping will occur on YV12 chroma block (16x16) boundaries
-#               and that resizing will produce an integer number of chroma blocks.
-# m16 "mod-m32" is used so that the zw1 mask can be resized to the size of the u and v planes.
-function  m4(float x) {return(x<16?16:int(round(x/4.0) *4))}
-function  m8(float x) {return(x<16?16:int(round(x/8.0) *8))}
-function m16(float x) {return(x<32?32:int(round(x/16.0)*16))}
-function m32(float x) {return(x<64?64:int(round(x/32.0)*32))}
-
 
 ###
 #
@@ -1139,19 +1115,18 @@ function buildZmask(clip clp, int "Cpr", bool "fulls") {
 
     clp.SmoothD2(quant=31, num_shift=4, Matrix=29, Qtype=1, ZW=0, ZWce=1, ZWlmDark=0, ZWlmBright=255, ncpu=1)
     ex_invert()
-    YlevelsS(90,1.01,240,0,255,fs) # This does a non linear range expansion see http://forum.doom9.org/showthread.php?t=79898
+    ex_YlevelsS(90,1.01,240,0,255,fs) # This does a non linear range expansion see http://forum.doom9.org/showthread.php?t=79898
     msk = ex_invert()
 
     ZWmask = (Cpr ==  0)  ?  clp
-\          : (Cpr ==  1)  ?  msk.ylevels(32, 60.0, 255,   8, 0, fs)
-\          : (Cpr ==  2)  ?  msk.ylevels(32, 50.0, 255,  16, 0, fs)
-\          : (Cpr ==  3)  ?  msk.ylevels(32, 30.0, 255,  16, 0, fs)
-\          : (Cpr ==  4)  ?  msk.ylevels(32, 12.0, 255,  16, 0, fs)
-\          : (Cpr ==  5)  ?  msk.ylevels(32,  7.0, 255,  16, 0, fs)
-\          :                 msk.ylevels(32,  1.0, 255,  16, 0, fs)
+\          : (Cpr ==  1)  ?  msk.ex_Ylevels(32, 60.0, 255,   8, 0, fs)
+\          : (Cpr ==  2)  ?  msk.ex_Ylevels(32, 50.0, 255,  16, 0, fs)
+\          : (Cpr ==  3)  ?  msk.ex_Ylevels(32, 30.0, 255,  16, 0, fs)
+\          : (Cpr ==  4)  ?  msk.ex_Ylevels(32, 12.0, 255,  16, 0, fs)
+\          : (Cpr ==  5)  ?  msk.ex_Ylevels(32,  7.0, 255,  16, 0, fs)
+\          :                 msk.ex_Ylevels(32,  1.0, 255,  16, 0, fs)
 
     return ZWmask }
-
 
 
 
@@ -1178,11 +1153,11 @@ function colorWarpToLuma(clip clp, int "strength") {
 
     warpedColor = clp.aWarpSharp2(thresh=thresh, blur=blur, type=1, depth=14, chroma=4)
 
-    mt_merge(clp, clp, warpedColor, y=2, u=5, v=5) }
+    ex_merge(clp, clp, warpedColor, y=2, u=5, v=5) }
 
 
 # Reminder: Yexpr = "x a - b a - / 1 gamma / ^ d c - * c +"
-function Ylevels(clip clp, int a, float gamma, int b, int c, int d, bool fs) {
+function ex_Ylevels(clip clp, int a, float gamma, int b, int c, int d, bool fs) {
 
     bi= clp.BitsPerComponent()
     a = ex_bs(a, 8, bi, fulls=fs)
@@ -1190,11 +1165,11 @@ function Ylevels(clip clp, int a, float gamma, int b, int c, int d, bool fs) {
     c = ex_bs(c, 8, bi, fulls=fs)
     d = ex_bs(d, 8, bi, fulls=fs)
 
-    wicked="x "+string(a)+" - "+string(b)+" "+string(a)+" - / 1 "+string(gamma)+" / ^ "+string(d)+" "+string(c)+" - * "+string(c)+" +"
-    return clp.ex_lut(str = wicked, UV=1) }
+    wicked = Format("x {a} - {b} {a} - / 1 {gamma} / ^ {d} {c} - * {c} +")
+    return clp.ex_lut(str = wicked, UV=1, fulls=fs) }
 
 
-function YlevelsS(clip clp, int a, float gamma, int b, int c, int d, bool fs) {
+function ex_YlevelsS(clip clp, int a, float gamma, int b, int c, int d, bool fs) {
 
     bi= clp.BitsPerComponent()
     a = ex_bs(a, 8, bi, fulls=fs)
@@ -1202,8 +1177,8 @@ function YlevelsS(clip clp, int a, float gamma, int b, int c, int d, bool fs) {
     c = ex_bs(c, 8, bi, fulls=fs)
     d = ex_bs(d, 8, bi, fulls=fs)
 
-    wicked="x "+string(a)+" - "+string(b)+" "+string(a)+" - / 1 "+string(gamma)+" / ^ "+string(d)+" "+string(c)+" - * "+string(c)+" + x 162.97466 / sin range_max * * x range_max x 162.97466 / sin range_max * - * + range_max /"
-    return clp.ex_lut(str = wicked, UV=1) }
+    wicked = Format("x {a} - {b} {a} - / 1 {gamma} / ^ {d} {c} - * {c} + x 162.97466 / sin range_max * * x range_max x 162.97466 / sin range_max * - * + range_max /")
+    return clp.ex_lut(str = wicked, UV=1, fulls=fs) }
 
 
 
@@ -1216,35 +1191,35 @@ function YlevelsS(clip clp, int a, float gamma, int b, int c, int d, bool fs) {
 #                                           #
 #############################################
 
-#http://forum.doom9.org/showthread.php?t=111526 redfordxx 23rd May 2006, 21:14
+# http://forum.doom9.org/showthread.php?t=111526 redfordxx 23rd May 2006, 21:14
 
 function Matrix (clip clp, int "UV") {
 
-    uv     = Default(uv,3)
+    uv = Default(uv,3)
 
     unit=blankclip(clp,4,4,pixel_type="YV12")
-    row=stackhorizontal(    unit.ex_lut(y=0,UV=2),
-        \       unit.ex_lut(y=-1,UV=2),
-        \       unit.ex_lut(y=-2,UV=2),
-        \       unit.ex_lut(y=-3,UV=2),
-        \       unit.ex_lut(y=-4,UV=2),
-        \       unit.ex_lut(y=-5,UV=2),
-        \       unit.ex_lut(y=-6,UV=2),
-        \       unit.ex_lut(y=-7,UV=2))
-    square=stackvertical(   row.ex_lut("x 0 +",UV=2),
-        \       row.ex_lut("x 8 +",UV=2),
-        \       row.ex_lut("x 16 +",UV=2),
-        \       row.ex_lut("x 24 +",UV=2),
-        \       row.ex_lut("x 32 +",UV=2),
-        \       row.ex_lut("x 40 +",UV=2),
-        \       row.ex_lut("x 48 +",UV=2),
-        \       row.ex_lut("x 56 +",UV=2))
+    row=stackhorizontal( unit.ex_lut(y=0,UV=2),
+        \                unit.ex_lut(y=-1,UV=2),
+        \                unit.ex_lut(y=-2,UV=2),
+        \                unit.ex_lut(y=-3,UV=2),
+        \                unit.ex_lut(y=-4,UV=2),
+        \                unit.ex_lut(y=-5,UV=2),
+        \                unit.ex_lut(y=-6,UV=2),
+        \                unit.ex_lut(y=-7,UV=2))
+    square=stackvertical(row.ex_lut("x 0 +",UV=2),
+        \                row.ex_lut("x  8 +",UV=2),
+        \                row.ex_lut("x 16 +",UV=2),
+        \                row.ex_lut("x 24 +",UV=2),
+        \                row.ex_lut("x 32 +",UV=2),
+        \                row.ex_lut("x 40 +",UV=2),
+        \                row.ex_lut("x 48 +",UV=2),
+        \                row.ex_lut("x 56 +",UV=2))
     block=square#.ex_lut("x 4 *",UV=2)
     block4=stackvertical(stackhorizontal(block,block),stackhorizontal(block,block)).pointresize(16,16)
     block4 = (uv!=3)    ? block4.ex_lut(UV=uv)
         \       : YtoUV(block4.crop(0,0,8,8),block4.crop(0,0,8,8),block4)
 
-    return block4.trim(1,1) }
+    return block4.trim(1,-1) }
 
 function PtrnFormat(clip clp, clip form) {
 
@@ -1261,6 +1236,8 @@ function PtrnFormat(clip clp, clip form) {
     return clp.loop(framecount(form)) }
 
 function PtrnVertical(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3", int "v4", int "v5", int "v6", int "v7") {
+
+    v0     = Default(v0, 0)
     v1     = Default(v1,255-v0)
     v2     = Default(v2,v1)
     v3     = Default(v3,v2)
@@ -1282,6 +1259,7 @@ function PtrnVertical(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3"
 
 function PtrnHorizontal(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3", int "v4", int "v5", int "v6", int "v7") {
 
+    v0     = Default(v0, 0)
     v1     = Default(v1,255-v0)
     v2     = Default(v2,v1)
     v3     = Default(v3,v2)
@@ -1303,6 +1281,7 @@ function PtrnHorizontal(clip clp, int "uv", int "v0", int "v1", int "v2", int "v
 
 function PtrnBlock(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3") {
 
+    v0     = Default(v0, 0)
     v1     = Default(v1,255-v0)
     v2     = Default(v2,v1)
     v3     = Default(v3,v2)
@@ -1316,6 +1295,7 @@ function PtrnBlock(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3") {
 
 function PtrnChess(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3") {
 
+    v0     = Default(v0, 0)
     v1     = Default(v1,255-v0)
     v2     = Default(v2,v0)
     v3     = Default(v3,v1)
@@ -1329,6 +1309,8 @@ function PtrnChess(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3") {
 
 function PtrnSawH(clip clp, int "uv", string "shift", int "v0", int "v1", int "v2", int "v3", int "v4", int "v5", int "v6", int "v7") {
 
+    Shift  = string(Default(Shift, 0))
+    v0     = Default(v0, 0)
     v1     = Default(v1,255-v0)
     v2     = Default(v2,v1)
     v3     = Default(v3,v2)
@@ -1350,6 +1332,8 @@ function PtrnSawH(clip clp, int "uv", string "shift", int "v0", int "v1", int "v
 
 function PtrnSawV(clip clp, int "uv", string "shift", int "v0", int "v1", int "v2", int "v3", int "v4", int "v5", int "v6", int "v7") {
 
+    Shift  = string(Default(Shift, 0))
+    v0     = Default(v0, 0)
     v1     = Default(v1,255-v0)
     v2     = Default(v2,v1)
     v3     = Default(v3,v2)
@@ -1383,10 +1367,10 @@ function PtrnSawV(clip clp, int "uv", string "shift", int "v0", int "v1", int "v
 function VerticalLinearBlock(clip orig)
 {
     p1=PtrnHorizontal(orig,3,255,219,182,146,109,73,36,0)
-    top1=orig.PointResize(orig.width(),orig.height()/8)
+    top1=orig.PointResize(orig.width(),nmod(orig.height()/8,2))
     top2=top1.PointResize(orig.width(),orig.height())
-    shift1=orig.mt_convolution("1","0 0 0 0 0 0 0 0 0 0 0 0 0 0 1") # shifting up 7 pixels
-    bottom1=shift1.PointResize(orig.width(),orig.height()/8)
+    shift1=orig.Expr("x[0,7]") # shifting up 7 pixels
+    bottom1=shift1.PointResize(orig.width(),nmod(orig.height()/8,2))
     bottom2=bottom1.PointResize(orig.width(),orig.height())
     ex_merge(bottom2,top2,p1,UV=3)
 }
@@ -1395,10 +1379,10 @@ function VerticalLinearBlock(clip orig)
 function HorizontalLinearBlock(clip orig)
 {
     p1=PtrnVertical(orig,3,255,219,182,146,109,73,36,0)
-    top1=orig.PointResize(orig.width()/8,orig.height())
+    top1=orig.PointResize(nmod(orig.width()/8,2),orig.height())
     top2=top1.PointResize(orig.width(),orig.height())
-    shift1=orig.mt_convolution("0 0 0 0 0 0 0 0 0 0 0 0 0 0 1","1") # shifting left 7 pixels
-    bottom1=shift1.PointResize(orig.width()/8,orig.height())
+    shift1=orig.Expr("x[7,0]") # shifting left 7 pixels
+    bottom1=shift1.PointResize(nmod(orig.width()/8,2),orig.height())
     bottom2=bottom1.PointResize(orig.width(),orig.height())
     ex_merge(bottom2,top2,p1,UV=3)
 }
@@ -1406,24 +1390,27 @@ function HorizontalLinearBlock(clip orig)
 
 function ShiftDCTBack(clip orig,int density, clip wmc, float wms, string dct_type, int i, int j, int DCTorig, int "quant") {
 
-    l=orig.crop(0,0,Int(8/density)*i+16,-0).FlipHorizontal()
-    r=orig.crop(orig.width()-Int(8/density)*i-16,0,-0,-0).FlipHorizontal()
+    den_i = Int(8/density)*i
+    den_j = Int(8/density)*j
+
+    l=orig.crop(0,0,den_i+16,-0).FlipHorizontal()
+    r=orig.crop(orig.width()-den_i-16,0,-0,-0).FlipHorizontal()
     cMain=(i==0) ? orig : StackHorizontal(l,orig,r)
-    t=cMain.crop(0,0,0,Int(8/density)*j+16).FlipVertical()
-    b=cMain.crop(0,orig.height()-Int(8/density)*j-16,0,-0).FlipVertical()
+    t=cMain.crop(0,0,0,den_j+16).FlipVertical()
+    b=cMain.crop(0,orig.height()-den_j-16,0,-0).FlipVertical()
     idens = i*density+j
 
     cMain=(j==0) ? cMain : StackVertical(t,cMain,b)
-    cMain=(i+j==0) ? orig : MergeChroma(cMain,cMain.AddBorders(Int(8/density)*i,Int(8/density)*j,0,0).Crop(0,0,cMain.width(),cMain.height()))
+    cMain=(i+j==0) ? orig : MergeChroma(cMain,cMain.AddBorders(den_i,den_j,0,0).Crop(0,0,cMain.width(),cMain.height()))
     cMain=(i==0) ? cMain : cMain.crop(16,0,orig.width()+16,0)
     cMain=(j==0) ? cMain : cMain.crop(0,16,0,orig.height()+16)
     cMain=((i+j==0)&&(DCTorig==0)) ? orig : (dct_type=="DCTFilterD") ? cMain.DCTFilterD(quant) : cMain.DCTFilter(DctParams7,DctParams6,DctParams5,DctParams4,DctParams3,DctParams2,DctParams1,DctParams0)
     cFlot=ex_lutxy(cMain,wmc,"x y * range_max %",UV=3)
     cMain=ex_lutxy(cMain,wmc,"x y * dup range_max % - range_max /",UV=3)
-    cFlot=(i+j==0) ? cFlot : MergeChroma(cFlot,cFlot.AddBorders(0,0,Int(8/density)*i,Int(8/density)*j).Crop(Int(8/density)*i,Int(8/density)*j,cFlot.width(),cFlot.height()))
-    cMain=(i+j==0) ? cMain : MergeChroma(cMain,cMain.AddBorders(0,0,Int(8/density)*i,Int(8/density)*j).Crop(Int(8/density)*i,Int(8/density)*j,cMain.width(),cMain.height()))
-    shiftClip.Set(idens+Int(Pow(density,2)),(i+j==0) ? cFlot : cFlot.crop(Int(8/density)*i,Int(8/density)*j,orig.width()(),orig.height()))
-    shiftClip.Set(idens,                    (i+j==0) ? cMain : cMain.crop(Int(8/density)*i,Int(8/density)*j,orig.width()(),orig.height()))
+    cFlot=(i+j==0) ? cFlot : MergeChroma(cFlot,cFlot.AddBorders(0,0,den_i,den_j).Crop(den_i,den_j,cFlot.width(),cFlot.height()))
+    cMain=(i+j==0) ? cMain : MergeChroma(cMain,cMain.AddBorders(0,0,den_i,den_j).Crop(den_i,den_j,cMain.width(),cMain.height()))
+    shiftClip.Set(idens+Int(Pow(density,2)),(i+j==0) ? cFlot : cFlot.crop(den_i,den_j,orig.width(),orig.height()))
+    shiftClip.Set(idens,                    (i+j==0) ? cMain : cMain.crop(den_i,den_j,orig.width(),orig.height()))
     global avgI = avgI+", shiftClip"+String(idens)+", 255.0/"+String(wms)
     global avgF = (i+j==0) ? avgF : avgF+", shiftClip"+String(idens+Int(Pow(density,2)))+", "+String(1/Pow(density,2))
 }
@@ -1486,11 +1473,14 @@ function AdaptionMask(clip orig,int "pregain",int "pregainoffset",int "gain",str
     adaption_blurbig   = Default(adaption_blurbig,"1")
 
     o1=orig.ex_lut(Format("x range_half - abs x range_half == 0 {pregainoffset} ? + {pregain} *"),UV=3)
-    o1=o1.mt_convolution("0 0 0 0 0 0 0 1 1 1 1 1 1 1 1","0 0 0 0 0 0 0 1 1 1 1 1 1 1 1",UV=3).AddBorders(0,0,(32 - (orig.width() % 32)) % 32,(32 - (orig.height() % 32)) % 32)
-    o1=o1.pointresize(o1.width()/8,o1.height()/8)
-    o1=(adaption_blursmall=="1") ? o1 : \
-       (adaption_blursmall=="expand") ? o1.ex_expand(UV=3) : \
-       (adaption_blursmall=="inpand") ? o1.ex_inpand(UV=3) : \
+    o1=o1.ex_lut("x[0,0] x[1,0] x[2,0] x[3,0] x[4,0] x[5,0] x[6,0] x[7,0] + + + + + + + 0.125 *" ,UV=3).\
+          ex_lut("x[0,0] x[0,1] x[0,2] x[0,3] x[0,4] x[0,5] x[0,6] x[0,7] + + + + + + + 0.125 *" ,UV=3).\
+          AddBorders(0,0,(32 - (orig.width() % 32)) % 32,(32 - (orig.height() % 32)) % 32)
+
+    o1=o1.pointresize(nmod(o1.width()/8,2),nmod(o1.height()/8,2))
+    o1=(adaption_blursmall=="1")       ? o1                  : \
+       (adaption_blursmall=="expand")  ? o1.ex_expand(UV=3)  : \
+       (adaption_blursmall=="inpand")  ? o1.ex_inpand(UV=3)  : \
        (adaption_blursmall=="inflate") ? o1.ex_inflate(UV=3) : \
        (adaption_blursmall=="deflate") ? o1.ex_deflate(UV=3) : \
       o1.mt_convolution(adaption_blursmall,adaption_blursmall,UV=3)
