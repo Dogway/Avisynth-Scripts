@@ -87,6 +87,8 @@
 ### Changes 2021-09-21: (Dogway)
 ### - Ported to ExTools
 ### - Optimized expressions (29% speed increase)
+### - Replaced PointResize with PadBorders (2021-10-18)
+###
 
 function Deblock_QED ( clip clp, int "quant1", int "quant2",
  \                     int "aOff1", int "bOff1", int "aOff2", int "bOff2", string "exdeblock1", string "exdeblock2", int "UV", bool "fulls"  ) {
@@ -115,7 +117,7 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
     h    = clp.height()
     padX = w%8 == 0 ? 0 : (8 - w%8)
     padY = h%8 == 0 ? 0 : (8 - h%8)
-    clp=clp.pointresize(w+padX, h+padY, 0, 0, w+padX, h+padY)
+    clp=clp.PadBorders(0,0,padX,padY)
 
     # block
     block = clp.ex_lutspa(mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?", UV=!isy && uv!=2 ? 3 : 1, fulls=fs)
@@ -137,7 +139,7 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
     remX = sw%16 == 0 ? 0 : (16 - sw%16)
     remY = sh%16 == 0 ? 0 : (16 - sh%16)
 
-    strongD3 = strongD2.pointresize(sw+remX, sh+remY, 0, 0, sw+remX, sh+remY).DCTfilter(1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0).crop(0,0,-remX,-remY)
+    strongD3 = strongD2.PadBorders(0,0,remX,remY).DCTfilter(1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0).crop(0,0,-remX,-remY)
 
     # apply compensation from "normal" deblocking to the borders of
     # the full-block-compensations calculated from "strong" deblocking ... and apply it.
