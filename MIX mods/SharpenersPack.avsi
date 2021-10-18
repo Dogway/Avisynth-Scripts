@@ -650,8 +650,8 @@ function SeeSaw( clip  input, clip "denoised",
 
     ox    = clp.Width()
     oy    = clp.Height()
-    xss   = m4_sh(ox*ssx)
-    yss   = m4_sh(oy*ssy)
+    xss   = nmod(ox*ssx,4,16)
+    yss   = nmod(oy*ssy,4,16)
     NRL   = ex_bs(NRlimit,  8, bi, fulls=fs)
     NRL2  = ex_bs(NRlimit2, 8, bi, fulls=fs)
     NRLL  = ex_bs(NRlimit2 * 100.0/bias - 1, 8, bi, fulls=fs)
@@ -720,8 +720,8 @@ function SeeSaw2( clip  input, clip "denoised",
 
     ox    = clp.Width()
     oy    = clp.Height()
-    xss   = m4_sh(ox*ssx, PAL ? 2 : 1)
-    yss   = m4_sh(oy*ssy, PAL ? 2 : 1)
+    xss   = PAL ? nmod(ox*ssx,4,16) : round((ox*ssx)/5.0)*12
+    yss   = PAL ? nmod(oy*ssy,4,16) : round((oy*ssy)/5.0)*12
     NRL   = ex_bs(NRlimit,  8, bi, fulls=fs)
     NRL2  = ex_bs(NRlimit2, 8, bi, fulls=fs)
     NRLL  = ex_bs(NRlimit2 * 100.0/bias - 1, 8, bi, fulls=fs)
