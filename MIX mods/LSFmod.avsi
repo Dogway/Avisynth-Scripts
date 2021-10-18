@@ -150,6 +150,7 @@
 ### -> Masktools2   (v2.2.28 or up)
 ### -> RgTools      (v1.2 or up)
 ### -> ExTools      (v6.1 or up)
+### -> ResizersPack (v6.0 or up)
 ### -> SharpenersPack                  [for Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use AviSynth+ then make sure it's the last one
