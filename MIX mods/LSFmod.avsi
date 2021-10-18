@@ -12,13 +12,15 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v3.6 mix - 06 October 2021                                ###
+###                                v3.7 mix - 18 October 2021                                ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v3.7ex : - Rebase to latest ResizersPack
 ###
 ### v3.6mx : - Add thSAD for MCompensate
 ###          - Cosmetics
@@ -147,11 +149,10 @@
 ###
 ### -> Masktools2   (v2.2.28 or up)
 ### -> RgTools      (v1.2 or up)
-### -> Zs_RF_Shared (v1.154)           [for Source]
-### -> ExTools      (v6.0 or up)
+### -> ExTools      (v6.1 or up)
 ### -> SharpenersPack                  [for Smode=2]
 ### -> CAS                             [for Smode=6]
-### -> if you use avs+ then make sure it's the last one
+### -> if you use AviSynth+ then make sure it's the last one
 ###
 ###
 ###
@@ -168,7 +169,7 @@
 ###         edgemode, edgemaskHQ,
 ###         ss_x, ss_y, dest_x, dest_y,
 ###         show, screenW, screenH,
-###         preset )
+###         preset, tv_range, fulls )
 ###
 ###
 ###
@@ -482,7 +483,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v3.6mix"
+    version = "v3.7mix"
     preset  = Default(preset,"mid")
     num     = preset=="old" ? 0 : preset=="slow" ? 1 : preset=="mid" || preset=="medium" ? 2 : preset=="fast" ? 3 : 4
 
@@ -497,7 +498,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     Assert(num != 4, chr(10) + """Preset must be "old", "slow", "mid" or "fast" !""" + chr(10))
 
     #                                                                           OLD                  SLOW                 MEDIUM                  FAST
-    strength    = Default( strength,    Select(num,                              100 ,                100 ,                100 ,                100 ) )
+    strength    = Default( strength,    Select(num,                              100.,                100.,                100.,                100.) )
     Smode       = Default( Smode,       Select(num,                                3 ,                  5 ,                  4 ,                  3 ) )
     Smethod     = Default( Smethod,     Select(num,                     Smode==3?2:1 ,                  3 ,                  3 ,                  2 ) )
 
@@ -511,7 +512,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
     Lmode       = Default( Lmode,       Select(num,                                1 ,                  4 ,                  4 ,                  1 ) )
     Lrad        = Default( Lrad,        Select(num,                                1 ,                  1 ,                  1 ,                  1 ) )
-    overshoot   = Default( overshoot,   Select(num,                                1 ,       strength/100.,       strength/100.,       strength/100.) )
+    overshoot   = Default( overshoot,   Select(num,                                1 ,       strength/100 ,       strength/100 ,       strength/100 ) )
     undershoot  = Default( undershoot,  Select(num,                        overshoot ,          overshoot ,          overshoot ,          overshoot ) )
     overshoot2  = Default( overshoot2,  Select(num,                      overshoot*2 ,        overshoot*2 ,        overshoot*2 ,        overshoot*2 ) )
     undershoot2 = Default( undershoot2, Select(num,                       overshoot2 ,         overshoot2 ,         overshoot2 ,         overshoot2 ) )
@@ -556,8 +557,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     soft = soft!=-2  ? soft : int( (1.0+(2.0/(ss_x+ss_y))) * sqrt(strength) )
     soft = soft<=100 ? soft : 100
 
-    xxs  = round(ox*ss_x/8)*8
-    yys  = round(oy*ss_y/8)*8
+    xxs  = nmod(ox*ss_x,8)
+    yys  = nmod(oy*ss_y,8)
 
     str  = strength / 100.
 
@@ -604,8 +605,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
     sec    = ex_bs(tv ? 0.51 : 0.594, 8, bi, fulls=fs)
     secstr = Format("x y < x {sec} + x y > x {sec} - x ? ?")  # "x y x 2 + min y x 2 - max clip" or "y x 2 + min x 2 - max " # faster but 95% not 100% match (replicates ex_clamp() )
-    method = secure==true ? method.ex_lutxy(pre,secstr, UV=1, fulls=fs)
-    \      :                method
+    method = secure ? method.ex_lutxy(pre,secstr, UV=1, fulls=fs)
+    \      :          method
 
     method = preblur=="OFF" ? method : tmp.ex_lutxyz(pre,method,"x y z - range_half + - range_half +", UV=1, fulls=fs)
 
@@ -687,16 +688,16 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### SOOTHE
-    diff  = ex_makediff(tmp,PP1, UV=1, fulls=fs)
+    diff  = ex_makediff(tmp, PP1, UV=1, fulls=fs)
     diff2 = diff.temporalsoften(1,255,0,32,2)
     diff3 = ex_lutxy(diff,diff2,Format("x range_half - A@ y range_half - B@ * 0 < A {keep} 0.01 * * range_half + A abs B abs > x {keep} * y 100 {keep} - * + 0.01 * x ? ?"), UV=1, fulls=fs)
 
-    PP2 = soothe ? ex_makediff(tmp,diff3, UV=1, fulls=fs) : PP1
+    PP2 = soothe ? ex_makediff(tmp, diff3, UV=1, fulls=fs) : PP1
 
 
     ### OUTPUT
-    out = sisupscale ?                PP2.spline36resize(dest_x,dest_y)
-    \   : (ss_x > 1.0 || ss_y > 1.0)? PP2.spline36resize(dest_x,dest_y)
+    out = sisupscale ?                PP2.spline36resize(dest_x, dest_y)
+    \   : (ss_x > 1.0 || ss_y > 1.0)? PP2.spline36resize(dest_x, dest_y)
     \   :                             PP2
 
     ### CONTRA
@@ -708,8 +709,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
         srcD   = ex_makediff(in, src, UV=1, fulls=fs)
         shrpD  = ex_makediff(in, no,  UV=1, fulls=fs)
-        srcDP  =  srcD.sh_Padding(4,4,4,4)
-        shrpDP = shrpD.sh_Padding(4,4,4,4)
+        srcDP  =  srcD.PadBorders(4,4,4,4)
+        shrpDP = shrpD.PadBorders(4,4,4,4)
         shrpL  = shrpDP.repair(isHD?shrpDP.repair(srcDP,max(abs(Lmode),1),-1):srcDP,max(abs(Lmode),1),-1).crop(4,4,-4,-4,true)
         out    = ex_lutxyz(in,shrpL,shrpD, "y range_half - X@ abs z range_half - Y@ abs < X Y ? x swap -", UV=1, fulls=fs)
     }
@@ -733,7 +734,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
        inW   = input.width()
        inH   = input.height()
-       outW  = round( resoW / 4 ) * 4
+       outW  = nmod( resoW , 4)
        outH  = round( (outW * inH) / (4 * inW) ) * 4
        scale = resoH - ( 2 * outH )
 
@@ -745,7 +746,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
        o = scale > 0 ? o.addborders(0,scale/4,0,scale/4) : o
        o = scale < 0 ? o.crop(0,-scale/4,0,scale/4,true) : o
 
-       e = blankclip(input, width=384, height=resoH)
+       e =  blankclip(input, width=384, height=resoH)
        e = e.SubTitle("LSFmod " + string(version)                ,text_color=$FFFFFF,font="COURIER NEW",size=24,x=40,y=40)
        e = e.SubTitle("PRESET        = " + string(preset)        ,text_color=$FFFFFF,font="COURIER NEW",size=12,x=40,y=100)
 
