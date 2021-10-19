@@ -22,6 +22,7 @@
 ###
 ### v3.7ex : - Rebase to latest ResizersPack
 ###          - Rebase "undot1" repair mode to latest ExTools
+###          - Replace try catch with VarExist()
 ###
 ### v3.6ex : - Add thSAD for MCompensate
 ###          - Fix ex_repair() calls
@@ -152,7 +153,7 @@
 ### +--------------+
 ###
 ### -> ExTools      (v6.1 or up)
-### -> ResizersPack (v6.0 or up)
+### -> ResizersPack (v6.1 or up)
 ### -> SharpenersPack                  [for Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use AviSynth+ then make sure it's the last one
@@ -632,7 +633,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     # Temporal limiting
     if (Lmode==6) {
 
-        isg = Eval("try { cb1.isclip() && cf1.isclip() } catch(error_msg) { false }") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them ourselves.
+        isg = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them ourselves.
 
         if (!isg || (ss_x > 1.0 || ss_y > 1.0)) {
 
