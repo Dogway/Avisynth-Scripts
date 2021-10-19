@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v1.9  (18-10-2021)                             ###
+###        Sharpeners Pack v2.0  (19-10-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -551,7 +551,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
     os  = ex_bs(os, 8, bi, fulls=fs)
 
     isc = MC ? VarExist("b1c") && VarExist("f1c") : false   # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
-    isc = MC ? VarExist("cb1") && VarExist("cf1") : false   # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
+    isg = MC ? VarExist("cb1") && VarExist("cf1") : false   # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
 
 
     s   = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                                           # Damp down remaining spots of the denoised clip.
@@ -2070,14 +2070,15 @@ function sp_MultiSharpen(clip C, int multi, float "sharpen", float "blur")
 ##
 ##  https://forum.doom9.org/showthread.php?p=681194#post681194
 ##
-##  ported to masktools2 by colours (02-08-2015)
-##  ss_x and ss_y fix    by colours (16-03-2016)
-##  Optimized            by Dogway  (17-09-2021)
+##  ported to masktools2 by colours     (02-08-2015)
+##  ss_x and ss_y fix    by colours     (16-03-2016)
+##  HBD mod              by real.finder (31-10-2020)
+##  Optimized            by Dogway      (19-10-2021)
 
 function pSharpen   (clip clp,
                     \int "strength", int "threshold",
                     \float "ss_x", float "ss_y",
-                    \int "dest_x", int "dest_y") {
+                    \int "dest_x", int "dest_y", bool "fulls") {
 
     ox = clp.width ()
     oy = clp.height()
@@ -2088,6 +2089,7 @@ function pSharpen   (clip clp,
     ss_y      = Float(Default(ss_y, 1.0))
     dest_x    = Default(dest_x, ox)       # Final image size; defaults to the dimensions of the input clip.
     dest_y    = Default(dest_y, oy)
+    fs        = Default(fulls, false)
 
     strength  = strength <0 ? 0 : strength >100 ? 100 : strength
     threshold = threshold<0 ? 0 : threshold>100 ? 100 : threshold
@@ -2104,16 +2106,14 @@ function pSharpen   (clip clp,
     nval = ss.ex_luts(mode="range-",UV=1)
 
     # initializing the strings used to obtain the output luma value
-    s    = strength  /100.
-    t    = threshold /100.
+    s    = strength  / 100.
+    t    = threshold / 100.
     x0   = t*(1.0-s)/(1.0-(1.0-t)*(1.0-s))
-    expr = Format("x y 0.5 * 1 - abs X@ {x0} < {s} 1 = x y 0.5 * Y@ = 0 Y ? X 1 {s} - / ? X 1 {t} - * {t} + ? x y 0.5 * > 1 -1 ? * 1 + y * 0.5 * 0 max")
+    expr = Format("x y / 2 * 1 - abs X@ {x0} < {s} 1 = x y 0.5 * Y@ = 0 Y ? X 1 {s} - / ? X 1 {t} - * {t} + ? x y 0.5 * > 1 -1 ? * 1 + y * 0.5 * 0 max z +")
 
     # calculates the new luma value pushing it towards min or max
-    nval = ex_lutxy(nval,nmax,expr,UV=1)
-
-    # normalizing val to values from min to max
-    clp  = ex_adddiff(nval,ss.mt_inpand(),dif=false,UV=1)
+    # and "z +" normalizing val to values from min to max
+    clp = ex_lutxyz(nval,nmax,ss.mt_inpand(),expr,UV=1,scale_inputs=fs?"allf":"all")
 
     # resizing the image to the output values
     clp  = ss_x!=1.0 || ss_y!=1.0 || dest_x!=ox || dest_y!=oy ? clp.lanczosresize(dest_x,dest_y) : clp
@@ -2131,7 +2131,6 @@ function pSharpen   (clip clp,
 #
 # ---Requirements---
 #
-# Core plugins:
 #    CAS
 #    ExTools
 #    GradePack
@@ -2158,6 +2157,7 @@ function CASm(clip a, float "strength") {
 
 
 # XSharpen - by real.finder (01-05-2021)
+# Optimized  by Dogway      (19-10-2021)
 #
 # AviSynth+ port of the VirtualDub XSharpen filter
 #
@@ -2175,4 +2175,5 @@ function ex_XSharpen(clip clp, float "strength", float "threshold", int "UV", bo
     str1 = str / 256.0
     str2 = (256 - str) / 256.0
 
-    ex_lutxyz(clp, clp.mt_expand(), clp.mt_inpand(), Format("y x - Y@ x z - X@ min {thr} < X Y < z y ? {str1} * x {str2} * + x ?"), UV=UV, fulls=fs) }
+    ex_lut(clp, Format("x[-1,1] A@ x[0,1] B@ max x[1,1] C@ max x[-1,0] D@ max x[0,0] E@ max x[1,0] F@ max x[-1,-1] G@ max x[0,-1] H@ max x[1,-1] I@ max M@
+                        x - Y@ x A B min C min D min E min F min G min H min I min N@ - X@ min {thr} < X Y < N M ? {str1} * x {str2} * + x ?"), UV=UV, fulls=fs) }
