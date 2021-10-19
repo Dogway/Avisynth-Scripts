@@ -106,7 +106,9 @@ function RatioResize(clip s, float "ratio", string "mode", int "PreW", int "PreH
 ###
 ### bias:  From -100 to +100, to slide the frame within the resolution (ie. an asymmetrical matte)
 ###
-
+### *Color mode has two ways for inputs, the classical PC range based hexadecimal (see link below) or an alternative more intuitive way
+###  by using an int array as string. For example for YUV TV Black you can input "$108080" or "[16,128,128]". Both modes are valid.
+###
 function PadResize(clip c, int "width_dst", int "height_dst", int "mod", string "mode", float "biasW", float "biasH") {
 
     c
@@ -118,8 +120,9 @@ function PadResize(clip c, int "width_dst", int "height_dst", int "mod", string 
     height_dst = Default(height_dst, h)
     bw     = Default(biasW, 0.)
     bh     = Default(biasH, 0.)
-    md     = Default(mode, rgb?"$000000":"$108080") # 'Dilate', 'Mirror' or color code (ie. "$008080" for YUV PC black or $108080 for YUV TV black)
+    md     = Default(mode, rgb?"$000000":"$108080") # 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
     mod    = Default(mod, 2)
+	md     = LeftStr(md,1)=="[" ? ColortoHex(md) : md
 
     fullchr = isy() ? true : isRGB(c) || ExtractU().width() == w
 
@@ -169,8 +172,10 @@ function PadResize(clip c, int "width_dst", int "height_dst", int "mod", string 
 ### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (http://avisynth.nl/index.php/Color_presets).
 ###
 ### 'Dilate' is slightly faster than 'Mirror' (and probably filter friendlier)
-### Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (http://forum.doom9.org/showthread.php?p=518131#post518131)
+###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (http://forum.doom9.org/showthread.php?p=518131#post518131)
 ###
+### *Color mode has two ways for inputs, the classical PC range based hexadecimal (see link above) or an alternative more intuitive way
+###  by using an int array as string. For example for YUV TV Black you can input "$108080" or "[16,128,128]". Both modes are valid.
 ###
 function PadBorders(clip src, int "left", int "top", int "right", int "bottom", string "mode") {
 
@@ -181,7 +186,10 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     t  = Default( abs(top),    0 )
     r  = Default( abs(right),  0 )
     b  = Default( abs(bottom), 0 )
-    md = Default( mode, "Dilate" )  # 'Dilate', 'Mirror' or color code (ie. "$008080" for YUV PC black or $108080 for YUV TV black)
+    md = Default( mode, "Dilate" )  # 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
+
+
+	md = LeftStr(md,1)=="[" ? ColortoHex(md) : md
 
     l  = !rgb && !isy ? nmod(l,2) : l
     t  = !rgb && !isy ? nmod(t,2) : t
@@ -224,14 +232,16 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 ##############################
 ### Adjust source to mod(n) size by adding or cropping borders. by Gavino
 ### From this thread: http://forum.doom9.org/showthread.php?p=1453641#post1453641
-function mmod(clip c, int "modH", int "modV", string "mode", int "color")
+function mmod(clip c, int "modH", int "modV", string "mode", string "color")
 {
-    modH = Default(modH, 16)
-    modV = Default(modV, modH)
-    mode = Default(mode,"crop")  # "crop" or "add"
-    clr  = Default(color,$000000)
+    modH = Default(modH,        16)
+    modV = Default(modV,      modH)
+    mode = Default(mode,    "crop")      # "crop" or "add"
+    clr  = Default(color,"$108080")
     bh = modH - ((c.Width() -1)%modH + 1)
     bv = modV - ((c.Height()-1)%modV + 1)
+
+	clr = LeftStr(clr,1)=="[" ? ColortoHex(clr) : clr
 
     l = bh/2
        l = c.IsYUV() && l%2 != 0 ? l-1 : l
@@ -239,7 +249,7 @@ function mmod(clip c, int "modH", int "modV", string "mode", int "color")
     t = bv/2
        t = c.IsYV12() && t%2 != 0 ? t-1 : t
     b = bv - t
-    (mode=="Add")  ? c.AddBorders(l,t,r,b,color=clr) : \
+    (mode=="Add")  ? c.AddBorders(l,t,r,b,color_yuv=Eval(clr)) : \
     (mode=="Crop") ? c.Crop      (l,t,-r,-b)         : \
                      Assert(false, "Wrong mode")     }
 
@@ -270,6 +280,12 @@ function  nmod(float n, int "mod", int "min", bool "bankers") {
                                                        round( float(n) / mod ) * mod ) }
 
 
+
+# Converts a "stringed" color array into an hexadecimal string
+# "[16,128,128]" -> "$108080"
+function ColortoHex(string color) {
+    cl = Eval(Color)
+    Return "$"+string(Hex(cl[0],2))+string(Hex(cl[1],2))+string(Hex(cl[2],2)) }
 
 
 
