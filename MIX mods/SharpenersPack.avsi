@@ -76,7 +76,7 @@
 ###########################################################################
 ###
 ###
-### Adaptive_Sharpen() - v1.4 (12-09-2021)
+### Adaptive_Sharpen() - v1.5 (19-10-2021)
 ###
 ### https://forum.doom9.org/showthread.php?t=182881
 ###
@@ -125,12 +125,14 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     UV           = Default(UV,              rgb ? 3 : 1)
     fs           = Default(fulls,           rgb)
 
-    r_max    = 1. / ex_bs(255,    8, bi, fulls=fs)
+    r_max1   = 1. / ex_bs(255,    8, bi, fulls=fs)
+    r_max    = bi == 32 ? "" : Format("{r_max1} *")
+    f_max    = bi == 32 ? "" : Format("range_max *")
     a_eps    = ex_bs(2.55,        8, bi, fulls=fs)
     a_offset = ex_bs(a_offset,    8, bi, fulls=fs)
     a_off_ep = a_offset - a_eps
     lthr_m   = ex_bs(lowthr_mxw,  8, bi, fulls=fs)
-    lthr_r   = (1. / (0.1 - 0.01)) * r_max
+    lthr_r   = (1. / (0.1 - 0.01)) * r_max1  # (~10 * r_max)
     sbe_h    = ex_bs(216.75,      8, 32)
     sbe_m    = ex_bs(14.28,       8, bi, fulls=fs) - a_offset * 3
     sbe_l    = ex_bs(7.65,        8, 32)
@@ -141,10 +143,14 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     dW_hithr = ex_bs(dW_hithr,    8, bi, fulls=fs)
     dW       = 1. / (dW_hithr - dW_lothr)
 
+
     # Custom weighted DoG edge detection
-    edge = Format("x[0,0] A^ x[0,1] B^ x[-1,0] C^ x[1,0] D^ x[0,-1] E^ x[0,2] F^ x[0,-2] G^ x[2,0] H^ x[-2,0] I^ x[-1,1] J^ x[-1,-1] K^ x[1,1] L^ x[1,-1] M^ " \
-                 +"B E D C + + + 2 * J K L M + + + A 4 * + + 0.0625 * S@ F - abs S G - abs S H - abs S I - abs + + + 0.23 * S J - abs S K - abs S L - abs S M - abs + + + 0.92 * S B - abs S E - abs S D - abs S C - abs + + + 1.15 * S A - abs 1.38 * + + +
-                   {r_max} * 0.65 ^ 2 S {r_max} -2.466666681 1.442695040888963 * * * ^ 0.90 * 0.266666666 + 0 1 clip * range_max * {a_offset} +")
+    edge = Format("x[0,0] A@ 2 * x[0,1] B@ x[0,-1] E@ x[1,0] D@ x[-1,0] C@ + + + + 2 * x[-1,1] J@ x[-1,-1] K@ x[1,1] L@ x[1,-1] M@ + + + + 0.0625 *
+                   S@ x[0,2] - abs S x[0,-2] - abs S x[2,0] - abs S x[-2,0] - abs + + + 0.23 *
+                   S  J      - abs S K       - abs S L      - abs S M       - abs + + + 0.92 * +
+                   S  B      - abs S E       - abs S D      - abs S C       - abs + + + 1.15 * +
+                                                                  S A       - abs       1.38 * +
+                   "+r_max+" 0.65 ^ 2 S {r_max1} -2.466666681 1.442695040888963 * * * ^ 0.90 * 0.266666666 + 1 min * "+f_max+" {a_offset} +")
 
     edge = isy ? Expr(a, edge                                                                , optSingleMode=false) : \
       UV == 1  ? Expr(a, edge, ""                                                            , optSingleMode=false) : \
@@ -154,16 +160,16 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     # Similar Bound Edge (soft_if(), fast linear approx)
     sbe = ex_dlut(Format("
            x[-1,1] A@ x[0,1]  B@ max x[1,1] C@ x[-1,0] D@ max max x[1,0] E@ x[-1,-1] F@ max x[0,-1] G@ x[1,-1] H@ max max max
-           x[0,2]  I@ x[-2,0] J@ max x[2,0] K@ x[0,-2] L@ max max x[0,0] X@ max max {r_max} * {sbe_l} + M^
-           x[0,3]   I        B  {sbe_m} + + + {r_max} * M / {sbe_h} -
-           x[0,-3]  G        L  {sbe_m} + + + {r_max} * M / {sbe_h} - *
-           x[-3,0]  J        D  {sbe_m} + + + {r_max} * M / {sbe_h} -
-           x[3,0]   E        K  {sbe_m} + + + {r_max} * M / {sbe_h} - * +
-           x[-1,2]  x[-2,1]  A  {sbe_m} + + + {r_max} * M / {sbe_h} -
-           x[2,-1]  x[1,-2]  H  {sbe_m} + + + {r_max} * M / {sbe_h} - * +
-           x[1,2]   x[2,1]   C  {sbe_m} + + + {r_max} * M / {sbe_h} -
-           x[-2,-1] x[-1,-2] F  {sbe_m} + + + {r_max} * M / {sbe_h} - * +
-           2 - 0.909090909 * 0 1 clip dup dup * swap 2 * 3 swap - * range_max *"), bi, fs)
+           x[0,2]  I@ x[-2,0] J@ max x[2,0] K@ x[0,-2] L@ max max x[0,0] X@ max max "+r_max+" {sbe_l} + 1 swap / M^
+           x[0,3]   I        B  {sbe_m} + + + "+r_max+" M * {sbe_h} -
+           x[0,-3]  G        L  {sbe_m} + + + "+r_max+" M * {sbe_h} - *
+           x[-3,0]  J        D  {sbe_m} + + + "+r_max+" M * {sbe_h} -
+           x[3,0]   E        K  {sbe_m} + + + "+r_max+" M * {sbe_h} - * +
+           x[-1,2]  x[-2,1]  A  {sbe_m} + + + "+r_max+" M * {sbe_h} -
+           x[2,-1]  x[1,-2]  H  {sbe_m} + + + "+r_max+" M * {sbe_h} - * +
+           x[1,2]   x[2,1]   C  {sbe_m} + + + "+r_max+" M * {sbe_h} -
+           x[-2,-1] x[-1,-2] F  {sbe_m} + + + "+r_max+" M * {sbe_h} - * +
+           2 - 0.909090909 * 0 1 clip dup dup * swap 2 * 3 swap - * "+f_max), bi, fs)
 
     sbe = isy ? Expr(edge, sbe                                                               , optSingleMode=false) : \
       UV == 1 ? Expr(edge, sbe, ""                                                           , optSingleMode=false) : \
@@ -172,119 +178,120 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
     # Sharp difference
     sharpdiff = ex_dlut(Format("
-                y {a_offset} - {dW_lothr} - {dW} * 0 1 clip
+                       x[0,0] dup dup dup dup dup dup dup
+                              x[0,1]   B@ - abs
+                       swap7  x[-1,0]  C@ - abs
+                       swap6  x[1,0]   D@ - abs
+                       swap5  x[0,-1]  E@ - abs + + +
+                       swap4  x[-1,1]  J@ - abs
+                       swap3  x[1,1]   L@ - abs
+                       swap2  x[-1,-1] K@ - abs
+                       swap   x[1,-1]  M@ - abs + + + 0.25 * + 3 * {sd_off} + "+r_max+" A^
+
+                y {a_offset} {dW_lothr} + - {dW} * 0 1 clip
                 dup dup * swap 2 * 3 swap - * Z^
+                Z dup 1 swap - + dup * Y^
+
+                       J  dup dup dup dup dup
+                             x[-1,2]     - abs
+                       swap5 x[-2,1] N@  - abs
+                       swap4          B  - abs
+                       swap3          C  - abs + + +
+                       swap2 x[0,2]  F@  - abs T@
+                       swap  x[-2,0] I@  - abs W@ + 0.5 * + "+r_max+" A swap / Y min C0^
+
+                       L  dup dup dup dup dup
+                             x[1,2]  O@  - abs
+                       swap5 x[2,1]  P@  - abs
+                       swap4         B   - abs
+                       swap3         D   - abs + + +
+                       swap2         F   - abs U@
+                       swap  x[2,0]  H@  - abs V@ + 0.5 * + "+r_max+" A swap / Y min C2^
+
+                       K  dup dup dup dup dup
+                             x[-1,-2]    - abs
+                       swap5 x[2,-1] Q@  - abs
+                       swap4         E   - abs
+                       swap3         C   - abs + + +
+                       swap2 x[0,-2] G@  - abs JJ@
+                       swap          I   - abs LL@ + 0.5 * + "+r_max+" A swap / Y min C5^
+
+                       M  dup dup dup dup dup
+                             x[1,-2] R@  - abs
+                       swap5         Q   - abs
+                       swap4         E   - abs
+                       swap3         D   - abs + + +
+                       swap2         G   - abs KK@
+                       swap          H   - abs MM@ + 0.5 * + "+r_max+" A swap / Y min C7^
+
+                Z dup 0.54772255751 * swap 1 swap - 1.41421356237 * + dup * ZZ^
+
+                       F dup dup dup  O  - abs
+                       swap3          N  - abs
+                       swap2          B  - abs
+                       swap  x[0,3]      - abs + + +
+                                      T
+                                      U + 0.5 * + "+r_max+" A swap / ZZ min C8^
+
+                       I dup dup dup
+                             x[-2,-1] S@ - abs
+                       swap3          N  - abs
+                       swap2          C  - abs
+                       swap  x[-3,0]     - abs + + +
+                                      W
+                                      LL + 0.5 * + "+r_max+" A swap / ZZ min C10^
+
+                       G dup dup dup  R  - abs
+                       swap3          S  - abs
+                       swap2          E  - abs
+                       swap  x[0,-3]     - abs + + +
+                                      JJ
+                                      KK + 0.5 * + "+r_max+" A swap / ZZ min C9^
+
+                       H dup dup dup  Q - abs
+                       swap3          P - abs
+                       swap2          D - abs
+                       swap x[3,0]      - abs + + +
+                                      V
+                                      MM + 0.5 * + "+r_max+" A swap / ZZ min C11^
+
+                C8  C9  0.25 *       + C0 max 0.25 max C0 + 0.5 * C0^
+                C8  C10 0.25 *       + C2 max 0.25 max C2 + 0.5 * C2^
+                C9  C11 0.25 * C11q@ + C5 max 0.25 max C5 + 0.5 * C5^
+                C10 C11q             + C7 max 0.25 max C7 + 0.5 * C7^
 
                 Z dup 0.86602540378 * swap 1 swap - 0.5 * + dup * X^
-                Z dup 1 swap - + dup * Y^
-                Z dup 0.54772255751 * swap 1 swap - 1.41421356237 * + dup * Z^
 
-                x[0,0] T@ x[0,1]   B@ - abs
-                       T  x[-1,0]  C@ - abs
-                       T  x[1,0]   D@ - abs
-                       T  x[0,-1]  E@ - abs + + +
-                       T  x[-1,1]  J@ - abs
-                       T  x[1,1]   L@ - abs
-                       T  x[-1,-1] K@ - abs
-                       T  x[1,-1]  M@ - abs + + + 0.25 * + 3 * {sd_off} + {r_max} * A^
-
-                       J  x[-1,2]     - abs
-                       J  x[-2,1] N@  - abs
-                       J          B   - abs
-                       J          C   - abs + + +
-                       J  x[0,2]  F@  - abs T@
-                       J  x[-2,0] I@  - abs W@ + 0.5 * + {r_max} * A swap / Y min C0^
-
-                       L  x[1,2]  O@  - abs
-                       L  x[2,1]  P@  - abs
-                       L          B   - abs
-                       L          D   - abs + + +
-                       L          F   - abs U@
-                       L  x[2,0]  H@  - abs V@ + 0.5 * + {r_max} * A swap / Y min C2^
-
-                       K  x[-1,-2]    - abs
-                       K  x[2,-1] Q@  - abs
-                       K          E   - abs
-                       K          C   - abs + + +
-                       K  x[0,-2] G@  - abs JJ@
-                       K          I   - abs LL@ + 0.5 * + {r_max} * A swap / Y min C5^
-
-                       M  x[1,-2] R@  - abs
-                       M          Q   - abs
-                       M          E   - abs
-                       M          D   - abs + + +
-                       M          G   - abs KK@
-                       M          H   - abs MM@ + 0.5 * + {r_max} * A swap / Y min C7^
-
-                       F          O   - abs
-                       F          N   - abs
-                       F          B   - abs
-                       F x[0,3]       - abs + + +
-                                        T
-                                        U + 0.5 * + {r_max} * A swap / Z min C8^
-
-                       G          R   - abs
-                       G x[-2,-1] S@  - abs
-                       G          E   - abs
-                       G x[0,-3]      - abs + + +
-                                        JJ
-                                        KK + 0.5 * + {r_max} * A swap / Z min C9^
-
-                       I          S   - abs
-                       I          N   - abs
-                       I          C   - abs
-                       I x[-3,0]      - abs + + +
-                                        W
-                                        LL + 0.5 * + {r_max} * A swap / Z min C10^
-
-                       H          Q   - abs
-                       H          P   - abs
-                       H          D   - abs
-                       H x[3,0]       - abs + + +
-                                        V
-                                        MM + 0.5 * + {r_max} * A swap / Z min C11^
-
-                C8  C9  0.25 * + C0 max 0.25 max C0 + 0.5 * C0^
-                C8  C10 0.25 * + C2 max 0.25 max C2 + 0.5 * C2^
-                C9  C11 0.25 * + C5 max 0.25 max C5 + 0.5 * C5^
-                C10 C11 0.25 * + C7 max 0.25 max C7 + 0.5 * C7^
-
-                y[-1,1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LA@ C0  * WA^
-                y[0,1]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LB@ X   * WB^
-                y[1,1]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LC@ C2  * WC^
-                y[-1,0]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LD@ X   * WD^
-                y[1,0]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LE@ X   * WE^
-                y[-1,-1] {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LF@ C5  * WF^
-                y[0,-1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LG@ X   * WG^
-                y[1,-1]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LH@ C7  * WH^
-                y[0,2]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LI@ C8  * WI^
-                y[-2,0]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LJ@ C9  * WJ^
-                y[2,0]   {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LK@ C10 * WK^
-                y[0,-2]  {a_offset} - {lthr_r} * 0 1 clip   dup dup 1.98 * 2.97 swap - * * 0.01 + LL@ C11 * WL^
-
-                J {r_max} * 0.06 + 2.4 ^ WA *
-                B {r_max} * 0.06 + 2.4 ^ WB * +
-                L {r_max} * 0.06 + 2.4 ^ WC * +
-                C {r_max} * 0.06 + 2.4 ^ WD * +
-                D {r_max} * 0.06 + 2.4 ^ WE * +
-                K {r_max} * 0.06 + 2.4 ^ WF * +
-                E {r_max} * 0.06 + 2.4 ^ WG * +
-                M {r_max} * 0.06 + 2.4 ^ WH * +
-                F {r_max} * 0.06 + 2.4 ^ WI * +
-                I {r_max} * 0.06 + 2.4 ^ WJ * +
-                H {r_max} * 0.06 + 2.4 ^ WK * +
-                G {r_max} * 0.06 + 2.4 ^ WL * +
+                J "+r_max+" 0.06 + 2.4 ^ y[-1,1]  2 * LA@ C0  * WA@ *
+                B "+r_max+" 0.06 + 2.4 ^ y[0,1]   2 * LB@ X   * WB@ * +
+                L "+r_max+" 0.06 + 2.4 ^ y[1,1]   2 * LC@ C2  * WC@ * +
+                C "+r_max+" 0.06 + 2.4 ^ y[-1,0]  2 * LD@ X   * WD@ * +
+                D "+r_max+" 0.06 + 2.4 ^ y[1,0]   2 * LE@ X   * WE@ * +
+                K "+r_max+" 0.06 + 2.4 ^ y[-1,-1] 2 * LF@ C5  * WF@ * +
+                E "+r_max+" 0.06 + 2.4 ^ y[0,-1]  2 * LG@ X   * WG@ * +
+                M "+r_max+" 0.06 + 2.4 ^ y[1,-1]  2 * LH@ C7  * WH@ * +
+                F "+r_max+" 0.06 + 2.4 ^ y[0,2]   2 * LI@ C8  * WI@ * +
+                I "+r_max+" 0.06 + 2.4 ^ y[-2,0]  2 * LJ@ C9  * WJ@ * +
+                H "+r_max+" 0.06 + 2.4 ^ y[2,0]   2 * LK@ C10 * WK@ * +
+                G "+r_max+" 0.06 + 2.4 ^ y[0,-2]  2 * LL@ C11 * WL@ * +
 
                 WA WB WC WD WE WF WG WH WI WJ WK WL + + + + + + + + + + + / abs 0.416666666 ^ 0.06 - L^
                 LA LB LC LD LE LF LG LH LI LJ LK LL + + + + + + + + + + + 0.083333333 *  T^
 
-                y {a_offset} - abs {r_max} * 3.5 ^ {curveslope} * {curve_height} * 0.625 + {curve_height} swap / V^
+                z {a_offset} - abs "+r_max+" 3.5 ^ {curveslope} {curve_height} * * 0.625 + {curve_height} swap /
 
-                T V * 0.01 + x {r_max} * L - * range_max * range_half +"), bi, fs)
+                  T * 0.01 + x "+r_max+" L - * "+f_max+(bi==32?"":" range_half +")), bi, fs)
 
-    sharpdiff = isy ? Expr(a, edge, sharpdiff                                                                     , optSingleMode=false) : \
-            UV == 1 ? Expr(a, edge, sharpdiff, ""                                                                 , optSingleMode=false) : \
-                      Expr(a, edge, sharpdiff, ex_UVexpr(sharpdiff, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
+    eexp = Format("x {a_offset} - {lthr_r} * 1 min dup dup 1.98 * 2.97 swap - * * 0.01 + 0.5 * "+f_max+" ")
+
+    eexp = isy ? Expr(edge, eexp                                                                , optSingleMode=false, clamp_float=false) : \
+      UV == 1  ? Expr(edge, eexp, ""                                                            , optSingleMode=false, clamp_float=false) : \
+                 Expr(edge, eexp, ex_UVexpr(edge, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false, clamp_float=false)
+
+    sharpdiff = isy ? Expr(a, eexp, edge, sharpdiff                                                                     , optSingleMode=false) : \
+            UV == 1 ? Expr(a, eexp, edge, sharpdiff, ""                                                                 , optSingleMode=false) : \
+                      Expr(a, eexp, edge, sharpdiff, ex_UVexpr(sharpdiff, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
+
 
     # Soft limiter. Anti-ringing block
     sharp = ex_dlut(Format("
@@ -366,20 +373,19 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
             W X                   dup1 dup1 min W^ max X^
             C D                             min C^
             V X                   dup1 dup1 min V^ max X^
-            U W                                    max W^
-            V W                                    max W^
+            V U W                              max max W^
 
-            W X 2 * + x 3 * max Y + 0.25 * {r_max} * M^
-            C B 2 * + x 3 * min A + 0.25 * {r_max} * N^
+            W X 2 * + x 3 * max Y + 0.25 * "+r_max+" M^
+            C B 2 * + x 3 * min A + 0.25 * "+r_max+" N^
 
-            M x {r_max} * X@ - abs X N - abs min D^
+            M x "+r_max+" X@ - abs X N - abs min D^
             1.0001 D - X - {L_over} min D + P^
             0.0001 D - X + {D_over} min D + N^
 
             1 {scale_cs} - {scale_lim} * P {scale_cs} * + P min P^
             1 {scale_cs} - {scale_lim} * N {scale_cs} * + N min N^
 
-            {L_compr_high} {L_compr_low} - z {r_max} * Z@ * {L_compr_low} + CX@ y range_half - {r_max} * 0 1 clip Y@ 0 max dup {pm_p} ^ swap swap2 *
+            {L_compr_high} {L_compr_low} - z "+r_max+" Z@ * {L_compr_low} + CX@ y "+(bi==32?"":"range_half - ")+r_max+" 0 1 clip Y@ 0 max dup {pm_p} ^ swap swap2 *
             swap P 24 * min 2 * P / 2.718281828 swap ^ dup 1 - swap 1 + / P *
             abs {pm_p} ^ 1 CX - abs * + 1 {pm_p} / ^
 
@@ -387,12 +393,12 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
             swap N 24 * min 2 * N / 2.718281828 swap ^ dup 1 - swap 1 + / N *
             abs {pm_p} ^ 1 CY - abs * + 1 {pm_p} / ^ -
 
-            X + range_max *
-            "), bi, fs)
+            X + "+f_max), bi, fs)
 
             isy     ? Expr(a, sharpdiff, sbe, sharp                                                                 , optSingleMode=false) : \
             UV == 1 ? Expr(a, sharpdiff, sbe, sharp, ""                                                             , optSingleMode=false) : \
                       Expr(a, sharpdiff, sbe, sharp, ex_UVexpr(sharp, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false) }
+
 
 
 
