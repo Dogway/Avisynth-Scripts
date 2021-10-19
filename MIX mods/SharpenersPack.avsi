@@ -31,6 +31,7 @@
 ###   Other:                                                              ###
 ###       SharpenComplex2 (uncredited)                                    ###
 ###       MultiSharpen                                                    ###
+###       XSharpen                                                        ###
 ###       pSharpen                                                        ###
 ###       CASm                                                            ###
 ###                                                                       ###
@@ -549,8 +550,8 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
     bi  = BitsPerComponent(denoised)
     os  = ex_bs(os, 8, bi, fulls=fs)
 
-    isc = MC ? Eval("try { f1c.isclip() && b1c.isclip() } catch(error_msg) { false }") : false # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
-    isg = MC ? Eval("try { cb1.isclip() && cf1.isclip() } catch(error_msg) { false }") : false # if MC=true; otherwise reuse MAnalyze'd vectors to compensate ourselves
+    isc = MC ? VarExist("b1c") && VarExist("f1c") : false   # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
+    isc = MC ? VarExist("cb1") && VarExist("cf1") : false   # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
 
 
     s   = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                                           # Damp down remaining spots of the denoised clip.
@@ -2153,3 +2154,25 @@ function CASm(clip a, float "strength") {
     video    = ex_merge(a, Shrp, ShrpMsk, UV=2)
 
     return video }
+
+
+
+# XSharpen - by real.finder (01-05-2021)
+#
+# AviSynth+ port of the VirtualDub XSharpen filter
+#
+function ex_XSharpen(clip clp, float "strength", float "threshold", int "UV", bool "fulls") {
+
+    rgb = clp.IsRGB()
+    bi  = BitsPerComponent(clp)
+
+    str = Default(strength, 128)
+    thr = Default(threshold,  8)
+    UV  = Default(UV,  rgb ? 3 : 1)
+    fs  = Default(fulls, false)
+
+    thr  = ex_bs(thr, 8, bi, fulls=fs)
+    str1 = str / 256.0
+    str2 = (256 - str) / 256.0
+
+    ex_lutxyz(clp, clp.mt_expand(), clp.mt_inpand(), Format("y x - Y@ x z - X@ min {thr} < X Y < z y ? {str1} * x {str2} * + x ?"), UV=UV, fulls=fs) }
