@@ -9,6 +9,7 @@
 ###       Adaptive Sharpen                                                ###
 ###   Dogway:                                                             ###
 ###       ex_unsharp                                                      ###
+###       ex_CAS                                                          ###
 ###       UnsharpMask_HBD                                                 ###
 ###   Didée:                                                              ###
 ###       ex_ContraSharpening                                             ###
@@ -511,6 +512,52 @@ function UnsharpMask_HBD(clip clp, float "str", int "rad", float "thres", int "U
     blurclip = clp.ex_boxblur(rd, mode="mean", UV=UV)
 
     ex_lutxy(clp, blurclip, Format("x y - A@ abs {thres} > A {str} * x + x ?"), UV=UV) }
+
+
+
+/*
+// LICENSE
+// =======
+// Copyright (c) 2017-2019 Advanced Micro Devices, Inc. All rights reserved.
+// -------
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
+// modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+// -------
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+// Software.
+// -------
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+// ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
+*/
+#
+# ex_CAS - by Dogway (19-10-2021)
+#
+# AviSynth+ port of AMD's "CAS" (Contrast Adaptive Sharpening) sharpener: https://gpuopen.com/fidelityfx-cas/
+# Performs 10% slower with Prefetch(6) than Asd-g's AVS+ plugin ported from VapourSynth.
+#
+function ex_CAS(clip a, float "strength", int "UV", bool "fulls") {
+
+    rgb = clp.IsRGB()
+    bi  = BitsPerComponent(a)
+
+    str = Default(strength,   0.5)  # 0: no sharpening, to 1: full sharpening. Scaled by the sharpness knob while being transformed to a negative lobe (values from -1/5 to -1/8 for A=1)
+    UV  = Default(UV, rgb ? 3 : 1)
+    fs  = Default(fulls,    false)
+
+    str = max(min(str, 1), 0)
+    str = 1. / (8+str*(5-8))  # reciprocal of lerp
+
+    do  = 2. * ex_bs(255, 8, bi, fulls=fs)
+
+    ex_lut(a, Format("x[-1,0] D@ x[0,0] E@ max x[1,0] F@ max x[0,-1] B@ max x[0,1] H@ max dup x[-1,-1] A@ max x[1,-1] C@ max x[-1,1] G@ max x[1,1] I@ max + M^
+                              D         E  min        F  min         B  min        H  min dup          A  min         C  min         G  min        I  min +
+                        {do} M - min M / sqrt -{str} * dup B D F H + + + * E + swap 4 * 1 + /"), UV=UV, fulls=fs) }
+
+
 
 
 
@@ -1787,35 +1834,35 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     src   = rgb ? src.RGB2OPP() : src.isy() ? src : src.ExtractY()
     src   = AssumeFrameBased(src)
 
-    c1                 = 0.0980468750214585389567894354907
-    c2                 = 0.0124360171036224062543798508968
-    h3                 = c1 * h2 * strength * (1.0 - exp(-1.0 / (c1 * strength)))
-    cutoff_1           = cutoff
-    cutoff_2           = int(max(1.0, c2 * pow(cutoff, 2.0) * log(1.0 + 1.0 / (c2 * cutoff))) + 0.5)
-    strength_floor     = floor(strength)
-    strength_ceil      =  ceil(strength)
+    c1                  = 0.0980468750214585389567894354907
+    c2                  = 0.0124360171036224062543798508968
+    h3                  = c1 * h2 * strength * (1.0 - exp(-1.0 / (c1 * strength)))
+    cutoff_1            = cutoff
+    cutoff_2            = int(max(1.0, c2 * pow(cutoff, 2.0) * log(1.0 + 1.0 / (c2 * cutoff))) + 0.5)
+    strength_floor      = floor(strength)
+    strength_ceil       =  ceil(strength)
 
     function inline(clip src, int a, float h1, float h2, int radius, float wn, int cutoff_1, float scale) {
-        sharp          = Deconvolution(src, radius, wn, int(a / 2. + 0.5), scale)
-#        sharp          = nnedi3_rpow2(sharp,rfactor=2,nns=4,nsize=0,qual=2,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        sharp          = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        ref            = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        sharp          = NLErrors(ref, a, h1, sharp)
-        dif            = ex_makediff(sharp, ref)
-#        dif            = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
-        dif            = GaussResize(dif, src.width(), src.height(), p=100) # like PointResize but with centered chroma
-        sharp          = ex_adddiff(src, dif)
-        sharp          = CutOff(src, sharp, cutoff_1, 0)
-        local_error    = NLErrors(src, radius, h2, src)
-#        local_limit    = ex_makeadddiff(src, local_error)
-#        limited        = ex_lutxyz(sharp, local_limit, src, "x z - abs y z - abs > y x ?")
-        limited        = ex_lutxyz(sharp, src, local_error, "x y - abs y z - Y@ abs > Y x ?")
-        clp            = Shrink(limited)
+        sharp           = Deconvolution(src, radius, wn, int(a / 2. + 0.5), scale)
+#        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=4,nsize=0,qual=2,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
+        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
+        ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
+        sharp           = NLErrors(ref, a, h1, sharp)
+        dif             = ex_makediff(sharp, ref)
+#        dif             = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
+        dif             = GaussResize(dif, src.width(), src.height(), p=100) # like PointResize but with centered chroma
+        sharp           = ex_adddiff(src, dif)
+        sharp           = CutOff(src, sharp, cutoff_1, 0)
+        local_error     = NLErrors(src, radius, h2, src)
+#        local_limit     = ex_makeadddiff(src, local_error)
+#        limited         = ex_lutxyz(sharp, local_limit, src, "x z - abs y z - abs > y x ?")
+        limited         = ex_lutxyz(sharp, src, local_error, "x y - abs y z - Y@ abs > Y x ?")
+        clp             = Shrink(limited)
         return clp }
 
-    sharp              = src
+    sharp               = src
     for (i = 0, strength_floor, 1) {
-        sharp          = inline(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
+        sharp           = inline(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
     }
     if (strength_floor != strength_ceil) {
         sharp_ceil      = inline(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
@@ -1904,9 +1951,9 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 #   averaged_dif       = XYClosest(averaged_dif, ref, blankdif)
     averaged_dif       = ex_lutxy(averaged_dif, ref, "x y min") # blankdif is 0, so actually XYClosest() computes "x y min"
     compensated        = MCompensate(pre, superflex, vmulti, thsad=sad, thscd1=16320, thscd2=255).ConvertBits(32, fulls=fs)
-    src                = Crop(src, 64, 64, -64, -64)
+    src                = Crop(src,          64, 64, -64, -64)
     averaged_dif       = Crop(averaged_dif, 64, 64, -64, -64)
-    compensated        = Crop(compensated, 64, 64, -64, -64)
+    compensated        = Crop(compensated,  64, 64, -64, -64)
     bright_limit       = TemporalExtremum(compensated, radius, "max")
     dark_limit         = TemporalExtremum(compensated, radius, "min")
     averaged           = ex_adddiff(src, averaged_dif)
@@ -1954,7 +2001,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         dif                = ex_makediff(med, src)
         convD              = ex_boxblur(dif, 1, mode="weighted")
         DD                 = ex_makediff(dif, convD)
-        convDD             = ex_boxblur(DD, 1, mode="weighted")
+        convDD             = ex_boxblur(DD,  1, mode="weighted")
         dif                = ex_lutxyz(DD, convDD, dif, "x y - A@ x * 0 < z A abs x abs < A x ? z swap - ?")
         convD              = ex_boxblur(dif, 1, mode="weighted")
         clp                = ex_lutxyz(dif, convD, src, "y abs x abs > y z + z ? ")
@@ -2121,6 +2168,32 @@ function pSharpen   (clip clp,
     return clp }
 
 
+
+
+# XSharpen - by real.finder (01-05-2021)
+# Optimized  by Dogway      (19-10-2021)
+#
+# AviSynth+ port of the VirtualDub XSharpen filter
+#
+function ex_XSharpen(clip clp, float "strength", float "threshold", int "UV", bool "fulls") {
+
+    rgb = clp.IsRGB()
+    bi  = BitsPerComponent(clp)
+
+    str = Default(strength, 128)
+    thr = Default(threshold,  8)
+    UV  = Default(UV,  rgb ? 3 : 1)
+    fs  = Default(fulls, false)
+
+    thr  = ex_bs(thr, 8, bi, fulls=fs)
+    str1 = str / 256.0
+    str2 = (256 - str) / 256.0
+
+    ex_lut(clp, Format("x[-1,1] A@ x[0,1] B@ max x[1,1] C@ max x[-1,0] D@ max x[0,0] E@ max x[1,0] F@ max x[-1,-1] G@ max x[0,-1] H@ max x[1,-1] I@ max M@
+                        x - Y@ x A B min C min D min E min F min G min H min I min N@ - X@ min {thr} < X Y < N M ? {str1} * x {str2} * + x ?"), UV=UV, fulls=fs) }
+
+
+
 # CASm
 #
 # An improved sharpening script based on CAS and aWarpSharp2
@@ -2154,26 +2227,3 @@ function CASm(clip a, float "strength") {
 
     return video }
 
-
-
-# XSharpen - by real.finder (01-05-2021)
-# Optimized  by Dogway      (19-10-2021)
-#
-# AviSynth+ port of the VirtualDub XSharpen filter
-#
-function ex_XSharpen(clip clp, float "strength", float "threshold", int "UV", bool "fulls") {
-
-    rgb = clp.IsRGB()
-    bi  = BitsPerComponent(clp)
-
-    str = Default(strength, 128)
-    thr = Default(threshold,  8)
-    UV  = Default(UV,  rgb ? 3 : 1)
-    fs  = Default(fulls, false)
-
-    thr  = ex_bs(thr, 8, bi, fulls=fs)
-    str1 = str / 256.0
-    str2 = (256 - str) / 256.0
-
-    ex_lut(clp, Format("x[-1,1] A@ x[0,1] B@ max x[1,1] C@ max x[-1,0] D@ max x[0,0] E@ max x[1,0] F@ max x[-1,-1] G@ max x[0,-1] H@ max x[1,-1] I@ max M@
-                        x - Y@ x A B min C min D min E min F min G min H min I min N@ - X@ min {thr} < X Y < N M ? {str1} * x {str2} * + x ?"), UV=UV, fulls=fs) }
