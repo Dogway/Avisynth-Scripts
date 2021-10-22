@@ -251,7 +251,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", int
                 Subtitle( "PlaneME:\n"\
                          +"PlaneMAE:\n"\
                          +"PlaneMAD:\n"\
-                         +"PlaneMAD:\n"\
+                         +"PlaneMAD2:\n"\
                          +"PlaneMSE:\n"\
                          +"PlaneMSLE:\n"\
                          +"PlaneRMSE:\n"\
@@ -263,7 +263,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", int
                          +"PlaneBSSIM:\n"\
                          +"PlaneGMSD:\n"\
                          +"PlaneBUTT:\n"\
-                         +"PlaneMDSI:\n",lsp=4)
+                         +"_FrameMDSI:\n",lsp=4)
                 Subtitle(  String(propGetFloat(y,"_PlaneME"   ))  +"   (Mean Error)\n"                             \
                          + String(propGetFloat(y,"_PlaneMAE"  ))  +"   (Mean Absolute Error)\n"                    \
                          + String(propGetFloat(y,"_PlaneMAD"  ))  +"   (Mean Absolute Deviation)\n"                \
