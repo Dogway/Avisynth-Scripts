@@ -29,7 +29,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 
 #######################################################################
 ###                                                                 ###
-###    yugefunc  v0.2 (13-10-2021)                                  ###
+###    yugefunc  v0.3 (22-10-2021)                                  ###
 ###                                                                 ###
 ###    Collection of VapourSynth functions ported to AviSynth+      ###
 ###                                                                 ###
@@ -153,7 +153,7 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
 
 
     function Filter(clip clp, float r, bool use_gauss, int UV) {
-        use_gauss ? clp.ex_blur(r/2.*sqrt(2), bifit=false, UV=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
+        use_gauss ? clp.ex_blur(r/2.*sqrt(2), mode="gaussian", UV=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
 
     function Filter_r1(clip clp,       bool use_gauss, int UV) {
         use_gauss ? clp.removegrain(12,uv==3?12:-1)               : clp.ex_boxblur(1       ,mode="mean", UV=uv) }
@@ -345,9 +345,9 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
 
     WA = ex_lutxy(W,A,"x y *",UV=uv)
     WB = ex_lutxy(W,B,"x y *",UV=uv)
-    A = ga ? WA.ex_blur(r/2.+0.25,bifit=false) : WA.ex_boxblur(floor(r),mode="mean")
-    B = ga ? WB.ex_blur(r/2.+0.25,bifit=false) : WB.ex_boxblur(floor(r),mode="mean")
-    W = ga ?  W.ex_blur(r/2.+0.25,bifit=false) :  W.ex_boxblur(floor(r),mode="mean")
+    A = ga ? WA.ex_blur(r/2.+0.25,mode="gaussian") : WA.ex_boxblur(floor(r),mode="mean")
+    B = ga ? WB.ex_blur(r/2.+0.25,mode="gaussian") : WB.ex_boxblur(floor(r),mode="mean")
+    W = ga ?  W.ex_blur(r/2.+0.25,mode="gaussian") :  W.ex_boxblur(floor(r),mode="mean")
 
     res = ex_lutxyza(!isg?clp:gd,A,B,W,"y x * z + a / 0 max",UV=uv)
 
