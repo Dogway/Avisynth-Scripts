@@ -84,7 +84,8 @@
 ###
 ###
 ### AviSynth+ port of HLSL Adaptive Sharpen shader by bacondither
-### Process in 32-bit or 8-bit (4% slower). Avoid 12-16-bit as it loses precision.
+### Process with all threads -Prefetch(threads)- in 32-bit or 8-bit (3% slower).
+### Avoid 14 and 16-bit as it loses precision. Can be applied over TV range.
 ### Since this is CPU based it's 10 times slower compared to the GPU shader.
 ###
 ### The premise is similar to SlopeBend() by Didée, it reads:
@@ -99,7 +100,7 @@
 ####################################
 
 function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", float "L_over", float "H_compr_lo", float "H_compr_hi", float "L_compr_lo", float "L_compr_hi", float "scale_lim", float "scale_cs", \
-                                  float "dW_lothr", float "dW_hithr", float "lowthr_mxw", float "pm_p", float "a_offset", float "tv_range", float "UV", float "fulls") {
+                                  float "dW_lothr", float "dW_hithr", float "lowthr_mxw", float "pm_p", float "a_offset", float "UV", float "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
