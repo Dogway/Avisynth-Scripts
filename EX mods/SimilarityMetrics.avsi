@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v1.3  (15-10-2021)                     ###
+###        Similarity Metrics Pack v1.4  (21-10-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -56,14 +56,14 @@ Ref:
 #---------------
 # show_map (default false): Whether to return GMS map. If not, "clip1" will be returned.
 #---------------
-# show (default true): Whether to return subtitle with GMSD value.
+# show (default 0): Decides output form. 0 returns 'distorted' with frameprops, 1 returns 'reference' with frameprops. 2 returns 'distorted' subtitled with GMSD value and frameprops.
 #---------------
 # y (default true), u (default false), v (default false): Which plane to process.
 
 
 ### Changelog ###
 #---------------
-# Ported to ExTools (17% speed gain) by Dogway
+# Ported to ExTools, optimized gradient, changed 'show' behaviour (17% speed gain) by Dogway
 #---------------
 # Changed global scope of quality_map to local.
 #---------------
@@ -72,7 +72,7 @@ Ref:
 # Initial version by Asd-g.
 
 
-function GMSD(clip clip1, clip clip2, bool "downsample", float "c", bool "show_map", bool "show", bool "Y", bool "U", bool "V", bool "fulls") {
+function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
     c        = Default(c, 0.0026)
     y        = Default(y, true)
@@ -80,8 +80,11 @@ function GMSD(clip clip1, clip clip2, bool "downsample", float "c", bool "show_m
     v        = Default(v, false)
     downscl  = Default(downsample, true)
     show_map = Default(show_map,  false)
-    show     = Default(show,       true)
+    show     = Default(show,          0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     fs       = Default(fulls,      true)
+
+    clip1 = dist
+    clip2 = ref
 
     w1 = clip1.Width ()
     h1 = clip1.Height()
@@ -91,8 +94,6 @@ function GMSD(clip clip1, clip clip2, bool "downsample", float "c", bool "show_m
     Assert(PixelType(clip1) == PixelType(clip2),              "GMSD: clip1 and clip2 must be of the same format.")
     Assert(w1 == w2 && h1 == h2,                              "GMSD: clip1 and clip2 must be of the same width and height.")
     Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "GMSD: only one plane must be processed.")
-
-    clip1_src = clip1
 
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
@@ -116,14 +117,14 @@ function GMSD(clip clip1, clip clip2, bool "downsample", float "c", bool "show_m
 
     last = show_map ?
     \ ScriptClip(quality_map, """propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr("x "+ String(AverageLuma(last)) +" - x "+ String(AverageLuma(last)) +" - *"))), 0)""") :
-    \ ScriptClip(clip1_src, function [quality_map] ()
+    \ ScriptClip(show == 1 ? ref : dist, function [quality_map] ()
         {
             avg = String(AverageLuma(quality_map))
             propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr(quality_map, "x "+ avg +" - x "+ avg +" - *"))), 0)
         })
 
 
-    return show ? ScriptClip("""Subtitle("PlaneGMSD: " + String(propGetFloat("_PlaneGMSD")))""") : last }
+    return show == 2 ? ScriptClip("""Subtitle("PlaneGMSD: " + String(propGetFloat("_PlaneGMSD")))""") : last }
 
 
 
@@ -168,7 +169,7 @@ Ref:
 #---------------
 # show_maps (default false): Whether to return gradient similarity (GS), chromaticity similarity (CS) and GCS (linear combination of CS and GCS) maps. If it is true, interleaved clip of gs, cs, gcs will be returned. If it false, clip1 will be returned.
 #---------------
-# show (default true): Whether to return subtitle with MDSI value.
+# show (default 0): Decides output form. 0 returns 'distorted' with frameprops, 1 returns 'reference' with frameprops. 2 returns 'distorted' subtitled with MDSI value and frameprops,
 
 
 ### Changelog ###
@@ -180,12 +181,15 @@ Ref:
 # Initial port version by Asd-g.
 
 
-function MDSI(clip clip1, clip clip2, int "down_scale", float "alpha", bool "show_maps", bool "show") {
+function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_maps", int "show") {
 
     down_scale = Default(down_scale, 1)
     alpha      = Default(alpha,    0.6)
     show_maps  = Default(show_maps, false)
-    show       = Default(show, true)
+    show       = Default(show,          0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
+
+    clip1 = dist
+    clip2 = ref
 
     w1 = clip1.Width ()
     h1 = clip1.Height()
@@ -231,16 +235,16 @@ function MDSI(clip clip1, clip clip2, int "down_scale", float "alpha", bool "sho
     gcs = ex_lutxy(gs_hvs, cs, Format("x {alpha} * y 1 {alpha} - * + 0 1 clip 0.25 ^"), UV=1)
 
 
-    gs_hvs = show ? gs_hvs.Subtitle("gs_hvs",y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : gs_hvs
-    cs     = show ?     cs.Subtitle("cs"    ,y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : cs
-    gcs    = show ?    gcs.Subtitle("gcs"   ,y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : gcs
+    gs_hvs = show == 2 ? gs_hvs.Subtitle("gs_hvs",y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : gs_hvs
+    cs     = show == 2 ?     cs.Subtitle("cs"    ,y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : cs
+    gcs    = show == 2 ?    gcs.Subtitle("gcs"   ,y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : gcs
 
-    last = ScriptClip(show_maps ? Interleave(gs_hvs, cs, gcs) : clip1, function [gcs] ()
+    last = ScriptClip(show_maps ? Interleave(gs_hvs, cs, gcs) : show == 1 ? ref : dist, function [gcs] ()
         {
             propSet("_FrameMDSI", pow(AverageLuma(Expr(gcs, "x "+ String(AverageLuma(gcs)) +" - abs")), 0.25), 0)
         })
 
-    return show ? ScriptClip(function [show_maps] () { Subtitle(show_maps?ex_invert():last,"FrameMDSI: " + String(propGetFloat("_FrameMDSI"))) } ) : last }
+    return show == 2 ? ScriptClip(function [show_maps] () { Subtitle(show_maps?ex_invert():last,"FrameMDSI: " + String(propGetFloat("_FrameMDSI"))) } ) : last }
 
 
 
@@ -291,7 +295,7 @@ Ref:
 #---------------
 # show_map (default false): Whether to return SSIM index map. If not, "clip1" will be returned.
 #---------------
-# show (default true): Whether to return subtitle with SSIM value.
+# show (default 0): Decides output form. 0 returns 'distorted' with frameprops, 1 returns 'reference' with frameprops. 2 returns 'distorted' subtitled with SSIM value and frameprops,
 #---------------
 # y (default true), u (default false), v (default false): Which plane to process.
 
@@ -305,19 +309,22 @@ Ref:
 # Initial version by Asd-g.
 
 
-function vsSSIM(clip clip1, clip clip2, bool "downsample", float "k1", float "k2", float "stddev", float "dynamic_range", bool "show_map", bool "show", bool "Y", bool "U", bool "V", bool "fulls") {
+function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", float "stddev", float "dynamic_range", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
     y        = Default(y,  true)
     u        = Default(u, false)
     v        = Default(v, false)
     k1       = Default(k1, 0.01)
     k2       = Default(k2, 0.03)
-    downscl  = Default(downsample, true)
+    downscl  = Default(downsample,   true)
     DR       = Default(dynamic_range, 1.0)
     stddev   = Default(stddev,        1.5)
-    show_map = Default(show_map,  false)
-    show     = Default(show,       true)
-    fs       = Default(fulls,     false)
+    show_map = Default(show_map,    false)
+    show     = Default(show,            0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
+    fs       = Default(fulls,       false)
+
+    clip1 = dist
+    clip2 = ref
 
     w1 = clip1.Width ()
     h1 = clip1.Height()
@@ -330,8 +337,6 @@ function vsSSIM(clip clip1, clip clip2, bool "downsample", float "k1", float "k2
 
     c1 = Pow(k1 * DR, 2.0)
     c2 = Pow(k2 * DR, 2.0)
-
-    clip1_src = clip1
 
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
@@ -360,13 +365,13 @@ function vsSSIM(clip clip1, clip clip2, bool "downsample", float "k1", float "k2
 
     last = show_map ?
     \ ScriptClip(ssim_map, """propSet("_PlaneSSIM", AverageLuma(last), 0)""") :
-    \ ScriptClip(clip1_src, function [ssim_map] ()
+    \ ScriptClip(show == 1 ? ref : dist, function [ssim_map] ()
         {
             propSet("_PlaneSSIM", AverageLuma(ssim_map), 0)
         } )
 
 
-    return show ? ScriptClip("""Subtitle("PlaneSSIM: " + String(propGetFloat("_PlaneSSIM")))""") : last }
+    return show == 2 ? ScriptClip("""Subtitle("PlaneSSIM: " + String(propGetFloat("_PlaneSSIM")))""") : last }
 
 
 
@@ -380,11 +385,14 @@ function vsSSIM(clip clip1, clip clip2, bool "downsample", float "k1", float "k2
 #     ExTools
 #     StainlessS's RT_Stats for the standard deviation
 
-function BSSIM(clip source, clip blurred, bool "PlaneSSIM", bool "show", bool "fulls") {
+function BSSIM(clip dist, clip ref, bool "PlaneSSIM", int "show", bool "fulls") {
 
-    show = Default(show,      false)
     PS   = Default(PlaneSSIM, false)  # Set to True if the clip has the _PlaneSSIM frame property
+    show = Default(show,           0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     fs   = Default(fulls,     false)
+
+    source  = ref
+    blurred = dist
 
     source8        =  source.ConvertBits(8, dither=-1, fulls=fs)
     blurred8       = blurred.ConvertBits(8, dither=-1, fulls=fs)
@@ -392,7 +400,7 @@ function BSSIM(clip source, clip blurred, bool "PlaneSSIM", bool "show", bool "f
     scharr_orig    = ex_edge(source8,  "pscharr",0,255)
     scharr_blurred = ex_edge(blurred8, "pscharr",0,255)
 
-    ScriptClip(source, function [source, source8, blurred8, scharr_orig, scharr_blurred, PS, show] () {
+    ScriptClip(show == 1 ? ref : dist, function [source, source8, blurred8, scharr_orig, scharr_blurred, PS, show] () {
 
         SSIM        = PS ? propGetFloat(source,"_PlaneSSIM") : \
                            SSIM_FRAME(source8, blurred8) # only works on 8-bit
@@ -403,7 +411,7 @@ function BSSIM(clip source, clip blurred, bool "PlaneSSIM", bool "show", bool "f
 
         propSet("_PlaneBSSIM", bssim, 0)
 
-        return show ? Subtitle("PlaneBSSIM: " + String(bssim)) : last } ) }
+        return show == 2 ? Subtitle(Format("PlaneBSSIM: {bssim}")) : last } ) }
 
 
 
@@ -542,7 +550,7 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
 This function is a port of the VapourSynth _IQA_downsample - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L3613
 
 Downsampler for Image Quality Assessment model.
-The “clip” is down-sampled by a factor of 2 with a 'Box' kernel.
+The “clip” is down-sampled by a factor of 2 with a 'Box' kernel, akin to processing 2x2 microblocks.
 */
 
 
