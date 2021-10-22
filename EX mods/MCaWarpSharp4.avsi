@@ -94,9 +94,9 @@ function MCaWarpSharp4(clip source, int "supsamp",int "post", float "PPstr", boo
     # Getting back to the original shapes with motion compensation to have good and undeformed edges, although still cartoonish look
     Interleave(sourceSup, WarpedEdges)
 
-    super           = MSuper  (ex_blur(var,bifit=false), levels=1, pel=fast?1:2, sharp=fast?0:2)
-    super2          = MSuper  (                           levels=1, pel=fast?1:2, sharp=fast?0:2)
-    forward_vectors = MAnalyse(super, blksize=4,          levels=1, search=3, searchparam=5, isb=true)
+    super           = MSuper  (ex_blur(var,mode="gaussian"), levels=1, pel=fast?1:2, sharp=fast?0:2)
+    super2          = MSuper  (                              levels=1, pel=fast?1:2, sharp=fast?0:2)
+    forward_vectors = MAnalyse(super, blksize=4,             levels=1, search=3, searchparam=5, isb=true)
                       MFlow(super2,forward_vectors)
 
     SelectEvery(2,0)
