@@ -228,7 +228,7 @@ function MultiSWAR(Clip Clp, Int"DestX", Int"DestY" ,Int"StepRatio", int "warpin
 
     # Difference of Blurs (DoB x DoG)
     Ablur = s.ex_boxblur(agmrad,mode="mean")
-    Gblur = s.ex_blur(agmrad*2.,bifit=true)
+    Gblur = s.ex_blur(agmrad*2.,mode="binomial")
     mask3 = ex_lutxy(Ablur, Gblur, Format("y x - abs {hthr} * {hbias} +"), UV=1)
 
 
