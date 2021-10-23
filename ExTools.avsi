@@ -5229,13 +5229,13 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     h       =  isYV411(a) || is422(a) ?            h : round(h/2.0)
 
     mskC    = (is444  (a) || rgb)     ? mskYr : \
-                                        mskYt.BilinearResize(w+w%2,h+h%2)
+                                        mskYt.BilinearResize(w,h)
 
     mskC    = luma && UV==3 ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32,fulls=fulls) : \
                                         mskC.ConvertBits(bits,fulls=fulls)                       : \
-                                        BlankClip(a,length=1,width=w+w%2,height=h+h%2,pixel_type="Y"+(p_float ? "S" : string(bits)),color_yuv=$000000,channels=0)
+                                        BlankClip(a,length=1,width=w,height=h,pixel_type="Y"+(p_float ? "S" : string(bits)),color_yuv=$000000,channels=0)
 
-    msk     = CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
+    msk     = isy(a) ? mskYr : CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
 
     return msk }
 
