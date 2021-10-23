@@ -2620,7 +2620,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                             swap3  swap1  swap4             min
                             swap2                                     max
                                                   dup1 dup1 min swap2 max
-                            E^ D^ H^ A^
+                            E^ D^ H^
                               W - dup * H W - dup * + 0.79 *
                               x - abs {th} <= x D E clip x ?")                                                                                                      : \
                                                                                                                                                                       \
