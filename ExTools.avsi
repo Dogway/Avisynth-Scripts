@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v6.2     (21-10-2021)              ##
+###           ExTools v6.2     (22-10-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -256,7 +256,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", int
                          +"PlaneMSLE:\n"\
                          +"PlaneRMSE:\n"\
                          +"PlaneOkMSE:\n"\
-                         +"PlaneRedM:\n"\
+                         +"PlaneRedMean:\n"\
                          +"PlaneR2:\n"\
                          +"PlanePSNR:\n"\
                          +"PlaneSSIM:\n"\
@@ -932,7 +932,7 @@ function binom_coeffs(n, k) {
 # binomial: discreet gaussian blur approximation
 # butterworth: between a gaussian and mean blur distribution with default n=20 (decay of 20dB/decade or 6dB/oct)
 #
-function ex_blur(clip a, float "radius", float "radiusV", float "n", string "mode", string "gamma", int "Y", int "UV", bool "fulls") {
+function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode", string "gamma", int "Y", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -940,7 +940,7 @@ function ex_blur(clip a, float "radius", float "radiusV", float "n", string "mod
 
     rm = Default(radius,   1)
     rv = Default(radiusv, rm)
-    n  = Default(radiusv,  20.)           # steep bias for mode="butterworth" (higher approximates a "brickwall" ideal filter -mean blur- less approximates a gaussian)
+    n  = Default(n,       10)             # steep bias for mode="butterworth" (higher approximates a "brickwall" ideal filter -mean blur- less approximates a gaussian)
     md = Default(mode,"binomial")         # "gaussian": true gaussian distribution  "binomial": binomial distribution fit (like blur() or ex_boxblur(mode="weighted") ) "butterworth": between gaussian and mean blur falloff distribution
     gm = Default(gamma,   "none")         # Set matrix for gamma encoded clips (ie. 601, 709, 2020...) Requires TransformsPack
     Y  = Default( Y,          3)
@@ -1012,7 +1012,7 @@ function gauss_constructor(float rad, bool vert) {
     str + pls }
 
 
-function butt_constructor(float rad, float n, bool vert) {
+function butt_constructor(float rad, int n, bool vert) {
 
     str = "" pls="" di=0
     krnlsz = 2*ceil(3*rad)
