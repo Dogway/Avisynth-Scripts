@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v2.0  (19-10-2021)                             ###
+###        Sharpeners Pack v2.1  (25-10-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -8,9 +8,9 @@
 ###   bacondither:                                                        ###
 ###       Adaptive Sharpen                                                ###
 ###   Dogway:                                                             ###
+###       UnsharpMask_HBD                                                 ###
 ###       ex_unsharp                                                      ###
 ###       ex_CAS                                                          ###
-###       UnsharpMask_HBD                                                 ###
 ###   Didée:                                                              ###
 ###       ex_ContraSharpening                                             ###
 ###       SeeSaw                                                          ###
@@ -411,114 +411,121 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
 ######################################################
 ###
-###  ex_unsharp()    by Dogway (04-09-2021)
+###  ex_unsharp()    by Dogway (26-10-2021)
 ###
-### Simple and fast unsharp mask filter for a (not matching) replacement of ASharp, UnsharpHQ, UnsharpMask_avsi and VariableBlur's Unsharp.
-### "ex_unsharp(1,str=4,th=0)" is equivalent to "unsharp(vary=1, varc=1, strength=4)", although less haloing...
-### ...due to using binomial blur instead of box blur, same with UnsharpMask_avsi(512,1,0)
+### Replacement and practical match to variableblur's unsharp()...
+### ...but with 20% of sharpness weight from a discreet lower frequency cutoff for structural support.
+### Replaces WarpSharp's unsharpmask, UnsharpHQ, UnsharpMask_avsi and VariableBlur's Unsharp.
+###
+### The Fc argument allows to sharpen on a subpixel or macropixel basis.
+### Good values span from 1920 for a 1080p clip, to width()*1.5 or *2.0.
+###
+### Benchmark:
+### 100% UnsharpMask_HBD(128*n,1,0) (344 fps)
+###  91% ex_unsharp(1, Fc=width())
+###   8% unsharp(vary=1, varc=1, strength=1) # no HBD support, % scaled down
+###
+### Internal Sharpen(0.75) roughly matches ex_unsharp(2.5,width()*1.5,0,UV=3)
+function ex_unsharp(clip a, float "str", float "Fc", float "th", int "Y", int "UV", bool "fulls") {
 
-function ex_unsharp(clip a, float "rad", float "radV", float "str", int "th", int "UV", bool "fulls") {
+    rgb   = isRGB(a)
+    isy   = isy(a)
+    bi    = BitsPerComponent(a)
+    w     = a.width()
+    h     = a.height()
+    Fs    = max(w,h)*2.
 
-    rgb  = isRGB(a)
-    isy  = isy(a)
-    bi   = BitsPerComponent(a)
+    str   = Default(str,     1)
+    Fc    = Default(Fc,  Fs/2.)        # Frequency cutoff in Hz for sharpening, by default same to sample rate (ie 1920Hz for 1080p, or 1 pixel accuracy)
 
-    rd = Default(rad,  3)            # integers from 0 to inf (also 0.15, 0.3, 0.5 and integers up to 14 -single float AVSValue limit-)
-    rv = Default(radV, rd)           # integers from 0 to inf (also 0.15, 0.3, 0.5 and integers up to 14 -single float AVSValue limit-)
+    Fc    = (Fs/Fc)
+    rad   = ceil(Fc)-1
 
-    fbox  = rd == 1    && rv == 1
-    fbox2 = rd == 0.5  && rv == 0.5
-    fbox3 = rd == 0.3  && rv == 0.3
-    fbox4 = rd == 0.15 && rv == 0.15
+    th    = Default(th,           0)   # Good values are 1, 2 or 3
+    Y     = Default( Y,           3)
+    UV    = Default(UV,    rgb  ? 3 : 1)
+    fs    = Default(fulls, rgb)
+    th    = ex_bs(th, 8, bi, fulls=fs)
 
-    str = Default(str,  0.5)
-    th  = Default(th,     8)
-    UV  = Default(UV,    rgb  ? 3 : 1)
-    fs  = Default(fulls, rgb)
+    krnlsz = ceil(2 * max(rad,1))
+    krnlrd = krnlsz/2
 
-    rd  = max(rd>1?round(rd):rd, 0)
-    rv  = max(rv>1?round(rv):rv, 0)
-    th  = ex_bs(th, 8, bi, fulls=fs)
+    krnh = ""  krnv = "" plsh = ""  plsv = ""  divx=0  divy=0
 
-    Assert (rd < 15 || rv < 15, "Maximum radius reached")
-
-    krnh = ""  krnv = ""  plsh = ""  plsv = ""  divx=0  divy=0
-    if (!fbox || !(rd<1 || rv<1)) {
-
-            krnlsz = ceil(2 * rd)
-            krnlrd = krnlsz/2
-            wgc    = binom_coeffs(krnlsz, krnlrd)
-
-        for (px  = -krnlrd, krnlrd, 1) {
-            wg   = binom_coeffs(krnlsz, krnlsz-(abs(px)+krnlrd))
-            krnh = px  > 0 ? px == krnlrd ? Format(krnh + "x[{px},0] x[-{px},0] x[0,0] {wgc} * ") : \
-                                            Format(krnh + "x[{px},0] x[-{px},0] + {wg} * ")       : krnh
-            plsh = px ==  -krnlrd || px < 0 ? plsh : plsh + "+ "
-            divx = wg + divx
+        for (px = -krnlrd, krnlrd, 1) {
+            krnh = Format(krnh + "x[{px},0] ")
+            plsh = px == -krnlrd ? plsh : plsh + "+ "
+            divx = divx + 1
            }
 
-            krnlsz = ceil(2 * rv)
-            krnlrv = krnlsz/2
-            wgc    = binom_coeffs(krnlsz, krnlrv)
+        for (py = -krnlrd, krnlrd, 1) {
+            krnv = Format(krnv + "x[0,{py}] ")
+            plsv = py == -krnlrd ? plsv : plsv + "+ "
+            divy = divy + 1
+           }
 
-        for (py  = -krnlrv, krnlrv, 1) {
-            wg   = binom_coeffs(krnlsz, krnlsz-(abs(py)+krnlrv))
-            krnv = py  > 0 ? py == krnlrv ? Format(krnv + "x[0,{py}] x[0,-{py}] x[0,0] {wgc} * ") : \
-                                            Format(krnv + "x[0,{py}] x[0,-{py}] + {wg} * ")       : krnv
-            plsv = py ==  -krnlrv || py < 0 ? plsv : plsv + "+ "
-            divy = wg + divy
-           }   }
+    krnlsz2 = ceil(2 * (max(rad,1) + 1))
+    krnlrd2 = krnlsz2/2
+
+    krnh2 = ""  krnv2 = "" plsh2 = ""  plsv2 = ""  divx2=0  divy2=0
+
+        for (px2 = -krnlrd2, krnlrd2, 1) {
+            krnh2 = abs(px2) <= krnlrd ? krnh2 : Format(krnh2 + "x[{px2},0] ")
+            plsh2 = abs(px2) <= krnlrd || px2 == -krnlrd2 ? plsh2 : plsh2 + "+ "
+            divx2 = divx2 + 1
+           }
+
+        for (py2 = -krnlrd2, krnlrd2, 1) {
+            krnv2 = abs(py2) <= krnlrd ? krnv2 : Format(krnv2 + "x[0,{py2}] ")
+            plsv2 = abs(py2) <= krnlrd || py2 == -krnlrd2 ? plsv2 : plsv2 + "+ "
+            divy2 = divy2 + 1
+           }
+
+    strv  = krnv  + plsv  + " Z@ "  + string((1./divy) *0.8) + " * "
+    strh  = krnh  + plsh  + " Z@ "  + string((1./divx) *0.8) + " * "
+    strv2 = krnv2 + " Z + " + plsv2 + string((1./divy2)*0.2) + " * + "
+    strh2 = krnh2 + " Z + " + plsh2 + string((1./divx2)*0.2) + " * + y swap - " + (th > 0 ? Format("{str} * A@ abs {th} > A y + y ?") : Format("{str} * y +"))
+
+    strv  = strv + strv2
+    strh  = strh + strh2
+
+    a     = Fc < 2.0 ? a.blackmanresize(nmod(w*(2./Fc),2),nmod(h*(2./Fc),2)) : a    # replace with butterworth fractional rad (n=300 or so) for subpixel sharpening
+
+    ystrv = ex_Yexpr (strv, Y, bi, rgb, fs)
+    ystrh = ex_Yexpr (strh, Y, bi, rgb, fs)
+
+    isy     ? Expr(a,       ystrv                                                       ) : \
+    UV == 1 ? Expr(a,       ystrv, ""                                                   ) : \
+              Expr(a,       ystrv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
+    isy     ? Expr(last, a, ystrh                                                       ) : \
+    UV == 1 ? Expr(last, a, ystrh, ""                                                   ) : \
+              Expr(last, a, ystrh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none")
+
+    Fc < 2.0 ? bicubicresize(w,h,-0.5,0.25) : last }
 
 
-    strv =       fbox             ? "x[-1,1] x[1,1] x[-1,-1] x[1,-1] + + + 0.5 * x[0,1] x[-1,0] x[1,0] x[0,-1] x[0,0] 2 * + + + + + 0.125 *"                       : \
-                 fbox2            ? "x[0,1] x[-1,0] x[0,0] 3  * x[1,0] x[0,-1] + + + + 0.142857143 *"                                                              : \
-                 fbox3            ? "x[0,1] x[-1,0] x[0,0] 6  * x[1,0] x[0,-1] + + + + 0.1         *"                                                              : \
-                 fbox4            ? "x[0,1] x[-1,0] x[0,0] 12 * x[1,0] x[0,-1] + + + + 0.0625      *"                                                              : \
-                 rv == 0.5        ? "x[0,1]  x[0,0] 5  * x[0,-1] + + 0.142857143 *"                                                                                : \
-                 rv == 0.3        ? "x[0,1]  x[0,0] 8  * x[0,-1] + + 0.1         *"                                                                                : \
-                 rv == 0.15       ? "x[0,1]  x[0,0] 16 * x[0,-1] + + 0.055555555 *"                                                                                : \
-                                    krnv + plsv + (rv > 7 ? string(divy)+" /" : string(1./divy)+" *")
 
-    strh =       rd == 0.5        ? "x[-1,0] x[0,0] 5  * x[1,0]  + + 0.142857143 *"                                                                                : \
-                 rd == 0.3        ? "x[-1,0] x[0,0] 8  * x[1,0]  + + 0.1         *"                                                                                : \
-                 rd == 0.15       ? "x[-1,0] x[0,0] 16 * x[1,0]  + + 0.055555555 *"                                                                                : \
-                                    krnh + plsh + (rd > 7 ? string(divx)+" /" : string(1./divx)+" *")
-
-
-    strv = strv + (th > 0 ? Format(" x swap - Y@ abs {th} > Y {str} * x + x ?") : Format(" x swap - {str} * x +") )
-    strh = strh + (th > 0 ? Format(" x swap - Y@ abs {th} > Y {str} * x + x ?") : Format(" x swap - {str} * x +") )
-
-    rv == 0 ?      a                                                                  : \
-    isy     ? Expr(a,    strv                                                       ) : \
-    UV == 1 ? Expr(a,    strv, ""                                                   ) : \
-              Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
-    rd == 0 || fbox || fbox2 || fbox3 || fbox4  ? last                                : \
-    isy     ? Expr(last, strh                                                       ) : \
-    UV == 1 ? Expr(last, strh, ""                                                   ) : \
-              Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none") }
-
-
-
-# Port of UnsharpMask_avsi.avsi by real.finder
+# Port and optimization of UnsharpMask_avsi.avsi by real.finder (84% faster with rad<3)
 
 function UnsharpMask_HBD(clip clp, float "str", int "rad", float "thres", int "UV", bool "fulls") {
 
     bi  = BitsPerComponent(clp)
     rgb = isRGB(clp)
 
-    str    = Default(str,   64)
-    rd     = Default(rad,    3)
-    thres  = Default(thres,  8)
+    str    = Default(str,   128)
+    rd     = Default(rad,    1)
+    thres  = Default(thres,  0)
     UV     = Default(UV,    rgb ? 3 : 1)
     fs     = Default(fulls, rgb)
 
-    rd    = rd - 1
-    str   = str/128.
-    thres = ex_bs(thres, 8, bi, fulls=fs)
+    rd     = max(rd - 1, 1)
+    str    = str/128.
+    thres  = ex_bs(thres, 8, bi, fulls=fs)
 
-    blurclip = clp.ex_boxblur(rd, mode="mean", UV=UV)
+    blurclip = rd == 1 ? clp.removegrain(20, UV == 3 ? 20 : -1) : \
+                         clp.ex_boxblur(rd, mode="mean", UV=UV)
 
-    ex_lutxy(clp, blurclip, Format("x y - A@ abs {thres} > A {str} * x + x ?"), UV=UV) }
+    ex_lutxy(clp, blurclip, thres > 0 ? Format("x y - A@ abs {thres} > A {str} * x + x ?") : "x dup y - +", UV=UV) }
 
 
 
@@ -544,11 +551,11 @@ function UnsharpMask_HBD(clip clp, float "str", int "rad", float "thres", int "U
 # ex_CAS - by Dogway (19-10-2021)
 #
 # AviSynth+ port of AMD's "CAS" (Contrast Adaptive Sharpening) sharpener: https://gpuopen.com/fidelityfx-cas/
-# Performs 10% slower with Prefetch(6) than Asd-g's AVS+ plugin ported from VapourSynth.
+# Performs 10% slower with Prefetch(6) than Asd-g's AVS+ port of VapourSynth plugin.
 #
 function ex_CAS(clip a, float "strength", int "UV", bool "fulls") {
 
-    rgb = clp.IsRGB()
+    rgb = a.IsRGB()
     bi  = BitsPerComponent(a)
 
     str = Default(strength,   0.5)  # 0: no sharpening, to 1: full sharpening. Scaled by the sharpness knob while being transformed to a negative lobe (values from -1/5 to -1/8 for A=1)
@@ -604,8 +611,8 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
     bi  = BitsPerComponent(denoised)
     os  = ex_bs(os, 8, bi, fulls=fs)
 
-    isc = MC ? VarExist("b1c") && VarExist("f1c") : false   # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
-    isg = MC ? VarExist("cb1") && VarExist("cf1") : false   # if MC=true; reuse compensated frames if created (in SMDegrain or elsewhere with same global var name)
+    isg = MC ? VarExist("cb1") && VarExist("cf1") : false   # if MC=true; reuse motion vector frames if created (in SMDegrain or elsewhere with same global var name)
+    isc = MC ? VarExist("b1c") && VarExist("f1c") : false   # if MC=true; reuse compensated   frames if created (in SMDegrain or elsewhere with same global var name)
 
 
     s   = denoised.ex_MinBlur(HD?2:1,UV=1,fulls=fs)                                                           # Damp down remaining spots of the denoised clip.
@@ -1793,9 +1800,9 @@ function plum_Super(clip src, int "pel", bool "fulls") {
     bi  = BitsPerComponent(src)
     rgb = isRGB(src)
 
-    Assert(isclip(src), "Plum.Super: src has to be a video clip!")
-    Assert(bi == 32, "Plum.Super: the sample type of src has to be single precision!")
-    Assert(isint(pel), "Plum.Super: pel has to be an integer!")
+    Assert(isclip(src),          "Plum.Super: src has to be a video clip!")
+    Assert(bi == 32,             "Plum.Super: the sample type of src has to be single precision!")
+    Assert(isint(pel),           "Plum.Super: pel has to be an integer!")
     Assert(pel == 2 || pel == 4, "Plum.Super: pel has to be 2 or 4!")
 
     src.ConvertBits(8, dither=-1, fulls=fs)
@@ -1822,21 +1829,21 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
 
-    Assert(isclip(src), "Plum.Basic: src has to be a video clip!")
-    Assert(bi == 32, "Plum.Super: the sample type of src has to be single precision!")
+    Assert(isclip(src),              "Plum.Basic: src has to be a video clip!")
+    Assert(bi == 32,                 "Plum.Super: the sample type of src has to be single precision!")
     Assert(isint(strength) || isfloat(strength), "Plum.Basic: strength has to be a real number!")
-    Assert(strength>1, "Plum.Basic: strength has to be greater than 0!")
-    Assert(isint(a), "Plum.Basic: a has to be an integer!")
+    Assert(strength>1,               "Plum.Basic: strength has to be greater than 0!")
+    Assert(isint(a),                 "Plum.Basic: a has to be an integer!")
     Assert(isint(h1) || isfloat(h1), "Plum.Basic: h1 has to be a real number!")
     Assert(isint(h2) || isfloat(h2), "Plum.Basic: h2 has to be a real number!")
-    Assert(h1>0, "Plum.Basic: h1 has to be greater than 0!")
-    Assert(h2>0, "Plum.Basic: h2 has to be greater than 0!")
-    Assert(isint(radius), "Plum.Basic: radius has to be an integer!")
-    Assert(radius>0, "Plum.Basic: radius has to be greater than 0!")
+    Assert(h1>0,                     "Plum.Basic: h1 has to be greater than 0!")
+    Assert(h2>0,                     "Plum.Basic: h2 has to be greater than 0!")
+    Assert(isint(radius),            "Plum.Basic: radius has to be an integer!")
+    Assert(radius>0,                 "Plum.Basic: radius has to be greater than 0!")
     Assert(isint(wn) || isfloat(wn), "Plum.Basic: wn has to be a real number!")
     Assert(isint(scale) || isfloat(scale), "Plum.Basic: scale has to be a real number!")
-    Assert(isint(cutoff), "Plum.Basic: radius has to be an integer!")
-    Assert(cutoff>0 && cutoff<=100, "Plum.Basic: cutoff must fall in (0, 100]!")
+    Assert(isint(cutoff),            "Plum.Basic: radius has to be an integer!")
+    Assert(cutoff>0 && cutoff<=100,  "Plum.Basic: cutoff must fall in (0, 100]!")
 
     src   = rgb ? src.RGB2OPP() : src.isy() ? src : src.ExtractY()
     src   = AssumeFrameBased(src)
@@ -1901,26 +1908,26 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     isS = Defined(super)
     isF = Defined(superf)
 
-    Assert(isclip(src), "Plum.Final: src has to be a video clip!")
-    Assert(bi == 32, "Plum.Final: the sample type of src has to be single precision!")
-    Assert(isy(ref), "Plum.Final: corrupted basic estimation!")
+    Assert(isclip(src),        "Plum.Final: src has to be a video clip!")
+    Assert(bi == 32,           "Plum.Final: the sample type of src has to be single precision!")
+    Assert(isy(ref),           "Plum.Final: corrupted basic estimation!")
     isS ? \
-    Assert(isclip(super), "Plum.Final: super has to be a video clip or None!") : nop()
+    Assert(isclip(super),      "Plum.Final: super has to be a video clip or None!") : nop()
     isS ? \
-    Assert(isy(super), "Plum.Final: corrupted super clip!") : nop()
+    Assert(isy(super),         "Plum.Final: corrupted super clip!") : nop()
     isF ? \
-    Assert(isy(super), "Plum.Final: corrupted superf clip!") : nop()
+    Assert(isy(super),         "Plum.Final: corrupted superf clip!") : nop()
     Assert(pel == 1 || pel == 2 || pel == 4, "Plum.Final: pel has to be 1, 2 or 4!")
-    Assert(isint(radius), "Plum.Final: radius has to be an integer!")
-    Assert(radius>0, "Plum.Final: radius has to be greater than 0!")
-    Assert(isint(pel), "Plum.Final: pel has to be an integer!")
+    Assert(isint(radius),      "Plum.Final: radius has to be an integer!")
+    Assert(radius>0,           "Plum.Final: radius has to be greater than 0!")
+    Assert(isint(pel),         "Plum.Final: pel has to be an integer!")
     Assert(isint(sad) || isfloat(sad), "Plum.Final: sad has to be a real number!")
-    Assert(sad>0, "Plum.Final: sad has to be greater than 0!")
+    Assert(sad>0,              "Plum.Final: sad has to be greater than 0!")
     Assert(isint(strength) || isfloat(strength), "Plum.Final: strength has to be a real number!")
-    Assert(strength>0, "Plum.Final: radius has to be greater than 0!")
+    Assert(strength>0,         "Plum.Final: radius has to be greater than 0!")
     Assert(isint(flexibility) || isfloat(flexibility), "Plum.Final: flexibility has to be a real number!")
     Assert(flexibility>0 || 1.0 >= flexibility, "Plum.Final: flexibility has to fall in [0.0, 1.0]!")
-    Assert(isint(cutoff), "Plum.Final: cutoff has to be an integer!")
+    Assert(isint(cutoff),      "Plum.Final: cutoff has to be an integer!")
     Assert(cutoff>0 || 100 >= cutoff, "Plum.Final: cutoff has to fall in [0, 100]!")
     Assert(isint(freq_margin), "Plum.Final: freq_margin has to be an integer!")
     Assert(freq_margin>0 || 100-cutoff >= freq_margin, "Plum.Final: freq_margin must fall in [0, 100-cutoff]!")
@@ -2006,11 +2013,11 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     function Shrink(clip src) {
         med                = src.removegrain(4)
         dif                = ex_makediff(med, src)
-        convD              = ex_boxblur(dif, 1, mode="weighted")
+        convD              = dif.removegrain(12)
         DD                 = ex_makediff(dif, convD)
-        convDD             = ex_boxblur(DD,  1, mode="weighted")
+        convDD             = DD.removegrain(12)
         dif                = ex_lutxyz(DD, convDD, dif, "x y - A@ x * 0 < z A abs x abs < A x ? z swap - ?")
-        convD              = ex_boxblur(dif, 1, mode="weighted")
+        convD              = dif.removegrain(12)
         clp                = ex_lutxyz(dif, convD, src, "y abs x abs > y z + z ? ")
 #        clp                = ex_adddiff(src, dif)
         return clp }
@@ -2217,7 +2224,7 @@ function ex_XSharpen(clip clp, float "strength", float "threshold", int "UV", bo
 #
 # ---Parameters---
 #
-# float "strength" (default: 1.0)
+# float "strength" (Default: 1.0)
 # ----------------------------
 # Same as CAS's parameter.
 # Must be between 0.0 and 1.0.
