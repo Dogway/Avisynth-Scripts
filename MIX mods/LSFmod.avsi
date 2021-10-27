@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v3.7 mix - 18 October 2021                                ###
+###                                v3.8 mix - 26 October 2021                                ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -20,14 +20,18 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v3.7ex : - Rebase to latest ResizersPack
+### v3.8mx : - Update Unsharp_HBD() with ex_unsharp() and reparametrize to original LSFmod unsharp's output
+###          - Optimize Soft and Soothe expressions
+###          - Optimize Sobel edgemask
+###
+### v3.7mx : - Rebase to latest ResizersPack
 ###          - Replace try catch with VarExist()
 ###
 ### v3.6mx : - Add thSAD for MCompensate
 ###          - Cosmetics
 ###
 ### v3.5mx : - Additional checker for creation of motion vectors if SS is used
-###          - and repair its motion compensated vectors
+###          - and repair() its motion compensated vectors
 ###          - Cosmetics
 ###
 ### v3.4mx : - Lmode=5 for zero limiting on not-edges
@@ -55,11 +59,8 @@
 ###          - Add internal HD mode
 ###
 ### v2.6mx : - Expressions cleanup
-###
 ### v2.5mx : - Expressions optimizations
-###
 ### v2.4mx : - Expressions fix and optimizations
-###
 ### v2.3mx : - Expression optimizations
 ###
 ### v2.2mx : - "fulls" argument
@@ -150,11 +151,11 @@
 ###
 ### -> Masktools2   (v2.2.28 or up)
 ### -> RgTools      (v1.2 or up)
-### -> ExTools      (v6.1 or up)
+### -> ExTools      (v6.2 or up)
 ### -> ResizersPack (v6.1 or up)
-### -> SharpenersPack                  [for Smode=2]
+### -> SharpenersPack                  [for Smode=1 and Smode=2]
 ### -> CAS                             [for Smode=6]
-### -> if you use AviSynth+ then make sure it's the last one
+### -> if you use AviSynth+ then make sure it's the latest one
 ###
 ###
 ###
@@ -436,6 +437,42 @@
 ###                   - screenH     = 1080
 ###
 ###
+### preset="medium" : - strength    = 100
+### ----------------- - Smode       = 4
+###                   - Smethod     = 3
+###
+###                   - preblur     = "OFF"
+###                   - secure      = true
+###                   - source      = undefined
+###
+###                   - Szrp        = 16
+###                   - Spwr        = 4
+###                   - SdmpLo      = 4
+###                   - SdmpHi      = 48
+###
+###                   - Lmode       = 4
+###                   - overshoot   = strength/100
+###                   - undershoot  = overshoot
+###                   - overshoot2  = overshoot*2
+###                   - undershoot2 = overshoot2
+###
+###                   - soft        = 0
+###                   - soothe      = true
+###                   - keep        = 20
+###
+###                   - edgemode    = 0
+###                   - edgemaskHQ  = true
+###
+###                   - ss_x        = Smode==3 ? 1.00 : 1.25
+###                   - ss_y        = ss_x
+###                   - dest_x      = ox
+###                   - dest_y      = oy
+###
+###                   - show        = false
+###                   - screenW     = 1920
+###                   - screenH     = 1080
+###
+###
 ### preset="fast"   : - strength    = 100
 ### ----------------- - Smode       = 3
 ###                   - Smethod     = 2
@@ -485,7 +522,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v3.7mix"
+    version = "v3.8mix"
     preset  = Default(preset,"mid")
     num     = preset=="old" ? 0 : preset=="slow" ? 1 : preset=="mid" || preset=="medium" ? 2 : preset=="fast" ? 3 : 4
 
@@ -519,7 +556,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     overshoot2  = Default( overshoot2,  Select(num,                      overshoot*2 ,        overshoot*2 ,        overshoot*2 ,        overshoot*2 ) )
     undershoot2 = Default( undershoot2, Select(num,                       overshoot2 ,         overshoot2 ,         overshoot2 ,         overshoot2 ) )
 
-    soft        = Default( soft,        Select(num,                                0 ,                 -2 ,                 -2 ,                  0 ) )
+    soft        = Default( soft,        Select(num,                                0 ,                 -2 ,                  0 ,                  0 ) )
     soothe      = Default( soothe,      Select(num,                            false ,               true ,               true ,                true ) )
     keep        = Default( keep,        Select(num,                               25 ,                 20 ,                 20 ,                 20 ) )
 
@@ -555,10 +592,6 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     Assert( ( ss_x >= 1.0 )                                              , chr(10) + "'ss_x' have not a correct value! [>=1.0]"                + chr(10))
     Assert( ( ss_y >= 1.0 )                                              , chr(10) + "'ss_y' have not a correct value! [>=1.0]"                + chr(10))
 
-    soft = soft!=-1  ? soft : sqrt( (((ss_x+ss_y)/2.0-1.0)*100.0) ) * 10
-    soft = soft!=-2  ? soft : int( (1.0+(2.0/(ss_x+ss_y))) * sqrt(strength) )
-    soft = soft<=100 ? soft : 100
-
     xxs  = nmod(ox*ss_x,8)
     yys  = nmod(oy*ss_y,8)
 
@@ -586,10 +619,10 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     # Top is a 4-way sobel, Bottom a min/max
     rhlf  = ex_bs(128, 8, bi, fulls=fs)
     emHQn = ex_bs(32,  8, bi, fulls=fs)
-    edge  = edgemaskHQ ? tmp.ex_edge(mode=Format("x[-1,1] A@ x[0,1] 2 * B@ x[1,1] C@ + + x[-1,-1] F@ - x[0,-1] 2 * G@ - x[1,-1] H@ - F G H + + A - B - C - max "                    \
-                                                +"A C - x[-1,0] 2 * D@ + x[1,0] 2 * E@ - F + H - C A - D - E + F - H + max max 2 * 1 {rhlf} / * 0.86 ^ 0 max range_max *"),  lo=0, hi=255, UV=1, fulls=fs)
+    edge  = edgemaskHQ ? tmp.ex_edge(mode=Format("x[1,-1] C@ x[1,1] I@ + x[-1,-1] A@ - x[-1,1] G@ - x[1,0] x[-1,0] - 2 * + abs"                                                     \
+                                                +"G I + A - C - x[0,1] x[0,-1] - 2 * + abs max 2 *    1 {rhlf}  / * 0.86 ^ 0 max range_max *"), lo=0, hi=255, UV=1, fulls=fs)
     \     :              tmp.ex_edge(mode=Format("x[1,1] A@ x[1,0] B@ max x[1,-1] C@ max x[-1,1] D@ max x[-1,0] E@ max x[-1,-1] F@ max x[0,1] G@ max x[0,-1] H@ max x[0,0] O@ max " \
-                                                +"A B min C min G min O min H min D min E min F min - 1 {emHQn} / * 0.86 ^ 0 max range_max *"),                              lo=0, hi=255, UV=1, fulls=fs)
+                                                +"A B min C min G min O min H min D min E min F min - 1 {emHQn} / * 0.86 ^ 0 max range_max *"), lo=0, hi=255, UV=1, fulls=fs)
 
     edgei = edge.mt_inflate()
 
@@ -618,8 +651,11 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     SdmpHs    = SdmpHi == 0 ? "0" : Format("     B 1 {SdmpHi} / * 4 ^")
     SdmpHr    = SdmpHi == 0 ? "0" : Format("{Szrp} 1 {SdmpHi} / * 4 ^")
 
-    normsharp = Smode==1 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
-    \         : Smode==2 ? tmp.UnsharpMask_HBD(strength=str*150,radius=round(1.0+((ss_x+ss_y)/2.0)),threshold=0,UV=1,fulls=fs)
+    # Smode==1 Parametrized to original WarpSharp's    unsharpmask()
+    # Smode==2 Parametrized to original VariableBlur's unsharp()
+    rad = round((ss_x+ss_y)/2.)
+    normsharp = Smode==1 ? tmp.ex_unsharp(str= 0.1+0.65*str-(rad/10.),Fc=max(ox,oy)*(1.2-0.2*(1+rad)),th=0,UV=1,fulls=fs)
+    \         : Smode==2 ? tmp.ex_unsharp(str=          str/2.,       Fc=max(ox,oy)*(1.0-0.2*   rad), th=0,UV=1,fulls=fs)
     \         : Smode==3 ? ex_lutxy(tmp, method, Format("x y - {str} * x +"), UV=1, fulls=fs)
     \         : Smode==4 ? ex_lutxy(tmp, method, Format("x y == x dup y - A@ abs B@ 1 {Szrp} / * 1 {Spwr} / ^ {Szrp} {str} * * A dup * dup "
     \                                                  +"{SdmpLo} scalef + / * A B / * 1 "+SdmpHs+" + / x + ?"), UV=1, fulls=fs)
@@ -642,8 +678,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
             superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=true, mt=true)   # bug can't disable chroma otherwise luma isn't processed
             super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=true, mt=true, levels=1)
 
-            cb1 = superfilt.MAnalyse(isb = false, chroma=true, blksize = blcksze,  overlap=blcksze/2, delta = 1, temporal=true,       truemotion=true, mt=true)
-            cf1 = superfilt.MAnalyse(isb = true,  chroma=true, blksize = blcksze,  overlap=blcksze/2, delta = 1, temporal=true,       truemotion=true, mt=true)
+            cb1 = superfilt.MAnalyse(isb = false, chroma=true, blksize = blcksze,   overlap=blcksze/2, delta = 1, temporal=true,       truemotion=true, mt=true)
+            cf1 = superfilt.MAnalyse(isb = true,  chroma=true, blksize = blcksze,   overlap=blcksze/2, delta = 1, temporal=true,       truemotion=true, mt=true)
             cb1 =     super.Mrecalculate(cb1,     chroma=true, blksize = blcksze/2, overlap=blcksze/4, thSAD=110, scaleCSAD=scaleCSAD, truemotion=true, mt=true)
             cf1 =     super.Mrecalculate(cf1,     chroma=true, blksize = blcksze/2, overlap=blcksze/4, thSAD=110, scaleCSAD=scaleCSAD, truemotion=true, mt=true)
         }
@@ -683,18 +719,21 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### SOFT
+    soft = soft!=-1  ? soft : sqrt( (((ss_x+ss_y)/2.0-1.0)*100.0) ) * 10
+    soft = soft!=-2  ? soft : int( (1.0+(2.0/(ss_x+ss_y))) * sqrt(strength) )
+    soft = soft<=100 ? soft : 100
     sharpdiff = ex_makediff(tmp,limit2, UV=1, fulls=fs)
-    sharpdiff = ex_lutxy(sharpdiff,sharpdiff.removegrain(20,-1), Format("x range_half - abs y range_half - abs > y {soft} * x 100 {soft} - * + 0.01 * x ?"), UV=1, fulls=fs)
+    sharpdiff = ex_lutxyz(tmp, sharpdiff, sharpdiff.removegrain(20,-1), Format("y range_half - abs z range_half - abs > z {soft} * y 100 {soft} - * + 0.01 * y ? x swap - range_half +"), UV=1, fulls=fs)
 
-    PP1 = soft==0 ? limit2 : ex_makediff(tmp,sharpdiff, UV=1, fulls=fs)
+    PP1 = soft==0 ? limit2 : sharpdiff
 
 
     ### SOOTHE
     diff  = ex_makediff(tmp, PP1, UV=1, fulls=fs)
     diff2 = diff.temporalsoften(1,255,0,32,2)
-    diff3 = ex_lutxy(diff,diff2,Format("x range_half - A@ y range_half - B@ * 0 < A {keep} 0.01 * * range_half + A abs B abs > x {keep} * y 100 {keep} - * + 0.01 * x ? ?"), UV=1, fulls=fs)
+    diff3 = ex_lutxyz(tmp,diff,diff2,Format("y range_half - A@ z range_half - B@ * 0 < A {keep} 0.01 * * range_half + A abs B abs > y {keep} * z 100 {keep} - * + 0.01 * y ? ? x swap - range_half +"), UV=1, fulls=fs)
 
-    PP2 = soothe ? ex_makediff(tmp, diff3, UV=1, fulls=fs) : PP1
+    PP2 = soothe ? diff3 : PP1
 
 
     ### OUTPUT
