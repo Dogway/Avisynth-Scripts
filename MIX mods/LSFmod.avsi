@@ -619,7 +619,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     # Top is a 4-way sobel, Bottom a min/max
     rhlf  = ex_bs(128, 8, bi, fulls=fs)
     emHQn = ex_bs(32,  8, bi, fulls=fs)
-    edge  = edgemaskHQ ? tmp.ex_edge(mode=Format("x[1,-1] C@ x[1,1] I@ + x[-1,-1] A@ - x[-1,1] G@ - x[1,0] x[-1,0] - 2 * + abs"                                                     \
+    edge  = edgemaskHQ ? tmp.ex_edge(mode=Format("x[1,-1] C@ x[1,1] I@ + x[-1,-1] A@ - x[-1,1] G@ - x[1,0] x[-1,0] - 2 * + abs "                                                    \
                                                 +"G I + A - C - x[0,1] x[0,-1] - 2 * + abs max 2 *    1 {rhlf}  / * 0.86 ^ 0 max range_max *"), lo=0, hi=255, UV=1, fulls=fs)
     \     :              tmp.ex_edge(mode=Format("x[1,1] A@ x[1,0] B@ max x[1,-1] C@ max x[-1,1] D@ max x[-1,0] E@ max x[-1,-1] F@ max x[0,1] G@ max x[0,-1] H@ max x[0,0] O@ max " \
                                                 +"A B min C min G min O min H min D min E min F min - 1 {emHQn} / * 0.86 ^ 0 max range_max *"), lo=0, hi=255, UV=1, fulls=fs)
