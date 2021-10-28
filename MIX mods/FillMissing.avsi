@@ -72,7 +72,7 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
 
     #Merge double framerate from original with motion-esimated frames, but only where there are jumps
     #(i.e., original frames are used except at jump points)
-    mt_merge(Interleave(source,source), double, themask, luma=true, U=3, V=3)
+    mt_merge(Interleave(source,source), double, themask, U=3, V=3)
 
     #Decimate
     RequestLinear(clim=100)
