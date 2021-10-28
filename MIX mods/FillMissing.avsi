@@ -1,10 +1,11 @@
 # Based on script created by Didée
 # Modified by John Meyer on June 29, 2011/2013 (https://forum.doom9.org/showpost.php?p=1619555&postcount=3)
-# v1.1  - Updated and Sanitized                  by Dogway on March 05, 2019
+# v1.10 - Updated and Sanitized                  by Dogway on   Mar 05, 2019
 # v1.21 - Updated and Sanitized                  by Dogway on   May 18, 2021
 # v1.30 - Further optimized (dcycle from DeJump) by Dogway on   Jul 15, 2021
 # v1.31 - Optimize for HBD                       by Dogway on   Aug 15, 2021
 # v1.32 - Remove GrunT dependency                by Dogway on   Oct 02, 2021
+# v1.40 - BWmask bugfixes                        by Dogway on   Oct 28, 2021
 #
 # Dependencies:
 #   masktools2
@@ -30,11 +31,11 @@
 function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle", bool "Show", bool "debug") {
 
 
-    JumpThresh = Default(JumpThresh,0.8) # Threshold for detecting jumps. Increase to catch more jumps. Should always be less than 1.0
-    Fast       = Default(Fast,  false)   # true for fast mode
-    dcycle     = Default(dcycle, 20)     # decimation cycle
-    showdot    = Default(Show,  false)   # true for troubleshooting; otherwise, false
-    Debug      = Default(Debug, false)   # true for troubleshooting; otherwise, false
+    JumpThresh = Default(JumpThresh,0.8)   # Threshold for detecting jumps. Increase to catch more jumps. Should always be less than 1.0
+    Fast       = Default(Fast,    false)   # true for fast mode
+    dcycle     = Default(dcycle,     20)   # Decimation cycle
+    showdot    = Default(Show,    false)   # true for troubleshooting; otherwise, false
+    Debug      = Default(Debug,   false)   # true for troubleshooting; otherwise, false
 
     source
 
@@ -51,21 +52,19 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
     #This function returns a white clip whenever a big jump is detected; otherwise a black clip is returned
     #Each YDiff must eliminate Ydiff=0 (duplicate) from moving average
     BWMask = ScriptClip(last, function [src8,JumpThresh,Black,White] () {
-            YDif1 = YDifferenceFromPrevious(src8,2)
-            YDif1 = YDif1 < 0.2 ? YDifferenceFromPrevious(src8,3)  : YDif1
+            YDif1 = YDifferenceToNext(src8,2)
+            YDif1 = YDif1 < 0.2 ? YDifferenceToNext(src8,3)  : YDif1
 
-            YDif2 = YDifferenceFromPrevious(src8,1)
-            YDif2 = YDif2 < 0.2 ? YDifferenceFromPrevious(src8,2)  : YDif2
+            YDif2 = YDifferenceToNext(src8,1)
+            YDif2 = YDif2 < 0.2 ? YDifferenceToNext(src8,2)  : YDif2
 
-            YDif3 = YDifferenceFromPrevious(src8,-1)
-            YDif3 = YDif3 < 0.2 ? YDifferenceFromPrevious(src8,-2) : YDif3
+            YDif3 = YDifferenceToNext(src8,-1)
+            YDif3 = YDif3 < 0.2 ? YDifferenceToNext(src8,-2) : YDif3
 
-            YDif4 = YDifferenceFromPrevious(src8,-2)
-            YDif4 = YDif4 < 0.2 ? YDifferenceFromPrevious(src8,-3) : YDif4
+            YDif4 = YDifferenceToNext(src8,-2)
+            YDif4 = YDif4 < 0.2 ? YDifferenceToNext(src8,-3) : YDif4
 
-            YDiff = ((YDif1 + YDif2 + YDif3 + YDif4) * 0.25 ) / (YDifferenceFromPrevious(src8) + 0.01) <= JumpThresh ? \
-                                                                                                         source.White : \
-                                                                                                         source.Black   \
+            ((YDif1 + YDif2 + YDif3 + YDif4) * 0.25 ) / (YDifferenceToNext(src8,-1) + 0.01) <= JumpThresh ? White : Black
             } )
 
     #Generate the 2x framerate mask needed to choose the motion-estimated frames
@@ -81,8 +80,7 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
     final  = TDecimate(display=false, mode=1, cycleR=dcycle/2, cycle=dcycle)  # Decimate half of all frames (set to twice the length of "normal" dup/drop cycle)
 
 
-    return debug ? test : final
-}
+    return debug ? test : final }
 
 #----------------
 #This function displays the YDiff value that will be used for detecting big jumps
@@ -92,19 +90,19 @@ function ShowMetrics (clip c) {
 
     ScriptClip(c, function [c] () {
 
-        YDif1 = YDifferenceFromPrevious(2)
-        YDif1 = YDif1 < 0.2 ? YDifferenceFromPrevious(3)  : YDif1
+        YDif1 = YDifferenceToNext(2)
+        YDif1 = YDif1 < 0.2 ? YDifferenceToNext(3)  : YDif1
 
-        YDif2 = YDifferenceFromPrevious(1)
-        YDif2 = YDif2 < 0.2 ? YDifferenceFromPrevious(2)  : YDif2
+        YDif2 = YDifferenceToNext(1)
+        YDif2 = YDif2 < 0.2 ? YDifferenceToNext(2)  : YDif2
 
-        YDif3 = YDifferenceFromPrevious(-1)
-        YDif3 = YDif3 < 0.2 ? YDifferenceFromPrevious(-2) : YDif3
+        YDif3 = YDifferenceToNext(-1)
+        YDif3 = YDif3 < 0.2 ? YDifferenceToNext(-2) : YDif3
 
-        YDif4 = YDifferenceFromPrevious(-2)
-        YDif4 = YDif4 < 0.2 ? YDifferenceFromPrevious(-3) : YDif4
+        YDif4 = YDifferenceToNext(-2)
+        YDif4 = YDif4 < 0.2 ? YDifferenceToNext(-3) : YDif4
 
-        YDiff = ((YDif1 + YDif2 + YDif3 + YDif4) * 0.25 ) / (YDifferenceFromPrevious() + 0.01)
+        YDiff = ((YDif1 + YDif2 + YDif3 + YDif4) * 0.25 ) / (YDifferenceToNext(-1) + 0.01)
 
         Subtitle(String(YDiff))
     } ) }
