@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v1.4  (21-10-2021)                     ###
+###        Similarity Metrics Pack v1.5  (31-10-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -137,7 +137,7 @@ This script is port of the VapourSynth MDSI - https://github.com/WolframRhodium/
 MDSI is a full reference IQA model that utilize gradient similarity (GS), chromaticity similarity (CS), and deviation pooling (DP).
 The lowerer the MDSI score, the higher the image perceptual quality.
 Larger MDSI values indicate to the more severe distorted images, while an image with perfect quality is assessed by a quality score of zero.
-The distortion degree of the distorted image will be stored as frame property '_FrameMDSI' in the output clip.
+The distortion degree of the distorted image will be stored as frame property '_PlaneMDSI' in the output clip.
 Note that bilinear downsampling is used in this implementation (but disabled by default), as opposed to the original paper.
 The gradient-chromaticity similarity map is saturated before deviation pooling, as described in II.D.
 Matrix used by rgb2gray() from MATLAB (similar to BT.601 matrix) is used for computation of luma component.
@@ -241,10 +241,10 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
 
     last = ScriptClip(show_maps ? Interleave(gs_hvs, cs, gcs) : show == 1 ? ref : dist, function [gcs] ()
         {
-            propSet("_FrameMDSI", pow(AverageLuma(Expr(gcs, "x "+ String(AverageLuma(gcs)) +" - abs")), 0.25), 0)
+            propSet("_PlaneMDSI", pow(AverageLuma(Expr(gcs, "x "+ String(AverageLuma(gcs)) +" - abs")), 0.25), 0)
         })
 
-    return show == 2 ? ScriptClip(function [show_maps] () { Subtitle(show_maps?ex_invert():last,"FrameMDSI: " + String(propGetFloat("_FrameMDSI"))) } ) : last }
+    return show == 2 ? ScriptClip(function [show_maps] () { Subtitle(show_maps?ex_invert():last,"PlaneMDSI: " + String(propGetFloat("_PlaneMDSI"))) } ) : last }
 
 
 
