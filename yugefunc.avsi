@@ -29,7 +29,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 
 #######################################################################
 ###                                                                 ###
-###    yugefunc  v0.3 (22-10-2021)                                  ###
+###    yugefunc  v0.4 (01-11-2021)                                  ###
 ###                                                                 ###
 ###    Collection of VapourSynth functions ported to AviSynth+      ###
 ###                                                                 ###
@@ -133,7 +133,7 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     s   = Default(subsampling_ratio, 4)
     kn1 = Default(kernel1,   "Point")
     kn2 = Default(kernel2,   "Bilinear")
-    UV  = Default(UV,    rgb ? 3 : 1)
+    UV  = Default(UV,    rgb ? 3 : 2)
     fs  = Default(fulls, rgb)
 
     isg = Defined(gd)
@@ -153,10 +153,13 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
 
 
     function Filter(clip clp, float r, bool use_gauss, int UV) {
-        use_gauss ? clp.ex_blur(r/2.*sqrt(2), mode="gaussian", UV=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
+        sigY  = r/2.*sqrt(2)
+        sigUV = clp.is422() || clp.is420() ? sigY/2. : clp.isYV411() ? sigY/4. : sigY
+        sigUVv= clp.is420()                ? sigY/2. :                           sigY
+        use_gauss ? clp.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
 
     function Filter_r1(clip clp,       bool use_gauss, int UV) {
-        use_gauss ? clp.removegrain(12,uv==3?12:-1)               : clp.ex_boxblur(1       ,mode="mean", UV=uv) }
+        use_gauss ? clp.removegrain(12,uv==3?12:-1)                                     : clp.ex_boxblur(1       ,mode="mean", UV=uv) }
 
 
     # Compute local linear coefficients.
@@ -301,7 +304,7 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     eps = Default(epsilon, 0.003906250)
     sm  = Default(sigma,    false)
     ad  = Default(adaptive,  true)
-    UV  = Default(UV,    rgb ? 3 : 1)
+    UV  = Default(UV,    rgb ? 3 : 2)
     fs  = Default(fulls, rgb)
 
     isg = Defined(gd)
@@ -339,17 +342,20 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     # unsharp mask with custom divisor
     sigma = !sm ? ex_lut(isg?gd:clp,Format("x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 4 * + + + + x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 2 * - {div} *"),UV=uv) : nop()
 
-    W = Scriptclip(W, function [W,coeff,alpha,eps,sm,sigma,uv] () {
-        avg = !sm ? string(pow(sigma.AverageLuma(),2))+" - 0 max" : ""
-        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"),UV=uv, fulls=fs) } )
+    W = Scriptclip(W, function [W,coeff,alpha,eps,sm,sigma,uv,fs] () {
+        avg = !sm ? string(min(-eps,pow(sigma.AverageLuma(),2)))+" -" : ""
+        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"), UV=uv, fulls=fs) } )
 
     WA = ex_lutxy(W,A,"x y *",UV=uv)
     WB = ex_lutxy(W,B,"x y *",UV=uv)
-    A = ga ? WA.ex_blur(r/2.+0.25,mode="gaussian") : WA.ex_boxblur(floor(r),mode="mean")
-    B = ga ? WB.ex_blur(r/2.+0.25,mode="gaussian") : WB.ex_boxblur(floor(r),mode="mean")
-    W = ga ?  W.ex_blur(r/2.+0.25,mode="gaussian") :  W.ex_boxblur(floor(r),mode="mean")
+    sigY  = r/2.+0.25
+    sigUV = clp.is422() || clp.is420() ? sigY/2. : clp.isYV411() ? sigY/4. : sigY
+    sigUVv= clp.is420()                ? sigY/2. :                           sigY
+    A = ga ? WA.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) : WA.ex_boxblur(floor(r),mode="mean",UV=uv)
+    B = ga ? WB.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) : WB.ex_boxblur(floor(r),mode="mean",UV=uv)
+    W = ga ?  W.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) :  W.ex_boxblur(floor(r),mode="mean",UV=uv)
 
-    res = ex_lutxyza(!isg?clp:gd,A,B,W,"y x * z + a / 0 max",UV=uv)
+    res = ex_lutxyza(!isg?clp:gd,A,B,W,"y x * z + a /",UV=uv)
 
     res
 
