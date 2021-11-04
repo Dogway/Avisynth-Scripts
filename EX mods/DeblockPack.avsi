@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v1.2  (18-10-2021)                                ###
+###        Deblock Pack v1.3  (04-11-2021)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -211,14 +211,14 @@ function oyster_Super(clip src, int "pel") {
     bi  = BitsPerComponent(src)
     rgb = isRGB(src)
 
-    Assert(isclip(src), "Oyster.Super: src has to be a video clip!")
-    Assert(bi == 32, "Oyster.Super: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb, "Oyster.Super: subsampled stuff not supported!")
+    Assert(isclip(src),          "Oyster.Super: src has to be a video clip!")
+    Assert(bi == 32,             "Oyster.Super: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,    "Oyster.Super: subsampled stuff not supported!")
     Assert(pel == 2 || pel == 4, "Oyster.Super: pel has to be 2 or 4!")
 
     src
     AssumeFrameBased()
-    rgb ? RGB2OPP() : last
+    rgb ? RGB_to_OPP() : last
 
 #    PadBorders(128, 128, 128, 128)
     PadBorders(64, 64, 64, 64)
@@ -242,18 +242,18 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
 
-    Assert(isclip(src), "Oyster.Basic: src has to be a video clip!")
-    Assert(is444(src) || rgb, "Oyster.Basic: subsampled stuff not supported!")
+    Assert(isclip(src),                "Oyster.Basic: src has to be a video clip!")
+    Assert(is444(src) || rgb,          "Oyster.Basic: subsampled stuff not supported!")
     Assert(pel == 1 || pel == 2 || pel == 4, "Oyster.Super: pel has to be 1, 2 or 4!")
-    Assert(isclip(super), "Oyster.Basic: super has to be a video clip or None!")
-    Assert(isint(radius), "Oyster.Basic: radius has to be an integer!")
-    Assert(radius>1, "Oyster.Basic: radius has to be greater than 0!")
-    Assert(isint(pel), "Oyster.Basic: pel has to be an integer!")
+    Assert(isclip(super),              "Oyster.Basic: super has to be a video clip or None!")
+    Assert(isint(radius),              "Oyster.Basic: radius has to be an integer!")
+    Assert(radius>1,                   "Oyster.Basic: radius has to be greater than 0!")
+    Assert(isint(pel),                 "Oyster.Basic: pel has to be an integer!")
     Assert(isint(sad) || isfloat(sad), "Oyster.Basic: sad has to be a real number!")
-    Assert(sad>0, "Oyster.Basic: sad has to be greater than 0!")
-    Assert(isbool(short_time), "Oyster.Basic: short_time has to be boolean!")
+    Assert(sad>0,                      "Oyster.Basic: sad has to be greater than 0!")
+    Assert(isbool(short_time),         "Oyster.Basic: short_time has to be boolean!")
 
-    src   = rgb ? RGB2OPP(src) : src
+    src   = rgb ? RGB_to_OPP(src) : src
     src   = AssumeFrameBased(src)
     super = Defined(super) ? super : AssumeFrameBased(super)
 
@@ -288,7 +288,7 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
     clp         = src.MDegrainN(supersharp, vmulti, radius, thsad=sad, plane=plane, thscd1=16320, thscd2=255, mt=true)
     clp         = Crop(clp, 64, 64, -64, -64)
 
-    clp   = rgb ? OPP2RGB(clp) : clp
+    clp   = rgb ? OPP_to_RGB(clp) : clp
     return clp }
 
 
@@ -316,22 +316,22 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "sigma", float
     bi  = BitsPerComponent(src)
     bir = BitsPerComponent(ref)
 
-    Assert(isclip(src), "Oyster.Deringing: src has to be a video clip!")
-    Assert(bi == 32, "Oyster.Deringing: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb, "Oyster.Deringing: subsampled stuff not supported!")
-    Assert(isclip(ref), "Oyster.Deringing: ref has to be a video clip!")
-    Assert(bir == 32, "Oyster.Deringing: the sample type of ref has to be single precision!")
+    Assert(isclip(src),              "Oyster.Deringing: src has to be a video clip!")
+    Assert(bi == 32,                 "Oyster.Deringing: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,        "Oyster.Deringing: subsampled stuff not supported!")
+    Assert(isclip(ref),              "Oyster.Deringing: ref has to be a video clip!")
+    Assert(bir == 32,                "Oyster.Deringing: the sample type of ref has to be single precision!")
     Assert(is444(ref) || isrgb(ref), "Oyster.Deringing: subsampled stuff not supported!")
-    Assert(isint(radius), "Oyster.Deringing: radius has to be an integer!")
-    Assert(radius>1, "Oyster.Deringing: radius has to be greater than 0!")
-    Assert(isint(h) || isfloat(h), "Oyster.Deringing: h has to be a real number!")
-    Assert(h<=0, "Oyster.Deringing: h has to be greater than 0!")
+    Assert(isint(radius),            "Oyster.Deringing: radius has to be an integer!")
+    Assert(radius>1,                 "Oyster.Deringing: radius has to be greater than 0!")
+    Assert(isint(h) || isfloat(h),   "Oyster.Deringing: h has to be a real number!")
+    Assert(h<=0,                     "Oyster.Deringing: h has to be greater than 0!")
 #    Assert(isint(mse0) || isfloat(mse0), "Oyster.Deringing: sad has to be a real number or None!")
 #    Assert(isint(mse1) || isfloat(mse1), "Oyster.Deringing: sad has to be a real number or None!")
 
     if (rgb) {
-       src    = RGB2OPP(src)
-       ref    = RGB2OPP(ref)
+       src    = RGB_to_OPP(src)
+       ref    = RGB_to_OPP(ref)
     }
     src       = AssumeFrameBased(src)
     ref       = AssumeFrameBased(ref)
@@ -370,7 +370,7 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "sigma", float
     bm3d    = FreqMerge(refined, bm3d, nmod(block_size,2) + 1, lowpass)
     clp     = oy_loop(Undefined(), bm3d, refined, 4, strength0, strength1, strength2, color)
 
-    clp     = rgb ? OPP2RGB(clp) : clp
+    clp     = rgb ? OPP_to_RGB(clp) : clp
     return clp }
 
 
@@ -400,24 +400,24 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     bi  = BitsPerComponent(src)
     bir = BitsPerComponent(ref)
 
-    Assert(isclip(src), "Oyster.Destaircase: src has to be a video clip!")
-    Assert(bi == 32, "Oyster.Destaircase: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb, "Oyster.Destaircase: subsampled stuff not supported!")
-    Assert(isclip(ref), "Oyster.Destaircase: ref has to be a video clip!")
-    Assert(bir == 32, "Oyster.Destaircase: the sample type of ref has to be single precision!")
-    Assert(is444(ref) || isrgb(ref), "Oyster.Destaircase: subsampled stuff not supported!")
-    Assert(isint(radius), "Oyster.Destaircase: radius has to be an integer!")
-    Assert(radius>1, "Oyster.Destaircase: radius has to be greater than 0!")
-    Assert(isint(thr) || isfloat(thr), "Oyster.Destaircase: thr has to be a real number!")
-    Assert(thr>=0 && thr<= 1, "Oyster.Destaircase: thr has to fall in [0, 1]!")
+    Assert(isclip(src),                    "Oyster.Destaircase: src has to be a video clip!")
+    Assert(bi == 32,                       "Oyster.Destaircase: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,              "Oyster.Destaircase: subsampled stuff not supported!")
+    Assert(isclip(ref),                    "Oyster.Destaircase: ref has to be a video clip!")
+    Assert(bir == 32,                      "Oyster.Destaircase: the sample type of ref has to be single precision!")
+    Assert(is444(ref) || isrgb(ref),       "Oyster.Destaircase: subsampled stuff not supported!")
+    Assert(isint(radius),                  "Oyster.Destaircase: radius has to be an integer!")
+    Assert(radius>1,                       "Oyster.Destaircase: radius has to be greater than 0!")
+    Assert(isint(thr) || isfloat(thr),     "Oyster.Destaircase: thr has to be a real number!")
+    Assert(thr>=0 && thr<= 1,              "Oyster.Destaircase: thr has to fall in [0, 1]!")
     Assert(isint(elast) || isfloat(elast), "Oyster.Destaircase: elast has to be a real number!")
-    Assert(elast>=0 && elast<=thr, "Oyster.Destaircase: elast has to fall in [0, thr]!")
+    Assert(elast>=0 && elast<=thr,         "Oyster.Destaircase: elast has to fall in [0, thr]!")
 #    Assert(isint(mse0) || isfloat(mse0), "Oyster.Destaircase: sad has to be a real number or None!")
 #    Assert(isint(mse1) || isfloat(mse1), "Oyster.Destaircase: sad has to be a real number or None!")
 
     if (rgb) {
-       src    = RGB2OPP(src)
-       ref    = RGB2OPP(ref)
+       src    = RGB_to_OPP(src)
+       ref    = RGB_to_OPP(ref)
     }
     src       = AssumeFrameBased(src)
     ref       = AssumeFrameBased(ref)
@@ -441,7 +441,7 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     ref       = ex_adddiff(ref, dif)
     clp       = ex_merge(src, ref, msk, luma=true)
 
-    clp       = rgb ? OPP2RGB(clp) : clp
+    clp       = rgb ? OPP_to_RGB(clp) : clp
     return clp }
 
 
@@ -469,20 +469,20 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
     bi  = BitsPerComponent(src)
     bir = BitsPerComponent(ref)
 
-    Assert(isclip(src), "Oyster.Deblocking: src has to be a video clip!")
-    Assert(bi == 32, "Oyster.Deblocking: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb, "Oyster.Deblocking: subsampled stuff not supported!")
-    Assert(isclip(ref), "Oyster.Deblocking: ref has to be a video clip!")
-    Assert(bir == 32, "Oyster.Deblocking: the sample type of ref has to be single precision!")
+    Assert(isclip(src),              "Oyster.Deblocking: src has to be a video clip!")
+    Assert(bi == 32,                 "Oyster.Deblocking: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,        "Oyster.Deblocking: subsampled stuff not supported!")
+    Assert(isclip(ref),              "Oyster.Deblocking: ref has to be a video clip!")
+    Assert(bir == 32,                "Oyster.Deblocking: the sample type of ref has to be single precision!")
     Assert(is444(ref) || isrgb(ref), "Oyster.Deblocking: subsampled stuff not supported!")
-    Assert(isint(radius), "Oyster.Deblocking: radius has to be an integer!")
-    Assert(radius>1, "Oyster.Deblocking: radius has to be greater than 0!")
-    Assert(isint(h) || isfloat(h), "Oyster.Deblocking: h has to be a real number!")
-    Assert(h>0, "Oyster.Deblocking: h has to be greater than 0!")
+    Assert(isint(radius),            "Oyster.Deblocking: radius has to be an integer!")
+    Assert(radius>1,                 "Oyster.Deblocking: radius has to be greater than 0!")
+    Assert(isint(h) || isfloat(h),   "Oyster.Deblocking: h has to be a real number!")
+    Assert(h>0,                      "Oyster.Deblocking: h has to be greater than 0!")
 
     if (rgb) {
-       src    = RGB2OPP(src)
-       ref    = RGB2OPP(ref)
+       src    = RGB_to_OPP(src)
+       ref    = RGB_to_OPP(ref)
     }
     src      = AssumeFrameBased(src)
     ref      = AssumeFrameBased(ref)
@@ -507,7 +507,7 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
     src      = FreqMerge(cleansed, src, nmod(block_size,2) + 1, lowpass)
     clp      = ex_merge(src, ref, msk, luma=True)
 
-    clp      = rgb ? OPP2RGB(clp) : clp
+    clp      = rgb ? OPP_to_RGB(clp) : clp
     return clp }
 
 
@@ -565,15 +565,15 @@ function ThrMerge(clip flt, clip src, clip "ref", float "thr", float "elast") {
     elast = Defined(elast) ? elast : thr / 2.
 
     BDif  = ex_lut(src, "0")
-    PDif  = ex_lutxy  (flt, src, "x y -", clamp_float=true)
-    PRef  = ex_lutxy  (flt, ref, "x y -", clamp_float=true)
-    PBLD  = ex_lutxyz(PDif, BDif, PRef, Format("x {thr} {elast} + z - 2 {elast} * / * y {elast} z + {thr} - 2 {elast} * / * +"))
-    NDif  = ex_lutxy  (flt, src, "y x -", clamp_float=true)
-    NRef  = ex_lutxy  (flt, ref, "y x -", clamp_float=true)
-    NBLD  = ex_lutxyz(NDif, BDif, NRef, Format("x {thr} {elast} + z - 2 {elast} * / * y {elast} z + {thr} - 2 {elast} * / * +"))
+#    PDif  = ex_lutxy  (flt, src, "x y -", clamp_float=true)
+#    PRef  = ex_lutxy  (flt, ref, "x y -", clamp_float=true)
+    PBLD  = ex_lutxyza(src, BDif, flt, ref, Format("z x - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"))
+#    NDif  = ex_lutxy  (flt, src, "y x -", clamp_float=true)
+#    NRef  = ex_lutxy  (flt, ref, "y x -", clamp_float=true)
+    NBLD  = ex_lutxyza(src, BDif, flt, ref, Format("x z - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"))
     BLD   = ex_makeadddiff(PBLD, NBLD, src)
-    UDN   = ex_lutxyz (flt, ref, BLD, Format("x y - abs {thr} {elast} - > z x ?"))
-    clp   = ex_lutxyza(flt, ref, UDN, src, Format("x y - abs {thr} {elast} + < z a ?"))
+#    UDN   = ex_lutxyz (flt, ref, BLD, Format("x y - abs {thr} {elast} - > z x ?"))
+    clp   = ex_lutxyza(flt, ref, BLD, src, Format("x y - abs X@ {thr} {elast} + < X {thr} {elast} - > z x ? a ?"))
 
     return clp }
 
@@ -976,15 +976,15 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
     ow  = clp.width()
     oh  = clp.height()
 
-    Assert( ( quant       >= 1  &&  quant       <=  31 ), chr(10) + "'quant' wrong value! [1-31]" + chr(10))
-    Assert( ( num_shift   >= 1  &&  num_shift   <=   4 ), chr(10) + "'num_shift' wrong value! [1-4]" + chr(10))
-    Assert( ( Matrix      >= 1  &&  Matrix      <= 110 ), chr(10) + "'Matrix' wrong value! [1-110]" + chr(10))
-    Assert( ( Qtype       >= 0  &&  Qtype       <=   4 ), chr(10) + "'Qtype' wrong value! [0-4]" + chr(10))
-    Assert( ( ZW          >= 0  &&  ZW          <=  16 ), chr(10) + "'ZW' wrong value! [1-16]" + chr(10))
-    Assert( ( Cpr         >= 0  &&  Cpr         <=   6 ), chr(10) + "'Cpr' wrong value! [0-6]" + chr(10))
-    Assert( ( cWarpToLuma >= 0  &&  cWarpToLuma <=   8 ), chr(10) + "'cWarpToLuma' wrong value! [0-8]" + chr(10))
-    Assert( ( downSize    >= 1  &&  downSize    <=   4 ), chr(10) + "'downSize' wrong value! [1-4]" + chr(10))
-    Assert( ( ncpu        >= 1  &&  ncpu        <=   4 ), chr(10) + "'ncpu' wrong value! [1-4]" + chr(10))
+    Assert( ( quant       >= 1  &&  quant       <=  31 ), chr(10) + "'quant' wrong value! [1-31]"           + chr(10))
+    Assert( ( num_shift   >= 1  &&  num_shift   <=   4 ), chr(10) + "'num_shift' wrong value! [1-4]"        + chr(10))
+    Assert( ( Matrix      >= 1  &&  Matrix      <= 110 ), chr(10) + "'Matrix' wrong value! [1-110]"         + chr(10))
+    Assert( ( Qtype       >= 0  &&  Qtype       <=   4 ), chr(10) + "'Qtype' wrong value! [0-4]"            + chr(10))
+    Assert( ( ZW          >= 0  &&  ZW          <=  16 ), chr(10) + "'ZW' wrong value! [1-16]"              + chr(10))
+    Assert( ( Cpr         >= 0  &&  Cpr         <=   6 ), chr(10) + "'Cpr' wrong value! [0-6]"              + chr(10))
+    Assert( ( cWarpToLuma >= 0  &&  cWarpToLuma <=   8 ), chr(10) + "'cWarpToLuma' wrong value! [0-8]"      + chr(10))
+    Assert( ( downSize    >= 1  &&  downSize    <=   4 ), chr(10) + "'downSize' wrong value! [1-4]"         + chr(10))
+    Assert( ( ncpu        >= 1  &&  ncpu        <=   4 ), chr(10) + "'ncpu' wrong value! [1-4]"             + chr(10))
     Assert( ( ow          ==        nmod(ow,4)         ), chr(10) + "'clip width'  must be a multiple of 4" + chr(10))
     Assert( ( oh          ==        nmod(oh,4)         ), chr(10) + "'clip height' must be a multiple of 4" + chr(10))
 
@@ -997,8 +997,8 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
    zw1 = (Cpr == 0)  ?  sd1.ex_Ylevels( 0, 1.0, 255, 0, 0, fs)  :  sd1.buildZmask(cpr=cpr)
 
 
-   u2  = sd1.UToY()
-   v2  = sd1.VToY()
+   u2  = sd1.ExtractU()
+   v2  = sd1.ExtractV()
 
    cw  = u2.width()
    ch  = u2.height()
@@ -1016,8 +1016,8 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
 
    sd1 = YToUV(u2, v2).MergeLuma(clp)
 
-   return(sd1)
-}
+   return(sd1) }
+
 
 /*
 Getting Started:
@@ -1112,6 +1112,7 @@ The ZW arguments control the filtering strength by changing the number of origin
 #
 # Defaults buildZmask(Cpr=1)
 function buildZmask(clip clp, int "Cpr", bool "fulls") {
+
     Cpr = Default( Cpr, 1 )
     fs  = Default( fulls, false )
 
@@ -1195,7 +1196,7 @@ function ex_YlevelsS(clip clp, int a, float gamma, int b, int c, int d, bool fs)
 
 # http://forum.doom9.org/showthread.php?t=111526 redfordxx 23rd May 2006, 21:14
 
-function Matrix (clip clp, int "UV") {
+function SD_Matrix (clip clp, int "UV") {
 
     uv = Default(uv,3)
 
@@ -1248,7 +1249,7 @@ function PtrnVertical(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3"
     v6     = Default(v6,v1)
     v7     = Default(v7,v0)
 
-    mtrx=Matrix(clp,uv)
+    mtrx=SD_Matrix(clp,uv)
     ptrn=ex_lutxy(mtrx,mtrx,Format("x 8 % 0 == {v0} {v1} ?"),UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 8 % 2 == {v2} y ?"),   UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 8 % 3 == {v3} y ?"),   UV=uv)
@@ -1270,7 +1271,7 @@ function PtrnHorizontal(clip clp, int "uv", int "v0", int "v1", int "v2", int "v
     v6     = Default(v6,v1)
     v7     = Default(v7,v0)
 
-    mtrx=Matrix(clp,uv)
+    mtrx=SD_Matrix(clp,uv)
     ptrn=ex_lutxy(mtrx,mtrx,Format("x 4 - 8 / 8 % 0 == {v0} {v1} ?"),UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 8 % 2 == {v2} y ?"),   UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 8 % 3 == {v3} y ?"),   UV=uv)
@@ -1288,7 +1289,7 @@ function PtrnBlock(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3") {
     v2     = Default(v2,v1)
     v3     = Default(v3,v2)
 
-    mtrx=Matrix(clp,uv)
+    mtrx=SD_Matrix(clp,uv)
     ptrn=ex_lutxy(mtrx,mtrx,Format("x 4 - 8 / 8 % 1 >= x 4 - 8 / 8 % 6 <= & x 8 % 1 >= x 8 % 6 <= & & {v1} {v0} ?"),UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 8 % 2 >= x 4 - 8 / 8 % 5 <= & x 8 % 2 >= x 8 % 5 <= & & {v2} y ?"),   UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 8 % 3 >= x 4 - 8 / 8 % 4 <= & x 8 % 3 >= x 8 % 4 <= & & {v3} y ?"),   UV=uv)
@@ -1302,7 +1303,7 @@ function PtrnChess(clip clp, int "uv", int "v0", int "v1", int "v2", int "v3") {
     v2     = Default(v2,v0)
     v3     = Default(v3,v1)
 
-    mtrx=Matrix(clp,uv)
+    mtrx=SD_Matrix(clp,uv)
     ptrn=ex_lutxy(mtrx,mtrx,Format("x 4 - 8 / 2 % 0 == x 2 % 0 == & {v0} {v1} ?"),UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 2 % 1 == x 2 % 1 == & {v2} y ?"),   UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 2 % 1 == x 2 % 0 == & {v3} y ?"),   UV=uv)
@@ -1321,7 +1322,7 @@ function PtrnSawH(clip clp, int "uv", string "shift", int "v0", int "v1", int "v
     v6     = Default(v6,v5)
     v7     = Default(v7,v6)
 
-    mtrx=Matrix(clp,uv)
+    mtrx=SD_Matrix(clp,uv)
     ptrn=ex_lutxy(mtrx,mtrx,Format("x 4 - 8 / 8 % 0 == x 2 % "+shift+" 2 %  == & x 4 + 8 / 8 % 0 == x 1 + 2 % "+shift+" 2 % == & | {v0} {v1} ?"),UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 8 % 2 == x 2 % "+shift+" 2 %  == & x 4 + 8 / 8 % 2 == x 1 + 2 % "+shift+" 2 % == & | {v2} y ?"),   UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 8 % 3 == x 2 % "+shift+" 2 %  == & x 4 + 8 / 8 % 3 == x 1 + 2 % "+shift+" 2 % == & | {v3} y ?"),   UV=uv)
@@ -1344,7 +1345,7 @@ function PtrnSawV(clip clp, int "uv", string "shift", int "v0", int "v1", int "v
     v6     = Default(v6,v5)
     v7     = Default(v7,v6)
 
-    mtrx=Matrix(clp,uv)
+    mtrx=SD_Matrix(clp,uv)
     ptrn=ex_lutxy(mtrx,mtrx,Format("x 4 - 8 / 2 % "+shift+" 2 % == x 8 % 0 == & x 4 + 8 / 2 % "+shift+" 2 % == x 1 + 8 % 0 == & | {v0} {v1} ?"),UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 2 % "+shift+" 2 % == x 8 % 2 == & x 4 + 8 / 2 % "+shift+" 2 % == x 1 + 8 % 2 == & | {v2} y ?"),   UV=uv)
     ptrn=ex_lutxy(mtrx,ptrn,Format("x 4 - 8 / 2 % "+shift+" 2 % == x 8 % 3 == & x 4 + 8 / 2 % "+shift+" 2 % == x 1 + 8 % 3 == & | {v3} y ?"),   UV=uv)
@@ -1537,7 +1538,7 @@ function WeightMatrixClip(clip orig, string "name",int "level") {
     name  = Default(name,"04center255x2")
     clp   =orig.Crop(0,0,16,16).Trim(1,1)
 
-    mx1 =  (name=="04all78")||(name=="04center255x2")||(name=="16center255") ? clp : clp.Matrix(3).PtrnFormat(clp)
+    mx1 =  (name=="04all78")||(name=="04center255x2")||(name=="16center255") ? clp : clp.SD_Matrix(3).PtrnFormat(clp)
     mx  =  (name=="04center255border0smooth_1") ? clp.PtrnBlock(3,0,50,200,255)    : \
            (name=="16center255border0smooth_1") ? clp.PtrnBlock(3,0,70,185,255)    : \
            (name=="16center255border0smooth_2") ? clp.PtrnBlock(3,100,150,220,255) : clp
