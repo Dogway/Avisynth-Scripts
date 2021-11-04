@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.66 mix mod by Dogway 2021, based on 3.382s            #
+#     QTGMC 3.67 mix mod by Dogway 2021, based on 3.382s            #
 #                                                                   #
 #   A high quality deinterlacer using motion-compensated temporal   #
 #  smoothing, with a range of features for quality and convenience  #
@@ -15,9 +15,13 @@
 #
 # --- LATEST CHANGES ---
 #
+# v3.67mx
+# - Tweak again NNEDI3 thread settings
+# - Adjust chroma blur radius for chroma subsampling
+#
 # v3.66mx
 # - Replace sh_GetUserGlobalIMT with SysInfo's SI_LogicalCores()
-# - Update nnedi3 calls to for more performance on given threads
+# - Update nnedi3 calls for more performance on given threads
 # - Readjusted gaussian blur sigmas
 # - Preliminar 32-bit float support (MDegrain is broken for 32-bit)
 #
@@ -607,9 +611,11 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Blur image and soften edges to assist in motion matching of edge blocks. Blocks are matched by SAD (sum of absolute differences between blocks), but even
     # a slight change in an edge from frame to frame will give a high SAD due to the higher contrast of edges
-    spatialBlur = (SrchClipPP == 0 || srchcheck) ? nop()                                         : \
-                  (SrchClipPP == 1) ? repair0.vsTCanny(1.90,sigma_vY=1.90,mode=-1,u=CMmt,v=CMmt) : \
-                                      repair0.vsTCanny(1.96,sigma_vY=1.96,mode=-1,u=CMmt,v=CMmt)
+    dw = Input.is422() || Input.is420() ? 2 : Input.isYV411() ? 4 : 1
+    dh = Input.is420()                  ? 2 :                       1
+    spatialBlur = (SrchClipPP == 0 || srchcheck) ? nop()                                                                : \
+                  (SrchClipPP == 1) ? repair0.vsTCanny(1.90,1.90/dw,1.90/dw,1.90,1.90/dh,1.90/dh,mode=-1,u=CMmt,v=CMmt) : \
+                                      repair0.vsTCanny(1.96,1.96/dw,1.96/dw,1.96,1.96/dh,1.96/dh,mode=-1,u=CMmt,v=CMmt)
 
     spatialBlur = (SrchClipPP > 1 && IsClip(spatialBlur)) ? (ChromaMotion ? spatialBlur.Merge( repair0, 0.1 ) : spatialBlur.MergeLuma( repair0, 0.1 ))    : spatialBlur
     tweaked     = (SrchClipPP > 1 && !srchcheck)          ?  ex_lutxy( repair0, bobbed, "y x 3 scalef - x 3 scalef + clip", UV=CMmt, fulls=fs ) : nop()
@@ -893,7 +899,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     SVThinSc  =  SVThin * 6.0
     vertMedD  = (SVthin > 0.0) ? ex_lutxy( lossed1, lossed1.ex_median(mode="vertical", UV=1), Format("y x - {SVThinSc} * "+bi32p), clamp_float=true, UV=1, fulls=fs  ) : nop()
     vertMedD  = (SVthin > 0.0) ? (vertMedD.ex_boxblur( 1, 0, "weighted", UV=1 )) : nop()
-    thin      = (SVthin > 0.0) ? ex_lutxyz( vertMedD, vertMedD.RemoveGrain( 12, -1 ), resharp, "y "+bi32m"+ Y@ abs x "+bi32m"+ abs > Y z + z ?", UV=2, fulls=fs  ) : resharp
+    thin      = (SVthin > 0.0) ? ex_lutxyz( vertMedD, vertMedD.RemoveGrain( 12, -1 ), resharp, "y "+bi32m+" Y@ abs x "+bi32m+" abs > Y z + z ?", UV=2, fulls=fs  ) : resharp
 
     # Back blend the blurred difference between sharpened & unsharpened clip, before (1st) sharpness limiting (Sbb == 1,3). A small fidelity improvement
     backBlend1 = (Sbb != 1 && Sbb != 3) ? thin                                                                                      : \
@@ -1021,8 +1027,8 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
 
     ChromaEdi = Default( ChromaEdi, "" )
     CEed = (ChromaEdi == "")
-
-    NNEDI3clp = EdiMode == "NNEDI3" || EdiMode == "EEDI3+NNEDI3" || EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.NNEDI3( field=-2, nsize=NNSize, nns=NNeurons, qual=EdiQual, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, U=CEed,V=CEed ) : Undefined()
+    LogC = SI_LogicalCores()
+    NNEDI3clp = EdiMode == "NNEDI3" || EdiMode == "EEDI3+NNEDI3" || EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.NNEDI3( field=-2, nsize=NNSize, nns=NNeurons, qual=EdiQual, threads=LogC, prefetch=LogC, U=CEed,V=CEed ) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp.nonyuy2clipin(true) ).slimit_dif2(NNEDI3clp.nonyuy2clipin(true),thr=4, U=CEed?3:2,V=CEed?3:2).nonyuy2clipout(true) : Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2) : \
                                           EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ? Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ) : nop()
 
@@ -1048,7 +1054,7 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.ex_vinverse(custem=NNEDI3clp.nonyuy2clipin(true),UV=3,fulls=fs).nonyuy2clipout(true) : interp.ex_vinverse(custem=NNEDI3clp,UV=3,fulls=fs) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                          : \
-               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, Y=false )                                     : \
+               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=LogC, prefetch=LogC, Y=false )                         : \
                (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 ) : \
                (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                          : \
                (ChromaEdi == "Bob")      ? Input.sh_Bob( 0,0.5 )                                                                                          : \
