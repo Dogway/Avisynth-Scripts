@@ -197,8 +197,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                 w = a.width() h = a.height() pd = max(w,h)/10
         matA = (w  > 2599 ||  h  > 1499)  ? "2020" : (w  > 1099 ||  h  > 599) ? "709" : "601"
         matB = !tv ? "PC."+matA : "Rec"+matA
-        a1   = a.ConvertBits(32,fulls=fs)
-        b1   = b.ConvertBits(32,fulls=fs)
+        a1   = mcfa && out != 2 ? a.propClearAll().ConvertBits(32,fulls=fs) : a.ConvertBits(32,fulls=fs)
+        b1   =                                                                b.ConvertBits(32,fulls=fs)
         b2   = b1.ConvertToPlanarRGB(matrix=matB,chromaresample="spline16")
       # y    = mcfa || mcf == "VMAF"  ? VMAF  (y, b1,show=false,model=0,log_path="") : a1 # Requires 16-bit input and write to disk = PASS (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
         y    = mcfa || mcf == "SSIM"  ? vsSSIM(b1,a1, show=1)                 : a1
@@ -253,15 +253,12 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
 
             if (!mcfa && mPLUG) {
 
-                pG = propGetFloat(y,"_Plane"+MCF )   # propCopy has issues with clips of different bitdepths
+                pG = propGetFloat(y,"_Plane"+MCF )
                 y  = propSet     (c,"_Plane"+MCF, pG, 0 )
 
-            } else if (mcfa) {                       # propCopy is utter slow, wait until fixed or replace with Get+Set
+            } else if (mcfa) {                       # propCopy is slow, wait until fixed or replace with Get+Set
 
-                c = propCopy(c,y,"_PlaneSSIM" )
-                c = propCopy(c,y,"_PlaneGMSD" )
-                c = propCopy(c,y,"_PlaneMDSI" )
-                y = propCopy(c,y,"_PlaneBSSIM") } }
+                y  = propCopy(c,y,true) } }
 
 
 
