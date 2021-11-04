@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v2.1  (25-10-2021)                             ###
+###        Sharpeners Pack v2.2  (01-11-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -1037,7 +1037,7 @@ function NonlinUSM(clip o, float "str", float "z", float "pow", float "rad", flo
     w = o.width()
     h = o.height()
 
-    g = o.ex_GaussianBlur(rad*0.725-0.125)  # Parametrized to match original
+    g = o.ex_GaussianBlur(rad*0.704452-0.0010274,pad=true)  # Parametrized to match original
 
     ex_lutxy(o, g, Format("x dup y - A@ abs {zd} * {pw} ^ {z} * {str} * A dup * dup {ldmp} + / * A dup abs 0.001 + / * + dup 0 > swap1 x ?"), UV=UV, fulls=fs)
 
@@ -1320,7 +1320,7 @@ function SSSharpEX(clip c, float "rad", bool "ssw", float "strength", int "iter"
             dot = i == denoise ? "" : "."
             us = us + """.ex_median(mode="DGM3", UV=1, fulls=fs)""" + dot
     } }
-    return Eval(us) }
+    Return Eval(us) }
 
 
 function halomaskM(clip c, int "hthr", int "hbias", int "agmrad", bool "fulls") {
@@ -1646,7 +1646,7 @@ function NLHH2(Clip C, bool "fulls") {
     Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
                                               x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
                                               b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
-      }
+    }
 
 function NLHV2(Clip C, bool "fulls") {
 
@@ -1783,6 +1783,7 @@ function YAHR(clip clp, bool "fulls") {
 ##    Dependencies:
 ##                  ExTools
 ##                  ResizersPack
+##                  RGTools
 ##                  manyPlus
 ##                  KNLMeansCL
 ##                  nnedi3
@@ -1807,7 +1808,7 @@ function plum_Super(clip src, int "pel", bool "fulls") {
 
     src.ConvertBits(8, dither=-1, fulls=fs)
     AssumeFrameBased()
-    rgb ? RGB2OPP() : isy() ? last : ExtractY()
+    rgb ? RGB_to_OPP() : isy() ? last : ExtractY()
 
     PadBorders(64, 64, 64, 64)
     nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
@@ -1845,7 +1846,7 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     Assert(isint(cutoff),            "Plum.Basic: radius has to be an integer!")
     Assert(cutoff>0 && cutoff<=100,  "Plum.Basic: cutoff must fall in (0, 100]!")
 
-    src   = rgb ? src.RGB2OPP() : src.isy() ? src : src.ExtractY()
+    src   = rgb ? src.RGB_to_OPP() : src.isy() ? src : src.ExtractY()
     src   = AssumeFrameBased(src)
 
     c1                  = 0.0980468750214585389567894354907
@@ -1937,7 +1938,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     ref                = AssumeFrameBased(ref)
     super              = isS ? AssumeFrameBased(super)  : Undefined()
     superf             = isF ? AssumeFrameBased(superf) : Undefined()
-    src                = rgb ? src.RGB2OPP() : isy ? src : src.ExtractY()
+    src                = rgb ? src.RGB_to_OPP() : isy ? src : src.ExtractY()
 
 
     constant           = 0.0009948813682897925944723492342
@@ -1975,7 +1976,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     amplified          = ex_lutxy(clamped, src, Format("x y - A@ abs {lstr} / 1 {pstr} / ^ {strength} * A dup abs 0.001 + / * A dup * dup {ldmp} + / * y +"), scale_inputs=fs?"allf":"all")
     clp                = CutOff(src, amplified, cutoff, freq_margin)
 
-    clp                = rgb ? OPP2RGB(clp) : !isy ? CombinePlanes(clp, clr, planes="YUV", pixel_type=PixelType(clr)) : clp
+    clp                = rgb ? OPP_to_RGB(clp) : !isy ? CombinePlanes(clp, clr, planes="YUV", pixel_type=PixelType(clr)) : clp
 
     return clp }
 
@@ -2203,8 +2204,8 @@ function ex_XSharpen(clip clp, float "strength", float "threshold", int "UV", bo
     str1 = str / 256.0
     str2 = (256 - str) / 256.0
 
-    ex_lut(clp, Format("x[-1,1] A@ x[0,1] B@ max x[1,1] C@ max x[-1,0] D@ max x[0,0] E@ max x[1,0] F@ max x[-1,-1] G@ max x[0,-1] H@ max x[1,-1] I@ max M@
-                        x - Y@ x A B min C min D min E min F min G min H min I min N@ - X@ min {thr} < X Y < N M ? {str1} * x {str2} * + x ?"), UV=UV, fulls=fs) }
+    ex_edge(clp, Format("x[-1,1] A@ x[0,1] B@ max x[1,1] C@ max x[-1,0] D@ max x[0,0] E@ max x[1,0] F@ max x[-1,-1] G@ max x[0,-1] H@ max x[1,-1] I@ max M@
+                         x - Y@ x A B min C min D min E min F min G min H min I min N@ - X@ min {thr} < X Y < N M ? {str1} * x {str2} * + x ?"), UV=UV, fulls=fs) }
 
 
 
@@ -2213,7 +2214,7 @@ function ex_XSharpen(clip clp, float "strength", float "threshold", int "UV", bo
 # An improved sharpening script based on CAS and aWarpSharp2
 #
 # Original work      by Atak_Snajpera for RipBot264
-# Renamed and modded by JKyle 2021-04-22 for StaxRip
+# Renamed and modded by JKyle  2021-04-22 for StaxRip
 # Optimization       by Dogway 2021-09-17
 #
 # ---Requirements---
