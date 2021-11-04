@@ -337,13 +337,13 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     B = !isg ? ex_lutxy (A,X1,   "1 x - y *",UV=uv)                  : \
                ex_lutxyz(A,X1,G1,"y x z * -",UV=uv)
 
-    coeff = pow(2 * r + 1, 2)
-    div   = sqrt(pi/2) / 6
     # unsharp mask with custom divisor
+    div   = sqrt(pi/2) / 6
     sigma = !sm ? ex_lut(isg?gd:clp,Format("x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 4 * + + + + x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 2 * - {div} *"),UV=uv) : nop()
 
+    coeff = pow(2 * r + 1, 2)
     W = Scriptclip(W, function [W,coeff,alpha,eps,sm,sigma,uv,fs] () {
-        avg = !sm ? string(min(-eps,pow(sigma.AverageLuma(),2)))+" -" : ""
+        avg = !sm ? string(min(-eps,pow(sigma.AverageLuma(),2)))+" -" : ""  # This line was caussing NaN blocks, fix (originally without min())
         ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"), UV=uv, fulls=fs) } )
 
     WA = ex_lutxy(W,A,"x y *",UV=uv)
