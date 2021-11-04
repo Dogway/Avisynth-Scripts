@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v6.2     (22-10-2021)              ##
+###           ExTools v6.3     (04-11-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -9,9 +9,9 @@
 ###########################################################
 ###
 ### Pack of masktools2/removegrain replacement functions with...
-### internal Expr() and some extra features.
+### internal Expr() and many extra features.
 ### Generally works faster in HBD, but slower in 8-bit.
-### See performance notes (benchmarks on 1080p@16-bit).
+### See performance notes (benchmarks over 1080p@16-bit).
 ###
 ### *Convolutions are slower than in masktools2/removegrain (SSSE3 vs AVX2)
 ###
@@ -28,7 +28,7 @@
 ### fulls: Defines the scale of HBD values.
 ###        ConvertBits() defaults to false for YUV, same in ExTools.
 ###
-### Dependencies: AviSynth+ 3.5 and over (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.5 (3.7.1 test23+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -60,6 +60,7 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "
     isy     ?  Expr(a, str,       scale_inputs=si, clamp_float=cf) : \
     UV == 1 ?  Expr(a, str, "",   scale_inputs=si, clamp_float=cf) : \
                Expr(a, str, cstr, scale_inputs=si, clamp_float=cf) }
+
 
 
 function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
@@ -147,21 +148,23 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 
 # mt_makediff() is 5% slower
 # Use aug=n to augment difference map
-# Use aug=true to show metrics (requires SimilarityMetrics and TransformsPack)
-function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", int "show", int "Y", int "UV", bool "fulls") {
+# Use aug=true to show metrics (requires YUV input, SimilarityMetrics and TransformsPack)
+function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", string "metric", int "show", int "Y", int "UV", bool "fulls", bool "clamp_float") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
-    augb= isBool(aug)
+    augb= Defined(metric) || isBool(aug)
 
-    aug = Defined(aug) ? augb ? aug ? 50 : 1 : aug : 1
-    Y   = Default(Y,         3)
-    UV  = Default(UV,  rgb ? 3 : aug > 1 ? 128 : 1)
-    dif = Default(dif,     bi!=32)
-    tv  = Default(tv_range, false)   # Enable to mimic Subtract(), "ygrey" centered instead of "range_half"
-    fs  = Default(fulls,     rgb)
-    out = Default(show,        2)    # Returns the output clip when aug=true (metrics). 0: clip 'a'  1: clip 'b'  2: diff subtitled (no frameprops)
+    aug = Defined(metric) ? 50 : Defined(aug) ? augb ? aug ? 50 : 1 : aug : 1
+    Y   = Default(Y,               3)
+    UV  = Default(UV,           rgb ? 3 : aug > 1 ? 128 : 1)
+    dif = Default(dif,        bi!=32)
+    tv  = Default(tv_range,    false)   # Enable to mimic Subtract(), "ygrey" centered instead of "range_half"
+    fs  = Default(fulls,         rgb)
+    cf  = Default(clamp_float, false)
+    out = Default(show,            2)   # Output clip to return when aug=true (metrics). 0: clip 'a'  1: clip 'b'  2: diff subtitled (no frameprops)
+    mcf = Default(metric,      "ALL")   # Select the metric to show (if show=2) and write to frameprops
 
     gr  =             tv ? "ygrey" : "range_half"
     str = Format(aug > 1 ? "x y - abs {aug} *"    : \
@@ -173,113 +176,159 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", int
     str  = dif ? ex_dlut(ystr, bi, fs) : str
     cstr = dif ? ex_dlut(cstr, bi, fs) : cstr
 
-    isy     ? Expr(a, b, str                                    ) : \
-    UV == 1 ? Expr(a, b, str, ""                                ) : \
-              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi))
+    isy     ? Expr(a, b, str                                    , clamp_float=cf) : \
+    UV == 1 ? Expr(a, b, str, ""                                , clamp_float=cf) : \
+              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi), clamp_float=cf)
 
-    # Metrics ( 2fps P(4) with show=0, 12fps without OkLab )
-    # "In practice I usually use a combination of ME, R2 and RMSE if there are no outliers in the data,
-    # MAE if I have a large dataset and there may be outliers, RMLSE if the target is right (positive) skewed."
+    # Cost Functions
     if (augb ? aug > 1 : false) {
 
-               w = a.width() h = a.height() pd = max(w,h)/10
-        mat = (w  > 2599 ||  h  > 1499)  ? "Rec2020" : (w  > 1099 ||  h  > 599) ? "Rec709": "Rec601"
-        a1  = a.ConvertBits(32,fulls=fs)
-        b1  = b.ConvertBits(32,fulls=fs)
-        b2  = b1.ConvertToPlanarRGB(matrix=mat,chromaresample="spline16")
-      # y   = VMAF  (y, b1,show=false,model=0,log_path="") # Requires 16-bit input and write to disk = PASS (feature: 0: PSNR 3: MS-SSIM 4: CIEDE2000)
-        y   = vsSSIM(b1,a1, show=1)
-        y   = BSSIM (b1, y, show=1, PlaneSSIM=true)
-        y   = GMSD  (b1, y, show=1).ConvertToPlanarRGB(matrix=mat,chromaresample="spline16")
-        y   = MDSI  (b2, y, show=1)
-        b3  = Butteraugli(y, b2) # needs Butteraugli(y, b2) then copy frameprop from b2 to y
+        mcf = mcf == "Butteraugli" ? "BUTT" : \
+              mcf == "Charbonnier" ? "CHAR" : \
+              mcf == "L1"          ? "MAE"  : \
+              mcf == "L2"          ? "MSE"  : \
+              mcf == "SSR"         ? "MSE"  : \
+              mcf == "RedMean"     ? "rMEA" : \
+              mcf == "OkLab"       ? "OkMSE": UCase(mcf)
 
-        z1  = ex_lutxy(a1,b1,"x y -",                      UV=1,fulls=fs)
-        z2  = ex_lutxy(a1,b1,"x y - dup *",                UV=1,fulls=fs)
-        z3  = ex_lutxy(a1,b1,"x 1 + log y 1 + log - dup *",UV=1,fulls=fs)
+        mcfa  =  mcf == "ALL"
+        mPLUG = (mcf == "SSIM" || mcf == "GMSD" || mcf == "MDSI" || mcf == "BSSIM")
 
-        yA  =  y.ExtractClip()
-        bA  = b2.ExtractClip()
-        z4  = Expr(yA[0],yA[1],yA[2],bA[0],bA[1],bA[2],"x a + 0.5 * R@ 0.00390625 * 2 + x a - dup * *   y b - dup * 4 * +   255 R - 0.00390625 * 2 + z c - dup * * +    sqrt")
+                w = a.width() h = a.height() pd = max(w,h)/10
+        matA = (w  > 2599 ||  h  > 1499)  ? "2020" : (w  > 1099 ||  h  > 599) ? "709" : "601"
+        matB = !tv ? "PC."+matA : "Rec"+matA
+        a1   = a.ConvertBits(32,fulls=fs)
+        b1   = b.ConvertBits(32,fulls=fs)
+        b2   = b1.ConvertToPlanarRGB(matrix=matB,chromaresample="spline16")
+      # y    = mcfa || mcf == "VMAF"  ? VMAF  (y, b1,show=false,model=0,log_path="") : a1 # Requires 16-bit input and write to disk = PASS (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
+        y    = mcfa || mcf == "SSIM"  ? vsSSIM(b1,a1, show=1)                 : a1
+        y    = mcfa || mcf == "BSSIM" ? BSSIM (b1, y, show=1, PlaneSSIM=true) : y
+        y    = mcfa                   ? GMSD  (b1, y, show=1).ConvertToPlanarRGB(matrix=matB,chromaresample="spline16") : \
+                       mcf == "GMSD"  ? GMSD  (b1, y, show=1)                 : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? y.ConvertToPlanarRGB(matrix=matB,chromaresample="spline16") : y
+        y    = mcfa || mcf == "MDSI"  ? MDSI  (b2, y, show=1)                 : y
+        b3   = mcfa || mcf == "BUTT"  ? Butteraugli(y, b2)                    : y   # Very slow filter ~3fps
 
-        oky =  y.moncurve_f(2.40,0.055,true,false,3,true).RGB_to_Oklab(matrix=mat).ExtractClip()            # Assumes TV range with sRGB gamma input
-        okb = b2.moncurve_f(2.40,0.055,true,false,3,true).RGB_to_Oklab(matrix=mat).ExtractClip()
-        OkD = Expr(oky[0],oky[1],oky[2],okb[0],okb[1],okb[2],"x a - dup * y b - dup * z c - dup * + + sqrt") # RMSE (Euclidean Distance) over OkLab
+        z1   = mcfa || mcf == "ME"  || mcf == "MAE"  || mcf == "SMAE"                  ? ex_lutxy(a1,b1,"x y -",                      UV=1,fulls=fs) : nop()
+        z2   = mcfa || mcf == "MSE" || mcf == "CHAR" || mcf == "RMSE" || mcf == "PSNR" ? ex_lutxy(a1,b1,"x y - dup *",                UV=1,fulls=fs) : nop()
+        z3   = mcfa || mcf == "MSLE"                                                   ? ex_lutxy(a1,b1,"x 1 + log y 1 + log - dup *",UV=1,fulls=fs) : nop()
 
-        ScriptClip  (out==2?last:out==1?b:a, function [y,z1,z2,z3,z4,a,b,a1,b1,b3,OkD,bi,fs,pd,out] () {
+        yA   = mcfa || mcf == "rMEA"  ?  y.ExtractClip() : nop()
+        bA   = mcfa || mcf == "rMEA"  ? b2.ExtractClip() : nop()
+        z4   = mcfa || mcf == "rMEA"  ? Expr(yA[0],yA[1],yA[2],bA[0],bA[1],bA[2],"x a + 0.5 * R@ 0.00390625 * 2 + x a - dup * *   y b - dup * 4 * +   255 R - 0.00390625 * 2 + z c - dup * * +    sqrt") : nop()
 
-            Ava  = string(AverageLuma(a1))
-            Avb  = string(AverageLuma(b1))
-            Mea  = string(YPlaneMedian(a1))
-            Meb  = string(YPlaneMedian(b1))
-            R    = ex_lutxy(a1,b1,Ava+" dup x - swap dup * swap y - swap dup * swap / 1 swap -",UV=1,fulls=fs)
-            AD   = ex_lutxy(a1,b1,Ava+" x - abs "+Avb+" y - abs - abs",UV=1,fulls=fs)
-            MD   = ex_lutxy(a1,b1,Mea+" x - abs "+Meb+" y - abs - abs",UV=1,fulls=fs)
-            MAD  = AverageLuma(AD)
-            MAD2 = YPlaneMedian(MD)
-            ME   = AverageLuma(z1)
-            MSE  = AverageLuma(z2)
-            MSLE = AverageLuma(z3)
-            rMEA = AverageLuma(z4)
-            R    = AverageLuma(R)
-            OkD  = AverageLuma(OkD)
-            BUTT = propGetFloat(b3,"_FrameButteraugli")
+        oky  = mcfa || mcf == "OkMSE" ?  y.moncurve_f(2.40,0.055,tv,false,3,true).RGB_to_Oklab(matrix=matA,fulls=true).ExtractClip() : nop() # Assumes sRGB gamma input
+        okb  = mcfa || mcf == "OkMSE" ? b2.moncurve_f(2.40,0.055,tv,false,3,true).RGB_to_Oklab(matrix=matA,fulls=true).ExtractClip() : nop()
+        OkD  = mcfa || mcf == "OkMSE" ? Expr(oky[0],oky[1],oky[2],okb[0],okb[1],okb[2],"x a - dup * y b - dup * z c - dup * + + sqrt") : nop() # RMSE (Euclidean Distance) over OkLab
 
-            if (out != 2) { # Copying frameprops from y clip
+        ScriptClip  (out==2?last:out==1?b:a, function [y,a,b,z1,z2,z3,z4,a1,b1,b3,OkD,pd,mcf,mcfa,mPLUG,out] () {
+
+            Ava  = string(AverageLuma (a1))
+            Avb  = string(AverageLuma (b1))
+            Mea  = mcfa || mcf == "MAD2" ? string(YPlaneMedian(a1)) : nop()
+            Meb  = mcfa || mcf == "MAD2" ? string(YPlaneMedian(b1)) : nop()
+            MAD  = mcfa || mcf == "MAD"  ? AverageLuma (ex_lutxy(a1,b1,Ava+" x - abs "+Avb+" y - abs - abs",UV=1)) : nop()
+            MAD2 = mcfa || mcf == "MAD2" ? YPlaneMedian(ex_lutxy(a1,b1,Mea+" x - abs "+Meb+" y - abs - abs",UV=1)) : nop()
+            ME   = mcfa || mcf == "ME"   ? AverageLuma(z1)          : nop()
+            MAE  = mcfa || mcf == "MAE"  || \
+                           mcf == "SMAE" ? abs(ME) : nop()
+            SMAE = mcfa || mcf == "SMAE" ? MAE < 1. ? pow(MAE,2)/2. : MAE - 0.5 : nop()
+            MSE  = mcfa || mcf == "MSE"  || \
+                           mcf == "CHAR" || \
+                           mcf == "RMSE" || \
+                           mcf == "PSNR" ? AverageLuma(z2)          : nop()
+            MSLE = mcfa || mcf == "MSLE" ? AverageLuma(z3)          : nop()
+            RedMean=mcfa || mcf == "rMEA"? AverageLuma(z4)          : nop()
+            CHAR = mcfa || mcf == "CHAR" ? sqrt(MSE+pow(0.001,2))   : nop()
+            RMSE = mcfa || mcf == "RMSE" || \
+                           mcf == "PSNR" ? sqrt(MSE) : nop()
+            PSNR = mcfa || mcf == "PSNR" ? 20*log10(1./RMSE)        : nop() # 20*log10() to convert to dB
+            R2   = mcfa || mcf == "R2"   ? AverageLuma(ex_lutxy(a1,b1,Ava+" dup x - swap dup * swap y - swap dup * swap / 1 swap -",UV=1)) : nop()
+            OkMSE= mcfa || mcf == "OkMSE"? AverageLuma(OkD)         : nop()
+            BUTT = mcfa || mcf == "BUTT" ? propGetFloat(b3,"_FrameButteraugli") : nop()
+
+
+            if (out != 2) {
 
             c = out == 1 ? b : a
-            c = propCopy(c,y,"_PlaneSSIM" )
-            c = propCopy(c,y,"_PlaneGMSD" )
-            c = propCopy(c,y,"_FrameMDSI" )
-            y = propCopy(c,y,"_PlaneBSSIM") }
 
-            y   = propSet(y,"_PlaneME"  ,      ME ,  0)
-            y   = propSet(y,"_PlaneMAE" ,  abs(ME),  0)
-            y   = propSet(y,"_PlaneMAD" ,      MAD,  0)
-            y   = propSet(y,"_PlaneMAD2",      MAD2, 0)
-            y   = propSet(y,"_PlaneMSE" ,      MSE,  0)
-            y   = propSet(y,"_PlaneMSLE",      MSLE, 0)
-            y   = propSet(y,"_PlaneRMSE", sqrt(MSE), 0)
-            y   = propSet(y,"_PlaneOkMSE",     OkD , 0)
-            y   = propSet(y,"_PlaneRedMean",   rMEA, 0)
-            y   = propSet(y,"_PlaneR2"  ,        R , 0)
-            y   = propSet(y,"_PlaneBUTT",      BUTT, 0)
-            y   = propSet(y,"_PlanePSNR", 20*log10(255./(sqrt(MSE)*255.)), 0) # 20*log10() to convert to dB
+            if (!mcfa && mPLUG) {
 
-            if (out != 2) { y } else {
+                pG = propGetFloat(y,"_Plane"+MCF )   # propCopy has issues with clips of different bitdepths
+                y  = propSet     (c,"_Plane"+MCF, pG, 0 )
 
-                Subtitle( "PlaneME:\n"\
-                         +"PlaneMAE:\n"\
-                         +"PlaneMAD:\n"\
-                         +"PlaneMAD2:\n"\
-                         +"PlaneMSE:\n"\
-                         +"PlaneMSLE:\n"\
-                         +"PlaneRMSE:\n"\
-                         +"PlaneOkMSE:\n"\
+            } else if (mcfa) {                       # propCopy is utter slow, wait until fixed or replace with Get+Set
+
+                c = propCopy(c,y,"_PlaneSSIM" )
+                c = propCopy(c,y,"_PlaneGMSD" )
+                c = propCopy(c,y,"_PlaneMDSI" )
+                y = propCopy(c,y,"_PlaneBSSIM") } }
+
+
+
+            if (mcfa) {
+
+                y   = propSet(y,"_PlaneME"  ,      ME ,  0)
+                y   = propSet(y,"_PlaneMAE" ,      MAE,  0)
+                y   = propSet(y,"_PlaneSMAE",     SMAE,  0)
+                y   = propSet(y,"_PlaneMAD" ,      MAD,  0)
+                y   = propSet(y,"_PlaneMAD2",      MAD2, 0)
+                y   = propSet(y,"_PlaneMSE" ,      MSE,  0)
+                y   = propSet(y,"_PlaneMSLE",      MSLE, 0)
+                y   = propSet(y,"_PlaneRMSE",      RMSE, 0)
+                y   = propSet(y,"_PlaneCHAR",      CHAR, 0)
+                y   = propSet(y,"_PlaneOkMSE",    OkMSE, 0)
+                y   = propSet(y,"_PlaneRedMean",RedMean, 0)
+                y   = propSet(y,"_PlaneR2"  ,       R2 , 0)
+                y   = propSet(y,"_PlaneBUTT",      BUTT, 0)
+                y   = propSet(y,"_PlanePSNR",      PSNR, 0)
+
+            } else {
+
+                y   = !(mPLUG) ? propSet(y,"_Plane"+MCF, Eval(MCF),  0) : y
+
+                Subtitle( "Plane"+MCF+":  "+String(propGetFloat(y,"_Plane"+MCF )))
+            }
+
+
+
+            if (out != 2) { y } else if (mcfa) {
+
+                Subtitle( "PlaneME:\n"     \
+                         +"PlaneMAE:\n"    \
+                         +"PlaneSMAE:\n"   \
+                         +"PlaneMAD:\n"    \
+                         +"PlaneMAD2:\n"   \
+                         +"PlaneMSE:\n"    \
+                         +"PlaneMSLE:\n"   \
+                         +"PlaneRMSE:\n"   \
+                         +"PlanePSNR:\n"   \
+                         +"PlaneCHAR:\n"   \
+                         +"PlaneOkMSE:\n"  \
                          +"PlaneRedMean:\n"\
-                         +"PlaneR2:\n"\
-                         +"PlanePSNR:\n"\
-                         +"PlaneSSIM:\n"\
-                         +"PlaneBSSIM:\n"\
-                         +"PlaneGMSD:\n"\
-                         +"PlaneBUTT:\n"\
-                         +"_FrameMDSI:\n",lsp=4)
+                         +"PlaneR2:\n"     \
+                         +"PlaneSSIM:\n"   \
+                         +"PlaneBSSIM:\n"  \
+                         +"PlaneGMSD:\n"   \
+                         +"PlaneBUTT:\n"   \
+                         +"PlaneMDSI:\n",lsp=4)
                 Subtitle(  String(propGetFloat(y,"_PlaneME"   ))  +"   (Mean Error)\n"                             \
-                         + String(propGetFloat(y,"_PlaneMAE"  ))  +"   (Mean Absolute Error)\n"                    \
+                         + String(propGetFloat(y,"_PlaneMAE"  ))  +"   (Mean Absolute Error -L1 norm-)\n"          \
+                         + String(propGetFloat(y,"_PlaneSMAE" ))  +"   (Smooth Mean Absolute Error)\n"             \
                          + String(propGetFloat(y,"_PlaneMAD"  ))  +"   (Mean Absolute Deviation)\n"                \
                          + String(propGetFloat(y,"_PlaneMAD2" ))  +"   (Median Absolute Deviation)\n"              \
-                         + String(propGetFloat(y,"_PlaneMSE"  ))  +"   (Mean Squared Error)\n"                     \
-                         + String(propGetFloat(y,"_PlaneMSLE" ))  +"   (Mean Squared Log Error)\n"                 \
-                         + String(propGetFloat(y,"_PlaneRMSE" ))  +"   (Root Mean Squared Error)\n"                \
-                         + String(propGetFloat(y,"_PlaneOkMSE"))  +"   (Root Mean Squared Error in OkLab)\n"       \
+                         + String(propGetFloat(y,"_PlaneMSE"  ))  +"   (Mean Square Error / SSR -L2 norm-)\n"      \
+                         + String(propGetFloat(y,"_PlaneMSLE" ))  +"   (Mean Square Log Error)\n"                  \
+                         + String(propGetFloat(y,"_PlaneRMSE" ))  +"   (Root Mean Squared Error / Standard Error)\n"\
+                         + String(propGetFloat(y,"_PlanePSNR" ),"%3.5f")+"   (Peak Signal-to-Noise Ratio)\n"       \
+                         + String(propGetFloat(y,"_PlaneCHAR" ))  +"   (Charbonnier -L1-L2 loss-)\n"               \
+                         + String(propGetFloat(y,"_PlaneOkMSE"))  +"   (Euclidean Distance -RMSE- in OkLab)\n"     \
                          + String(propGetFloat(y,"_PlaneRedMean"))+"   (RedMean, sRGB fast metric)\n"              \
                          + String(propGetFloat(y,"_PlaneR2"   ))  +"   (Coefficient of determination)\n"           \
-                         + String(propGetFloat(y,"_PlanePSNR" ),"%3.5f")+"   (Peak Signal-to-Noise Ratio)\n"       \
                          + String(propGetFloat(y,"_PlaneSSIM" ))  +"   (Structural SIMilarity)\n"                  \
                          + String(propGetFloat(y,"_PlaneBSSIM"))  +"   (Structural SIMilarity for Blurred)\n"      \
                          + String(propGetFloat(y,"_PlaneGMSD" ))  +"   (Gradient Magnitude Similarity Deviation)\n"\
                          + String(propGetFloat(y,"_PlaneBUTT" ))  +"   (Butteraugli)\n"                            \
-                         + String(propGetFloat(y,"_FrameMDSI" ))  +"   (Mean Deviation Similarity Index)",x=pd,lsp=4)
+                         + String(propGetFloat(y,"_PlaneMDSI" ))  +"   (Mean Deviation Similarity Index)",x=pd,lsp=4)
     } } ) } }
 
 
@@ -463,7 +512,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     lox = lo < 0   hix = hi < 0
     lox && hix ? Assert (false, "'lo' or 'hi': At least one bound should be binarized.") : nop()
 
-    bs  = rgb ?  a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298967,0.586421,0.114612]) : a.ConvertBits(8,dither=-1,fulls=fs)
+    bs  = rgb ?  a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298967,0.586421,0.114612]) : a.ConvertBits(8,dither=-1,fulls=fs) # Assumes RGB is Rec709
     a   = rgb ? bs.ConvertBits(bi,fulls=fs) : a
     br  = bs.width() > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
     isy = rgb || isy
@@ -715,17 +764,18 @@ function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls")
 ##   CONVOLUTIONS   ##
 ######################
 
-# Convolutions in AviSynth+ perform better with Prefetch(physical cores) than with threads. Also for RGTools and other plugins.
+# Convolutions in AviSynth+ perform better with Prefetch(min(physical cores,8)) than with threads. Also for RGTools and other plugins.
 
 # EQUIVALENCES (ex_blur with default mode="binomial"):
 # blur(0.5)                                       ~> ex_boxblur(0.5,mode="weighted") ~> ex_blur(0.63)
 # removegrain(12) / blur(1.0)                     -> ex_boxblur(1,mode="weighted")
-# removegrain(20) / blur(1.58)                    -> ex_boxblur(1,mode="mean")
+# removegrain(20) / blur(1.58)                    -> ex_boxblur(1,mode="mean")       -> ex_blur(1.5,n=300,mode="butterworth")
 # removegrain(19)                                 -> ex_boxblur(1,mode="rg19")
 # removegrain(12).removegrain(20)                 ~> ex_blur(2.45)
 # removegrain(12).removegrain(20).removegrain(20) ~> ex_blur(3.8)
 # removegrain(20).removegrain(20)                 ~> ex_blur(2.82) -> ex_boxblur(3,mode="weighted") -> ex_boxblur(1,mode="mean").ex_boxblur(1,mode="mean")
-# ex_blur(n)                                      -> ex_blur(0.707*n-1).ex_blur(0.707*n-1) (slower though)
+# ex_blur(n)                                      -> ex_blur(0.707*n-1).ex_blur(0.707*n-1)   (slower though)
+# ex_boxblur(n,mode="mean")                       -> ex_blur(n+0.5,n=300,mode="butterworth") (slower though)
 
 
 
@@ -736,6 +786,7 @@ function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls")
 #  91% ex_boxblur(1,mode="mean",UV=1)
 #  90% MiniDeen(radiusY=1, thrY=255, u=1,v=1)  # crumbles from rad=3 onwards
 #  89% neo_MiniDeen(radiusY=1, thrY=255, u=1,v=1)
+#  70% ex_blur(1.5,n=300,mode="butterworth")
 #  69% blur(1.58)
 #  67% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
 #  65% Dither_box_filter16(2,U=1,V=1)          # with ConverttoStacked() and ConvertfromStacked()
@@ -909,20 +960,20 @@ function binom_coeffs(n, k) {
 
 # Variable Gaussian Blur
 #
-# Benchmark:
-# 100% removegrain(12,-1) (486fps)           # technically a binomial weighted mean of [1 2 1]
-#  97% GBlur2(sqrt(1)/2. * sqrt(2),chroma=2) #         only in 8-bit. weighted mean of [1 2 1]
-#  90% ex_boxblur(1,mode="weighted",UV=1)    # binomial weighted mean
-#  88% ablur(1, 1, chroma=1)                 # against ex_boxblur(2,mode="weighted",UV=1)
-#  85% BinomialBlur(sqrt(1)*0.707,U=1,V=1)   # only in 8-bit
-#  81% vsTCanny(sqrt(1)*0.707,sigma_vY=sqrt(1)*0.707,mode=-1,u=1,v=1) # true gaussian blur (fastest for mid size sigma)
-#  70% ex_blur(1,UV=1)                       # true gaussian blur
-#  68% blur(1.00)                            # weighted mean of [1 2 1]
+# Benchmark (binomial fitted):
+# 100% removegrain(12,-1) (486fps)              # technically a binomial weighted mean of [1 2 1]
+#  97% GBlur2(sqrt(1)/2.*sqrt(2),chroma=2)      #         only in 8-bit. weighted mean of [1 2 1]
+#  90% ex_boxblur(1,mode="weighted",UV=1)       # binomial weighted mean
+#  88% ablur(1, 1, chroma=1)                    # against ex_boxblur(2,mode="weighted",UV=1)
+#  85% BinomialBlur(sqrt(1)/2.*sqrt(2),U=1,V=1) # only in 8-bit
+#  81% vsTCanny(sqrt(1)/2.*sqrt(2),sigma_vY=sqrt(1)/2.*sqrt(2),mode=-1,u=1,v=1) # true gaussian (fastest for mid sigma, not apt for combing -not exact binomial fit of rad=1-)
+#  70% ex_blur(1,UV=1)                          # true gaussian blur
+#  68% blur(1.00)                               # weighted mean of [1 2 1]
 #  65% generalconvolution(matrix="1 2 1 2 4 2 1 2 1",chroma=false)
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
 #  23% GBlur(rad=1,sd=0.9,u=false,v=false)
-#  11% FastBlur(sqrt(1)*0.707,gamma=false)
-#  11% GaussianBlur(1/2.,U=1,V=1)            # only in 8-bit
+#  11% FastBlur(sqrt(1)/2.*sqrt(2),gamma=false)
+#  11% GaussianBlur(1/2.,U=1,V=1)               # only in 8-bit
 #
 # ex_blur() is the reference blur function, with correct gaussian coefficients and chroma subsampling adapted sigma.
 # Also includes a gamma aware option for more correct defocus on non-scalar clips.
@@ -930,7 +981,7 @@ function binom_coeffs(n, k) {
 # modes:
 # gaussian: true gaussian blur
 # binomial: discreet gaussian blur approximation
-# butterworth: between a gaussian and mean blur distribution with default n=20 (decay of 20dB/decade or 6dB/oct)
+# butterworth: between a gaussian and mean blur distribution with default n=6 (decay of 6dB/oct)
 #
 function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode", string "gamma", int "Y", int "UV", bool "fulls") {
 
@@ -938,10 +989,10 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    rm = Default(radius,   1)
+    rm = Default(radius,   1)             # Avoid going over 43 for "butterworth" at default 'n=6' or clip range will be compromised -single float AVSValue limit-
     rv = Default(radiusv, rm)
-    n  = Default(n,       10)             # steep bias for mode="butterworth" (higher approximates a "brickwall" ideal filter -mean blur- less approximates a gaussian)
-    md = Default(mode,"binomial")         # "gaussian": true gaussian distribution  "binomial": binomial distribution fit (like blur() or ex_boxblur(mode="weighted") ) "butterworth": between gaussian and mean blur falloff distribution
+    n  = Default(n,        6)             # 0-inf. slope in frequency domain of the lowpass in dB/oct units. In spatial domain a bias between "butterworth" 1st order (similar to "gaussian") and "sinc" or "brickwall" ideal filter (same to "mean" blur with rad+0.5 and n>300)
+    md = Default(mode,"binomial")         # "gaussian": true gaussian distribution  "binomial": binomial distribution fit (like blur() or ex_boxblur(mode="weighted") )  "butterworth": between gaussian and mean blur falloff distribution
     gm = Default(gamma,   "none")         # Set matrix for gamma encoded clips (ie. 601, 709, 2020...) Requires TransformsPack
     Y  = Default( Y,          3)
     UV = Default(UV,    rgb ? 3 : 1)
@@ -995,8 +1046,8 @@ function gauss_constructor(float rad, bool vert) {
     krnlrd = krnlsz/2
 
     for (i=0, krnlsz, 1) {
-        wgc  = exp(-(pow(i-krnlrd,2))/(2*rad*rad))
-        di   = wgc < 0.001 ? di : di + wgc
+        wgc   = exp(-(pow(i-krnlrd,2))/(2*rad*rad))
+        di    = wgc < 0.001 ? di : di + wgc
        }
 
     for (i=0, krnlrd, 1) {
@@ -1019,15 +1070,15 @@ function butt_constructor(float rad, int n, bool vert) {
     krnlrd = krnlsz/2
 
     for (i=0, krnlsz, 1) {
-        wgc  = 1. / (1 + pow((i-krnlrd)/rad,2*n) )
-        di   = wgc < 0.001 ? di : di + wgc
+        wgc   = 1. / (1 + pow( (abs(i-krnlrd)/rad), 2*(n/6.) ))
+        di    = wgc < 0.001 ? di : di + wgc
        }
 
     for (i=0, krnlrd, 1) {
 
-        ga    = 1. / (1 + pow((i-krnlrd)/rad,2*n) )
-        wg    = ga/di
         px    = abs(i-krnlrd)
+        ga    = 1. / (1 + pow( px/rad, 2*(n/6.) ))
+        wg    = ga/di
         str   = ga < 0.001 ? str : Format( str + (i == krnlrd ? "x[0,0] {wg} * " : \
                 vert ? "x[0,{px}] x[0,-{px}] + {wg} * " : "x[{px},0] x[-{px},0] + {wg} * "))
         pls   = i == krnlrd || ga < 0.001 ? pls : pls + "+ "
@@ -1176,7 +1227,7 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
 
 
 # modes:
-# SG  - Savitzky-Golay (S-G) smoothing filter (similar to Gaussian blur)
+# SG  - Savitzky-Golay (S-G) smoothing filter (between an antialiaser and a blur)
 # SNN - Symmetrical Nearest Neighbour based pair average
 function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limit", string "mode", int "UV", bool "fulls") {
 
@@ -1287,13 +1338,13 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 
 #######################################################################
 ##
-## ex_GaussianBlur() by Dogway (12-10-2021)
+## ex_GaussianBlur() by Dogway (31-10-2021)
 ## Large-sigma optimized gaussian blur filter
 ##
-## Heavy mod from FRC_GaussianBlur42()
+## Heavy mod of FRC_GaussianBlur42()
 ## https://forum.doom9.org/showthread.php?p=1807156#post1807156
 ##
-## It was profiled against ex_blur(mode="gaussian") so ex_blur(10,mode="gaussian") ~ ex_GaussianBlur(10)
+## It was profiled against ex_blur(mode="gaussian") so ex_blur(10,mode="gaussian") ~> ex_GaussianBlur(10)
 ##
 ## version 2013-10-23 raffriff42
 ## version 2014-05-31 discrete hor. and vert. args
@@ -1301,6 +1352,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV", bool "fulls") 
 ## version 2021-09-05 Optimized (~38% gain) and profiled against ex_blur(), also Y+UV args
 ## version 2021-09-22 Added padding to protect borders and fallback to ex_blur() for low sigma
 ## version 2021-10-12 Reparametrized. Changed to bilinear downscale, faster and more accurate. Change to mod2.
+## version 2021-10-31 Reparametrized. Optimal 'p' value and linear regressed when pad=true.
 ##
 ##
 ## 100% ex_gaussianblur(6)  (483fps)           (gaussian approximation, fastest for large sigma)
@@ -1315,13 +1367,13 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     rd   = Default(sigma,    10)
     rv   = Default(sigmaV,   rd)
     pad  = Default(pad,    true)
-    mb   = Default(mblur,  true) # minimum blur. Default true to swap to ex_blur() for low sigmas
+    mb   = Default(mblur,  true)              # minimum blur. Default true to swap to ex_blur() for low sigmas (more accuracy)
     Y    = Default(Y,         3)
-    UV   = Default(UV,        3) # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower (ExtractY()/CombinePlanes() was slower)
+    UV   = Default(UV,        3)              # Beware, chroma can't be disabled, just copied back, hence UV=1 will be slower (ExtractY()/CombinePlanes() was slower)
 
 
-    rad  = pad ? 1.09*rd + 0.1 : 1.221428*rd + 0.136   # Parametrized to gaussian like standard deviation
-    radv = pad ? 1.09*rv + 0.1 : 1.221428*rv + 0.136   # Parametrized to gaussian like standard deviation
+    rad  = pad ? 0.809167*rd+0.0436111 : rd   # Parametrized to gaussian like standard deviation
+    radv = pad ? 0.809167*rv+0.0436111 : rv   # Parametrized to gaussian like standard deviation
 
     w0 = a.Width()
     h0 = a.Height()
@@ -1330,12 +1382,12 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     w1 = Min(nmod(w0/rad, 2,4), w0)
     h1 = Min(nmod(h0/radv,2,4), h0)
 
-    B = max(rd,rv) > 19.3 ? a.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) : \
-                            a.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) # extend borders before resizing
+    B  = max(rd,rv) > 19.3 ? a.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) : \
+                             a.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) # extend borders before resizing
 
            (rad<0.01 && radv<0.01)       ? a
     \    : (rd <2.00 && rv  <2.00) && mb ? a.ex_blur(rd,rv,0,"gaussian",Undefined(),Y,UV,!rgb)
-    \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize  (w0+p+p, h0+p+p, p=15)
+    \    : (B.Width()>8 && B.Height()>8) ? B.GaussResize  (w0+p+p, h0+p+p, p=9)
     \                                    : B.BicubicResize(w0+p+p, h0+p+p, 1, 0) # SoftCubic100 (same as GaussResize(p=21) )
 
     if (!(rd<2.00 && rv<2.00 && mb)) {
@@ -1343,6 +1395,80 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     Y  < 3 ? !isy ? mergechroma(a,last) : last : last
     UV < 3 ? !isy ? mergeluma  (a,last) : last : last } }
 
+
+
+# Soft thresholded minimal change of temporal average + temporal median
+# Based on Didée's concept: https://forum.doom9.org/showthread.php?p=1471858#post1471858
+# 6% faster than FluxSmoothT() (AVX2), also allows higer temporal radii
+function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    rd  = Default(rad,  1)                                     # radius can be 1, 2 or 3 (original FluxSMoothT only does rad=1)
+    th  = Default(th,   1)                                     # Soft threshold (Default: 1 to respond similar to original Default: 7)
+    UV  = Default(UV,    rgb ? 3 : 1)
+    fs  = Default(fulls, rgb)
+
+    Assert (rd < 4, "radii > 3 is not supported")
+
+    # Soft threshold
+    bias =        min(2*cos(pi+2*pi*th/255.)+2,1)*10           # Minimize soft threshold spread on extremes
+    thr1 = ex_bs( max(th-10 - rd * bias,   0), 8, bi, fulls=fs)
+    thr2 = ex_bs( min(th+10 + rd * bias, 255), 8, bi, fulls=fs)
+    ths  = th != 255 ? Format("x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -") : ""
+
+    rd   = 2 * rd + 1
+    a
+    b3   = rd > 5 ? selectevery(1,-3) : nop()
+    b2   = rd > 3 ? selectevery(1,-2) : nop()
+    b    =          selectevery(1,-1)
+    f    =          selectevery(1,+1)
+    f2   = rd > 3 ? selectevery(1,+2) : nop()
+    f3   = rd > 5 ? selectevery(1,+3) : nop()
+
+    FL = rd == 3 ? "y z dup1 dup1 min swap2 max swap1 x max min x swap - M^
+                    x dup y z + + 0.333333333 * "+ths+"                - S@
+                        M * 0 < x M abs S abs < M S ?           x swap - ?" : \
+                                                                              \
+         rd == 5 ? "x y                   dup1 dup1 min swap2 max
+                    z a                   dup1 dup1 min swap2 max
+                    swap3  b              dup1 dup1 min swap2 max
+                    swap2  swap1  swap3   dup1 dup1 min swap2 max
+                    swap3                                     max
+                    swap3                 dup1 dup1 min swap2 max
+                    swap3                                     max
+                    swap2                           min
+                                                    min x swap   - M^
+                    x dup y z a b         + + + + 0.20 * "+ths+" - S@
+                        M * 0 < x M abs S abs < M S ?   x swap   -  ? " : \
+                                                                          \
+         rd == 7 ? "x y                   dup1 dup1 min swap2 max
+                    z a                   dup1 dup1 min swap2 max
+                    b c                   dup1 dup1 min swap2 max
+                    swap5  swap1  swap3   dup1 dup1 min swap2 max
+                    swap3  d              dup1 dup1 min swap2 max
+                    swap3  swap1  swap5   dup1 dup1 min swap2 max
+                    swap2  swap1  swap5                       max
+                    swap3  swap1  swap5   dup1 dup1 min swap2 max
+                    swap4  swap1  swap2   dup1 dup1 min swap2 max
+                    swap3  swap1  swap2                       max
+                    swap2  swap1  swap4             min
+                    swap3                                     max
+                    swap2                           min
+                                                    min x swap          - M^
+                    x dup y z a b c d + + + + + + 0.142857143 * "+ths+" - S@
+                        M * 0 < x M abs S abs < M S ?   x swap          - ?" : ""
+
+
+    str   = ex_dlut( FL, bi, fs)
+    clips = rd == 7 ? "b3,b2,b,f,f2,f3" : rd == 5 ? "b2,b,f,f2" : "b,f"
+
+    rd == 0 ?      a                                                                                                : \
+    isy     ? Eval("""Expr(a, """+clips+""", str                                                              )""") : \
+    UV == 1 ? Eval("""Expr(a, """+clips+""", str, ""                                                          )""") : \
+              Eval("""Expr(a, """+clips+""", str, ex_UVexpr(FL, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi))""") }
 
 
 
@@ -1415,7 +1541,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
 # cartoon   - Clipping is done with respect to averages of neighbours.           Best for cartoons -removegrain(22)-
 # vertical  - Vertical median. Port of VerticalCleaner mode=1
 # verticalS - Vertical median. Port of VerticalCleaner mode=2 (edge sensitive)
-# GaussT5   - Temporal Gauss Blur of 5 frames with very primitive thresholding    (Temporal)
+# GaussT5   - Temporal Gauss Blur of 5 frames                                     (Temporal)
 #*GaussST5  - 5x5x5 Cubic Spatio-Temporal Gauss Blur                              (Spatio-Temporal) ( sameish to but x3 slower than ex_boxblur(2,mode="weighted").ex_median("gaussT5") )
 # medianT   - Temporal median of 3 frames                                         (Temporal) (like Clense())
 # medianT5  - Temporal median of 5 frames                                         (Temporal)
@@ -1465,7 +1591,12 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
          ex_bs(pow(2,bi-8)*thr, 8, bi, fulls=fs) : \
          ex_bs(            thr, 8, bi, fulls=fs)
 
-    ths = mode!="EMF" && mode!="smart" && mode!="SNN" && FindStr(mode,"DGM")==0 && thr != 255 ? Format(" dup x - abs {th} < swap x ?") : ""
+    # Soft threshold
+    bias =        min(2*cos(pi+2*pi*thr/255.)+2,1)*20           # Minimize soft threshold spread on extremes
+    thr1 = ex_bs( max(thr-10 - bias,   0), 8, bi, fulls=fs)
+    thr2 = ex_bs( min(thr+10 + bias, 255), 8, bi, fulls=fs)
+    ths = mode!="EMF" && mode!="smart" && mode!="SNN" && FindStr(mode,"DGM")==0 && thr != 255 ?                                           \
+          ex_dlut(Format(" x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -"), bi, fs) : ""
 
     Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version to 3.7.1+")
 
@@ -4717,7 +4848,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", bool "invert", int "
            mode=="max"       ?  [ 5,  45] : \
            mode=="SG"        ?  [ 0, 255] : \
            mode=="kirsch"    ?  [20, 100] : \
-                                [10,  50]
+                                [ 0, 255]
 
     lo = ex_bs(Defined(lo) ? lo : th[0], 8, bi, fulls=fs)
     hi = ex_bs(Defined(hi) ? hi : th[1], 8, bi, fulls=fs)
@@ -4824,7 +4955,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     UV   = Default(UV,     rgb ? 3 : isc ? 3 : 1)
     fs   = Default(fulls,  rgb)
     opt  = Default(optSingleMode,false)
-    cf   = Default(clamp_float, false)
+    cf   = Default(clamp_float,  false)
     si   = Defined(scale_inputs) ? \
            scale_inputs : ex_UVf(rgb, bi)
 
@@ -4877,8 +5008,8 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
         exprS = md == "std" ? exprS + " " + V + " " + " + " : " "
         expr  = expr + ReplaceStr(" "+str+" ",  " y ", " "+V+" ") + (md == "med" ? V+"^ " : \
                                                                      md == "std" ? i==0 ? op : op+" + " : i==0 ? " " : op)
+                }
 
-    }
         exprY = isb  ? ReplaceStr(" "+str+" ",  " y ",     " Y ") + (md == "med" ? "Y^ "          : \
                                                                      md == "std" ? op+" + " : op) : " "
         exprX = !px0 ? ReplaceStr(" "+str+" ",  " y ",     " X ") + (md == "med" ? "X^ "          : \
@@ -4917,11 +5048,11 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
 # 'disk' is an antialiased 'circle', slower but looks better. Inspired by ImageMagick morphology shapes.
 function ex_shape(int "rad", int "radV", string "mode", bool "center") {
 
-    rd = Default(rad,   1)           # integers from 0 to 8 (depends on mode)
-    rv = Default(radV, rd)           # integers from 0 to 8 (depends on mode)
-    md = Default(mode,  "square")
-    md = ReplaceStr(md, " ",  "")
-    cn = Default(center, md!="ring" )
+    rd = Default(rad,             1)  # integers from 0 to 8 (depends on mode)
+    rv = Default(radV,           rd)  # integers from 0 to 8 (depends on mode)
+    md = Default(mode,     "square")
+    md = ReplaceStr(md,     " ", "")
+    cn = Default(center, md!="ring")
 
     # Soft limit
     lim = md == "plus"       ? rd + rv > 16 : \
@@ -5221,19 +5352,19 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     wh = wm!=w || hm!=h
     p_float = bits == 32
 
-    mskYs   =  isy(msk)               ? msk          : msk.ExtractY()
+    mskYs   =  isy(msk)               ? msk          : msk.  ExtractY()
     mskYt   =                                          mskYs.ConvertBits(8,dither=-1,fulls=fulls)
     mskYr   =  !wh                    ? mskYs        : mskYt.BicubicResize(w, h).ConvertBits(bits,fulls=fulls)
 
     w       =  isYV411(a)             ? round(w/4.0) : round(w/2.0)
     h       =  isYV411(a) || is422(a) ?            h : round(h/2.0)
 
-    mskC    = (is444  (a) || rgb)     ? mskYr : \
+    mskC    = (is444  (a) || rgb)     ? mskYr                   : \
                                         mskYt.BilinearResize(w,h)
 
     mskC    = luma && UV==3 ? p_float ? Expr(mskC, "x range_half -").ConvertBits(32,fulls=fulls) : \
                                         mskC.ConvertBits(bits,fulls=fulls)                       : \
-                                        BlankClip(a,length=1,width=w,height=h,pixel_type="Y"+(p_float ? "S" : string(bits)),color_yuv=$000000,channels=0)
+                                        BlankClip(a,1,w,h,"Y"+(p_float ? "S" : string(bits)),color_yuv=$000000,channels=0)
 
     msk     = isy(a) ? mskYr : CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
 
@@ -5242,17 +5373,17 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 
 
 
-####### OPERATOR APPROXIMATIONS #######
+####### FUNCTION APPROXIMATIONS #######
 
 
-# Returns the Taylor series for atan(x), actually Taylor + polynomial + Taylor piecewise function for a 400% speed increase
+# Returns the Maclaurin series of atan(x), actually Maclaurin + polynomial + Maclaurin piecewise function for a 300% speed increase
 # Use expand (Default true) to compute atan for larger values beyond -1.65 and 1.65
-function atanT(bool "expand", bool "negative") {
+function atanTM(bool "expand", bool "negative") {
 
-    ex = Default(expand,   true) # approx. also includes from x=-1.65 and x=1.65 to inf
+    ex = Default(expand,   true) # includes from x=-1.65 and x=1.65 to inf
     ng = Default(negative, true) # also approximates for negative 'x'
 
-    # atan(x) -> Taylor + polynomial + Taylor series piecewise function from -0.8 to inf
+    # atan(x) -> Maclaurin + polynomial + Maclaurin series piecewise function from -0.8 to inf
     e8   = "swap dup dup * X2@ XX * X3@ 0.333333333 * - X2 X3 * X5@ 0.2 * + X5 X2 * X7@ 0.142857143 * - X7 X2 * 0.111111111 * +  X7 X3 * 0.0909090909 * -" # from -0.8 to 0.8
     e16  = "0.021622 XX 1.00976 * A1@ + X2 0.245982 * A2@ -"               # up to 1.65
     els  = "pi 0.5 * 1 X3 3 * / 1 XX / 1 X5 5 * / 1 X7 7 * / + + - A7@ + " # from  1.65 onwards
@@ -5262,19 +5393,33 @@ function atanT(bool "expand", bool "negative") {
     # for -X
     er16 = "A2 A1 + 0.021622 -"                                            # up to -1.65
     elrs = "A7 pi 0.5 * -"                                                 # from  -1.65 onwards
-    atnf = "XX@ dup -0.8 >= XX 0.8 <= & "+e8+" XX 0.8  >  "+e16+" "+er16+" ? ?"
-    atn  = "XX@ dup -0.8 >= XX 0.8 <= & "+e8+" XX 1.65 >= "+els+" XX -1.65 <= "+elrs+" XX 0.8 > "+e16+" "+er16+" ? ? ? ?"
+    atnf = "XX@ dup dup -0.8 >= swap 0.8 <= & "+e8+" XX 0.8  >  "+e16+" "+er16+" ? ?"
+    atn  = "XX@ dup dup -0.8 >= swap 0.8 <= & "+e8+" XX 1.65 >= "+els+" XX -1.65 <= "+elrs+" XX 0.8 > "+e16+" "+er16+" ? ? ? ?"
 
     return ex ? ng ? atn : atp : ng ? atnf : atpf }
 
 
-# Returns the Taylor series for atan2(x,y) for a 500% speed increase
+# Benchs: 402 P(4) 370 P(6)  Above: 376 P(4) 390 P(6)
+# Use expand (Default true) to compute atan for larger values beyond -2.1 and +2.1
+function atanT(bool "expand") {
+
+    ex    = Default(expand, true) # includes from x=-2.1 and x=+2.1 to inf
+
+    e3    = "dup dup * swap 8 * dup swap2 X2@ 16 + / swap X2 9 * 16 + / + "                                              # from -2.1 to +2.1
+    els   = "X2 XX * dup 3 * 1 swap / swap  X2 * dup 5 * 1 swap / swap X2 * 7 * 1 swap / 1 XX / - + + A7@ 1.570796326 +" # from  2.1 onwards
+
+    elrs  = "A7 1.570796326 -"                                                                                           # from -2.1 onwards
+    atanE = "XX@ dup dup -2.1 >= swap 2.1 <= & swap "+e3+" XX 2.1 > "+els+" "+elrs+" ? ? "
+
+    return ex ? atanE : e3 }
+
+
+# Returns the Maclaurin series of atan2(x,y) for a 500% speed increase
 function atan2T(bool "expand") {
 
-    ex = Default(expand, true) # Enable for values beyond -1.65 and 1.65
+    ex = Default(expand, true) # Enable for values beyond -2.1 and +2.1
 
-    # Taylor + polynomial + Taylor series piecewise function
-    atan2  = "ZZ@ dup abs / SX^ YY@ dup abs / SY@ dup * YY ZZ / "+atanT(ex)+" * 1 SX - 0.5 * SY dup dup * - 1 + * pi * +"
+    atan2  = "ZZ@ dup abs / SX^ YY@ dup abs / SY@ dup * YY ZZ / "+atanT(true)+" * 1 SX - 0.5 * SY dup dup * - 1 + * pi * +"
 
     return atan2 }
 
