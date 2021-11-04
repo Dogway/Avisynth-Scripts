@@ -2,7 +2,8 @@
 ###                                                            ##
 ###                     2.4            (15-04-2015)            ##
 ###                     2.8 By Dogway  (22-06-2021)            ## Updated BoxMask(), FlatMask() and LumaMask() to internal functions (faster and HBD support)
-### Mask functions Pack 2.9 By Dogway  (18-10-2021)            ## 
+###                     2.9 By Dogway  (18-10-2021)            ##
+### Mask functions Pack 3.0 By Dogway  (04-11-2021)            ##
 ###                                                            ##
 ### https://forum.doom9.org/showthread.php?t=182881            ##
 ###                                                            ##
@@ -22,21 +23,21 @@
 
 function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert", bool "show", bool "matchformat", bool "fulls") {
 
-x1      = Default(x1,0)
-x2      = Default(x2,0)
-y1      = Default(y1,0)
-y2      = Default(y2,0)
-upper   = Default(invert, false)
-show    = Default(show, false)
-format  = Default(matchformat, true)
-fs      = Default(fulls, false)
+    x1      = Default(x1,0)
+    x2      = Default(x2,0)
+    y1      = Default(y1,0)
+    y2      = Default(y2,0)
+    upper   = Default(invert, false)
+    show    = Default(show, false)
+    format  = Default(matchformat, true)
+    fs      = Default(fulls, false)
 
-bdpth = BitsPerComponent(clp)
+    bdpth = BitsPerComponent(clp)
 
-LetterBox(BlankClip(clp,1,pixel_type="Y"+string(bdpth),color_yuv=upper?$000000:$ffffff,channels=0),y1,height(clp)-y2,x1,width(clp)-x2,color_yuv=upper?$ffffff:$000000)
-format ? MatchClip(clp) : last
+    LetterBox(BlankClip(clp,1,pixel_type="Y"+string(bdpth),color_yuv=upper?$000000:$ffffff,channels=0),y1,height(clp)-y2,x1,width(clp)-x2,color_yuv=upper?$ffffff:$000000)
+    format ? MatchClip(clp) : last
 
-!show ? last : ex_blend(clp,last,"softlight",fulls=fs) }
+    !show ? last : ex_blend(clp,last,"softlight",fulls=fs) }
 
 
 ##################
@@ -175,29 +176,35 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
 
 function LumaMask(clip filtered, clip raw, int "b", int "w", bool "invert", bool "smooth", bool "show", int "UV", bool "fulls") {
 
-rgb  = isRGB(raw)
-isy  = isy(filtered)
-bi   = BitsPerComponent(raw)
+    rgb    = isRGB(raw)
+    isy    = isy(filtered)
+    bi     = BitsPerComponent(raw)
 
-raw      = Default(raw, filtered)
-LO       = Default(b, 24)
-HI       = Default(w, 48)
-upper    = Default(invert, false)
-smooth   = Default(smooth, false)
-show     = Default(show,   false)
-fs       = Default(fulls,  false)
-UV       = Default(UV,  !isy ? 128 : 1)
+    raw    = Default(raw, filtered)
+    LO     = Default(b, 24)
+    HI     = Default(w, 48)
+    upper  = Default(invert, false)
+    smooth = Default(smooth, false)
+    show   = Default(show,   false)
+    fs     = Default(fulls,  false)
+    UV     = Default(UV,  !isy ? 128 : 1)
 
-LO       = ex_bs(LO, 8, bi, fulls=fs)
-HI       = ex_bs(HI, 8, bi, fulls=fs)
+    w      = raw.width()
+    h      = raw.height()
+    bi32   = bi == 32 ? "0 1 clip" : ""
+    sm     = (w  > 2599 ||  h  > 1499) ? 3 : \
+             (w  > 1099 ||  h  > 599)  ? 2 : 1
 
-code     = upper ? Format("x {LO} < range_max x {HI} > 0 range_max   x {LO} - range_max {HI} {LO} - / * - ? ?") : \
-                   Format("x {LO} < 0         x {HI} >   range_max 0 x {LO} - range_max {LO} {HI} - / * - ? ?")
+    LO     = ex_bs(LO, 8, bi, fulls=fs)
+    HI     = ex_bs(HI, 8, bi, fulls=fs)
 
-str      = ex_dlut(code, bi, fs)
-cstr     = ex_UVexpr("", UV, bi, rgb, fs)
+    code   = upper ? Format("range_max range_max {HI} {LO} - / x {LO} - * - "+bi32) : \
+                     Format("0         range_max {LO} {HI} - / x {LO} - * - "+bi32)
 
-msk      = Expr(raw, str, cstr, scale_inputs=ex_UVf(rgb, bi))
-msk      = smooth ? msk.removegrain(22,0) : msk
+    str    = ex_dlut(code, bi, fs)
+    cstr   = ex_UVexpr("", UV, bi, rgb, fs)
 
-show  ?  msk : mt_merge(raw,filtered,msk,true) }
+    msk    = Expr(raw, str, cstr, scale_inputs=ex_UVf(rgb, bi))
+    msk    = smooth ? msk.ex_inpand(sm).ex_expand(sm+sm).ex_inpand(sm) : msk
+
+    show  ?  msk : mt_merge(raw,filtered,msk,true) }
