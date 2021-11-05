@@ -28,7 +28,7 @@
 ### fulls: Defines the scale of HBD values.
 ###        ConvertBits() defaults to false for YUV, same in ExTools.
 ###
-### Dependencies: AviSynth+ 3.5 (3.7.1 test23+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.5 (3.7.1 test24+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -413,6 +413,7 @@ function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV",
               Expr(a, b, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi)) }
 
 
+# The higher the mask value the more the second clip merges into the first
 # mt_merge() is 5%  slower on                  Y clips / masks
 #               5%  slower on luma=false for YUV clips / masks
 #               8%  faster on luma=true  for YUV clips / masks
@@ -1425,9 +1426,9 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV", bool "fulls") {
     f2   = rd > 3 ? selectevery(1,+2) : nop()
     f3   = rd > 5 ? selectevery(1,+3) : nop()
 
-    FL = rd == 3 ? "y z dup1 dup1 min swap2 max swap1 x max min x swap - M^
-                    x dup y z + + 0.333333333 * "+ths+"                - S@
-                        M * 0 < x M abs S abs < M S ?           x swap - ?" : \
+    FL = rd == 3 ? "y z dup1 dup1 min swap2 max swap1 x max min A@ x swap - M^
+                    x dup y z + + 0.333333333 * "+ths+"         B@        - S@
+                        M * 0 < x M abs S abs < A B ? ?"                    : \
                                                                               \
          rd == 5 ? "x y                   dup1 dup1 min swap2 max
                     z a                   dup1 dup1 min swap2 max
@@ -1437,10 +1438,10 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV", bool "fulls") {
                     swap3                 dup1 dup1 min swap2 max
                     swap3                                     max
                     swap2                           min
-                                                    min x swap   - M^
-                    x dup y z a b         + + + + 0.20 * "+ths+" - S@
-                        M * 0 < x M abs S abs < M S ?   x swap   -  ? " : \
-                                                                          \
+                                                    min A@ x swap   - M^
+                    x dup y z a b         + + + + 0.20 * "+ths+" B@ - S@
+                        M * 0 < x M abs S abs < A B ? ? "                   : \
+                                                                              \
          rd == 7 ? "x y                   dup1 dup1 min swap2 max
                     z a                   dup1 dup1 min swap2 max
                     b c                   dup1 dup1 min swap2 max
@@ -1454,9 +1455,9 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV", bool "fulls") {
                     swap2  swap1  swap4             min
                     swap3                                     max
                     swap2                           min
-                                                    min x swap          - M^
-                    x dup y z a b c d + + + + + + 0.142857143 * "+ths+" - S@
-                        M * 0 < x M abs S abs < M S ?   x swap          - ?" : ""
+                                                    min A@ x swap          - M^
+                    x dup y z a b c d + + + + + + 0.142857143 * "+ths+" B@ - S@
+                        M * 0 < x M abs S abs < A B ? ?" : ""
 
 
     str   = ex_dlut( FL, bi, fs)
@@ -1550,7 +1551,7 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV", bool "fulls") {
 # TL3D      - Two-Level Median Filter                                             (Spatio-Temporal)
 # ML3D      - Multi-Level Median Filter                                           (Spatio-Temporal, Motion Protected)
 # ML3Dex    - Extended Multi-Level Median Filter                                  (Spatio-Temporal)
-# Hybrid    - 3D Hybrid Median Filter                                             (Spatio-Temporal)
+# Hybrid    - 3D Hybrid Median Filter. Like ML3Dex but a bit softer               (Spatio-Temporal)
 # BDM       - Arce Bi-directional Multi-Level Median Filter                       (Spatio-Temporal, Motion Protected)
 # MMF       - Multistage Median Filter                                            (Spatio-Temporal, Motion Protected) (like a 3D undot)
 # DGM0      - Mode=0 of DeGrainMedian (similar    to spatial only RemoveGrain(9)) (Spatio-Temporal, Motion Protected) (based itself on STMedianFilter)
@@ -4415,7 +4416,7 @@ function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV", b
     for (px = -krnlrd, krnlrd, 1) {
             for (py = -krnlrd, krnlrd, 1) {
                 skip = mode == "plus"    ?  px != 0 && py != 0                                        : \
-                       mode == "circle"  ? (px*px + py*py) > krnlrd*krnlrd                            : \
+                       mode == "circle"  ? (px*px + py*py) >  krnlrd*krnlrd                           : \
                        mode == "disk"    ? (px*px + py*py) > (krnlrd+0.3)*(krnlrd+0.3)                : \
                        mode == "diamond" ? (abs(px) != 0 && abs(py) != 0) &&                            \
                                            (abs(px) > krnlrd - abs(py) || abs(py) > krnlrd - abs(px)) : \
@@ -4481,7 +4482,7 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV", b
     for (px = -krnlrd, krnlrd, 1) {
             for (py = -krnlrd, krnlrd, 1) {
                 skip = mode == "plus"    ?  px != 0 && py != 0                                        : \
-                       mode == "circle"  ? (px*px + py*py) > krnlrd*krnlrd                            : \
+                       mode == "circle"  ? (px*px + py*py) >  krnlrd*krnlrd                           : \
                        mode == "disk"    ? (px*px + py*py) > (krnlrd+0.3)*(krnlrd+0.3)                : \
                        mode == "diamond" ? (abs(px) != 0 && abs(py) != 0) &&                            \
                                            (abs(px) > krnlrd - abs(py) || abs(py) > krnlrd - abs(px)) : \
@@ -4605,13 +4606,13 @@ function ex_inflate(clip a, int "radius", int "UV", bool "fulls") {
 # 8-connected  - Extracts connected components by a Chebyshev distance of 1
 # fill         - (Boundary) fill element bodies (not implemented)
 #
-function ex_hitormiss(clip a, int "radius", string "mode", int "UV", bool "fulls") {
+function ex_hitormiss(clip a, int "iter", string "mode", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    rd = Default(radius, 1)
+    rd = Default(iter,    1)
     md = Default(mode, "thin")
     UV = Default(UV,    rgb ? 3 : 1)
     fs = Default(fulls, rgb)
