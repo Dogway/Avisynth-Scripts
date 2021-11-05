@@ -116,7 +116,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
              LFR = max(LFR,50)
              Fs  = max(w,h) * 2                                # Frequency sample rate is resolution * 2 (for Nyquist)
              k   = sqrt(log(2)/2) * LFR                        # Constant for -3dB
-             LFR = Fs / ( k * 2 * pi )                         # Frequency Cutoff for Gaussian Sigma)
+             LFR = Fs / ( k * 2 * pi )                         # Frequency Cutoff for Gaussian Sigma
            # LFR = (Fs / 2) / (2.35482 * LFR) )                # This one can really be the Gaussian -3dB low pass (2.35 is FWHM -3dB @ half point-)
            # LFR = ceil((Fs/LFR)/2)-1                          # This would be the formula for a "Sync" or "Brickwall" Ideal Filter sigma (aka Mean blur). Not adjusted for -3dB
     } else { LFR = UHD ? 6.92 : isHD ? 3.46 : 1.30 }           # (Default: -3dB -log(2)- at 300Hz)
@@ -603,7 +603,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 ## Didée's functions:
 ##
 ## MinBlur   by Didée (24-10-2006)
-## Minimum Blur - Nifty Gauss/Median combination.
+## Minimum Blur - Nifty Gauss/Median combination (spatial version of FluxSmoothT)
 ## (https://forum.doom9.org/showthread.php?p=1018488#post1018488)
 ##
 ## kgrabs: "Pixelwise median and blur admixture. If the differences are homologous to the input,
@@ -656,7 +656,7 @@ function ex_MinBlur(clip clp, int "r", int "UV", string "mode", bool "sharp", bo
                                  (rg4v) ? clp.removegrain(rg27y,rg27)                                                        : Eval("clp."+blurstr+"")
     RG4D  = !old && !sh && med ? (r<=1) ? RG4D.ex_boxblur(r==0?0.3:0.5,mode="weighted",UV=uv) : RG4D.removegrain(rg12y,rg12) : RG4D
 
-    ex_lutxyz(rg12D,RG4D,clp,"x "+bi32+" A@ z y - B@ * 0 < z A abs B abs < A B ? z swap - ? ",Y=y,UV=uv,fulls=fs)
+    ex_lutxyz(rg12D,RG4D,clp,"x "+bi32+" A@ z y - B@ * 0 < z A abs B abs < z A - y ? ?",Y=y,UV=uv,fulls=fs)
 
     (!old && !med || old) && sh ? Repair(clp.removegrain(y!=3 ? 0 : 17,uv==3 ? 0 : -1),y!=3 ? 0 : 9, 0) : last }
 
@@ -686,7 +686,6 @@ function ex_sbr(clip c, int "r", int "Y", int "UV", bool "fulls") {
     UV11   = (UV==3) ? 12 : -1
     UV20   = (UV==3) ? 20 : -1
     bi32m  = bi == 32 ? "" : "range_half -"
-    bi32p  = bi == 32 ? "" : "range_half +"
 
     rg11   = (r<=1) ?     c.removegrain(Y11, UV11)                                             : \
              (r==2) ?     c.removegrain(Y11, UV11).removegrain(Y20, UV20)                      : \
@@ -698,7 +697,7 @@ function ex_sbr(clip c, int "r", int "Y", int "UV", bool "fulls") {
              (r==2) ? rg11D.removegrain(Y11, UV11).removegrain(Y20, UV20)                      : \
                       rg11D.removegrain(Y11, UV11).removegrain(Y20, UV20).removegrain(Y20, UV20)
 
-    ex_lutxyz(RG11D, RG11DS, c, "x y - A@ x "+bi32m+" B@ * 0 < z A abs B abs < z A - z x - "+bi32p+" ? ? ", Y=Y31, UV=UV31, fulls=fs) }
+    ex_lutxyz(RG11D, RG11DS, c, "x y - A@ x "+bi32m+" B@ * 0 < z A abs B abs < A B ? z swap - ?", Y=Y31, UV=UV31, fulls=fs) }
 
 
 ## Dither_Luma_Rebuild()  by cretindesalpes (02-01-2012)
