@@ -31,7 +31,7 @@
 ###              MVTools2
 ###              ExTools
 ###              LSFmod/SharpenersPack  (for Contrasharp)
-###              GradePack              (for DCTFlicker and Str=0.1 to 1.0 ~ex_retinex()~ )
+###              GradePack              (for Str=0.1 to 1.0 ~ex_retinex()~ )
 ###              RGTools                (for prefilter=0~2 and Contrasharp)
 ###              DFTTest                (for prefilter=3)
 ###              KNLMeansCL             (for prefilter=4)
@@ -47,7 +47,7 @@
 
 
 function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , string "mode"     , bool "interlaced" , int   "plane"  , int   "Globals"   , bool "tv_range" ,  \
-                     int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , float "limit"     , float "limitC"    , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2"      ,  \
+                     int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , float "limitC"    , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2"      ,  \
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,  \
                   int "device_id", bool "trymany", int "divide"   , int "srfilter", bool "UHDhalf"     ) {
 
@@ -227,8 +227,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     nw    = round(w/2.0)
     nh    = round(h/2.0)
-    pref8 = bi > 8  ? pref.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)                                                                   : pref
-    pref8 = UHDhalf ? pref8.BilinearResize(nw+nw%2, nh+nh%2)                                                                                 : pref8
+    pref8 = bi > 8  ? pref.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)                                                                       : pref
+    pref8 = UHDhalf ? pref8.BilinearResize(nw+nw%2, nh+nh%2)                                                                                     : pref8
     pref8 = UHDhalf ? !(isy(input) || rgb) && chroma ? Eval("""pref8.ConvertToYUV"""+cplaceCMD+"""(isInter,"","MPEG1","spline16","top_left")""") : pref8 : pref8 # Assumes UHD is top_left aligned
 
 
@@ -357,10 +357,10 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 \ :               interleave(                          f1c, inputP, b1c                          )
 
 
-                output   = TS                  ?  inter.  TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                                       : \
-                           md == "medianTn"    ?  inter.  neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                                      : \
-                           T7                  ?  inter.  ex_FluxSmoothT(tr,limit,UV=plane0?3:1,fulls=!tv)                                     : \
-                                                  inter.  ex_median(mode=md, thres=limit, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1, fulls=!tv)
+                output = TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                                        : \
+                         md == "medianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                                       : \
+                         T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1,fulls=!tv)                                      : \
+                                            inter.ex_median(mode=md, thres=limit, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1, fulls=!tv)
 
 
                 output = isMult || TS || T7 || (md == "medianTn") ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
@@ -368,7 +368,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 if (LFRB) {
 
                     mfilterLP = inputP.ex_gaussianblur(LFR)
-                    DCTF_pass = DCTF ? inputP.smdegrain(tr=ceil(tri/3.),thSAD=halfblksize,mode="FluxSmoothT",blksize=min(64,blksize*2),prefilter=mfilterLP.ex_posterize(UHD?3:isHD?4:5,UV=1),str=0,tv_range=false,plane=0,chroma=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
+                    DCTF_pass = DCTF ? inputP.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/3,blksize=blksize,prefilter=mfilterLP,str=0,tv_range=false,plane=0,chroma=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
                     mfilterLP = DCTF ? DCTF_pass.ex_gaussianblur(LFR) : mfilterLP
                     outputLP  =  output.ex_gaussianblur(LFR)
                     output    = ex_makeadddiff(output, outputLP, mfilterLP, UV=2)
@@ -401,7 +401,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             if (LFRB) {
 
                 mfilterLP = mfilter.ex_gaussianblur(LFR)
-                DCTF_pass = DCTF ? mfilter.smdegrain(tr=ceil(tri/3.),thSAD=halfblksize,mode="FluxSmoothT",blksize=min(64,blksize*2),prefilter=mfilterLP.ex_posterize(UHD?3:isHD?4:5,UV=1),str=0,tv_range=false,plane=0,chroma=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
+                DCTF_pass = DCTF ? mfilter.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/3,blksize=blksize,prefilter=mfilterLP,str=0,tv_range=false,plane=0,chroma=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
                 mfilterLP = DCTF ? DCTF_pass.ex_gaussianblur(LFR) : mfilterLP
                 outputLP  =  output.ex_gaussianblur(LFR)
                 output    = ex_makeadddiff(output, outputLP, mfilterLP, UV=2)
