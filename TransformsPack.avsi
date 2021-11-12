@@ -392,12 +392,12 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 #    PRESETS
 #                                DoVi/DVp5/DVp7     PQ10/UHD       HLG10         HD    DVD-NTSC    DVD-PAL        DV    CRT-NTSC    CRT-PAL     Master     Archival      Grade     Theater    JPEG2000    JPG_old      JPG
 #    fmt_out       = Select (num,     "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",   "YCbCr",  "YCbCr",     "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",     "YUVr",  "YCbCr",   "sYCC") # sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
-#    cs_out        = Select (num,        "2020",      "2020",     "2020",     "709",     "170M",   "470BG",        4,    "170M",   "470BG",  "DCIXYZ",  "ACES2065",  "ACESCCt",   "DCIXYZ",     "sRGB",   "170M",   "sRGB")
+#    prims         = Select (num,        "2020",      "2020",     "2020",     "709",     "170M",   "470BG",        4,    "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",   "170M",   "sRGB")
 #    Jab           = Select (num,         "420",       "420",      "420",     "420",      "420",     "420",    "410",     "411",     "411",     "444",       "444",      "444",      "444",      "444",    "420",    "422")
 #    tv_out        = Select (num,         false,        true,       true,      true,       true,      true,    false,      true,      true,     false,       false,      false,      false,      false,    false,    false)
 #    cplace_out    = Select (num,    "top_left",  "top_left", "top_left",   "MPEG2",    "MPEG2",   "MPEG2",     "DV",   "MPEG1",   "MPEG1",        "",          "",         "",         "",         "",  "MPEG1",  "MPEG1")
 #    D_out         = Select (num,         "D65",       "D65",      "D65",     "D65",      "D65",     "D65",        4,     "601",     "601",       "E",       "D60",      "D60",        "E",      "D65",    "D65",    "D65")
-#    EOTF          = Select (num,          "PQ",        "PQ",      "HLG",    "1886",     "170M",     "470",        4,    "170M",    "170M",     "DCI",    "linear",      "log",      "DCI",     "sRGB",   "170M",   "sRGB")
+#    EOTF          = Select (num,          "PQ",        "PQ",      "HLG",    "1886",     "170M",     "470",        4,    "170M",    "170M",     "DCI",    "linear",  "ACESCCt",      "DCI",     "sRGB",   "170M",   "sRGB")
 #    PAR           = Select (num,             1,           1,          1,         1,      "601",     "470",        4,     "601",     "601",         1,           1,          1,          1,          1,        1,        1)
 #    cdc           = Select (num,        "H265",      "H265",     "H265",    "H264",     "H262",    "H262",   "H261",        "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000", "JPEG2000",    "JPG",    "JPG")
 #    cont          = Select (num,          "TS",        "TS",       "TS",      "TS",      "VOB",     "VOB",  "MPEG2",        "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jp2",    "JPG",    "JPG")
@@ -2049,6 +2049,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (matrix == "sRGB"         ) ? "sRGB"
 \   : (matrix == "XYZ"          ) ? "XYZ"
 \   : (matrix == "SDTV"         ) ? "170M"
+\   : (FindStr(matrix, "274")>0 ) ? "170M"
 \   : (FindStr(matrix, "601")>0 ) ? "170M"
 \   : (FindStr(matrix, "525")>0 ) ? "170M"
 \   : (FindStr(matrix, "170")>0 ) ? "170M"
@@ -2138,7 +2139,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (matrix == "D93"           ) ? "D93" : matrixn
 
 
-    # ID for _Matrix frame properties (ITU-T H.265. Table E.5)
+    # ID for _Matrix frame properties (BT.2380-0. Table 2.8)
     idm =
 \     (matrixn == "XYZ"            ) ? 0
 \   : (matrixn == "RGB"            ) ? 0
@@ -2161,7 +2162,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (matrixn == "AWG"            ) ? 17 : -1
 # * YDzDx is defined in SMPTE 2085
 
-    # ID for _Primaries frame properties (ITU-T H.265. Table E.3)
+    # ID for _Primaries frame properties (BT.2380-0. Table 2.6)
     ids =
 \     (matrixn == "Rec2020CL"      ) ? 9
 \   : (matrixn == "DCI-P3"         ) ? 11 : idm
@@ -2176,7 +2177,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (illuminant == "D75" ) ? 6
 \   : (illuminant == "D93" ) ? 7 : -1
 
-    # ID for _Transfer frame properties (ITU-T H.265. Table E.4)
+    # ID for _Transfer frame properties (BT.2380-0. Table 2.7)
     idt =
 \     (transfer == "1886a"        ) ? 0
 \   : (transfer == "1886"         ) ? 1
@@ -2288,7 +2289,7 @@ function color_propGet (clip a) {
 
     range    = propNumElements(a,"_ColorRange") > 0 ? PropGetInt(a, "_ColorRange") == 1 : cm_id[1] == "YCbCr"
 
-    # ID for _Primaries frame properties (ITU-T H.265. Table E.3)
+    # ID for _Primaries frame properties (BT.2380-0. Table 2.6)
     prim_i =
 \     (prim_i == 1    ) ? "Rec709"
 \   : (prim_i == 4    ) ? "470M"
@@ -2306,7 +2307,7 @@ function color_propGet (clip a) {
 \   : (prim_i == 17   ) ? "AWG"
 \   : Assert (false, "Unknown _Primaries ID.")
 
-    # ID for _Matrix frame properties (ITU-T H.265. Table E.5)
+    # ID for _Matrix frame properties (BT.2380-0. Table 2.8)
     mat_i =
 \     (mat_i == 0     ) ? "XYZ"
 \   : (mat_i == 1     ) ? "Rec709"
@@ -2334,7 +2335,7 @@ function color_propGet (clip a) {
 \   : (illu_i == 7    ) ? "D93"
 \   : Assert (false, "Unknown _Illuminant ID.")
 
-    # ID for _Transfer frame properties (ITU-T H.265. Table E.4)
+    # ID for _Transfer frame properties (BT.2380-0. Table 2.7)
     t_i =
 \     (t_i == 0       ) ? "1886a"
 \   : (t_i == 1       ) ? "1886"
@@ -2693,7 +2694,7 @@ function Matrix_coef (string matrix, string "illuminant") {
     pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.1566, 0.0177],  [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
     pw  = Select (mat_w,  [0.3101,0.3162],  [0.312713, 0.329016],                                                                                        [0.3457, 0.3585],                    [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
     wp  = Select (mat_wp, [0.3101,0.3162],  [0.312713, 0.329016],                                                                                        [0.3457, 0.3585],                    [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
-    Kv  = Select (mat_wp,  6779.653      ,   6504.13            ,                                                                                         5000.569       ,                     6304.573      ,   6000.211                           , 5502.33           , 7506.16          , 8941.864     )
+    Kv  = Select (mat_wp,  6771.297      ,   6504.13            ,                                                                                         5000.569       ,                     6304.573      ,   6000.211                           , 5502.33           , 7506.16          , 8941.864     )
 
     pr2 = 1. - pr[0] - pr[1]    pw2 = 1. - pw[0] - pw[1]
     pb2 = 1. - pb[0] - pb[1]    wp2 = 1. - wp[0] - wp[1]
