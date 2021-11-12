@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v6.3     (04-11-2021)              ##
+###           ExTools v6.4     (12-11-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -28,7 +28,7 @@
 ### fulls: Defines the scale of HBD values.
 ###        ConvertBits() defaults to false for YUV, same in ExTools.
 ###
-### Dependencies: AviSynth+ 3.5 (3.7.1 test24+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.7.1 (3.7.1 test25+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -212,12 +212,14 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         z2   = mcfa || mcf == "MSE" || mcf == "CHAR" || mcf == "RMSE" || mcf == "PSNR" ? ex_lutxy(a1,b1,"x y - dup *",                UV=1,fulls=fs) : nop()
         z3   = mcfa || mcf == "MSLE"                                                   ? ex_lutxy(a1,b1,"x 1 + log y 1 + log - dup *",UV=1,fulls=fs) : nop()
 
+        # RedMean
         yA   = mcfa || mcf == "rMEA"  ?  y.ExtractClip() : nop()
         bA   = mcfa || mcf == "rMEA"  ? b2.ExtractClip() : nop()
         z4   = mcfa || mcf == "rMEA"  ? Expr(yA[0],yA[1],yA[2],bA[0],bA[1],bA[2],"x a + 0.5 * R@ 0.00390625 * 2 + x a - dup * *   y b - dup * 4 * +   255 R - 0.00390625 * 2 + z c - dup * * +    sqrt") : nop()
 
-        oky  = mcfa || mcf == "OkMSE" ?  y.moncurve_f(2.40,0.055,tv,false,3,true).RGB_to_Oklab(matrix=matA,fulls=true).ExtractClip() : nop() # Assumes sRGB gamma input
-        okb  = mcfa || mcf == "OkMSE" ? b2.moncurve_f(2.40,0.055,tv,false,3,true).RGB_to_Oklab(matrix=matA,fulls=true).ExtractClip() : nop()
+        # OkLab
+        oky  = mcfa || mcf == "OkMSE" ?  y.moncurve_f(2.40,0.055,tv,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() # Assumes sRGB gamma input
+        okb  = mcfa || mcf == "OkMSE" ? b2.moncurve_f(2.40,0.055,tv,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop()
         OkD  = mcfa || mcf == "OkMSE" ? Expr(oky[0],oky[1],oky[2],okb[0],okb[1],okb[2],"x a - dup * y b - dup * z c - dup * + + sqrt") : nop() # RMSE (Euclidean Distance) over OkLab
 
         ScriptClip  (out==2?last:out==1?b:a, function [y,a,b,z1,z2,z3,z4,a1,b1,b3,OkD,pd,mcf,mcfa,mPLUG,out] () {
@@ -261,7 +263,6 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                 y  = propCopy(c,y,true) } }
 
 
-
             if (mcfa) {
 
                 y   = propSet(y,"_PlaneME"  ,      ME ,  0)
@@ -285,7 +286,6 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
 
                 Subtitle( "Plane"+MCF+":  "+String(propGetFloat(y,"_Plane"+MCF )))
             }
-
 
 
             if (out != 2) { y } else if (mcfa) {
@@ -789,6 +789,7 @@ function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls")
 #  67% generalconvolution(matrix="1 1 1 1 1 1 1 1 1",chroma=false)
 #  65% Dither_box_filter16(2,U=1,V=1)          # with ConverttoStacked() and ConvertfromStacked()
 #  44% mt_convolution("1 1 1","1 1 1",U=1,V=1)
+#  13% SpatialSoften(1,30,0)                   # 8-bit YUY2 only, thresholded. Prefetch(8)
 #   5% mt_luts(last, "avg", mt_square(1), "y",chroma="-1")
 #
 # modes:
@@ -965,7 +966,7 @@ function binom_coeffs(n, k) {
 #  88% ablur(1, 1, chroma=1)                    # against ex_boxblur(2,mode="weighted",UV=1)
 #  85% BinomialBlur(sqrt(1)/2.*sqrt(2),U=1,V=1) # only in 8-bit
 #  81% vsTCanny(sqrt(1)/2.*sqrt(2),sigma_vY=sqrt(1)/2.*sqrt(2),mode=-1,u=1,v=1) # true gaussian (fastest for mid sigma, not apt for combing -not exact binomial fit of rad=1-)
-#  70% ex_blur(1,UV=1)                          # true gaussian blur
+#  70% ex_blur(1,mode="binomial,UV=1)           # true gaussian blur
 #  68% blur(1.00)                               # weighted mean of [1 2 1]
 #  65% generalconvolution(matrix="1 2 1 2 4 2 1 2 1",chroma=false)
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
@@ -1019,7 +1020,7 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     if (gm != "none") {
         matrix = Matrix_fuzzy_search (gm)
         s_gam  = moncurve_coef(matrix)
-        a      = moncurve_f(a, s_gam[0], s_gam[1], !rgb, false, UV, fs)
+        a      = moncurve_f(a, s_gam[0], s_gam[1], !rgb, false, UV)
     }
 
     strv = ex_Yexpr (strv, Y, bi, rgb, fs)
@@ -1034,7 +1035,7 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     UV == 1 ? Expr(last, strh, ""                                                    ) : \
               Expr(last, strh, ex_UVexpr(cstrh, UV, bi, rgb, fs), scale_inputs="none")
 
-    gm != "none" ? moncurve_r(last, s_gam[0], s_gam[1], false, !rgb, UV, fs) : last  }
+    gm != "none" ? moncurve_r(last, s_gam[0], s_gam[1], false, !rgb, UV) : last      }
 
 
 function gauss_constructor(float rad, bool vert) {
@@ -1083,6 +1084,51 @@ function butt_constructor(float rad, int n, bool vert) {
        }
 
     str + pls }
+
+
+
+# ex_blur3D()
+#
+# modes:
+# mean     - cubic     blur
+# weighted - spherical blur (beware this mode doesn't have SCD -scene change detection-)
+function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    x   = Default(x,  1)
+    y   = Default(y,  x)
+    z   = Default(z,  x)
+    md  = Default(mode,  "mean")
+    UV  = Default(UV,    rgb ? 3 : 1)
+    fs  = Default(fulls, rgb)
+
+    md = md == "avg"     ? "mean" : \
+         md == "average" ? "mean" : \
+         md == "mean"    ? "mean" : "weighted"
+    a
+    x+y!=0 ? ex_boxblur(x,y, mode=md, UV=uv) : last
+
+    TG = z == 1 ? "                                                                                             y z                 x 2           * + + 0.25 * " : \
+         z == 2 ? "z a + 4           *                                                                          y b                 x 6           * + + + 0.0625 * " : \
+         z == 3 ? "z c + 6           * a b + 15          *                                                      y d                 x 20          * + + + + 0.015625 * " : \
+         z == 4 ? "z e + 0.571428571 * a d + 2           * b c + 4           *                                  y f + 0.071428571 * x 5           * + + + + 0.0546875 * " : \
+         z == 5 ? "z g + 0.238095238 * a f + 1.071428571 * b e + 2.857142857 * c d + 5    *                     y h + 0.023809523 * x 6           * + + + + + 0.041015625 * " : \
+         z == 6 ? "z i + 0.090909091 * a h + 0.5         * b g + 1.666666666 * c f + 3.75 * d e + 6 *           y j + 0.007575757 * x 7           * + + + + + + 0.032226562 * " : \
+                  "z k + 0.013986014 * a j + 0.090909091 * b i + 0.363636363 * c h +        d g + 2 * e f + 3 * y l + 0.001       * x 3.428571428 * + + + + + + + 0.061096191 * "
+
+    for (i=1, min(z,7), 1) {
+        clps = (i==1 ? "last," : clps) + Format("last.selectevery(1,-{i}), last.selectevery(1,{i}),") }
+
+    z  == 0 || md!="weighted" ? last                                                                                                          : \
+    isy                       ? Eval("""Expr("""+clps+""" TG,                                 optSingleMode = false                     )""") : \
+    UV == 1                   ? Eval("""Expr("""+clps+""" TG, "",                             optSingleMode = false                     )""") : \
+                                Eval("""Expr("""+clps+""" TG, ex_UVexpr(TG, UV, bi, rgb, fs), optSingleMode = false, scale_inputs="none")""")
+
+    z  != 0 && md=="mean"     ? TemporalSoften(z,255,UV==3?255:0,25,2) : last }
+
 
 
 # 100% Dither_bilateral16(radius=2, thr=10, flat=1.0,   u=1, v=1) (216fps) # Output is dirtier though
@@ -1417,8 +1463,8 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV", bool "fulls") {
     thr2 = ex_bs( min(th+10 + rd * bias, 255), 8, bi, fulls=fs)
     ths  = th != 255 ? Format("x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -") : ""
 
-    rd   = 2 * rd + 1
     a
+    rd   = 2 * rd + 1
     b3   = rd > 5 ? selectevery(1,-3) : nop()
     b2   = rd > 3 ? selectevery(1,-2) : nop()
     b    =          selectevery(1,-1)
@@ -1467,6 +1513,9 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV", bool "fulls") {
     isy     ? Eval("""Expr(a, """+clips+""", str                                                              )""") : \
     UV == 1 ? Eval("""Expr(a, """+clips+""", str, ""                                                          )""") : \
               Eval("""Expr(a, """+clips+""", str, ex_UVexpr(FL, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi))""") }
+
+
+
 
 
 
@@ -5142,6 +5191,15 @@ function FindStrInstance(string haystack, string needle) {
     return in }
 
 
+function DivideStr(string str, string separator) {
+
+    Sep   = FindStr(str, separator)
+    Left  = Sep == 0 ?  "" : LeftStr (str, Sep-1)
+    Right = Sep == 0 ? str : RightStr(str, StrLen(str)-Sep)
+
+    return [Left, Right] }
+
+
 # Parses a string of pixel pairs in masktools2/mt_luts() format to Expr Pixel Addressing format
 # ie: " 1 -1  1  0 0 0 -2 0 " -> "x[1,-1] A^ x[1,0] B^ x[-2,0] C^ x[0,0] X^ "
 function pixel_parser(string str) {
@@ -5248,14 +5306,16 @@ function ex_UVf(bool rgb, int bits) {
 
 # Pixel Value Converter (unsigned)
 # Convert values from one bitdepth to another or/and from one scale to another or/and from one (luma) range to another
-function ex_bs(float var, int "ibits", int "obits", bool "ifulls", bool "fulls", bool "tv_in", bool "tv_out") {
+function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", bool "tv_in", bool "tv_out") {
 
     ibi = Default(ibits,    8)
     obi = Default(obits,   16)
-    fs  = Default(ifulls,  false)  # fulls
-    fso = Default(fulls,   fs)     # fulld
+    tv  = Defined(tv_in) || Defined(tv_out)
     tvi = Default(tv_in,   false)
     tvo = Default(tv_out,  false)
+    fsd = Defined(fulls)
+    fs  = Default(fulls,      !tvi)      # fulls
+    fso = Default(fulld, tv ? !tvo : fs) # fulld
 
     ib32 = ibi == 32   ob32 = obi == 32
     ib8  = ibi == 8    ob8  = obi == 8
