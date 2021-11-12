@@ -3,7 +3,7 @@
 ###                     2.4            (15-04-2015)            ##
 ###                     2.8 By Dogway  (22-06-2021)            ## Updated BoxMask(), FlatMask() and LumaMask() to internal functions (faster and HBD support)
 ###                     2.9 By Dogway  (18-10-2021)            ##
-### Mask functions Pack 3.0 By Dogway  (04-11-2021)            ##
+### Mask functions Pack 3.1 By Dogway  (12-11-2021)            ##
 ###                                                            ##
 ### https://forum.doom9.org/showthread.php?t=182881            ##
 ###                                                            ##
@@ -23,6 +23,10 @@
 
 function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert", bool "show", bool "matchformat", bool "fulls") {
 
+    rgb     = isRGB(clp)
+    fs      = propNumElements (clp,"_ColorRange")  > 0 ? \
+              propGetInt      (clp,"_ColorRange") == 0 : rgb
+
     x1      = Default(x1,0)
     x2      = Default(x2,0)
     y1      = Default(y1,0)
@@ -30,7 +34,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert"
     upper   = Default(invert, false)
     show    = Default(show, false)
     format  = Default(matchformat, true)
-    fs      = Default(fulls, false)
+    fs      = Default(fulls, fs)
 
     bdpth = BitsPerComponent(clp)
 
@@ -180,13 +184,16 @@ function LumaMask(clip filtered, clip raw, int "b", int "w", bool "invert", bool
     isy    = isy(filtered)
     bi     = BitsPerComponent(raw)
 
+    fs     = propNumElements (raw,"_ColorRange")  > 0 ? \
+             propGetInt      (raw,"_ColorRange") == 0 : rgb
+
     raw    = Default(raw, filtered)
     LO     = Default(b, 24)
     HI     = Default(w, 48)
     upper  = Default(invert, false)
     smooth = Default(smooth, false)
     show   = Default(show,   false)
-    fs     = Default(fulls,  false)
+    fs     = Default(fulls,      fs)
     UV     = Default(UV,  !isy ? 128 : 1)
 
     w      = raw.width()
