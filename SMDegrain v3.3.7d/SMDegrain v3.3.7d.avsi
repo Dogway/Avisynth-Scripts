@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.3.6d      by Dogway    - 12 Nov  2021                           ###
+###                       v3.3.7d      by Dogway    - 13 Nov  2021                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -227,9 +227,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     nw    = round(w/2.0)
     nh    = round(h/2.0)
-    pref8 = bi > 8  ? pref.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)                                                                       : pref
-    pref8 = UHDhalf ? pref8.BilinearResize(nw+nw%2, nh+nh%2)                                                                                     : pref8
-    pref8 = UHDhalf ? !(isy(input) || rgb) && chroma ? Eval("""pref8.ConvertToYUV"""+cplaceCMD+"""(isInter,"","MPEG1","spline16","top_left")""") : pref8 : pref8 # Assumes UHD is top_left aligned
+    pref8 = bi > 8  ? pref.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)                                                                                           : pref
+    pref8 = UHDhalf ? pref8.BilinearResize(nw+nw%2, nh+nh%2)                                                                                                         : pref8
+    pref8 = UHDhalf ? !(isy(input) || rgb || cplaceCMD=="444") && chroma ? Eval("""pref8.ConvertToYUV"""+cplaceCMD+"""(isInter,"","MPEG1","spline16","top_left")""") : pref8 : pref8 # Assumes UHD is top_left aligned
 
 
     If (sShow ? false : !Show) {
@@ -554,7 +554,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.3.6",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.3.7",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -619,7 +619,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 ## Output is different by default, medians have been replaced with edge retaining versions...
 ## and a following blur to "calm" edges (read Didée's quote above). Enable 'old' for old output.
 
-function ex_MinBlur(clip clp, int "r", int "UV", string "mode", bool "sharp", bool "old", int "Y", bool "fulls") {
+function ex_MinBlur(clip clp, int "r", int "UV", string "mode", bool "sharp", int "thres", bool "old", int "Y", bool "fulls") {
 
     rgb     = isrgb(clp)
     bi      = BitsPerComponent(clp)
@@ -628,6 +628,7 @@ function ex_MinBlur(clip clp, int "r", int "UV", string "mode", bool "sharp", bo
     UV      = Default(UV, 3)
     Y       = Default(Y,  3)
     mode    = Default(mode, "median")
+    th      = Default(thres, Undefined())   # Spatial threshold (only for rad >= 2 and old=false)
     sh      = Default(sharp,   false)       # Recover edges (in old method) or remove blur (for new method)
     old     = Default(old,     false)       # Enable to use the old method with dumb medians
     fs      = Default(fulls,     rgb)       # AVS+ doesn't like Eval() with embedded functions -isrgb() in Default()-
@@ -644,7 +645,7 @@ function ex_MinBlur(clip clp, int "r", int "UV", string "mode", bool "sharp", bo
     rg4v  = med && (r<=1)
     bi32  = bi == 32 ? "" : "range_half -"
 
-    blurstr = mode == "median"          ? """ex_median(              "smart", UV=uv, fulls=fs)""" : \
+    blurstr = mode == "median"          ? """ex_median("smart"+string(r), th, UV=uv, fulls=fs)""" : \
               mode == "blur"            ? """ex_boxblur(r*2, r*2, "weighted", UV=uv)"""           : \
               mode == "blur_horizontal" ? """ex_boxblur(r*2,   0, "weighted", UV=uv)"""           : \
               mode == "blur_vertical"   ? """ex_boxblur(0,   r*2, "weighted", UV=uv)"""           : \
