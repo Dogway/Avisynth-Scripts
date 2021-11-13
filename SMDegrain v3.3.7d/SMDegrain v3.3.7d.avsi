@@ -235,12 +235,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     If (sShow ? false : !Show) {
 
         # Subpixel 3
-        threads = pelclip ? SI_LogicalCores()  : nop()
+        inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)
         cores   = pelclip ? SI_PhysicalCores() : nop()
-        pclip   = pelclip             ? pel==4 ?  pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=threads,prefetch=(threads+cores)/2) :  \
-                                                  pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads,prefetch=(threads+cores)/2) : nop()
-        pclip2  = pelclip && !GlobalR ? pel==4 ? inputP.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=threads,prefetch=(threads+cores)/2) :  \
-                                                 inputP.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=threads,prefetch=(threads+cores)/2) : nop()
+        pclip   = pelclip             ? pel==4 ?   pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=cores)                                       :  \
+                                                   pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=cores)                                       : nop()
+        pclip2  = pelclip && !GlobalR ? pel==4 ? inputP8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=cores).ConvertBits(bi, fulls=!tv, fulld=!tv) :  \
+                                                 inputP8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=cores).ConvertBits(bi, fulls=!tv, fulld=!tv) : nop()  # nnedi3 is too slow in HBD
 
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
