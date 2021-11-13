@@ -29,7 +29,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 
 #######################################################################
 ###                                                                 ###
-###    yugefunc  v0.4 (01-11-2021)                                  ###
+###    yugefunc  v0.5 (13-11-2021)                                  ###
 ###                                                                 ###
 ###    Collection of VapourSynth functions ported to AviSynth+      ###
 ###                                                                 ###
@@ -119,10 +119,12 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 # ex_guidedblur(radius=r) is the slow (10% fps) but edge preserving equivalent of ex_blur(r-2) (with Defaults)
 # regulation_mode = 1 not working
 function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulation", int "regulation_mode", bool "use_gauss", bool "fast", \
-                               int "subsampling_ratio", string "kernel1", string "kernel2", int "UV", bool "fulls") {
+                               int "subsampling_ratio", string "kernel1", string "kernel2", int "UV") {
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
+    fs  = propNumElements(a, "_ColorRange")  > 0 ? \
+          propGetInt     (a, "_ColorRange") == 0 : rgb
 
     gd  = Default(guidance, Undefined())  # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
     r   = Default(radius,        2)       # from 0.0 to 3.9 (use_gauss = false steping is in integer increments)
@@ -134,14 +136,13 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     kn1 = Default(kernel1,   "Point")
     kn2 = Default(kernel2,   "Bilinear")
     UV  = Default(UV,    rgb ? 3 : 2)
-    fs  = Default(fulls, rgb)
 
     isg = Defined(gd)
     r   = min(r, 3.99)
     w   = a.width()
     h   = a.height()
-    p   =        a.ConvertBits(32, fulls=fs)
-    I   = isg ? gd.ConvertBits(32, fulls=fs) : p
+    p   =        a.ConvertBits(32, fulls=fs, fulld=true)
+    I   = isg ? gd.ConvertBits(32, fulls=fs, fulld=true) : p
 
     # Back up guidance image
     I_src = I
@@ -232,10 +233,7 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     q
 
     # Final bitdepth conversion
-    if (bi != 32) {
-        ConvertBits(16,dither=-1, fulls=fs)
-        ConvertBits(bi,dither= 1, fulls=fs)
-    } }
+	ConvertBits(bi, dither=1, fulls=true, fulld=fs) }
 
 
 
@@ -290,11 +288,14 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
 ##            in IEEE Transactions on Image Processing, vol. 29, pp. 1397-1412, 2020,
 ##            doi: 10.1109/TIP.2019.2941326.
 
-function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma", bool "alpha", float "epsilon", bool "use_gauss", bool "sigma", bool "adaptive", int "UV", bool "fulls") {
+function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma", bool "alpha", float "epsilon", bool "use_gauss", bool "sigma", bool "adaptive", int "UV") {
 
     rgb = isRGB(clp)
     isy = isy(clp)
     bi  = BitsPerComponent(clp)
+
+    fs  = propNumElements(clp, "_ColorRange")  > 0 ? \
+          propGetInt     (clp, "_ColorRange") == 0 : rgb
 
     gd  = Default(guidance, Undefined())  # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
     r   = Default(radius,   2)
@@ -305,11 +306,10 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     sm  = Default(sigma,    false)
     ad  = Default(adaptive,  true)
     UV  = Default(UV,    rgb ? 3 : 2)
-    fs  = Default(fulls, rgb)
 
     isg = Defined(gd)
-    clp =      clp.ConvertBits(32, fulls=fs)
-    gd  = isg ? gd.ConvertBits(32, fulls=fs) : nop()
+    clp =      clp.ConvertBits(32, fulls=fs, fulld=true)
+    gd  = isg ? gd.ConvertBits(32, fulls=fs, fulld=true) : nop()
 
     alpha = !al ? max(log10(gm) + 3, 0) : 1
 
@@ -332,19 +332,19 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     coeff = 0.0002 * (2 * r + 1) * gm
     gamma = ad ? Format("dup {coeff} swap 0.000001 + /") : Format("{gm}")
 
-    A = !isg ? ex_lut(W,"x dup "+gamma+" + /",UV=uv)                 : \
+    A = !isg ? ex_lut(W,             "x dup "+gamma+" + /"      ,UV=uv) : \
                ex_lutxyza(W,XG,X1,G1,"y z a * - x "+gamma+" + /",UV=uv)
-    B = !isg ? ex_lutxy (A,X1,   "1 x - y *",UV=uv)                  : \
-               ex_lutxyz(A,X1,G1,"y x z * -",UV=uv)
+    B = !isg ? ex_lutxy (A,X1,       "1 x - y *"                ,UV=uv) : \
+               ex_lutxyz(A,X1,G1,    "y x z * -"                ,UV=uv)
 
     # unsharp mask with custom divisor
     div   = sqrt(pi/2) / 6
     sigma = !sm ? ex_lut(isg?gd:clp,Format("x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 4 * + + + + x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 2 * - {div} *"),UV=uv) : nop()
 
     coeff = pow(2 * r + 1, 2)
-    W = Scriptclip(W, function [W,coeff,alpha,eps,sm,sigma,uv,fs] () {
-        avg = !sm ? string(min(-eps,pow(sigma.AverageLuma(),2)))+" -" : ""  # This line was caussing NaN blocks, fix (originally without min())
-        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"), UV=uv, fulls=fs) } )
+    W = Scriptclip(W, function [W,coeff,alpha,eps,sm,sigma,uv] () {
+        avg = !sm ? string(min(-eps,pow(sigma.AverageLuma(),2)))+" -" : ""  # This line is causing NaN blocks, fix (originally without min())
+        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"), UV=uv) } )
 
     WA = ex_lutxy(W,A,"x y *",UV=uv)
     WB = ex_lutxy(W,B,"x y *",UV=uv)
@@ -359,7 +359,4 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
 
     res
 
-    if (bi != 32) {
-        ConvertBits(16,dither=-1, fulls=fs)
-        ConvertBits(bi,dither= 1, fulls=fs)
-    }  }
+	ConvertBits(bi, dither=1, fulls=true, fulls=fs) }
