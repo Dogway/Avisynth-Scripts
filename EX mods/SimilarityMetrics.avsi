@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v1.5  (31-10-2021)                     ###
+###        Similarity Metrics Pack v1.6  (14-11-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -11,7 +11,7 @@
 ###   SSIM                                                                ###
 ###   BSSIM                                                               ###
 ###   SSIM_downsample                                                     ###
-###   +Helper functions                                                   ###
+###   + Helper functions                                                  ###
 ###                                                                       ###
 #############################################################################
 
@@ -496,13 +496,8 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
     fs      = Default(fulls,  false)
 
     bi  = BitsPerComponent(c)
-    c
-    _32bits = (bi == 32)
-
-    if (!_32bits)
-    {
-        ConvertBits(32, fulls=fs)
-    }
+    
+    bi != 32 ? c.ConvertBits(32, fulls=fs) : c
 
     resample_args = (Defined(resample_args)) ? ", " + resample_args : ""
 
@@ -529,11 +524,7 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
         ex_lutxyza(m.Eval(smooth), r.Eval(smooth), l, Expr(r, m, "x y *").Eval(smooth), "x y z * + a -",UV=3)
     }
 
-    if (bi < 32) {
-        ConvertBits(bits=16, dither=-1,               fulls=fs)
-        ConvertBits(bits=bi, dither= dither ? 1 : -1, fulls=fs)
-    }
-}
+    ConvertBits(bits=bi, dither= dither ? 1 : -1, fulls=fs) }
 
 
 
