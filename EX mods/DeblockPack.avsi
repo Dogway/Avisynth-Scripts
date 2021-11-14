@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v1.4  (05-11-2021)                                ###
+###        Deblock Pack v1.5  (14-11-2021)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -201,13 +201,12 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
 ##                  BM3D
 ##                  DFTTest
 ##                  nnedi3
+##                  SysInfo
 
 
 function oyster_Super(clip src, int "pel") {
 
     pel = Default(pel, 2)
-    th  = 8 # threads
-
     bi  = BitsPerComponent(src)
     rgb = isRGB(src)
 
@@ -215,15 +214,18 @@ function oyster_Super(clip src, int "pel") {
     Assert(bi == 32,             "Oyster.Super: the sample type of src has to be single precision!")
     Assert(is444(src) || rgb,    "Oyster.Super: subsampled stuff not supported!")
     Assert(pel == 2 || pel == 4, "Oyster.Super: pel has to be 2 or 4!")
+	cores   = SI_PhysicalCores()
+	threads = SI_LogicalCores()
 
-    src
+    src.ConvertBits(8, dither=-1, fulls=fs)
     AssumeFrameBased()
     rgb ? RGB_to_OPP() : last
 
 #    PadBorders(128, 128, 128, 128)
     PadBorders(64, 64, 64, 64)
 #    nnedi3_rpow2(rfactor=pel,nns=4,nsize=0,qual=2,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
+    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2)
+    ConvertBits(bi, fulls=fs)
 
     return last }
 
