@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.67 mix mod by Dogway 2021, based on 3.382s            #
+#     QTGMC 3.68 mix mod by Dogway 2021, based on 3.382s            #
 #                                                                   #
 #   A high quality deinterlacer using motion-compensated temporal   #
 #  smoothing, with a range of features for quality and convenience  #
@@ -14,6 +14,10 @@
 # Full documentation is in the 'QTGMC' html file that may comes with this script, or even better see avisynth wiki
 #
 # --- LATEST CHANGES ---
+#
+# v3.68mx
+# - Read bitdepth scale from frameprops, and remove 'fulls' arg
+# - Process NNEDI3 (and other deinterlacers) in 8-bit for HBD inputs (NNEDI3 is not optimized enough for HBD)
 #
 # v3.67mx
 # - Tweak again NNEDI3 thread settings
@@ -270,7 +274,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                     float "NoiseRestore", string "NoiseDeint", bool "StabilizeNoise", int "InputType", float "ProgSADMask", int "FPSDivisor", \
                     int "ShutterBlur", float "ShutterAngleSrc", float "ShutterAngleOut", int "SBlurLimit", bool "Border", bool "Precise", string "Tuning", \
                     bool "ShowSettings", string "GlobalNames", string "PrevGlobals", int "ForceTR", int "UseEdiExt", \
-                    float "Str", float "Amp", bool "tv_range", bool "n16", bool "n16d", String "device_type", int "device_id", int "Threads", bool "Refinemotion", bool "fulls" )
+                    float "Str", float "Amp", bool "tv_range", bool "n16", bool "n16d", String "device_type", int "device_id", int "Threads", bool "Refinemotion" )
 {
     # EdiMode="RepcYadif"/"cYadif" require the Yadif plugin, which doesn't autoload. Typically the calling script would load it.
 
@@ -279,18 +283,19 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     bi8     = bi == 8
     bi32m   = bi == 32 ? "" : "range_half -"  # Scale Inputs in Expr() is broken for 32-bit float
     bi32p   = bi == 32 ? "" : "range_half +"
+    fs      = propNumElements(Input, "_ColorRange")  > 0 ? \
+              propGetInt     (Input, "_ColorRange") == 0 : rgb
 
     #---------------------------------------
     # Presets
     n16           = Default( n16,       false)
     n16d          = Default( n16d,      false)
-    UseEdiExt     = Default( useEdiExt,     0)
-    fs            = Default( fulls,     false)
+    UseEdiExt     = Default( useEdiExt,    0 )
     Str           = Default( Str,        3.0 )
     Amp           = Default( Amp,     0.0625 )
     TV_range      = Default( TV_range,   !rgb)
 
-    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
     Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "UseEdiExt need EdiExt to work")
 
     # Select presets / tuning
@@ -827,8 +832,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     ediInput = (InputType == 2 || InputType == 3) ? innerClip.SeparateFields().SelectEvery(4,0,3).Weave() : innerClip
 
     # Create interpolated image as starting point for output. Below same as but in one step: PadBorders(0,0,0,(EdiExt.Height()-h)/2).crop(0,(EdiExt.Height()-h)/2,0,0)
-    edi1 = Defined(EdiExt) ? EdiExt.PointResize( w,h, 0,(EdiExt.Height()-h)/2, -0,h+eps )                                                             : \
-                             QTGMC_Interpolate( ediInput, InputType, EdiMode, NNSize, NNeurons, EdiQual, EdiMaxD, Threads, bobbed, ChromaEdi, fulls=fs )
+    edi1 = Defined(EdiExt) ? EdiExt.PointResize( w,h, 0,(EdiExt.Height()-h)/2, -0,h+eps )                                                              : \
+                             QTGMC_Interpolate( ediInput.ConvertBits(8,dither=-1,fulls=fs), InputType, EdiMode, NNSize, NNeurons, EdiQual, EdiMaxD, Threads, bobbed, ChromaEdi, fulls=fs ).ConvertBits(bi,fulls=fs)
 
     # >>>> Switch to planar YUY2 during next step - remains planar until very end of script except blurring for back blending & SVThin
 
@@ -1026,15 +1031,17 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
     # >>>> YUY2 is interleaved here
 
     ChromaEdi = Default( ChromaEdi, "" )
-    CEed = (ChromaEdi == "")
-    LogC = SI_LogicalCores()
-    NNEDI3clp = EdiMode == "NNEDI3" || EdiMode == "EEDI3+NNEDI3" || EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.NNEDI3( field=-2, nsize=NNSize, nns=NNeurons, qual=EdiQual, threads=LogC, prefetch=LogC, U=CEed,V=CEed ) : Undefined()
+    CEed      = (ChromaEdi == "")
+    threads   = SI_LogicalCores()
+    cores     = SI_PhysicalCores()
+
+    NNEDI3clp = EdiMode == "NNEDI3" || EdiMode == "EEDI3+NNEDI3" || EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.NNEDI3( field=-2, nsize=NNSize, nns=NNeurons, qual=EdiQual, threads=cores, prefetch=(threads+cores)/2, U=CEed,V=CEed ) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp.nonyuy2clipin(true) ).slimit_dif2(NNEDI3clp.nonyuy2clipin(true),thr=4, U=CEed?3:2,V=CEed?3:2).nonyuy2clipout(true) : Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2) : \
                                           EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ? Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ) : nop()
 
     interp = (InputType == 1)            ? Input                                                                                     : \
              (EdiMode == "NNEDI3")       ? NNEDI3clp                                                                                 : \
-             (EdiMode == "NNEDI2")       ? Input.NNEDI2( field=-2, nsize=NNeurons, qual=EdiQual, threads=Threads, U=CEed,V=CEed ) : \
+             (EdiMode == "NNEDI2")       ? Input.NNEDI2( field=-2, nsize=NNeurons, qual=EdiQual, threads=Threads, U=CEed,V=CEed )    : \
              (EdiMode == "NNEDI")        ? Input.NNEDI( field=-2, U=CEed,V=CEed )                                                    : \
              (EdiMode == "EEDI3+NNEDI3") ? EEDI3clp                                                                                  : \
              (EdiMode == "EEDI3")        ? EEDI3clp                                                                                  : \
@@ -1054,7 +1061,7 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.ex_vinverse(custem=NNEDI3clp.nonyuy2clipin(true),UV=3,fulls=fs).nonyuy2clipout(true) : interp.ex_vinverse(custem=NNEDI3clp,UV=3,fulls=fs) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                          : \
-               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=LogC, prefetch=LogC, Y=false )                         : \
+               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=cores, prefetch=(threads+cores)/2, Y=false )           : \
                (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 ) : \
                (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                          : \
                (ChromaEdi == "Bob")      ? Input.sh_Bob( 0,0.5 )                                                                                          : \
@@ -1186,8 +1193,9 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     # >>>> YUY2: 'Deinterlace' is planar, 'Source' is interleaved (changed to planar here for all processing except interpolation) - returns planar result
     yuy2 = Source.IsYUY2()
     fs   = Default( fulls, false)
-    Source = yuy2 ? Source.nonyuy2clipin(true) : Source
-    sMDegnl  = n16 ? ", out16=n16" : ""
+    Source  = yuy2 ? Source.nonyuy2clipin(true) : Source
+    sMDegnl = n16 ? ", out16=n16" : ""
+    bi      = Source.BitsPerComponent()
 
     # Basic source-match. Find difference between source clip & equivalent fields in interpolated/smoothed clip (called the "error" in formula below). Ideally
     # there should be no difference, we want the fields in the output to be as close as possible to the source whilst remaining shimmer-free. So adjust the
@@ -1205,10 +1213,10 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     noyv16ma1Edi   = MatchEdi =="NNEDI2" || MatchEdi =="NNEDI" || MatchEdi =="EEDI3+NNEDI3" || MatchEdi =="EEDI3" || MatchEdi =="TDeint" || MatchEdi =="cYadif" || MatchEdi =="RepcYadif"
     noyv16ma2Edi   = MatchEdi2=="NNEDI2" || MatchEdi2=="NNEDI" || MatchEdi2=="EEDI3+NNEDI3" || MatchEdi2=="EEDI3" || MatchEdi2=="TDeint" || MatchEdi2=="cYadif" || MatchEdi2=="RepcYadif"
     match1Edi      = (SourceMatch == 0) ? nop() : \
-    !noyv16ma1Edi || !yuy2 ? match1Update.QTGMC_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs ) : \
-                             match1Update.nonyuy2clipout(true)                                                                                                     \
-                                         .QTGMC_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs )   \
-                                         .nonyuy2clipin(true)
+    !noyv16ma1Edi || !yuy2 ? match1Update.ConvertBits(8,dither=-1,fulls=fs).QTGMC_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs ).ConvertBits(bi,fulls=fs) : \
+                             match1Update.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                  \
+                                                                           .QTGMC_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs )   \
+                                                                           .nonyuy2clipin(true).ConvertBits(bi,fulls=fs)
     match1Super    = (SourceMatch > 0 && MatchTR1 > 0) ? match1Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
     match1Degrain1 = (SourceMatch > 0 && MatchTR1 > 0) ? Eval("match1Edi.MDegrain1( match1Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match1Degrain2 = (SourceMatch > 0 && MatchTR1 > 1) ? Eval("match1Edi.MDegrain1( match1Super, bVec2,fVec2, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
@@ -1229,10 +1237,10 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     match2Clip     = (SourceMatch  < 2 || InputType == 1) ? match1Shp : match1Shp.SeparateFields().SelectEvery( 4, 0,3 ).Weave()
     match2Diff     = (SourceMatch  > 1) ? ex_makediff( Source, match2Clip, UV=3, fulls=fs ) : nop()
     match2Edi      = (SourceMatch <= 1) ? nop() : \
-    !noyv16ma2Edi || !yuy2 ? match2Diff.QTGMC_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs  ) : \
-                             match2Diff.nonyuy2clipout(true)                                                                                                        \
-                                       .QTGMC_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs  )   \
-                                       .nonyuy2clipin(true)
+    !noyv16ma2Edi || !yuy2 ? match2Diff.ConvertBits(8,dither=-1,fulls=fs).QTGMC_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs ).ConvertBits(bi,fulls=fs) : \
+                             match2Diff.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                        \
+                                                                         .QTGMC_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs )    \
+                                                                         .nonyuy2clipin(true).ConvertBits(bi,fulls=fs)
     match2Super    = (SourceMatch > 1 && MatchTR2 > 0) ? match2Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
     match2Degrain1 = (SourceMatch > 1 && MatchTR2 > 0) ? Eval("match2Edi.MDegrain1( match2Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match2Degrain2 = (SourceMatch > 1 && MatchTR2 > 1) ? Eval("match2Edi.MDegrain1( match2Super, bVec2,fVec2, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
@@ -1310,7 +1318,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
     bi32p  = bi == 32 ? "" : "range_half +"
 
     vblur  =  clp.ex_boxblur(0, 1, "weighted", UV=uv)
-    vblurD =  dcus ? ex_makediff(clp, vblur, UV=uv, fulls=fs)  : nop()
+    vblurD =  dcus ? ex_makediff(clp, vblur, UV=uv, fulls=fs) : nop()
 
     VshrpD = !dcus ? ex_lutxy(vblur, vblur.ex_boxblur(0, 2, "weighted", UV=uv), Format("x dup y - {sstr} * + x - "+bi32p), UV=uv, fulls=fs) : nop()
 
