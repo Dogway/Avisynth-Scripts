@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v6.5     (13-11-2021)              ##
+###           ExTools v6.6     (14-11-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -25,7 +25,7 @@
 ### 128: range_half
 ### x:   custom value in 8-bit (bitdepth autoscaled)
 ###
-### fulls: Defines the scale of HBD values.
+### fulls: Defines the scale of HBD values when converting from/to integer HBD (10, 12, 14, 16)
 ###        ConvertBits() defaults to false for YUV, same in ExTools.
 ###
 ### Dependencies: AviSynth+ 3.7.1 (3.7.1 test25+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
@@ -185,6 +185,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
 
         mcf = mcf == "Butteraugli" ? "BUTT" : \
               mcf == "Charbonnier" ? "CHAR" : \
+              mcf == "stderr"      ? "RMSE" : \
               mcf == "L1"          ? "MAE"  : \
               mcf == "L2"          ? "MSE"  : \
               mcf == "SSR"         ? "MSE"  : \
@@ -1539,6 +1540,124 @@ function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", int
     rt > 0 ? ex_FluxSmoothT(rt,Tth,UV,fs)                    : last }
 
 
+
+# Spatio-Temporal Thresholded Weighted Median (STPresso() inspired / not a port)
+# Spatial  3x3
+# Temporal 1x5
+function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres", int "UV", bool "fulls") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    ths  = Default(sw,     24)          # 0 - 100% Spatial  Weight
+    tht  = Default(tw,     49)          # 0 - 100% Temporal Weight
+    tha  = Default(aw,      1)          # 0 - 100% Absolute Weight
+    sl   = Default(sthres,  5)          # 0 - 255  Spatial  threshold
+    tl   = Default(tthres,  5)          # 0 - 255  Temporal threshold
+    UV   = Default(UV,    rgb ? 3 : 1)
+    fs   = Default(fulls, rgb)
+
+    sl = ex_bs( sl , 8, bi, fulls=fs)
+    tl = ex_bs( tl , 8, bi, fulls=fs)
+
+    ts   = (float(ths)/(ths+tht))
+    tt   = (float(tht)/(ths+tht))
+    ta   = tha/100.
+    rt   = 1 - ta
+
+    Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version to 3.7.1+")
+
+    str =  Format(                                         \
+           "x[-1,1]  x[1,1]       dup1 dup1 min K^ max P^
+            x[-1,-1] x[1,-1]      dup1 dup1 min L^ max O^
+            x[0,1]   dup                        D^     N^
+            x[-1,0]  dup                        C^     M^
+            x[0,-1]  dup                        I^     J^
+            x[1,0]   dup                        G^     H^
+            x[0,0]   dup dup dup                A^     F^
+                                                B^     E^
+            N P                   dup1 dup1 min N^ max P^
+            F O                   dup1 dup1 min F^ max O^
+            J M                   dup1 dup1 min J^ max M^
+            I L                   dup1 dup1 min I^ max L^
+            B K                   dup1 dup1 min B^ max K^
+            E H                   dup1 dup1 min E^ max H^
+            D G                   dup1 dup1 min D^ max G^
+            A C                   dup1 dup1 min A^ max C^
+            H P                   dup1 dup1 min H^ max P^
+            M O                   dup1 dup1 min M^ max O^
+            E N                   dup1 dup1 min E^ max N^
+            C L                   dup1 dup1 min C^ max L^
+            G K                   dup1 dup1 min G^ max K^
+            F J                   dup1 dup1 min F^ max J^
+            A I                   dup1 dup1 min A^ max I^
+            B D                   dup1 dup1 min B^ max D^
+            O P                             min O^
+            L N                   dup1 dup1 min L^ max N^
+            H M                   dup1 dup1 min H^ max M^
+            J K                   dup1 dup1 min J^ max K^
+            D I                   dup1 dup1 min D^ max I^
+            F G                   dup1 dup1 min F^ max G^
+            C E                   dup1 dup1 min C^ max E^
+            A B                                    max B^
+            M O                             min M^
+            K N                             min K^
+            H L                   dup1 dup1 min H^ max L^
+            G J                   dup1 dup1 min G^ max J^
+            E I                   dup1 dup1 min E^ max I^
+            C F                                    max F^
+            B D                                    max D^
+            K M                             min K^
+            E L                   dup1 dup1 min E^ max L^
+            H J                   dup1 dup1 min H^ max J^
+            G I                   dup1 dup1 min G^ max I^
+            D F                                    max F^
+            E F max G H max max I J min K L min min dup1 dup1 max swap2 min
+
+            x swap2 clip S@
+
+                     dup dup dup
+            a dup
+            z dup
+            y b                   dup1 dup1 min swap2 max
+            swap4  swap1  swap8   dup1 dup1 min swap2 max
+            swap4  swap1  swap6   dup1 dup1 min swap2 max
+            swap9  swap1  swap3   dup1 dup1 min swap2 max
+            swap7  swap1  swap5   dup1 dup1 min swap2 max
+            swap2  swap1  swap4   dup1 dup1 min swap2 max
+            swap3  swap1  swap6   dup1 dup1 min swap2 max
+            swap2  swap1  swap7   dup1 dup1 min swap2 max
+            swap4  swap1  swap8   dup1 dup1 min swap2 max
+            swap9  swap1  swap3             min
+            swap8  swap1  swap5   dup1 dup1 min swap2 max
+            swap2  swap1  swap4                       max
+            swap2  swap1  swap7   dup1 dup1 min swap2 max
+            swap7  swap1  swap4   dup1 dup1 min swap2 max
+            swap2  swap1  swap5   dup1 dup1 min swap2 max
+            swap6  swap1  swap3   dup1 dup1 min swap2 max
+            swap2  swap1  swap7             min
+            swap3  swap1  swap4   dup1 dup1 min swap2 max
+            swap4  swap1  swap5   dup1 dup1 min swap2 max
+            swap2  swap1  swap6                       max
+            swap3  swap1  swap2             min
+            swap3                 dup1 dup1 min swap2 max
+            swap2  swap1  swap4                       max
+            swap2                           min
+            swap2                                     max
+
+            x swap2 clip T@
+              x - abs {tl} > x T ? {tt} *
+            S x - abs {sl} > x S ? {ts} * + {ta} * x {rt} * + ")
+
+        b2 = a.selectevery(1,-2)
+        b  = a.selectevery(1,-1)
+        f  = a.selectevery(1,+1)
+        f2 = a.selectevery(1,+2)
+
+        isy     ? Expr(a, b2, b, f, f2, str,                                  optSingleMode = false                     ) : \
+        UV == 1 ? Expr(a, b2, b, f, f2, str, "",                              optSingleMode = false                     ) : \
+                  Expr(a, b2, b, f, f2, str, ex_UVexpr(str, UV, bi, rgb, fs), optSingleMode = false, scale_inputs="none") }
 
 
 
@@ -5533,8 +5652,8 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop
     mode = md == "square"  ? """
                             skip  =  false """                                       : \
            md == "diamond" ? """
-                            skip  = (abs(px) != 0 && abs(py) != 0) && \
-                                    (abs(pxr) > rtm - abs(pyr) ||     \
+                            skip  = (abs(px)  != 0 && abs(py) != 0) &&                 \
+                                    (abs(pxr) > rtm - abs(pyr) ||                      \
                                      abs(pyr) > rtm - abs(pxr)) """                  : \
            md == "circle"  ? """
                             skip  = (pxr*pxr + pyr*pyr) > rtm*rtm """                : \
