@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.3.7d      by Dogway    - 13 Nov  2021                           ###
+###                       v3.3.8d      by Dogway    - 14 Nov  2021                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -49,7 +49,7 @@
 function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , string "mode"     , bool "interlaced" , int   "plane"  , int   "Globals"   , bool "tv_range" ,  \
                      int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , float "limitC"    , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2"      ,  \
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,  \
-                  int "device_id", bool "trymany", int "divide"   , int "srfilter", bool "UHDhalf"     ) {
+                  int "device_id", bool "trymany", int "divide"   , int  "rfilter", bool "UHDhalf"     ) {
 
     bi     = BitsPerComponent(input)
     w      = input.width ()
@@ -106,7 +106,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     prefilter    = Default( prefilter, -1 )
     pel          = Default( pel, isHD ? 1 : 2 )
     subpixel     = Default( subpixel, pel)
-    srfilter     = Default( srfilter, 4)
+    rfilter      = Default( rfilter, 4)
     MFilterB     = Defined( mfilter )
     pelclip      = pel>1 && subpixel == 3
 
@@ -236,17 +236,18 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         # Subpixel 3
         inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)
+        threads = pelclip ? SI_LogicalCores()  : nop()
         cores   = pelclip ? SI_PhysicalCores() : nop()
-        pclip   = pelclip             ? pel==4 ?   pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=cores)                                       :  \
-                                                   pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=cores)                                       : nop()
-        pclip2  = pelclip && !GlobalR ? pel==4 ? inputP8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=cores).ConvertBits(bi, fulls=!tv, fulld=!tv) :  \
-                                                 inputP8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=cores).ConvertBits(bi, fulls=!tv, fulld=!tv) : nop()  # nnedi3 is too slow in HBD
+        pclip   = pelclip             ? pel==4 ?   pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2)                                       :  \
+                                                   pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2)                                       : nop()
+        pclip2  = pelclip && !GlobalR ? pel==4 ? inputP8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2).ConvertBits(bi, fulls=!tv, fulld=!tv) :  \
+                                                 inputP8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2).ConvertBits(bi, fulls=!tv, fulld=!tv) : nop()  # nnedi3 is too slow in HBD
 
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
 
-        super_search =                             pelclip ? MSuper(pref8,  pel=pel,               chroma=chroma, hpad=hpadU, vpad=vpadU,          pelclip=pclip,  rfilter=srfilter, mt=true) : \
-                                                             MSuper(pref8,  pel=pel,sharp=subpixel,chroma=chroma, hpad=hpadU, vpad=vpadU                        ,  rfilter=srfilter, mt=true)
+        super_search =                             pelclip ? MSuper(pref8,  pel=pel,               chroma=chroma, hpad=hpadU, vpad=vpadU,          pelclip=pclip,   rfilter=rfilter, mt=true) : \
+                                                             MSuper(pref8,  pel=pel,sharp=subpixel,chroma=chroma, hpad=hpadU, vpad=vpadU                        ,   rfilter=rfilter, mt=true)
         super_render = !GlobalR ?                 (pelclip ? MSuper(inputP, pel=pel,               chroma=plane0, hpad=hpad,  vpad=vpad, levels=1, pelclip=pclip2                  , mt=true) : \
                                                              MSuper(inputP, pel=pel,sharp=subpixel,chroma=plane0, hpad=hpad,  vpad=vpad, levels=1                                  , mt=true)): super_search
         Recalculate  = !GlobalR && RefineMotion ? (pelclip ? MSuper(pref8,  pel=pel,               chroma=chroma, hpad=hpadU, vpad=vpadU,levels=1, pelclip=pclip                   , mt=true) : \
@@ -368,8 +369,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 if (LFRB) {
 
                     mfilterLP = inputP.ex_gaussianblur(LFR)
-                    DCTF_pass = DCTF ? inputP.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/3,blksize=blksize,prefilter=mfilterLP,str=0,tv_range=false,plane=0,chroma=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
-                    mfilterLP = DCTF ? DCTF_pass.ex_gaussianblur(LFR) : mfilterLP
+                    DCTF_pass = DCTF ? inputP.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/2,blksize=blksize,prefilter=mfilterLP,rfilter=0,str=0,tv_range=false,plane=0,chroma=false,truemotion=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
+                    mfilterLP = DCTF ? ex_repair(mfilterLP, DCTF_pass.ex_gaussianblur(LFR),"temp4") : mfilterLP
                     outputLP  =  output.ex_gaussianblur(LFR)
                     output    = ex_makeadddiff(output, outputLP, mfilterLP, UV=2)
                 }
@@ -401,8 +402,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             if (LFRB) {
 
                 mfilterLP = mfilter.ex_gaussianblur(LFR)
-                DCTF_pass = DCTF ? mfilter.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/3,blksize=blksize,prefilter=mfilterLP,str=0,tv_range=false,plane=0,chroma=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
-                mfilterLP = DCTF ? DCTF_pass.ex_gaussianblur(LFR) : mfilterLP
+                DCTF_pass = DCTF ? mfilter.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/2,blksize=blksize,prefilter=mfilterLP,rfilter=0,str=0,tv_range=false,plane=0,chroma=false,truemotion=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
+                mfilterLP = DCTF ? ex_repair(mfilterLP, DCTF_pass.ex_gaussianblur(LFR),"temp4") : mfilterLP
                 outputLP  =  output.ex_gaussianblur(LFR)
                 output    = ex_makeadddiff(output, outputLP, mfilterLP, UV=2)
 
@@ -554,7 +555,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.3.7",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.3.8",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
