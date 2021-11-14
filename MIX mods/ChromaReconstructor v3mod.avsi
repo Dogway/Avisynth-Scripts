@@ -21,6 +21,8 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
              mode     = Default(mode, 0)
              wild     = Default(wild, True)
 
+             cores    = SI_PhysicalCores()
+             threads  = SI_LogicalCores()
              w        = src.width()
              h        = src.height()
              bdpth    = string(src.BitsPerComponent())
@@ -30,8 +32,8 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
              srcU     = src.ExtractU()
              srcV     = src.ExtractV()
              src8     = CombinePlanes(ref, srcU, srcV, planes="YUV", pixel_type=p_type)
-             up2x     = src8.nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0).TurnRight().nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0).TurnLeft()
-             up4x     = up2x.nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0).TurnRight().nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0).TurnLeft()
+             up2x     = src8.nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).TurnRight().nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).TurnLeft()
+             up4x     = up2x.nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).TurnRight().nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).TurnLeft()
              Luma     = up4x.ExtractY()
              U        = up4x.ExtractU()
              V        = up4x.ExtractV()
@@ -84,10 +86,10 @@ function gauss_h(clip src, int "p")
 
 
 # This one works directly with any subsampled chroma format type as input
-# Example:
 #
-# 420_Source
-# ChromaReconstructor_faster() # 444_Output
+# Example:
+#    420_Source
+#    ChromaReconstructor_faster() # 444_Output
 #
 function ChromaReconstructor_faster(clip src, int "radius", float "str", int "threads")
 {
@@ -95,17 +97,21 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
             str     = Default(str,   6.4)
             threads = Default(threads, 4)
 
+            cores   = SI_PhysicalCores()
+            threads = SI_LogicalCores()
+
             w   = src.width()
             h   = src.height()
+            bi  = src.BitsPerComponent()
 
             Y   = ExtractY(src)
             Uor = ExtractU(src)
             Vor = ExtractV(src)
 
-            ref     =   Y.KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
-            Luma    = ref.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false)
-            Uu      = Uor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
-            Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads/2, prefetch=threads, SetAffinity=true, MaxPhysCore=false, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false)
+            ref     =   Y.KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1).ConvertBits(bi,fulls=fs)
+            Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2)
+            Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false).ConvertBits(bi,fulls=fs)
+            Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false).ConvertBits(bi,fulls=fs)
             Unew    = Uu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
             Vnew    = Vu.KNLMeansCL(0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
             U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=-0.5, c=0.25))  # Sharpening
