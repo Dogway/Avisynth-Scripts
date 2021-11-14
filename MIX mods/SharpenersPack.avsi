@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v2.2  (01-11-2021)                             ###
+###        Sharpeners Pack v2.3  (14-11-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -587,8 +587,8 @@ function ex_CAS(clip a, float "strength", int "UV", bool "fulls") {
 ###
 ###  Contra()                   (15 Dec 2007) by Didée
 ###
-###  (https://forum.doom9.org/showthread.php?p=1076276#post1076276)
-###  (https://forum.doom9.org/showthread.php?p=1076491#post1076491)
+###  https://forum.doom9.org/showthread.php?p=1076276#post1076276
+###  https://forum.doom9.org/showthread.php?p=1076491#post1076491
 ###
 ###  ex_ContraSharpening() v3.4 (23 Sept 2021)
 ###  - Mod and port to ExTools by Dogway
@@ -1788,30 +1788,32 @@ function YAHR(clip clp, bool "fulls") {
 ##                  KNLMeansCL
 ##                  nnedi3
 ##                  mvtools2
+##                  SysInfo
 ##
 
 
 
-function plum_Super(clip src, int "pel", bool "fulls") {
+function plum_Super(clip src, int "pel") {
 
     pel = Default(pel, 2)
-    fs  = Default(fulls, false)
-    th  = 8 # threads
-
     bi  = BitsPerComponent(src)
     rgb = isRGB(src)
+    fs  = propNumElements(src, "_ColorRange")  > 0 ? \
+          propGetInt     (src, "_ColorRange") == 0 : rgb
 
-    Assert(isclip(src),          "Plum.Super: src has to be a video clip!")
-    Assert(bi == 32,             "Plum.Super: the sample type of src has to be single precision!")
-    Assert(isint(pel),           "Plum.Super: pel has to be an integer!")
-    Assert(pel == 2 || pel == 4, "Plum.Super: pel has to be 2 or 4!")
+    Assert(isclip(src),          "plum_Super: src has to be a video clip!")
+    Assert(bi == 32,             "plum_Super: the sample type of src has to be single precision!")
+    Assert(isint(pel),           "plum_Super: pel has to be an integer!")
+    Assert(pel == 2 || pel == 4, "plum_Super: pel has to be 2 or 4!")
+	cores   = SI_PhysicalCores()
+	threads = SI_LogicalCores()
 
     src.ConvertBits(8, dither=-1, fulls=fs)
     AssumeFrameBased()
     rgb ? RGB_to_OPP() : isy() ? last : ExtractY()
 
     PadBorders(64, 64, 64, 64)
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
+    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2)
 
     return last }
 
@@ -1827,26 +1829,29 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     scale      = Default(scale,   0.28)
     cutoff     = Default(cutoff,    24)
 
-    rgb = isRGB(src)
-    bi  = BitsPerComponent(src)
+    rgb   = isRGB(src)
+    bi    = BitsPerComponent(src)
+    fs    = propNumElements(src, "_ColorRange")  > 0 ? \
+            propGetInt     (src, "_ColorRange") == 0 : rgb
 
-    Assert(isclip(src),              "Plum.Basic: src has to be a video clip!")
-    Assert(bi == 32,                 "Plum.Super: the sample type of src has to be single precision!")
-    Assert(isint(strength) || isfloat(strength), "Plum.Basic: strength has to be a real number!")
-    Assert(strength>1,               "Plum.Basic: strength has to be greater than 0!")
-    Assert(isint(a),                 "Plum.Basic: a has to be an integer!")
-    Assert(isint(h1) || isfloat(h1), "Plum.Basic: h1 has to be a real number!")
-    Assert(isint(h2) || isfloat(h2), "Plum.Basic: h2 has to be a real number!")
-    Assert(h1>0,                     "Plum.Basic: h1 has to be greater than 0!")
-    Assert(h2>0,                     "Plum.Basic: h2 has to be greater than 0!")
-    Assert(isint(radius),            "Plum.Basic: radius has to be an integer!")
-    Assert(radius>0,                 "Plum.Basic: radius has to be greater than 0!")
-    Assert(isint(wn) || isfloat(wn), "Plum.Basic: wn has to be a real number!")
-    Assert(isint(scale) || isfloat(scale), "Plum.Basic: scale has to be a real number!")
-    Assert(isint(cutoff),            "Plum.Basic: radius has to be an integer!")
-    Assert(cutoff>0 && cutoff<=100,  "Plum.Basic: cutoff must fall in (0, 100]!")
+    Assert(isclip(src),              "plum_Basic: src has to be a video clip!")
+    Assert(bi == 32,                 "plum_Super: the sample type of src has to be single precision!")
+    Assert(isint(strength) || isfloat(strength), "plum_Basic: strength has to be a real number!")
+    Assert(strength>1,               "plum_Basic: strength has to be greater than 0!")
+    Assert(isint(a),                 "plum_Basic: a has to be an integer!")
+    Assert(isint(h1) || isfloat(h1), "plum_Basic: h1 has to be a real number!")
+    Assert(isint(h2) || isfloat(h2), "plum_Basic: h2 has to be a real number!")
+    Assert(h1>0,                     "plum_Basic: h1 has to be greater than 0!")
+    Assert(h2>0,                     "plum_Basic: h2 has to be greater than 0!")
+    Assert(isint(radius),            "plum_Basic: radius has to be an integer!")
+    Assert(radius>0,                 "plum_Basic: radius has to be greater than 0!")
+    Assert(isint(wn) || isfloat(wn), "plum_Basic: wn has to be a real number!")
+    Assert(isint(scale) || isfloat(scale), "plum_Basic: scale has to be a real number!")
+    Assert(isint(cutoff),            "plum_Basic: radius has to be an integer!")
+    Assert(cutoff>0 && cutoff<=100,  "plum_Basic: cutoff must fall in (0, 100]!")
 
-    src   = rgb ? src.RGB_to_OPP() : src.isy() ? src : src.ExtractY()
+    src32 = rgb ? src.RGB_to_OPP() : src.isy() ? src : src.ExtractY()
+    src   = src32.ConvertBits(8, dither=-1, fulls=fs)
     src   = AssumeFrameBased(src)
 
     c1                  = 0.0980468750214585389567894354907
@@ -1857,38 +1862,40 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     strength_floor      = floor(strength)
     strength_ceil       =  ceil(strength)
 
-    function inline(clip src, int a, float h1, float h2, int radius, float wn, int cutoff_1, float scale) {
+    function inline(clip src, int a, float h1, float h2, int radius, float wn, int cutoff_1, float scale, bool fs) {
+        cores           = SI_PhysicalCores()
+        threads         = SI_LogicalCores()
         sharp           = Deconvolution(src, radius, wn, int(a / 2. + 0.5), scale)
 #        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=4,nsize=0,qual=2,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        sharp           = NLErrors(ref, a, h1, sharp)
+        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2)
+        ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2)
+        sharp           = NLErrors(ref, a, h1, sharp).ConvertBits(32, fulls=fs)
         dif             = ex_makediff(sharp, ref)
 #        dif             = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
         dif             = GaussResize(dif, src.width(), src.height(), p=100) # like PointResize but with centered chroma
-        sharp           = ex_adddiff(src, dif)
-        sharp           = CutOff(src, sharp, cutoff_1, 0)
-        local_error     = NLErrors(src, radius, h2, src)
+        sharp           = ex_adddiff(src, dif).ConvertBits(32, fulls=fs)
+        src32           = src.ConvertBits(32, fulls=fs)
+        sharp           = CutOff(src32, sharp, cutoff_1, 0)
+        local_error     = NLErrors(src32, radius, h2, src32)
 #        local_limit     = ex_makeadddiff(src, local_error)
 #        limited         = ex_lutxyz(sharp, local_limit, src, "x z - abs y z - abs > y x ?")
-        limited         = ex_lutxyz(sharp, src, local_error, "x y - abs y z - Y@ abs > Y x ?")
+        limited         = ex_lutxyz(sharp, src32, local_error, "x y - abs y z - Y@ abs > Y x ?")
         clp             = Shrink(limited)
         return clp }
 
-    sharp               = src
     for (i = 0, strength_floor, 1) {
-        sharp           = inline(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
+        src             = inline(src, a, h1, h2, radius, wn, cutoff_1, scale, fs )
     }
     if (strength_floor != strength_ceil) {
-        sharp_ceil      = inline(sharp, a, h1, h2, radius, wn, cutoff_1, scale )
-        sharp           = Merge(sharp, sharp_ceil, strength - strength_floor)
+        sharp_ceil      = inline(src, a, h1, h2, radius, wn, cutoff_1, scale, fs )
+        src             = Merge(src, sharp_ceil, strength - strength_floor)
     }
-    sharp_nr            = NLErrors(sharp, a, h3, sharp)
-    clp                 = CutOff(sharp, sharp_nr, cutoff_2, 0)
+    sharp_nr            = NLErrors(src, a, h3, src)
+    clp                 = CutOff(src, sharp_nr, cutoff_2, 0)
     return clp }
 
 
-function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius", int "pel", int "sad", float "flexibility", int "strength", float "lstr", float "pstr", int "ldmp", int "cutoff", float "freq_margin", bool "fulls") {
+function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius", int "pel", int "sad", float "flexibility", int "strength", float "lstr", float "pstr", int "ldmp", int "cutoff", float "freq_margin") {
 
     strength    = Default(strength,     3.2)
     radius      = Default(radius,         6)
@@ -1900,42 +1907,44 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     ldmp        = Default(ldmp,           0)
     freq_margin = Default(freq_margin,   20)
     cutoff      = Default(cutoff,        12)
-    fs          = Default(fulls,      false)
 
     clr = src
     isy = isy(src)
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
+    fs  = propNumElements(src, "_ColorRange")  > 0 ? \
+          propGetInt     (src, "_ColorRange") == 0 : rgb
+
     isS = Defined(super)
     isF = Defined(superf)
 
-    Assert(isclip(src),        "Plum.Final: src has to be a video clip!")
-    Assert(bi == 32,           "Plum.Final: the sample type of src has to be single precision!")
-    Assert(isy(ref),           "Plum.Final: corrupted basic estimation!")
+    Assert(isclip(src),        "plum_Final: src has to be a video clip!")
+    Assert(bi == 32,           "plum_Final: the sample type of src has to be single precision!")
+    Assert(isy(ref),           "plum_Final: corrupted basic estimation!")
     isS ? \
-    Assert(isclip(super),      "Plum.Final: super has to be a video clip or None!") : nop()
+    Assert(isclip(super),      "plum_Final: super has to be a video clip or None!") : nop()
     isS ? \
-    Assert(isy(super),         "Plum.Final: corrupted super clip!") : nop()
+    Assert(isy(super),         "plum_Final: corrupted super clip!") : nop()
     isF ? \
-    Assert(isy(super),         "Plum.Final: corrupted superf clip!") : nop()
-    Assert(pel == 1 || pel == 2 || pel == 4, "Plum.Final: pel has to be 1, 2 or 4!")
-    Assert(isint(radius),      "Plum.Final: radius has to be an integer!")
-    Assert(radius>0,           "Plum.Final: radius has to be greater than 0!")
-    Assert(isint(pel),         "Plum.Final: pel has to be an integer!")
-    Assert(isint(sad) || isfloat(sad), "Plum.Final: sad has to be a real number!")
-    Assert(sad>0,              "Plum.Final: sad has to be greater than 0!")
-    Assert(isint(strength) || isfloat(strength), "Plum.Final: strength has to be a real number!")
-    Assert(strength>0,         "Plum.Final: radius has to be greater than 0!")
-    Assert(isint(flexibility) || isfloat(flexibility), "Plum.Final: flexibility has to be a real number!")
-    Assert(flexibility>0 || 1.0 >= flexibility, "Plum.Final: flexibility has to fall in [0.0, 1.0]!")
-    Assert(isint(cutoff),      "Plum.Final: cutoff has to be an integer!")
-    Assert(cutoff>0 || 100 >= cutoff, "Plum.Final: cutoff has to fall in [0, 100]!")
-    Assert(isint(freq_margin), "Plum.Final: freq_margin has to be an integer!")
-    Assert(freq_margin>0 || 100-cutoff >= freq_margin, "Plum.Final: freq_margin must fall in [0, 100-cutoff]!")
+    Assert(isy(super),         "plum_Final: corrupted superf clip!") : nop()
+    Assert(pel == 1 || pel == 2 || pel == 4, "plum_Final: pel has to be 1, 2 or 4!")
+    Assert(isint(radius),      "plum_Final: radius has to be an integer!")
+    Assert(radius>0,           "plum_Final: radius has to be greater than 0!")
+    Assert(isint(pel),         "plum_Final: pel has to be an integer!")
+    Assert(isint(sad) || isfloat(sad), "plum_Final: sad has to be a real number!")
+    Assert(sad>0,              "plum_Final: sad has to be greater than 0!")
+    Assert(isint(strength) || isfloat(strength), "plum_Final: strength has to be a real number!")
+    Assert(strength>0,         "plum_Final: radius has to be greater than 0!")
+    Assert(isint(flexibility) || isfloat(flexibility), "plum_Final: flexibility has to be a real number!")
+    Assert(flexibility>0 || 1.0 >= flexibility, "plum_Final: flexibility has to fall in [0.0, 1.0]!")
+    Assert(isint(cutoff),      "plum_Final: cutoff has to be an integer!")
+    Assert(cutoff>0 || 100 >= cutoff, "plum_Final: cutoff has to fall in [0, 100]!")
+    Assert(isint(freq_margin), "plum_Final: freq_margin has to be an integer!")
+    Assert(freq_margin>0 || 100-cutoff >= freq_margin, "plum_Final: freq_margin must fall in [0, 100-cutoff]!")
 
     ldmp               = ldmp==0 ? strength + 0.1 : ldmp
-    src                = AssumeFrameBased(src)
-    ref                = AssumeFrameBased(ref)
+    src                = AssumeFrameBased(src.ConvertBits(8, dither=-1, fulls=fs)) # 32-bit is broken in mvtools2. So do in 8-bit, also for speed.
+    ref                = AssumeFrameBased(ref.ConvertBits(8, dither=-1, fulls=fs))
     super              = isS ? AssumeFrameBased(super)  : Undefined()
     superf             = isF ? AssumeFrameBased(superf) : Undefined()
     src                = rgb ? src.RGB_to_OPP() : isy ? src : src.ExtractY()
@@ -1950,10 +1959,9 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     super3             = isS && isF ? Merge(super, superf, flexibility) : Undefined()
     superf             = isS && isF ? ex_makediff(superf, super)        : Undefined()
     blankdif           = ex_lut(src, "0")
-    pre                = src.ConvertBits(8, dither=-1, fulls=fs)
-    supersearch        = MSuper(pre,                                      pelclip=super.ConvertBits(8, dither=-1, fulls=fs),  rfilter=4, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true)
-    superdif           = MSuper(ref.ConvertBits(8, dither=-1, fulls=fs),  pelclip=superf.ConvertBits(8, dither=-1, fulls=fs), rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true).ConvertBits(32, fulls=fs)
-    superflex          = MSuper(src3.ConvertBits(8, dither=-1, fulls=fs), pelclip=super3.ConvertBits(8, dither=-1, fulls=fs), rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true) # Bug? whatif isS && isF is false?
+    supersearch        = MSuper(src,  pelclip=super,  rfilter=4, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true)
+    superdif           = MSuper(ref,  pelclip=superf, rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true)
+    superflex          = MSuper(src3, pelclip=super3, rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true)
 #   vmulti             = MAnalyse(supersearch, radius=radius, overlap=64, blksize=128, search=3, truemotion=False, trymany=True, levels=0, badrange=-24, divide=0, dct=0, chroma=False, mt=true)
     vmulti             = MAnalyse(supersearch, delta=radius, overlap=32, blksize=64, search=3, truemotion=False, trymany=True, levels=0, badrange=-24, divide=0, dct=0, chroma=False, mt=true)
 #   vmulti             = MRecalculate(supersearch, vmulti, overlap=32, blksize=64, thsad=me_sad, truemotion=False, search=3, smooth=1, divide=0, dct=0, chroma=False, mt=true)
@@ -1962,10 +1970,11 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     vmulti             = MRecalculate(supersearch, vmulti, tr=radius, overlap= 4, blksize= 8, thsad=me_sad, truemotion=False, search=3, smooth=1, divide=0, dct=0, chroma=False, mt=true)
     vmulti             = MRecalculate(supersearch, vmulti, tr=radius, overlap= 2, blksize= 4, thsad=me_sad, truemotion=False, search=3, smooth=1, divide=0, dct=0, chroma=False, mt=true)
     vmulti             = MRecalculate(supersearch, vmulti, tr=radius, overlap= 1, blksize= 2, thsad=me_sad, truemotion=False, search=3, smooth=1, divide=0, dct=0, chroma=False, mt=true)
-    averaged_dif       = blankdif.MDegrainN(superdif, vmulti, radius, thsad=10000, plane=0, thscd1=16320, thscd2=255, mt=true)
+    averaged_dif       = blankdif.MDegrainN(superdif, vmulti, radius, thsad=10000, plane=0, thscd1=8*8*255, thscd2=255, mt=true)
 #   averaged_dif       = XYClosest(averaged_dif, ref, blankdif)
-    averaged_dif       = ex_lutxy(averaged_dif, ref, "x y min") # blankdif is 0, so actually XYClosest() computes "x y min"
-    compensated        = MCompensate(pre, superflex, vmulti, thsad=sad, thscd1=16320, thscd2=255).ConvertBits(32, fulls=fs)
+    averaged_dif       = ex_lutxy(averaged_dif, ref, blankdif, "x z - abs y z - abs > y x ?")
+#    averaged_dif       = ex_lutxy(averaged_dif, ref, "x y min") # blankdif is 0, so actually XYClosest() computes "x y min"
+    compensated        = MCompensate(src, superflex, vmulti, thsad=sad, thscd1=8*8*255, thscd2=255).ConvertBits(32, fulls=fs)
     src                = Crop(src,          64, 64, -64, -64)
     averaged_dif       = Crop(averaged_dif, 64, 64, -64, -64)
     compensated        = Crop(compensated,  64, 64, -64, -64)
@@ -1973,7 +1982,8 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     dark_limit         = TemporalExtremum(compensated, radius, "min")
     averaged           = ex_adddiff(src, averaged_dif)
     clamped            = ex_clamp(averaged, bright_limit, dark_limit, 0, 0, UV=1, fulls=fs)
-    amplified          = ex_lutxy(clamped, src, Format("x y - A@ abs {lstr} / 1 {pstr} / ^ {strength} * A dup abs 0.001 + / * A dup * dup {ldmp} + / * y +"), scale_inputs=fs?"allf":"all")
+    src                = src.ConvertBits(32, fulls=fs)
+    amplified          = ex_lutxy(clamped.ConvertBits(32, fulls=fs), src, Format("x y - A@ abs {lstr} / 1 {pstr} / ^ {strength} * A dup abs 0.001 + / * A dup * dup {ldmp} + / * y +"), scale_inputs=fs?"allf":"all")
     clp                = CutOff(src, amplified, cutoff, freq_margin)
 
     clp                = rgb ? OPP_to_RGB(clp) : !isy ? CombinePlanes(clp, clr, planes="YUV", pixel_type=PixelType(clr)) : clp
@@ -2011,6 +2021,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         clp                = Crop(sharp, pad4, pad4, -pad4, -pad4)
         return clp }
 
+
     function Shrink(clip src) {
         med                = src.removegrain(4)
         dif                = ex_makediff(med, src)
@@ -2020,8 +2031,8 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         dif                = ex_lutxyz(DD, convDD, dif, "x y - A@ x * 0 < z A abs x abs < A x ? z swap - ?")
         convD              = dif.removegrain(12)
         clp                = ex_lutxyz(dif, convD, src, "y abs x abs > y z + z ? ")
-#        clp                = ex_adddiff(src, dif)
         return clp }
+
 
     function NLErrors(clip src, int a, float h, clip rclip) {
         pad                = AddBorders(src, a, a, a, a)
@@ -2032,16 +2043,16 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 
 
     function TemporalExtremum(clip src, int radius, string mode) {
-        clp                = SelectEvery(src, radius * 2 + 1, 0)
 
+        src
         var = "yzabcdefghijk" clpr = "" expr = " x "
         for (i = 1, radius * 2, 1) {
-#           clp  = ex_lutxy(clp, SelectEvery(src, radius * 2 + 1, i), "x y " + mode)
-            clpr = clpr + Format("SelectEvery(src, {radius} * 2 + 1, {i}),")
+            clpr = clpr + Format("SelectEvery(radius * 2 + 1, {i}),")
             expr = expr + MidStr(var,i,1) + " " + mode + " "
         }
-        clp = "Expr(clp," + clpr + """ " """ + expr + """ " )"""
-    return clp }
+        clp = "Expr(SelectEvery(radius * 2 + 1, 0)," + clpr + """ " """ + expr + """ " )"""
+    return Eval(clp) }
+
 
 #   function XYClosest(clip src1, clip src2, clip ref) {
 #       clp               = ex_lutxyz(src1, src2, ref, "x z - abs y z - abs > y x ?")
@@ -2201,8 +2212,8 @@ function ex_XSharpen(clip clp, float "strength", float "threshold", int "UV", bo
     fs  = Default(fulls, false)
 
     thr  = ex_bs(thr, 8, bi, fulls=fs)
-    str1 = str / 256.0
-    str2 = (256 - str) / 256.0
+    str1 = str / 256.
+    str2 = (256 - str) / 256.
 
     ex_edge(clp, Format("x[-1,1] A@ x[0,1] B@ max x[1,1] C@ max x[-1,0] D@ max x[0,0] E@ max x[1,0] F@ max x[-1,-1] G@ max x[0,-1] H@ max x[1,-1] I@ max M@
                          x - Y@ x A B min C min D min E min F min G min H min I min N@ - X@ min {thr} < X Y < N M ? {str1} * x {str2} * + x ?"), UV=UV, fulls=fs) }
