@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v6.6     (14-11-2021)              ##
+###           ExTools v6.7     (15-11-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -6013,12 +6013,20 @@ function atan2T(bool "expand") {
     return atan2 }
 
 
+# Returns the hyperbolic tangent function
+function tanhT() {
+
+    tanh = "XX@ exp EE@ 0 XX - exp NN@ -  EE NN + /"
+
+    return tanh }
+
+
 # Returns an approximation of exp(x)
 # Polynomial degree 11 starts to fail at value x=212 (8-bit). Degree 11 slower than Expr() 'exp' by 10%
 function expT(int "degree") {
 
     d = Default(degree, 11)
-    d = max(min(d,11),5)
+    d = max(min(d,11),1)
 
     # Maclaurin series - 11th degree polynomial. -3.55 <= x <= +3.4
     exp11  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
@@ -6038,7 +6046,13 @@ function expT(int "degree") {
     exp5  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * 0.041666666 * +
              X3 X2 * 0.008333333 * +"
 
-    return d==5 ? exp5 : d==7 ? exp7 : d==9 ? exp9 : exp11 }
+    # Maclaurin series - 3rd degree polynomial. -0.7 <= x <= +0.7
+    exp3  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * 0.166666666 * +"
+
+    # Maclaurin series - 1st degree polynomial. In some situations/expressions this is enough
+    exp1  = "dup dup * 0.5 * 1 + +"
+
+    return d==1 ? exp1 : d==3 ? exp3 : d==5 ? exp5 : d==7 ? exp7 : d==9 ? exp9 : exp11 }
 
 
 # Returns an approximation of cos(x) for -1.7 <= x <= 1.7 for near 300% speed increase (before AVS+ 3.7.1 test 19)
