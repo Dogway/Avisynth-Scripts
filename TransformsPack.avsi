@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC23  (12-11-2021)           ##
+###    Transforms Pack v1.0 RC24  (15-11-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -521,11 +521,12 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
     c_kernel = InternalFunctionExists(kernel+"resize") || FindStr(LCase(kernel), "nearest") > 0 ? kernel : "bicubic"
     c_recon  = """threads = SI_LogicalCores()
+                  cores   = SI_PhysicalCores()
                   c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt[0], i_fmt[1], o_fmt[1], cplace_in, cplace_out )
                   ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
-                  Luma    = ref.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads, prefetch=threads)
-                  Uu      =  Cb.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads, prefetch=threads, fwidth=w*2, fheight=h*2, ep0=bc_b, ep1=bc_c, cshift=kernel+"resize", cresize=true, mpeg2=cplace_in=="MPEG2")
-                  Vu      =  Cr.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads, prefetch=threads, fwidth=w*2, fheight=h*2, ep0=bc_b, ep1=bc_c, cshift=kernel+"resize", cresize=true, mpeg2=cplace_in=="MPEG2")
+                  Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).ConvertBits(bi,fulls=fs)
+                  Uu      =  Cb.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=bc_b, ep1=bc_c, cshift=kernel+"resize", cresize=true, mpeg2=cplace_in=="MPEG2").ConvertBits(bi,fulls=fs)
+                  Vu      =  Cr.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=bc_b, ep1=bc_c, cshift=kernel+"resize", cresize=true, mpeg2=cplace_in=="MPEG2").ConvertBits(bi,fulls=fs)
                   Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=-0.5, c=0.25, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
                   Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=-0.5, c=0.25, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
                   Cb      = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(fcnw, fcnh, b=-0.5, c=0.25, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top, fulls=fs)
@@ -904,7 +905,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     p          = Default (p, 0.25)
     fs         = Default (fulls, false)
 
-    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
     Assert(isRGB(yuv)==false, "Only YUV format supported.")
 
     bdpth    = BitsPerComponent(yuv)
@@ -952,12 +953,13 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
 
     if (recon && !p_type4) {
 
+        cores   = SI_PhysicalCores()
         threads = SI_LogicalCores()
 
         ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
-        Luma    = ref.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads, prefetch=threads)
-        Uu      = Uor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads, prefetch=threads, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize",mpeg2=false)
-        Vu      = Vor.nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=threads, prefetch=threads, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize",mpeg2=false)
+        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).ConvertBits(bi,fulls=fs)
+        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize",mpeg2=false).ConvertBits(bi,fulls=fs)
+        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize",mpeg2=false).ConvertBits(bi,fulls=fs)
         Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
         Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
         U       = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(w, h, b=-0.5, c=0.25), fulls=fs)
@@ -1017,7 +1019,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     p          = Default (p, 0.25)
     fs         = Default (fulls, false)
 
-    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
     Assert(isRGB(rgb)==true && IsPlanar(rgb)==true, "Only Planar RGB format supported.")
 
     bdpth    = BitsPerComponent(rgb)
@@ -2031,6 +2033,51 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
               PropSet("_ColorRange", fw?1:0)                 }
 
 
+# Examples:
+#   SoftLimiter(16,235)
+#   SoftLimiter(12,240,12,245) # With some over/undershoot
+function SoftLimiter (clip a, int "lo", int "hi", int "lo_c", int "hi_c", int "UV") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
+          propGetInt      (a,"_ColorRange") == 0 : rgb
+
+    lo  = Default(lo,    14)   # Lo limit
+    hi  = Default(hi,   238)   # Hi limit
+    loc = Default(lo,    lo)   # Lo limit (Chroma)
+    hic = Default(hi_c, 242)   # Hi limit (Chroma)
+    UV  = Default(UV, isy ? 1 : 3 )
+
+    lo0  = lo  == 0
+    loc0 = loc == 0
+    hi0  = hi  == 255
+    hic0 = hic == 255
+
+    b   = min((254-hi) /8. , 2.4)
+    c   = min((254-hic)/8. , 1.8)
+    d   = min((    lo) /8.4, 1.9)
+    e   = min((    loc)/8.4, 1.9)
+    phi = 20
+    phr = 1./phi
+    bi32m = bi == 32 ? "" : " range_max *"
+    bi32d = bi == 32 ? "" : " range_max /"
+    hi  = Format("    x "+bi32d+"   dup log {phi} * exp 1 + log {phr} {b} * * 0 swap - "+expT(1)+" *  ")
+    lo  = Format("1 1 x "+bi32d+" - dup log {phi} * exp 1 + log {phr} {d} * * 0 swap - "+expT(1)+" * -")
+    hic = Format("    x "+bi32d+"   dup log {phi} * exp 1 + log {phr} {c} * * 0 swap - "+expT(1)+" *  ")
+    loc = Format("1 1 x "+bi32d+" - dup log {phi} * exp 1 + log {phr} {e} * * 0 swap - "+expT(1)+" * -")
+
+    str  = lo0  && hi0 ? "" : (lo0  && !hi0  ? hi  : !lo0  && hi0  ? lo  : "x range_half > "+hi +" "+lo +" ?") + bi32m
+    cstr = loc0 && hi0 ? "" : (loc0 && !hic0 ? hic : !loc0 && hic0 ? loc : "x range_half > "+hic+" "+loc+" ?") + bi32m
+
+    str  =        ex_dlut( str,                              bi, fs)
+    cstr = !rgb ? ex_dlut( ex_UVexpr(cstr, UV, bi, rgb, fs), bi, fs) : str
+
+    isy     ? Expr(a, str                                    ) : \
+    UV == 1 ? Expr(a, str, ""                                ) : \
+              Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+
 
 
 
@@ -2139,7 +2186,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (matrix == "D93"           ) ? "D93" : matrixn
 
 
-    # ID for _Matrix frame properties (BT.2380-0. Table 2.8)
+    # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     idm =
 \     (matrixn == "XYZ"            ) ? 0
 \   : (matrixn == "RGB"            ) ? 0
@@ -2162,7 +2209,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (matrixn == "AWG"            ) ? 17 : -1
 # * YDzDx is defined in SMPTE 2085
 
-    # ID for _Primaries frame properties (BT.2380-0. Table 2.6)
+    # ID for _Primaries frame properties (BT.2380-2. Table 2.6)
     ids =
 \     (matrixn == "Rec2020CL"      ) ? 9
 \   : (matrixn == "DCI-P3"         ) ? 11 : idm
@@ -2177,7 +2224,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (illuminant == "D75" ) ? 6
 \   : (illuminant == "D93" ) ? 7 : -1
 
-    # ID for _Transfer frame properties (BT.2380-0. Table 2.7)
+    # ID for _Transfer frame properties (BT.2380-2. Table 2.7)
     idt =
 \     (transfer == "1886a"        ) ? 0
 \   : (transfer == "1886"         ) ? 1
@@ -2289,7 +2336,7 @@ function color_propGet (clip a) {
 
     range    = propNumElements(a,"_ColorRange") > 0 ? PropGetInt(a, "_ColorRange") == 1 : cm_id[1] == "YCbCr"
 
-    # ID for _Primaries frame properties (BT.2380-0. Table 2.6)
+    # ID for _Primaries frame properties (BT.2380-2. Table 2.6)
     prim_i =
 \     (prim_i == 1    ) ? "Rec709"
 \   : (prim_i == 4    ) ? "470M"
@@ -2307,7 +2354,7 @@ function color_propGet (clip a) {
 \   : (prim_i == 17   ) ? "AWG"
 \   : Assert (false, "Unknown _Primaries ID.")
 
-    # ID for _Matrix frame properties (BT.2380-0. Table 2.8)
+    # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     mat_i =
 \     (mat_i == 0     ) ? "XYZ"
 \   : (mat_i == 1     ) ? "Rec709"
@@ -2335,7 +2382,7 @@ function color_propGet (clip a) {
 \   : (illu_i == 7    ) ? "D93"
 \   : Assert (false, "Unknown _Illuminant ID.")
 
-    # ID for _Transfer frame properties (BT.2380-0. Table 2.7)
+    # ID for _Transfer frame properties (BT.2380-2. Table 2.7)
     t_i =
 \     (t_i == 0       ) ? "1886a"
 \   : (t_i == 1       ) ? "1886"
