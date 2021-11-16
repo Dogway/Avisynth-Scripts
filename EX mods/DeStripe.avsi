@@ -9,7 +9,6 @@
 ## "thr is strength, rad is "how big are the (whatevers)" offset is "how far apart are they" rad goes from 1 to 5, offset from 1 to 4, thr from 1 to bignumber"
 ##
 
-# revise thr in HBD
 function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV", bool "fulls") {
 
     rgb  = isRGB(C)
@@ -35,7 +34,7 @@ function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV", bool "f
                                        C.ex_luts(mode="avg",pixels="0 -4               0 0             0 4", UV=uv) : Blurred
 
     Diff = ex_makediff(C, Blurred, UV=uv, fulls=fs)
-    expr = Format(" x y - dup dup abs 1 + dup swap2 * swap {thr} 1 >= {thr} 0.5 ^ {thr} ? + / - range_half +")
+    expr = Format(" x y - dup dup abs 1 + dup swap2 * swap {thr} 1 >= {thr} sqrt {thr} ? + / - range_half +")
 
     MedianDiff = Rad == 1 ?               ex_luts(Diff, mode="med", pixels = ex_shape(1, shape="vertical"),            expr = expr, UV=uv, fulls=fs) : Diff
     MedianDiff = Rad == 2 ? offset == 0 ? ex_luts(Diff, mode="med", pixels = ex_shape(2, shape="vertical"),            expr = expr, UV=uv, fulls=fs) : \
@@ -77,7 +76,7 @@ function DeStripeV(Clip C, int "rad", int "offset", int "thr", int "UV",  bool "
                                        C.ex_luts(mode="avg",pixels="-4 0               0 0             4 0", UV=uv) : Blurred
 
     Diff = ex_makediff(C, Blurred, UV=uv, fulls=fs)
-    expr = Format(" x y - dup dup abs 1 + dup swap2 * swap {thr} 1 >= {thr} 0.5 ^ {thr} ? + / - range_half +")
+    expr = Format(" x y - dup dup abs 1 + dup swap2 * swap {thr} 1 >= {thr} sqrt {thr} ? + / - range_half +")
 
     MedianDiff = Rad == 1 ?               ex_luts(Diff, mode="med", pixels = ex_shape(1, shape="horizontal"),          expr = expr, UV=uv, fulls=fs) : Diff
     MedianDiff = Rad == 2 ? offset == 0 ? ex_luts(Diff, mode="med", pixels = ex_shape(2, shape="horizontal"),          expr = expr, UV=uv, fulls=fs) : \
