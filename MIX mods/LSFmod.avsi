@@ -155,11 +155,11 @@
 ### | DEPENDENCIES |
 ### +--------------+
 ###
-### -> Masktools2   (v2.2.28 or up)
-### -> RgTools      (v1.2 or up)
-### -> ExTools      (v6.3 or up)
-### -> ResizersPack (v6.1 or up)
-### -> SharpenersPack                  [for Smode=1 and Smode=2]
+### -> Masktools2     (v2.2.29 or up)
+### -> RgTools        (v1.2 or up)
+### -> ExTools        (v6.7 or up)
+### -> ResizersPack   (v6.1 or up)
+### -> SharpenersPack (v2.4 or up)     [for Smode=1 and Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use AviSynth+ then make sure it's the latest one
 ###
@@ -626,7 +626,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     # Top is a 4-way sobel, Bottom a min/max
-    rhlf  = ex_dlut("range_half", bi, fs)
+    rhlf  = Eval(ex_dlut("range_half", bi, fs))
     rhlf  = bi == 14 || bi == 16 ? Format("{rhlf} /") : string(1./rhlf)+" *"
     emHQn = 1. / ex_bs(32,  8, bi, fulls=fs)
     edge  = edgemaskHQ ? tmp.ex_edge(mode=Format("x[1,-1] C@ x[1,1] I@ + x[-1,-1] A@ - x[-1,1] G@ - x[1,0] x[-1,0] - 2 * + abs "                                                    \
@@ -738,7 +738,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     soft = soft!=-1  ? soft : sqrt( (((ss_x+ss_y)/2.0-1.0)*100.0) ) * 10
     soft = soft!=-2  ? soft : int( (1.0+(2.0/(ss_x+ss_y))) * sqrt(strength) )
     soft = min(soft,100)
-    sharpdiff = ex_makediff(tmp,limit2, UV=1, fulls=fs)
+    sharpdiff = ex_makediff(tmp, limit2, UV=1, fulls=fs)
     sharpdiff = ex_lutxyz(tmp, sharpdiff, sharpdiff.removegrain(20,-1), Format("y "+bi32m+" abs z "+bi32m+" abs > z {soft} * y 100 {soft} - * + 0.01 * y ? x swap - "+bi32p), UV=1, fulls=fs)
 
     PP1 = soft==0 ? limit2 : sharpdiff
