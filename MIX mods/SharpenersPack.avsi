@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v2.3  (14-11-2021)                             ###
+###        Sharpeners Pack v2.4  (16-11-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -387,11 +387,11 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
             1 {scale_cs} - {scale_lim} * N {scale_cs} * + N min N^
 
             {L_compr_high} {L_compr_low} - z "+r_max+" Z@ * {L_compr_low} + CX@ y "+(bi==32?"":"range_half - ")+r_max+" 0 1 clip Y@ 0 max dup {pm_p} ^ swap swap2 *
-            swap P 24 * min 2 * P / 2.718281828 swap ^ dup 1 - swap 1 + / P *
+            swap P 24 * min 2 * P / "+expT(3)+" dup 1 - swap 1 + / P *
             abs {pm_p} ^ 1 CX - abs * + 1 {pm_p} / ^
 
             {D_compr_high} {D_compr_low} - Z              * {D_compr_low} + CY@ Y 0 min dup {pm_p} ^ swap swap2 *
-            swap N 24 * min 2 * N / 2.718281828 swap ^ dup 1 - swap 1 + / N *
+            swap N 24 * min 2 * N / "+expT(3)+" dup 1 - swap 1 + / N *
             abs {pm_p} ^ 1 CY - abs * + 1 {pm_p} / ^ -
 
             X + "+f_max), bi, fs)
@@ -1414,7 +1414,7 @@ Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int
 
     minmaxmed_v   = ex_lutxyz(Max_V, Min_V, Med_V, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.0625  *
                                                                                X                     Y   min B@ 0.25    * +
-                                                                           B A B - - 0 max z range_half - abs + 0.34375 * +"), UV=1, fulls=fs)
+                                                                    B dup A swap - - 0 max z range_half - abs + 0.34375 * +"), UV=1, fulls=fs)
 
     Max_H = ex_luts( C, mode = "max", pixels = ex_shape(Radh, mode="horizontal", center=false), expr = expr, UV=1, fulls=fs)
     Min_H = ex_luts( C, mode = "min", pixels = ex_shape(Radh, mode="horizontal", center=false), expr = expr, UV=1, fulls=fs)
@@ -1423,25 +1423,25 @@ Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int
 
     minmaxmed_h   = ex_lutxyz(Max_H, Min_H, Med_H, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.0625  *
                                                                                X                     Y   min B@ 0.25    * +
-                                                                           B A B - - 0 max z range_half - abs + 0.34375 * +"), UV=1, fulls=fs)
+                                                                    B dup A swap - - 0 max z range_half - abs + 0.34375 * +"), UV=1, fulls=fs)
 
     Blur_V =                C.NLLV(   1,true, fs)
     Blur_V = Rad > 1 ? Blur_V.NLLV(Radv,true, fs) : Blur_V
 
-    Sharp_V = lmode == 0 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - z * {thr2gv8} {strv8} * * 128 +"),                                              UV=1, scale_inputs=si, fulls=fs) : C
-    Sharp_V = lmode == 1 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + X z 0.5 ^ * {thrstrh} * 128 + ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_V
-    Sharp_V = lmode == 2 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + z 0 > X {strv8} * 128 + 128 ? ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_V
-    Sharp_V = lmode == 3 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ abs z > X z * {thr2gv8} {strv8} * * 128 + X {strv8} * 128 + ?"),             UV=1, scale_inputs=si, fulls=fs) : Sharp_V
-    Sharp_V = lmode == 4 ? ex_lutxy (C, Blur_V,              Format(" x y - {strv8} * 128 +"),                                                              UV=1, scale_inputs=si, fulls=fs) : Sharp_V
+    Sharp_V = lmode == 0 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - z * {thr2gv8} {strv8} * * 128 +"),                                                    UV=1, scale_inputs=si, fulls=fs) : C
+    Sharp_V = lmode == 1 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ dup abs z > swap z * {thr2gv8} {strv8} * * 128 + X z sqrt * {thrstrh} * 128 + ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_V
+    Sharp_V = lmode == 2 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ dup abs z > swap z * {thr2gv8} {strv8} * * 128 + z 0 > X {strv8} * 128 + 128 ? ?"),UV=1, scale_inputs=si, fulls=fs) : Sharp_V
+    Sharp_V = lmode == 3 ? ex_lutxyz(C, Blur_V, minmaxmed_v, Format(" x y - X@ dup abs z > swap z * {thr2gv8} {strv8} * * 128 + X {strv8} * 128 + ?"),            UV=1, scale_inputs=si, fulls=fs) : Sharp_V
+    Sharp_V = lmode == 4 ? ex_lutxy (C, Blur_V,              Format(" x y - {strv8} * 128 +"),                                                                    UV=1, scale_inputs=si, fulls=fs) : Sharp_V
 
     Blur_H =                C.NLLH(   1,true, fs)
     Blur_H = Rad > 1 ? Blur_H.NLLH(Radh,true, fs) : Blur_H
 
-    Sharp_H = lmode == 0 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - z * {thr2gh8} {strh8} * * 128 +"),                                              UV=1, scale_inputs=si, fulls=fs) : C
-    Sharp_H = lmode == 1 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + X z 0.5 ^ * {thrstrv} * 128 + ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_H
-    Sharp_H = lmode == 2 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + z 0 > X {strh8} * 128 + 128 ? ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_H
-    Sharp_H = lmode == 3 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ abs z > X z * {thr2gh8} {strh8} * * 128 + X {strh8} * 128 + ?"),             UV=1, scale_inputs=si, fulls=fs) : Sharp_H
-    Sharp_H = lmode == 4 ? ex_lutxy (C, Blur_H,              Format(" x y - {strh8} * 128 +"),                                                              UV=1, scale_inputs=si, fulls=fs) : Sharp_H
+    Sharp_H = lmode == 0 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - z * {thr2gh8} {strh8} * * 128 +"),                                                    UV=1, scale_inputs=si, fulls=fs) : C
+    Sharp_H = lmode == 1 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ dup abs z > swap z * {thr2gh8} {strh8} * * 128 + X z sqrt * {thrstrv} * 128 + ?"), UV=1, scale_inputs=si, fulls=fs) : Sharp_H
+    Sharp_H = lmode == 2 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ dup abs z > swap z * {thr2gh8} {strh8} * * 128 + z 0 > X {strh8} * 128 + 128 ? ?"),UV=1, scale_inputs=si, fulls=fs) : Sharp_H
+    Sharp_H = lmode == 3 ? ex_lutxyz(C, Blur_H, minmaxmed_h, Format(" x y - X@ dup abs z > swap z * {thr2gh8} {strh8} * * 128 + X {strh8} * 128 + ?"),            UV=1, scale_inputs=si, fulls=fs) : Sharp_H
+    Sharp_H = lmode == 4 ? ex_lutxy (C, Blur_H,              Format(" x y - {strh8} * 128 +"),                                                                    UV=1, scale_inputs=si, fulls=fs) : Sharp_H
 
     ex_lutxyz(C, Sharp_V, Sharp_H, "x y z + + range_half - range_half -", UV=1, fulls=fs) }
 
@@ -1521,14 +1521,14 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
 
     minmax_G_V   = ex_lutxy(Max_V, Min_V, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.1  *
                                                                       X                     Y   min B@ 0.35 * +
-                                                                                       B A B - - 0 max 0.55 * +"), UV=1, fulls=fs)
+                                                                                B dup A swap - - 0 max 0.55 * +"), UV=1, fulls=fs)
 
     Max_H = ex_luts( C, mode = "max", pixels = ex_shape(1, mode="vertical", center=false), expr = exprh, UV=1, fulls=fs)
     Min_H = ex_luts( C, mode = "min", pixels = ex_shape(1, mode="vertical", center=false), expr = exprh, UV=1, fulls=fs)
 
     minmax_G_H   = ex_lutxy(Max_H, Min_H, Format(" x range_half - abs X@ y range_half - abs Y@  max A@ 0.1  *
                                                                       X                     Y   min B@ 0.35 * +
-                                                                                       B A B - - 0 max 0.55 * +"), UV=1, fulls=fs)
+                                                                                B dup A swap - - 0 max 0.55 * +"), UV=1, fulls=fs)
 
     HPSharp = Expr(C, lp_V, lp_H, minmax_G_V, minmax_G_H, DeEmphasis, Format("x y - X@ a {un} max * a X abs - {un} max /
                                                                               y z - X@ b {un} max * b X abs - {un} max / + c +" ), isy ? Undefined() : "", optSingleMode=true)
@@ -1643,9 +1643,9 @@ function NLHH2(Clip C, bool "fulls") {
     B3 = C.BlurH(3, 0.944)
     B4 = C.BlurH(4, 0.981)
 
-    Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
+    Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  S@ abs X^
+                                              x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  S@ abs X^
+                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
     }
 
 function NLHV2(Clip C, bool "fulls") {
@@ -1660,9 +1660,9 @@ function NLHV2(Clip C, bool "fulls") {
     B3 = C.BlurH(3, 0.944)
     B4 = C.BlurH(4, 0.981)
 
-    Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
+    Expr(C, B1, B2, B3, B4, "x y - S@ abs X^  z x - T@ abs Y^  S T X Y * A@ 1 + * A Y 0.75 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  S@ abs X^
+                                              x a - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.25 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  S@ abs X^
+                                              b x - T@ abs Y^  S T X Y * A@ 1 + * A Y 6.75 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
     }
 
 function NLLH(Clip C, int "rad", bool "var4", bool "fulls") {
@@ -1679,9 +1679,9 @@ function NLLH(Clip C, int "rad", bool "var4", bool "fulls") {
     B3 = C.BlurH((v4?3:5)*rad, 0.934)
     B4 = C.BlurH((v4?4:7)*rad, 0.983)
 
-    Expr(C, B1, B2, B3, B4, "y x - S@ abs X^  x z - T@ abs Y^  S T X Y * A@ 1 + * A Y 1.915 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              a x - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.025 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
+    Expr(C, B1, B2, B3, B4, "y x - S@ abs X^  x z - T@ abs Y^  S T X Y * A@ 1 + * A Y 1.915 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  S@ abs X^
+                                              a x - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.025 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  S@ abs X^
+                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
     }
 
 function NLLV(Clip C, int "rad", bool "var4", bool "fulls") {
@@ -1698,9 +1698,9 @@ function NLLV(Clip C, int "rad", bool "var4", bool "fulls") {
     B3 = C.BlurV((v4?3:5)*rad, 0.934)
     B4 = C.BlurV((v4?4:7)*rad, 0.983)
 
-    Expr(C, B1, B2, B3, B4, "y x - S@ abs X^  x z - T@ abs Y^  S T X Y * A@ 1 + * A Y 1.915 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              a x - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.025 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  S@ abs X^
-                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 X 0 > S 1 ? / ^ 1 ? / 1 * 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
+    Expr(C, B1, B2, B3, B4, "y x - S@ abs X^  x z - T@ abs Y^  S T X Y * A@ 1 + * A Y 1.915 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  S@ abs X^
+                                              a x - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.025 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  S@ abs X^
+                                              x b - T@ abs Y^  S T X Y * A@ 1 + * A Y 2.077 * X - 0 max  X 0 > X -1 S / ^ 1 ? / 0 max + 1 + / +  x +", isy ? Undefined() : "", scale_inputs = fs ? "allf" : "all")
     }
 
 
