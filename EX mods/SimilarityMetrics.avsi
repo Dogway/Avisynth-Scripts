@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v1.6  (14-11-2021)                     ###
+###        Similarity Metrics Pack v1.7  (16-11-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -509,7 +509,7 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
         n = vsTCanny(Expr(l, "x dup *"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
         o = vsTCanny(Eval(kernel + """(Expr("x dup *"),""" + String(target_width) + "," +  String(target_height) + resample_args + ")"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
 
-        r = ex_lutxyz(n, o, Expr(m, "x dup *"), Format("x z - X@ {epsilon} < 0 y z - X / 0.5 ^ ?"), UV=3)
+        r = ex_lutxyz(n, o, Expr(m, "x dup *"), Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"), UV=3)
 
         m = vsTCanny(m, sigmaY=smooth, sigma_vY=smooth, mode=-1)
         n = vsTCanny(r, sigmaY=smooth, sigma_vY=smooth, mode=-1)
@@ -520,7 +520,7 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
     else
     {
         m = l.Eval(smooth)
-        r = Expr(Expr(l, "x dup *").Eval(smooth), Eval(kernel + """(Expr("x dup *"),""" + String(target_width) + "," +  String(target_height) + resample_args + ")").Eval(smooth),  Expr(m, "x dup *"), Format("x z - X@ {epsilon} < 0 y z - X / 0.5 ^ ?"))
+        r = Expr(Expr(l, "x dup *").Eval(smooth), Eval(kernel + """(Expr("x dup *"),""" + String(target_width) + "," +  String(target_height) + resample_args + ")").Eval(smooth),  Expr(m, "x dup *"), Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"))
         ex_lutxyza(m.Eval(smooth), r.Eval(smooth), l, Expr(r, m, "x y *").Eval(smooth), "x y z * + a -",UV=3)
     }
 
