@@ -43,7 +43,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 ##    ex_guidedblur() port from WolframRhodium's VapourSynth function in muvsfunc.py
 ##
 ##    Guided Filter - fast edge-preserving smoothing algorithm
-##    Author: Kaiming He et al. (http://kaiminghe.com/eccv10/)
+##    Author: Kaiming He et al. (https://kaiminghe.com/eccv10/)
 ##
 ##    The guided filter computes the filtering output by considering the content of a guidance image.
 ##    It can be used as an edge-preserving smoothing operator like the popular bilateral filter,

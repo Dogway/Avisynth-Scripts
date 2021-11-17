@@ -169,10 +169,10 @@ function PadResize(clip c, int "width_dst", int "height_dst", int "mod", string 
 ###
 ### Superseeds Addborders(), old PadMirror() and Didée's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804#post1596804)
 ### in one single filter.
-### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (http://avisynth.nl/index.php/Color_presets).
+### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (https://avisynth.nl/index.php/Color_presets).
 ###
 ### 'Dilate' is slightly faster than 'Mirror' (and probably filter friendlier)
-###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (http://forum.doom9.org/showthread.php?p=518131#post518131)
+###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131#post518131)
 ###
 ### *Color mode has two ways for inputs, the classical PC range based hexadecimal (see link above) or an alternative more intuitive way
 ###  by using an int array as string. For example for YUV TV Black you can input "$108080" or "[16,128,128]". Both modes are valid.
@@ -231,7 +231,7 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 
 ##############################
 ### Adjust source to mod(n) size by adding or cropping borders. by Gavino
-### From this thread: http://forum.doom9.org/showthread.php?p=1453641#post1453641
+### From this thread: https://forum.doom9.org/showthread.php?p=1453641#post1453641
 function mmod(clip c, int "modH", int "modV", string "mode", string "color")
 {
     modH = Default(modH,        16)
@@ -260,7 +260,7 @@ function mmod(clip c, int "modH", int "modV", string "mode", string "color")
 #
 #  Description from SmoothD2c:
 #
-# "mod-4"   see "Crop restrictions" in http://avisynth.org/mediawiki/Crop
+# "mod-4"   see "Crop restrictions" in https://avisynth.nl/index.php/Crop
 #           nmod(n,4) is used in many scripts that do resizing.
 # "mod-8"   is used so that cropping will occur on luma block (8x8) boundaries
 #           and that resizing will produce an integer number of luma blocks.
@@ -315,10 +315,10 @@ function ColortoHex(string color) {
 ### Dependencies:
 ### ------------
 ###   ExTools
-###   ClipBoard          (http://avisynth.nl/index.php/ClipBoard)
+###   ClipBoard          (https://avisynth.nl/index.php/ClipBoard)
 ###   SCSelect_HBD v0.02 (https://github.com/Dogway/Avisynth-Scripts/tree/master/EX%20mods)
 ###   MasksPack          (https://github.com/Dogway/Avisynth-Scripts)
-###   EdgeFixer          (http://avisynth.nl/index.php/EdgeFixer)
+###   EdgeFixer          (https://avisynth.nl/index.php/EdgeFixer)
 ###
 ###
 ### i.e.

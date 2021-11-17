@@ -49,7 +49,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert"
 ### FlatMask (MIX mod)
 ###
 ### 17-06-2021
-### by cretindesalpes: (http://forum.doom9.org/showthread.php?p=1507257#post1507257)
+### by cretindesalpes: (https://forum.doom9.org/showthread.php?p=1507257#post1507257)
 ### Ported back from real.finder's HBD mod
 ###
 ### Blends original with filtered (e.g. denoised) clip by masking out flat areas with weak, small or no detail.
@@ -64,7 +64,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert"
 ###
 ###
 ### Requires:
-### Masktools2: http://forum.doom9.org/showthread.php?t=98985
+### MaskTools2: https://avisynth.nl/index.php/MaskTools2
 ### ExTools:    https://forum.doom9.org/showthread.php?t=182881
 ###
 ###########################
@@ -119,12 +119,12 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
 
 ##############################################################
 ###                                                          #
-### LumaMask() (11-06-2021)                                  #
+### LumaMask() (12-11-2021)                                  #
 ###                                                          #
 ##############################################################
 ###
 ### Function by Didée, adapted by Dogway:
-### http://forum.doom9.org/showpost.php?p=761786&postcount=3
+### https://forum.doom9.org/showpost.php?p=761786&postcount=3
 ###
 ###
 ### Mixes 2 versions of a source by a mask defined by luminosity (Luma Plane)

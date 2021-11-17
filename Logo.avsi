@@ -3,10 +3,9 @@
 ###
 ###  (13-10-2021) By Dogway
 ###
-### With help from Gavino and Didée   (http://forum.doom9.org/showthread.php?t=160285)
-### Blending Modes adapted from:Blend_MT_alpha3 (http://forum.doom9.org/showthread.php?p=1400434#post1400434)
-### Watermark code adapted from:Didée's Ylevels (http://forum.doom9.org/showthread.php?p=525465#post525465)
-### mmod2 function adapted from:                (http://forum.doom9.org/showthread.php?t=157632)
+### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
+### Blending Modes adapted from:Blend_MT_alpha3 (https://forum.doom9.org/showthread.php?p=1400434#post1400434)
+### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465#post525465)
 ###
 ### -It is a fast and handy function for adding logos or other type of elements upfront the video image in YV12 space.
 ### -It will stack on the video using a mask if the image has alpha. Moreover you can blend it using a blending mode.
@@ -14,7 +13,7 @@
 ### -For help on parameters, read the #comments right next to the "Default()" column.
 ###
 ### Dependencies:
-###    AviSynth+ 3.5+, masktools2, ExTools, GradePack, ResizersPack, TransformsPack and Immaavs (for GIFs)
+###    AviSynth+ 3.5+, MaskTools2, ExTools, GradePack, ResizersPack, TransformsPack and Immaavs (for GIFs)
 ###
 ### Todo / Known bugs:
 ###   -Add interlaced support
@@ -141,8 +140,8 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     Assert(start <= end,     "Invalid start frame: "       +String(start)) : nop()
     Assert(start <=  Fc,     "Start frame out of bounds: " +String(start))
     Assert(start >=   0,     "Start frame out of bounds: " +String(start))
-    Assert(end  <  Fc+1,     "End frame out of bounds: "   +String(end))
-    Assert(end  >=   -1,     "End frame out of bounds: "   +String(end))
+    Assert(end   < Fc+1,     "End frame out of bounds: "   +String(end))
+    Assert(end   >=  -1,     "End frame out of bounds: "   +String(end))
     end2 = end == 0 || end == Fc-1 ? Fc : end
 
 
