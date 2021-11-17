@@ -2,13 +2,13 @@
 # FastLineDarken 2.1 MOD ex  #
 ##############################
 #
-# Written by Vectrangle    (http://forum.doom9.org/showthread.php?t=82125)
-# Didée: - Speed Boost, Updated: 11th May 2007
-# Dogway - added protection option. 12-May-2011
+# Written by Vectrangle    (https://forum.doom9.org/showthread.php?t=82125)
+# Didée: - Speed Boost, Updated:             11-May-2007
+# Dogway - added protection option.          12-May-2011
 # Dogway - 2.0ex Updated to internal Expr(). 27-May-2021
-# Dogway - 2.1ex Updated to ExTools.         09-Sept-2021
+# Dogway - 2.1ex Updated to ExTools.         09-Sep-2021
 #
-#  * requires ExTools v5.5
+#  * requires ExTools
 #  * requires yv12 input
 #
 # Usage is FastLineDarkenMOD(strength, prot, luma_cap, threshold, thinning),
@@ -38,7 +38,7 @@
 #
 # Changelog:
 #  2.1  - Updated to latest ExTools
-#  2.0  - Converted all masktools2 calls to internal Expr(). Supports HBD.
+#  2.0  - Converted all MaskTools2 calls to internal Expr(). Supports HBD.
 #  1.4  - added protection option. Prevents darkest lines to be over darkened thus creating artifacts (i.e. aliasing, clipping...)
 #       - Optmized the code as suggested by Didée for possible faster processing. It also deals with the green screen bug.
 #  1.3  - added ability to thin lines, now runs much slower unless thinning=0. Changed the defaults (again)

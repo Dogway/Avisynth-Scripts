@@ -33,7 +33,7 @@ All the internal calculations are done at 32-bit float, only one channel of the 
 Ref:
     [1] Xue, W., Zhang, L., Mou, X., & Bovik, A. C. (2014). Gradient magnitude similarity deviation:
         A highly efficient perceptual image quality index. IEEE Transactions on Image Processing, 23(2), 684-695.
-    [2] http://www4.comp.polyu.edu.hk/~cslzhang/IQA/GMSD/GMSD.htm.
+    [2] https://www4.comp.polyu.edu.hk/~cslzhang/IQA/GMSD/GMSD.htm.
 */
 
 

@@ -8,9 +8,9 @@
 # v1.40 - BWmask bugfixes                        by Dogway on   Oct 28, 2021
 #
 # Dependencies:
-#   masktools2
+#   MaskTools2
 #   FrameRateConverter
-#     mvtools2
+#     MVTools
 #     RgTools / ExTools
 #   TIVTC
 #

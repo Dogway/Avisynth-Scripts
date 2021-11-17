@@ -52,7 +52,7 @@
 ###
 ### 2021.05.27 mx
 ###      - Removed < AviSynth+ 3.5 support
-###      - Replaced masktools2 with internal Expr() wrappers
+###      - Replaced MaskTools2 with internal Expr() wrappers
 ###
 ### 2020.04.06
 ###      - HBD for avs+
@@ -89,10 +89,10 @@
 ###
 ### -> AddGrainC         [v1.8.3]
 ### -> RgTools           [v1.2]
-### -> MaskTools2        [v2.2.28]
+### -> MaskTools2        [v2.2.29]
 ### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v6.1.0]
-### -> ResizersPack      [v6.0.0]
+### -> ExTools           [v6.7.0]
+### -> ResizersPack      [v6.1.0]
 ###
 
 function GrainFactory3mod(clip clp,

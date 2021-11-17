@@ -7,7 +7,7 @@
 ###
 ### By z. ndmn.(zee944) with Didée guidance.
 ### v4.0 Optimized by Dogway (18-10-2021)
-### http://forum.doom9.org/showthread.php?t=159248
+### https://forum.doom9.org/showthread.php?t=159248
 ###
 ###
 ### Dependencies:

@@ -5,6 +5,8 @@
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
 #     QTGMC 3.68 mix mod by Dogway 2021, based on 3.382s            #
 #                                                                   #
+#     https://avisynth.nl/index.php/QTGMC                           #
+#                                                                   #
 #   A high quality deinterlacer using motion-compensated temporal   #
 #  smoothing, with a range of features for quality and convenience  #
 #          Originally based on TempGaussMC_beta2 by Didée           #
@@ -68,7 +70,7 @@
 # - Removed Dither tools related arguments
 #
 # v3.50mx
-# - Replaced masktools2 with Expr calls via ExTools pack wrappers (except mt_merge)
+# - Replaced MaskTools2 with Expr calls via ExTools pack wrappers (except mt_merge)
 # - Merged redundant expressions
 # - Replaced blurs and medians with ExTools equivalents
 # - Replaced Vinverse_avsi() with ex_vinverse() (HBD) and vinverse() (8bit)
@@ -211,7 +213,7 @@
 #
 # Core plugins:
 #   MVTools2   (2.7.45 or above)
-#   MaskTools2 (2.2.28 or above)
+#   MaskTools2 (2.2.29 or above)
 #   NNEDI3     (0.9.4.59 or above)
 #   RgTools    (1.2 or above)
 #   vsTCanny   (for gaussian blur)
@@ -219,8 +221,8 @@
 #   Vinverse
 #
 # Core scripts:
-#   ExTools      (6.3 or above)
-#   SMDegrain    (3.3.5 or above) (for ex_luma_rebuild() )
+#   ExTools      (6.7 or above)
+#   SMDegrain    (3.3.8 or above) (for ex_luma_rebuild() )
 #   Zs_RF_Shared (1.154 or above) (for sh_Bob and nonyuy2clipin)
 #
 # Additional plugins and scripts:

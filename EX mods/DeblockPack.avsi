@@ -35,8 +35,8 @@
 ### In block interiours, the chances of differentiating 1st/2nd generation blocking artefacts from actual detail are poor anyway, and danger is high to remove detail.
 ### So, for block interiours get only a different "shading"
 ###
-### http://avisynth.nl/index.php/Deblock_QED
-### http://web.archive.org/web/20060509152326/http://home.arcor.de/dhanselmann/_stuff/Deblock_QED.avs
+### https://avisynth.nl/index.php/Deblock_QED
+### https://web.archive.org/web/20060509152326/http://home.arcor.de/dhanselmann/_stuff/Deblock_QED.avs
 ### http://videoprocessing.forumer.com/viewtopic.php?p=413
 ### https://forum.doom9.org/showthread.php?p=751174#post751174
 ###
@@ -65,7 +65,7 @@
 ### Changes 2010-10-16: (Bi11)
 ### - Replaced 'relative' with the new 'mode' parameter in mt_LutSpa(), starting from MaskTools 2.0a45
 ### - Changed Quant and Offset defaults to 24,26,1,1,2,2 to increase effectiveness, but still within sensible limits.
-###   (see for details: http://forum.doom9.org/showthread.php?p=810932#post810932)
+###   (see for details: https://forum.doom9.org/showthread.php?p=810932#post810932)
 ###
 ### Changes 2011-11-29: (06_taro)
 ### - Replaced (chroma=uv>2?"process":"ignore") by (chroma=uv>2?"process":"copy") to avoid garbage clip when uv=2.
@@ -117,7 +117,7 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
     h    = clp.height()
     padX = w%8 == 0 ? 0 : (8 - w%8)
     padY = h%8 == 0 ? 0 : (8 - h%8)
-    clp=clp.PadBorders(0,0,padX,padY)
+    clp  = clp.PadBorders(0,0,padX,padY)
 
     # block
     block = clp.ex_lutspa(mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?", UV=!isy && uv!=2 ? 3 : 1, fulls=fs)
@@ -210,10 +210,10 @@ function oyster_Super(clip src, int "pel") {
     bi  = BitsPerComponent(src)
     rgb = isRGB(src)
 
-    Assert(isclip(src),          "Oyster.Super: src has to be a video clip!")
-    Assert(bi == 32,             "Oyster.Super: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb,    "Oyster.Super: subsampled stuff not supported!")
-    Assert(pel == 2 || pel == 4, "Oyster.Super: pel has to be 2 or 4!")
+    Assert(isclip(src),          "oyster_Super: src has to be a video clip!")
+    Assert(bi == 32,             "oyster_Super: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,    "oyster_Super: subsampled stuff not supported!")
+    Assert(pel == 2 || pel == 4, "oyster_Super: pel has to be 2 or 4!")
 	cores   = SI_PhysicalCores()
 	threads = SI_LogicalCores()
 
@@ -244,16 +244,16 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
 
-    Assert(isclip(src),                "Oyster.Basic: src has to be a video clip!")
-    Assert(is444(src) || rgb,          "Oyster.Basic: subsampled stuff not supported!")
-    Assert(pel == 1 || pel == 2 || pel == 4, "Oyster.Super: pel has to be 1, 2 or 4!")
-    Assert(isclip(super),              "Oyster.Basic: super has to be a video clip or None!")
-    Assert(isint(radius),              "Oyster.Basic: radius has to be an integer!")
-    Assert(radius>1,                   "Oyster.Basic: radius has to be greater than 0!")
-    Assert(isint(pel),                 "Oyster.Basic: pel has to be an integer!")
-    Assert(isint(sad) || isfloat(sad), "Oyster.Basic: sad has to be a real number!")
-    Assert(sad>0,                      "Oyster.Basic: sad has to be greater than 0!")
-    Assert(isbool(short_time),         "Oyster.Basic: short_time has to be boolean!")
+    Assert(isclip(src),                "oyster_Basic: src has to be a video clip!")
+    Assert(is444(src) || rgb,          "oyster_Basic: subsampled stuff not supported!")
+    Assert(pel == 1 || pel == 2 || pel == 4, "oyster_Super: pel has to be 1, 2 or 4!")
+    Assert(isclip(super),              "oyster_Basic: super has to be a video clip or None!")
+    Assert(isint(radius),              "oyster_Basic: radius has to be an integer!")
+    Assert(radius>1,                   "oyster_Basic: radius has to be greater than 0!")
+    Assert(isint(pel),                 "oyster_Basic: pel has to be an integer!")
+    Assert(isint(sad) || isfloat(sad), "oyster_Basic: sad has to be a real number!")
+    Assert(sad>0,                      "oyster_Basic: sad has to be greater than 0!")
+    Assert(isbool(short_time),         "oyster_Basic: short_time has to be boolean!")
 
     src   = rgb ? RGB_to_OPP(src) : src
     src   = AssumeFrameBased(src)
@@ -318,18 +318,18 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "h", float "si
     bi  = BitsPerComponent(src)
     bir = BitsPerComponent(ref)
 
-    Assert(isclip(src),              "Oyster.Deringing: src has to be a video clip!")
-    Assert(bi == 32,                 "Oyster.Deringing: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb,        "Oyster.Deringing: subsampled stuff not supported!")
-    Assert(isclip(ref),              "Oyster.Deringing: ref has to be a video clip!")
-    Assert(bir == 32,                "Oyster.Deringing: the sample type of ref has to be single precision!")
-    Assert(is444(ref) || isrgb(ref), "Oyster.Deringing: subsampled stuff not supported!")
-    Assert(isint(radius),            "Oyster.Deringing: radius has to be an integer!")
-    Assert(radius>1,                 "Oyster.Deringing: radius has to be greater than 0!")
-    Assert(isint(h) || isfloat(h),   "Oyster.Deringing: h has to be a real number!")
-    Assert(h>=0,                     "Oyster.Deringing: h has to be greater than 0!")
-#    Assert(isint(mse0) || isfloat(mse0), "Oyster.Deringing: sad has to be a real number or None!")
-#    Assert(isint(mse1) || isfloat(mse1), "Oyster.Deringing: sad has to be a real number or None!")
+    Assert(isclip(src),              "oyster_Deringing: src has to be a video clip!")
+    Assert(bi == 32,                 "oyster_Deringing: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,        "oyster_Deringing: subsampled stuff not supported!")
+    Assert(isclip(ref),              "oyster_Deringing: ref has to be a video clip!")
+    Assert(bir == 32,                "oyster_Deringing: the sample type of ref has to be single precision!")
+    Assert(is444(ref) || isrgb(ref), "oyster_Deringing: subsampled stuff not supported!")
+    Assert(isint(radius),            "oyster_Deringing: radius has to be an integer!")
+    Assert(radius>1,                 "oyster_Deringing: radius has to be greater than 0!")
+    Assert(isint(h) || isfloat(h),   "oyster_Deringing: h has to be a real number!")
+    Assert(h>=0,                     "oyster_Deringing: h has to be greater than 0!")
+#    Assert(isint(mse0) || isfloat(mse0), "oyster_Deringing: sad has to be a real number or None!")
+#    Assert(isint(mse1) || isfloat(mse1), "oyster_Deringing: sad has to be a real number or None!")
 
     if (rgb) {
        src    = RGB_to_OPP(src)
@@ -402,20 +402,20 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     bi  = BitsPerComponent(src)
     bir = BitsPerComponent(ref)
 
-    Assert(isclip(src),                    "Oyster.Destaircase: src has to be a video clip!")
-    Assert(bi == 32,                       "Oyster.Destaircase: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb,              "Oyster.Destaircase: subsampled stuff not supported!")
-    Assert(isclip(ref),                    "Oyster.Destaircase: ref has to be a video clip!")
-    Assert(bir == 32,                      "Oyster.Destaircase: the sample type of ref has to be single precision!")
-    Assert(is444(ref) || isrgb(ref),       "Oyster.Destaircase: subsampled stuff not supported!")
-    Assert(isint(radius),                  "Oyster.Destaircase: radius has to be an integer!")
-    Assert(radius>1,                       "Oyster.Destaircase: radius has to be greater than 0!")
-    Assert(isint(thr) || isfloat(thr),     "Oyster.Destaircase: thr has to be a real number!")
-    Assert(thr>=0 && thr<= 1,              "Oyster.Destaircase: thr has to fall in [0, 1]!")
-    Assert(isint(elast) || isfloat(elast), "Oyster.Destaircase: elast has to be a real number!")
-    Assert(elast>=0 && elast<=thr,         "Oyster.Destaircase: elast has to fall in [0, thr]!")
-#    Assert(isint(mse0) || isfloat(mse0), "Oyster.Destaircase: sad has to be a real number or None!")
-#    Assert(isint(mse1) || isfloat(mse1), "Oyster.Destaircase: sad has to be a real number or None!")
+    Assert(isclip(src),                    "oyster_Destaircase: src has to be a video clip!")
+    Assert(bi == 32,                       "oyster_Destaircase: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,              "oyster_Destaircase: subsampled stuff not supported!")
+    Assert(isclip(ref),                    "oyster_Destaircase: ref has to be a video clip!")
+    Assert(bir == 32,                      "oyster_Destaircase: the sample type of ref has to be single precision!")
+    Assert(is444(ref) || isrgb(ref),       "oyster_Destaircase: subsampled stuff not supported!")
+    Assert(isint(radius),                  "oyster_Destaircase: radius has to be an integer!")
+    Assert(radius>1,                       "oyster_Destaircase: radius has to be greater than 0!")
+    Assert(isint(thr) || isfloat(thr),     "oyster_Destaircase: thr has to be a real number!")
+    Assert(thr>=0 && thr<= 1,              "oyster_Destaircase: thr has to fall in [0, 1]!")
+    Assert(isint(elast) || isfloat(elast), "oyster_Destaircase: elast has to be a real number!")
+    Assert(elast>=0 && elast<=thr,         "oyster_Destaircase: elast has to fall in [0, thr]!")
+#    Assert(isint(mse0) || isfloat(mse0), "oyster_Destaircase: sad has to be a real number or None!")
+#    Assert(isint(mse1) || isfloat(mse1), "oyster_Destaircase: sad has to be a real number or None!")
 
     if (rgb) {
        src    = RGB_to_OPP(src)
@@ -471,16 +471,16 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
     bi  = BitsPerComponent(src)
     bir = BitsPerComponent(ref)
 
-    Assert(isclip(src),              "Oyster.Deblocking: src has to be a video clip!")
-    Assert(bi == 32,                 "Oyster.Deblocking: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb,        "Oyster.Deblocking: subsampled stuff not supported!")
-    Assert(isclip(ref),              "Oyster.Deblocking: ref has to be a video clip!")
-    Assert(bir == 32,                "Oyster.Deblocking: the sample type of ref has to be single precision!")
-    Assert(is444(ref) || isrgb(ref), "Oyster.Deblocking: subsampled stuff not supported!")
-    Assert(isint(radius),            "Oyster.Deblocking: radius has to be an integer!")
-    Assert(radius>1,                 "Oyster.Deblocking: radius has to be greater than 0!")
-    Assert(isint(h) || isfloat(h),   "Oyster.Deblocking: h has to be a real number!")
-    Assert(h>0,                      "Oyster.Deblocking: h has to be greater than 0!")
+    Assert(isclip(src),              "oyster_Deblocking: src has to be a video clip!")
+    Assert(bi == 32,                 "oyster_Deblocking: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,        "oyster_Deblocking: subsampled stuff not supported!")
+    Assert(isclip(ref),              "oyster_Deblocking: ref has to be a video clip!")
+    Assert(bir == 32,                "oyster_Deblocking: the sample type of ref has to be single precision!")
+    Assert(is444(ref) || isrgb(ref), "oyster_Deblocking: subsampled stuff not supported!")
+    Assert(isint(radius),            "oyster_Deblocking: radius has to be an integer!")
+    Assert(radius>1,                 "oyster_Deblocking: radius has to be greater than 0!")
+    Assert(isint(h) || isfloat(h),   "oyster_Deblocking: h has to be a real number!")
+    Assert(h>0,                      "oyster_Deblocking: h has to be greater than 0!")
 
     if (rgb) {
        src    = RGB_to_OPP(src)
@@ -716,7 +716,7 @@ function MSUDeCor(clip a, int "UV") {
 ##    SmoothDeblock 0.3 by Redford (redfordxx) (23-05-2006)
 ##    Port to ExTools (WIP)
 ##
-##    http://forum.doom9.org/showthread.php?t=111526
+##    https://forum.doom9.org/showthread.php?t=111526
 ##
 ##    issues and todo's:
 ##        Find best averaging weight matrices for combining DCT shifts (=minimize artefacts at high quants and increase sharpness)
@@ -903,12 +903,12 @@ function SmoothDeblock4(clip orig, int "passes", int "density", int "inclOrig", 
 
 ###
 #  SmoothD2c() Version a3
-#  http://avisynth.nl/index.php/SmoothD2
+#  https://avisynth.nl/index.php/SmoothD2
 #
 #  Dependencies
-#    SmoothD2.dll  available from http://sites.google.com/site/pavelsx2/
-#    aWarpSharp2.dll  available from http://sites.google.com/site/pavelsx2/
-#    MaskTools2.dll available   from http://avisynth.org/mediawiki/MaskTools2
+#    SmoothD2       https://avisynth.nl/index.php/SmoothD2
+#    aWarpSharp2    https://avisynth.nl/index.php/AWarpSharp2
+#    MaskTools2     https://avisynth.nl/index.php/MaskTools2
 #
 ###
 #  RESTRICTIONS
@@ -1120,7 +1120,7 @@ function buildZmask(clip clp, int "Cpr", bool "fulls") {
 
     clp.SmoothD2(quant=31, num_shift=4, Matrix=29, Qtype=1, ZW=0, ZWce=1, ZWlmDark=0, ZWlmBright=255, ncpu=1)
     ex_invert()
-    ex_YlevelsS(90,1.01,240,0,255,fs) # This does a non linear range expansion see http://forum.doom9.org/showthread.php?t=79898
+    ex_YlevelsS(90,1.01,240,0,255,fs) # This does a non linear range expansion see https://forum.doom9.org/showthread.php?t=79898
     msk = ex_invert()
 
     ZWmask = (Cpr ==  0)  ?  clp
@@ -1196,7 +1196,7 @@ function ex_YlevelsS(clip clp, int a, float gamma, int b, int c, int d, bool fs)
 #                                           #
 #############################################
 
-# http://forum.doom9.org/showthread.php?t=111526 redfordxx 23rd May 2006, 21:14
+# https://forum.doom9.org/showthread.php?t=111526 redfordxx 23rd May 2006, 21:14
 
 function SD_Matrix (clip clp, int "UV") {
 

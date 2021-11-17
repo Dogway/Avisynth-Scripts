@@ -1,7 +1,7 @@
 # MultiSWAR - Multi Step Warping And Resizing - V2 Beta 7
 #
 #
-#             by *.mp4 guy (07-02-2007)- http://forum.doom9.org/showthread.php?t=112526
+#             by *.mp4 guy (07-02-2007)- https://forum.doom9.org/showthread.php?t=112526
 #
 # It is designed to reduce the blurring and aliasing associated with linear resizing,
 # without introducing additional artifacts or being too slow for practical use.
@@ -18,10 +18,10 @@
 #         ResizersPack
 #         SharpenersPack
 #         SPresso
-#         vsTbilateral (http://avisynth.nl/index.php/VsTBilateral)
-#         medianblur   (http://avisynth.org/tsp/)
-#         warpsharp    (http://avisynth.org/warpenterprises/)
-#         awarpsharp2  (http://avisynth.nl/index.php/AWarpSharp2)
+#         vsTbilateral (https://avisynth.nl/index.php/VsTBilateral)
+#         MedianBlur2  (https://avisynth.nl/index.php/MedianBlur2)
+#         WarpSharp    (https://avisynth.nl/index.php/WarpSharp)
+#         aWarpSharp2  (https://avisynth.nl/index.php/AWarpSharp2)
 #
 # DestX/DestY:  Default 2x input resolution. Sets the output resolution
 #        (yes its really obvious)
