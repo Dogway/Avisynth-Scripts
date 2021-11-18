@@ -28,7 +28,7 @@
 ### fulls: Defines the scale of HBD values when converting from/to integer HBD (10, 12, 14, 16)
 ###        ConvertBits() defaults to false for YUV, same in ExTools.
 ###
-### Dependencies: AviSynth+ 3.7.1 (3.7.1 test25+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.7.1 (3.7.1 test27+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -763,7 +763,7 @@ function ex_lutspa(clip a, string "mode", string "expr", int "UV", bool "fulls")
 ##   CONVOLUTIONS   ##
 ######################
 
-# Convolutions in AviSynth+ perform better with Prefetch(min(physical cores,8)) than with threads. Also for RGTools and other plugins.
+# Convolutions in AviSynth+ perform better with Prefetch(min(physical cores,8)) than with threads. Also for RgTools and other plugins.
 
 # EQUIVALENCES (ex_blur with default mode="binomial"):
 # blur(0.5)                                       ~> ex_boxblur(0.5,mode="weighted") ~> ex_blur(0.63)
@@ -1213,7 +1213,7 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
 
 
 # Like ex_bilateral(), a less gentle blurring but more performant
-# Similar to SurfaceBlur() by Didée: http://forum.doom9.org/showthread.php?p=1586287#post1586287
+# Similar to SurfaceBlur() by Didée: https://forum.doom9.org/showthread.php?p=1586287#post1586287
 # SurfaceBlur(3,5) is 22% slower than ex_smartblur(3,thres=20)
 function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", int "UV", bool "fulls") {
 
@@ -1490,7 +1490,7 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV", bool "fulls") {
                     swap2                           min
                                                     min A@ x swap   - M^
                     x dup y z a b         + + + + 0.20 * "+ths+" B@ - S@
-                        M * 0 < x M abs S abs < A B ? ? "                   : \
+                        M * 0 < x M abs S abs < A B ? ?"                    : \
                                                                               \
          rd == 7 ? "x y                   dup1 dup1 min swap2 max
                     z a                   dup1 dup1 min swap2 max
@@ -5844,7 +5844,6 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
     tv  = Defined(tv_in) || Defined(tv_out)
     tvi = Default(tv_in,   false)
     tvo = Default(tv_out,  false)
-    fsd = Defined(fulls)
     fs  = Default(fulls,      !tvi)      # fulls
     fso = Default(fulld, tv ? !tvo : fs) # fulld
 
@@ -5992,7 +5991,7 @@ function atanTM(bool "expand", bool "negative") {
 # Use expand (Default true) to compute atan for larger values beyond -2.1 and +2.1
 function atanT(bool "expand") {
 
-    ex    = Default(expand, true) # includes from x=-2.1 and x=+2.1 to inf
+    ex    = Default(expand, true) # includes from x=-2.1 and x=+2.1 to +-inf
 
     e3    = "dup dup * swap 8 * dup swap2 X2@ 16 + / swap X2 9 * 16 + / + "                                              # from -2.1 to +2.1
     els   = "X2 XX * dup 3 * 1 swap / swap  X2 * dup 5 * 1 swap / swap X2 * 7 * 1 swap / 1 XX / - + + A7@ 1.570796326 +" # from  2.1 onwards
@@ -6003,7 +6002,7 @@ function atanT(bool "expand") {
     return ex ? atanE : e3 }
 
 
-# Returns the Maclaurin series of atan2(x,y) for a 500% speed increase
+# (LEGACY: since v3.7.1 test27) Returns the Maclaurin series of atan2(x,y) for a 500% speed increase
 function atan2T(bool "expand") {
 
     ex = Default(expand, true) # Enable for values beyond -2.1 and +2.1
@@ -6016,7 +6015,7 @@ function atan2T(bool "expand") {
 # Returns the hyperbolic tangent function
 function tanhT() {
 
-    tanh = "XX@ exp EE@ 0 XX - exp NN@ -  EE NN + /"
+    tanh = "XX@ exp EE@ 0 XX - exp NN@ - EE NN + /"
 
     return tanh }
 
@@ -6055,7 +6054,7 @@ function expT(int "degree") {
     return d==1 ? exp1 : d==3 ? exp3 : d==5 ? exp5 : d==7 ? exp7 : d==9 ? exp9 : exp11 }
 
 
-# Returns an approximation of cos(x) for -1.7 <= x <= 1.7 for near 300% speed increase (before AVS+ 3.7.1 test 19)
+# (LEGACY: since v3.7.1 test19) Returns an approximation of cos(x) for -1.7 <= x <= 1.7 for near 300% speed increase (before AVS+ 3.7.1 test 19)
 # For range -pi/2 <= x <= pi use expand=true (Default)
 function cosT(bool "expand") {
 
@@ -6078,7 +6077,7 @@ function cosT(bool "expand") {
     return ex ? cosTP : cosT }
 
 
-# Returns an approximation of sin(x) for 0 <= x <= pi for near 300% speed increase (before AVS+ 3.7.1 test 19)
+# (LEGACY: since v3.7.1 test19) Returns an approximation of sin(x) for 0 <= x <= pi for near 300% speed increase (before AVS+ 3.7.1 test 19)
 # For range -pi/2 <= x <= pi use expand=true (Default)
 function sinT(bool "expand") {
 
