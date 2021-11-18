@@ -92,7 +92,7 @@
 ### "It sharpens the picture by adjusting the slope of the gradient values inbetween the local min/max interval.
 ###  Effectively, edges are sharpened without oversharpening (halos) (but risk to make them jaggy)."
 ###
-### Dependencies: > AviSynth+ 3.7.1 test12 (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: > AviSynth+ 3.7.1 test27 (https://forum.doom9.org/showthread.php?t=181351)
 ###                 ExTools
 ###
 ### Example: Adaptive_Sharpen(1.0)
@@ -602,13 +602,18 @@ function ex_CAS(clip a, float "strength", int "UV", bool "fulls") {
 ### backward compensated motion vectors are necessary as: Super, cb1 and cf1, if used as a standalone function.
 ### Don't know who made (mod) it, so I can't give proper credits, sorry.
 
-function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC", int "overshoot", bool "fulls") {
+function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC", int "overshoot") {
+
+    rgb = isRGB(denoised)
+    bi  = BitsPerComponent(denoised)
+    fs  = propNumElements (denoised,"_ColorRange")  > 0 ? \
+          propGetInt      (denoised,"_ColorRange") == 0 : rgb
 
     HD  = Default(HD,    false)
     MC  = Default(MC,    false)  # Enable to switch from spatial to temporal limiting (output a bit sharper than original though)
     os  = Default(overshoot, 0)  # Raise to allow more sharpening (overshoots) when temporal limiting (MC=true). Also required if 'original' is too noisy
-    fs  = Default(fulls, false)
-    bi  = BitsPerComponent(denoised)
+    fs  = Default(fulls, fs)
+
     os  = ex_bs(os, 8, bi, fulls=fs)
 
     isg = MC ? VarExist("cb1") && VarExist("cf1") : false   # if MC=true; reuse motion vector frames if created (in SMDegrain or elsewhere with same global var name)
@@ -865,7 +870,7 @@ function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool 
     Calls SeeSaw() multiple times. Requires SeeSaw script + SeeSaw requirements.
 
     https://forum.doom9.org/showthread.php?t=174309&page=2
-    Inspired by InGoldie: http://forum.doom9.org/showthread.php?p=1748707#post1748707 (as usual, thread deleted)
+    Inspired by InGoldie: https://forum.doom9.org/showthread.php?p=1748707#post1748707 (as usual, thread deleted)
 
     Times, Number of iterations.
     IG, smoother/soother, can be:-
@@ -974,7 +979,7 @@ function FineSharp(clip c, float "sstr", int "mode", float "cstr", float "xstr",
 ## NonlinUSM: local contrast by Didée, (01-02-2012)
 ##
 ## Non-Linear Unsharp Masking
-##     http://forum.doom9.org/showthread.php?p=1555234#post1555234
+##     https://forum.doom9.org/showthread.php?p=1555234#post1555234
 ##
 ## Local Contrast Enhancement function:
 ## Something to play with - the "nonlinear" sharpening from SeeSaw, just with a wide-range gaussian instead of a small-range kernel.
@@ -1120,11 +1125,11 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
 
 
 # Didée's Median Enhancer Sharpener (12-10-2012)
-# http://forum.doom9.org/showthread.php?p=1595531#post1595531
+# https://forum.doom9.org/showthread.php?p=1595531#post1595531
 #
 # ExTools port  by Dogway           (05-09-2021)
 #
-# Requires MedianBlur2 for str > 3: http://avisynth.nl/index.php/MedianBlur2
+# Requires MedianBlur2 for str > 3: https://avisynth.nl/index.php/MedianBlur2
 # Also known as DDSharp(). 'pass' concept imported from DDSharp()
 
 function MedianSharp (clip a, int "str", float "pwr", int "UV", bool "fulls") {
@@ -1215,7 +1220,7 @@ function DetailSharpen(clip c, int "z", float "sstr", int "power", int "ldmp", i
 ### SSSharpFaster() (Super Slow Sharpen Faster)
 ### SSSharp's mod by LaTo (12-10-2012)
 ###
-### http://forum.doom9.org/showthread.php?t=142682&page=4#post1218074
+### https://forum.doom9.org/showthread.php?t=142682&page=4#post1218074
 ###
 ### port by Dogway (05-09-2021)
 ###
@@ -1783,11 +1788,11 @@ function YAHR(clip clp, bool "fulls") {
 ##    Dependencies:
 ##                  ExTools
 ##                  ResizersPack
-##                  RGTools
+##                  RgTools
 ##                  manyPlus
 ##                  KNLMeansCL
 ##                  nnedi3
-##                  mvtools2
+##                  MVTools
 ##                  SysInfo
 ##
 
@@ -1805,8 +1810,8 @@ function plum_Super(clip src, int "pel") {
     Assert(bi == 32,             "plum_Super: the sample type of src has to be single precision!")
     Assert(isint(pel),           "plum_Super: pel has to be an integer!")
     Assert(pel == 2 || pel == 4, "plum_Super: pel has to be 2 or 4!")
-	cores   = SI_PhysicalCores()
-	threads = SI_LogicalCores()
+    cores   = SI_PhysicalCores()
+    threads = SI_LogicalCores()
 
     src.ConvertBits(8, dither=-1, fulls=fs)
     AssumeFrameBased()
@@ -2072,8 +2077,8 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 ### SharpenComplex2() by ??? (??-11-2011)
 ### port of MPC-HC's Sharpen Complex 2 to AviSynth+
 ###
-### http://www.avisynth.nl/index.php/SharpenComplex2_source
-### http://forum.doom9.org/showthread.php?t=158385
+### https://www.avisynth.nl/index.php/SharpenComplex2_source
+### https://forum.doom9.org/showthread.php?t=158385
 ###
 ### ExTools port by Dogway (04-09-2021)
 ###
