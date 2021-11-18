@@ -4,13 +4,13 @@
 ###                                            ###
 ###      by 06_taro - astrataro@gmail.com      ###
 ###                                            ###
-###            v1.2 - 06 April 2012            ###
-###               2020.04.06     by A.SONY.    ###
-###               2021.10.18 ex  by Dogway     ###
+###            2012.04.06 v1.2 by 06_taro      ###
+###            2020.04.06      by A.SONY.      ###
+###            2021.11.18 ex   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
-### Luma adaptive grain generating filter
+### Luma adaptive grain generating filter. Y/YUV only.
 ###
 ### Based on Didée's GrainFactory3 script
 ###
@@ -18,6 +18,9 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2021.11.18 ex
+###      - Update 'fulls' defaults
 ###
 ### 2021.10.18 ex
 ###      - Rebase with latest ResizersPack
@@ -52,7 +55,7 @@
 ###
 ### 2021.05.27 ex
 ###      - Removed < AviSynth+ 3.5 support
-###      - Replaced masktools2 with internal Expr() wrappers
+###      - Replaced MaskTools2 with internal Expr() wrappers
 ###
 ### 2020.04.06
 ###      - HBD for avs+
@@ -89,10 +92,10 @@
 ###
 ### -> AddGrainC         [v1.8.3]
 ### -> RgTools           [v1.2]
-### -> MaskTools2        [v2.2.28]
+### -> MaskTools2        [v2.2.29]
 ### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v6.1.0]
-### -> ResizersPack      [v6.0.0]
+### -> ExTools           [v6.7.0]
+### -> ResizersPack      [v6.1.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -107,7 +110,6 @@ function GrainFactory3mod(clip clp,
  \                        float "ontop_grain",
  \                        float "ontop_cgrain",
  \                        bool  "ontop_const",
- \                        bool  "fulls",
  \                        bool  "tv_range",
  \                        bool  "use_sAverageLumaMask" )
 {
@@ -151,8 +153,12 @@ ontop_cgrain = Default( ontop_cgrain,   0 )  # [ 0 - ???] additional chroma grai
                                              # positive value for AddGrainC strength, negative value for f3kdb grain strength
 ontop_const  = Default( ontop_const, false)  # AddGrainC "constant" parameter of ontop clip
 use_ALMask   = Default( use_sAverageLumaMask, false)
-tv           = Default( tv_range, true)
-fs           = Default( fulls,   false)
+
+tv_D         = Defined( tv_range)
+rgb = isRGB(clp)
+fs  = tv_D ? tv : propNumElements (clp,"_ColorRange")  > 0 ? \
+                  propGetInt      (clp,"_ColorRange") == 0 : rgb
+tv           = Default( tv_range, !fs)
 
 
 #-----------------------------------------------------------------------------------
@@ -188,20 +194,20 @@ c1a  = (1.0-b1a)/2.0
 c2a  = (1.0-b2a)/2.0
 c3a  = (1.0-b3a)/2.0
 
-hlf  = ex_bs(128,             8, bi, fulls=fs)
-T1a  = ex_bs(int(g1tex*1.28), 8, bi, fulls=fs)
-T2a  = ex_bs(int(g2tex*1.28), 8, bi, fulls=fs)
-T3a  = ex_bs(int(g3tex*1.28), 8, bi, fulls=fs)
+hlf  = ex_bs(128,             8, bi, fulls=!tv)
+T1a  = ex_bs(int(g1tex*1.28), 8, bi, fulls=!tv)
+T2a  = ex_bs(int(g2tex*1.28), 8, bi, fulls=!tv)
+T3a  = ex_bs(int(g3tex*1.28), 8, bi, fulls=!tv)
 
 hlfr = 1. / hlf
 T1ah = hlf-T1a
 T2ah = hlf-T2a
 T3ah = hlf-T3a
 
-th1str = ex_bs(th1, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
-th2str = ex_bs(th2, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
-th3str = ex_bs(th3, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
-th4str = ex_bs(th4, 8, bi, tv_in=true, tv_out=tv, fulls=fs)
+th1str = ex_bs(th1, 8, bi, tv_in=true, tv_out=tv)
+th2str = ex_bs(th2, 8, bi, tv_in=true, tv_out=tv)
+th3str = ex_bs(th3, 8, bi, tv_in=true, tv_out=tv)
+th4str = ex_bs(th4, 8, bi, tv_in=true, tv_out=tv)
 
 tmpavg = temp_avg/100.0
 
@@ -225,7 +231,7 @@ grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer1 = (g1tex==0)
 \           ? grainlayer1
-\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma, fulls=fs), UV=cchroma, fulls=fs)
+\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
 
 grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
 \           : (g1size > 1.5) ? grainlayer1.bicubicresize(sx1a,sy1a, b1a,c1a).bicubicresize(ox,oy, b1a,c1a)
@@ -242,7 +248,7 @@ grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer2 = (g2tex==0)
 \           ? grainlayer2
-\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma, fulls=fs), UV=cchroma, fulls=fs)
+\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
 
 grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
 \           : (g2size > 1.5) ? grainlayer2.bicubicresize(sx2a,sy2a, b2a,c2a).bicubicresize(ox,oy, b2a,c2a)
@@ -258,7 +264,7 @@ grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer3 = (g3tex==0)
 \           ? grainlayer3
-\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma, fulls=fs), UV=cchroma, fulls=fs)
+\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
 
 grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 \           : (g3size > 1.5) ? grainlayer3.bicubicresize(sx3a,sy3a, b3a,c3a).bicubicresize(ox,oy, b3a,c3a)
@@ -268,8 +274,8 @@ grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 
 th21str = th2str - th1str
 th43str = th4str - th3str
-grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max range_max {th21str} / x {th1str} - * ? ?"), fulls=fs), luma=chroma, UV=cchroma, fulls=fs)
- \                      .ex_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max range_max {th43str} / x {th3str} - * ? ?"), fulls=fs), luma=chroma, UV=cchroma, fulls=fs)
+grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max range_max {th21str} / x {th1str} - * ? ?"), fulls=!tv), luma=chroma, UV=cchroma, fulls=!tv)
+ \                      .ex_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max range_max {th43str} / x {th3str} - * ? ?"), fulls=!tv), luma=chroma, UV=cchroma, fulls=!tv)
 
 grainlayer = (temp_avg==0 || ( g1const && g2const && g3const ) ) ? grainlayer
 \          : chroma ? grainlayer.merge(    grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
@@ -281,7 +287,7 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 
 #-----------------------------------------------------------------------------------
 
-result = o.ex_makediff(grainlayer, UV=ochroma, fulls=fs)
+result = o.ex_makediff(grainlayer, UV=ochroma, fulls=!tv)
 msk    = o.ScriptClip("ex_lut(str=string(AverageLuma(last)),UV=1)")
 
-use_ALMask ? ex_merge(result, o, msk, luma=chroma, UV=ochroma, fulls=fs) : result }
+use_ALMask ? ex_merge(result, o, msk, luma=chroma, UV=ochroma, fulls=!tv) : result }
