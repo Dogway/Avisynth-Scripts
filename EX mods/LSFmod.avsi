@@ -12,13 +12,16 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v3.9 ex - 01 November 2021                                ###
+###                                v4.0 ex - 18 November 2021                                ###
 ###                                                                                          ###
 ################################################################################################
 ###
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v4.0ex : - Drop 'fulls' argument, now read from frameprops
+###          - Cosmetics
 ###
 ### v3.9ex : - Add workaround for 32-bit float support since Expr() scaling is broken for this bitdepth
 ###          - Optimize Smode=4 and 5
@@ -39,7 +42,7 @@
 ###          - Cosmetics
 ###
 ### v3.5ex : - Additional checker for creation of motion vectors if SS is used
-###          - and repair its motion compensated vectors
+###          - ...and repair() its motion compensated vectors
 ###          - Cosmetics
 ###
 ### v3.4ex : - Lmode=5 for zero limiting on not-edges
@@ -181,7 +184,7 @@
 ###         edgemode, edgemaskHQ,
 ###         ss_x, ss_y, dest_x, dest_y,
 ###         show, screenW, screenH,
-###         preset, tv_range, fulls )
+###         preset, tv_range )
 ###
 ###
 ###
@@ -527,20 +530,23 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 \                int "edgemode", bool "edgemaskHQ",
 \                float "ss_x", float "ss_y", int "dest_x", int "dest_y",
 \                bool "show", int "screenW", int "screenH",
-\                string "preset", string "tv_range", bool "fulls" ) {
+\                string "preset", string "tv_range") {
 
 
     ### PRESETS
-    version = "v3.9ex"
+    version = "v4.0ex"
     preset  = Default(preset,"mid")
     num     = preset=="old" ? 0 : preset=="slow" ? 1 : preset=="mid" || preset=="medium" ? 2 : preset=="fast" ? 3 : 4
+
+    rgb = isRGB(inclip)
+    bi  = BitsPerComponent(inclip)
+    fs  = propNumElements (inclip,"_ColorRange")  > 0 ? \
+          propGetInt      (inclip,"_ColorRange") == 0 : rgb
 
     ox   = inclip.width()
     oy   = inclip.height()
     isHD = (ox > 1099 ||  oy > 599)
-    bi   = BitsPerComponent(inclip)
-    fs   = Default(fulls,   false)
-    tv   = Default(tv_range, true)
+    tv   = Default(tv_range, !fs)
 
     Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
     Assert(num != 4, chr(10) + """Preset must be "old", "slow", "mid" or "fast" !""" + chr(10))
