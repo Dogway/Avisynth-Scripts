@@ -32,7 +32,7 @@
 ###              ExTools
 ###              LSFmod/SharpenersPack  (for Contrasharp)
 ###              GradePack              (for Str=0.1 to 1.0 ~ex_retinex()~ )
-###              RGTools                (for prefilter=0~2 and Contrasharp)
+###              RgTools                (for prefilter=0~2 and Contrasharp)
 ###              DFTTest                (for prefilter=3)
 ###              KNLMeansCL             (for prefilter=4)
 ###              BM3D                   (for prefilter=5)
@@ -70,7 +70,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     md           = FindStr(md, "mediant") > 0 ? rc && tr==1 ? "MedianT" : rc && tr==2 ? "MedianT5" : "medianTn" : md
     T3           = md == "MedianT"    || md == "MedianST" || md == "ML3DEx"  || md == "Hybrid"   || md == "TL3D"
     T5           = md == "MedianT5"   || md == "STWM"     || md == "GaussT5" || md == "GaussST5" || md == "MedianSTS"
-    T7           = md == "FluxSmooth" || md == "FluxSmoothT"
+    T7           = FindStr(md, "fluxsmooth") > 0
     TS           = md == "TemporalSoften"
 
     tr           = T3 ? 1 : T5 ? 2 : T7 ? min(3,tr) : TS ? min(7,tr) : tr
@@ -477,9 +477,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
 
-        output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, overshoot=TS?100:0, fulls=!tv) : \
-                                      SLimit ? LSFmod(output,source=CClip,preset="slow",strength=Contrasharp,Smode=5,Lmode=0,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25,fulls=!tv) : \
-                                               LSFmod(output,             preset="slow",strength=Contrasharp,Smode=5,Lmode=6,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25,fulls=!tv) : output
+        output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, overshoot=TS?100:0) : \
+                                      SLimit ? LSFmod(output,source=CClip,preset="slow",strength=Contrasharp,Smode=5,Lmode=0,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25) : \
+                                               LSFmod(output,             preset="slow",strength=Contrasharp,Smode=5,Lmode=6,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25) : output
 
                  !GlobalO ? (isInter ? output.weave() : output) : input
 
@@ -828,7 +828,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
     }
 
     UV == 3 ? CombinePlanes(last, clp, planes=rgb?"RGB":"YUV", pixel_type=PixelType(clp)) : last
-              PropSet("_ColorRange", tv_out?1:0) }
+              PropSet("_ColorRange", 0) }
 
 
 
