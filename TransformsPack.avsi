@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC25  (18-11-2021)           ##
+###    Transforms Pack v1.0 RC25  (19-11-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -2158,19 +2158,25 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
               PropSet("_ColorRange", fw?1:0)                 }
 
 
-# SoftLimiter (18-11-2021)
+# SoftLimiter (19-11-2021)
 #
-# SoftLimiter brings clips with under or overshoot values to in-range legal broadcast values
-# It does so in a gentle manner by rolling off the values into range without altering the clip's levels.
+# SoftLimiter is an inclusive limiter, it brings clips with under or overshoot values to in-range legal broadcast values
+# It does so in a gentle manner by rolling off the values into range without altering the clip's levels and then clipping leftovers.
 #
-# Disclaimer1: This is not a range conversion filter! Input is assumed to be already in legal/tv range.
+# Disclaimer1: This is not a range conversion filter! Input is assumed to be "legal/tv range"
 # Disclaimer2: For static mode, first find the under and overshoot values by inspecting the clip with an histogram or statistics function (ie. ShowChannels(show=true) )
 #
-# Requires ShowChannels() for dynamic mode
 # Examples:
-#   SoftLimiter(16,235)        # no rolloff (straight clamp), assumes input should be legal (within 16,235)
+#   SoftLimiter(16,235)        # no rolloff (straight clamp), assumes input IS legal (within 16,235)
 #   SoftLimiter(12,240,12,245) # Bring specified values to legal range with rolloff
-function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c", int "tolerance", int "dyn", int "UV") {
+#
+# Requires ShowChannels() for dynamic mode
+# dyn = 0  -> static mode, set values after manual inspection
+# dyn = 1  -> accumulative loose  dynamic mode. Very conservative, for set and forget (after proper cropping black borders)
+# dyn = 2  ->              loose  dynamic mode. Medium,         will bring some values into range (recommended)
+# dyn = 3  ->              strict dynamic mode. Very sensitive, will bring many values into range
+#
+function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c", int "tolerance", int "dyn", bool "show", int "UV") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -2183,30 +2189,40 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     loc = Default(lo_c,    lo)   # Low  limit (Chroma)
     hic = Default(hi_c,   240)   # High limit (Chroma)
     tol = Default(tolerance,0)   # 0-100 Percentage of allowed under/overshoot
-    dyn = Default(dyn,      0)   # 0: static  1: accumulated loose (0.1% percentile)  2: loose (0.1% percentile)
+    dyn = Default(dyn,      0)   # 0: static  1: accumulated loose (min/max 0.454% ignored)  2: medium (min/max 0.2% ignored)  3: strict (min/max 0.1% ignored)
+    dg  = Default(show, false)
     UV  = Default(UV, isy ? 1 : 3 )
 
-    lo  = min(16, max(0,   lo))          loc  = min(16, max(0,   loc))
-    hi  = min(255,max(235, hi))          hic  = min(255,max(240, hic))
+    lo  = min(16, max(0,   lo))   loc  = min(16, max(0,   loc))
+    hi  = min(255,max(235, hi))   hic  = min(255,max(240, hic))
 
-    lo  = lo + ((16-lo)  * (1-tol/100.)) loc  = loc + ((16-loc)  * (1-tol/100.))
-    hi  = hi - ((hi-235) * (1-tol/100.)) hic  = hic - ((hic-240) * (1-tol/100.))
+    if (tol > 0) {
+    pc  = tol/100.
+    lo  = lo + ((16-lo)  * pc)    loc  = loc + ((16-loc)  * pc)
+    hi  = hi - ((hi-235) * pc)    hic  = hic - ((hic-240) * pc)
+    }
 
-    lo0 = lo  == 16                      loc0 = loc == 16
-    hi0 = hi  == 235                     hic0 = hic == 240
+    lo0 = lo == 16                loc0 = loc == 16
+    hi0 = hi == 235               hic0 = hic == 240
 
-    if (dyn>0) {
+    if (dyn > 0) {
         # Revert to newer ScriptClip when fixed for passing the other arguments
         acc = dyn == 1 ? """propSetArray("_MinMax", function[]() { return [SC_ALMn_0,SC_ALMx_0,SC_ALMn_1,SC_ALMx_1,SC_ALMn_2,SC_ALMx_2] } )""" : \
-              dyn == 2 ? """propSetArray("_MinMax", function[]() { return [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  } )""" : ""
+              dyn == 2 ? """propSetArray("_MinMax", function[]() { return [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  } )""" : \
+              dyn == 3 ? """propSetArray("_MinMax", function[]() { return [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  } )""" : ""
 
-        ScriptClip(a.propClearAll().ConvertBits(8,dither=-1,fulls=fs).ShowChannels(SetVar=True,show=false), acc, after_frame=True )
+        per = dyn > 2 ? 0.1 : dyn > 1 ? 0.2 : 0.454
+        ScriptClip(a.propClearAll().removegrain(12,UV==3?12:-1).ConvertBits(8,dither=-1,fulls=fs).ShowChannels(SetVar=True,MinPerc=per,MaxPerc=per,show=false), acc, after_frame=True )
 
         propCopy(a,last,true)
 
         ScriptClip( """
         st = propGetAsArray("_MinMax")
-        SoftLimiter(st[0], st[1], round((st[2]+st[4])/2.), round((st[3]+st[5])/2.), dyn=0) """ )
+        SoftLimiter(st[0], st[1], (st[2]+st[4])/2., (st[3]+st[5])/2., dyn=0) """ )
+
+        dg ? ScriptClip( """
+        st = propGetAsArray("_MinMax")
+        Subtitle("YMin: "+string(st[0])+" "+"YMax: "+string(st[1])+" "+"UVMin: "+string((st[2]+st[4])/2.)+" "+"UVMax: "+string((st[3]+st[5])/2.)+" ") """ ) : last
 
     } else {
 
@@ -2219,13 +2235,13 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
     } else {
 
-        b = (hi  == 255 ? 1.05 : 1 ) * (0.009*pow(251-hi ,2)-0.015*(255-hi) -2.4)
-        c = (hic == 255 ? 1.05 : 1 ) * (0.009*pow(251-hic,2)-0.015*(255-hic)-2.4)
-        d = 0.0106*lo *lo -0.0577*lo -1.8 # needs to be tweaked a bit
-        e = 0.0106*loc*loc-0.0577*loc-1.8
+        b = (hi  > 254 ? 1.05 : 1 ) * max((0.009*pow(251-hi ,2)-0.015*(255-hi) -2.4),-2.4)
+        c = (hic > 254 ? 1.05 : 1 ) * max((0.009*pow(251-hic,2)-0.015*(255-hic)-2.4),-2.4)
+        d = lo  == 0 ? -1.82 : 0.0106*lo *lo -0.0577*lo -1.8 # needs to be tweaked a bit
+        e = loc == 0 ? -1.82 : 0.0106*loc*loc-0.0577*loc-1.8
 
-        lop  = ex_bs(lo,  8, bi, fs)    lopc = ex_bs(loc, 8, bi, fs)
-        hip  = ex_bs(hi,  8, bi, fs)    hipc = ex_bs(hic, 8, bi, fs)
+        lop = ex_bs(lo, 8, bi, fs)    lopc = ex_bs(loc, 8, bi, fs)
+        hip = ex_bs(hi, 8, bi, fs)    hipc = ex_bs(hic, 8, bi, fs)
 
         phi = 20
         phr = 1./phi
