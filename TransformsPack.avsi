@@ -1786,15 +1786,15 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
     P   = !isy ? clp[1] :     P
     T   = !isy ? clp[2] :      T
 
-    IPT = [0.4000,  4.4550,  0.8056, \
-           0.4000, -4.8510,  0.3572, \
-           0.2000,  0.3960, -1.1628]
+    IPTm = [0.4000,  4.4550,  0.8056, \
+            0.4000, -4.8510,  0.3572, \
+            0.2000,  0.3960, -1.1628]
 
-    LMS = [0.4002, 0.7075, -0.0807, \
-          -0.2280, 1.1500,  0.0612, \
-           0.0000, 0.0000,  0.9184]
+    LMS  = [0.4002, 0.7075, -0.0807, \
+           -0.2280, 1.1500,  0.0612, \
+            0.0000, 0.0000,  0.9184]
 
-    IPT  = MatrixInvert(IPT)
+    IPTc  = MatrixInvert(IPTm)
 
     b32m = bi == 32 ? "" : ex_dlut(" range_max *", bi, fs)
     b32d = bi == 32 ? "" : ex_dlut( "range_max /", bi, fs)
@@ -1802,15 +1802,15 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
 
     if (!cy) {
 
-        L = Expr(I, P, T, "x "+b32d+" "+string(IPT[0])+" * y "+b32d+" "+nm+" "+string(IPT[3])+" * + z "+b32d+" "+nm+" "+string(IPT[6])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true)
-        M = Expr(I, P, T, "x "+b32d+" "+string(IPT[1])+" * y "+b32d+" "+nm+" "+string(IPT[4])+" * + z "+b32d+" "+nm+" "+string(IPT[7])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
-        S = Expr(I, P, T, "x "+b32d+" "+string(IPT[2])+" * y "+b32d+" "+nm+" "+string(IPT[5])+" * + z "+b32d+" "+nm+" "+string(IPT[8])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
+        L = Expr(I, P, T, "x "+b32d+" "+string(IPTc[0])+" * y "+b32d+" "+nm+" "+string(IPTc[3])+" * + z "+b32d+" "+nm+" "+string(IPTc[6])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true)
+        M = Expr(I, P, T, "x "+b32d+" "+string(IPTc[1])+" * y "+b32d+" "+nm+" "+string(IPTc[4])+" * + z "+b32d+" "+nm+" "+string(IPTc[7])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
+        S = Expr(I, P, T, "x "+b32d+" "+string(IPTc[2])+" * y "+b32d+" "+nm+" "+string(IPTc[5])+" * + z "+b32d+" "+nm+" "+string(IPTc[8])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
 
     } else {
 
-        L = Expr(I, P, T, "x "+b32d+" "+string(IPT[0])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(IPT[3])+" * + H sin Y * "+string(IPT[6])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true)
-        M = Expr(I, P, T, "x "+b32d+" "+string(IPT[1])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(IPT[4])+" * + H sin Y * "+string(IPT[7])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
-        S = Expr(I, P, T, "x "+b32d+" "+string(IPT[2])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(IPT[5])+" * + H sin Y * "+string(IPT[8])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
+        L = Expr(I, P, T, "x "+b32d+" "+string(IPTc[0])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(IPTc[3])+" * + H sin Y * "+string(IPTc[6])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true)
+        M = Expr(I, P, T, "x "+b32d+" "+string(IPTc[1])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(IPTc[4])+" * + H sin Y * "+string(IPTc[7])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
+        S = Expr(I, P, T, "x "+b32d+" "+string(IPTc[2])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(IPTc[5])+" * + H sin Y * "+string(IPTc[8])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
     }
 
     LMS  = MatrixTranspose(LMS)
@@ -1931,8 +1931,8 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
           1.9779984951, -2.4285922050,  0.4505937099, \
           0.0259040371,  0.7827717662, -0.8086757660]
 
-    M2  = MatrixTranspose(M2)
-    Lab = MatrixInvert(M2)
+    M2   = MatrixTranspose(M2)
+    Labc = MatrixInvert(M2)
 
     b32m = bi == 32 ? "" : ex_dlut(" range_max *", bi, fs)
     b32d = bi == 32 ? "" : ex_dlut( "range_max /", bi, fs)
@@ -1940,15 +1940,15 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 
     if (!cy) {
 
-        L = Expr(Lk, a, b, "x "+b32d+" "+string(Lab[0])+" * y "+b32d+" "+nm+" "+string(Lab[3])+" * + z "+b32d+" "+nm+" "+string(Lab[6])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true)
-        M = Expr(Lk, a, b, "x "+b32d+" "+string(Lab[1])+" * y "+b32d+" "+nm+" "+string(Lab[4])+" * + z "+b32d+" "+nm+" "+string(Lab[7])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
-        S = Expr(Lk, a, b, "x "+b32d+" "+string(Lab[2])+" * y "+b32d+" "+nm+" "+string(Lab[5])+" * + z "+b32d+" "+nm+" "+string(Lab[8])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
+        L = Expr(Lk, a, b, "x "+b32d+" "+string(Labc[0])+" * y "+b32d+" "+nm+" "+string(Labc[3])+" * + z "+b32d+" "+nm+" "+string(Labc[6])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true)
+        M = Expr(Lk, a, b, "x "+b32d+" "+string(Labc[1])+" * y "+b32d+" "+nm+" "+string(Labc[4])+" * + z "+b32d+" "+nm+" "+string(Labc[7])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
+        S = Expr(Lk, a, b, "x "+b32d+" "+string(Labc[2])+" * y "+b32d+" "+nm+" "+string(Labc[5])+" * + z "+b32d+" "+nm+" "+string(Labc[8])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
 
     } else {
 
-        L = Expr(Lk, a, b, "x "+b32d+" "+string(Lab[0])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(Lab[3])+" * + H sin Y * "+string(Lab[6])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true)
-        M = Expr(Lk, a, b, "x "+b32d+" "+string(Lab[1])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(Lab[4])+" * + H sin Y * "+string(Lab[7])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
-        S = Expr(Lk, a, b, "x "+b32d+" "+string(Lab[2])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(Lab[5])+" * + H sin Y * "+string(Lab[8])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
+        L = Expr(Lk, a, b, "x "+b32d+" "+string(Labc[0])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(Labc[3])+" * + H sin Y * "+string(Labc[6])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true)
+        M = Expr(Lk, a, b, "x "+b32d+" "+string(Labc[1])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(Labc[4])+" * + H sin Y * "+string(Labc[7])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
+        S = Expr(Lk, a, b, "x "+b32d+" "+string(Labc[2])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(Labc[5])+" * + H sin Y * "+string(Labc[8])+" * + dup dup 0 >= swap 3 ^ swap neg 3 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
     }
 
     M1   = MatrixTranspose(M1)
