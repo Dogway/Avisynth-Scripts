@@ -612,7 +612,6 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
     HD  = Default(HD,    false)
     MC  = Default(MC,    false)  # Enable to switch from spatial to temporal limiting (output a bit sharper than original though)
     os  = Default(overshoot, 0)  # Raise to allow more sharpening (overshoots) when temporal limiting (MC=true). Also required if 'original' is too noisy
-    fs  = Default(fulls, fs)
 
     os  = ex_bs(os, 8, bi, fulls=fs)
 
