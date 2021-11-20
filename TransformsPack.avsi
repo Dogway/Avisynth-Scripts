@@ -2212,7 +2212,7 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
     if (dg) {
 
-        a.ConvertBits(8,dither=1)
+        a.ConvertBits(8, dither=1, fulls=fs)
         w   = Width()
         h   = Height()
         lo  = ex_bs(lo,  8, bi, fs)
@@ -2228,11 +2228,11 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
         c = StackVertical( \
             a.Limiter(lo, hi, loc, hic, "luma_grey"  ), \
-            a.Limiter(lo, hi, loc, hic, "chroma_grey") ).ConvertBits(8,dither=1).BicubicResize(w/2, h,-0.5,0.25)
+            a.Limiter(lo, hi, loc, hic, "chroma_grey") ).ConvertBits(8, dither=1, fulls=fs).BicubicResize(w/2, h,-0.5,0.25)
 
         d = TurnRight().Histogram(mode="classic").TurnLeft().crop(0,0,0,-h).BilinearResize(w/2,h/2)
 
-        s = StackHorizontal(StackVertical(d, b), c).ConvertBits(bi)
+        s = StackHorizontal(StackVertical(d, b), c).ConvertBits(bi, fulls=fs)
     }
 
 
