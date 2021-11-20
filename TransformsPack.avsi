@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC26  (19-11-2021)           ##
+###    Transforms Pack v1.0 RC27  (20-11-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -2170,6 +2170,10 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
 # Disclaimer1: This is not a range conversion filter! Input is assumed to be "legal/tv range"
 # Disclaimer2: For static mode, first find the under and overshoot values by inspecting the clip with show=true
 #
+# Dependencies: ExTools
+#               ResizersPack (for show)
+#               ShowChannels (for dyn)
+#
 # Examples:
 #   SoftLimiter(16,235)        # no rolloff (straight clamp), assumes input IS legal (within 16,235)
 #   SoftLimiter(12,240,12,245) # Bring specified values to legal range with rolloff
@@ -2215,6 +2219,10 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         a.ConvertBits(8, dither=1, fulls=fs)
         w   = Width()
         h   = Height()
+        w4  = nmod(w/4.)
+        h2  = nmod(h/2.)
+        w2  = w4*2
+        pad = (w4-h2)/2
         lo  = ex_bs(lo,  8, bi, fs)
         loc = ex_bs(loc, 8, bi, fs)
         loc = bi > 16 ? loc - 0.5 : loc
@@ -2223,20 +2231,21 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         hic = bi > 16 ? hic - 0.5 : hic
 
         b = StackHorizontal( \
-            Histogram("levels").Crop(w, 0, 256, 256).blackmanresize(w/4,h/2), \
-            Histogram("color2").Crop(w, 0, 256, 256).blackmanresize(h/2,h/2).AddBorders((w/4-h/2)/2, 0, (w/4-h/2)/2, 0 ) )
+            Histogram("levels").blackmanresize(w4,h2,w,0,256,256), \
+            Histogram("color2").blackmanresize(h2,h2,w,0,256,256).AddBorders(pad+pad%2, 0, pad-pad%2, 0 ) )
 
         c = StackVertical( \
-            a.Limiter(lo, hi, loc, hic, "luma_grey"  ), \
-            a.Limiter(lo, hi, loc, hic, "chroma_grey") ).ConvertBits(8, dither=1, fulls=fs).BicubicResize(w/2, h,-0.5,0.25)
+            a.Limiter(lo, hi, loc, hic, "luma_grey"  ).Subtitle("Luma Spill"  , align=7, size=30), \
+            a.Limiter(lo, hi, loc, hic, "chroma_grey").Subtitle("Chroma Spill", align=7, size=30) ).ConvertBits(8, dither=1, fulls=fs).BicubicResize(w2,h2*2,-0.5,0.25)
 
-        d = TurnRight().Histogram(mode="classic").TurnLeft().crop(0,0,0,-h).BilinearResize(w/2,h/2)
+        d = TurnRight().Histogram(mode="classic").BilinearResize(h2,w2,src_left=h2*2,src_width=-0).TurnLeft()
 
-        s = StackHorizontal(StackVertical(d, b), c).ConvertBits(bi, fulls=fs)
+        s = StackHorizontal(StackVertical(d, b), c).PadResize(w, h ).ConvertBits(bi, fulls=fs)
     }
 
 
     if (dyn > 0) {
+
         # Revert to newer ScriptClip when fixed for passing the other arguments
         acc = dyn == 1 ? """propSet("_MinMax", [SC_ALMn_0,SC_ALMx_0,SC_ALMn_1,SC_ALMx_1,SC_ALMn_2,SC_ALMx_2] )""" : \
               dyn == 2 ? """propSet("_MinMax", [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  )""" : \
@@ -2290,8 +2299,8 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         hic = Format("    x "+bi32d+"   dup log {phi} * exp 1 + log {phr} {c} * * "+expT(1)+" *  ")
         loc = Format("1 1 x "+bi32d+" - dup log {phi} * exp 1 + log {phr} {e} * * "+expT(1)+" * -")
 
-        str  = (lo0  && hi0  ? "x " : (lo0  && !hi0  ? hi  : !lo0  && hi0  ? lo  : "x range_half > "+hi +" "+lo +" ?") + bi32m) + Format(" {lop}  {hip}  clip")
-        cstr = (loc0 && hic0 ? "x " : (loc0 && !hic0 ? hic : !loc0 && hic0 ? loc : "x range_half > "+hic+" "+loc+" ?") + bi32m) + Format(" {lopc} {hipc} clip")
+        str  = (lo0  && hi0  ? "x " :  (lo0  && !hi0  ? hi  : !lo0  && hi0  ? lo  : "x range_half > "+hi +" "+lo +" ?") + bi32m) + Format(" {lop}  {hip}  clip")
+        cstr =  loc0 && hic0 ? "x " : ((loc0 && !hic0 ? hic : !loc0 && hic0 ? loc : "x range_half > "+hic+" "+loc+" ?") + bi32m  + Format(" {lopc} {hipc} clip"))
 
 
         str  =        ex_dlut( str,                              bi, fs)
@@ -2966,7 +2975,7 @@ function Matrix_coef (string matrix, string "illuminant") {
     pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.15664,0.01770], [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
     pw  = Select (mat_w,  [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
     wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
-    Kv  = Select (mat_wp,  6771.297      ,   6504.13            ,                                                                                         5000.569        ,                    6304.573      ,   6000.211                           ,  5502.33          , 7506.16          , 8941.864     )
+    Kv  = Select (mat_wp,  6774.202        , 6504.13            ,                                                                                         5001.668        ,                    6304.573      ,   6000.211                           ,  5502.33          , 7506.16          , 8941.864     )
 
     pr2 = 1. - pr[0] - pr[1]    pw2 = 1. - pw[0] - pw[1]
     pb2 = 1. - pb[0] - pb[1]    wp2 = 1. - wp[0] - wp[1]
@@ -3224,19 +3233,14 @@ function ExtractClip ( clip clp) {
                  [ExtractY(clp),ExtractU(clp),ExtractV(clp)] }
 
 
-function MatrixClip ( clip clp, float_array mat, string "fmt_o") {
-
-    rgb   = isRGB(clp)
-    fmt_o = Default(fmt_o, rgb ? "RGB" : "YUV")
+function MatrixClip ( clip clp, float_array mat) {
 
     CLPa = ExtractClip(clp)
 
     # clip · 3x3
-    C = DotClipA(CLPa,[mat[0],mat[3],mat[6]])
-    L = DotClipA(CLPa,[mat[1],mat[4],mat[7]])
-    P = DotClipA(CLPa,[mat[2],mat[5],mat[8]])
-
-    CombinePlanes(C, L, P, planes=fmt_o) }
+    Expr(CLPa[0], CLPa[1], CLPa[2], "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +", \
+                                    "x "+string(mat[1])+" * y "+string(mat[4])+" * + z "+string(mat[7])+" * +", \
+                                    "x "+string(mat[2])+" * y "+string(mat[5])+" * + z "+string(mat[8])+" * +", optSingleMode=true, format=PixelType(clp)) }
 
 
 function MatrixDot ( float_array mat1, \
