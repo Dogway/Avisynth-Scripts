@@ -111,6 +111,10 @@
 
 Function SCSelect_HBD(clip dClip,clip "Start",clip "End",clip "Motion", float "dfactor",Float "MinDif",bool "show",String "S_Frames",String "E_Frames") {
 
+    rgb = isRGB(dClip)
+    fs  = propNumElements (dClip,"_ColorRange")  > 0 ? \
+          propGetInt      (dClip,"_ColorRange") == 0 : rgb
+
     dfactor = Float(Default(dfactor,3.5))  # Suggest 2.5 -> 4.0 ::: Change default to 4.0 to emulate ScSelect
     Mindif  = Float(Default(MinDif ,1.0))  # Suggest 0.5 -> 4.0 ::: Change default to 0.0 to emulate ScSelect
     Show    = Default(show,false)
@@ -122,12 +126,11 @@ Function SCSelect_HBD(clip dClip,clip "Start",clip "End",clip "Motion", float "d
     StartD  = Defined(Start)
     EndD    = Defined(End)
 
-    Assert(!DClip.IsRGB(),"SCSelect_HBD: DClip YUV Only")
+    Assert(!rgb,          "SCSelect_HBD: DClip YUV Only")
     Assert(1.0 <= dFactor,"SCSelect_HBD: 1.0 <= dFactor")
     Assert(0.0 <= Mindif ,"SCSelect_HBD: 0.0 <= MinDif")
 
-    try { bpc = DClip.BitsPerComponent() } catch(err_msg) { bpc = 8 }
-    DClip = (bpc!=8) ? DClip.ConvertBits(8) : DClip
+    dClip = dClip.ConvertBits(8, dither=-1, fulls=fs)
     Sz    = Max(Round(Motion.Height()*0.05),14)
 
     S_Frames = (S_Frames!="") ? S_Frames.RT_GetFullPathName() : ""
@@ -136,11 +139,11 @@ Function SCSelect_HBD(clip dClip,clip "Start",clip "End",clip "Motion", float "d
     (S_Frames !="") ? RT_FileDelete(S_Frames) : nop()
     (E_Frames !="") ? RT_FileDelete(E_Frames) : nop()
 
-    ScriptClip(Motion, function [dfactor,Start,StartD,End,EndD,Dclip,MinDif,show,S_Frames,E_Frames,Sz] () {
+    ScriptClip(Motion, function [dfactor,Start,StartD,End,EndD,dClip,MinDif,show,S_Frames,E_Frames,Sz] () {
 
         n   = current_frame
-        pDf = Dclip.YDifferenceFromPrevious()
-        nDf = Dclip.YDifferenceToNext()
+        pDf = dClip.YDifferenceFromPrevious()
+        nDf = dClip.YDifferenceToNext()
         pTh = nDf*dfactor+MinDif
         nTh = pDf*dfactor+MinDif
         SC  = 2                    # Default To SC = MOTION (Last is MOTION clip)
@@ -161,8 +164,8 @@ Function SCSelect_HBD(clip dClip,clip "Start",clip "End",clip "Motion", float "d
 
             mx = Max(pDf,nDf)
             mn = Min(pDf,nDf)
-            Can_dF = (mx > mn + Mindif)    # Can any values of dfactor(1.0 and aove) cause scene detect ?
-            Can_Md = (mx > dFactor * mn)   # Can any values of MinDif(0.0 and above) cause scene detect ?
+            Can_dF = (mx > mn + Mindif)    # Can any values of dfactor(1.0 and above) cause scene detect ?
+            Can_Md = (mx > dFactor * mn)   # Can any values of MinDif (0.0 and above) cause scene detect ?
 
             if (Can_dF || Can_Md) {
 
