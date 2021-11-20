@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC25  (19-11-2021)           ##
+###    Transforms Pack v1.0 RC26  (19-11-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -306,7 +306,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # -ewa_lanczossoft  is a lanczos-windowed  jinc filter (3.238 lobes). Softened instead. This one makes hash patterns disappear completely. 3.2383154841662362, jinc, .blur = 1.015
 # -Haasnsoft        is a Hanning-windowed  jinc filter (3.238 lobes). Removes almost all aliasing. Blur value to match orthogonal and diagonal contributions. 3.2383154841662362, jinc, .blur = 1.11
 # Tukey             is a Hanning-windowed  jinc filter taper = 0.5
-# Quadratic/Quadric like Cubic but 66% faster
+# Quadratic/Quadric like Cubic but 66% faster (2 taps/lobes?)
 # RAVU / RAISR      similar to XBR and nnedi3
 # NGU               Next Generation Upscaler. madVR edge directed NN algo (closed source, similar to FSRCNN)
 # Sphinx            Continuation of Sinc and Jinc. interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
@@ -314,7 +314,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 
 function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in", string  "fmt_out", string   "cs_in", string   "cs_out", string      "OETF", string   "EOTF", string "D_in", string "D_out", bool "tv_in", bool "tv_out", string "cplace_in", string "cplace_out", \
                          string "scale_space", string "kernel", string "kernel_c", float  "src_left", float  "src_top", float "src_width", float "src_height",                                                                                                                       \
-                                 float    "p", int       "mod", bool   "nomoiree", bool     "noring", bool   "UVrecon", bool      "fulls", bool       "fulld", bool     "show") {
+                                 float    "p", int       "mod", bool   "nomoiree", bool     "noring", bool   "UVrecon", bool     "show") {
 
     clp
     w          = width ()
@@ -385,7 +385,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     noring     = Default (noring,  false)
     nomoir     = Default (nomoiree,false)
     recon      = Default (UVrecon, false)
-    fs         = Default (fulls,  !tv_in)
+    fs         = !tv_in  # needs to be reassesed in the pipeline
     dg         = Default (show,    false)
 
 
@@ -706,12 +706,16 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
         matb = XYZ_to_RGB  (cs_out,        list=true)
         mat  = MatrixDot(MatrixDot(mata, matw), matb)
 
-        Ro = Expr(R, G, B, "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +", optSingleMode=true)
-        Go = Expr(R, G, B, "x "+string(mat[1])+" * y "+string(mat[4])+" * + z "+string(mat[7])+" * +", optSingleMode=true)
-        Bo = Expr(R, G, B, "x "+string(mat[2])+" * y "+string(mat[5])+" * + z "+string(mat[8])+" * +", optSingleMode=true)
-        R = Ro  G = Go  B = Bo
+        Ro = "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +"
+        Go = "x "+string(mat[1])+" * y "+string(mat[4])+" * + z "+string(mat[7])+" * +"
+        Bo = "x "+string(mat[2])+" * y "+string(mat[5])+" * + z "+string(mat[8])+" * +"
 
-        isRGBo ? CombinePlanes(Ro, Go, Bo, planes="RGB", pixel_type=o_fmt[3]+o_fmt[2]) : last
+        if (!isRGBo) {
+        Ro = Expr(R, G, B, Ro, optSingleMode=true)
+        Go = Expr(R, G, B, Go, optSingleMode=true)
+        Bo = Expr(R, G, B, Bo, optSingleMode=true)
+        R = Ro  G = Go  B = Bo
+        } else { Expr(R, G, B, Ro, Go, Bo, pixel_type=o_fmt[3]+o_fmt[2]) }
 
 
     if (isRGBi && isRGBo && isScale) {
@@ -835,7 +839,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             msize  = min(nw,nh)
 
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true,matchformat=true)
-            ex_blend(bg,"multiply",opacity=0.5,fulls=fs)
+            ex_blend(bg,"multiply",opacity=0.5)
 
             Subtitle(       "\n SETTINGS:",                     size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n "         \
@@ -2158,13 +2162,13 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
               PropSet("_ColorRange", fw?1:0)                 }
 
 
-# SoftLimiter (19-11-2021)
+# SoftLimiter (20-11-2021)
 #
 # SoftLimiter is an inclusive limiter, it brings clips with under or overshoot values to in-range legal broadcast values
 # It does so in a gentle manner by rolling off the values into range without altering the clip's levels and then clipping leftovers.
 #
 # Disclaimer1: This is not a range conversion filter! Input is assumed to be "legal/tv range"
-# Disclaimer2: For static mode, first find the under and overshoot values by inspecting the clip with an histogram or statistics function (ie. ShowChannels(show=true) )
+# Disclaimer2: For static mode, first find the under and overshoot values by inspecting the clip with show=true
 #
 # Examples:
 #   SoftLimiter(16,235)        # no rolloff (straight clamp), assumes input IS legal (within 16,235)
@@ -2205,40 +2209,73 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     lo0 = lo == 16                loc0 = loc == 16
     hi0 = hi == 235               hic0 = hic == 240
 
+
+    if (dg) {
+
+        a.ConvertBits(8,dither=1)
+        w   = Width()
+        h   = Height()
+        lo  = ex_bs(lo,  8, bi, fs)
+        loc = ex_bs(loc, 8, bi, fs)
+        loc = bi > 16 ? loc - 0.5 : loc
+        hi  = ex_bs(hi,  8, bi, fs)
+        hic = ex_bs(hic, 8, bi, fs)
+        hic = bi > 16 ? hic - 0.5 : hic
+
+        b = StackHorizontal( \
+            Histogram("levels").Crop(w, 0, 256, 256).blackmanresize(w/4,h/2), \
+            Histogram("color2").Crop(w, 0, 256, 256).blackmanresize(h/2,h/2).AddBorders((w/4-h/2)/2, 0, (w/4-h/2)/2, 0 ) )
+
+        c = StackVertical( \
+            a.Limiter(lo, hi, loc, hic, "luma_grey"  ), \
+            a.Limiter(lo, hi, loc, hic, "chroma_grey") ).ConvertBits(8,dither=1).BicubicResize(w/2, h,-0.5,0.25)
+
+        d = TurnRight().Histogram(mode="classic").TurnLeft().crop(0,0,0,-h).BilinearResize(w/2,h/2)
+
+        s = StackHorizontal(StackVertical(d, b), c).ConvertBits(bi)
+    }
+
+
     if (dyn > 0) {
         # Revert to newer ScriptClip when fixed for passing the other arguments
-        acc = dyn == 1 ? """propSetArray("_MinMax", function[]() { return [SC_ALMn_0,SC_ALMx_0,SC_ALMn_1,SC_ALMx_1,SC_ALMn_2,SC_ALMx_2] } )""" : \
-              dyn == 2 ? """propSetArray("_MinMax", function[]() { return [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  } )""" : \
-              dyn == 3 ? """propSetArray("_MinMax", function[]() { return [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  } )""" : ""
+        acc = dyn == 1 ? """propSet("_MinMax", [SC_ALMn_0,SC_ALMx_0,SC_ALMn_1,SC_ALMx_1,SC_ALMn_2,SC_ALMx_2] )""" : \
+              dyn == 2 ? """propSet("_MinMax", [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  )""" : \
+              dyn == 3 ? """propSet("_MinMax", [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  )""" : ""
 
         per = dyn > 2 ? 0.1 : dyn > 1 ? 0.2 : 0.454
         ScriptClip(a.propClearAll().removegrain(12,UV==3?12:-1).ConvertBits(8,dither=-1,fulls=fs).ShowChannels(SetVar=True,MinPerc=per,MaxPerc=per,show=false), acc, after_frame=True )
 
         propCopy(a,last,true)
 
-        ScriptClip( """
-        st = propGetAsArray("_MinMax")
-        SoftLimiter(st[0], st[1], (st[2]+st[4])/2., (st[3]+st[5])/2., dyn=0) """ )
-
-        dg ? ScriptClip( """
-        st = propGetAsArray("_MinMax")
-        Subtitle("YMin: "+string(st[0])+" "+"YMax: "+string(st[1])+" "+"UVMin: "+string((st[2]+st[4])/2.)+" "+"UVMax: "+string((st[3]+st[5])/2.)+" ") """ ) : last
+        if (dg) {
+            ScriptClip( """
+            st = propGetAsArray("_MinMax")
+            Subtitle("YMin: "+string(st[0])+" "+"YMax: "+string(st[1])+" "+"UVMin: "+string((st[2]+st[4])/2.)+" "+"UVMax: "+string((st[3]+st[5])/2.), align=1) """ )
+            StackVertical(last, s)
+        } else {
+            ScriptClip( """
+            st = propGetAsArray("_MinMax")
+            SoftLimiter(st[0], st[1], (st[2]+st[4])/2., (st[3]+st[5])/2., dyn=0) """ )
+        }
 
     } else {
+
+    if (dg) { StackVertical(a, s) }
+    else {
 
     if (lo0 && loc0 && hi0 && hic0) {
 
         lo  = ex_bs(16,  8, bi, fs)
         hi  = ex_bs(235, 8, bi, fs)
         hic = ex_bs(240, 8, bi, fs)
-        limiter(a, lo,hi,lo,hic)
+        limiter(a, lo,hi,bi>16?lo-0.5:lo,bi>16?hic-0.5:hic)
 
     } else {
 
-        b = (hi  > 254 ? 1.05 : 1 ) * max((0.009*pow(251-hi ,2)-0.015*(255-hi) -2.4),-2.4)
-        c = (hic > 254 ? 1.05 : 1 ) * max((0.009*pow(251-hic,2)-0.015*(255-hic)-2.4),-2.4)
-        d = lo  == 0 ? -1.82 : 0.0106*lo *lo -0.0577*lo -1.8 # needs to be tweaked a bit
-        e = loc == 0 ? -1.82 : 0.0106*loc*loc-0.0577*loc-1.8
+        b = spline(hi,  236,-0.44, 237,-0.815, 238,-1.131, 239,-1.396, 240,-1.617, 241,-1.8, 242,-1.951, 243,-2.073, 244,-2.17, 245,-2.247, 246,-2.305, 247,-2.348, 248,-2.378, 249,-2.397, 250,-2.4065, 251,-2.408, 252,-2.408, 253,-2.408, 254,-2.4078, 255,-2.4077)
+        c = spline(hic, 236,-0.44, 237,-0.815, 238,-1.131, 239,-1.396, 240,-1.617, 241,-1.8, 242,-1.951, 243,-2.073, 244,-2.17, 245,-2.247, 246,-2.305, 247,-2.348, 248,-2.378, 249,-2.397, 250,-2.4065, 251,-2.408, 252,-2.408, 253,-2.408, 254,-2.4078, 255,-2.4077)
+        d = spline(lo,  0,-1.871, 1,-1.861, 2,-1.845, 3,-1.8215, 4,-1.7905, 5,-1.7495, 6,-1.697, 7,-1.6325, 8,-1.552, 9,-1.454, 10,-1.3365, 11,-1.195, 12,-1.028, 13,-0.829, 14,-0.595, 15,-0.321)
+        e = spline(loc, 0,-1.871, 1,-1.861, 2,-1.845, 3,-1.8215, 4,-1.7905, 5,-1.7495, 6,-1.697, 7,-1.6325, 8,-1.552, 9,-1.454, 10,-1.3365, 11,-1.195, 12,-1.028, 13,-0.829, 14,-0.595, 15,-0.321)
 
         lop = ex_bs(lo, 8, bi, fs)    lopc = ex_bs(loc, 8, bi, fs)
         hip = ex_bs(hi, 8, bi, fs)    hipc = ex_bs(hic, 8, bi, fs)
@@ -2262,7 +2299,7 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
         isy     ? Expr(a, str                                    ) : \
         UV == 1 ? Expr(a, str, ""                                ) : \
-                  Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi)) } } }
+                  Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi)) } } } }
 
 
 
@@ -2924,12 +2961,12 @@ function Matrix_coef (string matrix, string "illuminant") {
 
     #                     NTSC 1953/YCbCr   ITU-R BT.709-6/sRGB ITU-R BT.601     Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Adobe Wide Gamut   Display-P3/D65P3  DCI-P3            AP1                AP0                D55                D75                D93
     #                     BT-470M/FCC       IEC 61966-2-1       SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg/ACEScct     SMPTE ST 2065-1    D55                D75                9300K+27 MPCD
-    pr  = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],    [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.7347, 0.2653],  [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
-    pg  = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],    [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.1152, 0.8264],  [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
-    pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.1566, 0.0177],  [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
-    pw  = Select (mat_w,  [0.3101,0.3162],  [0.312713, 0.329016],                                                                                        [0.3457, 0.3585],                    [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
-    wp  = Select (mat_wp, [0.3101,0.3162],  [0.312713, 0.329016],                                                                                        [0.3457, 0.3585],                    [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
-    Kv  = Select (mat_wp,  6771.297      ,   6504.13            ,                                                                                         5000.569       ,                     6304.573      ,   6000.211                           , 5502.33           , 7506.16          , 8941.864     )
+    pr  = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],    [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.73469,0.26531], [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
+    pg  = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],    [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.11416,0.82621], [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
+    pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.15664,0.01770], [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
+    pw  = Select (mat_w,  [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
+    wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
+    Kv  = Select (mat_wp,  6771.297      ,   6504.13            ,                                                                                         5000.569        ,                    6304.573      ,   6000.211                           ,  5502.33          , 7506.16          , 8941.864     )
 
     pr2 = 1. - pr[0] - pr[1]    pw2 = 1. - pw[0] - pw[1]
     pb2 = 1. - pb[0] - pb[1]    wp2 = 1. - wp[0] - wp[1]
