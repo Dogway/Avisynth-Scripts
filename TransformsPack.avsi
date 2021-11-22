@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC27  (20-11-2021)           ##
+###    Transforms Pack v1.0 RC28  (22-11-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -361,7 +361,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
       cs_outFA = Color_Fuzzy_search (cs_out)
       cs_outF  = cs_outFA[0]
     OETF       = Default (Defined(OETF) ? OETF =="" ? Und : OETF : OETF,  cs_in_d  ? cs_in ==""  ? propIDs[5] : cs_in : propIDs[5])
-    EOTF       = Default (Defined(EOTF) ? EOTF =="" ? Und : EOTF : EOTF,  OETF)
+    EOTF       = Default (Defined(EOTF) ? EOTF =="" ? Und : EOTF : EOTF,  cs_out) # By default derived from space.
           OETF = Color_Fuzzy_search (OETF)[0]
           EOTF = Color_Fuzzy_search (EOTF)[0]
        tv_in_d = Defined (tv_in)
@@ -373,7 +373,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     cplace_in  = Default (cplace_in,   "")       # Assumes default from format
     cplace_out = Default (cplace_out,  "")       # Assumes default from format
     D_in       = Default (Defined(D_in)  ? D_in  =="" ? Und : D_in  : D_in , cs_in_d  ? cs_in ==""  ? propIDs[2] : cs_in : propIDs[2])
-    D_out      = Default (Defined(D_out) ? D_out =="" ? Und : D_out : D_out, D_in)
+    D_out      = Default (Defined(D_out) ? D_out =="" ? Und : D_out : D_out, D_in) # By default same as input, change based on space?
         D_in   = Color_Fuzzy_search (D_in )[0]
         D_outA = Color_Fuzzy_search (D_out)
         D_out  = D_outA[0]
@@ -715,7 +715,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
         Go = Expr(R, G, B, Go, optSingleMode=true)
         Bo = Expr(R, G, B, Bo, optSingleMode=true)
         R = Ro  G = Go  B = Bo
-        } else { Expr(R, G, B, Ro, Go, Bo, pixel_type=o_fmt[3]+o_fmt[2]) }
+        } else { Expr(R, G, B, Ro, Go, Bo, pixel_type=o_fmt[3]+o_fmt[2], optSingleMode=true) }
 
 
     if (isRGBi && isRGBo && isScale) {
@@ -841,11 +841,12 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true,matchformat=true)
             ex_blend(bg,"multiply",opacity=0.5)
 
-            Subtitle(       "\n SETTINGS:",                     size=msize/25,lsp=4)
-            Subtitle(Format("\n\n\n\n "         \
-                           +"width in/out:\n "  \
-                           +"height in/out:\n " \
-                           +"model in/out:\n "  \
+            Subtitle(" ConvertFormat() 1.0 RC28",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
+            Subtitle(Format("\n\n\n\n\n "       \
+                           +"width:\n "         \
+                           +"height:\n "        \
+                           +"model:\n "         \
                            +"OETF/EOTF:\n "     \
                            +"colorspace:\n "    \
                            +"D in/out:\n "      \
@@ -857,7 +858,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                            +"noring:\n "        \
                            +"nomoiree:\n "      \
                            +"UVrecon:"),                        size=msize/25,lsp=4)
-            Subtitle(Format("\n\n\n IN\n "      \
+            Subtitle(Format("\n\n\n\n IN\n "    \
                            +"{w} \n "           \
                            +"{h} \n "           \
                            +"{i_fmt} \n "       \
@@ -872,11 +873,11 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                            +"{noring} \n "      \
                            +"{nomoir} \n "      \
                            +"{recon}"),            x=msize/4,   size=msize/25,lsp=4)
-            Subtitle(Format("\n\n\n OUT\n "     \
+            Subtitle(Format("\n\n\n\n OUT\n "   \
                            +"{nw} \n "          \
                            +"{nh} \n "          \
                            +"{o_fmt} \n "       \
-                           +"{EOTF} \n "       \
+                           +"{EOTF} \n "        \
                            +"{cs_out} \n "      \
                            +"{D_out} \n "       \
                            +"{o_jab} \n "       \
@@ -1232,7 +1233,7 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
         fmt = Format_fuzzy_search(RGB, "YUV", bi)
         Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + ",     bi, fs),  \
                       ex_dlut("y 0.5  * x z + 0.25 * - "+b32, bi, fs),  \
-                      ex_dlut("x z - 0.5  *            "+b32, bi, fs), format="YUV444"+fmt[2]) } }
+                      ex_dlut("x z - 0.5  *            "+b32, bi, fs), format="YUV444"+fmt[2], optSingleMode=true) } }
 
 
 # YCoCg to RGB function
@@ -1263,7 +1264,7 @@ function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_ou
         fmt = Format_fuzzy_search(YCC, "RGB", bi)
         Expr(Y, Cg, Co, ex_dlut("x y "+b32+" - z "+b32+" + ", bi, fs),  \
                         ex_dlut("x y "+b32+" +",              bi, fs),  \
-                        ex_dlut("x y "+b32+" - z "+b32+" - ", bi, fs), format="RGB"+fmt[2]) } }
+                        ex_dlut("x y "+b32+" - z "+b32+" - ", bi, fs), format="RGB"+fmt[2], optSingleMode=true) } }
 
 
 # RGB to YCoCg RCT function
@@ -1318,7 +1319,7 @@ function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_o
         fmt = Format_fuzzy_search(YCC, "RGB", bi)
         Expr(Y, Cg, Co, ex_dlut("z   "+b32+" dup 0.5 * x y "+b32+" - swap - swap 2 * +", bi, fs),  \
                         ex_dlut("y   "+b32+" Y@ 2 * x Y - +",      bi, fs),                        \
-                        ex_dlut("x y "+b32+" - z "+b32+" 0.5 * -", bi, fs), format="RGB"+fmt[2]) } }
+                        ex_dlut("x y "+b32+" - z "+b32+" 0.5 * -", bi, fs), format="RGB"+fmt[2], optSingleMode=true) } }
 
 
 # RGB to YCbCr RCT function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
@@ -1348,7 +1349,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out",
         fmt = Format_fuzzy_search(RGB, "YUV", bi)
         Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + ", bi, fs),  \
                       ex_dlut("z y - "+b32,               bi, fs),  \
-                      ex_dlut("x y - "+b32,               bi, fs), format="YUV444"+fmt[2]) } }
+                      ex_dlut("x y - "+b32,               bi, fs), format="YUV444"+fmt[2], optSingleMode=true) } }
 
 
 # YCbCr RCT to RGB function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
@@ -1422,7 +1423,7 @@ function RGB_to_OPP (clip RGB, clip "G", clip "B", bool "fulls") {
         P2 = Expr(R, G, B, P2s, optSingleMode=false)
         [O, P1, P2]
 
-    } else { Expr(R, G, B, Os, P1s, P2s, format="YUV444"+Format_fuzzy_search(RGB,"YUV",bi)[2]) } }
+    } else { Expr(R, G, B, Os, P1s, P2s, format="YUV444"+Format_fuzzy_search(RGB,"YUV",bi)[2], optSingleMode=true) } }
 
 
 # https://github.com/HomeOfVapourSynthEvolution/VapourSynth-BM3D/blob/7b3d8dd32e4aa4d962cf15d75d191b465682ed42/include/Specification.h#L176
@@ -1450,7 +1451,7 @@ function OPP_to_RGB (clip OPP, clip "P1", clip "P2", bool "fulls") {
         B = Expr(O, P1, P2, Bs, optSingleMode=false)
         [R, G, B]
 
-    } else { Expr(O, P1, P2, Rs, Gs, Bs, format="RGB"+Format_fuzzy_search(OPP,"RGB",bi)[2]) } }
+    } else { Expr(O, P1, P2, Rs, Gs, Bs, format="RGB"+Format_fuzzy_search(OPP,"RGB",bi)[2], optSingleMode=true) } }
 
 
 # XYZ to YDzDx (applied on SMPTE ST 2084 gamma space)
@@ -1660,7 +1661,7 @@ function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range", bool "fulls"
 
     V  = Expr(R, G, B,"z y max x max", optSingleMode=false)                   # Lightness Hexcone
     Ss = "a 0 == 0 a z y min x min - "+rangePC+" a "+rangePC+" / ? "+rangeTV  # Hexagonal Chroma
-    Hs = "60 a z y min x min - "+rangePC+" S@ / D^
+    Hs = "60       a z y min x min - "+rangePC+" S@ / D^
           a 0 == S a / 0 == or 0
           x a == y z - "+rangePC+" D * 360 + 360 %
           y a == z x - "+rangePC+" D * 120 + 360 %
@@ -1672,7 +1673,7 @@ function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range", bool "fulls"
         H = Expr(R, G, B, V, Hs, optSingleMode=true)
         [H, S, V]
 
-    } else { Expr(R, G, B, V, Hs, Ss, "a",format=PixelType(RGB)) } }
+    } else { Expr(R, G, B, V, Hs, Ss, "a",format=PixelType(RGB), optSingleMode=true) } }
 
 
 function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range", bool "fulls") {
@@ -1703,7 +1704,7 @@ function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range", bool "fulls"
         B = Expr(H, S, V, Bs, optSingleMode=false)
         [R, G, B]
 
-    } else { Expr(H, S, V, Rs, Gs, Bs, format=PixelType(HSV)) } }
+    } else { Expr(H, S, V, Rs, Gs, Bs, format=PixelType(HSV), optSingleMode=true) } }
 
 
 
@@ -1743,7 +1744,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
     S = Expr(R,G,B, "x "+b32d+" "+string(LMS[2])+" * y "+b32d+" "+string(LMS[5])+" * + z "+b32d+" "+string(LMS[8])+" * + dup dup 0 >= swap 0.43 ^ swap neg 0.43 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
 
         Is  = " x "+b32d+" "+string(IPT[0])+" * y "+b32d+" "+string(IPT[3])+" * + z "+b32d+" "+string(IPT[6])+" * +"+b32m
-        I   = isy ? Expr(L,M,S, Is, optSingleMode=true,scale_inputs="none") : nop()
+        I   = isy ? Expr(L,M,S, Is, optSingleMode=true) : nop()
 
     if (!cy) {
 
@@ -1752,11 +1753,11 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
 
         if (isy) {
 
-            P  = Expr(L,M,S, Ps, optSingleMode=true,scale_inputs="none")
-            T  = Expr(L,M,S, Ts, optSingleMode=true,scale_inputs="none")
+            P  = Expr(L,M,S, Ps, optSingleMode=true)
+            T  = Expr(L,M,S, Ts, optSingleMode=true)
             [I, P, T]
 
-        } else { Expr(L,M,S, Is, Ps, Ts, format="RGB"+fmt[2]) }
+        } else { Expr(L,M,S, Is, Ps, Ts, format=PixelType(RGB), optSingleMode=true) }
 
     } else {
 
@@ -1767,11 +1768,11 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
 
         if (isy) {
 
-            C  = Expr(L,M,S, Cs, optSingleMode=true,scale_inputs="none")  # maybe normalize with 4.956244 instead
-            h  = Expr(L,M,S, hs, optSingleMode=true,scale_inputs="none")
+            C  = Expr(L,M,S, Cs, optSingleMode=true)  # maybe normalize with 4.956244 instead
+            h  = Expr(L,M,S, hs, optSingleMode=true)
             [I, C, h]
 
-        } else { Expr(L,M,S, Is, Cs, hs, format=PixelType(RGB)) } } }
+        } else { Expr(L,M,S, Is, Cs, hs, format=PixelType(RGB), optSingleMode=true) } } }
 
 
 
@@ -1833,7 +1834,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
         B = Expr(L,M,S, Bs, optSingleMode=false)
         [R, G, B]
 
-    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(IPT)) } }
+    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(IPT), optSingleMode=true) } }
 
 
 
@@ -1868,9 +1869,6 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
     LMS  = MatrixDot(mata, M1)
     M2   = MatrixTranspose(M2)
 
-#    b32i = bi == 32 ? "" : ex_dlut("range_half +", bi, fs)
-#    b32f = bi == 32 ? "" : ex_dlut("range_half -", bi, fs)
-
     b32m = bi == 32 ? "" : ex_dlut(" range_max *", bi, fs)
     b32d = bi == 32 ? "" : ex_dlut(" range_max /", bi, fs)
 
@@ -1879,7 +1877,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
     S = Expr(R,G,B, "x "+b32d+" "+string(LMS[2])+" * y "+b32d+" "+string(LMS[5])+" * + z "+b32d+" "+string(LMS[8])+" * + dup dup 0 >= swap 0.333333333 ^ swap neg 0.333333333 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
 
         Ls  = " x "+b32d+" "+string(M2[0])+" * y "+b32d+" "+string(M2[3])+" * + z "+b32d+" "+string(M2[6])+" * +"+b32m
-        Lk  = isy ? Expr(L,M,S, Ls, optSingleMode=true,scale_inputs="none") : nop()
+        Lk  = isy ? Expr(L,M,S, Ls, optSingleMode=true) : nop()
 
     if (!cy) {
 
@@ -1888,11 +1886,11 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
 
         if (isy) {
 
-            a   = Expr(L,M,S, as, optSingleMode=true,scale_inputs="none")
-            b   = Expr(L,M,S, bs, optSingleMode=true,scale_inputs="none")
+            a   = Expr(L,M,S, as, optSingleMode=true)
+            b   = Expr(L,M,S, bs, optSingleMode=true)
             [Lk, a, b]
 
-        } else { Expr(L,M,S, Ls, as, bs, format="RGB"+fmt[2]) }
+        } else { Expr(L,M,S, Ls, as, bs, format=PixelType(RGB), optSingleMode=true) }
 
     } else {
 
@@ -1903,11 +1901,11 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
 
         if (isy) {
 
-            C  = Expr(L,M,S, Cs, optSingleMode=true,scale_inputs="none")
-            h  = Expr(L,M,S, hs, optSingleMode=true,scale_inputs="none")
+            C  = Expr(L,M,S, Cs, optSingleMode=true)
+            h  = Expr(L,M,S, hs, optSingleMode=true)
             [Lk, C, h]
 
-        } else { Expr(L,M,S, Ls, Cs, hs, format=PixelType(RGB)) } } }
+        } else { Expr(L,M,S, Ls, Cs, hs, format=PixelType(RGB), optSingleMode=true) } } }
 
 
 
@@ -1966,12 +1964,12 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 
     if (isy) {
 
-        R = Expr(L,M,S, Rs, optSingleMode=false)
-        G = Expr(L,M,S, Gs, optSingleMode=false)
-        B = Expr(L,M,S, Bs, optSingleMode=false)
+        R = Expr(L,M,S, Rs, optSingleMode=true)
+        G = Expr(L,M,S, Gs, optSingleMode=true)
+        B = Expr(L,M,S, Bs, optSingleMode=true)
         [R, G, B]
 
-    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(Lab)) } }
+    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(Lab), optSingleMode=true) } }
 
 
 
@@ -2131,6 +2129,9 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     tv_in!=tv_out? PropSet("_ColorRange", tv_out?1:0) : last                                   }
 
 
+# Other names:  Broadcast Safe, Studio Swing, Limited/Narrow/Video/Head/TV range.
+# For opposite: Full Swing, Full/Data/CG/RGB/PC range.
+# Other:        SMPTE+, Extended Range (Ocassional case for 10-bit (64-1023) narrow blacks+full whites used for HLG)
 function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", bool "fulld") {
 
     rgb = isRGB(a)
@@ -2142,24 +2143,53 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
     fw  = Default(forward,  fs)     # forward converts to SMPTE legal, otherwise converts to Full Range.
     Y   = Default(Y,            3 )
     UV  = Default(UV, isy ? 1 : 3 )
+    fi  = Defined(fulls) || Defined(fulld)
     fs  = Default(fulls,    fs)
     fd  = Default(fulld,   !fw)
 
-    scl = fs!=fd && ( 8 < bi < 32) ? string(fd ? 257/256. : 256/257.)+" *" : "" # Yes, I revised this and it's correct
+    if (fi && fs!=fd) {
+        scl = fs!=fd && ( 8 < bi < 32) ? string(fd ? 257/256. : 256/257.)+" *" : "" # Yes, I revised this and it's correct
 
-    str  = fw ? "x ymax ymin - range_max / * ymin  + "+scl : \
-                "x ymin - range_max ymax ymin - / *  "+scl
+        str  = fw ? "x ymax ymin - range_max / * ymin  + "+scl : \
+                    "x ymin - range_max ymax ymin - / *  "+scl
 
-    cstr = fw ? "x cmax cmin - range_max / * cmin  + "+scl : \
-                "x cmin - range_max cmax cmin - / *  "+scl
+        cstr = fw ? "x cmax cmin - range_max / * cmin  + "+scl : \
+                    "x cmin - range_max cmax cmin - / *  "+scl
 
+        str  =        ex_dlut( ex_Yexpr(  str,  Y, bi, rgb, fs), bi, fs)
+        cstr = !rgb ? ex_dlut( ex_UVexpr(cstr, UV, bi, rgb, fs), bi, fs) : str
+
+        isy     ? Expr(a, str                                    ) : \
+        UV == 1 ? Expr(a, str, ""                                ) : \
+                  Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi))
+                  PropSet("_ColorRange", fw?1:0)
+    } else {
+        ConvertBits(a, bi, fulls=fw, fulld=!fw) } }
+
+
+# For fixing purposes. To convert from bitshift scale to fullscale and reverse (no range conversion ie. TV to PC levels)
+function Full_scale (clip a, bool "forward", int "Y", int "UV") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
+          propGetInt      (a,"_ColorRange") == 0 : rgb
+
+    fw  = Default(forward,     !fs) # forward converts to full scale, otherwise converts to bitshift scale.
+    Y   = Default(Y,            3 )
+    UV  = Default(UV, isy ? 1 : 3 )
+
+    scl = fw ? 257/256. : 256/257.
+
+    str  = Format("x {scl} *")
+    cstr = !rgb ? ex_dlut( ex_UVexpr( str, UV, bi, rgb, fs), bi, fs) : str
     str  =        ex_dlut( ex_Yexpr(  str,  Y, bi, rgb, fs), bi, fs)
-    cstr = !rgb ? ex_dlut( ex_UVexpr(cstr, UV, bi, rgb, fs), bi, fs) : str
 
-    isy     ? Expr(a, str                                    ) : \
-    UV == 1 ? Expr(a, str, ""                                ) : \
-              Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi))
-              PropSet("_ColorRange", fw?1:0)                 }
+    !(8 < bi < 32) ?      a                                           : \
+    isy            ? Expr(a, str                                    ) : \
+    UV == 1        ? Expr(a, str, ""                                ) : \
+                     Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
 # SoftLimiter (20-11-2021)
@@ -2217,26 +2247,28 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     if (dg) {
 
         a.ConvertBits(8, dither=1, fulls=fs)
-        w   = Width()
-        h   = Height()
-        w4  = nmod(w/4.)
-        h2  = nmod(h/2.)
-        w2  = w4*2
-        pad = (w4-h2)/2
-        lo  = ex_bs(lo,  8, bi, fs)
-        loc = ex_bs(loc, 8, bi, fs)
-        loc = bi > 16 ? loc - 0.5 : loc
-        hi  = ex_bs(hi,  8, bi, fs)
-        hic = ex_bs(hic, 8, bi, fs)
-        hic = bi > 16 ? hic - 0.5 : hic
+        w    = Width()
+        h    = Height()
+        w4   = nmod(w/4.)
+        h2   = nmod(h/2.)
+        w2   = w4*2
+        n4   = min(w4,h2)
+        padw = (w4-n4)/2
+        padh = (h2-n4)/2
+        lo   = ex_bs(lo,  8, bi, fs)
+        loc  = ex_bs(loc, 8, bi, fs)
+        loc  = bi > 16 ? loc - 0.5 : loc
+        hi   = ex_bs(hi,  8, bi, fs)
+        hic  = ex_bs(hic, 8, bi, fs)
+        hic  = bi > 16 ? hic - 0.5 : hic
 
         b = StackHorizontal( \
             Histogram("levels").blackmanresize(w4,h2,w,0,256,256), \
-            Histogram("color2").blackmanresize(h2,h2,w,0,256,256).AddBorders(pad+pad%2, 0, pad-pad%2, 0 ) )
+            Histogram("color2").blackmanresize(n4,n4,w,0,256,256).AddBorders(padw+padw%2, padh+padh%2, padw-padw%2, padh-padh%2) )
 
         c = StackVertical( \
             a.Limiter(lo, hi, loc, hic, "luma_grey"  ).Subtitle("Luma Spill"  , align=7, size=30), \
-            a.Limiter(lo, hi, loc, hic, "chroma_grey").Subtitle("Chroma Spill", align=7, size=30) ).ConvertBits(8, dither=1, fulls=fs).BicubicResize(w2,h2*2,-0.5,0.25)
+            a.Limiter(lo, hi, loc, hic, "chroma_grey").Subtitle("Chroma Spill", align=7, size=30) ).BicubicResize(w2,h2*2,-0.5,0.25).ConvertBits(8, dither=1, fulls=fs)
 
         d = TurnRight().Histogram(mode="classic").BilinearResize(h2,w2,src_left=h2*2,src_width=-0).TurnLeft()
 
@@ -2272,12 +2304,13 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     if (dg) { StackVertical(a, s) }
     else {
 
+        lol  = ex_bs(16,  8, bi, fs)
+        hil  = ex_bs(235, 8, bi, fs)
+        hicl = ex_bs(240, 8, bi, fs)
+
     if (lo0 && loc0 && hi0 && hic0) {
 
-        lo  = ex_bs(16,  8, bi, fs)
-        hi  = ex_bs(235, 8, bi, fs)
-        hic = ex_bs(240, 8, bi, fs)
-        limiter(a, lo,hi,bi>16?lo-0.5:lo,bi>16?hic-0.5:hic)
+        limiter(a, lol,hil,bi>16?lol-0.5:lol,bi>16?hicl-0.5:hicl)
 
     } else {
 
@@ -2285,9 +2318,6 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         c = spline(hic, 236,-0.44, 237,-0.815, 238,-1.131, 239,-1.396, 240,-1.617, 241,-1.8, 242,-1.951, 243,-2.073, 244,-2.17, 245,-2.247, 246,-2.305, 247,-2.348, 248,-2.378, 249,-2.397, 250,-2.4065, 251,-2.408, 252,-2.408, 253,-2.408, 254,-2.4078, 255,-2.4077)
         d = spline(lo,  0,-1.871, 1,-1.861, 2,-1.845, 3,-1.8215, 4,-1.7905, 5,-1.7495, 6,-1.697, 7,-1.6325, 8,-1.552, 9,-1.454, 10,-1.3365, 11,-1.195, 12,-1.028, 13,-0.829, 14,-0.595, 15,-0.321)
         e = spline(loc, 0,-1.871, 1,-1.861, 2,-1.845, 3,-1.8215, 4,-1.7905, 5,-1.7495, 6,-1.697, 7,-1.6325, 8,-1.552, 9,-1.454, 10,-1.3365, 11,-1.195, 12,-1.028, 13,-0.829, 14,-0.595, 15,-0.321)
-
-        lop = ex_bs(lo, 8, bi, fs)    lopc = ex_bs(loc, 8, bi, fs)
-        hip = ex_bs(hi, 8, bi, fs)    hipc = ex_bs(hic, 8, bi, fs)
 
         phi = 20
         phr = 1./phi
@@ -2299,8 +2329,8 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         hic = Format("    x "+bi32d+"   dup log {phi} * exp 1 + log {phr} {c} * * "+expT(1)+" *  ")
         loc = Format("1 1 x "+bi32d+" - dup log {phi} * exp 1 + log {phr} {e} * * "+expT(1)+" * -")
 
-        str  = (lo0  && hi0  ? "x " :  (lo0  && !hi0  ? hi  : !lo0  && hi0  ? lo  : "x range_half > "+hi +" "+lo +" ?") + bi32m) + Format(" {lop}  {hip}  clip")
-        cstr =  loc0 && hic0 ? "x " : ((loc0 && !hic0 ? hic : !loc0 && hic0 ? loc : "x range_half > "+hic+" "+loc+" ?") + bi32m  + Format(" {lopc} {hipc} clip"))
+        str  = (lo0  && hi0  ? "x " :  (lo0  && !hi0  ? hi  : !lo0  && hi0  ? lo  : "x range_half > "+hi +" "+lo +" ?") + bi32m) + Format(" {lol} {hil}  clip") # still need to account for 'tolerance'
+        cstr =  loc0 && hic0 ? "x " : ((loc0 && !hic0 ? hic : !loc0 && hic0 ? loc : "x range_half > "+hic+" "+loc+" ?") + bi32m  + Format(" {lol} {hicl} clip"))
 
 
         str  =        ex_dlut( str,                              bi, fs)
@@ -3243,6 +3273,24 @@ function MatrixClip ( clip clp, float_array mat) {
                                     "x "+string(mat[2])+" * y "+string(mat[5])+" * + z "+string(mat[8])+" * +", optSingleMode=true, format=PixelType(clp)) }
 
 
+function DotClip ( clip clp, float_array vec) {
+
+    CLPa = ExtractClip(clp)
+
+    # clip � 1x3
+    Expr(CLPa[0], \
+         CLPa[0], \
+         CLPa[0], "x "+string(vec[0])+" * y "+string(vec[1])+" * + z "+string(vec[2])+" * +", optSingleMode=true) }
+
+
+function DotClipA ( clip_array clp, float_array vec) {
+
+    # clipA � 1x3
+    Expr(clp[0], \
+         clp[1], \
+         clp[2], "x "+string(vec[0])+" * y "+string(vec[1])+" * + z "+string(vec[2])+" * +", optSingleMode=true) }
+
+
 function MatrixDot ( float_array mat1, \
                      float_array mat2) {
     # 1x3 � 3x3
@@ -3308,22 +3356,6 @@ function Dot (float_array vec1, \
               float_array vec2) {
     # 1x3 � 1x3
     (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]) }
-
-
-function DotClip ( clip rgb, float_array vec) {
-
-    # clip � 1x3
-    Expr(ExtractR(rgb), \
-         ExtractG(rgb), \
-         ExtractB(rgb), "x "+string(vec[0])+" * y "+string(vec[1])+" * + z "+string(vec[2])+" * +", optSingleMode=true) }
-
-
-function DotClipA ( clip_array rgb, float_array vec) {
-
-    # clipA � 1x3
-    Expr(rgb[0], \
-         rgb[1], \
-         rgb[2], "x "+string(vec[0])+" * y "+string(vec[1])+" * + z "+string(vec[2])+" * +", optSingleMode=true) }
 
 
 function MatrixDiv ( float_array mat1, \
