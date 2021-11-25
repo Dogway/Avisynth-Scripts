@@ -1,9 +1,10 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v1.7  (16-11-2021)                     ###
+###        Similarity Metrics Pack v1.8  (25-11-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
+###                https://github.com/Asd-g/AviSynthPlus-Scripts          ###
 ###            Modded by Dogway for performance                           ###
 ###                                                                       ###
 ###   GMSD                                                                ###
@@ -19,16 +20,19 @@
 /*
 
 GMSD - Gradient Magnitude Similarity Deviation Calculator
-This script is port of the VapourSynth GMSD - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L3373
+This script is a port of the VapourSynth GMSD - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L3417
 
 
-GMSD is a new effective and efficient image quality assessment (IQA) model, which utilizes the pixel-wise gradient magnitude similarity (GMS)
-between the reference and distorted images combined with standard deviation of the GMS map to predict perceptual image quality.
-The distortion degree of the distorted image will be stored as frame property '_PlaneGMSD' in the output clip.
-The value of GMSD reflects the range of distortion severities in an image.
-The lowerer the GMSD score, the higher the image perceptual quality.
-If "clip1" == "clip2", GMSD = 0.
-All the internal calculations are done at 32-bit float, only one channel of the image will be processed.
+    GMSD is a new effective and efficient image quality assessment (IQA) model, which utilizes the pixel-wise gradient magnitude similarity (GMS)
+    between the reference and distorted images combined with standard deviation of the GMS map to predict perceptual image quality.
+
+    The distortion degree of the distorted image will be stored as frame property '_PlaneGMSD' in the output clip.
+
+    The value of GMSD reflects the range of distortion severities in an image.
+    The lowerer the GMSD score, the higher the image perceptual quality.
+    If "clip1" == "clip2", GMSD = 0.
+
+    All the internal calculations are done at 32-bit float, only one channel of the image will be processed.
 
 Ref:
     [1] Xue, W., Zhang, L., Mou, X., & Bovik, A. C. (2014). Gradient magnitude similarity deviation:
@@ -74,6 +78,11 @@ Ref:
 
 function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
+    rgb = isRGB(dist)
+    bi  = BitsPerComponent(dist)
+    fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
+          propGetInt      (dist,"_ColorRange") == 0 : rgb
+
     c        = Default(c, 0.0026)
     y        = Default(y, true)
     u        = Default(u, false)
@@ -81,7 +90,7 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     downscl  = Default(downsample, true)
     show_map = Default(show_map,  false)
     show     = Default(show,          0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
-    fs       = Default(fulls,      true)
+    fs       = Default(fulls,        fs)
 
     clip1 = dist
     clip2 = ref
@@ -98,8 +107,8 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
 
-    clip1 = clip1.ConvertBits(32, fulld=fs)
-    clip2 = clip2.ConvertBits(32, fulld=fs)
+    clip1 = clip1.ConvertBits(32, fulls=fs, fulld=false) # saturating range for correct calculations
+    clip2 = clip2.ConvertBits(32, fulls=fs, fulld=false)
 
     if (downscl)
     {
@@ -108,7 +117,7 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     }
 
 
-    # qprewitt with custom normalization
+    # qprewitt gradient magnitude with custom normalization
     krn = ex_shape(1,center=false)
     quality_map = ex_lutxy(ex_edge(clip1, krn+"A D F + + C - E - H - abs dup *
                                                A B C + + F - G - H - abs dup * +", 0, 255),  \
@@ -131,16 +140,18 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
 /*
 
 MDSI - Mean Deviation Similarity Index Calculator
-This script is port of the VapourSynth MDSI - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L4593
+This script is a port of the VapourSynth MDSI - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L4641
 
 
-MDSI is a full reference IQA model that utilize gradient similarity (GS), chromaticity similarity (CS), and deviation pooling (DP).
-The lowerer the MDSI score, the higher the image perceptual quality.
-Larger MDSI values indicate to the more severe distorted images, while an image with perfect quality is assessed by a quality score of zero.
-The distortion degree of the distorted image will be stored as frame property '_PlaneMDSI' in the output clip.
-Note that bilinear downsampling is used in this implementation (but disabled by default), as opposed to the original paper.
-The gradient-chromaticity similarity map is saturated before deviation pooling, as described in II.D.
-Matrix used by rgb2gray() from MATLAB (similar to BT.601 matrix) is used for computation of luma component.
+    MDSI is a full reference IQA model that utilize gradient similarity (GS), chromaticity similarity (CS), and deviation pooling (DP).
+    The lowerer the MDSI score, the higher the image perceptual quality.
+
+    Larger MDSI values indicate to the more severe distorted images, while an image with perfect quality is assessed by a quality score of zero.
+    The distortion degree of the distorted image will be stored as frame property '_PlaneMDSI' in the output clip.
+
+    Note that bilinear downsampling is used in this implementation (but disabled by default), as opposed to the original paper.
+    The gradient-chromaticity similarity map is saturated before deviation pooling, as described in II.D.
+    Matrix used by rgb2gray() from MATLAB (similar to BT.601 matrix) is used for computation of luma component.
 
 Ref:
     [1] Nafchi, H. Z., Shahkolaei, A., Hedjam, R., & Cheriet, M. (2016).
@@ -174,19 +185,25 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Ported to ExTools and TransformsPack (28% speed gain) by Dogway
+# Ported to ExTools and TransformsPack (89% speed gain) by Dogway
 #---------------
 # Changed global scope of gcs to local.
 #---------------
 # Initial port version by Asd-g.
 
 
-function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_maps", int "show") {
+function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_maps", int "show", bool "fulls") {
+
+    rgb = isRGB(dist)
+    bi  = BitsPerComponent(dist)
+    fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
+          propGetInt      (dist,"_ColorRange") == 0 : rgb
 
     down_scale = Default(down_scale, 1)
     alpha      = Default(alpha,    0.6)
     show_maps  = Default(show_maps, false)
     show       = Default(show,          0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
+    fs         = Default(fulls,        fs)
 
     clip1 = dist
     clip2 = ref
@@ -204,47 +221,60 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
     c3 = 550 / pow(255, 2)
 
 
-    down1 = down_scale > 1 || BitsPerComponent(clip1) != 32 ?
+    down1 = down_scale > 1 ?
     \ Bilinearresize(clip1, Int(RoundHalfToEven(Float(w1) / down_scale)), Int(RoundHalfToEven(Float(h1) / down_scale))) :
     \ clip1
 
-    down2 = down_scale > 1 || BitsPerComponent(clip2) != 32 ?
+    down2 = down_scale > 1 ?
     \ Bilinearresize(clip2, Int(RoundHalfToEven(Float(w2) / down_scale)), Int(RoundHalfToEven(Float(h2) / down_scale))) :
     \ clip2
 
-    down1 = ExtractClip(down1)
-    down2 = ExtractClip(down2)
+    down1 = ExtractClip(down1.ConvertBits(bi, fulls=fs, fulld=false))
+    down2 = ExtractClip(down2.ConvertBits(bi, fulls=fs, fulld=false))
 
-    l1 = DotClipA(down1,[0.298967,0.586421,0.114612])  # Consider converting properly in linear light with greyscale_rgb()
-    l2 = DotClipA(down2,[0.298967,0.586421,0.114612])  # Consider converting properly in linear light with greyscale_rgb()
+    l1 = DotClipA(down1,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
+    l2 = DotClipA(down2,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
     f  = Merge(l1, l2)
 
     g_r = ex_edge(l1, "qprewitt", 0, 255)
     g_d = ex_edge(l2, "qprewitt", 0, 255)
     g_f = ex_edge(f,  "qprewitt", 0, 255)
 
-    gs_hvs = ex_lutxyz(g_r, g_d, g_f, Format("x y * 2 * {c1} + x dup * X@ y dup * Y@ {c1} + + /
-                                              x z * 2 * {c2} +         X  z dup * Z@ {c2} + + / +
-                                              y z * 2 * {c2} +         Y          Z  {c2} + + / -"), UV=1)
-    h1 = DotClipA(down1,[0.30,0.04,0.35])
-    h2 = DotClipA(down2,[0.30,0.04,0.35])
-    m1 = DotClipA(down1,[0.34,0.60,0.17])
-    m2 = DotClipA(down2,[0.34,0.60,0.17])
+    # HVS-based gradient similarity
+    gs_hvs = ex_lutxyz(g_r, g_d, g_f, Format("x range_max / X@ y range_max / Y@
+                                                                 * 2 * {c1} + X dup * XX@ Y dup * YY@ {c1} + + /
+                                              X z range_max / Z@ * 2 * {c2} +         XX  Z dup * ZZ@ {c2} + + / +
+                                              Y Z                * 2 * {c2} +         YY          ZZ  {c2} + + / - range_max *"), UV=1).ConvertBits(32, fulls=false, fulld=false)
+    # opponent color space
+    h1 = DotClipA(down1,[0.30,0.04,0.35]).ConvertBits(32, fulls=false, fulld=false)
+    h2 = DotClipA(down2,[0.30,0.04,0.35]).ConvertBits(32, fulls=false, fulld=false)
+    m1 = DotClipA(down1,[0.34,0.60,0.17]).ConvertBits(32, fulls=false, fulld=false)
+    m2 = DotClipA(down2,[0.34,0.60,0.17]).ConvertBits(32, fulls=false, fulld=false)
 
+    if (show_maps) {
+
+    # chromaticity similarity
     cs  = ex_lutxyza(h1, h2, m1, m2, Format("x y * z a * + 2 * {c3} + x dup * y dup * z dup * a dup * {c3} + + + + /"), UV=1)
-    gcs = ex_lutxy(gs_hvs, cs, Format("x {alpha} * y 1 {alpha} - * + 0 1 clip 0.25 ^"), UV=1)
+    # gradient-chromaticity
+    gcs = ex_lutxy(gs_hvs, cs, Format("x y - {alpha} * y + 0 1 clip 0.25 ^"), UV=1)
 
+        if (show == 2) {
+            gs_hvs = gs_hvs.Subtitle("gs_hvs",y=25, text_color=$2d2d2d, halo_color=$FFFFFF)
+            cs     =     cs.Subtitle("cs"    ,y=25, text_color=$2d2d2d, halo_color=$FFFFFF)
+            gcs    =    gcs.Subtitle("gcs"   ,y=25, text_color=$2d2d2d, halo_color=$FFFFFF)
+        }
 
-    gs_hvs = show == 2 ? gs_hvs.Subtitle("gs_hvs",y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : gs_hvs
-    cs     = show == 2 ?     cs.Subtitle("cs"    ,y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : cs
-    gcs    = show == 2 ?    gcs.Subtitle("gcs"   ,y=25,text_color=$2d2d2d,halo_color=$FFFFFF) : gcs
+    } else {
+        gcs = Expr(h1, h2, m1, m2, gs_hvs, Format("x y * z a * + 2 * {c3} + x dup * y dup * z dup * a dup * {c3} + + + + / dup b swap - {alpha} * + 0 1 clip 0.25 ^"))
+    }
+
 
     last = ScriptClip(show_maps ? Interleave(gs_hvs, cs, gcs) : show == 1 ? ref : dist, function [gcs] ()
         {
-            propSet("_PlaneMDSI", pow(AverageLuma(Expr(gcs, "x "+ String(AverageLuma(gcs)) +" - abs")), 0.25), 0)
+            propSet("_PlaneMDSI", pow(AverageLuma(Expr(gcs, "x "+ String(AverageLuma(gcs)) +" - abs")), 0.25), 0) # MAD
         })
 
-    return show == 2 ? ScriptClip(function [show_maps] () { Subtitle(show_maps?ex_invert():last,"PlaneMDSI: " + String(propGetFloat("_PlaneMDSI"))) } ) : last }
+    return show == 2 ? ScriptClip(function [show_maps] () { Subtitle(show_maps ? ex_invert(last) : last, "PlaneMDSI: " + String(propGetFloat("_PlaneMDSI"))) } ) : last }
 
 
 
@@ -253,17 +283,20 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
 /*
 
 SSIM - Structural SIMilarity Index Calculator
-This script is port of the VapourSynth SSIM - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L3481
+This script is a port of the VapourSynth SSIM - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L3529
 
 
-The Structural SIMilarity (SSIM) index is a method for measuring the similarity between two images.
-It is based on the hypothesis that the HVS is highly adapted for extracting structural information,
-which compares local patterns of pixel intensities that have been normalized for luminance and contrast.
-The mean SSIM (MSSIM) index value of the distorted image will be stored as frame property '_PlaneSSIM' in the output clip.
-The value of SSIM measures the structural similarity in an image.
-The higher the SSIM score, the higher the image perceptual quality.
-If "clip1" == "clip2", SSIM = 1.
-All the internal calculations are done at 32-bit float, only one channel of the image will be processed.
+    The Structural SIMilarity (SSIM) index is a method for measuring the similarity between two images.
+    It is based on the hypothesis that the HVS is highly adapted for extracting structural information,
+    which compares local patterns of pixel intensities that have been normalized for luminance and contrast.
+
+    The mean SSIM (MSSIM) index value of the distorted image will be stored as frame property '_PlaneSSIM' in the output clip.
+
+    The value of SSIM measures the structural similarity in an image.
+    The higher the SSIM score, the higher the image perceptual quality.
+    If "clip1" == "clip2", SSIM = 1.
+
+    All the internal calculations are done at 32-bit float, only one channel of the image will be processed.
 
 Ref:
     [1] Wang, Z., Bovik, A. C., Sheikh, H. R., & Simoncelli, E. P. (2004). Image quality assessment: from error visibility to structural similarity.
@@ -311,6 +344,11 @@ Ref:
 
 function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", float "stddev", float "dynamic_range", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
+    rgb = isRGB(dist)
+    bi  = BitsPerComponent(dist)
+    fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
+          propGetInt      (dist,"_ColorRange") == 0 : rgb
+
     y        = Default(y,  true)
     u        = Default(u, false)
     v        = Default(v, false)
@@ -321,7 +359,7 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     stddev   = Default(stddev,        1.5)
     show_map = Default(show_map,    false)
     show     = Default(show,            0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
-    fs       = Default(fulls,       false)
+    fs       = Default(fulls,          fs)
 
     clip1 = dist
     clip2 = ref
@@ -341,8 +379,8 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
 
-    clip1 = clip1.ConvertBits(32, fulls=fs)
-    clip2 = clip2.ConvertBits(32, fulls=fs)
+    clip1 = clip1.ConvertBits(32, fulls=fs, fulld=false)
+    clip2 = clip2.ConvertBits(32, fulls=fs, fulld=false)
 
     if (downscl)
     {
@@ -378,32 +416,35 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
 # BSSIM() by zorr
 # Adapted by Dogway for optimization and read '_PlaneSSIM' frame property
 #
-# PlaneSSIM = false -> Needs SSIM v0.25.1 (8-bit only)
-# PlaneSSIM = true  -> Needs frame property "_PlaneSSIM" by prior running vsSSIM()
-
 # Dependencies:
 #     ExTools
 #     StainlessS's RT_Stats for the standard deviation
+#     SSIM v0.25.1 (if '_PlaneSSIM' frame property is not present)
 
-function BSSIM(clip dist, clip ref, bool "PlaneSSIM", int "show", bool "fulls") {
+function BSSIM(clip dist, clip ref, int "show", bool "fulls") {
 
-    PS   = Default(PlaneSSIM, false)  # Set to True if the clip has the _PlaneSSIM frame property
+    rgb = isRGB(dist)
+    bi  = BitsPerComponent(dist)
+    fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
+          propGetInt      (dist,"_ColorRange") == 0 : rgb
+
     show = Default(show,           0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
-    fs   = Default(fulls,     false)
+    fs   = Default(fulls,         fs)
 
     source  = ref
     blurred = dist
 
-    source8        =  source.ConvertBits(8, dither=-1, fulls=fs)
-    blurred8       = blurred.ConvertBits(8, dither=-1, fulls=fs)
+    source8        =  source.ConvertBits(8, dither=-1, fulls=fs, fulld=false)
+    blurred8       = blurred.ConvertBits(8, dither=-1, fulls=fs, fulld=false)
 
-    scharr_orig    = ex_edge(source8,  "pscharr",0,255)
-    scharr_blurred = ex_edge(blurred8, "pscharr",0,255)
+    scharr_orig    = ex_edge(source8,  "pscharr", 0, 255)
+    scharr_blurred = ex_edge(blurred8, "pscharr", 0, 255)
 
-    ScriptClip(show == 1 ? ref : dist, function [source, source8, blurred8, scharr_orig, scharr_blurred, PS, show] () {
+    ScriptClip(show == 1 ? ref : dist, function [source, source8, blurred8, scharr_orig, scharr_blurred, show] () {
 
-        SSIM        = PS ? propGetFloat(source,"_PlaneSSIM") : \
-                           SSIM_FRAME(source8, blurred8) # only works on 8-bit
+        SSIM        = propNumElements(source, "_PlaneSSIM") > 0 ? \
+                      propGetFloat   (source, "_PlaneSSIM")     : \
+                      SSIM_FRAME(source8, blurred8)      # only works on 8-bit
         stddev_orig = RT_YPlaneStdev(scharr_orig)        # only works on 8-bit (output is also 8-bit)
         stddev_alt  = RT_YPlaneStdev(scharr_blurred)     # only works on 8-bit (output is also 8-bit)
 
@@ -421,16 +462,17 @@ function BSSIM(clip dist, clip ref, bool "PlaneSSIM", int "show", bool "fulls") 
 
 SSIM downsampler - Structural SIMilarity downsampler
 
-This script is port of the VapourSynth SSIM_downsample - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py
+This script is port of the VapourSynth SSIM_downsample - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L3670
 
-SSIM downsampler is an image downscaling technique that aims to optimize for the perceptual quality of the downscaled results.
-Image downscaling is considered as an optimization problem where the difference between the input and output images is measured using famous Structural SIMilarity (SSIM) index.
-The solution is derived in closed-form, which leads to the simple, efficient implementation.
-The downscaled images retain perceptually important features and details, resulting in an accurate and spatio-temporally consistent representation of the high resolution input.
+    SSIM downsampler is an image downscaling technique that aims to optimize for the perceptual quality of the downscaled results.
+    Image downscaling is considered as an optimization problem where the difference between the input and output images is measured using famous Structural SIMilarity (SSIM) index.
+    The solution is derived in closed-form, which leads to the simple, efficient implementation.
+    The downscaled images retain perceptually important features and details, resulting in an accurate and spatio-temporally consistent representation of the high resolution input.
 
-This is an pseudo-implementation of SSIM downsampler with slight modification.
-The behaviour of convolution at the border is uniform.
-All the internal calculations are done at 32-bit float.
+    This is an pseudo-implementation of SSIM downsampler with slight modification.
+    The behaviour of convolution at the border is uniform.
+    All the internal calculations are done at 32-bit float.
+
 */
 
 
@@ -460,7 +502,7 @@ All the internal calculations are done at 32-bit float.
 #---------------
 # resample_args (default ""): Additional resizer arguments.
 #---------------
-# dither (default "none"): Whether to perform dither for the final result.
+# dither (default true): Whether to perform dither for the final result.
 # It has effect only for < 32-bit clip.
 
 
@@ -471,7 +513,7 @@ SSIM_downsample(1280,532)
 */
 ###
 /*
-SSIM_downsample(1280,532, resample_args="b=-0.6, c=0", dither="error_diffusion", smooth="""ex_boxblur(1,mode="mean",UV=1)""")
+SSIM_downsample(1280,532, resample_args="b=-0.6, c=0", dither=true, smooth="""ex_boxblur(1,mode="mean",UV=1)""")
 # Downsampling with custom kernel arguments, custom smooth function and dither.
 */
 
@@ -489,43 +531,51 @@ SSIM_downsample(1280,532, resample_args="b=-0.6, c=0", dither="error_diffusion",
 
 function SSIM_downsample(clip c, int target_width, int target_height, val "smooth", string "kernel", float "epsilon", string "resample_args", bool "dither", bool "fulls")
 {
+    rgb = isRGB(c)
+    bi  = BitsPerComponent(c)
+    fs  = propNumElements (c,"_ColorRange")  > 0 ? \
+          propGetInt      (c,"_ColorRange") == 0 : rgb
+
     smooth  = Default(smooth, 1.5)
     kernel  = Default(kernel, "BicubicResize")
     epsilon = Default(epsilon, 0.000001)
-    dither  = Default(dither, false)
-    fs      = Default(fulls,  false)
+    dither  = Default(dither,  true)
+    fs      = Default(fulls,     fs)
 
-    bi  = BitsPerComponent(c)
-    
-    bi != 32 ? c.ConvertBits(32, fulls=fs) : c
+    c.ConvertBits(32, fulls=fs, fulld=true)
 
+    sw = String(target_width)
+    sh = String(target_height)
     resample_args = (Defined(resample_args)) ? ", " + resample_args : ""
 
-    l = Eval(kernel + "(" + String(target_width) + "," +  String(target_height) + resample_args + ")")
+    l   = Eval(kernel + "(" + sw + "," +  sh + resample_args + ")")
+    sqr = ex_lut(l, "x dup *", UV=3, scale_inputs="none")
 
     if (IsFloat(smooth))
     {
         m = vsTCanny(l, sigmaY=smooth, sigma_vY=smooth, mode=-1) # Gaussian blur
-        n = vsTCanny(Expr(l, "x dup *"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
-        o = vsTCanny(Eval(kernel + """(Expr("x dup *"),""" + String(target_width) + "," +  String(target_height) + resample_args + ")"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
+        n = vsTCanny(sqr, sigmaY=smooth, sigma_vY=smooth, mode=-1)
+        o = vsTCanny(Eval(kernel + """(ex_lut("x dup *", UV=3, scale_inputs="none"),""" + sw + "," +  sh + resample_args + ")"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
 
-        r = ex_lutxyz(n, o, Expr(m, "x dup *"), Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"), UV=3)
+        r = ex_lutxyz(n, o, ex_lut(m, "x dup *", UV=3, scale_inputs="none"), Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"), UV=3, scale_inputs="none")
 
         m = vsTCanny(m, sigmaY=smooth, sigma_vY=smooth, mode=-1)
         n = vsTCanny(r, sigmaY=smooth, sigma_vY=smooth, mode=-1)
-        o = vsTCanny(Expr(r, m, "x y *"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
+        o = vsTCanny(ex_lutxy(r, m, "x y *", UV=3, scale_inputs="none"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
 
-        ex_lutxyza(m, n, l, o, "x y z * + a -", UV=3)
+        ex_lutxyza(m, n, l, o, "x y z * + a -", UV=3, scale_inputs="none")
     }
     else
     {
         m = l.Eval(smooth)
-        r = Expr(Expr(l, "x dup *").Eval(smooth), Eval(kernel + """(Expr("x dup *"),""" + String(target_width) + "," +  String(target_height) + resample_args + ")").Eval(smooth),  Expr(m, "x dup *"), Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"))
-        ex_lutxyza(m.Eval(smooth), r.Eval(smooth), l, Expr(r, m, "x y *").Eval(smooth), "x y z * + a -",UV=3)
+        n = ex_lut(m, "x dup *", UV=3, scale_inputs="none")
+        r = ex_lutxyz(sqr.Eval(smooth), Eval(kernel + """(ex_lut("x dup *", UV=3, scale_inputs="none"),""" + sw + "," +  sh + resample_args + ")").Eval(smooth),  n, Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"), UV=3, scale_inputs="none")
+        o = ex_lutxy(r, m, "x y *", UV=3, scale_inputs="none").Eval(smooth)
+        ex_lutxyza(m.Eval(smooth), r.Eval(smooth), l, o, "x y z * + a -", UV=3, scale_inputs="none")
     }
 
-    ConvertBits(bits=bi, dither= dither ? 1 : -1, fulls=fs) }
-
+    bi != 32 ? ConvertBits(bits=bi, dither= dither ? 1 : -1, fulls=true, fulld=fs) : \
+               ConvertBits(bits=bi,                          fulls=true, fulld=fs) }
 
 
 
@@ -550,7 +600,7 @@ The “clip” is down-sampled by a factor of 2 with a 'Box' kernel, akin to process
 
 ### Changelog ###
 #---------------
-# Replaced with fmtc_resample(kernel="box"), faster and fixes chroma placement by Dogway.
+# Replaced with fmtc_resample(kernel="box"), faster and fixes chroma placement by Dogway. (fmtc_resample output is always 16-bit int, regardless of input bitdepth -except 32-bit float inputs-)
 #---------------
 # Replaced GeneralConvolution with Expr for >3.5x speed up.
 #---------------
