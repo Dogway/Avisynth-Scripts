@@ -29,7 +29,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 
 #######################################################################
 ###                                                                 ###
-###    yugefunc  v0.6 (24-11-2021)                                  ###
+###    yugefunc  v0.7 (26-11-2021)                                  ###
 ###                                                                 ###
 ###    Collection of VapourSynth functions ported to AviSynth+      ###
 ###                                                                 ###
@@ -69,6 +69,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 ##            Default is None.
 ##        regulation: (float) A criterion for judging whether a patch has high variance and should be preserved, or is flat and should be smoothed.
 ##            Similar to the range variance in the bilateral filter.
+##            Use negative to revert the effect (blur edges, else keep intact)
 ##            Default is 0.01.
 ##        regulation_mode: (int) Tweak on regulation.
 ##            It was mentioned in [1] that the local filters such as the Bilateral Filter (BF) or Guided Image Filter (GIF)
@@ -103,6 +104,8 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 ##        subsampling_ratio: (float) Only works when fast=True.
 ##            Generally should be no less than 'radius'.
 ##            Default is 4.
+##        show: (bool) to show the mask, instead of filtering.
+##            Default is false.
 ##        kernel1, kernel2: (string) Subsampling/upsampling kernels.
 ##            Default is 'point'and 'bilinear'.
 ##
@@ -117,10 +120,10 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 ##            IEEE Transactions on Image Processing, 24(11), 4528-4539.
 ##        [6] http://koufei.weebly.com/
 
-# ex_guidedblur(radius=r) is the slow (10% fps) but edge preserving equivalent of ex_blur(r-2) (with Defaults)
-# regulation_mode = 1 not working
+# * ex_guidedblur(radius=r) is the slow (10% fps) but edge preserving equivalent of ex_blur(r-2) (with Defaults)
+
 function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulation", int "regulation_mode", bool "use_gauss", bool "fast", \
-                               int "subsampling_ratio", string "kernel1", string "kernel2", int "UV") {
+                               int "subsampling_ratio", string "kernel1", string "kernel2", bool "show", int "UV") {
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
@@ -133,25 +136,29 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     rm  = Default(regulation_mode, 0)     # 0: Original Guided Filter, 1: Weighted Guided Image Filter, 2: Gradient Domain Guided Image Filter
     ga  = Default(use_gauss,   true)
     fa  = Default(fast,       false)
+    sh  = Default(show,       false)
     s   = Default(subsampling_ratio, 4)
     kn1 = Default(kernel1,   "Point")
     kn2 = Default(kernel2,   "Bilinear")
     UV  = Default(UV,    rgb ? 3 : 2)
 
+    epr = eps < 0 ? "range_max swap -" : ""
+    eps = abs(eps)
     isg = Defined(gd)
     w   = a.width()
     h   = a.height()
-    p   =        a.ConvertBits(32, fulls=fs, fulld=true)
-    I   = isg ? gd.ConvertBits(32, fulls=fs, fulld=true) : p
+    p   =        a
+    I   = isg ? gd : p
 
     # Back up guidance image
-    I_src = I
+    I_src = I.ConvertBits(32, fulls=fs, fulld=true)
 
     # Fast guided filter's subsampling
     r = fa ?        float(r) /s                   : r
     p = fa ? p.RatioResize(1./s, "%", kernel=kn1) : p
     I = fa ? I.RatioResize(1./s, "%", kernel=kn1) : I
-
+    p =      p.ConvertBits(32, fulls=fs, fulld=true)
+    I =      I.ConvertBits(32, fulls=fs, fulld=true)
 
     function Filter(clip clp, float r, bool use_gauss, int UV) {
         sigY  = r/2.*sqrt(2)
@@ -166,12 +173,12 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     # Compute local linear coefficients.
     mean_p   =       Filter(p,r,ga,uv)
     mean_I   = isg ? Filter(I,r,ga,uv) : mean_p
-    I_square = ex_lut(I, "x dup *", UV=uv)
+    I_square = ex_lut(I, "x dup *", UV=uv, scale_inputs="none")
     corr_I   =       Filter(I_square,r,ga,uv)
-    corr_Ip  = isg ? Filter(ex_lutxy(I, p, "x y *", UV=uv),r,ga,uv) : corr_I
+    corr_Ip  = isg ? Filter(ex_lutxy(I, p, "x y *", UV=uv, scale_inputs="none"),r,ga,uv) : corr_I
 
-    var_I    =       ex_lutxy (corr_I,  mean_I,         "x y dup * -", UV=uv)
-    cov_Ip   = isg ? ex_lutxyz(corr_Ip, mean_I, mean_p, "x y z   * -", UV=uv) : var_I
+    var_I    =       ex_lutxy (corr_I,  mean_I,         "x y dup * -", UV=uv, scale_inputs="none")
+    cov_Ip   = isg ? ex_lutxyz(corr_Ip, mean_I, mean_p, "x y z   * -", UV=uv, scale_inputs="none") : var_I
 
 
     if (rm>0) {
@@ -180,28 +187,29 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
 
             mean_I_1 = Filter_r1(I,       ga,uv)
             corr_I_1 = Filter_r1(I_square,ga,uv)
-            var_I_1  = ex_lutxyz(corr_I_1, mean_I_1, var_I, "x y dup * - z * sqrt", UV=uv)
-        }
+            var_I_1  = ex_lutxyz(corr_I_1, mean_I_1, var_I, "x y dup * - z * sqrt", UV=uv, scale_inputs="none")
+        } else { var_I_1  = var_I }
 
-        weight_in = (rm == 1) ? var_I : var_I_1
+        weight_in = var_I_1
 
 
             if (rm == 1) {
 
-                a = ScriptClip(weight_in, function [weight_in, cov_Ip, var_I, eps] () {
+                a = ScriptClip(weight_in, function [weight_in, cov_Ip, var_I, eps, epr, uv] () {
                     # Edge-Aware Weighting, equation (5) in [3], or equation (9) in [4].
                     avg = 1. / AverageLuma(weight_in)
 
-                    ex_lutxyz(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + dup 1 swap / swap {avg} * / + /"), UV=uv)
+                    ex_lutxyz(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + {avg} * / + / "+epr), UV=uv, scale_inputs="none")
                 } )
 
             } else {
 
-                a = ScriptClip(weight_in, function [weight_in, cov_Ip, var_I, eps] () {
+                a = ScriptClip(weight_in, function [weight_in, cov_Ip, var_I, eps, epr, uv] () {
                     # Edge-Aware Weighting, equation (5) in [3], or equation (9) in [4].
-                    avg = 1. / AverageLuma(weight_in)
+                    Denominator = ex_lutxy(var_I, weight_in, Format("1 x y * sqrt {eps} + /"), UV=uv, scale_inputs="none")
+                    avg = AverageLuma(Denominator)
 
-                    weight = ex_lutxyz(cov_Ip, var_I, weight_in, Format("x y {eps} z 0.000001 + dup 1 swap / swap {avg} * / + /"), UV=uv)
+                    weight = ex_lut(weight_in, Format("x {eps} + {avg} *"), UV=uv, scale_inputs="none")
 
                     # Compute the optimal value of a of Gradient Domain Guided Image Filter, equation (12) in [4]
                     frameMean = AverageLuma(weight)
@@ -210,15 +218,15 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
                     alpha = frameMean
                     kk = -4 / (frameMin - alpha - 0.000001) # Add a small num to prevent divided by 0
 
-                    ex_lutxyza(cov_Ip, weight_in, weight, var_I, Format("x {eps} 1 1 1 {kk} y {alpha} - * exp + / - * z / + a {eps} z / + / 0 max"), UV=uv)
+                    ex_lutxyza(cov_Ip, weight_in, weight, var_I, Format("x {eps} 1 1 1 {kk} y {alpha} - * exp + / - * z / + a {eps} z / + / 0 max "+epr), UV=uv, scale_inputs="none")
 
              } ) }
 
     } else {
-        a = ex_lutxy(cov_Ip, var_I, Format("x y {eps} + /"), UV=uv)   # regulation_mode = 0, Original Guided Filter
+        a = ex_lutxy(cov_Ip, var_I, Format("x y {eps} + / "+epr), UV=uv, scale_inputs="none")   # regulation_mode = 0, Original Guided Filter
     }
 
-    b = Expr(mean_p, a, mean_I, "x y z * -")
+    b = ex_lutxyz(mean_p, a, mean_I, "x y z * -", scale_inputs="none")
 
     mean_a = Filter(a,r,ga,uv)
     mean_b = Filter(b,r,ga,uv)
@@ -229,7 +237,7 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     mean_b = fa ? mean_b.RatioResize(ratio, "%", kernel=kn2) : mean_b
 
     # Linear translation
-    q = ex_lutxyz(mean_a, I_src, mean_b, "x y * z +", UV=uv)
+    q = !sh ? ex_lutxyz(mean_a, I_src, mean_b, "x y * z +", UV=uv, scale_inputs="none") : a
 
     # Final bitdepth conversion
     bi != 32 ? ConvertBits(q, bi, dither=1, fulls=true, fulld=fs) : \
@@ -264,6 +272,7 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
 ##
 ##        gamma: (float) Positive scalar value that controls the smoothness of the guided filter.
 ##            A small value preserves more detail while a large value promotes smoothing.
+##            Use negative to revert the effect (blur edges, else keep intact)
 ##            Default is 0.01.
 ##
 ##        epsilon: (float) Positive scalar value that regularizes the anisotropic weights.
@@ -283,12 +292,15 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
 ##            to better preserve details in the image.
 ##            Default is True.
 ##
+##        show: (bool) Show the mask.
+##            Default is False.
+##
 ##    Ref:
 ##        [1] C. N. Ochotorena and Y. Yamashita, "Anisotropic Guided Filtering,"
 ##            in IEEE Transactions on Image Processing, vol. 29, pp. 1397-1412, 2020,
 ##            doi: 10.1109/TIP.2019.2941326.
 
-function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma", bool "alpha", float "epsilon", bool "use_gauss", bool "sigma", bool "adaptive", int "UV") {
+function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma", bool "alpha", float "epsilon", bool "use_gauss", bool "sigma", bool "adaptive", bool "show", int "UV") {
 
     rgb = isRGB(clp)
     isy = isy(clp)
@@ -306,49 +318,52 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     eps = Default(epsilon, 0.003906250)
     sm  = Default(sigma,    false)
     ad  = Default(adaptive,  true)
+    sh  = Default(show,     false)
     UV  = Default(UV,    rgb ? 3 : 2)
 
     isg = Defined(gd)
     clp =      clp.ConvertBits(32, fulls=fs, fulld=true)
     gd  = isg ? gd.ConvertBits(32, fulls=fs, fulld=true) : clp
 
+    gmn   = gm < 0 ? "range_max swap -" : ""
+    gm    = abs(gm)
     alpha = !al ? max(log10(gm) + 3, 0) : 1
 
 
     if (!isg) {
 
-        X1 =                         clp.ex_boxblur(fr,mode="mean",UV=uv)
-        X2 = ex_lut(clp,"x dup *",UV=uv).ex_boxblur(fr,mode="mean",UV=uv)
-        W  = ex_lutxy(X1, X2, "y x dup * -",UV=uv)
+        X1 =                                                         clp.ex_boxblur(fr,mode="mean",UV=uv)
+        X2 = ex_lut  (clp,      "x dup *"  , UV=uv, scale_inputs="none").ex_boxblur(fr,mode="mean",UV=uv)
+        W  = ex_lutxy(X1, X2, "y x dup * -", UV=uv, scale_inputs="none")
 
     } else {
 
-        G1  =                              guidance.ex_boxblur(fr,mode="mean",UV=uv)
-        G2  =     ex_lut(guidance,"x dup *" ,UV=uv).ex_boxblur(fr,mode="mean",UV=uv)
-        X1  =                                   clp.ex_boxblur(fr,mode="mean",UV=uv)
-        XG  = ex_lutxy(clp,guidance,"x y *" ,UV=uv).ex_boxblur(fr,mode="mean",UV=uv)
-        W   = ex_lutxy(G1, G2, "y x dup * -",UV=uv)
+        G1  =                                                   guidance.ex_boxblur(fr,mode="mean",UV=uv)
+        G2  =     ex_lut(guidance,"x dup *" ,UV=uv, scale_inputs="none").ex_boxblur(fr,mode="mean",UV=uv)
+        X1  =                                                        clp.ex_boxblur(fr,mode="mean",UV=uv)
+        XG  = ex_lutxy(clp,guidance,"x y *" ,UV=uv, scale_inputs="none").ex_boxblur(fr,mode="mean",UV=uv)
+        W   = ex_lutxy(G1, G2, "y x dup * -",UV=uv, scale_inputs="none")
     }
 
     coeff = 0.0002 * (2 * r + 1) * gm
     gamma = ad ? Format("dup {coeff} swap 0.000001 + /") : Format("{gm}")
 
-    A = !isg ? ex_lut(W,             "x dup "+gamma+" + /"      ,UV=uv) : \
-               ex_lutxyza(W,XG,X1,G1,"y z a * - x "+gamma+" + /",UV=uv)
-    B = !isg ? ex_lutxy (A,X1,       "1 x - y *"                ,UV=uv) : \
-               ex_lutxyz(A,X1,G1,    "y x z * -"                ,UV=uv)
+    A = !isg ? ex_lut(W,             "x dup "+gamma+" + / "+gmn      ,UV=uv, scale_inputs="none") : \
+               ex_lutxyza(W,XG,X1,G1,"y z a * - x "+gamma+" + / "+gmn,UV=uv, scale_inputs="none")
+    B = !isg ? ex_lutxy  (A,X1,      "1 x - y *"                     ,UV=uv, scale_inputs="none") : \
+               ex_lutxyz (A,X1,G1,   "y x z * -"                     ,UV=uv, scale_inputs="none")
 
     # unsharp mask with custom divisor
     div   = sqrt(pi/2) / 6
-    sigma = !sm ? ex_lut(gd,Format("x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 4 * + + + + x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 2 * - {div} *"),UV=uv) : nop()
+    sigma = !sm ? ex_lut(gd,Format("x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 4 * + + + + x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 2 * - {div} *"),UV=uv, scale_inputs="none") : nop()
 
     coeff = pow(2 * r + 1, 2)
     W = Scriptclip(W, function [W,coeff,alpha,eps,sm,sigma,uv] () {
         avg = !sm ? string(min(-eps,pow(sigma.AverageLuma(),2)))+" -" : ""  # This line is causing NaN blocks, fix (originally without min())
-        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"), UV=uv) } )
+        ex_lut(W,Format("{eps} {coeff} x "+avg+" * {alpha} ^ {eps} + / range_max swap -"), UV=uv, scale_inputs="none") } )
 
-    WA = ex_lutxy(W,A,"x y *",UV=uv)
-    WB = ex_lutxy(W,B,"x y *",UV=uv)
+    WA = ex_lutxy(W,A,"x y *",UV=uv, scale_inputs="none")
+    WB = ex_lutxy(W,B,"x y *",UV=uv, scale_inputs="none")
     sigY  = r/2.+0.25
     sigUV = clp.is422() || clp.is420() ? sigY/2. : clp.isYV411() ? sigY/4. : sigY
     sigUVv= clp.is420()                ? sigY/2. :                           sigY
@@ -356,7 +371,7 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     B = ga ? WB.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) : WB.ex_boxblur(fr,mode="mean",UV=uv)
     W = ga ?  W.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) :  W.ex_boxblur(fr,mode="mean",UV=uv)
 
-    res = ex_lutxyza(gd,A,B,W,"y x * z + a /",UV=uv)
+    res = !sh ? ex_lutxyza(gd,A,B,W,"y x * z + a /",UV=uv, scale_inputs="none") : A
 
     bi != 32 ? ConvertBits(res, bi, dither=1, fulls=true, fulld=fs) : \
                ConvertBits(res, bi,           fulls=true, fulld=fs) }
