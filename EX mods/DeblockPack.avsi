@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v1.5  (14-11-2021)                                ###
+###        Deblock Pack v1.6  (27-11-2021)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -91,8 +91,11 @@
 ###
 
 function Deblock_QED ( clip clp, int "quant1", int "quant2",
- \                     int "aOff1", int "bOff1", int "aOff2", int "bOff2", string "exdeblock1", string "exdeblock2", int "UV", bool "fulls"  ) {
+ \                     int "aOff1", int "bOff1", int "aOff2", int "bOff2", string "exdeblock1", string "exdeblock2", int "UV"  ) {
 
+    rgb    = isRGB(clp)
+    fs     = propNumElements (clp,"_ColorRange")  > 0 ? \
+             propGetInt      (clp,"_ColorRange") == 0 : rgb
 
     quant1 = Default( quant1, 24 ) # Strength of block edge deblocking
     quant2 = Default( quant2, 26 ) # Strength of block internal deblocking
@@ -103,7 +106,6 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
     bOff1  = Default( bOff1,   2 ) # "Sensitivity to detect blocking" for borders
     bOff2  = Default( bOff2,   2 ) # "Sensitivity to detect blocking" for block interiors
 
-    fs     = Default( fulls,  false)
     UV     = Default( uv, 3 )      # u=3  -> use proposed method for chroma deblocking
                                    # u=2  -> no chroma deblocking at all (just copy it from source)
                                    # u=1  -> directly use chroma deblocking from the normal deblock()
@@ -117,10 +119,10 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
     h    = clp.height()
     padX = w%8 == 0 ? 0 : (8 - w%8)
     padY = h%8 == 0 ? 0 : (8 - h%8)
-    clp  = clp.PadBorders(0,0,padX,padY)
+    clp  = clp.PadBorders(0,0,padX,padY,"Dilate")
 
     # block
-    block = clp.ex_lutspa(mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?", UV=!isy && uv!=2 ? 3 : 1, fulls=fs)
+    block = clp.ex_lutspa(mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?", UV=!isy && uv!=2 ? 3 : 1)
 
     # create normal deblocking (for block borders) and strong deblocking (for block interiour)
     normal = Defined(exdeblock1) ? Eval("clp." + exdeblock1) : clp.Deblock_deblock(quant=quant1,aOffset=aOff1,bOffset=bOff1)
@@ -139,7 +141,7 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
     remX = sw%16 == 0 ? 0 : (16 - sw%16)
     remY = sh%16 == 0 ? 0 : (16 - sh%16)
 
-    strongD3 = strongD2.PadBorders(0,0,remX,remY).DCTfilter(1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0).crop(0,0,-remX,-remY)
+    strongD3 = strongD2.PadBorders(0,0,remX,remY,"Dilate").DCTfilter(1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0).crop(0,0,-remX,-remY)
 
     # apply compensation from "normal" deblocking to the borders of
     # the full-block-compensations calculated from "strong" deblocking ... and apply it.
@@ -161,7 +163,7 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
 ################################
 
 ## Initial VapourSynth release (01-05-2016)
-## AviSynth+ port    by Dogway (20-09-2021)
+## AviSynth+ port    by Dogway (20-09-2021) (WIP)
 ##
 ## Input: 444 YUV/RGB in 32-bit float
 ##
@@ -196,7 +198,7 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
 ##    Dependencies:
 ##                  ExTools
 ##                  ResizersPack
-##                  mvtools2
+##                  MVTools
 ##                  KNLMeansCL
 ##                  BM3D
 ##                  DFTTest
@@ -209,23 +211,25 @@ function oyster_Super(clip src, int "pel") {
     pel = Default(pel, 2)
     bi  = BitsPerComponent(src)
     rgb = isRGB(src)
+    fs  = propNumElements (src,"_ColorRange")  > 0 ? \
+          propGetInt      (src,"_ColorRange") == 0 : rgb
 
     Assert(isclip(src),          "oyster_Super: src has to be a video clip!")
     Assert(bi == 32,             "oyster_Super: the sample type of src has to be single precision!")
     Assert(is444(src) || rgb,    "oyster_Super: subsampled stuff not supported!")
     Assert(pel == 2 || pel == 4, "oyster_Super: pel has to be 2 or 4!")
-	cores   = SI_PhysicalCores()
-	threads = SI_LogicalCores()
+    cores   = SI_PhysicalCores()
+    threads = SI_LogicalCores()
 
-    src.ConvertBits(8, dither=-1, fulls=fs)
+    src
     AssumeFrameBased()
-    rgb ? RGB_to_OPP() : last
+    rgb ? !fs ? SMPTE_legal(false).RGB_to_OPP() : RGB_to_OPP() : last
+    ConvertBits(8, dither=-1, fulls=rgb ? false : fs)
 
-#    PadBorders(128, 128, 128, 128)
-    PadBorders(64, 64, 64, 64)
+#    PadBorders(128, 128, 128, 128, "Dilate")
+    PadBorders(64, 64, 64, 64, "Dilate")
 #    nnedi3_rpow2(rfactor=pel,nns=4,nsize=0,qual=2,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
     nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2)
-    ConvertBits(bi, fulls=fs)
 
     return last }
 
@@ -243,6 +247,8 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
 
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
+    fs  = propNumElements (src,"_ColorRange")  > 0 ? \
+          propGetInt      (src,"_ColorRange") == 0 : rgb
 
     Assert(isclip(src),                "oyster_Basic: src has to be a video clip!")
     Assert(is444(src) || rgb,          "oyster_Basic: subsampled stuff not supported!")
@@ -251,19 +257,19 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
     Assert(isint(radius),              "oyster_Basic: radius has to be an integer!")
     Assert(radius>1,                   "oyster_Basic: radius has to be greater than 0!")
     Assert(isint(pel),                 "oyster_Basic: pel has to be an integer!")
-    Assert(isint(sad) || isfloat(sad), "oyster_Basic: sad has to be a real number!")
+    Assert(isfloat(sad),               "oyster_Basic: sad has to be a real number!")
     Assert(sad>0,                      "oyster_Basic: sad has to be greater than 0!")
     Assert(isbool(short_time),         "oyster_Basic: short_time has to be boolean!")
 
-    src   = rgb ? RGB_to_OPP(src) : src
+    src   = rgb ? !fs ? src.SMPTE_legal(false).RGB_to_OPP() : src.RGB_to_OPP() : src
     src   = AssumeFrameBased(src)
     super = Defined(super) ? super : AssumeFrameBased(super)
 
-#    src         = PadBorders(src, 128, 128, 128, 128)
-    src         = PadBorders(src, 64, 64, 64, 64)
-    pre         = src.ConvertBits(8, dither=-1, fulls=false)
+#    src         = PadBorders(src, 128, 128, 128, 128, "Dilate")
+    src         = PadBorders(src, 64, 64, 64, 64, "Dilate")
+    pre         = src.ConvertBits(8, dither=-1, fulls=rgb ? false : fs)
     supersoft   = MSuper(pre, pelclip=super, rfilter=4, pel=pel, chroma=color, hpad=0, vpad=0, sharp=2, levels=0)
-    supersharp  = MSuper(pre, pelclip=super, rfilter=2, pel=pel, chroma=color, hpad=0, vpad=0, sharp=2, levels=0).ConvertBits(32, fulls=false)
+    supersharp  = MSuper(pre, pelclip=super, rfilter=2, pel=pel, chroma=color, hpad=0, vpad=0, sharp=2, levels=0).ConvertBits(32, fulls=fs)
 
     if (short_time) {
 
@@ -290,7 +296,6 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
     clp         = src.MDegrainN(supersharp, vmulti, radius, thsad=sad, plane=plane, thscd1=8*8*255, thscd2=255, mt=true)
     clp         = Crop(clp, 64, 64, -64, -64)
 
-    clp   = rgb ? OPP_to_RGB(clp) : clp
     return clp }
 
 
@@ -326,14 +331,14 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "h", float "si
     Assert(is444(ref) || isrgb(ref), "oyster_Deringing: subsampled stuff not supported!")
     Assert(isint(radius),            "oyster_Deringing: radius has to be an integer!")
     Assert(radius>1,                 "oyster_Deringing: radius has to be greater than 0!")
-    Assert(isint(h) || isfloat(h),   "oyster_Deringing: h has to be a real number!")
+    Assert(isfloat(h),               "oyster_Deringing: h has to be a real number!")
     Assert(h>=0,                     "oyster_Deringing: h has to be greater than 0!")
 #    Assert(isint(mse0) || isfloat(mse0), "oyster_Deringing: sad has to be a real number or None!")
 #    Assert(isint(mse1) || isfloat(mse1), "oyster_Deringing: sad has to be a real number or None!")
 
     if (rgb) {
-       src    = RGB_to_OPP(src)
-       ref    = RGB_to_OPP(ref)
+       src    = !fs ? src.SMPTE_legal(false).RGB_to_OPP() : src.RGB_to_OPP()
+       ref    = ref
     }
     src       = AssumeFrameBased(src)
     ref       = AssumeFrameBased(ref)
@@ -372,7 +377,7 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "h", float "si
     bm3d    = FreqMerge(refined, bm3d, nmod(block_size,2) + 1, lowpass)
     clp     = oy_loop(bm3d, bm3d, refined, 4, strength0, strength1, color)
 
-    clp     = rgb ? OPP_to_RGB(clp) : clp
+    clp     = rgb ? OPP_to_RGB(clp).SMPTE_legal(true) : clp
     return clp }
 
 
@@ -410,21 +415,21 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     Assert(is444(ref) || isrgb(ref),       "oyster_Destaircase: subsampled stuff not supported!")
     Assert(isint(radius),                  "oyster_Destaircase: radius has to be an integer!")
     Assert(radius>1,                       "oyster_Destaircase: radius has to be greater than 0!")
-    Assert(isint(thr) || isfloat(thr),     "oyster_Destaircase: thr has to be a real number!")
+    Assert(isfloat(thr),                   "oyster_Destaircase: thr has to be a real number!")
     Assert(thr>=0 && thr<= 1,              "oyster_Destaircase: thr has to fall in [0, 1]!")
-    Assert(isint(elast) || isfloat(elast), "oyster_Destaircase: elast has to be a real number!")
+    Assert(isfloat(elast),                 "oyster_Destaircase: elast has to be a real number!")
     Assert(elast>=0 && elast<=thr,         "oyster_Destaircase: elast has to fall in [0, thr]!")
-#    Assert(isint(mse0) || isfloat(mse0), "oyster_Destaircase: sad has to be a real number or None!")
-#    Assert(isint(mse1) || isfloat(mse1), "oyster_Destaircase: sad has to be a real number or None!")
+#    Assert(isint(mse0) || isfloat(mse0),  "oyster_Destaircase: sad has to be a real number or None!")
+#    Assert(isint(mse1) || isfloat(mse1),  "oyster_Destaircase: sad has to be a real number or None!")
 
     if (rgb) {
-       src    = RGB_to_OPP(src)
-       ref    = RGB_to_OPP(ref)
+       src    = !fs ? src.SMPTE_legal(false).RGB_to_OPP() : src.RGB_to_OPP()
+       ref    = ref
     }
     src       = AssumeFrameBased(src)
     ref       = AssumeFrameBased(ref)
 
-    msk       = ex_lutspa(ExtractY(src),mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?",fulls=false)
+    msk       = ex_lutspa(ExtractY(src),mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?")
     ref       = FreqMerge(src, ref, nmod(block_size,2) + 1, lowpass)
     ref       = ThrMerge(src, ref, thr=thr, elast=elast)
     dif       = ex_makediff(src, ref)
@@ -443,7 +448,7 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     ref       = ex_adddiff(ref, dif)
     clp       = ex_merge(src, ref, msk, luma=true)
 
-    clp       = rgb ? OPP_to_RGB(clp) : clp
+    clp       = rgb ? OPP_to_RGB(clp).SMPTE_legal(true) : clp
     return clp }
 
 
@@ -479,17 +484,17 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
     Assert(is444(ref) || isrgb(ref), "oyster_Deblocking: subsampled stuff not supported!")
     Assert(isint(radius),            "oyster_Deblocking: radius has to be an integer!")
     Assert(radius>1,                 "oyster_Deblocking: radius has to be greater than 0!")
-    Assert(isint(h) || isfloat(h),   "oyster_Deblocking: h has to be a real number!")
+    Assert(isfloat(h),               "oyster_Deblocking: h has to be a real number!")
     Assert(h>0,                      "oyster_Deblocking: h has to be greater than 0!")
 
     if (rgb) {
-       src    = RGB_to_OPP(src)
-       ref    = RGB_to_OPP(ref)
+       src    = !fs ? src.SMPTE_legal(false).RGB_to_OPP() : src.RGB_to_OPP()
+       ref    = ref
     }
     src      = AssumeFrameBased(src)
     ref      = AssumeFrameBased(ref)
 
-    msk      = ex_lutspa(ExtractY(src),mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?",fulls=false)
+    msk      = ex_lutspa(ExtractY(src),mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?")
     cleansed = NLMeans(ref, radius, block_size, ceil(block_size / 2.), h, ref, color)
     dif      = ex_makediff(ref, cleansed)
 #    dif      = BM3D_CUDA(dif, cleansed, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
@@ -509,7 +514,7 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
     src      = FreqMerge(cleansed, src, nmod(block_size,2) + 1, lowpass)
     clp      = ex_merge(src, ref, msk, luma=True)
 
-    clp      = rgb ? OPP_to_RGB(clp) : clp
+    clp      = rgb ? OPP_to_RGB(clp).SMPTE_legal(true) : clp
     return clp }
 
 
@@ -534,7 +539,7 @@ function NLMeans(clip src, int d, int a, int s, float h, clip rclip, bool color)
 
     function duplicate(clip src, int d) {
         if (d > 0) {
-                blank   = ex_lut(src.trim(0,-1), "0", UV=1)
+                blank   = ex_lut(src.trim(0,-1), "0", UV=1, scale_input="none")
            for (i = 1, d, 1) {
                 blank   = blank + blank
             }
@@ -566,16 +571,16 @@ function ThrMerge(clip flt, clip src, clip "ref", float "thr", float "elast") {
     ref   = Defined(ref)   ? ref   : src
     elast = Defined(elast) ? elast : thr / 2.
 
-    BDif  = ex_lut(src, "0")
+    BDif  = ex_lut(src, "0", scale_input="none")
 #    PDif  = ex_lutxy  (flt, src, "x y -", clamp_float=true)
 #    PRef  = ex_lutxy  (flt, ref, "x y -", clamp_float=true)
-    PBLD  = ex_lutxyza(src, BDif, flt, ref, Format("z x - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"))
+    PBLD  = ex_lutxyza(src, BDif, flt, ref, Format("z x - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), scale_input="none")
 #    NDif  = ex_lutxy  (flt, src, "y x -", clamp_float=true)
 #    NRef  = ex_lutxy  (flt, ref, "y x -", clamp_float=true)
-    NBLD  = ex_lutxyza(src, BDif, flt, ref, Format("x z - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"))
+    NBLD  = ex_lutxyza(src, BDif, flt, ref, Format("x z - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), scale_input="none")
     BLD   = ex_makeadddiff(PBLD, NBLD, src)
 #    UDN   = ex_lutxyz (flt, ref, BLD, Format("x y - abs {thr} {elast} - > z x ?"))
-    clp   = ex_lutxyza(flt, ref, BLD, src, Format("x y - abs X@ {thr} {elast} + < X {thr} {elast} - > z x ? a ?"))
+    clp   = ex_lutxyza(flt, ref, BLD, src, Format("x y - abs X@ {thr} {elast} + < X {thr} {elast} - > z x ? a ?"), scale_input="none")
 
     return clp }
 
