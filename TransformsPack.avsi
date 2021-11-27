@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC28  (22-11-2021)           ##
+###    Transforms Pack v1.0 RC29  (27-11-2021)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -26,7 +26,7 @@
 ### and is clearly inspired by cretindesalpes' fmtconv and avsresize's z_ConvertFormat().
 ###
 ###
-### Dependencies: AviSynth+ 3.7.1 test 27 and over
+### Dependencies: AviSynth+ 3.7.1 test29 and over
 ###
 ####################################
 
@@ -136,7 +136,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
                         PadResize(w,h,mode="dilate",             mod=mod)
 
         # ConvertBackToYUY2 bug: https://forum.doom9.org/showthread.php?p=1038027#post1038027
-        isy(b) ? rgba ? DotClip([0.298967,0.586421,0.114612]) : ConvertToY(mat)                                                                                         : \
+        isy(b) ? rgba ? DotClip([0.298903,0.586620,0.114477]) : ConvertToY(mat)                                                                                         : \
         rgbb   ? rgbp ? Eval(  "ConvertToPlanarRGB            (mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn)"))  : \
                         Eval(  "ConvertTo"   +string(fmt[3])+"(mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn)"))  : \
         yv411         ? Eval(  "ConvertToYV411                (false,mat,"          +(not42 ? ""   :        """ChromaInPlacement=cplacea, """)+"chromaresample=krn)")   : \
@@ -336,6 +336,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
     mod        = Default (mod, isRGBo ? 1 : 2) # mod size for resizing. ie: 1, 2, 4, 8, 16...
 
+    Assert(isFloat(nw) || isFloat(nh), "Width/Height type not supported.") # isFloat(int) also returns true, so good for 'number' type evaluation
     nw         = isInt(nw) && nw<=10 ? float(nw) : isFloat(nw) && nw>10. ? int(nw) : nw
     nh         = isInt(nh) && nh<=10 ? float(nh) : isFloat(nh) && nh>10. ? int(nh) : nh
     nw         =  nw<=10. ? w*nw : nw            nw     = round(nw/mod)*mod
@@ -408,8 +409,6 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     ############ Data extraction and normalization + Asserts ############
 
                  Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
-    !(isInt(nw) || isInt(nh) || isFloat(nw) || isFloat(nh))                  ? \
-                 Assert(false, "Width/Height type not supported.")           : nop()
     !(space=="sigmoid" || space=="gamma" || space=="linear" || space=="log") ? \
                  Assert(false, "Invalid space type.")                        : nop()
 
@@ -841,7 +840,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true,matchformat=true)
             ex_blend(bg,"multiply",opacity=0.5)
 
-            Subtitle(" ConvertFormat() 1.0 RC28",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC29",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -2148,7 +2147,7 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
     fd  = Default(fulld,   !fw)
 
     if (fi && fs!=fd) {
-        scl = fs!=fd && ( 8 < bi < 32) ? string(fd ? 257/256. : 256/257.)+" *" : "" # Yes, I revised this and it's correct
+        scl = fs!=fd && ( 8 < bi < 32) ? string(fd ? 257/256. : 256/257.)+" *" : ""
 
         str  = fw ? "x ymax ymin - range_max / * ymin  + "+scl : \
                     "x ymin - range_max ymax ymin - / *  "+scl
@@ -2192,23 +2191,23 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV") {
                      Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
 
 
-# SoftLimiter (20-11-2021)
+# SoftLimiter (27-11-2021)
 #
 # SoftLimiter is an inclusive limiter, it brings clips with under or overshoot values to in-range legal broadcast values
 # It does so in a gentle manner by rolling off the values into range without altering the clip's levels and then clipping leftovers.
+# RGB is not yet supported.
 #
 # Disclaimer1: This is not a range conversion filter! Input is assumed to be "legal/tv range"
 # Disclaimer2: For static mode, first find the under and overshoot values by inspecting the clip with show=true
 #
 # Dependencies: ExTools
 #               ResizersPack (for show)
-#               ShowChannels (for dyn)
 #
 # Examples:
 #   SoftLimiter(16,235)        # no rolloff (straight clamp), assumes input IS legal (within 16,235)
 #   SoftLimiter(12,240,12,245) # Bring specified values to legal range with rolloff
 #
-# Requires ShowChannels() for dynamic mode
+# modes:
 # dyn = 0  -> static mode, set values after manual inspection
 # dyn = 1  -> accumulative loose  dynamic mode. Very conservative, for set and forget (after proper cropping black borders)
 # dyn = 2  ->              loose  dynamic mode. Medium,         will bring some values into range (recommended)
@@ -2277,26 +2276,26 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
 
     if (dyn > 0) {
-
-        # Revert to newer ScriptClip when fixed for passing the other arguments
-        acc = dyn == 1 ? """propSet("_MinMax", [SC_ALMn_0,SC_ALMx_0,SC_ALMn_1,SC_ALMx_1,SC_ALMn_2,SC_ALMx_2] )""" : \
-              dyn == 2 ? """propSet("_MinMax", [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  )""" : \
-              dyn == 3 ? """propSet("_MinMax", [SC_LMn_0, SC_LMx_0, SC_LMn_1, SC_LMx_1, SC_LMn_2, SC_LMx_2]  )""" : ""
-
-        per = dyn > 2 ? 0.1 : dyn > 1 ? 0.2 : 0.454
-        ScriptClip(a.propClearAll().removegrain(12,UV==3?12:-1).ConvertBits(8,dither=-1,fulls=fs).ShowChannels(SetVar=True,MinPerc=per,MaxPerc=per,show=false), acc, after_frame=True )
-
-        propCopy(a,last,true)
+        a
+        ab = removegrain(12,UV==3?12:-1)
+        th = dyn > 2 ? 0.1 : dyn > 1 ? 0.2 : 0.454
+        PS = "Y  = PlaneMinMaxStats(ab, th, 0, 0, false)
+              U  = PlaneMinMaxStats(ab, th, 0, 1, false)
+              V  = PlaneMinMaxStats(ab, th, 0, 2, false)
+              Y1 = ex_bs(Y[2], bi, 8, fs, float=true) Y2 = ex_bs(Y[3], bi, 8, fs, float=true)
+              U1 = ex_bs(U[2], bi, 8, fs, float=true) U2 = ex_bs(U[3], bi, 8, fs, float=true)
+              V1 = ex_bs(V[2], bi, 8, fs, float=true) V2 = ex_bs(V[3], bi, 8, fs, float=true)"
 
         if (dg) {
-            ScriptClip( """
-            st = propGetAsArray("_MinMax")
-            Subtitle("YMin: "+string(st[0])+" "+"YMax: "+string(st[1])+" "+"UVMin: "+string((st[2]+st[4])/2.)+" "+"UVMax: "+string((st[3]+st[5])/2.), align=1) """ )
+            ScriptClip( function [ab,bi,fs,th,PS] () {
+            Eval(PS)
+            fl = "%0.2f"
+            Subtitle("YMin: "+string(Y1, fl)+"     "+"YMax: "+string(Y2, fl)+"     "+"UVMin: "+string((U1+V1)/2., fl)+"     "+"UVMax: "+string((U2+V2)/2., fl), align=1) }, after_frame=true )
             StackVertical(last, s)
         } else {
-            ScriptClip( """
-            st = propGetAsArray("_MinMax")
-            SoftLimiter(st[0], st[1], (st[2]+st[4])/2., (st[3]+st[5])/2., dyn=0) """ )
+            ScriptClip( function [ab,bi,fs,th,tol,uv,PS] () {
+            Eval(PS)
+            SoftLimiter(Y1, Y2, (U1+V1)/2., (U2+V2)/2., tol, 0, false, uv) }, after_frame=true )
         }
 
     } else {
@@ -2947,8 +2946,15 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
 
 
 
-# NTSC and PAL YCbCr (Rec601 and BT-470BG) share the same coefficients defined in the link below, and derived from the old SMPTE 470M (NTSC 1953) standard.
-# https://poynton.ca/PDFs/coloureq.pdf - 10.4
+# NTSC and PAL YCbCr (Rec601 and BT-470BG) share the same coefficients defined in (https://poynton.ca/PDFs/coloureq.pdf - 10.4),
+# and derived from the old SMPTE 470M (NTSC 1953) standard. Exactly:
+# kr: 0.298903070250081
+# kg: 0.586619854659197
+# kb: 0.114477075090722
+# And for Rec709:
+# kr: 0.21264933049678802
+# kg: 0.71516913175582890
+# kb: 0.07218152284622192
 function Matrix_coef (string matrix, string "illuminant") {
 
     illuminant = Default(illuminant, matrix)
@@ -2981,17 +2987,17 @@ function Matrix_coef (string matrix, string "illuminant") {
 
     # The coordinates and CCT's are from CIE 1931 2 degree standard observer
     mat_wp =
-\     (illuminant == "D50"         ) ? 2
-\   : (illuminant == "D55"         ) ? 5
-\   : (illuminant == "D60"         ) ? 4
-\   : (illuminant == "DCI"         ) ? 3
-\   : (illuminant == "D65"         ) ? 1
-\   : (illuminant == "C"           ) ? 0
-\   : (illuminant == "D75"         ) ? 6
-\   : (illuminant == "D93"         ) ? 7 : mat_wp
+\     (illuminant == "D50"        ) ? 2
+\   : (illuminant == "D55"        ) ? 5
+\   : (illuminant == "D60"        ) ? 4
+\   : (illuminant == "DCI"        ) ? 3
+\   : (illuminant == "D65"        ) ? 1
+\   : (illuminant == "C"          ) ? 0
+\   : (illuminant == "D75"        ) ? 6
+\   : (illuminant == "D93"        ) ? 7 : mat_wp
 # * D93 is not a D standard illuminant. Here it is defined for CCT (correlated) to consumer's TV standard "9300K+27 MPCD". "9300K+8 MPCD" for master CRT corresponds to 0.2838, 0.2984
 
-    # This is for the Kr, Kg, Kb derivations
+    # Hardcode constants for the Kr, Kg, Kb derivations
     mat_w =
 \     (matrix == "170M"           ) ? 0
 \   : (matrix == "470BG"          ) ? 0
@@ -3007,16 +3013,18 @@ function Matrix_coef (string matrix, string "illuminant") {
     wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311])
     Kv  = Select (mat_wp,  6774.202        , 6504.13            ,                                                                                         5001.668        ,                    6304.573      ,   6000.211                           ,  5502.33          , 7506.16          , 8941.864     )
 
-    pr2 = 1. - pr[0] - pr[1]    pw2 = 1. - pw[0] - pw[1]
-    pb2 = 1. - pb[0] - pb[1]    wp2 = 1. - wp[0] - wp[1]
-    pg2 = 1. - pg[0] - pg[1]
+    pr = [pr[0], pr[1], 1 - pr[0] - pr[1]]
+    pb = [pb[0], pb[1], 1 - pb[0] - pb[1]]
+    pg = [pg[0], pg[1], 1 - pg[0] - pg[1]]
+    pw = [pw[0], pw[1], 1 - pw[0] - pw[1]]
+    wp = [wp[0], wp[1], 1 - wp[0] - wp[1]]
 
-    det = (pw[1] * (pr[0] * (pg[1] * pb2 - pb[1] * pg2) + pg[0] * (pb[1] * pr2 - pr[1] * pb2) + pb[0] * (pr[1] * pg2   - pg[1] * pr2)))
-    kr  = (pr[1] * (pw[0] * (pg[1] * pb2 - pb[1] * pg2) + pw[1] * (pb[0] * pg2 - pg[0] * pb2) + pw2   * (pg[0] * pb[1] - pb[0] * pg[1]))) / det
-    kb  = (pb[1] * (pw[0] * (pr[1] * pg2 - pg[1] * pr2) + pw[1] * (pg[0] * pr2 - pr[0] * pg2) + pw2   * (pr[0] * pg[1] - pg[0] * pr[1]))) / det
-    kg  = 1. - kb - kr
+    det = pw[1] * Dot([pr[0],pg[0],pb[0]], Cross([pr[1],pg[1],pb[1]], [pr[2],pg[2],pb[2]]))
+    kr  = pr[1] * Dot(pw, Cross(pg, pb)) / det
+    kb  = pb[1] * Dot(pw, Cross(pr, pg)) / det
+    kg  = 1 - kb - kr
 
-    [kr, kg, kb, wp[0], wp[1], wp2] }
+    [kr, kg, kb, wp[0], wp[1], wp[2]] }
 
 
 # Should pass through Color_Fuzzy_search() for string normalizing
@@ -3372,6 +3380,8 @@ function MatrixDiv ( float_array mat1, \
     return Eval("["+str+"]") }
 
 
+/*
+# (LEGACY: since v3.7.1 test29)
 function ArrayAdd( val_array "a", val_array "b") {
 
     as = ArraySize(a)-1
@@ -3386,3 +3396,4 @@ function ArrayAdd( val_array "a", val_array "b") {
       }
 
     return Eval("["+na+"]") }
+*/
