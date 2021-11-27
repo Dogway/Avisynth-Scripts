@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v2.5  (22-11-2021)                             ###
+###        Sharpeners Pack v2.6  (27-11-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -93,7 +93,7 @@
 ### "It sharpens the picture by adjusting the slope of the gradient values inbetween the local min/max interval.
 ###  Effectively, edges are sharpened without oversharpening (halos) (but risk to make them jaggy)."
 ###
-### Dependencies: > AviSynth+ 3.7.1 test27 (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: > AviSynth+ 3.7.1 test29 (https://forum.doom9.org/showthread.php?t=181351)
 ###                 ExTools
 ###
 ### Example: Adaptive_Sharpen(1.0)
@@ -450,6 +450,8 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 ###   8% unsharp(vary=1, varc=1, strength=1) # no HBD support, % scaled down
 ###
 ### Internal Sharpen(0.75) roughly matches ex_unsharp(2.5,width()*1.5,0,UV=3)
+### unsharpmask(strength=str,radius=rad,threshold=0)         -->    ex_unsharp(str= 0.007*str,Fc=width()/max(1,0.76*exp(0.26*rad),th=0)
+### unsharp    (strength=str,vary=((ss_x+ss_y)/2.0),varc=1)  -->    ex_unsharp(str= str/2.,   Fc=max(ox,oy)*(1.0-0.2*   rad),     th=0)
 function ex_unsharp(clip a, float "str", float "Fc", float "th", int "Y", int "UV", bool "fulls") {
 
     rgb   = isRGB(a)
@@ -791,7 +793,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 
         allD = ex_makediff(original,denoised,UV=1,fulls=fs)                                                   # The difference achieved by the denoising.
         ssDD = ssD.repair(HD?ssD.repair(allD,1,-1):allD,1,-1)                                                 # Limit the difference to the max of what the denoising removed locally.
-        ex_lutxyz (denoised,ssDD,ssD,"y range_half - X@ abs z range_half - Y@ abs < X Y ? x +",UV=1,fulls=fs) # abs(diff) after limiting may not be bigger than before.
+        ex_lutxyz (denoised,ssDD,ssD,"y range_half - Y@ abs z range_half - Z@ abs < Y Z ? x +",UV=1,fulls=fs) # abs(diff) after limiting may not be bigger than before.
                                                                                                               # Apply the limited difference " x +" (Sharpening is just inverse blurring)
     } else {
 
@@ -1124,7 +1126,7 @@ function FineSharp(clip c, float "sstr", int "mode", float "cstr", float "xstr",
     \ : (abs(mode)==2) ? c.removegrain(4, -1).removegrain(12,-1)
     \ : (abs(mode)==3) ? c.removegrain(4, -1).removegrain(12,-1).removegrain(4,-1) : c
 
-    shrpD = ex_lutxy(c,b,Format("x y - A@ abs {LSTR} * {PSTR} ^ {SSTR} * A dup abs {HDMP} + / * A dup * dup {LDMP} + / * 0 max 128 +"), UV=1, fulls=fs, scale_inputs=fs ? "allf" : "all")
+    shrpD = ex_lutxy(c,b,Format("x y - A@ abs B@ {LSTR} * {PSTR} ^ {SSTR} * A B {HDMP} + / * A dup * dup {LDMP} + / * 0 max 128 +"), UV=1, fulls=fs, scale_inputs=fs ? "allf" : "all")
 
     shrp = (sstr<0.01) ?    c : c.ex_adddiff(shrpD,UV=1,fulls=fs)
 
@@ -1205,7 +1207,7 @@ function NonlinUSM(clip o, float "str", float "z", float "pow", float "rad", flo
 
     g = o.ex_GaussianBlur(rad*0.704452-0.0010274,pad=true)  # Parametrized to match original
 
-    ex_lutxy(o, g, Format("x dup y - A@ abs {zd} * {pw} ^ {z} * {str} * A dup * dup {ldmp} + / * A dup abs 0.001 + / * + dup 0 > swap1 x ?"), UV=UV, fulls=fs)
+    ex_lutxy(o, g, Format("x dup y - A@ dup sgn S^ abs {zd} * {pw} ^ {z} * {str} * A dup * dup {ldmp} + / * S * + dup 0 > swap1 x ?"), UV=UV, fulls=fs)
 
     #interleave(o,last) # just for visualisation, you don't want the function to do this
    }
@@ -1317,7 +1319,7 @@ function MedianSharp (clip a, int "str", float "pwr", int "UV", bool "fulls") {
     for (i = 0, max(0,pass-1), 1) {
         c = c.repair(c,1,rc?1:-1) }
 
-    ex_lutxy(a, c, Format("x dup y - A@ abs {pwr2} * {rpwr} ^ {pwr3} * A dup abs {pwr} + / * +"), UV=UV, scale_inputs=fs ? "allf" : "all") }
+    ex_lutxy(a, c, Format("x dup y - A@ abs B@ {pwr2} * {rpwr} ^ {pwr3} * A B {pwr} + / * +"), UV=UV, scale_inputs=fs ? "allf" : "all") }
 
 
 
@@ -1364,7 +1366,7 @@ function DetailSharpen(clip c, int "z", float "sstr", int "power", int "ldmp", i
     denoised = mode == 1 ?  c.removegrain(20,-1) : c.removegrain(12,-1)
     denoised = med ? denoised.removegrain(4,-1)  : denoised
 
-    ex_lutxy(c, denoised, Format("x y == x dup dup y - A@ abs 1 {zs} / * {rpwr} ^ {strzi} * A dup abs {ldmp} + / * + ? "), UV=1, fulls=fs) }
+    ex_lutxy(c, denoised, Format("x y == x dup dup y - A@ abs B@ 1 {zs} / * {rpwr} ^ {strzi} * A B {ldmp} + / * + ? "), UV=1, fulls=fs) }
 
 
 
@@ -1406,9 +1408,9 @@ function SSSharpFaster(clip c, float "str", int "hthr", int "hbias", bool "fulls
     Hmask = ex_lutxy(Mblur, Gblur, Format("y x - abs {hthr} * {hbias} -"), UV=1, fulls=fs)
 
 
-    ex_lutxyza(s, Gblur, a, Hmask, Format("x dup y      - {str}     * + X@
+    ex_lutxyza(s, Gblur, a, Hmask, Format("x dup y      - {str}     * + dup
                                            x dup z swap - {str} 3 / * + -
-                                           a range_max / * X swap -"), UV=1, fulls=fs)
+                                           a range_max / * -"), UV=1, fulls=fs)
     spline36resize(w,h) }
 
 
@@ -1980,7 +1982,7 @@ function plum_Super(clip src, int "pel") {
     AssumeFrameBased()
     rgb ? RGB_to_OPP() : isy() ? last : ExtractY()
 
-    PadBorders(64, 64, 64, 64)
+    PadBorders(64, 64, 64, 64, "Dilate")
     nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2)
 
     return last }
@@ -2004,17 +2006,17 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
 
     Assert(isclip(src),              "plum_Basic: src has to be a video clip!")
     Assert(bi == 32,                 "plum_Super: the sample type of src has to be single precision!")
-    Assert(isint(strength) || isfloat(strength), "plum_Basic: strength has to be a real number!")
+    Assert(isfloat(strength),        "plum_Basic: strength has to be a real number!")
     Assert(strength>1,               "plum_Basic: strength has to be greater than 0!")
     Assert(isint(a),                 "plum_Basic: a has to be an integer!")
-    Assert(isint(h1) || isfloat(h1), "plum_Basic: h1 has to be a real number!")
-    Assert(isint(h2) || isfloat(h2), "plum_Basic: h2 has to be a real number!")
+    Assert(isfloat(h1),              "plum_Basic: h1 has to be a real number!")
+    Assert(isfloat(h2),              "plum_Basic: h2 has to be a real number!")
     Assert(h1>0,                     "plum_Basic: h1 has to be greater than 0!")
     Assert(h2>0,                     "plum_Basic: h2 has to be greater than 0!")
     Assert(isint(radius),            "plum_Basic: radius has to be an integer!")
     Assert(radius>0,                 "plum_Basic: radius has to be greater than 0!")
-    Assert(isint(wn) || isfloat(wn), "plum_Basic: wn has to be a real number!")
-    Assert(isint(scale) || isfloat(scale), "plum_Basic: scale has to be a real number!")
+    Assert(isfloat(wn),              "plum_Basic: wn has to be a real number!")
+    Assert(isfloat(scale),           "plum_Basic: scale has to be a real number!")
     Assert(isint(cutoff),            "plum_Basic: radius has to be an integer!")
     Assert(cutoff>0 && cutoff<=100,  "plum_Basic: cutoff must fall in (0, 100]!")
 
@@ -2086,28 +2088,28 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     isS = Defined(super)
     isF = Defined(superf)
 
-    Assert(isclip(src),        "plum_Final: src has to be a video clip!")
-    Assert(bi == 32,           "plum_Final: the sample type of src has to be single precision!")
-    Assert(isy(ref),           "plum_Final: corrupted basic estimation!")
-    isS ? \
-    Assert(isclip(super),      "plum_Final: super has to be a video clip or None!") : nop()
-    isS ? \
-    Assert(isy(super),         "plum_Final: corrupted super clip!") : nop()
+    Assert(isclip(src),          "plum_Final: src has to be a video clip!")
+    Assert(bi == 32,             "plum_Final: the sample type of src has to be single precision!")
+    Assert(isy(ref),             "plum_Final: corrupted basic estimation!")
+    isS ? \                      
+    Assert(isclip(super),        "plum_Final: super has to be a video clip or None!") : nop()
+    isS ? \                      
+    Assert(isy(super),           "plum_Final: corrupted super clip!") : nop()
     isF ? \
-    Assert(isy(super),         "plum_Final: corrupted superf clip!") : nop()
+    Assert(isy(super),           "plum_Final: corrupted superf clip!") : nop()
     Assert(pel == 1 || pel == 2 || pel == 4, "plum_Final: pel has to be 1, 2 or 4!")
-    Assert(isint(radius),      "plum_Final: radius has to be an integer!")
-    Assert(radius>0,           "plum_Final: radius has to be greater than 0!")
-    Assert(isint(pel),         "plum_Final: pel has to be an integer!")
-    Assert(isint(sad) || isfloat(sad), "plum_Final: sad has to be a real number!")
-    Assert(sad>0,              "plum_Final: sad has to be greater than 0!")
-    Assert(isint(strength) || isfloat(strength), "plum_Final: strength has to be a real number!")
-    Assert(strength>0,         "plum_Final: radius has to be greater than 0!")
-    Assert(isint(flexibility) || isfloat(flexibility), "plum_Final: flexibility has to be a real number!")
+    Assert(isint(radius),        "plum_Final: radius has to be an integer!")
+    Assert(radius>0,             "plum_Final: radius has to be greater than 0!")
+    Assert(isint(pel),           "plum_Final: pel has to be an integer!")
+    Assert(isfloat(sad),         "plum_Final: sad has to be a real number!")
+    Assert(sad>0,                "plum_Final: sad has to be greater than 0!")
+    Assert(isfloat(strength),    "plum_Final: strength has to be a real number!")
+    Assert(strength>0,           "plum_Final: radius has to be greater than 0!")
+    Assert(isfloat(flexibility), "plum_Final: flexibility has to be a real number!")
     Assert(flexibility>0 || 1.0 >= flexibility, "plum_Final: flexibility has to fall in [0.0, 1.0]!")
-    Assert(isint(cutoff),      "plum_Final: cutoff has to be an integer!")
+    Assert(isint(cutoff),        "plum_Final: cutoff has to be an integer!")
     Assert(cutoff>0 || 100 >= cutoff, "plum_Final: cutoff has to fall in [0, 100]!")
-    Assert(isint(freq_margin), "plum_Final: freq_margin has to be an integer!")
+    Assert(isint(freq_margin),   "plum_Final: freq_margin has to be an integer!")
     Assert(freq_margin>0 || 100-cutoff >= freq_margin, "plum_Final: freq_margin must fall in [0, 100-cutoff]!")
 
     ldmp               = ldmp==0 ? strength + 0.1 : ldmp
@@ -2120,8 +2122,8 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 
     constant           = 0.0009948813682897925944723492342
     me_sad             = round(constant * pow(sad, 2.0) * log(1.0 + 1.0 / (constant * sad)))
-    src                = PadBorders(src, 64, 64, 64, 64)
-    ref                = PadBorders(ref, 64, 64, 64, 64)
+    src                = PadBorders(src, 64, 64, 64, 64, "Dilate")
+    ref                = PadBorders(ref, 64, 64, 64, 64, "Dilate")
     src3               = Merge(src, ref, flexibility)
     ref                = ex_makediff(ref, src)
     super3             = isS && isF ? Merge(super, superf, flexibility) : Undefined()
@@ -2182,7 +2184,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 
     function Deconvolution(clip src, int radius, float wn, int fr, float scale) {
         pad4               = nmod(radius+fr,4)
-        src                = PadBorders(src, pad4, pad4, pad4, pad4)
+        src                = PadBorders(src, pad4, pad4, pad4, pad4, "Dilate")
 #       sharp              = FQSharp(src, x=radius, y=radius, wn=wn, fr=fr, scale=scale, line=0)
         sharp              = F2QSharp(src.SeparateFields(), x=radius, y=radius, wn=wn, frad=round(fr), scale=scale, psf="line").Weave()
         sharp              = CutOff(src, sharp, 1, 0)
@@ -2350,7 +2352,7 @@ function pSharpen   (clip clp,
     s    = strength  / 100.
     t    = threshold / 100.
     x0   = t*(1.0-s)/(1.0-(1.0-t)*(1.0-s))
-    expr = Format("x y / 2 * 1 - abs X@ {x0} < {s} 1 = x y 0.5 * Y@ = 0 Y ? X 1 {s} - / ? X 1 {t} - * {t} + ? x y 0.5 * > 1 -1 ? * 1 + y * 0.5 * 0 max z +")
+    expr = Format("y 0.5 * Y^ x y / 2 * 1 - abs X@ {x0} < {s} 1 = x Y = 0 Y ? X 1 {s} - / ? X 1 {t} - * {t} + ? x Y - sgn * 1 + Y * 0 max z +")
 
     # calculates the new luma value pushing it towards min or max
     # and "z +" normalizing val to values from min to max
