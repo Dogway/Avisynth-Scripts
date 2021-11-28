@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v6.7     (15-11-2021)              ##
+###           ExTools v6.8     (28-11-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -25,10 +25,10 @@
 ### 128: range_half
 ### x:   custom value in 8-bit (bitdepth autoscaled)
 ###
-### fulls: Defines the scale of HBD values when converting from/to integer HBD (10, 12, 14, 16)
-###        ConvertBits() defaults to false for YUV, same in ExTools.
+### fulls: Defines the source bitdepth scale (full/bitshift range) when converting from/to integer HBD formats (10, 12, 14, 16)
+###        ConvertBits() defaults to false for YUV, same in ExTools if frame properties are not present.
 ###
-### Dependencies: AviSynth+ 3.7.1 (3.7.1 test27+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.7.1 (3.7.1 test29+ recommended) (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -149,22 +149,26 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 # mt_makediff() is 5% slower
 # Use aug=n to augment difference map
 # Use aug=true to show metrics (requires YUV input, SimilarityMetrics and TransformsPack)
-function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", string "metric", int "show", int "Y", int "UV", bool "fulls", bool "clamp_float") {
+function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", string "metric", int "show", int "Y", int "UV", bool "fulls", bool "clamp_float", string "scale_inputs") {
 
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
-    augb= Defined(metric) || isBool(aug)
+    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
+          propGetInt      (a,"_ColorRange") == 0 : rgb
 
+    augb= Defined(metric) || isBool(aug)
     aug = Defined(metric) ? 50 : Defined(aug) ? augb ? aug ? 50 : 1 : aug : 1
     Y   = Default(Y,               3)
     UV  = Default(UV,           rgb ? 3 : aug > 1 ? 128 : 1)
     dif = Default(dif,        bi!=32)
     tv  = Default(tv_range,    false)   # Enable to mimic Subtract(), "ygrey" centered instead of "range_half"
-    fs  = Default(fulls,         rgb)
+    fs  = Default(fulls,          fs)
     cf  = Default(clamp_float, false)
     out = Default(show,            2)   # Output clip to return when aug=true (metrics). 0: clip 'a'  1: clip 'b'  2: diff subtitled (no frameprops)
     mcf = Default(metric,      "ALL")   # Select the metric to show (if show=2) and write to frameprops
+    si  = Defined(scale_inputs) ? \
+                  scale_inputs : ex_UVf(rgb, bi)
 
     gr  =             tv ? "ygrey" : "range_half"
     str = Format(aug > 1 ? "x y - abs {aug} *"    : \
@@ -176,9 +180,9 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     str  = dif ? ex_dlut(ystr, bi, fs) : str
     cstr = dif ? ex_dlut(cstr, bi, fs) : cstr
 
-    isy     ? Expr(a, b, str                                    , clamp_float=cf) : \
-    UV == 1 ? Expr(a, b, str, ""                                , clamp_float=cf) : \
-              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi), clamp_float=cf)
+    isy     ? Expr(a, b, str      , scale_inputs=si, clamp_float=cf) : \
+    UV == 1 ? Expr(a, b, str, ""  , scale_inputs=si, clamp_float=cf) : \
+              Expr(a, b, str, cstr, scale_inputs=si, clamp_float=cf)
 
     # Cost Functions
     if (augb ? aug > 1 : false) {
@@ -196,22 +200,21 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         mPLUG = (mcf == "SSIM" || mcf == "GMSD" || mcf == "MDSI" || mcf == "BSSIM")
 
                 w = a.width() h = a.height() pd = max(w,h)/10
-        matA = (w  > 2599 ||  h  > 1499)  ? "2020" : (w  > 1099 ||  h  > 599) ? "709" : "601"
-        matB = !tv ? "PC."+matA : "Rec"+matA
-        a1   = mcfa && out != 2 ? a.propClearAll().ConvertBits(32,fulls=fs) : a.ConvertBits(32,fulls=fs)
-        b1   =                                                                b.ConvertBits(32,fulls=fs)
-        b2   = b1.ConvertToPlanarRGB(matrix=matB,chromaresample="spline16")
+        matA = (w  > 2599 ||  h  > 1499)  ? "PC.2020" : (w  > 1099 ||  h  > 599) ? "PC.709" : "PC.601"
+        a1   = mcfa && out != 2 ? a.propClearAll().ConvertBits(32,fulls=fs,fulld=true) : a.ConvertBits(32,fulls=fs,fulld=true)
+        b1   =                                                                           b.ConvertBits(32,fulls=fs,fulld=true)
+        b2   = b1.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
       # y    = mcfa || mcf == "VMAF"  ? VMAF  (y, b1,show=false,model=0,log_path="") : a1 # Requires 16-bit input and write to disk = PASS (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
-        y    = mcfa || mcf == "SSIM"  ? vsSSIM(b1,a1, show=1)                 : a1
-        y    = mcfa || mcf == "BSSIM" ? BSSIM (b1, y, show=1, PlaneSSIM=true) : y
-        y    = mcfa                   ? GMSD  (b1, y, show=1).ConvertToPlanarRGB(matrix=matB,chromaresample="spline16") : \
-                       mcf == "GMSD"  ? GMSD  (b1, y, show=1)                 : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? y.ConvertToPlanarRGB(matrix=matB,chromaresample="spline16") : y
-        y    = mcfa || mcf == "MDSI"  ? MDSI  (b2, y, show=1)                 : y
-        b3   = mcfa || mcf == "BUTT"  ? Butteraugli(y, b2)                    : y   # Very slow filter ~3fps
+        y    = mcfa || mcf == "SSIM"  ? vsSSIM(b1,a1, show=1, fulls=true) : a1
+        y    = mcfa || mcf == "BSSIM" ? BSSIM (b1, y, show=1, fulls=true) : y
+        y    = mcfa                   ? GMSD  (b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : \
+                       mcf == "GMSD"  ? GMSD  (b1, y, show=1, fulls=true) : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : y
+        y    = mcfa || mcf == "MDSI"  ? MDSI  (b2, y, show=1, fulls=true) : y
+        b3   = mcfa || mcf == "BUTT"  ? Butteraugli(y, b2)                : y   # Very slow filter ~3fps
 
-        z1   = mcfa || mcf == "ME"  || mcf == "MAE"  || mcf == "SMAE"                  ? ex_lutxy(a1,b1,"x y -",                      UV=1,fulls=fs) : nop()
-        z2   = mcfa || mcf == "MSE" || mcf == "CHAR" || mcf == "RMSE" || mcf == "PSNR" ? ex_lutxy(a1,b1,"x y - dup *",                UV=1,fulls=fs) : nop()
-        z3   = mcfa || mcf == "MSLE"                                                   ? ex_lutxy(a1,b1,"x 1 + log y 1 + log - dup *",UV=1,fulls=fs) : nop()
+        z1   = mcfa || mcf == "ME"  || mcf == "MAE"  || mcf == "SMAE"                  ? ex_lutxy(a1,b1,"x y -",                      UV=1,fulls=true) : nop()
+        z2   = mcfa || mcf == "MSE" || mcf == "CHAR" || mcf == "RMSE" || mcf == "PSNR" ? ex_lutxy(a1,b1,"x y - dup *",                UV=1,fulls=true) : nop()
+        z3   = mcfa || mcf == "MSLE"                                                   ? ex_lutxy(a1,b1,"x 1 + log y 1 + log - dup *",UV=1,fulls=true) : nop()
 
         # RedMean
         yA   = mcfa || mcf == "rMEA"  ?  y.ExtractClip() : nop()
@@ -219,8 +222,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         z4   = mcfa || mcf == "rMEA"  ? Expr(yA[0],yA[1],yA[2],bA[0],bA[1],bA[2],"x a + 0.5 * R@ 0.00390625 * 2 + x a - dup * *   y b - dup * 4 * +   255 R - 0.00390625 * 2 + z c - dup * * +    sqrt") : nop()
 
         # OkLab
-        oky  = mcfa || mcf == "OkMSE" ?  y.moncurve_f(2.40,0.055,tv,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() # Assumes sRGB gamma input
-        okb  = mcfa || mcf == "OkMSE" ? b2.moncurve_f(2.40,0.055,tv,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop()
+        oky  = mcfa || mcf == "OkMSE" ?  y.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() # Assumes sRGB gamma input
+        okb  = mcfa || mcf == "OkMSE" ? b2.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop()
         OkD  = mcfa || mcf == "OkMSE" ? Expr(oky[0],oky[1],oky[2],okb[0],okb[1],okb[2],"x a - dup * y b - dup * z c - dup * + + sqrt") : nop() # RMSE (Euclidean Distance) over OkLab
 
         ScriptClip  (out==2?last:out==1?b:a, function [y,a,b,z1,z2,z3,z4,a1,b1,b3,OkD,pd,mcf,mcfa,mPLUG,out] () {
@@ -229,8 +232,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
             Avb  = string(AverageLuma (b1))
             Mea  = mcfa || mcf == "MAD2" ? string(YPlaneMedian(a1)) : nop()
             Meb  = mcfa || mcf == "MAD2" ? string(YPlaneMedian(b1)) : nop()
-            MAD  = mcfa || mcf == "MAD"  ? AverageLuma (ex_lutxy(a1,b1,Ava+" x - abs "+Avb+" y - abs - abs",UV=1)) : nop()
-            MAD2 = mcfa || mcf == "MAD2" ? YPlaneMedian(ex_lutxy(a1,b1,Mea+" x - abs "+Meb+" y - abs - abs",UV=1)) : nop()
+            MAD  = mcfa || mcf == "MAD"  ? AverageLuma (ex_lutxy(a1,b1,Ava+" x - abs "+Avb+" y - abs - abs",UV=1,fulls=true)) : nop()
+            MAD2 = mcfa || mcf == "MAD2" ? YPlaneMedian(ex_lutxy(a1,b1,Mea+" x - abs "+Meb+" y - abs - abs",UV=1,fulls=true)) : nop()
             ME   = mcfa || mcf == "ME"   ? AverageLuma(z1)          : nop()
             MAE  = mcfa || mcf == "MAE"  || \
                            mcf == "SMAE" ? abs(ME) : nop()
@@ -245,7 +248,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
             RMSE = mcfa || mcf == "RMSE" || \
                            mcf == "PSNR" ? sqrt(MSE) : nop()
             PSNR = mcfa || mcf == "PSNR" ? 20*log10(1./RMSE)        : nop() # 20*log10() to convert to dB
-            R2   = mcfa || mcf == "R2"   ? AverageLuma(ex_lutxy(a1,b1,Ava+" dup x - swap dup * swap y - swap dup * swap / 1 swap -",UV=1)) : nop()
+            R2   = mcfa || mcf == "R2"   ? AverageLuma(ex_lutxy(a1,b1,Ava+" dup x - swap dup * swap y - swap dup * swap / 1 swap -",UV=1,fulls=true)) : nop()
             OkMSE= mcfa || mcf == "OkMSE"? AverageLuma(OkD)         : nop()
             BUTT = mcfa || mcf == "BUTT" ? propGetFloat(b3,"_FrameButteraugli") : nop()
 
@@ -331,7 +334,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
 
 
 # mt_adddiff() is 5% slower
-function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_range", bool "fulls") {
+function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_range", bool "fulls", string "scale_inputs") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -342,6 +345,8 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_rang
     dif = Default(dif,     bi!=32)
     tv  = Default(tv_range, false)
     fs  = Default(fulls,   rgb)
+    si  = Defined(scale_inputs) ? \
+                  scale_inputs : ex_UVf(rgb, bi)
 
     gr  = tv  ? "ygrey" : "range_half"
     str = dif ? "x y + "+gr+" -"      : \
@@ -352,12 +357,12 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_rang
     str  = dif ? ex_dlut(ystr, bi, fs) : str
     cstr = dif ? ex_dlut(cstr, bi, fs) : cstr
 
-    isy     ? Expr(a, b, str                                    ) : \
-    UV == 1 ? Expr(a, b, str, ""                                ) : \
-              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isy     ? Expr(a, b, str      , scale_inputs=si) : \
+    UV == 1 ? Expr(a, b, str, ""  , scale_inputs=si) : \
+              Expr(a, b, str, cstr, scale_inputs=si) }
 
 
-function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", bool "fulls") {
+function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", bool "fulls", string "scale_inputs") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -367,19 +372,21 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", bool "fulls
     Y   = Default(Y,           3)
     UV  = Default(UV,    rgb ? 3 : 1)
     fs  = Default(fulls, rgb)
+    si  = Defined(scale_inputs) ? \
+                  scale_inputs : ex_UVf(rgb, bi)
 
     str = isc ? "x y - z +" : "x y - x +"
 
     ystr = ex_Yexpr (str,  Y, bi, rgb, fs)
     cstr = ex_UVexpr(str, UV, bi, rgb, fs)
 
-    isc     ?                                                           \
-    isy     ? Expr(a, b, c, ystr                                    ) : \
-    UV == 1 ? Expr(a, b, c, ystr, ""                                ) : \
-              Expr(a, b, c, ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) : \
-    isy     ? Expr(a, b,    ystr                                    ) : \
-    UV == 1 ? Expr(a, b,    ystr, ""                                ) : \
-              Expr(a, b,    ystr, cstr, scale_inputs=ex_UVf(rgb, bi)) }
+    isc     ?                                               \
+    isy     ? Expr(a, b, c, ystr      , scale_inputs=si ) : \
+    UV == 1 ? Expr(a, b, c, ystr, ""  , scale_inputs=si ) : \
+              Expr(a, b, c, ystr, cstr, scale_inputs=si ) : \
+    isy     ? Expr(a, b,    ystr      , scale_inputs=si ) : \
+    UV == 1 ? Expr(a, b,    ystr, ""  , scale_inputs=si ) : \
+              Expr(a, b,    ystr, cstr, scale_inputs=si ) }
 
 
 # mt_logic(mode="and") is 6% slower
@@ -414,7 +421,7 @@ function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV",
               Expr(a, b, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi)) }
 
 
-# The higher the mask value the more the second clip merges into the first
+# The higher the mask value the more the second clip merges into the first (mask bitdepth scale should always saturate full range -ie. 65535 for 16-bit int-)
 # mt_merge() is 5%  slower on                  Y clips / masks
 #               5%  slower on luma=false for YUV clips / masks
 #               8%  faster on luma=true  for YUV clips / masks
@@ -511,7 +518,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     lox = lo < 0   hix = hi < 0
     lox && hix ? Assert (false, "'lo' or 'hi': At least one bound should be binarized.") : nop()
 
-    bs  = rgb ?  a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298967,0.586421,0.114612]) : a.ConvertBits(8,dither=-1,fulls=fs) # Assumes RGB is Rec709
+    bs  = rgb ?  a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298903,0.586620,0.114477]) : a.ConvertBits(8,dither=-1,fulls=fs) # Assumes RGB is Rec709
     a   = rgb ? bs.ConvertBits(bi,fulls=fs) : a
     br  = bs.width() > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
     isy = rgb || isy
@@ -1684,9 +1691,9 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 ##  1.2% MedianBlur(1,0,0)
 ## 0.06% mt_luts(last, "med", mt_square(1), "y",chroma="-1")
 ##
-## 100% quantile(rank=13,radius_u=0,radius_v=0)      # 155fps (only 8-bits)
-##  84% removegrainHD(rank=13,radius_u=0,radius_v=0) # (only 8-bits)
-##  67% ex_median(mode="median5",UV=1)
+## 100% quantile(rank=13,radius_u=0,radius_v=0) (155fps) # (only 8-bits)
+##  84% removegrainHD(rank=13,radius_u=0,radius_v=0)     # (only 8-bits)
+##  70% ex_median(mode="median5",UV=1)
 ##  10% Dither_median16(rx=2, ry=2, rt=0, y=3, u=1, v=1)
 ## 3.3% MedianBlur(2,0,0) # 5fps with or without chroma (unstable filter)
 ##
@@ -1695,12 +1702,12 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 ##   91% ex_median(mode="medianT",UV=1)
 ##   91% MedianBlurTemporal(0,0,0)
 ##
-## 100% ex_median(mode="medianST",UV=1)
+## 100% ex_median(mode="medianST",UV=1) (93fps)
 ##   81% MedianBlurTemporal(1,1,1) # 2fps without chroma (unstable filter)
 ##
 ## Recommended: EMF, smart, CAM, edgeCL, cartoon, DGM1, ML3D and STWM
 #
-# 51 modes (with '*' own algo):
+# 51 modes (with '*' own algos):
 # undot(1)  - Also called "conservative", removes one pixel "salt'n'pepper" impulsive noise        -removegrain(1)-
 # undot2    - Same as undot but clip up to the second closest minimum values                       -removegrain(2)-
 # undot3    - Same as undot but clip up to the third  closest minimum values                       -removegrain(3)-
@@ -5394,11 +5401,13 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", bool "invert", int "
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
+    fs   = propNumElements(a, "_ColorRange")  > 0 ? \
+           propGetInt     (a, "_ColorRange") == 0 : rgb
 
     mode = Default(mode, "mt_sobel")
     in   = Default(invert,  false)
     UV   = Default(UV,    rgb ? 3 : 1)
-    fs   = Default(fulls, rgb)
+    fs   = Default(fulls, fs)
 
     th   = mode=="prewitt"   ?  [10, 100] : \
            mode=="qprewitt"  ?  [10, 105] : \
@@ -5837,7 +5846,7 @@ function ex_UVf(bool rgb, int bits) {
 
 # Pixel Value Converter (unsigned)
 # Convert values from one bitdepth to another or/and from one scale to another or/and from one (luma) range to another
-function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", bool "tv_in", bool "tv_out") {
+function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", bool "tv_in", bool "tv_out", bool "float") {
 
     ibi = Default(ibits,    8)
     obi = Default(obits,   16)
@@ -5845,37 +5854,38 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
     tvi = Default(tv_in,   false)
     tvo = Default(tv_out,  false)
     fs  = Default(fulls,      !tvi)      # fulls
-    fso = Default(fulld, tv ? !tvo : fs) # fulld
+    fd  = Default(fulld, tv ? !tvo : fs) # fulld
+    fl  = Default(float,  obi==32)       # force float output
 
     ib32 = ibi == 32   ob32 = obi == 32
     ib8  = ibi == 8    ob8  = obi == 8
 
     fs  = (ib8 || ib32) ? false : fs
-    fso = (ob8 || ob32) ? false : fso
+    fd  = (ob8 || ob32) ? false : fd
 
     v   = float(var)*pow(2, obi-ibi)
 
-    fsc = fs && !fso ? -v/257.  : \
-         !fs &&  fso ?  v/256.  : 0
+    fsc = fs && !fd ? -v/257.  : \
+         !fs &&  fd ?  v/256.  : 0
 
-    vif = ib32 ? ob8 ? var*255. :     var*( 255*pow(2, obi-8)+(fso ? 255*pow(2, obi-8)/256. : 0) )     : nop()
-    vof = ob32 ? ib8 ? var/255. : min(var/( 255*pow(2, ibi-8)+(fs  ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
+    vif = ib32 ? ob8 ? var*255. :     var*( 255*pow(2, obi-8)+(fd ? 255*pow(2, obi-8)/256. : 0) )     : nop()
+    vof = ob32 ? ib8 ? var/255. : min(var/( 255*pow(2, ibi-8)+(fs ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
 
 
     out = ob32 ? ib32 ? var : vof : ib32 ? vif : v+fsc
 
-    tv  = tvi != tvo ? tvi ? Eval(ex_dlut(Format("(({out} - ymin) / (ymax - ymin)) * range_max"), obi, fso)) : \
-                             Eval(ex_dlut(Format("( {out} * (ymax - ymin)) / range_max + ymin"),  obi, fso)) : out
-    tv  = tvi != tvo ?       Eval(ex_dlut(Format("min(range_max,max(0,{tv}))"), obi, fso))                   : out
+    tv  = tvi != tvo ? tvi ? Eval(ex_dlut(Format("(({out} - ymin) / (ymax - ymin)) * range_max"), obi, fd)) : \
+                             Eval(ex_dlut(Format("( {out} * (ymax - ymin)) / range_max + ymin"),  obi, fd)) : out
+    tv  = tvi != tvo ?       Eval(ex_dlut(Format("min(range_max,max(0,{tv}))"),                   obi, fd)) : out
 
-    ob32 ? tv : round(tv) }
+    ob32 || fl ? tv : round(tv) }
 
 
 
 # HBD constants 3D look up table
 #
 # * YUV and RGB mid-grey is 127.5 (rounded to 128) for PC range levels,
-#   this translates to a value of 125.5 in TV range levels. Chroma is always centered, so 128 regardless.
+#   this translates to a value of 125.5 in TV range levels. Chroma is always range centered, so 128 regardless.
 
 function ex_dlut(string "str", int "bits", bool "fulls") {
 
@@ -5895,16 +5905,16 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 
 
     #                            8-bit UINT      10-bit UINT          12-bit UINT          14-bit UINT            16-bit UINT         24-bit UINT               32-bit Ufloat
-    range_min   = Select (bitd,  [  0.,  0.],    [   0.,   0.   ],    [   0.,   0.   ],    [    0.,    0.   ],    [    0.,    0.],    [       0.,       0.],    [       0.,       0.])
-    ymin        = Select (bitd,  [ 16., 16.],    [  64.,  64.   ],    [ 256., 257.   ],    [ 1024., 1028.   ],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
-    cmin        = Select (bitd,  [ 16., 16.],    [  64.,  64.   ],    [ 256., 257.   ],    [ 1024., 1028.   ],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
-    ygrey       = Select (bitd,  [126.,126.],    [ 502., 504.   ],    [2008.,2016.   ],    [ 8032., 8063.   ],    [32128.,32254.],    [ 8224768., 8256896.],    [ 125.5/255.,125.5/255.])
-    range_half  = Select (bitd,  [128.,128.],    [ 512., 514.   ],    [2048.,2056.   ],    [ 8192., 8224.   ],    [32768.,32896.],    [ 8388608., 8421376.],    [ 128/255., 128/255.])
-    yrange      = Select (bitd,  [219.,219.],    [ 876., 879.   ],    [3504.,3517.688],    [14016.,14070.750],    [56064.,56283.],    [14352384.,14408448.],    [ 219/255., 219/255.])
-    crange      = Select (bitd,  [224.,224.],    [ 896., 899.500],    [3584.,3598.   ],    [14336.,14392.   ],    [57344.,57568.],    [14680064.,14737408.],    [ 224/255., 224/255.])
-    ymax        = Select (bitd,  [235.,235.],    [ 940., 943.672],    [3760.,3774.688],    [15040.,15098.750],    [60160.,60395.],    [15400960.,15461120.],    [ 235/255., 235/255.])
-    cmax        = Select (bitd,  [240.,240.],    [ 960., 963.750],    [3840.,3855.   ],    [15360.,15420.   ],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
-    range_max   = Select (bitd,  [255.,255.],    [1020.,1023.984],    [4080.,4095.938],    [16320.,16383.750],    [65280.,65535.],    [16711680.,16776960.],    [       1.,       1.])
+    range_min   = Select (bitd,  [  0.,  0.],    [   0.,   0.],       [   0.,   0.],       [    0.,    0.],       [    0.,    0.],    [       0.,       0.],    [       0.,       0.])
+    ymin        = Select (bitd,  [ 16., 16.],    [  64.,  64.],       [ 256., 257.],       [ 1024., 1028.],       [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
+    cmin        = Select (bitd,  [ 16., 16.],    [  64.,  64.],       [ 256., 257.],       [ 1024., 1028.],       [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
+    ygrey       = Select (bitd,  [126.,126.],    [ 502., 504.],       [2008.,2016.],       [ 8032., 8063.],       [32128.,32254.],    [ 8224768., 8256896.],    [ 125.5/255.,125.5/255.])
+    range_half  = Select (bitd,  [128.,128.],    [ 512., 514.],       [2048.,2056.],       [ 8192., 8224.],       [32768.,32896.],    [ 8388608., 8421376.],    [ 128/255., 128/255.])
+    yrange      = Select (bitd,  [219.,219.],    [ 876., 879.],       [3504.,3517.],       [14016.,14070.],       [56064.,56283.],    [14352384.,14408448.],    [ 219/255., 219/255.])
+    crange      = Select (bitd,  [224.,224.],    [ 896., 899.],       [3584.,3598.],       [14336.,14392.],       [57344.,57568.],    [14680064.,14737408.],    [ 224/255., 224/255.])
+    ymax        = Select (bitd,  [235.,235.],    [ 940., 943.],       [3760.,3774.],       [15040.,15098.],       [60160.,60395.],    [15400960.,15461120.],    [ 235/255., 235/255.])
+    cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],       [3840.,3855.],       [15360.,15420.],       [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
+    range_max   = Select (bitd,  [255.,255.],    [1020.,1023.],       [4080.,4095.],       [16320.,16383.],       [65280.,65535.],    [16711680.,16776960.],    [       1.,       1.])
     range_size  = Select (bitd,  [256.,256.],    [1024.,1024.   ],    [4096.,4096.   ],    [16384.,16384.   ],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
 
     fs  = fs ? 1 : 0
@@ -5974,8 +5984,8 @@ function atanTM(bool "expand", bool "negative") {
     # atan(x) -> Maclaurin + polynomial + Maclaurin series piecewise function from -0.8 to inf
     e8   = "swap dup dup * X2@ XX * X3@ 0.333333333 * - X2 X3 * X5@ 0.2 * + X5 X2 * X7@ 0.142857143 * - X7 X2 * 0.111111111 * +  X7 X3 * 0.0909090909 * -" # from -0.8 to 0.8
     e16  = "0.021622 XX 1.00976 * A1@ + X2 0.245982 * A2@ -"               # up to 1.65
-    els  = "pi 0.5 * 1 X3 3 * / 1 XX / 1 X5 5 * / 1 X7 7 * / + + - A7@ + " # from  1.65 onwards
-    atpf = "XX@ dup 0.8 <= "+e8+" "+e16+" ? "
+    els  = "pi 0.5 * 1 X3 3 * / 1 XX / 1 X5 5 * / 1 X7 7 * / + + - A7@ +"  # from  1.65 onwards
+    atpf = "XX@ dup 0.8 <= "+e8+" "+e16+" ?"
     atp  = "XX@ dup 0.8 <= "+e8+" XX 1.65 >= "+els+" "+e16+" ? ?"
 
     # for -X
@@ -5993,11 +6003,11 @@ function atanT(bool "expand") {
 
     ex    = Default(expand, true) # includes from x=-2.1 and x=+2.1 to +-inf
 
-    e3    = "dup dup * swap 8 * dup swap2 X2@ 16 + / swap X2 9 * 16 + / + "                                              # from -2.1 to +2.1
+    e3    = "dup dup * swap 8 * dup swap2 X2@ 16 + / swap X2 9 * 16 + / +"                                               # from -2.1 to +2.1
     els   = "X2 XX * dup 3 * 1 swap / swap  X2 * dup 5 * 1 swap / swap X2 * 7 * 1 swap / 1 XX / - + + A7@ 1.570796326 +" # from  2.1 onwards
 
     elrs  = "A7 1.570796326 -"                                                                                           # from -2.1 onwards
-    atanE = "XX@ dup dup -2.1 >= swap 2.1 <= & swap "+e3+" XX 2.1 > "+els+" "+elrs+" ? ? "
+    atanE = "XX@ dup dup -2.1 >= swap 2.1 <= & swap "+e3+" XX 2.1 > "+els+" "+elrs+" ? ?"
 
     return ex ? atanE : e3 }
 
@@ -6028,14 +6038,14 @@ function expT(int "degree") {
     d = max(min(d,11),1)
 
     # Maclaurin series - 11th degree polynomial. -3.55 <= x <= +3.4
-    exp11  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
-              X3 X2 * X5@ 0.008333333 * + X3 dup * 0.001388888 * + X4 X3 * 0.0001984127 * + X4 dup * 0.000024802 * +
-              X5 X4 * 0.000002756 * + X5 dup * dup XX * 39916800 / swap 3628800 / + +"
+    exp11 = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
+             X3 X2 * X5@ 0.008333333 * + X3 dup * 0.001388888 * + X4 X3 * 0.0001984127 * + X4 dup * 0.000024802 * +
+             X5 X4 * 0.000002756 * + X5 dup * dup XX * 39916800 / swap 3628800 / + +"
 
     # Maclaurin series - 9th degree polynomial. -2.8 <= x <= +2.6
     exp9  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
              X3 X2 * X5@ 0.008333333 * + X3 dup * 0.001388888 * + X4 X3 * 0.0001984127 * + X4 dup * 0.000024802 * +
-             X5 X4 * 0.000002756 * + "
+             X5 X4 * 0.000002756 * +"
 
     # Maclaurin series - 7th degree polynomial. -2 <= x <= +2
     exp7  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
@@ -6046,7 +6056,7 @@ function expT(int "degree") {
              X3 X2 * 0.008333333 * +"
 
     # Maclaurin series - 3rd degree polynomial. -0.7 <= x <= +0.7
-    exp3  = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * 0.166666666 * +"
+    exp3  = "dup dup dup * X2@ 0.5 * 1 + + swap X2 * 0.166666666 * +"
 
     # Maclaurin series - 1st degree polynomial. In some situations/expressions this is enough
     exp1  = "dup dup * 0.5 * 1 + +"
@@ -6088,8 +6098,8 @@ function sinT(bool "expand") {
     # Taylor series (14% slower than above but perfect match to sin(x) )
     # sinT  = "pi 0.5 * swap - dup * X2@ 0.5 * 1 swap - X2 dup * X4@ 0.041666666 * + X4 X2 * 0.001388888 * -"
 
-    sinTP1  = "pi 0.5 * XX - dup * X2@ 0.5 * 1 swap - X2 dup * X4@ 0.041574811029363 * + X4 X2 * 0.001292112506266 * -"
-    sinTP2  = "pi 0.5 * XX + dup * X2@ 0.5 * 1      - X2 dup * X4@ 0.041574811029363 * - X4 X2 * 0.001292112506266 * +" # 0.00129... to fix discontinuity at pi/2
+    sinTP1  = "pi 0.5 * XX - dup * X2@ 0.5 * 1 swap - X2 dup * X4@ 0.041574811029363 * + X4 X2 * 0.001292112506266 * -" # 0.00129... to fix discontinuity at pi/2
+    sinTP2  = "pi 0.5 * XX + dup * X2@ 0.5 * 1      - X2 dup * X4@ 0.041574811029363 * - X4 X2 * 0.001292112506266 * +"
     sinTP   = "XX@ 0 > "+sinTP1+" "+sinTP2+" ?"
 
     return ex ? sinTP : sinT }
