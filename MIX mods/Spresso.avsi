@@ -4,8 +4,7 @@
 #                Didée  mod in 2006.09.04 for "Corrected a BIG bug"
 #                r.f    mod in 2020.05.07 for HBD
 #                Dogway mod in 2021.07.16 for optimization+cleanup
-#                Dogway mod in 2021.08.07 for minor edits
-#                Dogway mod in 2021.11.25 Use old minblur() code path, and update for 'sgn' -faster and bugfix(?)-
+#                Dogway mod in 2021.11.29 Use old minblur() code path, update for HD and optimize with 'sgn' -faster and bugfix(?)-
 #
 # SPresso (Spatial Pressdown) is a purely spatial script designed to achieve better compressibility without doing too much harm to the original detail.
 # SPresso was not designed for 1080p processing/encoding; due to its 3x3 kernel it works better on standard definition (SD) content like DVDs and possibly on 720p.
@@ -29,11 +28,10 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
     radius  = Default( radius,  round(h/540.0) )
     fs      = Default( fulls, fs )
 
-    Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,1), "SPresso: Update AviSynth+ version")
 
-    HD    = (w > 1099 ||  h > 599)
-    yy = (RGmode ==0) ? 2 : 3
-    uv = (RGmodeC==0) ? 2 : 3
+    yy    = (RGmode  < 1) ? 2 : 3
+    uv    = (RGmodeC < 1) ? 2 : 3
     LIM1  = ex_bs(limit>0 ? round(limit*(100.0/bias)-1.0) : round(100.0/bias), 8, bi, fulls=fs)
     LIM2  = ex_bs(limit<0 ? 1 : limit, 8, bi, fulls=fs)
     BIA   = ex_bs(bias, 8, bi, fulls=fs)
@@ -41,14 +39,39 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
     LIM2c = ex_bs(limitC<0 ? 1 : limitC, 8, bi, fulls=fs)
     BIAc  = ex_bs(biasc, 8, bi, fulls=fs)
     CTH   = ex_bs(100,   8, bi, fulls=fs)
+    un    = ex_bs(1,     8, bi, fulls=fs)
 
-    expr  = Format(limit<0 ? "x y - A@ abs {LIM1} < x dup A sgn - ?"                                                          : \
+    isHD    = (w  > 1099 ||  h  > 599) && radius > 1
+    RGmode  = isHD ? yy == 3 ? RGmode : RGmodeC : RGmode
+    bmode   = (10 < RGmode  < 13) || (18 < RGmode  < 21)
+    # For HD, RGmode and RGmodeC can't be >0 and distinct (falls back to RGmode when both luma and chroma are processed)
+    RGmode = RGmode == 1  ? isHD ? "unblob3" : 1  : \
+             RGmode == 2  ? isHD ? "unblob3" : 2  : \
+             RGmode == 3  ? isHD ? "unblob3" : 3  : \
+             RGmode == 4  ? isHD ? "median5" : 4  : \
+             RGmode == 5  ? isHD ? "DGM5"    : 5  : \
+             RGmode == 6  ? isHD ? "DGM4"    : 6  : \
+             RGmode == 7  ? isHD ? "DGM3"    : 7  : \
+             RGmode == 8  ? isHD ? "DGM1"    : 8  : \
+             RGmode == 9  ? isHD ? "DGM0"    : 9  : \
+             RGmode == 11 ? isHD ? "weighted": 11 : \
+             RGmode == 12 ? isHD ? "weighted": 12 : \
+             RGmode == 19 ? isHD ? "rg19"    : 19 : \
+             RGmode == 20 ? isHD ? "mean"    : 20 : \
+             RGmode == 17 ? isHD ? "smart2"  : 17 : \
+             RGmode == 18 ? isHD ? "smart2"  : 18 : \
+             RGmode == 22 ? isHD ? "smart2"  : 22 : \
+             RGmode == 26 ? isHD ? "smart2"  : 26 : \
+             RGmode == 27 ? isHD ? "smart2"  : 27 : isHD ? "median5" : RGmode
+
+    expr  = Format(limit<0 ? "x y - A@ abs {LIM1} < x dup A sgn {un} * - ?"                                                          : \
                              "x y - abs 0 <= x dup {LIM1} + y < x {LIM2} + x {LIM1} - y > x {LIM2} - x {CTH} {BIA} - * y {BIA} * + 1 {CTH} / * ? ? ?" )
 
-    exprC = Format(limit<0 ? "x y - A@ abs {LIM1c} < x dup A sgn - ?"                                                         : \
+    exprC = Format(limit<0 ? "x y - A@ abs {LIM1c} < x dup A sgn {un} * - ?"                                                         : \
                              "x y - abs 0 <= x dup {LIM1c} + y < x {LIM2c} + x {LIM1c} - y > x {LIM2c} - x {CTH} {BIAc} - * y {BIAc} * + 1 {CTH} / * ? ? ?" )
 
 
-    ex_lutxy( clp, HD ? clp.ex_MinBlur(radius,old=true,y=yy,uv=uv,fulls=fs) : clp.removegrain(RGmode,RGmodeC), expr, exprC, scale_inputs=limit<0 ? fs ? "floatf" : "float" : "none", Y=yy, UV=uv, fulls=fs)
-
+    ex_lutxy( clp, isHD ? bmode ? clp.ex_boxblur(radius, mode=RGmode,y=yy,uv=uv,fulls=fs)                                                                          : \
+                                  clp.ex_MinBlur(radius,old=true,mode=Format("""ex_median(" """+RGmode+""" ",thres=th,Y=y,UV=uv,fulls=fs)"""),y=yy,uv=uv,fulls=fs) : \
+                                  clp.removegrain(RGmode,RGmodeC), expr, exprC, Y=yy, UV=uv, fulls=fs)
 }
