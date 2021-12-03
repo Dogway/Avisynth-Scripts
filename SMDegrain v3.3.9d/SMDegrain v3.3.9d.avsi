@@ -65,7 +65,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     md           = ReplaceStr(LCase(md)," ","")
     tr           = Default( tr,       2 )
     tri          = tr # Storing for DCTFlicker
-    rc           = LeftStr(md, 1) == "r"       # recursion won't work on 'MDegrain', 'TemporalSoften', 'FluxSmoothT' or 'MedianT' (only when tr > 2)
+    rc           = LeftStr(md, 1) == "r"       # recursion won't work on 'TemporalSoften', 'FluxSmoothT' or 'MedianT' (only when tr > 2)
     md           = rc ? MidStr(md, 2) : md
 
     md           = FindStr(md, "mediant") > 0 ? rc && tr==1 ? "MedianT" : rc && tr==2 ? "MedianT5" : "medianTn" : md
@@ -172,18 +172,18 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
     # Error Report
-                      Assert(IsVersionOrGreater(3,7,1),    "SMDegrain: Update AviSynth+ version")
-                      Assert(blksize==4 || blksize==8 || blksize==16 || blksize==24 || blksize==32 || blksize==48 || blksize==64,"SMDegrain: MAnalyse: Block's size must be 4x4, 8x8, 16x16, 24x24, 32x32, 48x48 or 64x64")
-                      Assert(overlap <= blk2,              "SMDegrain: Overlap must be at least half blksize or less")
-                      Assert(overlap == overlap-overlap%2, "SMDegrain: MAnalyse: overlap must be an even figure")
-                      Assert(IsBool(Show) || sShow,        "SMDegrain: 'Show' only accepts bool inputs (true,false), or string modes ('Speed','Memory',Quality')")
-                      Assert(preclip || IsInt(prefilter),  "SMDegrain: 'prefilter' only accepts integers and clip inputs")
-                      Assert(isCntr  || IsInt(Contrasharp),"SMDegrain: 'Contrasharp' only accepts integers and bool inputs")
-    MFilterB        ? Assert(IsClip(mfilter),              "SMDegrain: 'mfilter' only accepts clip inputs")                        : nop()
-    isInter         ? Assert(h%4==0,                       "SMDegrain: Interlaced sources require mod 4 height sizes")             : nop()
-    RefineMotion    ? Assert(blksize > 7,                  "SMDegrain: For RefineMotion you need a blksize of at least 8")         : nop()
-    rc              ? Assert(T3 || T5 || md=="medianTn",   "SMDegrain: Unsupported 'mode' for recursion")                          : nop()
-    rc              ? Assert(tr < 3,                       "SMDegrain: Recursion doesn't work with radius over than 3")            : nop()
+                           Assert(IsVersionOrGreater(3,7,1),    "SMDegrain: Update AviSynth+ version")
+                           Assert(blksize==4 || blksize==8 || blksize==16 || blksize==24 || blksize==32 || blksize==48 || blksize==64,"SMDegrain: MAnalyse: Block's size must be 4x4, 8x8, 16x16, 24x24, 32x32, 48x48 or 64x64")
+                           Assert(overlap <= blk2,              "SMDegrain: Overlap must be at least half blksize or less")
+                           Assert(overlap == overlap-overlap%2, "SMDegrain: MAnalyse: overlap must be an even figure")
+                           Assert(IsBool(Show) || sShow,        "SMDegrain: 'Show' only accepts bool inputs (true,false), or string modes ('Speed','Memory',Quality')")
+                           Assert(preclip || IsInt(prefilter),  "SMDegrain: 'prefilter' only accepts integers and clip inputs")
+                           Assert(isCntr  || IsInt(Contrasharp),"SMDegrain: 'Contrasharp' only accepts integers and bool inputs")
+    MFilterB             ? Assert(IsClip(mfilter),              "SMDegrain: 'mfilter' only accepts clip inputs")                        : nop()
+    isInter              ? Assert(h%4==0,                       "SMDegrain: Interlaced sources require mod 4 height sizes")             : nop()
+    RefineMotion         ? Assert(blksize > 7,                  "SMDegrain: For RefineMotion you need a blksize of at least 8")         : nop()
+    rc && md!="MDegrain" ? Assert(T3 || T5 || md=="medianTn",   "SMDegrain: Unsupported 'mode' for recursion")                          : nop()
+    rc && md!="MDegrain" ? Assert(tr < 3,                       "SMDegrain: Recursion doesn't work with radius over than 3")            : nop()
 
 
 
@@ -386,22 +386,24 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
             # Finally, MDegrain
 
-            output  = isInter ?
-            \                 ( isMult  ? mfilter.MDegrainN(super_render, vmulti, tr, thSAD2=halfthSAD, thSADC2=halfthSADC,               thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 6) ? mfilter.MDegrain6(super_render, bv2, fv2, bv4, fv4, bv6, fv6, bv8, fv8, bv10, fv10, bv12, fv12, thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 5) ? mfilter.MDegrain5(super_render, bv2, fv2, bv4, fv4, bv6, fv6, bv8, fv8, bv10, fv10,             thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 4) ? mfilter.MDegrain4(super_render, bv2, fv2, bv4, fv4, bv6, fv6, bv8, fv8,                         thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 3) ? mfilter.MDegrain3(super_render, bv2, fv2, bv4, fv4, bv6, fv6,                                   thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 2) ? mfilter.MDegrain2(super_render, bv2, fv2, bv4, fv4,                                             thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                             mfilter.MDegrain1(super_render, bv2, fv2,                                                       thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true)):
-            \                 ( isMult  ? mfilter.MDegrainN(super_render, vmulti, tr, thSAD2=halfthSAD, thSADC2=halfthSADC,               thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 6) ? mfilter.MDegrain6(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5, bv6, fv6,     thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 5) ? mfilter.MDegrain5(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5,               thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 4) ? mfilter.MDegrain4(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4,                         thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 3) ? mfilter.MDegrain3(super_render, bv1, fv1, bv2, fv2, bv3, fv3,                                   thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                 (tr == 2) ? mfilter.MDegrain2(super_render, bv1, fv1, bv2, fv2,                                             thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-            \                             mfilter.MDegrain1(super_render, bv1, fv1,                                                       thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true))
+            MDe= "output  = isInter ?
+                \                 ( isMult  ? mfilter.MDegrainN(super_render, vmulti, tr, thSAD2=halfthSAD, thSADC2=halfthSADC,               thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 6) ? mfilter.MDegrain6(super_render, bv2, fv2, bv4, fv4, bv6, fv6, bv8, fv8, bv10, fv10, bv12, fv12, thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 5) ? mfilter.MDegrain5(super_render, bv2, fv2, bv4, fv4, bv6, fv6, bv8, fv8, bv10, fv10,             thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 4) ? mfilter.MDegrain4(super_render, bv2, fv2, bv4, fv4, bv6, fv6, bv8, fv8,                         thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 3) ? mfilter.MDegrain3(super_render, bv2, fv2, bv4, fv4, bv6, fv6,                                   thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 2) ? mfilter.MDegrain2(super_render, bv2, fv2, bv4, fv4,                                             thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                             mfilter.MDegrain1(super_render, bv2, fv2,                                                       thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true)):
+                \                 ( isMult  ? mfilter.MDegrainN(super_render, vmulti, tr, thSAD2=halfthSAD, thSADC2=halfthSADC,               thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 6) ? mfilter.MDegrain6(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5, bv6, fv6,     thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 5) ? mfilter.MDegrain5(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5,               thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 4) ? mfilter.MDegrain4(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4,                         thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 3) ? mfilter.MDegrain3(super_render, bv1, fv1, bv2, fv2, bv3, fv3,                                   thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                 (tr == 2) ? mfilter.MDegrain2(super_render, bv1, fv1, bv2, fv2,                                             thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                             mfilter.MDegrain1(super_render, bv1, fv1,                                                       thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true))"
 
+            Eval(MDe)
+            rc ? Eval(ReplaceStr(MDe, "mfilter", "output")) : last
 
             if (LFRB) {
 
