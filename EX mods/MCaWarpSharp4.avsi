@@ -73,7 +73,7 @@ function MCaWarpSharp4(clip source, int "supsamp",int "post", float "PPstr", boo
     h       = Default(h,h1)         # so if you had a plan on resizing, this is a good chance to do.
 
 
-    Assert((post >= 1 && post <= 4 ), chr(10) + "'post' have not a correct value! [1,2,3,4]" + chr(10))
+    Assert((post >= 1 && post <= 4 ), chr(10) + "MCaWarpSharp4: 'post' have not a correct value! [1,2,3,4]" + chr(10))
     # if no supersampling (supsamp=1) -> (thresh=255,blur=3,type=1,depth=8,chroma=4)
     # if 4x supersampling (supsamp=4) -> (thresh=192,blur=36,type=1,depth=96,chroma=4)
 

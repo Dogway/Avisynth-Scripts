@@ -94,8 +94,8 @@
 ### -> RgTools           [v1.2]
 ### -> MaskTools2        [v2.2.29]
 ### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v6.7.0]
-### -> ResizersPack      [v6.1.0]
+### -> ExTools           [v6.9.0]
+### -> ResizersPack      [v7.0.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -115,7 +115,7 @@ function GrainFactory3mod(clip clp,
 {
 
 
-Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+Assert(IsVersionOrGreater(3,5,0), "GrainFactory3mod: Update AviSynth+ version")
 
 
 g1str        = Default( g1str,         13 )  # [ 0 - ???] strength of luma grain / for dark areas
@@ -288,6 +288,6 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 #-----------------------------------------------------------------------------------
 
 result = o.ex_makediff(grainlayer, UV=ochroma, fulls=!tv)
-msk    = o.ScriptClip("ex_lut(str=string(AverageLuma(last)),UV=1)")
+msk    = o.ScriptClip( function[] () { ex_lut(string(AverageLuma(last)),UV=1) } )
 
 use_ALMask ? mt_merge(result, o, msk, luma=chroma, U=ochroma,V=ochroma) : result }

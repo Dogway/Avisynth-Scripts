@@ -494,7 +494,7 @@ This script is port of the VapourSynth SSIM_downsample - https://github.com/Wolf
 #---------------
 # smooth (default 1.5): The method to smooth the image.
 # If it's a float, it specifies the "sigmaX" of vsTCanny.
-# If it's function, it acts as a general smoother.
+# If it's a function, it acts as a general smoother.
 #---------------
 # kernel (default "BicubicResize"): Resample kernel.
 #---------------

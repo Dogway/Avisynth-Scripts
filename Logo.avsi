@@ -4,7 +4,6 @@
 ###  (13-10-2021) By Dogway
 ###
 ### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
-### Blending Modes adapted from:Blend_MT_alpha3 (https://forum.doom9.org/showthread.php?p=1400434#post1400434)
 ### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465#post525465)
 ###
 ### -It is a fast and handy function for adding logos or other type of elements upfront the video image in YV12 space.
@@ -135,13 +134,13 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     gif      = Default(anim_gif,false) # Is your logo a packed animated gif?
 
     !(mode == "Over" || mode == "Watermark" || mode == "Screen"  || mode == "Multiply") ? \
-    Assert(false,           "Unsupported Blending Mode: " +string(mode))  : nop()
+    Assert(false,           "Logo: Unsupported Blending Mode: " +string(mode))  : nop()
     end > 0 ?\
-    Assert(start <= end,     "Invalid start frame: "       +String(start)) : nop()
-    Assert(start <=  Fc,     "Start frame out of bounds: " +String(start))
-    Assert(start >=   0,     "Start frame out of bounds: " +String(start))
-    Assert(end   < Fc+1,     "End frame out of bounds: "   +String(end))
-    Assert(end   >=  -1,     "End frame out of bounds: "   +String(end))
+    Assert(start <= end,     "Logo: Invalid start frame: "       +String(start)) : nop()
+    Assert(start <=  Fc,     "Logo: Start frame out of bounds: " +String(start))
+    Assert(start >=   0,     "Logo: Start frame out of bounds: " +String(start))
+    Assert(end   < Fc+1,     "Logo: End frame out of bounds: "   +String(end))
+    Assert(end   >=  -1,     "Logo: End frame out of bounds: "   +String(end))
     end2 = end == 0 || end == Fc-1 ? Fc : end
 
 

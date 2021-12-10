@@ -3,7 +3,7 @@
 ##
 ## Port to ExTools by Dogway    (29-08-2021)
 ##
-## Easy to use "low frequency" stripes/bands removal filter
+## Easy-to-use "low frequency" stripes/bands removal filter
 ## https://forum.doom9.org/showthread.php?t=154863&page=2#post1408276
 ##
 ## "thr is strength, rad is "how big are the (whatevers)" offset is "how far apart are they" rad goes from 1 to 5, offset from 1 to 4, thr from 1 to bignumber"

@@ -983,17 +983,17 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
     ow  = clp.width()
     oh  = clp.height()
 
-    Assert( ( quant       >= 1  &&  quant       <=  31 ), chr(10) + "'quant' wrong value! [1-31]"           + chr(10))
-    Assert( ( num_shift   >= 1  &&  num_shift   <=   4 ), chr(10) + "'num_shift' wrong value! [1-4]"        + chr(10))
-    Assert( ( Matrix      >= 1  &&  Matrix      <= 110 ), chr(10) + "'Matrix' wrong value! [1-110]"         + chr(10))
-    Assert( ( Qtype       >= 0  &&  Qtype       <=   4 ), chr(10) + "'Qtype' wrong value! [0-4]"            + chr(10))
-    Assert( ( ZW          >= 0  &&  ZW          <=  16 ), chr(10) + "'ZW' wrong value! [1-16]"              + chr(10))
-    Assert( ( Cpr         >= 0  &&  Cpr         <=   6 ), chr(10) + "'Cpr' wrong value! [0-6]"              + chr(10))
-    Assert( ( cWarpToLuma >= 0  &&  cWarpToLuma <=   8 ), chr(10) + "'cWarpToLuma' wrong value! [0-8]"      + chr(10))
-    Assert( ( downSize    >= 1  &&  downSize    <=   4 ), chr(10) + "'downSize' wrong value! [1-4]"         + chr(10))
-    Assert( ( ncpu        >= 1  &&  ncpu        <=   4 ), chr(10) + "'ncpu' wrong value! [1-4]"             + chr(10))
-    Assert( ( ow          ==        nmod(ow,4)         ), chr(10) + "'clip width'  must be a multiple of 4" + chr(10))
-    Assert( ( oh          ==        nmod(oh,4)         ), chr(10) + "'clip height' must be a multiple of 4" + chr(10))
+    Assert( ( quant       >= 1  &&  quant       <=  31 ), chr(10) + "SmoothD2c: 'quant' wrong value! [1-31]"           + chr(10))
+    Assert( ( num_shift   >= 1  &&  num_shift   <=   4 ), chr(10) + "SmoothD2c: 'num_shift' wrong value! [1-4]"        + chr(10))
+    Assert( ( Matrix      >= 1  &&  Matrix      <= 110 ), chr(10) + "SmoothD2c: 'Matrix' wrong value! [1-110]"         + chr(10))
+    Assert( ( Qtype       >= 0  &&  Qtype       <=   4 ), chr(10) + "SmoothD2c: 'Qtype' wrong value! [0-4]"            + chr(10))
+    Assert( ( ZW          >= 0  &&  ZW          <=  16 ), chr(10) + "SmoothD2c: 'ZW' wrong value! [1-16]"              + chr(10))
+    Assert( ( Cpr         >= 0  &&  Cpr         <=   6 ), chr(10) + "SmoothD2c: 'Cpr' wrong value! [0-6]"              + chr(10))
+    Assert( ( cWarpToLuma >= 0  &&  cWarpToLuma <=   8 ), chr(10) + "SmoothD2c: 'cWarpToLuma' wrong value! [0-8]"      + chr(10))
+    Assert( ( downSize    >= 1  &&  downSize    <=   4 ), chr(10) + "SmoothD2c: 'downSize' wrong value! [1-4]"         + chr(10))
+    Assert( ( ncpu        >= 1  &&  ncpu        <=   4 ), chr(10) + "SmoothD2c: 'ncpu' wrong value! [1-4]"             + chr(10))
+    Assert( ( ow          ==        nmod(ow,4)         ), chr(10) + "SmoothD2c: 'clip width'  must be a multiple of 4" + chr(10))
+    Assert( ( oh          ==        nmod(oh,4)         ), chr(10) + "SmoothD2c: 'clip height' must be a multiple of 4" + chr(10))
 
 
    sd1 = clp
@@ -1586,6 +1586,8 @@ function WeightMatrixSum(string "name",int "level") {
 
 
 function BorderMask(clip orig, int "bth1", int "bth2", int "bshare", int "eth1", int "eth2", int "eshare", float "buvmod", float "euvmod") {
+
+    bi     = BitsPerComponent(a)
 
     bth1   = Default(bth1,0)
     bth2   = Default(bth2,2)

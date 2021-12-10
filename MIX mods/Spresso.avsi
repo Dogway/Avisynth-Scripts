@@ -1,7 +1,7 @@
 # SPresso() by Didée (2005.11.28)
 # https://forum.doom9.org/showthread.php?p=867316#post867316
 #
-#                Didée  mod in 2006.09.04 for "Corrected a BIG bug"
+#                Didée      in 2006.09.04 for "Corrected a BIG bug"
 #                r.f    mod in 2020.05.07 for HBD
 #                Dogway mod in 2021.07.16 for optimization+cleanup
 #                Dogway mod in 2021.11.29 Use old minblur() code path, update for HD and optimize with 'sgn' -faster and bugfix(?)-
@@ -65,7 +65,7 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
              RGmode == 27 ? isHD ? "smart2"  : 27 : isHD ? "median5" : RGmode
 
     expr  = Format(limit<0 ? "x y - A@ abs {LIM1} < x dup A sgn {un} * - ?"                                                          : \
-                             "x y - abs 0 <= x dup {LIM1} + y < x {LIM2} + x {LIM1} - y > x {LIM2} - x {CTH} {BIA} - * y {BIA} * + 1 {CTH} / * ? ? ?" )
+                             "x y - abs 0 <= x dup {LIM1}  + y < x {LIM2}  + x {LIM1}  - y > x {LIM2}  - x {CTH} {BIA}  - * y {BIA}  * + 1 {CTH} / * ? ? ?" )
 
     exprC = Format(limit<0 ? "x y - A@ abs {LIM1c} < x dup A sgn {un} * - ?"                                                         : \
                              "x y - abs 0 <= x dup {LIM1c} + y < x {LIM2c} + x {LIM1c} - y > x {LIM2c} - x {CTH} {BIAc} - * y {BIAc} * + 1 {CTH} / * ? ? ?" )

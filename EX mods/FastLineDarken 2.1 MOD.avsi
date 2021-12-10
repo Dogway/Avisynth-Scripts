@@ -60,7 +60,7 @@ thr        = Default(threshold, 4)
 thinning   = Default(thinning,0)
 fs         = Default(fulls, false)
 
-Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version")
+Assert(IsVersionOrGreater(3,5,0), "FastLineDarkenMOD: Update AviSynth+ version")
 
 bi  = BitsPerComponent(c)
 thr = ex_bs(thr, 8, bi, fulls=fs)
