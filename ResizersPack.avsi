@@ -413,7 +413,7 @@ function MatteCrop(clip s, int "width", int "height", float "thr", bool "CropMor
     avg  = avg.TemporalSoften(10,255,255,10,2)
     avg  = avg.RatioResize(float(w),"adjust2w",kernel="bicubic")
 
-    avgc = ex_merge(avgY, avg, BoxMask(s,addw,w-addw,addh,h-addh,show=true)).ConvertBits(bi,dither=-1,fulls=fs)
+    avgc = ex_merge(avgY, avg, BoxMask(s,addw,w-addw,addh,h-addh)).ConvertBits(bi,dither=-1,fulls=fs)
 
     SC   = SCSelect_HBD(avg,dfactor=SC_thr,mindif=1.0)
 
