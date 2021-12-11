@@ -1,9 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###                     2.4            (15-04-2015)            ##
-###                     2.8 By Dogway  (22-06-2021)            ## Updated BoxMask(), FlatMask() and LumaMask() to internal functions (faster and HBD support)
-###                     2.9 By Dogway  (18-10-2021)            ##
-### Mask functions Pack 3.1 By Dogway  (12-11-2021)            ##
+###           MasksPack 4.0 By Dogway  (11-12-2021)            ##
 ###                                                            ##
 ### https://forum.doom9.org/showthread.php?t=182881            ##
 ###                                                            ##
@@ -17,13 +14,20 @@
 ###
 ### Creates a rectangular mask so you can use it in merging operations or custom filtering in localized areas.
 ###
+### Dependencies:
+###         GradePack      (for show=true)
+###         TransformsPack (for HBD -fullscale bugfix- )
+###             ExTools
 ###
 ###########################
 
-
-function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert", bool "show", bool "matchformat", bool "fulls") {
+function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", bool "invert", bool "show") {
 
     rgb     = isRGB(clp)
+    w       = width(clp)
+    h       = height(clp)
+    px      = PixelType(clp)
+    bi      = BitsPerComponent(clp)
     fs      = propNumElements (clp,"_ColorRange")  > 0 ? \
               propGetInt      (clp,"_ColorRange") == 0 : rgb
 
@@ -31,24 +35,31 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert"
     x2      = Default(x2,0)
     y1      = Default(y1,0)
     y2      = Default(y2,0)
-    upper   = Default(invert, false)
-    show    = Default(show, false)
-    format  = Default(matchformat, true)
-    fs      = Default(fulls, fs)
+    inv     = Default(invert, false)
+    show    = Default(show,   false)
+    UV      = Default(UV,3)
 
-    bdpth = BitsPerComponent(clp)
+           Assert(IsVersionOrGreater(3,7,1), "BoxMask: Update AviSynth+ version.")
+    show ? Assert(UV!=1, "BoxMask: 'show' requires UV=2 or 3.") : nop()
 
-    LetterBox(BlankClip(clp,1,pixel_type="Y"+string(bdpth),color_yuv=upper?$000000:$ffffff,channels=0),y1,height(clp)-y2,x1,width(clp)-x2,color_yuv=upper?$ffffff:$000000)
-    format ? MatchClip(clp) : last
+    wh      = UV==2 ? $ff8080 : $ffffff
+    bl      = UV==2 ? $008080 : $000000
 
-    !show ? last : ex_blend(clp,last,"softlight",fulls=fs) }
+    rgb ? LetterBox(BlankClip(clp,1,pixel_type=UV==1?"Y"+string(bi):px,color    =inv?bl:wh,channels=0),y1,h-y2,x1,w-x2,color    =inv?wh:bl) : \
+          LetterBox(BlankClip(clp,1,pixel_type=UV==1?"Y"+string(bi):px,color_yuv=inv?bl:wh,channels=0),y1,h-y2,x1,w-x2,color_yuv=inv?wh:bl)
+
+    bi!=8 && !rgb ? Full_scale() : last # if the mask is binary we can use ConvertBits(bi, fulls=false, fulld=true), which is a bit faster
+
+    !show ? last : ex_blend(clp,last,"softlight",0.5) }
+
+
 
 
 ##################
 ###
 ### FlatMask (MIX mod)
 ###
-### 17-06-2021
+### 11-12-2021
 ### by cretindesalpes: (https://forum.doom9.org/showthread.php?p=1507257#post1507257)
 ### Ported back from real.finder's HBD mod
 ###
@@ -56,23 +67,25 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", bool "invert"
 ### Useful for denoising cel animation while protecting detailed backgrounds.
 ### If you just want the mask itself use the 'show' parameter, it will be useable for masking operations as well.
 ###
-### Use like this:
+### Example:
 ###
 ### raw=last
 ### YourFilter()
 ### flatmask(raw)
 ###
 ###
-### Requires:
-### MaskTools2: https://avisynth.nl/index.php/MaskTools2
-### ExTools:    https://forum.doom9.org/showthread.php?t=182881
+### Dependencies:
+###     MaskTools2: https://avisynth.nl/index.php/MaskTools2
+###     ExTools:    https://forum.doom9.org/showthread.php?t=182881
 ###
 ###########################
 
+function FlatMask(clip filtered, clip "raw", float "str",int "r",  bool "luma", float "Lth", bool "invert", bool "show", bool "notemp", bool "extend", bool "fulls") {
 
-function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", float "Lth", bool "invert", bool "show", bool "notemp", bool "extend", bool "fulls") {
-
-    bi    = BitsPerComponent(raw)
+    rgb   = isRGB(filtered)
+    bi    = BitsPerComponent(filtered)
+    w     = width (filtered)
+    h     = height(filtered)
 
     raw   = Default(raw, filtered)
 
@@ -84,11 +97,10 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
     th    = Default(Lth,75)                      # Start of penumbra for masking when luma=true
 
     upper = Default(invert, false)               # Inverts the mask
-    show  = Default(show,  false)                # Shows the mask
     notem = Default(notemp, exten)
-    fs    = Default(fulls, false)
+    fs    = Default(fulls,    rgb)
 
-    Assert(IsVersionOrGreater(3,5,0), "Update AviSynth+ version.")
+    Assert(IsVersionOrGreater(3,7,1), "FlatMask: Update AviSynth+ version.")
     c4ma = exten ? filtered : raw
 
     e1 = c4ma.mt_edge (mode="prewitt", thY1=0, thY2=255)
@@ -97,121 +109,66 @@ function FlatMask(clip filtered, clip raw, float "str",int "r",  bool "luma", fl
     ex_lut ("x 0 max range_max / 0.25 ^ range_max *", fulls=fs)
     mt_deflate().mt_deflate ()
 
-    luma ? mt_logic(c4ma.ex_binarize(th,fulls=fs),"min") : last
-
-    w = width ()
-    h = height()
+    luma ? ex_logic(c4ma.ex_binarize(th,fulls=fs),"min") : last
 
     BicubicResize (w / (r*2) * 2, h / (r*2) * 2, 1, 0)
     notem ? last : TemporalSoften (2, 20, 255)
-    mt_expand ().mt_inpand ().mt_inpand (mode="both")
+    ex_expand().ex_inpand(2,mode="disk")
     BicubicResize (w, h, 1, 0)
 
-    var  = show  ? 128 : 1
     up   = ex_bs(10, 8, bi, fulls=fs)
     code = Format(upper ? "range_max x {up} - {str} * -" : "x {up} - {str} *")
-    msk  = ex_lut (code,UV=var,fulls=fs)
-    msk  = exten ? !upper ? msk.ex_invert(fulls=fs).ex_expand(2).ex_invert(fulls=fs).ex_inpand(2) : msk.mt_expand() : msk
-    show ? msk : mt_merge(filtered,raw,msk,luma=true, y=3, u=3, v=3) }
+    msk  = ex_lut (code,UV=128,fulls=fs)
+    exten ? !upper ? msk.ex_invert(fulls=fs).ex_expand(2).ex_invert(fulls=fs).ex_inpand(2) : \
+                     msk.ex_expand()                                                       : msk }
 
 
 
 
-##############################################################
-###                                                          #
-### LumaMask() (12-11-2021)                                  #
-###                                                          #
-##############################################################
+#####################################################################
+###                                                                 #
+### LumaMask() (11-12-2021)                                         #
+###                                                                 #
+### Two point remap of luma plane range for using as mask.
+### Basically a lerp (linear interpolation) between 'b' (black point)
+### and 'w' (white point), with option to invert the mask.
 ###
-### Function by Didée, adapted by Dogway:
-### https://forum.doom9.org/showpost.php?p=761786&postcount=3
+### UV=3 is noop, you can use UV=2 to copy chroma, or UV=128 for grey chroma.
 ###
+###   LumaMask(50, 100)
 ###
-### Mixes 2 versions of a source by a mask defined by luminosity (Luma Plane)
-###
-###
-### filtered [default: last]
-### -------------------
-### By default the input of the function is assumed as filtered
-###
-###
-### raw [default: filtered]
-### -------------------
-### Define where you want to create the mask from, and thus blend with the filtered clip.
-###
-###
-### b [default: 24]
-### -------------------
-### Limit for 100% black in your mask. [0...255]
-###
-###
-### W [default: 48]
-### -------------------
-### Limit for 100% white in your mask. [0...255]
-###
-###
-### invert [default: false]
-### -------------------
-### Inverts the mask. By default filtered clip will be passed through the white parts of the mask.
-###
-###
-### smooth [default: false]
-### -------------------
-### Denoises some nervious grain on the mask so it doesn't have a negative effect on the mask/blending.
-###
-###
-### show [default: false]
-### -------------------
-### Shows the mask, which you can directly use with any masking operations on your own.
-###_______________________
-###                       |
-### Example:              |
-###  raw=last             |
-###  YourFilter()         |
-###  LumaMask(raw)        |
-###_______________________|
-###
-###   This will pass the filtered version of the clip only in the brightest part of the image,
-###   starting where luma pixel value is 24 bright and smoothed up to 100% bypass from 48 brightness value onwards.
-###   Useful to protect dark/bright areas from certain filters.
+### Remaps value 0 to 50 and 255 to 100, clipping above and below.
+### Useful to protect dark/bright areas from certain filters without
+### a hard threshold like ex_binarize()
 ###
 ##############################################################
 
+function LumaMask(clip a, int "b", int "w", bool "invert", int "UV") {
 
-function LumaMask(clip filtered, clip raw, int "b", int "w", bool "invert", bool "smooth", bool "show", int "UV", bool "fulls") {
+    rgb    = isRGB(a)
+    isy    = isy(a)
+    bi     = BitsPerComponent(a)
+    fs     = propNumElements (a,"_ColorRange")  > 0 ? \
+             propGetInt      (a,"_ColorRange") == 0 : rgb
+    lut    = bi == 32 ? 0 : 1
 
-    rgb    = isRGB(raw)
-    isy    = isy(filtered)
-    bi     = BitsPerComponent(raw)
-
-    fs     = propNumElements (raw,"_ColorRange")  > 0 ? \
-             propGetInt      (raw,"_ColorRange") == 0 : rgb
-
-    raw    = Default(raw, filtered)
     LO     = Default(b, 24)
     HI     = Default(w, 48)
-    upper  = Default(invert, false)
-    smooth = Default(smooth, false)
-    show   = Default(show,   false)
-    fs     = Default(fulls,      fs)
-    UV     = Default(UV,  !isy ? 128 : 1)
+    inv    = Default(invert, false)
+    UV     = Default(UV,  !isy ? 128 : 2)
 
-    w      = raw.width()
-    h      = raw.height()
+    Assert(IsVersionOrGreater(3,7,1), "LumaMask: Update AviSynth+ version.")
+
     bi32   = bi == 32 ? "0 1 clip" : ""
-    sm     = (w  > 2599 ||  h  > 1499) ? 3 : \
-             (w  > 1099 ||  h  > 599)  ? 2 : 1
-
     LO     = ex_bs(LO, 8, bi, fulls=fs)
     HI     = ex_bs(HI, 8, bi, fulls=fs)
 
-    code   = upper ? Format("range_max range_max {HI} {LO} - / x {LO} - * - "+bi32) : \
-                     Format("0         range_max {LO} {HI} - / x {LO} - * - "+bi32)
+    code   = inv ? Format("range_max range_max {HI} {LO} - / x {LO} - * - "+bi32) : \
+                   Format("0         range_max {LO} {HI} - / x {LO} - * - "+bi32)
 
-    str    = ex_dlut(code, bi, fs)
-    cstr   = ex_UVexpr("", UV, bi, rgb, fs)
+    str    = ex_dlut(code, bi, true)
+    cstr   = ex_UVexpr("", UV, bi, rgb, true)
 
-    msk    = Expr(raw, str, cstr, scale_inputs=ex_UVf(rgb, bi))
-    msk    = smooth ? msk.ex_inpand(sm).ex_expand(sm+sm).ex_inpand(sm) : msk
-
-    show  ?  msk : mt_merge(raw,filtered,msk,true) }
+    isy     ?  Expr(a, str,       lut=lut) : \
+    UV == 1 ?  Expr(a, str, "",   lut=lut) : \
+               Expr(a, str, cstr, lut=lut) }
