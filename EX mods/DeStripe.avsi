@@ -9,15 +9,16 @@
 ## "thr is strength, rad is "how big are the (whatevers)" offset is "how far apart are they" rad goes from 1 to 5, offset from 1 to 4, thr from 1 to bignumber"
 ##
 
-function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV", bool "fulls") {
+function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV") {
 
     rgb  = isRGB(C)
     bi   = BitsPerComponent(C)
+    fs   = propNumElements (C,"_ColorRange")  > 0 ? \
+           propGetInt      (C,"_ColorRange") == 0 : rgb
 
     rad    = Default(rad,     2)
     offset = Default(offset,  0)
     UV     = Default(UV,    rgb ? 3 : 1)
-    fs     = Default(fulls, rgb)
     thr_   = Default(thr,   255)
     thr    = ex_bs(thr_, 8, bi, fulls=fs)
 
@@ -47,19 +48,20 @@ function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV", bool "f
                             offset == 2 ? ex_luts(Diff, mode="med", pixels = "0 -4 0 -3          0 0         0 3 0 4", expr = expr, UV=uv, fulls=fs) : \
                                           ex_luts(Diff, mode="med", pixels = "0 -4               0 0             0 4", expr = expr, UV=uv, fulls=fs) : MedianDiff
 
-    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv, fulls=fs) }
+    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv) }
 
 
 
-function DeStripeV(Clip C, int "rad", int "offset", int "thr", int "UV",  bool "fulls") {
+function DeStripeV(Clip C, int "rad", int "offset", int "thr", int "UV") {
 
     rgb  = isRGB(C)
     bi   = BitsPerComponent(C)
+    fs   = propNumElements (C,"_ColorRange")  > 0 ? \
+           propGetInt      (C,"_ColorRange") == 0 : rgb
 
     rad    = Default(rad,     2)
     offset = Default(offset,  0)
     UV     = Default(UV,    rgb ? 3 : 1)
-    fs     = Default(fulls, rgb)
     thr_   = Default(thr,   255)
     thr    = ex_bs(thr_, 8, bi, fulls=fs)
 
@@ -89,4 +91,4 @@ function DeStripeV(Clip C, int "rad", int "offset", int "thr", int "UV",  bool "
                             offset == 2 ? ex_luts(Diff, mode="med", pixels = "-4 0 -3 0          0 0         3 0 4 0", expr = expr, UV=uv, fulls=fs) : \
                                           ex_luts(Diff, mode="med", pixels = "-4 0               0 0             4 0", expr = expr, UV=uv, fulls=fs) : MedianDiff
 
-    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv, fulls=fs) }
+    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv) }

@@ -4,13 +4,13 @@
 #                Didée      in 2006.09.04 for "Corrected a BIG bug"
 #                r.f    mod in 2020.05.07 for HBD
 #                Dogway mod in 2021.07.16 for optimization+cleanup
-#                Dogway mod in 2021.11.29 Use old minblur() code path, update for HD and optimize with 'sgn' -faster and bugfix(?)-
+#                Dogway mod in 2021.12.11 Use old minblur() code path, update for HD and optimize with 'sgn' -faster and bugfix(?)-
 #
 # SPresso (Spatial Pressdown) is a purely spatial script designed to achieve better compressibility without doing too much harm to the original detail.
 # SPresso was not designed for 1080p processing/encoding; due to its 3x3 kernel it works better on standard definition (SD) content like DVDs and possibly on 720p.
 # On noisy DVD/SD sources, compression gain usually is from 2% to 3% (light settings -> changes almost invisible) up to 10 to 12% (stronger settings -> slight, gentle softening, not very obvious).
 #
-function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "limitC", float "biasC", int "RGmodeC", int "radius", bool "fulls") {
+function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "limitC", float "biasC", int "RGmodeC", int "radius") {
 
     rgb = isRGB(clp)
     bi  = BitsPerComponent(clp)
@@ -26,20 +26,19 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
     RGmode  = Default( RGmode,  4 )
     RGmodeC = Default( RGmodeC,-1 )
     radius  = Default( radius,  round(h/540.0) )
-    fs      = Default( fulls, fs )
 
     Assert(IsVersionOrGreater(3,7,1), "SPresso: Update AviSynth+ version")
 
     yy    = (RGmode  < 1) ? 2 : 3
     uv    = (RGmodeC < 1) ? 2 : 3
-    LIM1  = ex_bs(limit>0 ? round(limit*(100.0/bias)-1.0) : round(100.0/bias), 8, bi, fulls=fs)
-    LIM2  = ex_bs(limit<0 ? 1 : limit, 8, bi, fulls=fs)
-    BIA   = ex_bs(bias, 8, bi, fulls=fs)
+    LIM1  = ex_bs(limit >0 ? round(limit *(100.0/bias) -1.0) : round(100.0/bias),  8, bi, fulls=fs)
     LIM1c = ex_bs(limitC>0 ? round(limitC*(100.0/biasC)-1.0) : round(100.0/biasC), 8, bi, fulls=fs)
+    LIM2  = ex_bs(limit <0 ? 1 : limit,  8, bi, fulls=fs)
     LIM2c = ex_bs(limitC<0 ? 1 : limitC, 8, bi, fulls=fs)
-    BIAc  = ex_bs(biasc, 8, bi, fulls=fs)
-    CTH   = ex_bs(100,   8, bi, fulls=fs)
-    un    = ex_bs(1,     8, bi, fulls=fs)
+    BIA   = ex_bs(bias,                  8, bi, fulls=fs)
+    BIAc  = ex_bs(biasc,                 8, bi, fulls=fs)
+    CTH   = ex_bs(100,                   8, bi, fulls=fs)
+    un    = ex_bs(1,                     8, bi, fulls=fs)
 
     isHD    = (w  > 1099 ||  h  > 599) && radius > 1
     RGmode  = isHD ? yy == 3 ? RGmode : RGmodeC : RGmode
@@ -71,7 +70,7 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
                              "x y - abs 0 <= x dup {LIM1c} + y < x {LIM2c} + x {LIM1c} - y > x {LIM2c} - x {CTH} {BIAc} - * y {BIAc} * + 1 {CTH} / * ? ? ?" )
 
 
-    ex_lutxy( clp, isHD ? bmode ? clp.ex_boxblur(radius, mode=RGmode,y=yy,uv=uv,fulls=fs)                                                                          : \
-                                  clp.ex_MinBlur(radius,old=true,mode=Format("""ex_median(" """+RGmode+""" ",thres=th,Y=y,UV=uv,fulls=fs)"""),y=yy,uv=uv,fulls=fs) : \
+    ex_lutxy( clp, isHD ? bmode ? clp.ex_boxblur(radius, mode=RGmode,y=yy,uv=uv)                                                                 : \
+                                  clp.ex_MinBlur(radius,old=true,mode=Format("""ex_median(" """+RGmode+""" ",thres=th,Y=y,UV=uv)"""),y=yy,uv=uv) : \
                                   clp.removegrain(RGmode,RGmodeC), expr, exprC, Y=yy, UV=uv, fulls=fs)
 }

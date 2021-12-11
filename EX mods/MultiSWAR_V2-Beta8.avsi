@@ -1,4 +1,4 @@
-# MultiSWAR - Multi Step Warping And Resizing - V2 Beta 7
+# MultiSWAR - Multi Step Warping And Resizing - V2 Beta 8
 #
 #
 #             by *.mp4 guy (07-02-2007)- https://forum.doom9.org/showthread.php?t=112526
@@ -11,6 +11,7 @@
 #             Beta 5: adapted for ExTools and sanitized      (Dogway) (06-09-2021)
 #             Beta 6: optimizations and fix for HBD          (Dogway) (18-10-2021)
 #             Beta 7: Porting to SharpenersPack functions    (Dogway) (12-11-2021)
+#             Beta 8: Read fulls from source                 (Dogway) (11-12-2021)
 #
 #   Dependencies:
 #
@@ -156,7 +157,11 @@
 #agmrad
 
 function MultiSWAR(Clip Clp, Int"DestX", Int"DestY" ,Int"StepRatio", int "warping", int "chromawarp", float "ssm", int "sthresh", Int"Sharpen", float"Sharpen2", \
-                  float "thr", int "dthr", int "lthr", int "hthr", int "dbias", int "lbias", int "hbias", int "srad", int "bmrad", int "mmrad", int "agmrad", bool "reducehalos", bool "smoothing", bool "lanczos", bool "fulls") {
+                  float "thr", int "dthr", int "lthr", int "hthr", int "dbias", int "lbias", int "hbias", int "srad", int "bmrad", int "mmrad", int "agmrad", bool "reducehalos", bool "smoothing", bool "lanczos") {
+
+    rgb = isRGB(Clp)
+    fs  = propNumElements(Clp,"_ColorRange")  > 0 ? \
+          propGetInt     (Clp,"_ColorRange") == 0 : rgb
 
     OX = nmod(Clp.Width (),16,16)
     OY = nmod(Clp.Height(),16,16)
@@ -209,7 +214,7 @@ function MultiSWAR(Clip Clp, Int"DestX", Int"DestY" ,Int"StepRatio", int "warpin
     #smoothing ? s.dctfun4b(sthresh, sthresh) : last
 
 
-    detail      = o.ex_unsharp(str=sharpen2/2., Fc=max(OXs,OYs)*(1.0-0.2*srad), th=0, UV=1,fulls=fs) # Parametrized to original variableblur's unsharp
+    detail      = o.ex_unsharp(str=sharpen2/2., Fc=max(OXs,OYs)*(1.0-0.2*srad), th=0, UV=1) # Parametrized to original variableblur's unsharp
     MedianSharp = o.ex_XSharpen(strength=sharpen,threshold=255)
     MedianSharp = MedianSharp.SPresso(3,sthresh*7,18).ex_repair(o,mode="edgeW")
     #lsharp = s.LimitedSharpenfaster(Smode=Smode, soft=8, strength=sharpen, overshoot=Esharp, SS_X=1.25, SS_Y=1.25, lmode=1)
@@ -235,12 +240,12 @@ function MultiSWAR(Clip Clp, Int"DestX", Int"DestY" ,Int"StepRatio", int "warpin
 
 
     s = last
-    lines            = ex_merge(MedianSharp, s, mask2, fulls=fs)
-    detail_and_lines = ex_merge(detail,      lines , mask1, fulls=fs)
-    reducehalos ?      ex_merge(detail_and_lines, S, Mask3, fulls=fs) : last
+    lines            = ex_merge(MedianSharp,      s, mask2)
+    detail_and_lines = ex_merge(detail,      lines , mask1)
+    reducehalos ?      ex_merge(detail_and_lines, s, mask3) : last
 
     return !(width() < destx) ? spline36resize(destx,desty) : \
                                  MultiSWAR(destx=destx, desty=desty, stepratio=stepratio, warping=warping, chromawarp=chromawarp, ssm=ssm, sthresh=sthresh, sharpen=sharpen, sharpen2=sharpen2, \
-                                 thr=thr, dthr=dthr, lthr=lthr, hthr=hthr, dbias=dbias, lbias=lbias, hbias=hbias, srad=srad, bmrad=bmrad, mmrad=mmrad, agmrad=agmrad, reducehalos=reducehalos, smoothing=smoothing, lanczos=lanczos, fulls=fs)
+                                 thr=thr, dthr=dthr, lthr=lthr, hthr=hthr, dbias=dbias, lbias=lbias, hbias=hbias, srad=srad, bmrad=bmrad, mmrad=mmrad, agmrad=agmrad, reducehalos=reducehalos, smoothing=smoothing, lanczos=lanczos)
 
 }

@@ -226,8 +226,8 @@
 #   Vinverse
 #
 # Core scripts:
-#   ExTools      (6.8 or above)
-#   SMDegrain    (3.3.8 or above) (for ex_luma_rebuild() )
+#   ExTools      (6.9   or above)
+#   SMDegrain    (3.4.0 or above) (for ex_luma_rebuild() )
 #   Zs_RF_Shared (1.154 or above) (for sh_Bob and nonyuy2clipin)
 #
 # Additional plugins and scripts:
@@ -630,7 +630,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                   (SrchClipPP == 0) ? repair0             : \
                   (SrchClipPP  < 3) ? spatialBlur         : \
                                       spatialBlur.ex_lutxy( tweaked, "x 7 scalef + y < x 2 scalef + x 7 scalef - y > x 2 scalef - x 0.51 * y 0.49 * + ? ?", UV=CMmt, fulls=!tv )
-    srchClip    = tv && !srchcheck  ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_range=tv, fulls=!tv) : srchClip
+    srchClip    = tv && !srchcheck  ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_range=tv) : srchClip
     srchClip    = bi8 ? srchClip : srchClip.ConvertBits(8,dither=-1,fulls=!tv)
 
     # Calculate forward and backward motion vectors from motion search clip
@@ -820,7 +820,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # Limit over-sharpening by clamping to neighboring (spatial or temporal) min/max values in original
     # Occurs here (before final temporal smooth) if SLMode == 1,2. This location will restrict sharpness more, but any artefacts introduced will be smoothed
     sharpLimit1 = (SLMode == 1) ? backBlend1.Repair( ((SLrad <= 1) ? edi : backBlend1.Repair( edi, 12, 12 )), 1, 1 ) : \
-                  (SLMode == 2) ? backBlend1.ex_clamp( tMax, tMin, Sovs,Sovs, UV=3, fulls=!tv )                      : \
+                  (SLMode == 2) ? backBlend1.ex_clamp( tMax, tMin, Sovs,Sovs, UV=3 )                                 : \
                                   backBlend1
 
     # Back blend the blurred difference between sharpened & unsharpened clip, after (1st) sharpness limiting (Sbb == 2,3). A small fidelity improvement
@@ -849,7 +849,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # Limit over-sharpening by clamping to neighboring (spatial or temporal) min/max values in original
     # Occurs here (after final temporal smooth) if SLMode == 3,4. Allows more sharpening here, but more prone to introducing minor artefacts
     sharpLimit2 = (SLMode == 3) ? repair2.Repair( ((SLrad <= 1) ? edi : repair2.Repair( edi, 12, 12 )), 1, 1 ) : \
-                  (SLMode == 4) ? repair2.ex_clamp( tMax,tMin, Sovs,Sovs, UV=3, fulls=!tv )                    : \
+                  (SLMode == 4) ? repair2.ex_clamp( tMax,tMin, Sovs,Sovs, UV=3 )                               : \
                                   repair2
 
     # Lossless=1 - inject source fields into result and clean up inevitable artefacts. Provided NoiseRestore=0.0 or 1.0, this mode will make the script result
@@ -899,7 +899,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Show output of choice + settings
     # >>>> Restore YUY2 to interleaved
-    output = (ShowNoise == 0.0) ? cropped : finalNoise.ex_lut( "x "+bi32m+" " + string(ShowNoise) + " * "+bi32p, clamp_float=true, UV=CNmt128, fulls=fs )
+    output = (ShowNoise == 0.0) ? cropped : finalNoise.ex_lut(Format("x "+bi32m+" {ShowNoise} * "+bi32p), clamp_float=true, UV=CNmt128, fulls=fs )
     output = yuy2 ? output.nonyuy2clipout(true) : output
     return !ShowSettings ? output : \
         output.Subtitle( "TR0=" + string(TR0) + " | TR1=" + string(TR1) + " | TR2=" + string(TR2) + " | Rep0=" + string(Rep0) + " | Rep1=" + string(Rep1) + \

@@ -231,7 +231,7 @@ grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer1 = (g1tex==0)
 \           ? grainlayer1
-\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
+\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
 
 grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
 \           : (g1size > 1.5) ? grainlayer1.bicubicresize(sx1a,sy1a, b1a,c1a).bicubicresize(ox,oy, b1a,c1a)
@@ -248,7 +248,7 @@ grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer2 = (g2tex==0)
 \           ? grainlayer2
-\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
+\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
 
 grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
 \           : (g2size > 1.5) ? grainlayer2.bicubicresize(sx2a,sy2a, b2a,c2a).bicubicresize(ox,oy, b2a,c2a)
@@ -264,7 +264,7 @@ grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer3 = (g3tex==0)
 \           ? grainlayer3
-\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
+\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
 
 grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 \           : (g3size > 1.5) ? grainlayer3.bicubicresize(sx3a,sy3a, b3a,c3a).bicubicresize(ox,oy, b3a,c3a)

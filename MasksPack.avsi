@@ -109,7 +109,7 @@ function FlatMask(clip filtered, clip "raw", float "str",int "r",  bool "luma", 
     ex_lut ("x 0 max range_max / 0.25 ^ range_max *", fulls=fs)
     mt_deflate().mt_deflate ()
 
-    luma ? ex_logic(c4ma.ex_binarize(th,fulls=fs),"min") : last
+    luma ? ex_logic(c4ma.ex_binarize(th),"min") : last
 
     BicubicResize (w / (r*2) * 2, h / (r*2) * 2, 1, 0)
     notem ? last : TemporalSoften (2, 20, 255)
@@ -119,8 +119,8 @@ function FlatMask(clip filtered, clip "raw", float "str",int "r",  bool "luma", 
     up   = ex_bs(10, 8, bi, fulls=fs)
     code = Format(upper ? "range_max x {up} - {str} * -" : "x {up} - {str} *")
     msk  = ex_lut (code,UV=128,fulls=fs)
-    exten ? !upper ? msk.ex_invert(fulls=fs).ex_expand(2).ex_invert(fulls=fs).ex_inpand(2) : \
-                     msk.ex_expand()                                                       : msk }
+    exten ? !upper ? msk.ex_invert().ex_expand(2).ex_invert().ex_inpand(2) : \
+                     msk.ex_expand()                                       : msk }
 
 
 

@@ -231,7 +231,7 @@ grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer1 = (g1tex==0)
 \           ? grainlayer1
-\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
+\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
 
 grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
 \           : (g1size > 1.5) ? grainlayer1.bicubicresize(sx1a,sy1a, b1a,c1a).bicubicresize(ox,oy, b1a,c1a)
@@ -248,7 +248,7 @@ grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer2 = (g2tex==0)
 \           ? grainlayer2
-\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
+\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
 
 grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
 \           : (g2size > 1.5) ? grainlayer2.bicubicresize(sx2a,sy2a, b2a,c2a).bicubicresize(ox,oy, b2a,c2a)
@@ -264,7 +264,7 @@ grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0,
 
 grainlayer3 = (g3tex==0)
 \           ? grainlayer3
-\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma, fulls=!tv), UV=cchroma, fulls=!tv)
+\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
 
 grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 \           : (g3size > 1.5) ? grainlayer3.bicubicresize(sx3a,sy3a, b3a,c3a).bicubicresize(ox,oy, b3a,c3a)
@@ -274,8 +274,8 @@ grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
 
 th21str = th2str - th1str
 th43str = th4str - th3str
-grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max range_max {th21str} / x {th1str} - * ? ?"), fulls=!tv), luma=chroma, UV=cchroma, fulls=!tv)
- \                      .ex_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max range_max {th43str} / x {th3str} - * ? ?"), fulls=!tv), luma=chroma, UV=cchroma, fulls=!tv)
+grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max range_max {th21str} / x {th1str} - * ? ?"), fulls=!tv), luma=chroma, UV=cchroma)
+ \                      .ex_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max range_max {th43str} / x {th3str} - * ? ?"), fulls=!tv), luma=chroma, UV=cchroma)
 
 grainlayer = (temp_avg==0 || ( g1const && g2const && g3const ) ) ? grainlayer
 \          : chroma ? grainlayer.merge(    grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
@@ -290,4 +290,4 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 result = o.ex_makediff(grainlayer, UV=ochroma, fulls=!tv)
 msk    = o.ScriptClip( function[] () { ex_lut(string(AverageLuma(last)),UV=1) } )
 
-use_ALMask ? ex_merge(result, o, msk, luma=chroma, UV=ochroma, fulls=!tv) : result }
+use_ALMask ? ex_merge(result, o, msk, luma=chroma, UV=ochroma) : result }

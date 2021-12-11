@@ -1,4 +1,4 @@
-# SwipeSubs 2.1 by Dogway (19/11/2021)
+# SwipeSubs 2.2 by Dogway (11/12/2021)
 #
 # Display the subtitles from left to right
 #
