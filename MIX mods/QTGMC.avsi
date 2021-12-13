@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.69 mix mod by Dogway 2021, based on 3.382s            #
+#     QTGMC 3.70 mix mod by Dogway 2021, based on 3.382s            #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -16,6 +16,9 @@
 # Full documentation is in the 'QTGMC' html file that may comes with this script, or even better see avisynth wiki
 #
 # --- LATEST CHANGES ---
+#
+# v3.70mx
+# - More expression optimizations
 #
 # v3.69mx
 # - Optimize code structure with loops
@@ -285,7 +288,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 {
     # EdiMode="RepcYadif"/"cYadif" require the Yadif plugin, which doesn't autoload. Typically the calling script would load it.
 
-    rgb     = Input.Isrgb()
+    rgb     = Input.isrgb()
     bi      = Input.BitsPerComponent()
     bi8     = bi == 8
     bi32m   = bi == 32 ? "" : "range_half -"  # Scale Inputs in Expr() is broken for 32-bit float
@@ -536,7 +539,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # RefineMotion Defaults (Beware 8x8 blocks blur out output in QTGMC)
     halfoverlap = Overlap/2
     halfblksize = BlockSize/2
-    halfthSAD   = round(thSAD2/2)
+    halfthSAD   = round(thSAD2/2.)
 
     # Get maximum temporal radius needed
     maxTR = (temporalSL)       ? SLRad : 0
@@ -563,8 +566,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # Calculate padding needed for MVTools super clips to avoid crashes [fixed in latest MVTools, but keeping this code for a while]
     hpad = w - (Int((w - Overlap) / (Blocksize - Overlap)) * (Blocksize - Overlap) + Overlap)
     vpad = h - (Int((h - Overlap) / (Blocksize - Overlap)) * (Blocksize - Overlap) + Overlap)
-    hpad = (hpad > 8) ? hpad : 8 # But match default padding if possible
-    vpad = (vpad > 8) ? vpad : 8
+    hpad = max(hpad,8) # But match default padding if possible
+    vpad = max(vpad,8)
 
 
     #---------------------------------------
@@ -801,7 +804,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # Resharpen / retouch output (rework resharp and sharpLimit1 and 2 to skip chroma and add a final chroma recovery option?)
 
     # Resharpen to counteract temporal blurs. Little sharpening needed for source-match mode since it has already recovered sharpness from source
-    vresharp1 = (SMode == 2) ? Merge( lossed1.mt_expand( mode="vertical", U=3,V=3 ), lossed1.mt_inpand( mode="vertical", U =3,V=3 ) )      : nop()
+    vresharp1 = (SMode == 2) ? lossed1.ex_lut("x[0,-1] A@ x[0,0] B@ max x[0,1] C@ max A B min C min + 0.5 *",            UV=3)             : nop()
     vresharp  = (Precise && SMode == 2) ? vresharp1.ex_lutxy( lossed1, "x y < x 1 scalef + x y > x 1 scalef - x ? ?",    UV=3, fulls=!tv ) : vresharp1 # Precise mode: reduce tiny overshoot
     resharp   = (SMode == 0) ? lossed1                                                                                                     : \
                 (SMode == 1) ? lossed1.ex_lutxy(  lossed1.RemoveGrain( 12 ), Format("x dup y - {sharpAdj} * +"),         UV=3, fulls=!tv ) : \
@@ -809,7 +812,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Slightly thin down 1-pixel high horizontal edges that have been widened into neigboring field lines by the interpolator
     SVThinSc  =  SVThin * 6.0
-    vertMedD  = (SVthin > 0.0) ? ex_lutxy( lossed1, lossed1.ex_median(mode="vertical", UV=1), Format("y x - {SVThinSc} * "+bi32p), clamp_float=true, UV=1, fulls=!tv  ) : nop()
+    vertMedD  = (SVthin > 0.0) ? ex_lut( lossed1, Format("x[0,1] x[0,-1] dup1 dup1 max swap2 min x swap2 clip  x - {SVThinSc} * "+bi32p), clamp_float=true, UV=1, fulls=!tv ) : nop() # vertical median - x
     vertMedD  = (SVthin > 0.0) ? (vertMedD.ex_boxblur( 1, 0, "weighted", UV=1 )) : nop()
     thin      = (SVthin > 0.0) ? ex_lutxyz( vertMedD, vertMedD.RemoveGrain( 12, -1 ), resharp, "y "+bi32m+" Y@ abs x "+bi32m+" abs > Y z + z ?", UV=2, fulls=!tv  ) : resharp
 
@@ -872,10 +875,10 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # ShutterBlur mode 2,3 - get finer resolution motion vectors to reduce blur "bleeding" into static areas
     rBlockDivide = Select( ShutterBlur, 1, 1, 2, 4 )
-    rBlockSize   = max(BlockSize/rBlockDivide,4)
-    rOverlap     = max(Overlap/rBlockDivide  ,2)
-    rBlockDivide = BlockSize / rBlockSize
-    rLambda      = Lambda / (rBlockDivide * rBlockDivide)
+    rBlockSize   = max(BlockSize / rBlockDivide,4)
+    rOverlap     = max(  Overlap / rBlockDivide,2)
+    rBlockDivide =     BlockSize / rBlockSize
+    rLambda      =        Lambda /(rBlockDivide * rBlockDivide)
     sbBVec1 = (ShutterBlur > 1) ? srchSuper.MRecalculate( bVec1, thSAD=ThSAD1, blksize=rBlockSize, overlap=rOverlap, search=Search, searchparam=SearchParam, \
                                                           truemotion=TrueMotion, lambda=Lambda, pnew=PNew, DCT=DCT, chroma=ChromaMotion, mt=bomt  ) : bVec1
     sbFVec1 = (ShutterBlur > 1) ? srchSuper.MRecalculate( fVec1, thSAD=ThSAD1, blksize=rBlockSize, overlap=rOverlap, search=Search, searchparam=SearchParam, \
