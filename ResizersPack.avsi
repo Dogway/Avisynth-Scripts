@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.0    (09-12-2021)   ##
+###   Resizers Functions Pack 7.1    (13-12-2021)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -111,17 +111,13 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
     w   = width()
     h   = height()
     fch = isy() || rgb || is444()
-    fs  = propNumElements ("_ColorRange")  > 0 ? \
-          propGetInt      ("_ColorRange") == 0 : rgb
 
     wd     = Default(width,  w)
     hd     = Default(height, h)
     mod    = Default(mod,    fch ? 1 : 2)
     bw     = Default(biasW,  0)
     bh     = Default(biasH,  0)
-    md     = Default(mode, !rgb ? fs ? "$008080" : "$108080" : \
-                                  fs ? "$000000" : "$101010" )  # 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
-    md     = LeftStr(md,1)=="[" ? ColortoHex(md) : md
+    # mode: 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
     wm = nmod(wd,mod)
     hm = nmod(hd,mod)
@@ -151,10 +147,8 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
     bh1 = sign(bh)<0 ? 0 : fch ? bha : bha+bha%2
     bh2 = sign(bh)>0 ? 0 : fch ? bha : bha-bha%2
 
-    LeftStr(md,1)!="$" ? PadBorders(wa1+bw1,ha1+bh1,wa2+bw2,ha2+bh2,                 md)  : \
-                   rgb ? AddBorders(wa1+bw1,ha1+bh1,wa2+bw2,ha2+bh2,            Eval(md)) : \
-                         AddBorders(wa1+bw1,ha1+bh1,wa2+bw2,ha2+bh2,color_yuv = Eval(md))
-                         Crop      (wc1+bw2,hc1+bh2,wc2-bw1,hc2-bh1,true)                 }
+    PadBorders(wa1+bw1,ha1+bh1,wa2+bw2,ha2+bh2,mode)
+    Crop      (wc1+bw2,hc1+bh2,wc2-bw1,hc2-bh1,true) }
 
 
 
@@ -174,6 +168,8 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###
 function PadBorders(clip src, int "left", int "top", int "right", int "bottom", string "mode") {
 
+    w   = width()
+    h   = height()
     rgb = isRGB(src)
     isy = isy(src)
     fch = isy || rgb || src.is444()
@@ -196,8 +192,6 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     b  = nmod(abs(b),mod)
 
     src
-    w   = width()
-    h   = height()
 
     if (md=="mirror") {
 
@@ -226,56 +220,6 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     } }
 
 
-
-
-##############################
-### Adjust source to mod(n) size by adding or cropping borders.
-### It's a simpler, more straight-forward alternative of PadResize()
-###
-### modes:
-###     "auto" - will crop or pad depending on minimal transform (Default)
-###     "crop" - will force cropping to mod
-###     "pad"  - will force padding  to mod
-function mmod(clip c, int "modH", int "modV", string "mode") {
-
-    c
-    rgb = isRGB()
-    fch = rgb || isy() || is444()
-    w   = width()
-    h   = height()
-    fs  = propNumElements ("_ColorRange")  > 0 ? \
-          propGetInt      ("_ColorRange") == 0 : rgb
-
-    mdh    = Default(modH, fch ? 1 : 2)
-    mdv    = Default(modV, mdh)
-    md     = Default(mode, "auto")
-    cl     = !rgb ? fs ? "$008080" : "$108080" : \
-                    fs ? "$000000" : "$101010"
-
-    wm = nmod(w,mdh)
-    hm = nmod(h,mdv)
-
-    # Crop or Pad
-    wc = md=="auto" ? wm < w : md=="crop"
-    hc = md=="auto" ? hm < h : md=="crop"
-
-    # Rounding
-    wp = abs(w - wm)/2.  wi = round(wp)%2
-    hp = abs(h - hm)/2.  hi = round(hp)%2
-    wh = ceil (Frac(wp))+floor(wp)
-    hh = ceil (Frac(hp))+floor(hp)
-    wl = floor(Frac(wp))+floor(wp)
-    hl = floor(Frac(hp))+floor(hp)
-
-    # Zeroing null transforms
-    wc1 = wc ?  wh+wi : 0    wa1 = !wc ? wh+wi : 0
-    wc2 = wc ? -wl+wi : 0    wa2 = !wc ? wl-wi : 0
-    hc1 = hc ?  hh+hi : 0    ha1 = !hc ? hh+hi : 0
-    hc2 = hc ? -hl+hi : 0    ha2 = !hc ? hl-hi : 0
-
-    rgb ? AddBorders(wa1,ha1,wa2,ha2,            Eval(cl)) : \
-          AddBorders(wa1,ha1,wa2,ha2,color_yuv = Eval(cl))
-          Crop      (wc1,hc1,wc2,hc2,true)                 }
 
 
 ###
@@ -328,12 +272,59 @@ function nmod(val n, int "mod", val "min", int "dec", bool "bankers") {
 
 
 
+##############################
+### Adjust source to mod(n) size by adding or cropping borders.
+### It's a simpler, more straight-forward alternative of PadResize()
+###
+### modes:
+###     "auto" - will crop or pad depending on minimal transform (Default)
+###     "crop" - will force cropping to mod
+###     "pad"  - will force padding  to mod
+function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
+
+    c
+    rgb = isRGB()
+    fch = rgb || isy() || is444()
+    w   = width()
+    h   = height()
+
+    mdh    = Default(modH, fch ? 1 : 2)
+    mdv    = Default(modV, mdh)
+    md     = Default(mode, "auto")
+    # borders: 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
+
+    wm = nmod(w,mdh)
+    hm = nmod(h,mdv)
+
+    # Crop or Pad
+    wc = md=="auto" ? wm < w : md=="crop"
+    hc = md=="auto" ? hm < h : md=="crop"
+
+    # Rounding
+    wp = abs(w - wm)/2.  wi = round(wp)%2
+    hp = abs(h - hm)/2.  hi = round(hp)%2
+    wh = ceil (Frac(wp))+floor(wp)
+    hh = ceil (Frac(hp))+floor(hp)
+    wl = floor(Frac(wp))+floor(wp)
+    hl = floor(Frac(hp))+floor(hp)
+
+    # Zeroing null transforms
+    wc1 = wc ?  wh+wi : 0    wa1 = !wc ? wh+wi : 0
+    wc2 = wc ? -wl+wi : 0    wa2 = !wc ? wl-wi : 0
+    hc1 = hc ?  hh+hi : 0    ha1 = !hc ? hh+hi : 0
+    hc2 = hc ? -hl+hi : 0    ha2 = !hc ? hl-hi : 0
+
+    PadBorders(wa1,ha1,wa2,ha2,borders)
+    Crop      (wc1,hc1,wc2,hc2,   true) }
+
+
 
 # Converts a 'string' type color array into an hexadecimal string
 # "[16,128,128]" -> "$108080"
 function ColortoHex(string color) {
     cl = Eval(Color)
     Return "$"+string(Hex(cl[0],2))+string(Hex(cl[1],2))+string(Hex(cl[2],2)) }
+
 
 
 
