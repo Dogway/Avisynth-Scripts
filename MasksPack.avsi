@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.0 By Dogway  (11-12-2021)            ##
+###           MasksPack 4.1 By Dogway  (13-12-2021)            ##
 ###                                                            ##
 ### https://forum.doom9.org/showthread.php?t=182881            ##
 ###                                                            ##
@@ -15,42 +15,52 @@
 ### Creates a rectangular mask so you can use it in merging operations or custom filtering in localized areas.
 ###
 ### Dependencies:
-###         GradePack      (for show=true)
-###         TransformsPack (for HBD -fullscale bugfix- )
-###             ExTools
+###         ExTools
+###         ResizersPack
+###         GradePack (for show=true)
 ###
 ###########################
 
 function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", bool "invert", bool "show") {
 
-    rgb     = isRGB(clp)
-    w       = width(clp)
-    h       = height(clp)
-    px      = PixelType(clp)
-    bi      = BitsPerComponent(clp)
-    fs      = propNumElements (clp,"_ColorRange")  > 0 ? \
-              propGetInt      (clp,"_ColorRange") == 0 : rgb
+    clp
+    rgb     = isRGB()
+    w       = width ()
+    h       = height()
 
     x1      = Default(x1,0)
     x2      = Default(x2,0)
     y1      = Default(y1,0)
     y2      = Default(y2,0)
-    inv     = Default(invert, false)
+    in      = Default(invert, false)
     show    = Default(show,   false)
     UV      = Default(UV,3)
 
-           Assert(IsVersionOrGreater(3,7,1), "BoxMask: Update AviSynth+ version.")
-    show ? Assert(UV!=1, "BoxMask: 'show' requires UV=2 or 3.") : nop()
+           Assert(IsVersionOrGreater(3,7,1), "BoxMask: Update AviSynth+ version")
+    show ? Assert(UV!=1,                     "BoxMask: 'show' requires UV=2 or 3") : nop()
 
-    wh      = UV==2 ? $ff8080 : $ffffff
-    bl      = UV==2 ? $008080 : $000000
+    x1      = min(max(x1,0),w)
+    x2      = min(max(x2,0),w)
+    y1      = min(max(y1,0),h)
+    y2      = min(max(y2,0),h)
 
-    rgb ? LetterBox(BlankClip(clp,1,pixel_type=UV==1?"Y"+string(bi):px,color    =inv?bl:wh,channels=0),y1,h-y2,x1,w-x2,color    =inv?wh:bl) : \
-          LetterBox(BlankClip(clp,1,pixel_type=UV==1?"Y"+string(bi):px,color_yuv=inv?bl:wh,channels=0),y1,h-y2,x1,w-x2,color_yuv=inv?wh:bl)
+    UV = UV!=3 && !rgb ? 128 : UV
 
-    bi!=8 && !rgb ? Full_scale() : last # if the mask is binary we can use ConvertBits(bi, fulls=false, fulld=true), which is a bit faster
+    wh = !in ? "range_max" : "0"
+    bl =  in ? "range_max" : "0"
+    x  = is422() || is420() ? 2. : isYV411() ? 4. : 1
+    y  = is420()            ? 2. :                  1
+
+    x1c = nmod(x1/x,int(x))  x2c = nmod(x2/x,int(x))
+    y1c = nmod(y1/y,int(y))  y2c = nmod(y2/y,int(y))
+
+    Luma = Format("x {x1}  >= x {x2}  <= & y {y1}  >= y {y2}  <= & & "+wh+" "+bl+" ?")
+    Chrm = Format("x {x1c} >= x {x2c} <= & y {y1c} >= y {y2c} <= & & "+wh+" "+bl+" ?")
+
+    ex_lutspa(mode="absolute", expr=Luma, cexpr=Chrm, UV=UV)
 
     !show ? last : ex_blend(clp,last,"softlight",0.5) }
+
 
 
 
