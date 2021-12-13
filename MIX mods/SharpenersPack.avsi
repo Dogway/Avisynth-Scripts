@@ -774,7 +774,7 @@ function NVSharpen(clip a, float "str", float "th", float "rat", float "boost", 
 ###  https://forum.doom9.org/showthread.php?p=1076276#post1076276
 ###  https://forum.doom9.org/showthread.php?p=1076491#post1076491
 ###
-###  ex_ContraSharpening() v3.4 (23 Sept 2021)
+###  ex_ContraSharpening() v3.5 (12 Dec 2021)
 ###  - Mod and port to ExTools by Dogway
 ###
 ###
@@ -825,7 +825,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
         pmin  = " z a min b min "
         Tlim0 =  addif+pmax+" min "+pmin+" max"
         Tlim1 =  Format(addif+pmax+" {os} + min "+pmin+" {os} - max")
-        Expr(denoised, ssD, original, cb1, cf1, os==0 ? Tlim0 : Tlim1, isy(denoised) ? Undefined() : "")
+        Expr(denoised, ssD, original, cb1, cf1, ex_dlut(os==0 ? Tlim0 : Tlim1, bi, fs), isy(denoised) ? Undefined() : "")
 
     } }
 
