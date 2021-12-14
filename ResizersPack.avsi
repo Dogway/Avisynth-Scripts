@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.1    (13-12-2021)   ##
+###   Resizers Functions Pack 7.1    (14-12-2021)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -168,8 +168,8 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###
 function PadBorders(clip src, int "left", int "top", int "right", int "bottom", string "mode") {
 
-    w   = width()
-    h   = height()
+    w   = width(src)
+    h   = height(src)
     rgb = isRGB(src)
     isy = isy(src)
     fch = isy || rgb || src.is444()
