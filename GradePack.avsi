@@ -156,7 +156,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
     rangePC  = tv ? "ymin - ymax ymin - /"                     : ""
     rangeTV  = tv ? "ymax ymin - * ymin +"                     : ""
-    rangePCc = tv ? "x range_half - range_max cmax cmin - / *" : ""
+    rangePCc = tv ? "x range_half - range_max cmax cmin - / *" : "x"
     rangeTVc = tv ? "cmax cmin - range_max / * range_half +"   : ""
 
     cont   = pow(cont + sign(cont), 3.)
