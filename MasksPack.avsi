@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.1 By Dogway  (13-12-2021)            ##
+###           MasksPack 4.1 By Dogway  (14-12-2021)            ##
 ###                                                            ##
 ### https://forum.doom9.org/showthread.php?t=182881            ##
 ###                                                            ##
@@ -130,7 +130,8 @@ function FlatMask(clip filtered, clip "raw", float "str",int "r",  bool "luma", 
     code = Format(upper ? "range_max x {up} - {str} * -" : "x {up} - {str} *")
     msk  = ex_lut (code,UV=128,fulls=fs)
     exten ? !upper ? msk.ex_invert().ex_expand(2).ex_invert().ex_inpand(2) : \
-                     msk.ex_expand()                                       : msk }
+                     msk.ex_expand()                                       : msk
+                     PropSet("_ColorRange", 0)                             }
 
 
 
@@ -181,4 +182,5 @@ function LumaMask(clip a, int "b", int "w", bool "invert", int "UV") {
 
     isy     ?  Expr(a, str,       lut=lut) : \
     UV == 1 ?  Expr(a, str, "",   lut=lut) : \
-               Expr(a, str, cstr, lut=lut) }
+               Expr(a, str, cstr, lut=lut)
+               PropSet("_ColorRange", 0)   }
