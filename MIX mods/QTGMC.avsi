@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.70 mix mod by Dogway 2021, based on 3.382s            #
+#     QTGMC 3.71 mix mod by Dogway 2021, based on 3.382s            #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -17,8 +17,9 @@
 #
 # --- LATEST CHANGES ---
 #
-# v3.70mx
+# v3.71mx and v3.70mx
 # - More expression optimizations
+# - Some 'fs' fixes
 #
 # v3.69mx
 # - Optimize code structure with loops
@@ -537,14 +538,14 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     ProgSADMask    = (InputType != 2 && InputType != 3) ? 0.0 : ProgSADMask
 
     # RefineMotion Defaults (Beware 8x8 blocks blur out output in QTGMC)
-    halfoverlap = Overlap/2
+    halfoverlap = Overlap  /2
     halfblksize = BlockSize/2
     halfthSAD   = round(thSAD2/2.)
 
     # Get maximum temporal radius needed
     maxTR = (temporalSL)       ? SLRad : 0
     maxTR = max(MatchTR2, TR1, TR2, NoiseTR, maxTR)
-    maxTR = (ProgSADMask > 0.0 || StabilizeNoise || ShutterBlur > 0) ? (maxTR > 1 ? maxTR : 1) : maxTR
+    maxTR = (ProgSADMask > 0.0 || StabilizeNoise || ShutterBlur > 0) ? max(maxTR,1) : maxTR
     maxTR = max(ForceTR, MaxTR)
 
 
@@ -606,18 +607,18 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     ts2 = (!srchcheck && TR0 > 1) ? bobbed.TemporalSoften( 2, 255, CMts, 28, 2 ) : nop()  # 0.20  0.20  0.20  0.20  0.20
 
     # Combine linear weightings to give binomial weightings - TR0=0: (1), TR0=1: (1:2:1), TR0=2: (1:4:6:4:1) # * uh! this is more like (1:3:12:3:1)
-    domtr02 = TR0 == -2 && !(InputType == 0 && UseEdiExt > 1)
-    domtr01 = TR0 == -1 && !(InputType == 0 && UseEdiExt > 1)
+      domtr02 = TR0 == -2 && !(InputType == 0 && UseEdiExt > 1)
+      domtr01 = TR0 == -1 && !(InputType == 0 && UseEdiExt > 1)
     binomial0 = srchcheck        ? nop() : \
       domtr02 && Defined(EdiExt) ? isyuy2(EdiExt) ? bi8 ? EdiExt.nonyuy2clipin(true).vinverse(uv=CMmt) : EdiExt.nonyuy2clipin(true).ex_vinverse(uv=CMmt,fulls=!tv)                      : \
                                                     bi8 ?                     EdiExt.vinverse(uv=CMmt) :                     EdiExt.ex_vinverse(uv=CMmt,fulls=!tv) : TR0 == -2 ? bobbed : \
-      domtr01 && Defined(EdiExt) ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true) : EdiExt : TR0 == -1 ? bobbed                                              : \
+      domtr01 && Defined(EdiExt) ? isyuy2(EdiExt) ?       EdiExt.nonyuy2clipin(true)                   : EdiExt                                                    : TR0 == -1 ? bobbed : \
                 (TR0 == 0)       ? bobbed                                                                                                                 : \
                 (TR0 == 1)       ? (ChromaMotion ? ts1.Merge( bobbed, 0.25 ) : ts1.MergeLuma( bobbed, 0.25 ))                                             : \
                                                    ex_lutxyz(ts1,ts2,bobbed,"x 0.562625 * y 0.312375 * z 0.125 * + +", UV=CMmt)
 
     # Remove areas of difference between temporal blurred motion search clip and bob that are not due to bob-shimmer - removes general motion blur
-    repair0 = (srchcheck || Rep0 == 0) ? binomial0 : binomial0.QTGMC_KeepOnlyBobShimmerFixes( bobbed, Rep0, (RepChroma && ChromaMotion), fs )
+    repair0 = (srchcheck || Rep0 == 0) ? binomial0 : binomial0.QTGMC_KeepOnlyBobShimmerFixes( bobbed, Rep0, (RepChroma && ChromaMotion), !tv )
 
     # Blur image and soften edges to assist in motion matching of edge blocks. Blocks are matched by SAD (sum of absolute differences between blocks), but even
     # a slight change in an edge from frame to frame will give a high SAD due to the higher contrast of edges
@@ -627,14 +628,14 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                   (SrchClipPP == 1) ? repair0.vsTCanny(1.90,1.90/dw,1.90/dw,1.90,1.90/dh,1.90/dh,mode=-1,u=CMmt,v=CMmt) : \
                                       repair0.vsTCanny(1.96,1.96/dw,1.96/dw,1.96,1.96/dh,1.96/dh,mode=-1,u=CMmt,v=CMmt)
 
-    spatialBlur = (SrchClipPP > 1 && IsClip(spatialBlur)) ? (ChromaMotion ? spatialBlur.Merge( repair0, 0.1 ) : spatialBlur.MergeLuma( repair0, 0.1 ))    : spatialBlur
-    tweaked     = (SrchClipPP > 1 && !srchcheck)          ?  ex_lutxy( repair0, bobbed, "y x 3 scalef - x 3 scalef + clip", UV=CMmt, fulls=!tv ) : nop()
+    spatialBlur = (SrchClipPP > 1 && IsClip(spatialBlur)) ? (ChromaMotion ? spatialBlur.Merge( repair0, 0.1 ) : spatialBlur.MergeLuma( repair0, 0.1 )) : spatialBlur
+    # typo? last one (originally SrchClipPP  > 1) would never be activated...
     srchClip    =  srchcheck        ? srchClip            : \
                   (SrchClipPP == 0) ? repair0             : \
                   (SrchClipPP  < 3) ? spatialBlur         : \
-                                      spatialBlur.ex_lutxy( tweaked, "x 7 scalef + y < x 2 scalef + x 7 scalef - y > x 2 scalef - x 0.51 * y 0.49 * + ? ?", UV=CMmt, fulls=!tv )
+                  (SrchClipPP  > 1) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - x 0.51 * Y 0.49 * + ? ?", UV=CMmt, fulls=!tv ) : nop()
     srchClip    = tv && !srchcheck  ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_range=tv) : srchClip
-    srchClip    = bi8 ? srchClip : srchClip.ConvertBits(8,dither=-1,fulls=!tv)
+    srchClip    = bi8  ? srchClip   : srchClip.ConvertBits(8,dither=-1,fulls=true)
 
     # Calculate forward and backward motion vectors from motion search clip
     srchSuper = IsClip(srchSuper) ? srchSuper                                                                                             : \
@@ -719,10 +720,10 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # Get actual noise from difference. Then 'deinterlace' where we have weaved noise - create the missing lines of noise in various ways
     planarDenoised = (NoiseProcess == 0) ? nop() : yuy2 ? denoised.nonyuy2clipin(true) : denoised
     noise          = (totalRestore >  0) ? ex_makediff( planarClip, planarDenoised, UV=CNmt1, fulls=!tv ) : nop()
-    deintNoise     = (NoiseProcess == 0 || totalRestore == 0.0) ? nop()                                                         : \
-                     (InputType != 0)                           ? noise                                                         : \
-                     (NoiseDeint == "Bob")                      ? noise.sh_Bob( 0,0.5 )                                         : \
-                     (NoiseDeint == "Generate")                 ? noise.QTGMC_Generate2ndFieldNoise( denoised, ChromaNoise, fs) : \
+    deintNoise     = (NoiseProcess == 0 || totalRestore == 0.0) ? nop()                                                          : \
+                     (InputType != 0)                           ? noise                                                          : \
+                     (NoiseDeint == "Bob")                      ? noise.sh_Bob( 0,0.5 )                                          : \
+                     (NoiseDeint == "Generate")                 ? noise.QTGMC_Generate2ndFieldNoise( denoised, ChromaNoise, !tv) : \
                                                                   noise.DoubleWeave()
     # Motion-compensated stabilization of generated noise
     noiseSuper = (StabilizeNoise) ? deintNoise.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, mt=bomt )    : nop()
@@ -785,30 +786,30 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                              ex_lutxyz(degrain1,degrain2,edi,"x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
 
     # Remove areas of difference between smoothed image and interpolated image that are not bob-shimmer fixes: repairs residual motion blur from temporal smooth
-    repair1 = (Rep1 == 0) ? binomial1 : binomial1.QTGMC_KeepOnlyBobShimmerFixes( edi, Rep1, RepChroma, fs )
+    repair1 = (Rep1 == 0) ? binomial1 : binomial1.QTGMC_KeepOnlyBobShimmerFixes( edi, Rep1, RepChroma, !tv )
 
     # Apply source match - use difference between output and source to succesively refine output [extracted to function to clarify main code path]
     match = (SourceMatch == 0) ? repair1 : \
                                  repair1.QTGMC_ApplySourceMatch( InputType, ediInput, bVec1,fVec1, bVec2,fVec2, SubPel, SubPelInterp, hpad, vpad,              \
                                                                  ThSAD1, ThSCD1, ThSCD2, SourceMatch, MatchTR1, MatchEdi, MatchNNSize, MatchNNeurons,          \
                                                                  MatchEdiQual, MatchEdiMaxD, MatchTR2, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, \
-                                                                 MatchEdiMaxD2, MatchEnhance, Threads, n16, bomt, fs )
+                                                                 MatchEdiMaxD2, MatchEnhance, Threads, n16, bomt, !tv )
 
     # Lossless=2 - after preparing an interpolated, de-shimmered clip, restore the original source fields into it and clean up any artefacts.
     # This mode will not give a true lossless result because the resharpening and final temporal smooth are still to come, but it will add further detail.
     # However, it can introduce minor combing. This setting is best used together with source-match (it's effectively the final source-match stage).
-    lossed1 = (Lossless == 2) ? QTGMC_MakeLossless( match, innerClip, InputType, fs ) : match
+    lossed1 = (Lossless == 2) ? QTGMC_MakeLossless( match, innerClip, InputType, !tv ) : match
 
 
     #---------------------------------------
     # Resharpen / retouch output (rework resharp and sharpLimit1 and 2 to skip chroma and add a final chroma recovery option?)
 
     # Resharpen to counteract temporal blurs. Little sharpening needed for source-match mode since it has already recovered sharpness from source
-    vresharp1 = (SMode == 2) ? lossed1.ex_lut("x[0,-1] A@ x[0,0] B@ max x[0,1] C@ max A B min C min + 0.5 *",            UV=3)             : nop()
-    vresharp  = (Precise && SMode == 2) ? vresharp1.ex_lutxy( lossed1, "x y < x 1 scalef + x y > x 1 scalef - x ? ?",    UV=3, fulls=!tv ) : vresharp1 # Precise mode: reduce tiny overshoot
-    resharp   = (SMode == 0) ? lossed1                                                                                                     : \
-                (SMode == 1) ? lossed1.ex_lutxy(  lossed1.RemoveGrain( 12 ), Format("x dup y - {sharpAdj} * +"),         UV=3, fulls=!tv ) : \
-                               lossed1.ex_lutxy( vresharp.RemoveGrain( 12 ), Format("x dup y - {sharpAdj} * +"),         UV=3, fulls=!tv )
+    vresharp1 = (SMode == 2) ? lossed1.ex_lut("x[0,-1] A@ x[0,0] B@ max x[0,1] C@ max A B min C min + 0.5 *",    UV=3)             : nop()
+    vresharp  = (Precise && SMode == 2) ? vresharp1.ex_lutxy( lossed1, "y x 1 scalef - x 1 scalef + clip",       UV=3, fulls=!tv ) : vresharp1 # Precise mode: reduce tiny overshoot
+    resharp   = (SMode == 0) ? lossed1                                                                                             : \
+                (SMode == 1) ? lossed1.ex_lutxy(  lossed1.RemoveGrain( 12 ), Format("x dup y - {sharpAdj} * +"), UV=3, fulls=!tv ) : \
+                               lossed1.ex_lutxy( vresharp.RemoveGrain( 12 ), Format("x dup y - {sharpAdj} * +"), UV=3, fulls=!tv )
 
     # Slightly thin down 1-pixel high horizontal edges that have been widened into neigboring field lines by the interpolator
     SVThinSc  =  SVThin * 6.0
@@ -847,7 +848,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     stable      = (TR2 > 0) ? n16 ? stable.ConvertBits(8,dither=-1,fulls=!tv) : stable : stable
 
     # Remove areas of difference between final output & basic interpolated image that are not bob-shimmer fixes: repairs motion blur caused by temporal smooth
-    repair2 = (Rep2 == 0) ? stable : stable.QTGMC_KeepOnlyBobShimmerFixes( edi, Rep2, RepChroma, fs )
+    repair2 = (Rep2 == 0) ? stable : stable.QTGMC_KeepOnlyBobShimmerFixes( edi, Rep2, RepChroma, !tv )
 
     # Limit over-sharpening by clamping to neighboring (spatial or temporal) min/max values in original
     # Occurs here (after final temporal smooth) if SLMode == 3,4. Allows more sharpening here, but more prone to introducing minor artefacts
@@ -857,7 +858,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Lossless=1 - inject source fields into result and clean up inevitable artefacts. Provided NoiseRestore=0.0 or 1.0, this mode will make the script result
     # properly lossless, but this will retain source artefacts and cause some combing (where the smoothed deinterlace doesn't quite match the source)
-    lossed2 = (Lossless == 1) ? QTGMC_MakeLossless( sharpLimit2, innerClip, InputType, fs ) : sharpLimit2
+    lossed2 = (Lossless == 1) ? QTGMC_MakeLossless( sharpLimit2, innerClip, InputType, !tv ) : sharpLimit2
 
     # Add back any extracted noise, after final temporal smooth. This will appear as noise/grain in the output
     # Average luma of FFT3DFilter extracted noise is 128.5, so deal with that too
@@ -875,8 +876,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # ShutterBlur mode 2,3 - get finer resolution motion vectors to reduce blur "bleeding" into static areas
     rBlockDivide = Select( ShutterBlur, 1, 1, 2, 4 )
-    rBlockSize   = max(BlockSize / rBlockDivide,4)
-    rOverlap     = max(  Overlap / rBlockDivide,2)
+    rBlockSize   = max(BlockSize / rBlockDivide, 4 )
+    rOverlap     = max(  Overlap / rBlockDivide, 2 )
     rBlockDivide =     BlockSize / rBlockSize
     rLambda      =        Lambda /(rBlockDivide * rBlockDivide)
     sbBVec1 = (ShutterBlur > 1) ? srchSuper.MRecalculate( bVec1, thSAD=ThSAD1, blksize=rBlockSize, overlap=rOverlap, search=Search, searchparam=SearchParam, \
@@ -898,11 +899,11 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Crop off temporary vertical padding
     cropped = Border ? decimated.Crop( 0, 4, -0, -4, true ) : decimated
-    h = Border ? h-8 : h
+    h       = Border ? h-8 : h
 
     # Show output of choice + settings
     # >>>> Restore YUY2 to interleaved
-    output = (ShowNoise == 0.0) ? cropped : finalNoise.ex_lut(Format("x "+bi32m+" {ShowNoise} * "+bi32p), clamp_float=true, UV=CNmt128, fulls=fs )
+    output = (ShowNoise == 0.0) ? cropped : finalNoise.ex_lut(Format("x "+bi32m+" {ShowNoise} * "+bi32p), clamp_float=true, UV=CNmt128, fulls=!tv )
     output = yuy2 ? output.nonyuy2clipout(true) : output
     return !ShowSettings ? output : \
         output.Subtitle( "TR0=" + string(TR0) + " | TR1=" + string(TR1) + " | TR2=" + string(TR2) + " | Rep0=" + string(Rep0) + " | Rep1=" + string(Rep1) + \
@@ -948,8 +949,8 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
 
     interp = (InputType == 1)            ? Input                                                                                     : \
              (EdiMode == "NNEDI3")       ? NNEDI3clp                                                                                 : \
-             (EdiMode == "NNEDI2")       ? Input.NNEDI2( field=-2, nsize=NNeurons, qual=EdiQual, threads=Threads, U=CEed,V=CEed )    : \
-             (EdiMode == "NNEDI")        ? Input.NNEDI( field=-2, U=CEed,V=CEed )                                                    : \
+             (EdiMode == "NNEDI2")       ? Input.NNEDI2( field=-2, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )    : \
+             (EdiMode == "NNEDI")        ? Input.NNEDI ( field=-2, U=CEed,V=CEed )                                                   : \
              (EdiMode == "EEDI3+NNEDI3") ? EEDI3clp                                                                                  : \
              (EdiMode == "EEDI3")        ? EEDI3clp                                                                                  : \
              (EdiMode == "EEDI2")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).SeparateFields().EEDI2( field=-2, maxd=EdiMaxD ).nonyuy2clipout(true) : Input.SeparateFields().EEDI2( field=-2, maxd=EdiMaxD ) : \
@@ -1072,16 +1073,16 @@ function QTGMC_MakeLossless( clip Input, clip Source, int InputType, bool fulls 
     # >>>> YUY2: 'Input' is planar, 'Source' is interleaved (changed to planar here for processing) - returns planar result
 
     # Weave the source fields and the "new" fields that have generated in the input
-    srcFields1 = (InputType == 0) ? Source.SeparateFields() : Source.SeparateFields().SelectEvery( 4, 0,3 )
+    srcFields1 = (InputType == 0) ? Source.SeparateFields() : \
+                                    Source.SeparateFields().SelectEvery( 4, 0,3 )
     srcFields  = Source.IsYUY2() ? srcFields1.nonyuy2clipin(true) : srcFields1
     newFields  = Input.SeparateFields().SelectEvery( 4, 1,2 )
     processed  = Interleave( srcFields, newFields ).SelectEvery(4, 0,1,3,2 ).Weave()
 
     # Clean some of the artefacts caused by the above - creating a second version of the "new" fields
-    vertMedian  = processed.ex_median(mode="vertical", UV=3)
-    vertMedDiff = ex_makediff( processed, vertMedian, UV=3, dif=false )
+    vertMedDiff = ex_lut( processed,  "x[0,1] x[0,-1] dup1 dup1 max swap2 min x swap2 clip x swap -", UV=3 ) # x - vertical median
     vmNewDiff1  = vertMedDiff.SeparateFields().SelectEvery( 4, 1,2 )
-    vmNewDiff2  = vmNewDiff1.ex_median(mode="vertical", UV=3).ex_lutxy( vmNewDiff1, "x y * 0 < range_half x y min ?", UV=3, fulls=fulls )
+    vmNewDiff2  = ex_lut( vmNewDiff1, "x[0,1] x[0,-1] dup1 dup1 max swap2 min x swap2 clip M@ x * 0 < range_half M x min ?", UV=3, fulls=fulls )
     vmNewDiff3  = vmNewDiff2.Repair( vmNewDiff2.RemoveGrain( 2 ), 1 )
 
     # Reweave final result
@@ -1098,8 +1099,8 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
                                  float MatchEnhance, int Threads, bool n16, bool "bomt", bool "fulls" ) {
 
     # >>>> YUY2: 'Deinterlace' is planar, 'Source' is interleaved (changed to planar here for all processing except interpolation) - returns planar result
-    yuy2 = Source.IsYUY2()
-    fs   = Default( fulls, false)
+    yuy2    = Source.IsYUY2()
+    fs      = Default( fulls, false)
     Source  = yuy2 ? Source.nonyuy2clipin(true) : Source
     sMDegnl = n16 ? ", out16=n16" : ""
     bi      = Source.BitsPerComponent()
@@ -1132,7 +1133,7 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     match1         = (SourceMatch < 1) ? Deinterlace                                                            : \
                      (MatchTR1 == 0)   ? match1Edi                                                              : \
                      (MatchTR1 == 1)   ? match1Degrain1.Merge( match1Edi,      0.25 )                           : \
-                                         ex_lutxyz(match1Degrain1,match1Degrain2,match1Edi,"x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
+                                         ex_lutxyz(match1Degrain1,match1Degrain2,match1Edi,   "x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
 
     # Enhance effect of source-match stages 2 & 3 by sharpening clip prior to refinement (source-match tends to underestimate so this will leave result sharper)
     match1Shp = (SourceMatch > 1 && MatchEnhance > 0.0) ? match1.ex_lutxy( match1.RemoveGrain( 12 ), Format("x dup y - {MatchEnhance} * +"), clamp_float=true, UV=3, fulls=fs ) : match1
@@ -1156,7 +1157,7 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     match2         = (SourceMatch < 2) ? match1                                                                 : \
                      (MatchTR2 == 0)   ? match2Edi                                                              : \
                      (MatchTR2 == 1)   ? match2Degrain1.Merge( match2Edi, 0.25 )                                : \
-                                         ex_lutxyz(match2Degrain1,match2Degrain2,match2Edi,"x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
+                                         ex_lutxyz(match2Degrain1,match2Degrain2,match2Edi,   "x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
 
     # Source-match second refinement - correct error introduced in the refined difference by temporal smoothing. Similar to error correction from basic step
     errorAdjust2   = Select( MatchTR2, 1.0, 2.0 / (1.0 + errorTemporalSimilarity), 8.0 / (3.0 + 5.0 * errorTemporalSimilarity) )
