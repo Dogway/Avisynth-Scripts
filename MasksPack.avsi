@@ -1,8 +1,8 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.1 By Dogway  (14-12-2021)            ##
+###           MasksPack 4.2 By Dogway  (15-12-2021)            ##
 ###                                                            ##
-### https://forum.doom9.org/showthread.php?t=182881            ##
+###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
 #################################################################
 
@@ -63,75 +63,90 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 
 
 
-
-
 ##################
 ###
-### FlatMask (MIX mod)
+### FlatMask() (15-12-2021)
 ###
-### 11-12-2021
-### by cretindesalpes: (https://forum.doom9.org/showthread.php?p=1507257#post1507257)
-### Ported back from real.finder's HBD mod
 ###
-### Blends original with filtered (e.g. denoised) clip by masking out flat areas with weak, small or no detail.
-### Useful for denoising cel animation while protecting detailed backgrounds.
-### If you just want the mask itself use the 'show' parameter, it will be useable for masking operations as well.
-###
-### Example:
-###
-### raw=last
-### YourFilter()
-### flatmask(raw)
-###
+### This is a dual purpose filter for 2D cartoons to create either high quality edge masks or flat masks.
+### One is the opposite of the other so you only have to tune the radius setting to define to what extent
+### the edge mask is applied.
+### If you only want the edge mask output set show=false (with 'filt' argument undefined)
 ###
 ### Dependencies:
-###     MaskTools2: https://avisynth.nl/index.php/MaskTools2
-###     ExTools:    https://forum.doom9.org/showthread.php?t=182881
+###     ExTools
+###     ResizersPack
+###     SMDegrain (for ex_retinex)
+###         GradePack
+###
+### Example:
+###     filt = YourFilter()
+###     flatmask(1,filt=filt) # to merge with filtered clip
 ###
 ###########################
 
-function FlatMask(clip filtered, clip "raw", float "str",int "r",  bool "luma", float "Lth", bool "invert", bool "show", bool "notemp", bool "extend", bool "fulls") {
+function FlatMask(clip a, int "rad", clip "filt", bool "hyst", int "lo", bool "show") {
 
-    rgb   = isRGB(filtered)
-    bi    = BitsPerComponent(filtered)
-    w     = width (filtered)
-    h     = height(filtered)
+    a
+    rgb   = isRGB()
+    isy   = isy()
+    bi    = BitsPerComponent()
+    w     = width ()
+    h     = height()
+    fs    = propNumElements ("_ColorRange")  > 0 ? \
+            propGetInt      ("_ColorRange") == 0 : rgb
 
-    raw   = Default(raw, filtered)
+    isHD  = (w > 1099 ||  h >  599)
+    isUHD = (w > 2599 ||  h > 1499)
+    fil   = Defined(filt)
 
-    exten = Default(extend, false)
-    str   = Default(str, exten ? 10 : 6)         # Strength of the mask, the higher -> more detail protection
-    r     = Default(r, exten ? 2 : 3)            # Mask blurriness
+    rd    = Default(rad,      1)
+    lo    = Default(lo,      40)   # low level for ex_retinex normalization
+    hy    = Default(hyst, true )   # true to fill edge mask gaps
+    sh    = Default(show, false)   # false to show mask, true to show mask in split view
 
-    luma  = Default(luma,true)                   # Enables dark zones to be masked out (for filtering) independent of detail
-    th    = Default(Lth,75)                      # Start of penumbra for masking when luma=true
+    !isy ? ExtractY() : last
+    ConvertBits(8,dither=-1,fulls=fs)
+    # 3x3 is too broad for SD so upscale
+    !isHD  ? blackmanresize(w*2,h*2)                          : last
+    # UHD size is too big for good performance
+     isUHD ? bicubicresize(nmod(w/2,2),nmod(h/2,2),-0.5,0.25) : last
 
-    upper = Default(invert, false)               # Inverts the mask
-    notem = Default(notemp, exten)
-    fs    = Default(fulls,    rgb)
+    ex_retinex(lvl=1,lo=lo,tv_range=!fs)
+    # prefilter
+    ex_median(isHD ? "IQM5" : "IQM")
+    # edge mask
+    ex_luts(last,mode="range",pixels=ex_shape(rd,mode="disk"),exprf=" dup * 0.5 *")
 
-    Assert(IsVersionOrGreater(3,7,1), "FlatMask: Update AviSynth+ version.")
-    c4ma = exten ? filtered : raw
+    if (hy) {
 
-    e1 = c4ma.mt_edge (mode="prewitt", thY1=0, thY2=255)
-    e2 = c4ma.mt_edge (mode="min/max", thY1=0, thY2=255)
-    ex_makediff (e1, e2, dif=false, fulls=fs)
-    ex_lut ("x 0 max range_max / 0.25 ^ range_max *", fulls=fs)
-    mt_deflate().mt_deflate ()
+        # hysteresis
+        ex_luts(last,mode="avg",  pixels=ex_shape(2, mode="ring"),exprf=" x - abs range_half > range_max x ?",fulls=true)
 
-    luma ? ex_logic(c4ma.ex_binarize(th),"min") : last
+        # edge mask clean up
+        ex = ex_expand()
+        in = ex.ex_inpand()
+        ex_lutxyz(ex,in,"y z == x y + range_max y clip x ?")
+        ex_deflate()
+        }
 
-    BicubicResize (w / (r*2) * 2, h / (r*2) * 2, 1, 0)
-    notem ? last : TemporalSoften (2, 20, 255)
-    ex_expand().ex_inpand(2,mode="disk")
-    BicubicResize (w, h, 1, 0)
+    !isHD  ? bicubicresize(w,h,-0.5,0.25) : last
+     isUHD ? bicubicresize(w,h,1/3.,1/3.) : last
 
-    up   = ex_bs(10, 8, bi, fulls=fs)
-    code = Format(upper ? "range_max x {up} - {str} * -" : "x {up} - {str} *")
-    msk  = ex_lut (code,UV=128,fulls=fs)
-    exten ? !upper ? msk.ex_invert().ex_expand(2).ex_invert().ex_inpand(2) : \
-                     msk.ex_expand()                                       : msk
-                     PropSet("_ColorRange", 0)                             }
+    msk8 = last
+
+    ConvertBits(bi,fulls=true)
+
+    if (fil) {
+        # Merge with filtered through the edge mask
+        ex_merge(filt,a,last,luma=true)
+        # Artifact Repair
+        ex_luts(a,last,mode="clamp",pixels=ex_shape(rd+1,mode="disk")) }
+
+    if (sh) {
+        src = fil ? last : a
+        msk = mskY_to_YYY(src, msk8, false, false, 128, bi)
+        stackhorizontal(padresize(src,w/2,h,biasW=w/4),padresize(msk,w/2,h,biasW=-w/4)) } }
 
 
 
