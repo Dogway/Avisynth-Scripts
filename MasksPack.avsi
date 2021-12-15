@@ -69,8 +69,8 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ###
 ###
 ### This is a dual purpose filter for 2D cartoons to create either high quality edge masks or flat masks.
-### One is the opposite of the other so you only have to tune the radius setting to define to what extent
-### the edge mask is applied.
+### One is the opposite of the other so you only have to tune the radius and hyst setting to define to
+### what extent the edge mask is applied.
 ### If you only want the edge mask output set show=false (with 'filt' argument undefined)
 ###
 ### Dependencies:
@@ -85,7 +85,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ###
 ###########################
 
-function FlatMask(clip a, int "rad", clip "filt", bool "hyst", int "lo", bool "show") {
+function FlatMask(clip a, int "rad", clip "filt", int "hyst", int "lo", bool "show") {
 
     a
     rgb   = isRGB()
@@ -102,7 +102,7 @@ function FlatMask(clip a, int "rad", clip "filt", bool "hyst", int "lo", bool "s
 
     rd    = Default(rad,      1)
     lo    = Default(lo,      40)   # low level for ex_retinex normalization
-    hy    = Default(hyst, true )   # true to fill edge mask gaps
+    hy    = Default(hyst,     1)   # hysteresis radius
     sh    = Default(show, false)   # false to show mask, true to show mask in split view
 
     !isy ? ExtractY() : last
@@ -118,10 +118,10 @@ function FlatMask(clip a, int "rad", clip "filt", bool "hyst", int "lo", bool "s
     # edge mask
     ex_luts(last,mode="range",pixels=ex_shape(rd,mode="disk"),exprf=" dup * 0.5 *")
 
-    if (hy) {
+    if (hy>0) {
 
         # hysteresis
-        ex_luts(last,mode="avg",  pixels=ex_shape(2, mode="ring"),exprf=" x - abs range_half > range_max x ?",fulls=true)
+        ex_luts(last,mode="avg",  pixels=ex_shape(hy+1, mode="ring"),exprf=" x - abs range_half > range_max x ?",fulls=true)
 
         # edge mask clean up
         ex = ex_expand()
