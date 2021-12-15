@@ -108,13 +108,14 @@ function FlatMask(clip a, int "rad", clip "filt", int "hyst", int "lo", bool "sh
     !isy ? ExtractY() : last
     ConvertBits(8,dither=-1,fulls=fs)
     # 3x3 is too broad for SD so upscale
-    !isHD  ? blackmanresize(w*2,h*2)                          : last
+    !isHD  ? ex_median("IQM").blackmanresize(w*2,h*2)         : last
     # UHD size is too big for good performance
      isUHD ? bicubicresize(nmod(w/2,2),nmod(h/2,2),-0.5,0.25) : last
 
     ex_retinex(lvl=1,lo=lo,tv_range=!fs)
     # prefilter
-    ex_median(isHD ? "IQM5" : "IQM")
+
+    isHD ? ex_median("IQM5") : last
     # edge mask
     ex_luts(last,mode="range",pixels=ex_shape(rd,mode="disk"),exprf=" dup * 0.5 *")
 
