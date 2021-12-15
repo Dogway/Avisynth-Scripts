@@ -1533,8 +1533,9 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     h1  = Min(nmod(h0/radv,2), h0)
 
     full= isy || a.is444() || rgb
+    UV3 = UV==3
     sm  = (w1 < 16 || h1 < 16)
-    smc = !full && (UV!=3 || sm)
+    smc = !full || sm && !UV3
     ay  = smc ? a.ExtractY() : a
     au  = smc ? a.ExtractU() : a
     av  = smc ? a.ExtractV() : a
@@ -1570,7 +1571,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
         B  =       max(rd, rv) > 19.3 ? ay.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) : \
                                         ay.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p)
         Bu = !sm ? max(rd, rv) > 19.3 ? au.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : \
-                                        au.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : nop()
+                                        au.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : nop() # sm (>117 high radii) only possible for UV!=3
         Bv = !sm ? max(rd, rv) > 19.3 ? av.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : \
                                         av.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : nop()
 
@@ -6474,7 +6475,7 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
     v   = float(var)*pow(2, obi-ibi)
 
     fsc = fs && !fd ? -v/257.  : \
-          !fs && fd ?  v/256.  : 0
+         !fs &&  fd ?  v/256.  : 0
 
     vif = ib32 ? ob8 ? var*255. :     var*( 255*pow(2, obi-8)+(fd ? 255*pow(2, obi-8)/256. : 0) )     : nop()
     vof = ob32 ? ib8 ? var/255. : min(var/( 255*pow(2, ibi-8)+(fs ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
