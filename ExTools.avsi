@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v6.9     (14-12-2021)              ##
+###           ExTools v6.9.1   (15-12-2021)              ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -1472,7 +1472,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 
 #######################################################################
 ##
-## ex_GaussianBlur() by Dogway (11-12-2021)
+## ex_GaussianBlur() by Dogway (15-12-2021)
 ## Large-sigma optimized gaussian blur filter
 ##
 ## Heavy mod of FRC_GaussianBlur42()
@@ -1489,7 +1489,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ## version 2021-09-22 Added padding to protect borders and fallback to ex_blur() for low sigma
 ## version 2021-10-12 Reparametrized. Changed to bilinear downscale, faster and more accurate. Change to mod2
 ## version 2021-10-31 Reparametrized. Optimal 'p' value and linear regressed when pad=true
-## version 2021-12-11 Reparametrized. Correct UV blurring. Further fit fine tuning and fallback to vsTcanny for erratic fit in pad=false + high radii (>21) + small source
+## version 2021-12-15 Reparametrized. Correct UV blurring. Further fit fine tuning and fallback to vsTcanny for erratic fit in pad=false + high radii (>21) + small source
 ##
 ##
 ## 100% ex_gaussianblur(6,UV=2)  (396fps)      (gaussian approximation, fastest for large sigma)
@@ -1535,7 +1535,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     full= isy || a.is444() || rgb
     UV3 = UV==3
     sm  = (w1 < 16 || h1 < 16)
-    smc = !full || sm && !UV3
+    smc = !isy && (!full || sm && !UV3)
     ay  = smc ? a.ExtractY() : a
     au  = smc ? a.ExtractU() : a
     av  = smc ? a.ExtractV() : a
@@ -1585,7 +1585,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
         Y  == 3 && UV < 3 ? mergeluma(a,last) : \
         Y  == 3 && UV ==3 ? YtoUV(Bu,Bv,last) : \
         UV == 3 && Y  < 3 ? YtoUV(Bu,Bv,  ay) : \
-        Y  != 3 && UV !=3 ?                 a : last } }
+        Y  != 3 && UV !=3 ?                a  : last } }
 
 
 
@@ -6475,7 +6475,7 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
     v   = float(var)*pow(2, obi-ibi)
 
     fsc = fs && !fd ? -v/257.  : \
-         !fs &&  fd ?  v/256.  : 0
+          !fs && fd ?  v/256.  : 0
 
     vif = ib32 ? ob8 ? var*255. :     var*( 255*pow(2, obi-8)+(fd ? 255*pow(2, obi-8)/256. : 0) )     : nop()
     vof = ob32 ? ib8 ? var/255. : min(var/( 255*pow(2, ibi-8)+(fs ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
@@ -6557,6 +6557,7 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 
     wh = wm!=w || hm!=h
     p_float = bits == 32
+    clr     = UV > 6 ? ex_bs(UV, 8, bits, fulls=true) : 0
 
     mskYs   =  isy(msk)               ? msk          : msk.  ExtractY()
     mskYt   =                                          mskYs.ConvertBits(8,dither=-1,fulls=true)
@@ -6570,7 +6571,7 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 
     mskC    = luma && UV==3 ? p_float ? ex_lut(mskC, "x range_half -",fulls=true).ConvertBits(32,fulls=true) : \
                                         mskC.ConvertBits(bits,fulls=true)                                    : \
-                                        BlankClip(a,1,w,h,"Y"+string(bits),color_yuv=$000000,channels=0)
+                                        BlankClip(a,1,w,h,"Y"+string(bits),colors=[clr],channels=0)
 
     msk     = isy(a) ? mskYr : CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
 
