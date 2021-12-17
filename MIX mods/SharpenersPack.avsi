@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v2.7  (11-12-2021)                             ###
+###        Sharpeners Pack v2.8  (17-12-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -462,9 +462,10 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 ###  91% ex_unsharp(1, Fc=width())
 ###   8% unsharp(vary=1, varc=1, strength=1) # no HBD support, % scaled down
 ###
-### Internal Sharpen(0.75) roughly matches ex_unsharp(2.5,width()*1.5,0,UV=3)
-### unsharpmask(strength=str,radius=rad,threshold=0)         -->    ex_unsharp(str= 0.007*str,Fc=width()/max(1,0.76*exp(0.26*rad),th=0)
-### unsharp    (strength=str,vary=((ss_x+ss_y)/2.0),varc=1)  -->    ex_unsharp(str= str/2.,   Fc=max(ox,oy)*(1.0-0.2*   rad),     th=0)
+### Equivalences:
+### unsharpmask(strength=str,radius=rad,threshold=0) --> ex_unsharp(str=str*0.007,                        Fc=width()/max(1,0.76*exp(0.26*rad),th=0)
+### unsharp    (strength=str,vary=rad)               --> ex_unsharp(str=str/(1.489*pow(rad,-1.112)+0.51), Fc=width()*0.8,                     th=0)
+### Internal Sharpen(0.75)            roughly matches    ex_unsharp(2.5,width()*1.5,0,UV=3)
 ###
 function ex_unsharp(clip a, float "str", float "Fc", float "th", int "Y", int "UV") {
 
@@ -927,7 +928,7 @@ function SeeSaw( clip  input, clip "denoised",
     (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),fulls=fs)
 
       Slimit>=0  ? ex_lutxyz(last, soothe, tame, Format("z y - Z@ {SLIM} > x {SLIM} - Z 0 {SLIM} - < x {SLIM} + x Z - ? ?"), fulls=fs) : \
-                   ex_lutxyz(last, soothe, tame, Format("z y - Z@ 0 == x dup Z dup sgn S^ abs 1 {limit} / ^ S * - ?"),       fulls=fs)
+                   ex_lutxyz(last, soothe, tame, Format("z y - Z@ 0 == x dup Z abs 1 {limit} / ^ Z sgn * - ?"),       fulls=fs)
 
     isy ? last : CombinePlanes(last, input, planes="YUV", sample_clip=input) }
 
@@ -1018,7 +1019,7 @@ function ex_sharpen22(clip clp, float strength, float power, float zp, float lod
     HDMPr = 1. / hidmp
     HDMP  = (hidmp==0) ? "1" : Format("A abs {HDMPr} * 4 ^ 1 + /")
 
-    ex_lutxy( clp, clp.RemoveGrain(rgmode,-1), Format("x dup y == swap dup dup y - A@ dup sgn S^ abs {ZRPr} * {PWR} ^ {ZRP} * {STR} * A dup * dup {DMP} + / * S * "+HDMP+" + ?"), UV=1, fulls=fs, scale_inputs=fs ? "allf" : "all") }
+    ex_lutxy( clp, clp.RemoveGrain(rgmode,-1), Format("x dup y == swap dup dup y - A@ abs {ZRPr} * {PWR} ^ {ZRP} * {STR} * A dup * dup {DMP} + / * A sgn * "+HDMP+" + ?"), UV=1, fulls=fs, scale_inputs=fs ? "allf" : "all") }
 
 
 
@@ -1234,7 +1235,7 @@ function NonlinUSM(clip o, float "str", float "z", float "pow", float "rad", flo
 
     g = o.ex_GaussianBlur(rad*0.83825-0.0631,pad=true)  # Parametrized to match original
 
-    ex_lutxy(o, g, Format("x dup y - A@ dup sgn S^ abs {zd} * {pw} ^ {z} * {str} * A dup * dup {ldmp} + / * S * + dup 0 > swap x ?"), UV=UV, fulls=fs)
+    ex_lutxy(o, g, Format("x dup y - A@ abs {zd} * {pw} ^ {z} * {str} * A dup * dup {ldmp} + / * A sgn * + dup 0 > swap x ?"), UV=UV, fulls=fs)
 
     #interleave(o,last) # just for visualisation, you don't want the function to do this
    }
@@ -1292,10 +1293,10 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
 
     bright_limit = soft ? clp.ex_boxblur(0.5,mode="weighted") : clp #.sharpen(1.0)#.blur(1.58)
 
-    dark_limit   = bright_limit.ex_inpand(rad).ex_boxblur(rad,mode="weighted").mt_inflate().mt_deflate()
+    dark_limit   = bright_limit.ex_inpand(rad).ex_boxblur(rad+2,mode="weighted")
     dark_limit   = ss ?   dark_limit.lanczosresize(nmod(ox*ss_x,8),nmod(oy*ss_y,8)) : dark_limit
 
-    bright_limit = bright_limit.ex_expand(rad).ex_boxblur(rad,mode="weighted").mt_deflate().mt_inflate()
+    bright_limit = bright_limit.ex_expand(rad).ex_boxblur(rad+2,mode="weighted")
     bright_limit = ss ? bright_limit.lanczosresize(nmod(ox*ss_x,8),nmod(oy*ss_y,8)) : bright_limit
 
 
@@ -2198,7 +2199,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     averaged           = ex_adddiff(src, averaged_dif)
     clamped            = ex_clamp(averaged, bright_limit, dark_limit, 0, 0, UV=1)
     src                = src.ConvertBits(32, fulls=fs)
-    amplified          = ex_lutxy(clamped.ConvertBits(32, fulls=fs), src, Format("x y - A@ dup sgn S^ abs {lstr} / 1 {pstr} / ^ {strength} * S * A dup * dup {ldmp} + / * y +"), scale_inputs=fs?"allf":"all")
+    amplified          = ex_lutxy(clamped.ConvertBits(32, fulls=fs), src, Format("x y - A@ abs {lstr} / 1 {pstr} / ^ {strength} * A sgn * A dup * dup {ldmp} + / * y +"), scale_inputs=fs?"allf":"all")
     clp                = CutOff(src, amplified, cutoff, freq_margin)
 
     clp                = rgb ? OPP_to_RGB(clp) : !isy ? CombinePlanes(clp, clr, planes="YUV", pixel_type=PixelType(clr)) : clp
