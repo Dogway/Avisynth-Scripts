@@ -612,8 +612,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     xxs  = nmod(ox*ss_x,8)
     yys  = nmod(oy*ss_y,8)
 
-    bi32m = bi != 32 ? "range_half -" : ""  # due to float scaling not being supported in Expr() (https://forum.doom9.org/showthread.php?p=1954164#post1954164)
-    bi32p = bi != 32 ? "range_half +" : ""  # due to float scaling not being supported in Expr() (https://forum.doom9.org/showthread.php?p=1954164#post1954164)
+    bi32m = bi != 32 ? "range_half -" : ""
+    bi32p = bi != 32 ? "range_half +" : ""
 
     str  = strength / 100.
 
