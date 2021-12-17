@@ -167,7 +167,7 @@
 ### -> RgTools        (v1.2 or up)
 ### -> ExTools        (v6.9 or up)
 ### -> ResizersPack   (v7.1 or up)
-### -> SharpenersPack (v2.7 or up)     [for Smode=1 and Smode=2]
+### -> SharpenersPack (v2.8 or up)     [for Smode=1 and Smode=2]
 ### -> CAS                             [for Smode=6]
 ### -> if you use AviSynth+ then make sure it's the latest one
 ###
