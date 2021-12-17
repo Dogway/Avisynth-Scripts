@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.2 By Dogway  (15-12-2021)            ##
+###           MasksPack 4.3 By Dogway  (17-12-2021)            ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
@@ -100,7 +100,7 @@ function FlatMask(clip a, int "rad", clip "filt", int "hyst", int "lo", bool "sh
     isUHD = (w > 2599 ||  h > 1499)
     fil   = Defined(filt)
 
-    rd    = Default(rad,      1)
+    rd    = Default(rad,      1)   # 1~3
     lo    = Default(lo,      40)   # low level for ex_retinex normalization
     hy    = Default(hyst,     1)   # hysteresis radius
     sh    = Default(show, false)   # false to show mask, true to show mask in split view
@@ -108,27 +108,28 @@ function FlatMask(clip a, int "rad", clip "filt", int "hyst", int "lo", bool "sh
     !isy ? ExtractY() : last
     ConvertBits(8,dither=-1,fulls=fs)
     # 3x3 is too broad for SD so upscale
-    !isHD  ? ex_median("IQM").blackmanresize(w*2,h*2)         : last
+    !isHD  ? ex_median("IQM").blackmanresize(w*2,h*2) : last
     # UHD size is too big for good performance
-     isUHD ? bicubicresize(nmod(w/2,2),nmod(h/2,2),-0.5,0.25) : last
+     isUHD ? BilinearResize(nmod(w/2,2),nmod(h/2,2))  : last
 
     ex_retinex(lvl=1,lo=lo,tv_range=!fs)
-    # prefilter
 
+    # prefilter
     isHD ? ex_median("IQM5") : last
+
     # edge mask
-    ex_luts(last,mode="range",pixels=ex_shape(rd,mode="disk"),exprf=" dup * 0.5 *")
+    ex_luts(last,mode="range", pixels=ex_shape(min(rd,3),mode="disk"), exprf=" dup * 0.5 *")
 
     if (hy>0) {
 
         # hysteresis
-        ex_luts(last,mode="avg",  pixels=ex_shape(hy+1, mode="ring"),exprf=" x - abs range_half > range_max x ?",fulls=true)
+        ex_luts(last,mode="avg", pixels=ex_shape(hy+1, mode="ring"),   exprf="x - abs range_half > range_max x ?")
 
         # edge mask clean up
         ex = ex_expand()
         in = ex.ex_inpand()
         ex_lutxyz(ex,in,"y z == x y + range_max y clip x ?")
-        ex_deflate()
+        isHD ? ex_deflate() : last
         }
 
     !isHD  ? bicubicresize(w,h,-0.5,0.25) : last
@@ -141,8 +142,8 @@ function FlatMask(clip a, int "rad", clip "filt", int "hyst", int "lo", bool "sh
     if (fil) {
         # Merge with filtered through the edge mask
         ex_merge(filt,a,last,luma=true)
-        # Artifact Repair
-        ex_luts(a,last,mode="clamp",pixels=ex_shape(rd+1,mode="disk")) }
+        # Artifact Repair (useful with big radius filters)
+        ex_luts(a,last,mode="clamp",pixels=ex_shape(min(rd+1,3),mode="disk")) }
 
     if (sh) {
         src = fil ? last : a
