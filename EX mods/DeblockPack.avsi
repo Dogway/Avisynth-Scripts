@@ -204,6 +204,7 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2",
 ##                  DFTTest
 ##                  nnedi3
 ##                  SysInfo
+##                  TransformsPack (for RGB)
 
 
 function oyster_Super(clip src, int "pel") {
@@ -419,8 +420,8 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     Assert(thr>=0 && thr<= 1,              "oyster_Destaircase: thr has to fall in [0, 1]!")
     Assert(isfloat(elast),                 "oyster_Destaircase: elast has to be a real number!")
     Assert(elast>=0 && elast<=thr,         "oyster_Destaircase: elast has to fall in [0, thr]!")
-#    Assert(isint(mse0) || isfloat(mse0),  "oyster_Destaircase: sad has to be a real number or None!")
-#    Assert(isint(mse1) || isfloat(mse1),  "oyster_Destaircase: sad has to be a real number or None!")
+#   Assert(isfloat(mse0),                  "oyster_Destaircase: sad has to be a real number or None!")
+#   Assert(isfloat(mse1),                  "oyster_Destaircase: sad has to be a real number or None!")
 
     if (rgb) {
        src    = !fs ? src.SMPTE_legal(false).RGB_to_OPP() : src.RGB_to_OPP()
@@ -1163,7 +1164,7 @@ function colorWarpToLuma(clip clp, int "strength") {
 
     warpedColor = clp.aWarpSharp2(thresh=thresh, blur=blur, type=1, depth=14, chroma=4)
 
-    ex_merge(clp, clp, warpedColor, y=2, u=5, v=5) }
+    ex_merge(clp, clp, warpedColor, Y=2, UV=6) }
 
 
 # Reminder: Yexpr = "x a - b a - / 1 gamma / ^ d c - * c +"
@@ -1586,8 +1587,6 @@ function WeightMatrixSum(string "name",int "level") {
 
 
 function BorderMask(clip orig, int "bth1", int "bth2", int "bshare", int "eth1", int "eth2", int "eshare", float "buvmod", float "euvmod") {
-
-    bi     = BitsPerComponent(a)
 
     bth1   = Default(bth1,0)
     bth2   = Default(bth2,2)
