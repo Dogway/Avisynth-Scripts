@@ -119,10 +119,10 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
 
     # qprewitt gradient magnitude with custom normalization
     krn = ex_shape(1,center=false)
-    quality_map = ex_lutxy(ex_edge(clip1, krn+"A D F + + C - E - H - abs dup *
-                                               A B C + + F - G - H - abs dup * +", 0, 255),  \
-                           ex_edge(clip2, krn+"A D F + + C - E - H - abs dup *
-                                               A B C + + F - G - H - abs dup * +", 0, 255), Format("x y * sqrt 2 * {c} + x y + {c} + /"))
+    quality_map = ex_lutxy(ex_edge(clip1, krn+"A D F + + C - E - H - dup *
+                                               A B C + + F - G - H - dup * +", 0, 255),  \
+                           ex_edge(clip2, krn+"A D F + + C - E - H - dup *
+                                               A B C + + F - G - H - dup * +", 0, 255), Format("x y * sqrt 2 * {c} + x y + {c} + /"))
 
     last = show_map ?
     \ ScriptClip(quality_map, """propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr("x "+ String(AverageLuma(last)) +" - x "+ String(AverageLuma(last)) +" - *"))), 0)""") :
