@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v1.9  (19-12-2021)                     ###
+###        Similarity Metrics Pack v2.0  (20-12-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -67,7 +67,7 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Ported to ExTools, optimized gradient, changed 'show' behaviour (17% speed gain) by Dogway
+# Ported to ExTools, optimized gradient, changed 'show' behaviour (x4 speed gain) by Dogway
 #---------------
 # Changed global scope of quality_map to local.
 #---------------
@@ -107,15 +107,16 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
 
-    clip1 = clip1.ConvertBits(32, fulls=fs, fulld=true) # saturating range for correct calculations
-    clip2 = clip2.ConvertBits(32, fulls=fs, fulld=true)
-
     if (downscl)
     {
-        clip1 = _IQA_downsample(clip1)
-        clip2 = _IQA_downsample(clip2)
-    }
+        clip1 = _IQA_downsample(clip1, fulls=fs, fulld=true).ConvertBits(32, fulls=true, fulld=true)
+        clip2 = _IQA_downsample(clip2, fulls=fs, fulld=true).ConvertBits(32, fulls=true, fulld=true)
 
+    } else {
+
+        clip1 = clip1.ConvertBits(32, fulls=fs, fulld=true) # saturating range for correct calculations
+        clip2 = clip2.ConvertBits(32, fulls=fs, fulld=true)
+    }
 
     # qprewitt gradient magnitude with custom normalization
     krn         = ex_shape(1,center=false)
@@ -129,8 +130,8 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     \ ScriptClip(show == 1 ? ref : dist, function [quality_map] ()
         {
             avg = String(AverageLuma(quality_map))
-            propSet(last,"_PlaneGMSD", Sqrt(AverageLuma(Expr(last,quality_map, "x "+ avg +" - dup *"))), 0)
-        })
+            propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr(quality_map, "x "+ avg +" - dup *"))), 0)
+        } )
 
 
     return show == 2 ? ScriptClip(function[] () { Subtitle("PlaneGMSD: " + String(propGetFloat("_PlaneGMSD"))) } ) : last }
@@ -185,7 +186,7 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Ported to ExTools and TransformsPack (89% speed gain) by Dogway
+# Ported to ExTools and TransformsPack (117% speed gain) by Dogway
 #---------------
 # Changed global scope of gcs to local.
 #---------------
@@ -229,7 +230,7 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
     \ Bilinearresize(clip2, Int(RoundHalfToEven(Float(w2) / down_scale)), Int(RoundHalfToEven(Float(h2) / down_scale))) :
     \ clip2
 
-    down1 = ExtractClip(down1.ConvertBits(bi, fulls=fs, fulld=true))
+    down1 = ExtractClip(down1.ConvertBits(bi, fulls=fs, fulld=true)) # saturating range for correct calculations
     down2 = ExtractClip(down2.ConvertBits(bi, fulls=fs, fulld=true))
 
     l1 = DotClipA(down1,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
@@ -334,7 +335,7 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Sanitized and optimized by Dogway (21% speed gain)
+# Sanitized and optimized by Dogway (x3 speed gain)
 #---------------
 # Changed global scope of ssim_map to local.
 #---------------
@@ -378,13 +379,15 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
 
-    clip1 = clip1.ConvertBits(32, fulls=fs, fulld=true)
-    clip2 = clip2.ConvertBits(32, fulls=fs, fulld=true)
-
     if (downscl)
     {
-        clip1 = _IQA_downsample(clip1)
-        clip2 = _IQA_downsample(clip2)
+        clip1 = _IQA_downsample(clip1, fulls=fs, fulld=true).ConvertBits(32, fulls=true, fulld=true)
+        clip2 = _IQA_downsample(clip2, fulls=fs, fulld=true).ConvertBits(32, fulls=true, fulld=true)
+
+    } else {
+
+        clip1 = clip1.ConvertBits(32, fulls=fs, fulld=true) # saturating range for correct calculations
+        clip2 = clip2.ConvertBits(32, fulls=fs, fulld=true)
     }
 
     mu1     = vsTCanny(clip1, sigmay=stddev, sigma_vY=stddev, mode=-1) # gaussian blur
@@ -404,7 +407,7 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     \ ScriptClip(ssim_map, function[] () { propSet(last,"_PlaneSSIM", AverageLuma(last), 0) } ) :
     \ ScriptClip(show == 1 ? ref : dist, function [ssim_map] ()
         {
-            propSet(last,"_PlaneSSIM", AverageLuma(ssim_map), 0)
+            propSet("_PlaneSSIM", AverageLuma(ssim_map), 0)
         } )
 
 
@@ -607,9 +610,9 @@ The “clip” is down-sampled by a factor of 2 with a 'Box' kernel, akin to process
 # Initial version by Asd-g.
 
 
-function _IQA_downsample(clip c)
+function _IQA_downsample(clip c, bool "fulls", bool "fulld")
 {
-    return fmtc_resample(c,Int(RoundHalfToEven(Width(c) / 2.0)), Int(RoundHalfToEven(Height(c) / 2.0)), kernel="box")
+    return fmtc_resample(c,Int(RoundHalfToEven(Width(c) / 2.0)), Int(RoundHalfToEven(Height(c) / 2.0)), kernel="box", sx=-1, sy=-1, fulls=fulls, fulld=fulld)
 }
 
 
