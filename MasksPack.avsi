@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.3 By Dogway  (17-12-2021)            ##
+###           MasksPack 4.4 By Dogway  (21-12-2021)            ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
@@ -39,10 +39,10 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
            Assert(IsVersionOrGreater(3,7,1), "BoxMask: Update AviSynth+ version")
     show ? Assert(UV!=1,                     "BoxMask: 'show' requires UV=2 or 3") : nop()
 
-    x1      = min(max(x1,0),w)
-    x2      = min(max(x2,0),w)
-    y1      = min(max(y1,0),h)
-    y2      = min(max(y2,0),h)
+    x1      =     min(max(x1,0),w)
+    x2      = max(min(max(x2,0),w),x1)
+    y1      =     min(max(y1,0),h)
+    y2      = max(min(max(y2,0),h),y1)
 
     UV = UV!=3 && !rgb ? 128 : UV
 
@@ -65,17 +65,18 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 
 ##################
 ###
-### FlatMask() (15-12-2021)
+### FlatMask() (20-12-2021)
 ###
 ###
 ### This is a dual purpose filter for 2D cartoons to create either high quality edge masks or flat masks.
 ### One is the opposite of the other so you only have to tune the radius and hyst setting to define to
 ### what extent the edge mask is applied.
-### If you only want the edge mask output set show=false (with 'filt' argument undefined)
+### If 'filt' clip argument is not defined by default the output is the edge mask.
 ###
 ### Dependencies:
 ###     ExTools
 ###     ResizersPack
+###     vsTCanny
 ###     SMDegrain (for ex_retinex)
 ###         GradePack
 ###
@@ -85,7 +86,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ###
 ###########################
 
-function FlatMask(clip a, int "rad", clip "filt", int "hyst", int "lo", bool "show") {
+function FlatMask(clip a, int "rad", clip "filt", int "lo", bool "show") {
 
     a
     rgb   = isRGB()
@@ -100,40 +101,54 @@ function FlatMask(clip a, int "rad", clip "filt", int "hyst", int "lo", bool "sh
     isUHD = (w > 2599 ||  h > 1499)
     fil   = Defined(filt)
 
-    rd    = Default(rad,      1)   # 1~3
+    rd    = Default(rad,      4)   # 1 or 2 for SD, 3 for 720p and >=4 for 1080p
     lo    = Default(lo,      40)   # low level for ex_retinex normalization
-    hy    = Default(hyst,     1)   # hysteresis radius
     sh    = Default(show, false)   # false to show mask, true to show mask in split view
 
     !isy ? ExtractY() : last
     ConvertBits(8,dither=-1,fulls=fs)
     # 3x3 is too broad for SD so upscale
-    !isHD  ? ex_median("IQM").blackmanresize(w*2,h*2) : last
+    !isHD  ? BlackmanResize(w*2,h*2)                 : last
     # UHD size is too big for good performance
-     isUHD ? BilinearResize(nmod(w/2,2),nmod(h/2,2))  : last
+     isUHD ? BilinearResize(nmod(w/2,2),nmod(h/2,2)) : last
 
-    ex_retinex(lvl=1,lo=lo,tv_range=!fs)
+    ex_retinex(lvl=1,lo=lo,tv_range=!fs)  # some issues here on flat areas (quantization)
+    MSR=ex_median("IQM") # pre for full 'qprewitt'
 
-    # prefilter
-    isHD ? ex_median("IQM5") : last
+    # Prefilter (scale space)
+    vsTCanny(sigmaY=sqrt(rd)/2.*sqrt(2),sigma_vY=sqrt(rd)/2.*sqrt(2),mode=-1,u=2,v=2)
 
-    # edge mask
-    ex_luts(last,mode="range", pixels=ex_shape(min(rd,3),mode="disk"), exprf=" dup * 0.5 *")
+    # Pseudo Ridge Filter
+    xx1=    ex_lut(Format("x[-1,-1] x[-1,0] x[-1,1] + + x[1,-1] - x[1,0] - x[1,1] -"))
+    xx1=xx1.ex_lut(Format("x[-1,-1] x[-1,0] x[-1,1] + + x[1,-1] - x[1,0] - x[1,1] -"))
+    yy1=    ex_lut(Format("x[-1,-1] x[1,-1] x[0,-1] + + x[-1,1] - x[1,1] - x[0,1] -"))
+    yy1=yy1.ex_lut(Format("x[-1,-1] x[1,-1] x[0,-1] + + x[-1,1] - x[1,1] - x[0,1] -"))
 
-    if (hy>0) {
+    xx2=    ex_lut(Format("x[1,-1] x[1,0] x[1,1] + + x[-1,-1] - x[-1,0] - x[-1,1] -"))
+    xx2=xx2.ex_lut(Format("x[1,-1] x[1,0] x[1,1] + + x[-1,-1] - x[-1,0] - x[-1,1] -"))
+    yy2=    ex_lut(Format("x[-1,1] x[1,1] x[0,1] + + x[-1,-1] - x[1,-1] - x[0,-1] -"))
+    yy2=yy2.ex_lutxyza(xx1,yy1,xx2,\
+                   Format("x[-1,1] x[1,1] x[0,1] + + x[-1,-1] - x[1,-1] - x[0,-1] -
+                           0 max dup * y dup * z dup * a dup * + + + sqrt"))
+    # Pre for 'Close gaps'
+    ex_contrast(yy2,1,pivot=80,tv_range=false)
+    # Close gaps
+    ex_expand(1,   mode="disk")
+    ex_inpand(1,   mode="disk")
+    # Expand
+    rd > 2                      ? \
+    ex_expand(rd-2,mode="disk") : last
+    # Merge with basic qprewitt for robustness and faint lines
+    ex_lutxy(MSR,last,Format("x[-1,-1] A@ x[-1,0] x[-1,1] F@ + + x[1,-1] C@ - x[1,0] - x[1,1] H@ - dup *
+                              A C x[0,-1] + + F - H - x[0,1] - dup * + sqrt 10 - {rd} 3 / 1 + * y max" ))
+    # Final gap close
+    ex_luts(       mode="avg", pixels=ex_shape(ceil(rd/2.), mode="ring"), exprf="dup dup x > swap 128 > & swap 1.15 * x ?")
 
-        # hysteresis
-        ex_luts(last,mode="avg", pixels=ex_shape(hy+1, mode="ring"),   exprf="x - abs range_half > range_max x ?")
+    rd == 1 ? yy2                     : \
+    rd == 0 ? ex_edge(MSR,"qprewitt") : last
 
-        # edge mask clean up
-        ex = ex_expand()
-        in = ex.ex_inpand()
-        ex_lutxyz(ex,in,"y z == x y + range_max y clip x ?")
-        isHD ? ex_deflate() : last
-        }
-
-    !isHD  ? bicubicresize(w,h,-0.5,0.25) : last
-     isUHD ? bicubicresize(w,h,1/3.,1/3.) : last
+    !isHD  ? BicubicResize(w,h,-0.5,0.25) : ex_smooth(2,mode="SG", sharp=true) # Clean up result. No need when resizing down
+     isUHD ? BicubicResize(w,h,1/3.,1/3.) : last
 
     msk8 = last
 
@@ -148,7 +163,7 @@ function FlatMask(clip a, int "rad", clip "filt", int "hyst", int "lo", bool "sh
     if (sh) {
         src = fil ? last : a
         msk = mskY_to_YYY(src, msk8, false, false, 128, bi)
-        stackhorizontal(padresize(src,w/2,h,biasW=w/4),padresize(msk,w/2,h,biasW=-w/4)) } }
+        StackHorizontal(padresize(src,w/2,h,biasW=w/4),padresize(msk,w/2,h,biasW=-w/4)) } }
 
 
 
