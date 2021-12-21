@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v2.8  (17-12-2021)                             ###
+###        Sharpeners Pack v2.8  (21-12-2021)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -1790,8 +1790,7 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
     nr     = Default(nr,    false)
     kernel = Default(kernel, 2)
 
-    blank = BlankClip(C,color=$828282)
-    blank = fs && bi > 8 ? blank.Full_Scale(UV=1) : blank
+    blank = BlankClip(C,color_yuv=$808080)
     THR2  = ex_bs(pow(THR,0.5),   8, bi, fulls=fs)
     THR3  = ex_bs(pow(THR*2,0.5), 8, bi, fulls=fs)
     THR1  = ex_bs(THR, 8, bi, fulls=fs)
