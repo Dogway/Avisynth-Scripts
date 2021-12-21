@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.71 mix mod by Dogway 2021, based on 3.382s            #
+#     QTGMC 3.72 mix mod by Dogway 2021, based on 3.382s            #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -17,9 +17,9 @@
 #
 # --- LATEST CHANGES ---
 #
-# v3.71mx and v3.70mx
-# - More expression optimizations
-# - Some 'fs' fixes
+# v3.72mx
+# - More expression optimizations (v3.71mx & v3.72mx)
+# - Some 'fs' fixes (v3.70mx)
 #
 # v3.69mx
 # - Optimize code structure with loops
@@ -622,6 +622,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Blur image and soften edges to assist in motion matching of edge blocks. Blocks are matched by SAD (sum of absolute differences between blocks), but even
     # a slight change in an edge from frame to frame will give a high SAD due to the higher contrast of edges
+    # Originally call in SrchClipPP == 1 was blurring by resizing (with Bilinear) which strength is dependant of input size
     dw = Input.is422() || Input.is420() ? 2 : Input.isYV411() ? 4 : 1
     dh = Input.is420()                  ? 2 :                       1
     spatialBlur = (SrchClipPP == 0 || srchcheck) ? nop()                                                                : \
@@ -1054,11 +1055,13 @@ function QTGMC_Generate2ndFieldNoise( clip Input, clip InterleavedClip, bool "Ch
     CNmt1     = ChromaNoise ? 3 : 1
 
     origNoise = Input.SeparateFields()
-    noiseMax  = origNoise.ex_expand(2,mode="horizontal",UV=CNmt1).ex_expand(1,mode="vertical",UV=CNmt1)
-    noiseMin  = origNoise.ex_inpand(2,mode="horizontal",UV=CNmt1).ex_inpand(1,mode="vertical",UV=CNmt1)
+    noiseMax  = bi != 16 ? origNoise.ex_luts(mode="max",pixels=ex_shape(2,1),UV=CNmt1)                            : \
+                           origNoise.ex_expand(2,mode="horizontal",UV=CNmt1).ex_expand(1,mode="vertical",UV=CNmt1) # ex_luts(...) is faster in all terms except in 16-bit P(8)
+    noiseMin  = bi != 16 ? origNoise.ex_luts(mode="min",pixels=ex_shape(2,1),UV=CNmt1)                            : \
+                           origNoise.ex_inpand(2,mode="horizontal",UV=CNmt1).ex_inpand(1,mode="vertical",UV=CNmt1)
     random    = BlankClip( InterleavedClip.SeparateFields(), color_yuv=$808080 ).AddGrainC( var=1800, uvar=ChromaNoise ? 1800 : 0 )
     random    = InterleavedClip.IsYUY2() ? random.nonyuy2clipin(true) : random
-    newNoise  = ex_lutxyza(noiseMax, noiseMin, random, noiseMin, "x y - 0 max z * range_size / a +", UV=CNmt1, fulls=fs)
+    newNoise  = ex_lutxyz(noiseMax, noiseMin, random, "x y - 0 max z * range_size / y +", UV=CNmt1, fulls=fs)
 
     return Interleave( origNoise, newNoise ).Weave()
 }
