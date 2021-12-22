@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.4 By Dogway  (21-12-2021)            ##
+###           MasksPack 4.5 By Dogway  (22-12-2021)            ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
@@ -65,12 +65,12 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 
 ##################
 ###
-### FlatMask() (20-12-2021)
+### FlatMask() (22-12-2021)
 ###
 ###
-### This is a dual purpose filter for 2D cartoons to create either high quality edge masks or flat masks.
-### One is the opposite of the other so you only have to tune the radius and hyst setting to define to
-### what extent the edge mask is applied.
+### This is a dual purpose filter for 2D cartoons to create either high quality edge/ridge masks or flat masks.
+### One is the opposite of the other so you only have to tune the radius and scale settings to define
+### to what extent the edge mask is applied.
 ### If 'filt' clip argument is not defined by default the output is the edge mask.
 ###
 ### Dependencies:
@@ -86,11 +86,10 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ###
 ###########################
 
-function FlatMask(clip a, int "rad", clip "filt", int "lo", bool "show") {
+function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip "filt", bool "show") {
 
     a
     rgb   = isRGB()
-    isy   = isy()
     bi    = BitsPerComponent()
     w     = width ()
     h     = height()
@@ -99,56 +98,59 @@ function FlatMask(clip a, int "rad", clip "filt", int "lo", bool "show") {
 
     isHD  = (w > 1099 ||  h >  599)
     isUHD = (w > 2599 ||  h > 1499)
+
+    rd    = Default(rad, isHD?3:1)   # 1 or 2 for SD, 3 for HD and >=4 for 1080p or higher. 0 is a plain edge mask (ex_edge("qprewitt") )
+    scl   = Default(scale,      5)   # Scale of the mask. Increase to convert edge mask to a flat mask
+    lo    = Default(lo,         4)   # Clip pixels under this value
+    lvl   = Default(MSR,       40)   # Low level for ex_retinex normalization
+    sh    = Default(show,   false)   # True to show mask in split view
     fil   = Defined(filt)
 
-    rd    = Default(rad,      4)   # 1 or 2 for SD, 3 for 720p and >=4 for 1080p
-    lo    = Default(lo,      40)   # low level for ex_retinex normalization
-    sh    = Default(show, false)   # false to show mask, true to show mask in split view
-
-    !isy ? ExtractY() : last
+    !isy() ? ExtractY() : last
     ConvertBits(8,dither=-1,fulls=fs)
     # 3x3 is too broad for SD so upscale
     !isHD  ? BlackmanResize(w*2,h*2)                 : last
     # UHD size is too big for good performance
      isUHD ? BilinearResize(nmod(w/2,2),nmod(h/2,2)) : last
 
-    ex_retinex(lvl=1,lo=lo,tv_range=!fs)  # some issues here on flat areas (quantization)
-    MSR=ex_median("IQM") # pre for full 'qprewitt'
+    ex_retinex(lvl=1,lo=lvl,tv_range=!fs)  # some issues here on flat areas (quantization)
+    MSR=ex_median("IQM")                  # pre for full 'qprewitt'
 
     # Prefilter (scale space)
     vsTCanny(sigmaY=sqrt(rd)/2.*sqrt(2),sigma_vY=sqrt(rd)/2.*sqrt(2),mode=-1,u=2,v=2)
 
     # Pseudo Ridge Filter
-    xx1=    ex_lut(Format("x[-1,-1] x[-1,0] x[-1,1] + + x[1,-1] - x[1,0] - x[1,1] -"))
-    xx1=xx1.ex_lut(Format("x[-1,-1] x[-1,0] x[-1,1] + + x[1,-1] - x[1,0] - x[1,1] -"))
-    yy1=    ex_lut(Format("x[-1,-1] x[1,-1] x[0,-1] + + x[-1,1] - x[1,1] - x[0,1] -"))
-    yy1=yy1.ex_lut(Format("x[-1,-1] x[1,-1] x[0,-1] + + x[-1,1] - x[1,1] - x[0,1] -"))
+    xx1=    ex_lut(Format("x[-1,-1] x[1,1]  -"))
+    xx1=xx1.ex_lut(Format("x[-1,-1] x[1,1]  -"))
+    yy1=    ex_lut(Format("x[-1,1]  x[1,-1] -"))
+    yy1=yy1.ex_lut(Format("x[-1,1]  x[1,-1] -"))
 
-    xx2=    ex_lut(Format("x[1,-1] x[1,0] x[1,1] + + x[-1,-1] - x[-1,0] - x[-1,1] -"))
-    xx2=xx2.ex_lut(Format("x[1,-1] x[1,0] x[1,1] + + x[-1,-1] - x[-1,0] - x[-1,1] -"))
-    yy2=    ex_lut(Format("x[-1,1] x[1,1] x[0,1] + + x[-1,-1] - x[1,-1] - x[0,-1] -"))
-    yy2=yy2.ex_lutxyza(xx1,yy1,xx2,\
-                   Format("x[-1,1] x[1,1] x[0,1] + + x[-1,-1] - x[1,-1] - x[0,-1] -
-                           0 max dup * y dup * z dup * a dup * + + + sqrt"))
-    # Pre for 'Close gaps'
-    ex_contrast(yy2,1,pivot=80,tv_range=false)
-    # Close gaps
-    ex_expand(1,   mode="disk")
-    ex_inpand(1,   mode="disk")
+    xx2=    ex_lut(Format("x[1,1]  x[-1,-1] -"))
+    xx2=xx2.ex_lut(Format("x[1,1]  x[-1,-1] -"))
+    yy2=    ex_lut(Format("x[1,-1] x[-1,1]  -"))
+    yy2=yy2.ex_lutxyza(xx1,yy1,xx2,            \
+                   Format("x[1,-1] x[-1,1] - 0 max dup * y dup * z dup * a dup * + + + sqrt {scl} * dup {lo} {scl} * > swap 0 ?"))
+
+    # Pre for 'Fill holes'
+    ex_contrast(scl>9?yy2.ex_median("median"):yy2,1,pivot=80,tv_range=false)
+    # Fill holes
+    ex_expand(1, mode="disk")
+    ex_inpand(1, mode="disk")
     # Expand
-    rd > 2                      ? \
-    ex_expand(rd-2,mode="disk") : last
+    rd > 2                             ? \
+    ex_expand(round(rd-2),mode="disk") : last
     # Merge with basic qprewitt for robustness and faint lines
     ex_lutxy(MSR,last,Format("x[-1,-1] A@ x[-1,0] x[-1,1] F@ + + x[1,-1] C@ - x[1,0] - x[1,1] H@ - dup *
-                              A C x[0,-1] + + F - H - x[0,1] - dup * + sqrt 10 - {rd} 3 / 1 + * y max" ))
-    # Final gap close
-    ex_luts(       mode="avg", pixels=ex_shape(ceil(rd/2.), mode="ring"), exprf="dup dup x > swap 128 > & swap 1.15 * x ?")
+                              A C x[0,-1] + + F - H - x[0,1] - dup * + sqrt {lo} 2.5 * - {rd} 3 / 1 + * y max" ))
+    # Close gaps
+    ex_luts(     mode="avg", pixels=ex_shape(ceil(rd/2.), mode="ring"), exprf="dup dup x > swap 128 > & swap 1.15 * x ?")
 
-    rd == 1 ? yy2                     : \
-    rd == 0 ? ex_edge(MSR,"qprewitt") : last
+    rd  = round(rd)
+    rd == 1 ? yy2                          : \
+    rd == 0 ? ex_edge(MSR,"qprewitt")      : last                                # maybe add back qprewitt on top for rd==1
 
-    !isHD  ? BicubicResize(w,h,-0.5,0.25) : ex_smooth(2,mode="SG", sharp=true) # Clean up result. No need when resizing down
-     isUHD ? BicubicResize(w,h,1/3.,1/3.) : last
+    !isHD   ? BicubicResize(w,h,-0.5,0.25) : ex_smooth(2, mode="SG", sharp=true) # Clean up result. No need when resizing down
+     isUHD  ? BicubicResize(w,h,1/3.,1/3.) : last
 
     msk8 = last
 
@@ -170,7 +172,7 @@ function FlatMask(clip a, int "rad", clip "filt", int "lo", bool "show") {
 
 #####################################################################
 ###                                                                 #
-### LumaMask() (11-12-2021)                                         #
+### LumaMask() (22-12-2021)                                         #
 ###                                                                 #
 ### Two point remap of luma plane range for using as mask.
 ### Basically a lerp (linear interpolation) between 'b' (black point)
@@ -186,7 +188,7 @@ function FlatMask(clip a, int "rad", clip "filt", int "lo", bool "show") {
 ###
 ##############################################################
 
-function LumaMask(clip a, int "b", int "w", bool "invert", int "UV") {
+function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
 
     rgb    = isRGB(a)
     isy    = isy(a)
@@ -195,8 +197,8 @@ function LumaMask(clip a, int "b", int "w", bool "invert", int "UV") {
              propGetInt      (a,"_ColorRange") == 0 : rgb
     lut    = bi == 32 ? 0 : 1
 
-    LO     = Default(b, 24)
-    HI     = Default(w, 48)
+    LO     = Default(lo, 24)
+    HI     = Default(hi, 48)
     inv    = Default(invert, false)
     UV     = Default(UV,  !isy ? 128 : 2)
 
