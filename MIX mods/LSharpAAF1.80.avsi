@@ -18,22 +18,25 @@
 # v1.59 updated in 2020-07-19 (Dogway) added Santiag
 # v1.60 updated in 2020-07-19 (Dogway) MT version for resizers
 # v1.70 updated in 2021-12-18 (Dogway) Revert MT version for resizers. Optimized edge mask. Sanitized
+# v1.80 updated in 2021-12-23 (Dogway) Replace SangNom with SangNom2, and nnedi2 with nnedi3. Some cosmetics and better U/V plane handling
 #
-# Requirements:
-#    ExTools
+# Requirements (Plugins):
 #    MaskTools2
 #    MVTools (for stabilize=true)
 #    RgTools
-#    LSFmod
-#    FastLineDarkenMOD
-#    SangNom
+#    SangNom2
 #    awarpsharp2
 #    EEDI2
 #    nnedi2
 #    nnedi3
 #    UnFilter
+# Requirements (Scripts):
+#    ExTools
+#    LSFmod
+#    FastLineDarkenMOD
+#    Santiag
 #
-# All AA Scripts are in this script, so there are no need to download them separately.
+# All AA Scripts are in this script, so there's no need to download them separately.
 #
 # This is an Anti-Aliasing Combo with some Extras like FastLineDarkenMOD, Presharpening, Postsharpening and Postsmoothing
 #
@@ -81,7 +84,7 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
 
-    isHD      = (w > 1099 ||  h > 599)
+    isHD      = (w > 1099 || h > 599)
 
     StrDrk    = Default(StrDrk,38)                   # FastLineDarkenMOD
     ShPre     = Default(ShPre,18)                    # Presharpening
@@ -94,9 +97,10 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
                                                      # 4 means a precision to quarter a pixel, produced by spatial interpolation (better but slower).)
     aablk     = Default(aablk, isHD ? 16 : 8 )       # Size of a block (horizontal). It's either 4, 8 or 16 ( Default is 8 ). Larger blocks are less sensitive to noise, are faster, but also less accurate.
     aaov      = Default(aaov, aablk / 2 )            # block overlap value (horizontal). Must be even and less than block size. (Higher = more precise & slower)
-    aatype    = Default(aatype,"EEDI2")              # Use EEDI2() or EEDI3() or Sangnom() or maa() or daa() or ediaa() or aaa() or saa()
+    aatype    = Default(aatype,"SantiagMod")         # Use EEDI2() or EEDI3() or Sangnom() or maa() or daa() or ediaa() or aaa() or saa()
                                                      # or faa() or splinaa() or supaa() or naa() or shaarp() or aaf() or nnedi() or nnedi2() or nnedi3() or antialiasing() for anti-aliasing.
     prot      = Default(prot, 4)                     # protection for fastlinedarkenmod
+    f         = false
 
 
     m = ex_edge(a,"sobel5",0,255,UV=2).ex_lut("x range_half / 0.86 ^ range_max *", fulls=false)
@@ -106,14 +110,14 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
                         (StrDrk==0) ? a.LSFmod(preset="slow",preblur="ON",strength=float(ShPre)) : \
                                       a.FastLineDarkenMOD(thinning=0, strength=StrDrk,prot=prot).LSFmod(preset="slow",preblur="ON",strength=float(ShPre))
 
-    ant=(aatype=="EEDI2")        ? preaa.TurnLeft().EEDI2().TurnRight().EEDI2().spline36resize(w,h,0.5,-0.5,2*w+.001,2*h+.001)
-    \ : (aatype=="EEDI3")        ? preaa.TurnLeft().EEDI3().TurnRight().EEDI3().spline36resize(w,h)
+    ant=(aatype=="EEDI2")        ? preaa.TurnLeft().EEDI2(       ).TurnRight().EEDI2(       ).Spline36Resize(w,h,0.5,-0.5,2*w+.001,2*h+.001)
+    \ : (aatype=="EEDI3")        ? preaa.TurnLeft().EEDI3(U=f,V=f).TurnRight().EEDI3(U=f,V=f).Spline36Resize(w,h)
     \ : (aatype=="EdiAA")        ? preaa.ediaa()
-    \ : (aatype=="nnedi")        ? preaa.NNEDI (dh=true,field=1).TurnRight().NNEDI(dh=true,field=1).TurnLeft().Spline36resize(w,h)
-    \ : (aatype=="nnedi2")       ? preaa.NNEDI2(dh=true,field=1,nsize=2,qual=2).TurnRight().NNEDI2(dh=true,field=1,nsize=2,qual=2).TurnLeft().Spline36resize(w,h,0.5,-0.5,2*w+.001,2*h+.001)
-    \ : (aatype=="nnedi3")       ? preaa.NNEDI3(dh=true,field=1,nsize=2,qual=2).TurnRight().NNEDI3(dh=true,field=1,nsize=2,qual=2).TurnLeft().Spline36resize(w, h)
+    \ : (aatype=="nnedi")        ? preaa.NNEDI (dh=true,field=1,               U=f,V=f).TurnRight().NNEDI (dh=true,field=1,               U=f,V=f).TurnLeft().Spline36Resize(w,h)
+    \ : (aatype=="nnedi2")       ? preaa.NNEDI2(dh=true,field=1,nsize=2,qual=3,U=f,V=f).TurnRight().NNEDI2(dh=true,field=1,nsize=2,qual=3,U=f,V=f).TurnLeft().Spline36Resize(w,h,0.5,-0.5,2*w+.001,2*h+.001)
+    \ : (aatype=="nnedi3")       ? preaa.NNEDI3(dh=true,field=1,nsize=2,qual=2,U=f,V=f).TurnRight().NNEDI3(dh=true,field=1,nsize=2,qual=2,U=f,V=f).TurnLeft().Spline36Resize(w, h)
     \ : (aatype=="NediAA")       ? preaa.NediAA()
-    \ : (aatype=="Sangnom")      ? preaa.spline64resize(w*2,h*2).TurnLeft().SangNom(aa=255).TurnRight().SangNom(aa=255).spline36resize(w,h)
+    \ : (aatype=="SangNom")      ? preaa.Spline64Resize(w*2,h*2).TurnLeft().SangNom2(aa=255,chroma=false).TurnRight().SangNom2(aa=255,chroma=false).Spline36Resize(w,h)
     \ : (aatype=="aaf")          ? preaa.aaf(aam=-0.7,rep=true)
     \ : (aatype=="aaa")          ? preaa.aaa()
     \ : (aatype=="daa")          ? preaa.daa()
@@ -128,7 +132,7 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
     \ : (aatype=="splinaa")      ? preaa.splinaa()
     \ : (aatype=="supaa")        ? preaa.supaa()
     \ : (aatype=="shaarp")       ? preaa.shaarp()
-    \ : (aatype=="Santiag")      ? preaa.Santiag(strh=2,strv=2)
+    \ : (aatype=="Santiag")      ? preaa.Santiag   (strh=2,strv=2)
     \ : (aatype=="SantiagMod")   ? preaa.SantiagMod(strh=2,strv=2)
     \ : (aatype=="antialiasing") ? preaa.antialiasing()
     \ : Assert(false, "Please use Sangnom, EEDI2, EEDI3, maa, daa, daa3, ediaa, aaa, ssa, splinaa, supaa, naa, laa, shaarp, aaf, nnedi, nnedi2, nnedi3, or antialiasing for aatype")
@@ -136,7 +140,7 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
     postsh   = (ShPost==0 && SmPost==0) ? ant : ant.LSFmod(edgemode=1,strength=float(ShPost),overshoot=1.0,soft=SmPost)
 
 
-    merged   = mt_merge(a,postsh,m,Y=3,U=3,V=3)
+    merged   = mt_merge(a,postsh,m,Y=3,U=2,V=2)
 
     if (!stabilize) {
 
@@ -173,7 +177,7 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
  #        #
  ##########
 #Simple Anti-aliasing by Soulhunter
-function saa(Clip Clp,Int"SS",Bool"CP") {
+function saa(clip Clp, int "SS", bool "CP") {
 
     OX  = Clp.Width()
     OY  = Clp.Height()
@@ -182,8 +186,8 @@ function saa(Clip Clp,Int"SS",Bool"CP") {
     SS = Default(SS,2)
     CP = Default(CP,True)
 
-    Clp.Pointresize(OX*SS,OY*SS).SangNom().TurnRight()
-    \ .SangNom().TurnLeft().BilinearResize(OX,OY)
+    Clp.PointResize(OX*SS,OY*SS).SangNom2(chroma=CP).TurnRight()
+    \ .SangNom2(chroma=CP).TurnLeft().BilinearResize(OX,OY)
 
     CP ? Last : MergeChroma(Clp) }
 
@@ -198,14 +202,16 @@ function saa(Clip Clp,Int"SS",Bool"CP") {
 # "th_luma" & "th_croma" are the edge detection thres.: lower values=more edges filtered
 # "type" is the matrix used for edge detection: with "sobel" (Default) only the
 #     hi-contrast edges, where artefacts are more noticeable, are filtered. If you want
-#     to test other matrices, read the MaskTools Guide for more info.
+#     to test other matrices, read the MaskTools2 Guide for more info.
 # "aath" = anti-aliasing strenght (Default should be fine)
-function AntiAliasing(clip orig,int "th_luma",int "th_croma",string "type",int "aath") {
+function AntiAliasing(clip orig, int "th_luma", int "th_croma", string "type", int "aath") {
 
     th_luma  = Default(th_luma,  20)
-    th_croma = Default(th_croma, 20)
+    th_croma = Default(th_croma, 20)  # 255 to disable chroma
     type     = Default(type, "mt_sobel")
     aath     = Default(aath, 48)
+    CP       = th_croma > 254
+    ch       = CP ? 3 : 2
 
     ox  = orig.width()
     oy  = orig.height()
@@ -214,10 +220,10 @@ function AntiAliasing(clip orig,int "th_luma",int "th_croma",string "type",int "
     clp = orig.is420() ? orig : orig.ConvertToYUV420()
 
     a = clp
-    b = clp.Lanczos4resize(dx,dy).TurnLeft().SangNom(aa=aath).TurnRight().SangNom(aa=aath).Lanczosresize(ox,oy)
-    c = clp.ex_edge(type,th_luma,th_luma)
+    b = clp.Lanczos4Resize(dx,dy).TurnLeft().SangNom2(aa=aath,chroma=CP).TurnRight().SangNom2(aa=aath,chroma=CP).LanczosResize(ox,oy)
+    c = clp.ex_edge(type,th_luma,th_luma,UV=ch)
 
-    mt_merge(a,b,c) }
+    mt_merge(a,b,c,u=ch,v=ch) }
 
 
  ##########
@@ -227,12 +233,12 @@ function AntiAliasing(clip orig,int "th_luma",int "th_croma",string "type",int "
  ##########
 # Written by MisterHatt, based off of Soulhunter's SAA() and martino's excellent MAA(), and is slightly
 # faster at times for some reason or another. These functions work by generally supersampling, usually with
-# nnedi2, and then running a deinterlacer (sangnom and nnedi2 respectively) to get rid of most jaggies.
+# nnedi2/3, and then running a deinterlacer (SangNom2 and nnedi2/3 respectively) to get rid of most jaggies.
 # I have no idea how destructive these are on whatever random thing people care to throw them at.
 # For large supersamples, avs2yuv bitches for no real reason and requires assumeframebased() in your script.
-# Requires nnedi2, sangnom, o9k hours of your life.
+# Requires nnedi2, SangNom2, o9k hours of your life.
 
-function splinaa(Clip Clp,int "x", int "y", int "SS", bool "CP") {
+function splinaa(clip Clp, int "x", int "y", int "SS", bool "CP") {
 
     OX  = Clp.Width()
     OY  = Clp.Height()
@@ -243,8 +249,8 @@ function splinaa(Clip Clp,int "x", int "y", int "SS", bool "CP") {
     SS = Default(SS,2)
     CP = Default(CP,True)
 
-    Clp.Pointresize(OX*ss,OY*ss).SangNom().TurnRight()
-    \  .SangNom().TurnLeft().Spline36resize(x,y,-0.5,-0.5)
+    Clp.PointResize(OX*ss,OY*ss).SangNom2(chroma=CP).TurnRight()
+    \  .SangNom2(chroma=CP).TurnLeft().Spline36Resize(x,y,-0.5,-0.5)
 
     CP ? Last : MergeChroma(Clp) }
 
@@ -254,7 +260,7 @@ function splinaa(Clip Clp,int "x", int "y", int "SS", bool "CP") {
  # supaa  #
  #        #
  ##########
-function supaa(Clip Clp, int "SS", bool "CP") {
+function supaa(clip Clp, int "SS", bool "CP") {
 
     OX  = Clp.Width()
     OY  = Clp.Height()
@@ -263,17 +269,18 @@ function supaa(Clip Clp, int "SS", bool "CP") {
     SS = Default(SS,2)
     CP = Default(CP,True)
 
-    Clp.nnedi2_rpow2(rfactor=SS,cshift="spline36resize",qual=3).SangNom().TurnRight()
-    \  .SangNom().TurnLeft().Spline36resize(OX,OY)
+    Clp.nnedi3_rpow2(rfactor=SS,cshift="Spline36Resize",qual=2).SangNom2(chroma=CP).TurnRight()
+    \  .SangNom2(chroma=CP).TurnLeft().Spline36Resize(OX,OY)
 
     CP ? Last : MergeChroma(Clp) }
+
 
  ##########
  #        #
  #  naa   #
  #        #
  ##########
-function naa(Clip Clp, int "SS", bool "CP") {
+function naa(clip Clp, int "SS", bool "CP") {
 
     OX  = Clp.Width()
     OY  = Clp.Height()
@@ -282,8 +289,8 @@ function naa(Clip Clp, int "SS", bool "CP") {
     SS = Default(SS,2)
     CP = Default(CP,True)
 
-    Clp.nnedi2_rpow2(rfactor=SS,cshift="spline36resize",qual=3).nnedi2(qual=3).TurnRight()
-    \  .nnedi2(qual=3).TurnLeft().Spline36resize(OX,OY)
+    Clp.nnedi3_rpow2(rfactor=SS,cshift="Spline36Resize",qual=2).nnedi3(qual=2,u=CP,v=CP).TurnRight()
+    \  .nnedi3(qual=2,u=CP,v=CP).TurnLeft().Spline36Resize(OX,OY)
 
     CP ? Last : MergeChroma(Clp) }
 
@@ -293,7 +300,7 @@ function naa(Clip Clp, int "SS", bool "CP") {
  # naa3mod  #
  #          #
  ############
-function naa3mod(Clip Clp, Bool "CP") {
+function naa3mod(clip Clp, bool "CP") {
 
     OX  = Clp.Width()
     OY  = Clp.Height()
@@ -302,12 +309,12 @@ function naa3mod(Clip Clp, Bool "CP") {
     CP = Default(CP,True)
 
     Clpnn1 = Clp.nnedi3(1, dh=true,nsize=2,qual=2,U=CP,V=CP).nnedi3(0,nsize=2,qual=2,U=CP,V=CP)
-    Clpy1  = Clpnn1.Spline36resize(OX,OY,0,-0.5,OX,OY*2)
-    Clps1  = CP ? Clpy1.MergeChroma(Clpnn1.Spline36resize(OX,OY,0,-1,OX,OY*2)) : Clpy1.MergeChroma(Clp)
+    Clpy1  = Clpnn1.Spline36Resize(OX,OY,0,-0.5,OX,OY*2)
+    Clps1  = CP ? Clpy1.MergeChroma(Clpnn1.Spline36Resize(OX,OY,0,-1,OX,OY*2)) : Clpy1.MergeChroma(Clp)
     Clpnn2 = Clps1.TurnRight().nnedi3(1, dh=true,nsize=2,qual=2,U=CP,V=CP).nnedi3(0,nsize=2,qual=2,U=CP,V=CP)
-    Clpy2  = Clpnn2.Spline36resize(OY,OX,0,-0.5,OY,OX*2)
+    Clpy2  = Clpnn2.Spline36Resize(OY,OX,0,-0.5,OY,OX*2)
 
-    CP ? Clpy2.MergeChroma(Clpnn2.Spline36resize(OY,OX,0,-1,OY,OX*2)).TurnLeft() : Clpy2.TurnLeft().MergeChroma(Clp) }
+    CP ? Clpy2.MergeChroma(Clpnn2.Spline36Resize(OY,OX,0,-1,OY,OX*2)).TurnLeft() : Clpy2.TurnLeft().MergeChroma(Clp) }
 
 
  ##########
@@ -325,9 +332,9 @@ function shaarp(clip input, int "mask", int "type") {
     Assert(mask == 1 || mask == 2, "Please use mask = 1 or 2")
     Assert(type == 1 || type == 2, "Please use type = 1 or 2")
 
-    aa_clip = (type == 1) ? input.spline36resize(sx*2,sy*2) : \
-                            input.nnedi2_rpow2(rfactor=2,qual=3)
-    aa_clip = aa_clip.TurnLeft().nnedi2().TurnRight().nnedi2().spline36resize(sx,sy).MergeChroma(input)
+    aa_clip = (type == 1) ? input.Spline36Resize(sx*2,sy*2) : \
+                            input.nnedi3_rpow2(rfactor=2,qual=2)
+    aa_clip = aa_clip.TurnLeft().nnedi3(u=false,v=false).TurnRight().nnedi3(u=false,v=false).Spline36Resize(sx,sy).MergeChroma(input)
 
     mask = (mask==1) ? input.mt_edge("sobel",7,7,5,5).mt_inflate() : \
                        input.mt_edge("roberts",0,4,0,4).mt_inflate()
@@ -340,7 +347,7 @@ function shaarp(clip input, int "mask", int "type") {
  #  aaf   #
  #        #
  ##########
-function aaf(clip input, float "aam", int "aay", "aax", bool "rep") {
+function aaf(clip input, float "aam", int "aay", int "aax", bool "rep") {
 
     sx    = width(input)
     sy    = height(input)
@@ -355,14 +362,14 @@ function aaf(clip input, float "aam", int "aay", "aax", bool "rep") {
     sxa = int(sx*abs(aar))*4
     sya = int(sy*abs(aar))*4
 
-    aa  =   aar < 0  ? input.Lanczosresize(sx,sya) :
-        \   aar==0.5 ? input.Pointresize(sx*2, sy*2) :
-        \              input.Lanczosresize(sxa,sya)
+    aa  =   aar < 0  ? input.LanczosResize(sx,sya) :
+        \   aar==0.5 ? input.PointResize(sx*2, sy*2) :
+        \              input.LanczosResize(sxa,sya)
 
-    aa  = aay>0 ? aa.SangNom(aa=aax) : input
-    aa  = aar<0 && aax>0 ? aa.Lanczosresize(sxa,sy) : aa
-    aa  = aax>0 ? aa.TurnRight().SangNom(aa=aax).Turnleft() : aa
-    aa  = aa.Lanczosresize(sx,sy)
+    aa  = aay>0 ? aa.SangNom2(aa=aax) : input
+    aa  = aar<0 && aax>0 ? aa.LanczosResize(sxa,sy) : aa
+    aa  = aax>0 ? aa.TurnRight().SangNom2(aa=aax).Turnleft() : aa
+    aa  = aa.LanczosResize(sx,sy)
 
     rep ? aa.repair(input,18) : aa }
 
@@ -379,7 +386,7 @@ function ediaa(clip a) {
     TurnRight()
     EEDI2(field=1)
     TurnLeft()
-    spline36resize(a.width(),a.height(),-0.5,-0.5) }
+    Spline36Resize(a.width(),a.height(),-0.5,-0.5) }
 
 
  ##########
@@ -419,7 +426,7 @@ function daa3(clip c) {
     fs  = propNumElements (c,"_ColorRange")  > 0 ? \
           propGetInt      (c,"_ColorRange") == 0 : rgb
 
-    dbl   = merge(c.nnedi3(field = 1, nns = 1),c.nnedi3(field = 0, nns = 1))
+    dbl   = Merge(c.nnedi3(field = 1, nns = 1),c.nnedi3(field = 0, nns = 1))
     dblD  = ex_makediff(c,dbl,UV=3,fulls=fs)
     shrpD = ex_makediff(dbl,dbl.removegrain(11),UV=3,fulls=fs)
     DD    = shrpD.repair(dblD,13)
@@ -443,9 +450,9 @@ function mrdaa(clip c, float "resharpen") {
 
     resharpen = Default(resharpen,1.0)
 
-    dbl   = c.nnedi3_rpow2(rfactor=2,cshift="spline36resize",fwidth=c.width(),fheight=c.height(),fapprox=7,pscrn=1,etype=1,nns=2,nsize=3,qual=1)
+    dbl   = c.nnedi3_rpow2(rfactor=2,cshift="Spline36Resize",fwidth=c.width(),fheight=c.height(),pscrn=1,etype=1,nns=2,nsize=3,qual=1)
     dblD  = ex_makediff(c,dbl,UV=3,fulls=fs)
-    shrpD = ex_makediff(dbl,dbl.blur(resharpen*0.2),UV=3,fulls=fs)
+    shrpD = ex_makediff(dbl,dbl.ex_blur(resharpen*0.2,UV=3),UV=3,fulls=fs)
     DD    = shrpD.repair(dblD,13)
 
     dbl.ex_adddiff(DD,UV=3,fulls=fs) }
@@ -459,7 +466,10 @@ function mrdaa(clip c, float "resharpen") {
 #Anti-aliasing with edge masking by martino, mask using "sobel" taken from Kintaro's useless filterscripts and modded by thetoof for spline36
 function maa(clip input, int "mask") {
 
-    aa_clip = input.spline36resize(width(input)*2,height(input)*2).TurnLeft().SangNom().TurnRight().SangNom().spline36resize(width(input),height(input)).MergeChroma(input)
+    w   = width(input)
+    h   = height(input)
+
+    aa_clip = input.Spline36Resize(w*2,h*2).TurnLeft().SangNom2(chroma=false).TurnRight().SangNom2(chroma=false).Spline36Resize(w,h)
     mask    = input.mt_edge("sobel",7,7,5,5).mt_inflate()
 
     mt_merge(input, aa_clip, mask) }
@@ -472,8 +482,8 @@ function maa(clip input, int "mask") {
  ##########
 #FASTER ANTI ALIASING FILTER
 #REQUIRED:
-#    SangNom
-#    masktools2
+#    SangNom2
+#    MaskTools2
 
 function FAA(clip input,int "str") {
 
@@ -483,7 +493,7 @@ function FAA(clip input,int "str") {
 
     str = Default(str, 50)
 
-    aa  = vid.pointresize(w*2,h).TurnLeft().SangNom(AA=str).TurnRight().lanczosresize(w,h)
+    aa  = vid.PointResize(w*2,h).TurnLeft().SangNom2(aa=str,chroma=false).TurnRight().LanczosResize(w,h)
     msk = vid.mt_edge().mt_inflate()
 
     mt_merge(vid , aa , msk ) }
@@ -501,7 +511,7 @@ function RAA (clip input) {
     w=input.width()
     h=input.height()
 
-    input.spline64resize(w*2,h*2).eedi3(vcheck=3).spline64resize(w,h) }
+    input.Spline64Resize(w*2,h*2).EEDI3(vcheck=3).Spline64Resize(w,h) }
 
 
  ##########
@@ -510,13 +520,8 @@ function RAA (clip input) {
  #        #
  ##########
 ### LaTo Antialiasing Script v2
-### Need: asharp.dll & sangnom.dll
+### Need: asharp, SangNom2 and ResizersPack
 function LAA(clip input, int "strength", int "threshold", bool "sharp", float "ss") {
-
-    ox  = input.width()
-    oy  = input.height()
-    ox2 = nmod(ox*ss,8)
-    oy2 = nmod(oy*ss,8)
 
     strength  = Default(strength, 96)
     threshold = Default(threshold, 10)
@@ -525,8 +530,13 @@ function LAA(clip input, int "strength", int "threshold", bool "sharp", float "s
     aastr     = int(strength) /2
     asthr     = float(strength) /100
 
-    process = input.spline36resize(ox2,oy2).TurnLeft().sangnom(aastr).TurnRight().sangnom(aastr)
-    process = sharp ? process.asharp(asthr,0,0).spline36resize(ox,oy) : process.spline36resize(ox,oy)
+    ox  = input.width()
+    oy  = input.height()
+    ox2 = nmod(ox*ss,8)
+    oy2 = nmod(oy*ss,8)
+
+    process = input.Spline36Resize(ox2,oy2).TurnLeft().SangNom2(aa=aastr,chroma=false).TurnRight().SangNom2(aa=aastr,chroma=false)
+    process = sharp ? process.asharp(asthr,0,0).Spline36Resize(ox,oy) : process.Spline36Resize(ox,oy)
     mask    = Merge(input,process).mt_edge(thy1=threshold,thy2=threshold,u=1,v=1)
 
     mt_merge(input,process,mask,u=2,v=2) }
@@ -540,7 +550,7 @@ function LAA(clip input, int "strength", int "threshold", bool "sharp", float "s
 function NediAA(clip c) {
 
     c.nnedi3(field=-2)
-    merge(selecteven(),selectodd()) }
+    Merge(selecteven(),selectodd()) }
 
 
  ############
@@ -550,7 +560,7 @@ function NediAA(clip c) {
  ############
 
 #Antialiasing function by Archimedes,
-function SantiagMod(clip input, string "type", int "strh", int "strv") {
+function SantiagMod(clip input, int "strh", int "strv", string "type") {
 
     type = Default(type, "NNEDI3")
     strh = Default(strh, 1)
@@ -620,18 +630,19 @@ function AAA(clip clp, int "Xres", int "Yres", int "Xshrp", int "Yshrp", int "US
         Yshrp  = Default(Yshrp, 0)
         chroma = Default(chroma, false)
 
-        us==0 ? clp.Pointresize  (ox*2,oy*2) : \
-                clp.Lanczosresize(ox*2,oy*2)
+        us==0 ? clp.PointResize  (ox*2,oy*2) : \
+                clp.LanczosResize(ox*2,oy*2)
 
         TurnLeft()
-        SangNom()
+        SangNom2(chroma=chroma)
 
         TurnRight()
-        SangNom()
+        SangNom2(chroma=chroma)
 
-          ds==0 ? Bilinearresize(Xres,Yres):
-        \ ds==1 ? Bicubicresize (Xres,Yres) :
-        \         Lanczosresize (Xres,Yres)
+          ds==0 ? BilinearResize(Xres,Yres):
+        \ ds==1 ? BicubicResize (Xres,Yres) :
+        \         LanczosResize (Xres,Yres)
 
         Xshrp != 0 ? Unfilter(Xshrp,Yshrp) : last
+
         chroma ? MergeChroma(clp.Lanczosresize(Xres,Yres)) : last }
