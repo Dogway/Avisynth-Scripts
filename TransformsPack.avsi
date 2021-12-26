@@ -55,19 +55,19 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     src   = Color_Fuzzy_search (source)
     tgt   = Color_Fuzzy_search (disp_ref)
-    s_gam = moncurve_coef (src[2]) # Primaries derived gamma
-    t_gam = moncurve_coef (tgt[2])
-    gamut = gamut && src[2] != tgt[2]
+    s_gam = moncurve_coef (src[0]) # Primaries derived gamma
+    t_gam = moncurve_coef (tgt[0])
+    gamut = gamut && src[0] != tgt[0]
 
-    rgb ? ConvertToPlanarRGB(src[2])                                            : \
-          YUV_to_RGB(src[2], tv_range_in=tv, kernel=kernel, b=b, c=c, p=p)
+    rgb ? ConvertToPlanarRGB(src[0])                                       : \
+          YUV_to_RGB(src[0], tv_range_in=tv, kernel=kernel, b=b, c=c, p=p)
 
     moncurve_f(s_gam[0], s_gam[1],tv,false)
 
     if (gamut) {
-    mata = RGB_to_XYZ  (src[2],         list=true)
-    matw = c_adaptation(src[2], tgt[2], list=true)
-    matb = XYZ_to_RGB  (tgt[2],         list=true)
+    mata = RGB_to_XYZ  (src[0],         list=true)
+    matw = c_adaptation(src[0], tgt[0], list=true)
+    matb = XYZ_to_RGB  (tgt[0],         list=true)
     MatrixClip( MatrixDot(MatrixDot(mata, matw), matb) ) }
 
     Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1],false,false) : \
