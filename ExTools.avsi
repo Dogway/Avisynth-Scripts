@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.0   (25-12-2021)                ##
+###           ExTools v7.0   (26-12-2021)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -1094,19 +1094,19 @@ function binom_coeffs(n, k) {
 # Variable Gaussian Blur
 #
 # Benchmark (binomial fitted):
-# 100% removegrain(12,-1) (486fps)              # technically a binomial weighted mean of [1 2 1]
-#  97% GBlur2(sqrt(1)/2.*sqrt(2),chroma=2)      #         only in 8-bit. weighted mean of [1 2 1]
-#  90% ex_boxblur(1,mode="weighted",UV=1)       # binomial weighted mean
-#  88% ablur(1, 1, chroma=1)                    # against ex_boxblur(2,mode="weighted",UV=1)
-#  85% BinomialBlur(sqrt(1)/2.*sqrt(2),U=1,V=1) # only in 8-bit
-#  81% vsTCanny(sqrt(1)/2.*sqrt(2),sigma_vY=sqrt(1)/2.*sqrt(2),mode=-1,u=1,v=1) # true gaussian (fastest for mid sigma, not apt for combing -not exact binomial fit of rad=1-)
-#  70% ex_blur(1,mode="binomial,UV=1)           # true gaussian blur
-#  68% blur(1.00)                               # weighted mean of [1 2 1]
+# 100% removegrain(12,-1) (486fps)                  # technically a binomial weighted mean of [1 2 1]
+#  97% GBlur2(sqrt(1)/2.*sqrt(2),chroma=2)          #         only in 8-bit. weighted mean of [1 2 1]
+#  90% ex_boxblur(1,mode="weighted",UV=1)           # binomial weighted mean
+#  88% ablur(1, 1, chroma=1)                        # against ex_boxblur(2,mode="weighted",UV=1)
+#  85% BinomialBlur(sqrt(1)/2.*sqrt(2),U=1,V=1)     # only in 8-bit
+#  81% vsTCanny(sqrt(1)/2.*sqrt(2),mode=-1,u=1,v=1) # true gaussian (fastest for mid sigma, not apt for combing -not exact binomial fit of rad=1-)
+#  70% ex_blur(1,mode="binomial,UV=1)               # true gaussian blur
+#  68% blur(1.00)                                   # weighted mean of [1 2 1]
 #  65% generalconvolution(matrix="1 2 1 2 4 2 1 2 1",chroma=false)
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
 #  23% GBlur(rad=1,sd=0.9,u=false,v=false)
 #  11% FastBlur(sqrt(1)/2.*sqrt(2),gamma=false)
-#  11% GaussianBlur(1/2.,U=1,V=1)               # only in 8-bit
+#  11% GaussianBlur(1/2.,U=1,V=1)                   # only in 8-bit
 #
 # ex_blur() is the reference blur function, with correct gaussian coefficients and chroma subsampling adapted sigma.
 # Also includes a gamma aware option for more correct defocus on non-scalar clips (requires TransformsPack).
@@ -1491,7 +1491,7 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limi
 # Benchmark (max blur):
 # 100% ex_gaussianblur(156,UV=2)  (302fps)
 #  37% ex_kawase(9,"trib" ,UV=2)  (111fps)
-# 1.3% vsTCanny(sigmaY=156, sigma_vY=156, mode=-1,u=2,v=2)
+# 1.3% vsTCanny(sigmaY=156, mode=-1,u=2,v=2)
 #
 # modes:
 # lin  - linear     multipass: 1,2,3,4,5...
@@ -1553,7 +1553,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ##
 ##
 ## 100% ex_gaussianblur(6,UV=2)  (396fps)      (gaussian approximation, fastest for large sigma)
-##  47% vsTCanny(6,sigma_vY=6,mode=-1,u=1,v=1) (true gaussian, fastest for mid sigma)
+##  47% vsTCanny(6,mode=-1,u=1,v=1)            (true gaussian, fastest for mid sigma)
 ##  21% ex_blur(6,mode="gaussian",UV=1)        (true gaussian, best for low sigma)
 
 function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool "mblur", int "Y", int "UV") {
@@ -1610,7 +1610,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
 
         rdu = a.is422() || a.is420() ? rd/2. : a.isYV411() ? rd/4. : rd
         rdv = a.is420()              ? rv/2. :                       rv
-        np  ? a : vsTCanny(a,rd,rdu,rdu,rv,rdv,rdv,mode=-1,y=y,u=uv,v=uv)
+        np  ? a : vsTCanny(a,rd,rdu,mode=-1,y=y,u=uv,v=uv)
 
     } else if (rd < 2.00 && rv < 2.00 && mb) {
 
@@ -6609,8 +6609,6 @@ function ex_UVf(bool rgb, int bits) {
 
 # Pixel Value Converter (unsigned)
 # Convert values from one bitdepth to another or/and from one scale to another or/and from one (luma) range to another
-
-# add limiter to range_size (aka range_max + 1)
 function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", bool "tv_in", bool "tv_out", bool "float") {
 
     ibi = Default(ibits,    8)
@@ -6641,10 +6639,11 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
 
     out = ob32 ? ib32 ? var : vof : ib32 ? vif : v+fsc
 
+    out = min(out,           Eval(ex_dlut(       "range_size",                                    obi, fd)))
     tv  = tvi != tvo ? tvi ? Eval(ex_dlut(Format("(({out} - ymin) / (ymax - ymin)) * range_max"), obi, fd)) : \
                              Eval(ex_dlut(Format("( {out} * (ymax - ymin)) / range_max + ymin "), obi, fd)) : out
     tv  = tvi != tvo ?       Eval(ex_dlut(Format("min(range_max,max(0,{tv}))"),                   obi, fd)) : out
-    tv  = min(tv,            Eval(ex_dlut(       "range_size",                                    obi, fs)))
+    tv  = min(tv,            Eval(ex_dlut(       "range_size",                                    obi, fd)))
 
     ob32 || fl ? tv : round(tv) }
 
