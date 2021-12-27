@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v2.0  (20-12-2021)                     ###
+###        Similarity Metrics Pack v2.1  (27-12-2021)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -100,9 +100,9 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     w2 = clip2.Width ()
     h2 = clip2.Height()
 
-    Assert(PixelType(clip1) == PixelType(clip2),              "GMSD: clip1 and clip2 must be of the same format.")
-    Assert(w1 == w2 && h1 == h2,                              "GMSD: clip1 and clip2 must be of the same width and height.")
-    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "GMSD: only one plane must be processed.")
+    Assert(PixelType(clip1) == PixelType(clip2),              "GMSD: clip1 and clip2 must be of the same format")
+    Assert(w1 == w2 && h1 == h2,                              "GMSD: clip1 and clip2 must be of the same width and height")
+    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "GMSD: only one plane must be processed")
 
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
@@ -201,10 +201,11 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
           propGetInt      (dist,"_ColorRange") == 0 : rgb
 
     down_scale = Default(down_scale, 1)
+    down_scale = Float  (down_scale)
     alpha      = Default(alpha,    0.6)
     show_map   = Default(show_map, false)
-    show       = Default(show,          0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
-    fs         = Default(fulls,        fs)
+    show       = Default(show,         0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
+    fs         = Default(fulls,       fs)
 
     clip1 = dist
     clip2 = ref
@@ -214,8 +215,8 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
     w2 = clip2.Width ()
     h2 = clip2.Height()
 
-    Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)) , "MDSI: clip1 and clip2 must be in the same format and must be in planar RGB format.")
-    Assert(w1 == w2 && h1 == h2,                                                                 "MDSI: clip1 and clip2 must be of the same width and height.")
+    Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)) , "MDSI: clip1 and clip2 must be in the same format and must be in planar RGB format")
+    Assert(w1 == w2 && h1 == h2,                                                                 "MDSI: clip1 and clip2 must be of the same width and height")
 
     c1 = 140 / pow(255, 2)
     c2 = 55  / pow(255, 2)
@@ -223,11 +224,11 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
 
 
     down1 = down_scale > 1 ?
-    \ Bilinearresize(clip1, Int(RoundHalfToEven(Float(w1) / down_scale)), Int(RoundHalfToEven(Float(h1) / down_scale))) :
+    \ Bilinearresize(clip1, RoundHalfToEven(w1 / down_scale), RoundHalfToEven(h1 / down_scale)) :
     \ clip1
 
     down2 = down_scale > 1 ?
-    \ Bilinearresize(clip2, Int(RoundHalfToEven(Float(w2) / down_scale)), Int(RoundHalfToEven(Float(h2) / down_scale))) :
+    \ Bilinearresize(clip2, RoundHalfToEven(w2 / down_scale), RoundHalfToEven(h2 / down_scale)) :
     \ clip2
 
     down1 = ExtractClip(down1.ConvertBits(bi, fulls=fs, fulld=true)) # saturating range for correct calculations
@@ -369,9 +370,9 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     w2 = clip2.Width ()
     h2 = clip2.Height()
 
-    Assert(PixelType(clip1) == PixelType(clip2),              "SSIM: clip1 and clip2 must be of the same format.")
-    Assert(w1 == w2 && h1 == h2,                              "SSIM: clip1 and clip2 must be of the same width and height.")
-    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "SSIM: only one plane must be processed.")
+    Assert(PixelType(clip1) == PixelType(clip2),              "SSIM: clip1 and clip2 must be of the same format")
+    Assert(w1 == w2 && h1 == h2,                              "SSIM: clip1 and clip2 must be of the same width and height")
+    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "SSIM: only one plane must be processed")
 
     c1 = Pow(k1 * DR, 2.0)
     c2 = Pow(k2 * DR, 2.0)
@@ -390,13 +391,13 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
         clip2 = clip2.ConvertBits(32, fulls=fs, fulld=true)
     }
 
-    mu1     = vsTCanny(clip1, sigmay=stddev, sigma_vY=stddev, mode=-1) # gaussian blur
-    mu2     = vsTCanny(clip2, sigmay=stddev, sigma_vY=stddev, mode=-1)
+    mu1     = vsTCanny(clip1, sigmay=stddev, mode=-1) # gaussian blur
+    mu2     = vsTCanny(clip2, sigmay=stddev, mode=-1)
     mu1_sq  = ex_lut(mu1,      "x dup *")
     mu2_sq  = ex_lut(mu2,      "x dup *")
-    sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut(clip1,        "x dup *"), sigmay=stddev, sigma_vY=stddev, mode=-1)
-    sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut(clip2,        "x dup *"), sigmay=stddev, sigma_vY=stddev, mode=-1)
-    sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x y *"), sigmay=stddev, sigma_vY=stddev, mode=-1)
+    sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut(clip1,        "x dup *"), sigmay=stddev, mode=-1)
+    sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut(clip2,        "x dup *"), sigmay=stddev, mode=-1)
+    sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x y *"), sigmay=stddev, mode=-1)
 
     ssim_map = c1 > 0.0 && c2 > 0.0 ?
     \ Expr(sigmay12_pls_mu1_mu2, mu1_sq, mu2_sq, sigmay1_sq_pls_mu1_sq, sigmay2_sq_pls_mu2_sq, mu1, mu2, Format("c d * X@ 2 * {c1} + x X - 2 * {c2} + * y z + {c1} + a y - b z - + {c2} + * /")) :
@@ -556,15 +557,15 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
 
     if (IsFloat(smooth))
     {
-        m = vsTCanny(l, sigmaY=smooth, sigma_vY=smooth, mode=-1) # Gaussian blur
-        n = vsTCanny(sqr, sigmaY=smooth, sigma_vY=smooth, mode=-1)
-        o = vsTCanny(Eval(kernel + """(ex_lut("x dup *", UV=3, scale_inputs="none"),""" + sw + "," +  sh + resample_args + ")"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
+        m = vsTCanny(l,   sigmaY=smooth, mode=-1) # Gaussian blur
+        n = vsTCanny(sqr, sigmaY=smooth, mode=-1)
+        o = vsTCanny(Eval(kernel + """(ex_lut("x dup *", UV=3, scale_inputs="none"),""" + sw + "," +  sh + resample_args + ")"), sigmaY=smooth, mode=-1)
 
         r = ex_lutxyz(n, o, ex_lut(m, "x dup *", UV=3, scale_inputs="none"), Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"), UV=3, scale_inputs="none")
 
-        m = vsTCanny(m, sigmaY=smooth, sigma_vY=smooth, mode=-1)
-        n = vsTCanny(r, sigmaY=smooth, sigma_vY=smooth, mode=-1)
-        o = vsTCanny(ex_lutxy(r, m, "x y *", UV=3, scale_inputs="none"), sigmaY=smooth, sigma_vY=smooth, mode=-1)
+        m = vsTCanny(m, sigmaY=smooth, mode=-1)
+        n = vsTCanny(r, sigmaY=smooth, mode=-1)
+        o = vsTCanny(ex_lutxy(r, m, "x y *", UV=3, scale_inputs="none"), sigmaY=smooth, mode=-1)
 
         ex_lutxyza(m, n, l, o, "x y z * + a -", UV=3, scale_inputs="none")
     }
@@ -612,7 +613,7 @@ The “clip” is down-sampled by a factor of 2 with a 'Box' kernel, akin to process
 
 function _IQA_downsample(clip c, bool "fulls", bool "fulld")
 {
-    return fmtc_resample(c,Int(RoundHalfToEven(Width(c) / 2.0)), Int(RoundHalfToEven(Height(c) / 2.0)), kernel="box", sx=-1, sy=-1, fulls=fulls, fulld=fulld)
+    return fmtc_resample(c, RoundHalfToEven(Width(c) / 2.0), RoundHalfToEven(Height(c) / 2.0), kernel="box", sx=-1, sy=-1, fulls=fulls, fulld=fulld)
 }
 
 
