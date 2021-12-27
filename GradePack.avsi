@@ -1,9 +1,8 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v3.0 (12-12-2021)               ##
+###           Grade Pack v4.0 (27-12-2021)               ##
 ###                                                      ##
-###    https://forum.doom9.org/showthread.php?t=182799   ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
@@ -15,103 +14,67 @@
 ###
 ####################################
 ###
-### ex_vibrance() v2.0 (12-05-2021)
+### ex_vibrance() v3.0 (27-05-2021)
 ###
-### 20-11-2011
-### by Motenai Yoda:  (https://forum.doom9.org/showthread.php?t=162882)
-### and Gavino's help
+### Inspired by Motenai Yoda's script (20-11-2011): (https://forum.doom9.org/showthread.php?t=162882)
 ###
-### Saturation Mask
 ### This function allows to recreate the effect on some programs called "Vibrance".
-### That is to enhance saturation where it is low.
-### There is another mode called "Dullness" which does the opposite, lowers saturation where is high.
-### Finally a "Recover" mode, to enhance saturation where is lost (after filtering) when a Rc clip is given for reference.
+### That is to enhance saturation where is low.
+### There is another mode called "Dullness" which does the opposite, lower saturation where is high.
+### Finally a "Recover" mode, to enhance saturation where is lost (ie. after filtering) when a 'Rc' clip is given for reference.
 ###
 ### Use 'bias' to weight the internal mask and 'show' for visual feedback.
-### You can use a (de)saturated clip as input for the "Sat" parameter as its replacement, or use a float number for around a 3x speed gain.
-### The downside for using a number instead is less control compared to your preferred 'saturator'
-### Input must be at least mod 4. Working values are assumed to be above 1.0. Values < 1.0 can create some artifacts.
 ###
-### Use like this (recommended):
 ###
-### sat=Tweak(1.5)
-### ex_vibrance(sat)   # Mandatory to write parameter "sat=" when using a clip
+### Examples:
+###     ex_vibrance(1.5)                       # Increase vibrance
 ###
-### or like this (more speed):
+###     ex_vibrance(0.5)                       # Lower saturation where is low
 ###
-### ex_vibrance(1.5)
+###     ex_vibrance(2.0, mode="Dullness")      # Lower saturation where is high
+###
+###     ex_vibrance(1.0, mode="Recover", Rc=b) # Recover saturation from clip 'b'
 ###
 ###########################
-### TODO
-### Dullness not correctly ported over
-### "Recover" in fast mode not yet implemented
 
-function ex_vibrance (clip c, val Sat, float "bias", string "mode", clip "Rc", bool "show") {
+function ex_vibrance (clip a, float "sat", float "bias", string "mode", clip "Rc", bool "tv_range", bool "show") {
 
-    bias  = Default(bias, 5)
-    mode  = Default(mode,  "Vibrance")
-    show  = Default(show, false)
+    fs    = propNumElements (a,"_ColorRange")  > 0 ? \
+            propGetInt      (a,"_ColorRange") == 0 : false
 
-    VibMod = mode=="Vibrance"
-    DulMod = mode=="Dullness"
-    RecMod = mode=="Recover"
-    Recclp = Defined(Rc)
-    SatC   = isclip(Sat)
-    fON    = !SatC ? (Sat!=1.0) : false
-    SatB   =  SatC || fON
-    SatB   ? Assert   (SatC || isfloat(Sat),      "ex_vibrance: 'Sat' only accepts float, integers or clip inputs")                                       : nop()
-    RecMod ? Assert   (Recclp,                    "ex_vibrance: 'Recover Mode' requires a clip defined in the 'Rc' parameter to recover saturation from") : nop()
-    fmode  = SatB  ? fON : false
-             Assert   (IsVersionOrGreater(3,7,1), "ex_vibrance: Update AviSynth+ version")
+    sat   = Default(Sat,  1)          # From 0 to inf. Default 1 (no-op)
+    bias  = Default(bias, 5)          # Adjust saturation mask
+    md    = Default(mode, "Vibrance")
+    tv    = Default(tv_range, !fs)
+    sh    = Default(show, false)
 
-    c
-    w      = Width()
-    h      = Height()
-    padX   = w%4 == 0 ? 0 : (4 - w%4)
-    padY   = h%4 == 0 ? 0 : (4 - h%4)
-    clp    = PointResize(w+padX, h+padY, 0, 0, w+padX, h+padY)
+                    Assert(IsVersionOrGreater(3,7,1), "ex_vibrance: Update AviSynth+ version")
+                    Assert(!isRGB(a),                 "ex_vibrance: RGB format not supported")
+    md=="Recover" ? Assert(Defined(Rc),               "ex_vibrance: 'Recover Mode' requires a clip defined in the 'Rc' parameter to recover saturation from") : nop()
 
-    Recclp         ? Eval("""
-    Rc
-    wRc    = width()
-    hRc    = height()
-    padXRc = wRc%4 == 0 ? 0 : (4 - wRc%4)
-    padYRc = hRc%4 == 0 ? 0 : (4 - hRc%4)
-    Rc     = PointResize(wRc+padXRc, hRc+padYRc, 0, 0, wRc+padXRc, hRc+padYRc)
+    rangePCc = tv ? "range_max cmax cmin - / *"              : ""
+    rangeTVc = tv ? "cmax cmin - range_max / * range_half +" : "range_half +"
 
 
-    a      =  RecMod                    ? Expr(ExtractV(Rc),ExtractU(Rc), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_max x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {bias} * ?"))  : nop()"""  ) : nop()
+    msk  = Format("range_half x range_half - XC@ dup * y range_half - dup * + sqrt - range_half / {bias} ^ M^ ")
+
+    mode = md == "Vibrance" ? Format(msk+" XC "+rangePCc+" dup dup   {sat}   * swap -   M   * + "+rangeTVc) : \
+           md == "Dullness" ? Format(msk+" XC "+rangePCc+" dup dup 1 {sat} / * swap - 1 M - * + "+rangeTVc) : \
+           md == "Recover"  ?            " XC "+rangePCc+"                                  *   "+rangeTVc  : \
+          Assert (false, "ex_vibrance: Unsupported mode")
 
 
-    clp
+    if (md == "Recover" && !sh) {
 
-    !fmode || show ? Eval("""
-    b      =  DulMod || RecMod          ? Expr(ExtractV(),  ExtractU(), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_max x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {bias} * ?"))    : nop()
+        msk1 = "x range_half - XC@ dup * y range_half - dup * + sqrt "
+        msk2 = "z range_half -     dup * a range_half - dup * + sqrt "
+        ex_lutxyza(a, a.SwapUV(), Rc, Rc.SwapUV(), "", msk2+msk1+" / 0 max "+mode)
 
+    } else {
 
-    msk    = (VibMod)                   ? Expr(ExtractV(),  ExtractU(), Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > range_min range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ range_max * ? ")) : \
-             (DulMod)                   ? b                                                          : \
-             (RecMod)                   ? Expr(a,b,"x y - abs 2 *")                                  : \
-              Assert(false, "ex_vibrance: Wrong Saturation Mode.")
-    msk    =  BicubicResize(w+padX, h+padY,0.0,0.75).crop(0,0,-padX,-padY,true).MatchClip(c)""")   : nop()
-
-
-    show ?  msk          :  \
-    (SatB                ?  \
-    ((VibMod)            ?  \
-           (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > x "+
-                                                \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
-                                          Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /",optSingleMode=true))              : \
-     (DulMod)            ?  \
-           (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^  range_half > x "+
-                                                \+" x range_half - x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ {sat} 1 - * {bias} / 1 + / range_half + ?"))                           : \
-                                          Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /",optSingleMode=true))              : \
-     (RecMod)            ?  \
-           (fmode ? Expr(last, SwapUV(),"x",Format("x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ range_half > x "+
-                                                \+" x range_half - range_half x range_half - 2 ^ y range_half - 2 ^ +  .5 ^ - range_half / {bias} ^ {sat} 1 - * 1 + * range_half + ?")) : \
-                                          Expr(c,Sat,msk,"y","x range_max z - * y z * + range_max /",optSingleMode=true)) : nop())     : c)
-
-    !show     &&   fmode ? crop(0,0,-padX,-padY,true) : last }
+        sat == 1 ? a                                                       :      \
+        ex_lutxy  (a, a.SwapUV(), "", sh ? msk+" M 1 swap - range_max *"   : mode )
+        sh       ? ExtractU().BicubicResize(a.width(), a.Height(), 0, 0.5) : last } }
 
 
 
@@ -150,7 +113,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     pivot = Default(pivot,    !tv ? 127.5 : 125.5) # Pivot: 64 to 192 (roughly)
     si    = bi == 32 || tv ? "none" : "intf"
 
-    pivot = ex_bs(pivot, 8, 32, tv_in=tv && pivot==125.5, tv_out=tv) # Pivot to float TV levels
+    pivot = ex_bs(pivot, 8, 32, tv_in=tv || tv && 125.4 < pivot <= 126, tv_out=false) # Pivot to float PC levels
 
     Assert(IsVersionOrGreater(3,7,1), "ex_contrast: Update AviSynth+ version")
 
@@ -259,6 +222,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
+###                 TransformsPack (for 'darker'/'lighter')
 ###
 ### Example: ex_blend(a, mode="multiply", opacity=1.0, tv_range=true, UV=2)
 ###
@@ -576,7 +540,6 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 
     rgb ? rgbp ? last : MatchClip(c) : \
     RGB_to_YUV( matrix[0], tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c), cplace="", fulls=true) }
-
 
 
 
