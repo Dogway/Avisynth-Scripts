@@ -168,14 +168,15 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###
 function PadBorders(clip src, int "left", int "top", int "right", int "bottom", string "mode") {
 
-    w   = width(src)
-    h   = height(src)
-    rgb = isRGB(src)
-    isy = isy(src)
-    fch = isy || rgb || src.is444()
+    src
+    w   = width()
+    h   = height()
+    rgb = isRGB()
+    isy = isy()
+    fch = isy || rgb || is444()
     mod = fch ? 1 : 2
-    fs  = propNumElements (src,"_ColorRange")  > 0 ? \
-          propGetInt      (src,"_ColorRange") == 0 : rgb
+    fs  = propNumElements ("_ColorRange")  > 0 ? \
+          propGetInt      ("_ColorRange") == 0 : rgb
 
     l  = Default( left,   0 )
     t  = Default( top,    0 )
@@ -190,8 +191,6 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     t  = nmod(abs(t),mod)
     r  = nmod(abs(r),mod)
     b  = nmod(abs(b),mod)
-
-    src
 
     if (md=="mirror") {
 
@@ -237,7 +236,7 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 # "mod-m32" is used so that the zw1 mask can be resized to the size of the u and v planes.
 #
 # mod:     Rounding to defined 'mod' value
-# min:     Rounding never goes below the 'min' value
+# min:     Rounding never goes below the 'min' value. Usually you want to set this to mod*2
 # dec:     Rounding to defined decimal number. Also works for mod > 1 (rounding is done prior to mod)
 # bankers: By default 2.5 rounds to 3. With 'bankers' half float values round towards 0, so 2 in this case
 #

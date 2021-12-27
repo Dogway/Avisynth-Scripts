@@ -169,7 +169,7 @@
 ### | DEPENDENCIES |
 ### +--------------+
 ###
-### -> ExTools        (v6.9 or up)
+### -> ExTools        (v7.0 or up)
 ### -> ResizersPack   (v7.1 or up)
 ### -> SharpenersPack (v2.8 or up)     [for Smode=1, Smode=2 and Smode=6]
 ### -> if you use AviSynth+ then make sure it's the latest one
@@ -556,41 +556,41 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     Assert(IsVersionOrGreater(3,7,1), "LSFmod: Update AviSynth+ version")
     Assert(num != 4,      chr(10) + """LSFmod: Preset must be "old", "slow", "mid" or "fast" !""" + chr(10))
 
-    #                                                                           OLD                  SLOW                 MEDIUM                  FAST
-    strength    = Default( strength,    Select(num,                              100.,                100.,                100.,                100.) )
-    Smode       = Default( Smode,       Select(num,                                3 ,                  5 ,                  4 ,                  3 ) )
-    Smethod     = Default( Smethod,     Select(num,                     Smode==3?2:1 ,                  3 ,                  3 ,                  2 ) )
+    #                                                                         OLD                  SLOW                 MEDIUM                  FAST
+    strength    = Default( strength,    Select(num,                           100.,                100.,                100.,                100.) )
+    Smode       = Default( Smode,       Select(num,                             3 ,                  5 ,                  4 ,                  3 ) )
+    Smethod     = Default( Smethod,     Select(num,                  Smode==3?2:1 ,                  3 ,                  3 ,                  2 ) )
 
-    preblur     = Default( preblur,     Select(num,                            "OFF" ,              "OFF" ,              "OFF" ,              "OFF" ) )
-    secure      = Default( secure,      Select(num,                            false ,               true ,               true ,                true ) )
+    preblur     = Default( preblur,     Select(num,                         "OFF" ,              "OFF" ,              "OFF" ,              "OFF" ) )
+    secure      = Default( secure,      Select(num,                         false ,               true ,               true ,                true ) )
 
-    Szrp        = Default( Szrp,        Select(num,                               16 ,                 16 ,                 16 ,                 16 ) )
-    Spwr        = Default( Spwr,        Select(num,                                2 ,                  4 ,                  4 ,                  4 ) )
-    SdmpLo      = Default( SdmpLo,      Select(num,                      strength/25 ,                  4 ,                  4 ,                  4 ) )
-    SdmpHi      = Default( SdmpHi,      Select(num,                                0 ,                 48 ,                 48 ,                 48 ) )
+    Szrp        = Default( Szrp,        Select(num,                            16 ,                 16 ,                 16 ,                 16 ) )
+    Spwr        = Default( Spwr,        Select(num,                             2 ,                  4 ,                  4 ,                  4 ) )
+    SdmpLo      = Default( SdmpLo,      Select(num,                   strength/25 ,                  4 ,                  4 ,                  4 ) )
+    SdmpHi      = Default( SdmpHi,      Select(num,                             0 ,                 48 ,                 48 ,                 48 ) )
 
-    Lmode       = Default( Lmode,       Select(num,                                1 ,                  4 ,                  4 ,                  1 ) )
-    Lrad        = Default( Lrad,        Select(num,                                1 ,                  1 ,                  1 ,                  1 ) )
-    overshoot   = Default( overshoot,   Select(num,                                1 ,       strength/100 ,       strength/100 ,       strength/100 ) )
-    undershoot  = Default( undershoot,  Select(num,                        overshoot ,          overshoot ,          overshoot ,          overshoot ) )
-    overshoot2  = Default( overshoot2,  Select(num,                      overshoot*2 ,        overshoot*2 ,        overshoot*2 ,        overshoot*2 ) )
-    undershoot2 = Default( undershoot2, Select(num,                       overshoot2 ,         overshoot2 ,         overshoot2 ,         overshoot2 ) )
+    Lmode       = Default( Lmode,       Select(num,                             1 ,                  4 ,                  4 ,                  1 ) )
+    Lrad        = Default( Lrad,        Select(num,                             1 ,                  1 ,                  1 ,                  1 ) )
+    overshoot   = Default( overshoot,   Select(num,                             1 ,       strength/100 ,       strength/100 ,       strength/100 ) )
+    undershoot  = Default( undershoot,  Select(num,                     overshoot ,          overshoot ,          overshoot ,          overshoot ) )
+    overshoot2  = Default( overshoot2,  Select(num,                   overshoot*2 ,        overshoot*2 ,        overshoot*2 ,        overshoot*2 ) )
+    undershoot2 = Default( undershoot2, Select(num,                    overshoot2 ,         overshoot2 ,         overshoot2 ,         overshoot2 ) )
 
-    soft        = Default( soft,        Select(num,                                0 ,                 -2 ,                  0 ,                  0 ) )
-    soothe      = Default( soothe,      Select(num,                            false ,               true ,               true ,                true ) )
-    keep        = Default( keep,        Select(num,                               25 ,                 20 ,                 20 ,                 20 ) )
+    soft        = Default( soft,        Select(num,                             0 ,                 -2 ,                  0 ,                  0 ) )
+    soothe      = Default( soothe,      Select(num,                         false ,               true ,               true ,                true ) )
+    keep        = Default( keep,        Select(num,                            25 ,                 20 ,                 20 ,                 20 ) )
 
-    edgemode    = Default( edgemode,    Select(num,                                0 ,                  0 ,                  0 ,                  0 ) )
-    edgemaskHQ  = Default( edgemaskHQ,  Select(num,                             true ,               true ,               true ,               false ) )
+    edgemode    = Default( edgemode,    Select(num,                             0 ,                  0 ,                  0 ,                  0 ) )
+    edgemaskHQ  = Default( edgemaskHQ,  Select(num,                          true ,               true ,               true ,               false ) )
 
-    ss_x        = Default( ss_x,        Select(num,    Smode==6?1.:Smode==3?1.5:1.25 ,    Smode==3?1.:1.5 ,   Smode==3?1.:1.25 ,   Smode==3?1.:1.25 ) )
-    ss_y        = Default( ss_y,        Select(num,                             ss_x ,               ss_x ,               ss_x ,               ss_x ) )
-    dest_x      = Default( dest_x,      Select(num,                               ox ,                 ox ,                 ox ,                 ox ) )
-    dest_y      = Default( dest_y,      Select(num,                               oy ,                 oy ,                 oy ,                 oy ) )
+    ss_x        = Default( ss_x,        Select(num, Smode==6?1.:Smode==3?1.5:1.25 ,    Smode==3?1.:1.5 ,   Smode==3?1.:1.25 ,   Smode==3?1.:1.25 ) )
+    ss_y        = Default( ss_y,        Select(num,                          ss_x ,               ss_x ,               ss_x ,               ss_x ) )
+    dest_x      = Default( dest_x,      Select(num,                            ox ,                 ox ,                 ox ,                 ox ) )
+    dest_y      = Default( dest_y,      Select(num,                            oy ,                 oy ,                 oy ,                 oy ) )
 
-    show        = Default( show,        Select(num,                            false ,              false ,              false ,               false ) )
-    screenW     = Default( screenW,     Select(num,                             1920 ,               1920 ,               1920 ,               1920 ) )
-    screenH     = Default( screenH,     Select(num,                             1080 ,               1080 ,               1080 ,               1080 ) )
+    show        = Default( show,        Select(num,                         false ,              false ,              false ,               false ) )
+    screenW     = Default( screenW,     Select(num,                          1920 ,               1920 ,               1920 ,               1920 ) )
+    screenH     = Default( screenH,     Select(num,                          1080 ,               1080 ,               1080 ,               1080 ) )
 
     Assert(!isYUY2(inclip), chr(10) + "LSFmod: Unsupported format: YUY2" + chr(10))
     Assert(!isRGB(inclip),  chr(10) + "LSFmod: Unsupported format: RGB"  + chr(10))

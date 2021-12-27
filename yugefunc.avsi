@@ -164,10 +164,10 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
         sigY  = r/2.*sqrt(2)
         sigUV = clp.is422() || clp.is420() ? sigY/2. : clp.isYV411() ? sigY/4. : sigY
         sigUVv= clp.is420()                ? sigY/2. :                           sigY
-        use_gauss ? clp.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
+        use_gauss ? clp.vsTCanny(sigY,sigUV,mode=-1,u=uv,v=uv) : clp.ex_boxblur(floor(r),mode="mean", UV=uv) }
 
     function Filter_r1(clip clp,       bool use_gauss, int UV) {
-        use_gauss ? clp.removegrain(12,uv==3?12:-1)                                     : clp.ex_boxblur(1       ,mode="mean", UV=uv) }
+        use_gauss ? clp.removegrain(12,uv==3?12:-1)            : clp.ex_boxblur(1       ,mode="mean", UV=uv) }
 
 
     # Compute local linear coefficients.
@@ -367,9 +367,9 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     sigY  = r/2.+0.25
     sigUV = clp.is422() || clp.is420() ? sigY/2. : clp.isYV411() ? sigY/4. : sigY
     sigUVv= clp.is420()                ? sigY/2. :                           sigY
-    A = ga ? WA.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) : WA.ex_boxblur(fr,mode="mean",UV=uv)
-    B = ga ? WB.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) : WB.ex_boxblur(fr,mode="mean",UV=uv)
-    W = ga ?  W.vsTCanny(sigY,sigUV,sigUV,sigY,sigUVv,sigUVv,mode=-1,u=uv,v=uv) :  W.ex_boxblur(fr,mode="mean",UV=uv)
+    A = ga ? WA.vsTCanny(sigY,sigUV,mode=-1,u=uv,v=uv) : WA.ex_boxblur(fr,mode="mean",UV=uv)
+    B = ga ? WB.vsTCanny(sigY,sigUV,mode=-1,u=uv,v=uv) : WB.ex_boxblur(fr,mode="mean",UV=uv)
+    W = ga ?  W.vsTCanny(sigY,sigUV,mode=-1,u=uv,v=uv) :  W.ex_boxblur(fr,mode="mean",UV=uv)
 
     res = !sh ? ex_lutxyza(gd,A,B,W,"y x * z + a /",UV=uv, scale_inputs="none") : A
 

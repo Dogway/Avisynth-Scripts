@@ -43,6 +43,8 @@
 ### Dependencies:
 ###             Deblock
 ###             DCTFilter
+###             ExTools
+###             ResizersPack
 ###
 ### Changelog:
 ###
@@ -90,8 +92,7 @@
 ### - Replaced PointResize with PadBorders (2021-10-18)
 ###
 
-function Deblock_QED ( clip clp, int "quant1", int "quant2",
- \                     int "aOff1", int "bOff1", int "aOff2", int "bOff2", string "exdeblock1", string "exdeblock2", int "UV"  ) {
+function Deblock_QED ( clip clp, int "quant1", int "quant2", int "aOff1", int "bOff1", int "aOff2", int "bOff2", string "exdeblock1", string "exdeblock2", int "UV"  ) {
 
     rgb    = isRGB(clp)
     fs     = propNumElements (clp,"_ColorRange")  > 0 ? \
@@ -708,9 +709,11 @@ function MCSoothe(clip a, float "sigma", int "UV", bool "fulls") {
 
 function MSUDeCor(clip a, int "UV") {
 
-    UV = Default(UV, 3)
+    UV  = Default(UV, 3)
+    mat = color_propGet(a)
+
     #d=t.ConvertToRGB32(matrix="rec709").MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).ConvertBackToYUY2(matrix="rec709").ConvertToYV12() #use if MPEG2
-    d  = a.ConvertToPlanarRGB().MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).MatchClip(a)
+    d  = a.ConvertToPlanarRGB(matrix=propIDs[2]).MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).MatchClip(a)
 
     s1 = ex_makediff(d, a, UV=uv).ex_boxblur(1, mode="mean", UV=uv)
 
@@ -999,7 +1002,7 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
 
    sd1 = clp
 
-   sd1 = (downSize    > 1) ? sd1.Lanczos4Resize(nmod(ow/downSize,32), nmod(oh/downSize,32)) : sd1
+   sd1 = (downSize    > 1) ? sd1.Lanczos4Resize(nmod(ow/float(downSize),32,64), nmod(oh/float(downSize),32,64)) : sd1
    sd1 = (cWarpToLuma > 0) ? sd1.colorWarpToLuma(strength=cWarpToLuma)    : sd1
 
    zw1 = (Cpr == 0)  ?  sd1.ex_Ylevels( 0, 1.0, 255, 0, 0, fs)  :  sd1.buildZmask(cpr=cpr)
@@ -1016,11 +1019,11 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
    u2  = u2.SmoothD2(quant=quant, num_shift=num_shift, Matrix=Matrix, Qtype=Qtype, ZW=ZW, ZWmask=zwuv, ncpu=ncpu)
    v2  = v2.SmoothD2(quant=quant, num_shift=num_shift, Matrix=Matrix, Qtype=Qtype, ZW=ZW, ZWmask=zwuv, ncpu=ncpu)
 
-   u2 = (downSize > 1) ? u2.Lanczos4Resize(ow/2, oh/2) : u2
-   v2 = (downSize > 1) ? v2.Lanczos4Resize(ow/2, oh/2) : v2
+   u2 = (downSize > 1) ? u2.Lanczos4Resize(nmod(ow/2), nmod(oh/2)) : u2
+   v2 = (downSize > 1) ? v2.Lanczos4Resize(nmod(ow/2), nmod(oh/2)) : v2
 
-#   u2 = (downSize > 1) ? u2.bicubicResize(ow/2, oh/2) : u2
-#   v2 = (downSize > 1) ? v2.bicubicResize(ow/2, oh/2) : v2
+#   u2 = (downSize > 1) ? u2.bicubicResize(nmod(ow/2), nmod(oh/2)) : u2
+#   v2 = (downSize > 1) ? v2.bicubicResize(nmod(ow/2), nmod(oh/2)) : v2
 
    sd1 = YToUV(u2, v2).MergeLuma(clp)
 

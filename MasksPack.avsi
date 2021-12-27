@@ -114,10 +114,10 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
      isUHD ? BilinearResize(nmod(w/2,2),nmod(h/2,2)) : last
 
     ex_retinex(lvl=1,lo=lvl,tv_range=!fs)  # some issues here on flat areas (quantization)
-    MSR=ex_median("IQM")                  # pre for full 'qprewitt'
+    MSR=ex_median("IQM")                   # pre for full 'qprewitt'
 
     # Prefilter (scale space)
-    vsTCanny(sigmaY=sqrt(rd)/2.*sqrt(2),sigma_vY=sqrt(rd)/2.*sqrt(2),mode=-1,u=2,v=2)
+    vsTCanny(sqrt(rd)/2.*sqrt(2),mode=-1,u=2,v=2)
 
     # Pseudo Ridge Filter
     xx1=    ex_lut(Format("x[-1,-1] x[1,1]  -"))
