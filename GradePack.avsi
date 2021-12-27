@@ -25,8 +25,16 @@
 ###
 ### Use 'bias' to weight the internal mask and 'show' for visual feedback.
 ###
+### modes:
+###     Saturation: Simple saturation operator without any masks
+###     Vibrance:   Masks high saturation so you can lower or raise saturation where is low (Default)
+###     Dullness:   Masks low  saturation so you can lower or raise saturation where is high
+###     Recover:    Recover lost saturation between source and reference clip
+###
 ###
 ### Examples:
+###     ex_vibrance(1.2, mode="Saturation")    # Increase saturation
+###
 ###     ex_vibrance(1.5)                       # Increase vibrance
 ###
 ###     ex_vibrance(0.5)                       # Lower saturation where is low
@@ -37,16 +45,17 @@
 ###
 ###########################
 
-function ex_vibrance (clip a, float "sat", float "bias", string "mode", clip "Rc", bool "tv_range", bool "show") {
+function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc", bool "tv_range", bool "show") {
 
-    fs    = propNumElements (a,"_ColorRange")  > 0 ? \
-            propGetInt      (a,"_ColorRange") == 0 : false
+    fs    = propNumElements(a,"_ColorRange")  > 0 ? \
+            propGetInt     (a,"_ColorRange") == 0 : false
 
     sat   = Default(Sat,  1)          # From 0 to inf. Default 1 (no-op)
     bias  = Default(bias, 5)          # Adjust saturation mask
     md    = Default(mode, "Vibrance")
     tv    = Default(tv_range, !fs)
     sh    = Default(show, false)
+    sat   = max(sat, 0)
 
                     Assert(IsVersionOrGreater(3,7,1), "ex_vibrance: Update AviSynth+ version")
                     Assert(!isRGB(a),                 "ex_vibrance: RGB format not supported")
@@ -58,13 +67,20 @@ function ex_vibrance (clip a, float "sat", float "bias", string "mode", clip "Rc
 
     msk  = Format("range_half x range_half - XC@ dup * y range_half - dup * + sqrt - range_half / {bias} ^ M^ ")
 
-    mode = md == "Vibrance" ? Format(msk+" XC "+rangePCc+" dup dup   {sat}   * swap -   M   * + "+rangeTVc) : \
-           md == "Dullness" ? Format(msk+" XC "+rangePCc+" dup dup 1 {sat} / * swap - 1 M - * + "+rangeTVc) : \
-           md == "Recover"  ?            " XC "+rangePCc+"                                  *   "+rangeTVc  : \
+    mode = md == "Vibrance"   ? Format(       msk+" XC "+rangePCc+" dup dup   {sat}   * swap -   M   * + "+rangeTVc) : \
+           md == "Dullness"   ? Format(       msk+" XC "+rangePCc+" dup dup 1 {sat} / * swap - 1 M - * + "+rangeTVc) : \
+           md == "Saturation" ? Format("x range_half - "+rangePCc+"           {sat}                  *   "+rangeTVc) : \
+           md == "Recover"    ?                   " XC "+rangePCc+"                                  *   "+rangeTVc  : \
           Assert (false, "ex_vibrance: Unsupported mode")
 
 
-    if (md == "Recover" && !sh) {
+    if (md == "Saturation" && !sh) {
+
+        sat == 1 ? a   :        \
+        ex_lut    (a, "", mode )
+
+    } else \
+    if (md == "Recover"    && !sh) {
 
         msk1 = "x range_half - XC@ dup * y range_half - dup * + sqrt "
         msk2 = "z range_half -     dup * a range_half - dup * + sqrt "
@@ -72,9 +88,9 @@ function ex_vibrance (clip a, float "sat", float "bias", string "mode", clip "Rc
 
     } else {
 
-        sat == 1 ? a                                                       :      \
-        ex_lutxy  (a, a.SwapUV(), "", sh ? msk+" M 1 swap - range_max *"   : mode )
-        sh       ? ExtractU().BicubicResize(a.width(), a.Height(), 0, 0.5) : last } }
+        sat == 1 ? a                                                                           :      \
+        ex_lutxy  (a, a.SwapUV(), "", sh ? msk+" M 1 swap - range_max *"                       : mode )
+        sh ? ExtractU().PropSet("_ColorRange", 0).BicubicResize(a.width(), a.Height(), 0, 0.5) : last } }
 
 
 
