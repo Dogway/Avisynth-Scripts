@@ -640,7 +640,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                   (SrchClipPP == 0) ? repair0             : \
                   (SrchClipPP  < 3) ? spatialBlur         : \
                   (SrchClipPP  > 1) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - x 0.51 * Y 0.49 * + ? ?", UV=CMmt, fulls=!tv ) : nop()
-    srchClip    = tv && !srchcheck  ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_range=tv).ConvertBits(8,dither=-1,fulls=true) : ConvertBits(8,dither=-1,fulls=!tv)
+    srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_range=tv).ConvertBits(8,dither=-1,fulls=true) : srchClip.ConvertBits(8,dither=-1)
 
     # Calculate forward and backward motion vectors from motion search clip
     srchSuper = IsClip(srchSuper) ? srchSuper                                                                                             : \
