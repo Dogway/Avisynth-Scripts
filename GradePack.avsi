@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v4.2 (30-12-2021)               ##
+###           Grade Pack v4.3 (30-12-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -428,7 +428,7 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
 
 
 
-### Skin_Qualifier()
+### Skin_Qualifier() - (28-12-2021)
 ###
 ### Dependencies: > ExTools
 ###                 TransformsPack
@@ -480,11 +480,18 @@ function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth"
 
 ###
 ###
-### GamutWarning()
+### GamutWarning() - (30-12-2021)
 ###
 ###
 ### Shows pixels that fall out-of-gamut when converting YUV to RGB PC range.
 ### Supported color spaces are "Rec709", "170M", "470M", "470BG/Rec601" and "2020NCL".
+### Enable 'EBUR103' for relaxed thresholds based on the normative and write to '_OutGamut' frameprops.
+###
+### Legend:
+###     Blue: U     plane   is out of gamut
+###     Red:  V     plane   is out of gamut
+###     Fux:  U & V planes are out of gamut
+###
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
@@ -492,26 +499,45 @@ function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth"
 ###
 ####################################
 
-function GamutWarning(clip yuv, string "matrix", bool "tv_in") {
+/*
+# Tolerances on colour gamut (https://tech.ebu.ch/docs/r/r103.pdf)
+    The EBU recommends that the colour gamut in television programme material can be accepted if
+    both the following conditions are met:
+
+    •LUMINANCE:   The luminance signal should lie inside the range -1% to 103% (ie. 14-242 for 8-bit legal)
+    •CHROMINANCE: When matrixed to RGB, all of the R, G or B signals should lie inside the range -5% and 105% (ie. 5-246 for legal and -12.75-267.75 for 8-bit full range)
+    •Measuring equipment should indicate an “Out-of-Gamut” occurrence only after the error exceeds 1% of the image histogram for either luminance or chrominance within the preferred ranges described above
+
+# Horizontal Signal Filtering
+    In order to remove transient over and under-excursions of the signals, and to minimise the effect of
+    high frequency noise on the colour gamut measurements, the use of appropriate filters in all measurement channels are recommended
+    A quarter band filter applied horizontally and a half band filter applied vertically is recommended.
+*/
+
+function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
 
     bi      = BitsPerComponent(yuv)
     propIDs = color_propGet(yuv)
     fs      = !propIDs[6]
 
     mat     = Default (matrix, propIDs[2])
-    tv      = Default (tv_in, !fs)
+    tv      = Default (tv_in,         !fs)
+    ebu     = Default (EBUR103,     false)  # Enable for EBU R103 (frameprops and less strict thresholds)
 
     Assert(IsVersionOrGreater(3,7,1), "GamutWarning: Update AviSynth+ version")
-    Assert(isRGB(yuv)==false,         "GamutWarning: Only YUV format supported")
+    Assert(isRGB(yuv),                "GamutWarning: Only YUV format supported")
 
     mat     = Color_Fuzzy_search (mat)
     coef    = Matrix_coef(mat[0])
 
 
-    clp = ExtractClip(yuv)
+    clp = ExtractClip(!ebu ? yuv : yuv.ex_boxblur(5,1,mode="weighted",Y=2,UV=3)) # EBU R103 standard lowpass (very similar to V: 1/4, 1/2, 1/4, and H: 1/16, 2/16, 3/16, 4/16, 3/16, 2/16, 1/16)
     U   =              clp[1]
     V   =              clp[2]
-    Y   = is444(yuv) ? clp[0] : clp[0].BicubicResize(U.width(),U.height(),-0.5,0.25)
+    Y   =              clp[0]
+    Ys  =             !ebu ?   Y :  Y. ex_boxblur(5,1,mode="weighted",Y=3)
+    Ys  = is444(yuv) ? Ys : Ys.BicubicResize(U.width(),U.height(),-0.5,0.25)
+    Y   = YtoUV(Ys,Ys,Y)
 
 
     scale_y  = tv ? (255 / 219.) : 1.0
@@ -526,14 +552,25 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in") {
 
     rangeY = tv      ? "ymin - 0 max" : ""
     UVf    = bi < 32 ? "range_half -" : ""
+    pm     = ex_bs(255, 8, bi, !tv)
+    pn     = !ebu ?  0 : -0.05*pm
+    pm     = !ebu ? pm :  1.05*pm
 
-    GM = ex_lutxyz(Y,U,V,"x "+rangeY+" X@ "+string(m0)+" * z "+UVf+" Z@ "+string(m2)+" * +                      dup 0 < swap range_max > or range_max
-                          X               "+string(m6)+" * y "+UVf+" Y@ "+string(m7)+" * +                      dup 0 < swap range_max > or range_max
-                          X               "+string(m3)+" * Y            "+string(m4)+" * + Z "+string(m5)+" * + dup 0 < swap range_max > or range_max 0 ? ? ?", fulls=!tv)
+    Expr(Y,yuv,yuv.SwapUV(),"",ex_dlut(Format("x "+rangeY+" X@ "+string(m0)+" * z "+UVf+" Z@ "+string(m2)+" * +                      dup {pn} < swap {pm} > or
+                                               X               "+string(m6)+" * y "+UVf+" Y@ "+string(m7)+" * +                      dup {pn} < swap {pm} > or or
+                                               X               "+string(m3)+" * Y            "+string(m4)+" * + Z "+string(m5)+" * + dup {pn} < swap {pm} > or or range_max y ?"), bi, !tv), format=PixelType(yuv))
 
-    GM = mskY_to_YYY(yuv, GM, true, false, 3, bi)
-    ex_lutxyz(yuv, yuv.SwapUV(), GM, "", bi < 32 ? "z range_max == range_max x ?" : "z 0.5 == x 1 ?", fulls=true) }
+    !ebu ? last : \
+    ScriptClip( function[bi,tv] () {
 
+        # Add also Y plane?
+        U  = PlaneMinMaxStats(last, 99, 0, 1, false)
+        V  = PlaneMinMaxStats(last, 99, 0, 2, false)
+        U  = ex_bs(U[2], bi, 8, !tv,     float=true)    U = bi==32 ? 2 * U + 1 : U
+        V  = ex_bs(V[2], bi, 8, !tv,     float=true)    V = bi==32 ? 2 * V + 1 : V
+
+        U >= 255 || V >= 255 ? PropSet("_OutGamut", 1) : \
+                               PropSet("_OutGamut", 0) } ) }
 
 
 
@@ -667,6 +704,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 
     rgb ? rgbp ? last : MatchClip(c) : \
     RGB_to_YUV( mat[0], tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c), cplace="", fulls=true) }
+
 
 
 
