@@ -525,18 +525,17 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
     ebu     = Default (EBUR103,     false)  # Enable for EBU R103 (frameprops and less strict thresholds)
 
     Assert(IsVersionOrGreater(3,7,1), "GamutWarning: Update AviSynth+ version")
-    Assert(isRGB(yuv),                "GamutWarning: Only YUV format supported")
+    Assert(!isRGB(yuv),               "GamutWarning: Only YUV format supported")
 
     mat     = Color_Fuzzy_search (mat)
     coef    = Matrix_coef(mat[0])
 
 
-    clp = ExtractClip(!ebu ? yuv : yuv.ex_boxblur(5,1,mode="weighted",Y=2,UV=3)) # EBU R103 standard lowpass (very similar to V: 1/4, 1/2, 1/4, and H: 1/16, 2/16, 3/16, 4/16, 3/16, 2/16, 1/16)
+    clp = ExtractClip(!ebu ? yuv : yuv.ex_boxblur(5,1,mode="weighted",UV=3)) # EBU R103 standard lowpass (very similar to V: 1/4, 1/2, 1/4, and H: 1/16, 2/16, 3/16, 4/16, 3/16, 2/16, 1/16)
     U   =              clp[1]
     V   =              clp[2]
     Y   =              clp[0]
-    Ys  =             !ebu ?   Y :  Y. ex_boxblur(5,1,mode="weighted",Y=3)
-    Ys  = is444(yuv) ? Ys : Ys.BicubicResize(U.width(),U.height(),-0.5,0.25)
+    Ys  = is444(yuv) ? Y : Y.BicubicResize(U.width(),U.height(),-0.5,0.25)
     Y   = YtoUV(Ys,Ys,Y)
 
 
@@ -563,7 +562,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
     !ebu ? last : \
     ScriptClip( function[bi,tv] () {
 
-        # Add also Y plane?
+        # Evaluate also Luminance (Y) stats?
         U  = PlaneMinMaxStats(last, 99, 0, 1, false)
         V  = PlaneMinMaxStats(last, 99, 0, 2, false)
         U  = ex_bs(U[2], bi, 8, !tv,     float=true)    U = bi==32 ? 2 * U + 1 : U
