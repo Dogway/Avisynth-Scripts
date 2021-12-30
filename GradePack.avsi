@@ -527,9 +527,9 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in") {
     rangeY = tv      ? "ymin - 0 max" : ""
     UVf    = bi < 32 ? "range_half -" : ""
 
-    GM = ex_lutxyz(Y,U,V,ex_dlut("x "+rangeY+" X@ "+string(m0)+" * z "+UVf+" Z@ "+string(m2)+" * +                      dup 0 < swap range_max > or range_max
-                                  X               "+string(m6)+" * y "+UVf+" Y@ "+string(m7)+" * +                      dup 0 < swap range_max > or range_max
-                                  X               "+string(m3)+" * Y            "+string(m4)+" * + Z "+string(m5)+" * + dup 0 < swap range_max > or range_max 0 ? ? ?", bi, !tv), fulls=!tv)
+    GM = ex_lutxyz(Y,U,V,"x "+rangeY+" X@ "+string(m0)+" * z "+UVf+" Z@ "+string(m2)+" * +                      dup 0 < swap range_max > or range_max
+                          X               "+string(m6)+" * y "+UVf+" Y@ "+string(m7)+" * +                      dup 0 < swap range_max > or range_max
+                          X               "+string(m3)+" * Y            "+string(m4)+" * + Z "+string(m5)+" * + dup 0 < swap range_max > or range_max 0 ? ? ?", fulls=!tv)
 
     GM = mskY_to_YYY(yuv, GM, true, false, 3, bi)
     ex_lutxyz(yuv, yuv.SwapUV(), GM, "", bi < 32 ? "z range_max == range_max x ?" : "z 0.5 == x 1 ?", fulls=true) }
