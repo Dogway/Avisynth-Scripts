@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v4.1 (28-12-2021)               ##
+###           Grade Pack v4.2 (30-12-2021)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -433,7 +433,7 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
 ### Dependencies: > ExTools
 ###                 TransformsPack
 ###
-### Extracts a skin mask to use elsewhere.
+### Segmentation of skin tones. Extracts a skin mask to use elsewhere.
 ### It does so in OkLab Jch space which is perceptually uniform (UCS).
 ###
 function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth", float "blur", bool "invert") {
@@ -475,6 +475,64 @@ function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth"
     ConvertBits(bi, dither= bi==32 ? -1 : 1, fulls=true)
     ex_gaussianblur(bl, pad=false, UV=3)               }
 
+
+
+
+###
+###
+### GamutWarning()
+###
+###
+### Shows pixels that fall out-of-gamut when converting YUV to RGB PC range.
+### Supported color spaces are "Rec709", "170M", "470M", "470BG/Rec601" and "2020NCL".
+###
+### Dependencies: > AviSynth+ 3.7.1
+###                 ExTools
+###                 TransformsPack
+###
+####################################
+
+function GamutWarning(clip yuv, string "matrix", bool "tv_in") {
+
+    bi      = BitsPerComponent(yuv)
+    propIDs = color_propGet(yuv)
+    fs      = !propIDs[6]
+
+    mat     = Default (matrix, propIDs[2])
+    tv      = Default (tv_in, !fs)
+
+    Assert(IsVersionOrGreater(3,7,1), "GamutWarning: Update AviSynth+ version")
+    Assert(isRGB(yuv)==false,         "GamutWarning: Only YUV format supported")
+
+    mat     = Color_Fuzzy_search (mat)
+    coef    = Matrix_coef(mat[0])
+
+
+    clp = ExtractClip(yuv)
+    U   =              clp[1]
+    V   =              clp[2]
+    Y   = is444(yuv) ? clp[0] : clp[0].BicubicResize(U.width(),U.height(),-0.5,0.25)
+
+
+    scale_y  = tv ? (255 / 219.) : 1.0
+    scale_uv = tv ? (255 / 112.) : 2.0
+
+    Kr = 1. - coef[0]
+    Kb = 1. - coef[2]
+
+    m0 = scale_y     m1 = 0.0                                   m2 = scale_uv * Kr
+    m3 = scale_y     m4 = scale_uv * ( -Kb * coef[2] / coef[1]) m5 = scale_uv * ( -Kr * coef[0] / coef[1])
+    m6 = scale_y     m7 = scale_uv * Kb                         m8 = 0.0
+
+    rangeY = tv      ? "ymin - 0 max" : ""
+    UVf    = bi < 32 ? "range_half -" : ""
+
+    GM = ex_lutxyz(Y,U,V,ex_dlut("x "+rangeY+" X@ "+string(m0)+" * z "+UVf+" Z@ "+string(m2)+" * +                      dup 0 < swap range_max > or range_max
+                                  X               "+string(m6)+" * y "+UVf+" Y@ "+string(m7)+" * +                      dup 0 < swap range_max > or range_max
+                                  X               "+string(m3)+" * Y            "+string(m4)+" * + Z "+string(m5)+" * + dup 0 < swap range_max > or range_max 0 ? ? ?", bi, !tv), fulls=!tv)
+
+    GM = mskY_to_YYY(yuv, GM, true, false, 3, bi)
+    ex_lutxyz(yuv, yuv.SwapUV(), GM, "", bi < 32 ? "z range_max == range_max x ?" : "z 0.5 == x 1 ?", fulls=true) }
 
 
 
