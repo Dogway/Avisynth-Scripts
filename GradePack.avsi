@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v4.3 (30-12-2021)               ##
+###           Grade Pack v4.4 (01-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -25,6 +25,11 @@
 ###
 ### Use 'bias' to weight the internal mask and 'show' for visual feedback.
 ###
+### Dependencies:
+###     ExTools
+###     ResizersPack   (for show=1)
+###     TransformsPack (for show=1)
+###
 ### modes:
 ###     Saturation: Simple saturation operator without any masks
 ###     Vibrance:   Masks high saturation so you can lower or raise saturation where is low (Default)
@@ -45,7 +50,7 @@
 ###
 ###########################
 
-function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc", bool "tv_range", bool "show") {
+function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc", bool "tv_range", int "show") {
 
     bi    = BitsPerComponent(a)
     fs    = propNumElements (a,"_ColorRange")  > 0 ? \
@@ -55,7 +60,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
     bias  = Default(bias, 5)          # Adjust saturation mask
     md    = Default(mode, "Vibrance")
     tv    = Default(tv_range,    !fs)
-    sh    = Default(show,      false)
+    sh    = Default(show,          0) # 0: disabled, 1: show histogram and gamut warning, 2: show mask
     sat   = max(sat, 0)
 
                     Assert(IsVersionOrGreater(3,7,1), "ex_vibrance: Update AviSynth+ version")
@@ -75,13 +80,13 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
           Assert (false, "ex_vibrance: '"+md+"', unsupported mode")
 
 
-    if (md == "Saturation" && !sh) {
+    if (md == "Saturation" && sh==0) {
 
         sat == 1 ? a   :                  \
         ex_lut    (a, "", mode, fulls=!tv )
 
     } else \
-    if (md == "Recover"    && !sh) {
+    if (md == "Recover"    && sh==0) {
 
         msk1 = "x range_half - XC@ abs y range_half - abs + "
         msk2 = "z range_half -     abs a range_half - abs + "
@@ -89,10 +94,23 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 
     } else {
 
-        sat == 1 && !sh ? a                                                                    :      \
-        ex_lutxy  (a, a.SwapUV(), "", fulls=!tv, cstr=sh ? msk+" M 1 swap - range_max *"       : mode )
-        sh ? ExtractU().PropSet("_ColorRange", 0).BicubicResize(a.width(), a.Height(), 0, 0.5) : last } }
+        if (sh==0 && sat==1) { last } else {
 
+        ex_lutxy  (a, a.SwapUV(), "", fulls=!tv, cstr=sh==2 ? msk+" M 1 swap - range_max *"       : mode )
+
+        w  = a.width()
+        h  = a.height()
+        if (sh==1) {
+            bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
+            sw = nmod(w/3.75)
+            sh = nmod(w/4.25)
+            lvl = Histogram(mode="levels").crop(w,0,0,-h+226).GaussResize(sw,sh,p=100)
+            lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,w-sw,0,0,h-sh,mode="[0,128,128]")
+            lvl = ex_blend(lvl,"blend", opacity=0.5,UV=3)
+            ex_merge(GamutWarning(),lvl,BoxMask(w-sw,w,0,sh),UV=3)
+
+        } else if (sh==2) {
+            ExtractU().PropSet("_ColorRange", 0).BicubicResize(w, h, 0, 0.5) } } } }
 
 
 
@@ -169,6 +187,8 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
+###                 ResizersPack   (for show=true)
+###                 TransformsPack (for show=true)
 ###
 ### Example: ex_levels(23, 1.200, 255, 0, 255, tv_range=true)
 ###
@@ -180,7 +200,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 #  93.7% ex_levels    (10,     1.40, 245,     10,     255,     false, 1)
 #  16.0% oSmoothLevels(10,     1.40, 245,     10,     255,         0, 0)
 #
-function ex_levels (clip c, float "input_low", float "gamma", float "input_high", float "output_low", float "output_high", bool "tv_range", int "UV", bool "clamp_float") {
+function ex_levels (clip c, float "input_low", float "gamma", float "input_high", float "output_low", float "output_high", bool "tv_range", int "UV", bool "show", bool "clamp_float") {
 
     rgb  = isRGB(c)
     isy  = isy(c)
@@ -196,6 +216,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     olo  = Default(output_low,     0)
     ohi  = Default(output_high,  255)
     tv   = Default(tv_range,     !fs)
+    sh   = Default(show,       false)
     cf   = Default(clamp_float, bi32)
     UV   = Default(UV,        rgb ? 3 : 2)
 
@@ -227,7 +248,18 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 
     isy     ? Expr(c, str                                                                 , lut=lut, clamp_float=bi32) : \
     UV == 1 ? Expr(c, str, ""                                                             , lut=lut, clamp_float=bi32) : \
-              Expr(c, str, ex_UVexpr(cstr, UV, bi, rgb, !tv), scale_inputs=ex_UVf(rgb, bi), lut=lut, clamp_float=bi32) }
+              Expr(c, str, ex_UVexpr(cstr, UV, bi, rgb, !tv), scale_inputs=ex_UVf(rgb, bi), lut=lut, clamp_float=bi32)
+
+    if (sh) {
+        bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
+        w   = c.width()
+        h   = c.height()
+        sw  = nmod(w/3.75)
+        sh  = nmod(w/4.25)
+        lvl = Histogram(mode="levels").crop(w,0,0,-h+226).GaussResize(sw,sh,p=100)
+        lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,w-sw,0,0,h-sh,mode="[0,128,128]")
+        lvl = ex_blend(lvl,"blend", opacity=0.5,UV=3)
+        ex_merge(last,lvl,BoxMask(w-sw,w,0,sh),UV=3) } }
 
 
 ###
@@ -478,6 +510,141 @@ function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth"
 
 
 
+### HSVxHSV() - (01-01-2022)
+###
+### 3x3 operator matrix. Adjust Hue, Saturation or Luminance based on Hue, Saturation or Luminance.
+###
+### Dependencies:
+###     ExTools 7.1+
+###     TransformsPack
+###
+### This includes the following 9 operators (modeA x modeB):
+###   HUExHUE (WIP)
+###   HUExSAT
+###   HUExLUM
+###   SATxHUE (WIP)
+###   SATxSAT
+###   SATxLUM
+###   LUMxHUE (WIP)
+###   LUMxSAT
+###   LUMxLUM
+###
+### Note:
+###     To add as a function definition to enable sliders, include the following in AvsPmod.
+###     (
+###     clip,
+###     float str=1.0 (0.0 to 360.0 by 0.01),
+###     string modeA="HUE" ("HUE"/ "SAT"/ "LUM"),
+###     string modeB="LUM" ("HUE"/ "SAT"/ "LUM"),
+###     float dA=1.0 (0.0 to 360.0 by 0.01),
+###     float bA=1.0 (0.0 to 1.0 by 0.01),
+###     [int show=1 (0 to 2)]
+###     )
+###
+function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "dA", float "bA", float "sA", float "tv_range", int "show") {
+
+    rgb = IsRGB(c)
+    isy = isy(c)
+    ID  = color_propGet(c)
+    bi  = ID[7]
+
+    str = Default (str,     0.1)   # Strength of 'modeB' operator. 0.0-1.0 and 0-360 for modeB="HUE"
+    mA  = Default (modeA, "HUE")   # 'modeA' (HUE or H, SAT or S, LUM or L or V)
+    mB  = Default (modeB, "SAT")   # 'modeB' (HUE or H, SAT or S, LUM or L or V)
+    dA  = Default (dA,      0.5)   # Degrees   of 'modeA' (isolate this area. 0-255 for 'L', 0-360 for for 'H' and 0.0-1.0 for 'S')
+    bA  = Default (bA,      0.2)   # Bandwidth of 'modeA' Spread of the isolated area. 0.0-1.0
+    sA  = Default (sA,      1.0)   # Scale     of 'modeA' Scale  of the isolated area (typical to scale down since by default it's white). 0.0-1.0
+    tv  = Default (tv_range, ID[6])
+    sh  = Default (show,      0)   # 0: disabled, 1: show histogram, 2: show mask
+    sh2 = sh == 2
+
+    Assert(IsVersionOrGreater(3,7,1), "HSVxHSV: Update AviSynth+ version")
+    Assert(!isy && !rgb,              "HSVxHSV: Only YUV format is supported")
+
+    U   = ExtractU(c)
+    V   = ExtractV(c)
+    Y   = ExtractY(c)
+    Ys  = is444(c) ? Y : Y.BicubicResize(U.width(),U.height(),-0.5,0.25)
+    c4  = is444(c) ? c : c.ConverttoYUV444(matrix=ID[2],chromaresample="spline16")
+    c4U = ExtractU(c4)
+    c4V = ExtractV(c4)
+    Uc  = YtoUV(U,U,c4U)
+    Vc  = YtoUV(V,V,c4V)
+    Y   = YtoUV(Ys,Ys,Y)
+
+    mA = mA=="H" ? "HUE" : \
+         mA=="S" ? "SAT" : \
+         mA=="V" ? "LUM" : \
+         mA=="L" ? "LUM" : mA
+    mB = mB=="H" ? "HUE" : \
+         mB=="S" ? "SAT" : \
+         mB=="V" ? "LUM" : \
+         mB=="L" ? "LUM" : mB
+
+    dA = mA=="HUE" ? min(360,max(0,dA))/360. : \
+         mA=="LUM" ? min(255,max(0,dA))/255. : \
+         mA=="SAT" ? min(1.0,max(0,dA))      : dA
+
+    str= mB=="HUE" ? str / 360. : str
+    sA = min(1.0,sA)
+
+    # Scaling HUE bandwidth to its PDF
+    h   = (da-0.93)/3.5
+    PDF = exp((-0.5*pow(h/0.14,2))/(0.14*2.50663))
+    CDF = 0.5 * (1+atan(-100*h*0.7071))
+    hA  = 1./bA / (1 - (2/3.5) * PDF * CDF)
+
+    bA  = mA=="HUE" ? hA : 1. / ( mA=="SAT" ? max(0.04,(0.4+bA)*cos(1.57+pi*(1-dA))+0.4+bA) : bA)  # Saturation is broad on the mid spectrum so narrow it down
+
+    rangePC  = tv ? "ymin - ymax ymin - /"      : ""
+    rangeTV  = tv ? "ymax ymin - * ymin +"      : ""
+    rangePCc = tv ? "range_max cmax cmin - / *" : ""
+    rangeTVc = tv ? "cmax cmin - range_max / *" : ""
+
+    clpB = mA=="LUM" && mB=="LUM" ? " X" : \
+           mA=="LUM" ? " y "+rangePCc    : \
+           mB=="LUM" ? " x "+rangePC     : " x "+rangePCc
+
+    bi32     =  bi==32
+    bi32H    = !bi32 && mA=="HUE" ? "" : mA!="HUE" && (bi32 || sh2) ? "" : " 0.5 + "
+    bi32S    = !bi32 && mA=="SAT" ? "" : mA!="SAT" && (bi32 || sh2) ? "" : " 0.5 + "
+
+    msk = mA=="LUM" ? Format("f32 x "      +rangePC+"  X@                                                  {dA} - abs 1 swap - {bA} ^ {sA} * 0 1 clip") : \
+          mA=="SAT" ? Format("f32 x "+bi32S+rangePCc+" Y@ dup * y "+bi32S+rangePCc+" dup * + sqrt 0.7071 * {dA} - abs 1 swap - {bA} ^ {sA} * 0 1 clip") : \
+                      Format("f32 x "+bi32H+rangePCc+" Y@       y "+bi32H+rangePCc+" atan2  0 1 clip       {dA} - abs 1 swap - {bA} ^ {sA} * 0 1 clip")
+    op  = mB=="LUM" ? Format(clpB+" dup dup {str} * swap - swap swap2 * + "+rangeTV)  : \
+          mB=="SAT" ? Format(clpB+" dup dup {str} * swap - swap swap2 * + "+rangeTVc) : \
+                      Format(clpB+" {str} + *                             "+rangeTVc) # modeB=="HUE" is Work In Progress
+
+    msk = !sh2 ? mA=="LUM" && mB!="LUM"   && !bi32 ? \
+           ReplaceStr(msk," x ",  " x 0.5 + ")     : \
+                 mA!="LUM" && mB=="LUM"            ? \
+           ReplaceStr(msk," y ", " z ").             \
+           ReplaceStr(    " x ", " y ")      : msk : msk
+
+           !sh2 && str==1   ?           c                                                             : \
+            sh2 ? mA=="LUM" ? ex_lut   (c,                 msk,   UV=bi32?0:128, scale_inputs="intf") : \
+                              ex_lutxy (c4U,c4V,           msk,   UV=1,          scale_inputs="intf") : \
+    mA=="LUM"   ? mB=="LUM" ? ex_lut   (c,                 msk+op,UV=2,          scale_inputs="intf") : \
+                              ex_lutxyz(Y,c,c.SwapUV(),"", msk+op,UV=3,          scale_inputs="intf") : \
+                  mB=="LUM" ? ex_lutxyz(c,Uc,Vc,           msk+op,UV=2,          scale_inputs="intf") : \
+                              ex_lutxy (  c,c.SwapUV(),"", msk+op,UV=3,          scale_inputs="intf")
+    sh2                     ? PropSet("_OutGamut", 0)                                                 : last
+
+    if (sh==1) {
+        bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
+        w   = c.width()
+        h   = c.height()
+        sw  = nmod(w/3.85)
+        sh  = nmod(w/2.10)
+        lvl = Histogram(mode="levels").crop(w,0,0,-h+226)
+        lvl = StackVertical(lvl,Histogram(mode="color2").crop(w,0,0,-h+256)).GaussResize(sw,sh,p=100)
+        lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,w-sw,0,0,h-sh,mode="[0,128,128]")
+        lvl = ex_blend(lvl,"blend", opacity=0.5,UV=3)
+        ex_merge(last,lvl,BoxMask(w-sw,w,0,sh), UV=3) } }
+
+
+
 ###
 ###
 ### GamutWarning() - (30-12-2021)
@@ -618,12 +785,13 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 
     ID     = color_propGet(rgb)
 
+    tv     = Default (tv_range, ID[6])
+    matrix = Default (matrix,   ID[2])
+
     Assert(IsVersionOrGreater(3,7,1), "greyscale_rgb: Update AviSynth+ version")
     Assert(isRGB(rgb),                "greyscale_rgb: Only works on RGB format")
 
     rgb
-    tv     = Default (tv_range, ID[6])
-    matrix = Default (matrix,   ID[2])
     matrix = Color_fuzzy_search(matrix)
     s_gam  = moncurve_coef(matrix[0])
     coeffs = RGB_to_XYZ   (matrix[0], list=true)
