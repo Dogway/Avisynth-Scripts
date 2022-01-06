@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.5 By Dogway  (22-12-2021)            ##
+###           MasksPack 4.6 By Dogway  (06-01-2022)            ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
@@ -21,7 +21,7 @@
 ###
 ###########################
 
-function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", bool "invert", bool "show") {
+function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", bool "invert", bool "show", bool "tv_out") {
 
     clp
     rgb     = isRGB()
@@ -33,6 +33,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
     y1      = Default(y1,0)
     y2      = Default(y2,0)
     in      = Default(invert, false)
+    tv      = Default(tv_out, false)
     show    = Default(show,   false)
     UV      = Default(UV,3)
 
@@ -46,8 +47,8 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 
     UV = UV!=3 && !rgb ? 128 : UV
 
-    wh = !in ? "range_max" : "0"
-    bl =  in ? "range_max" : "0"
+    wh = !in ? tv ? "ymax" : "range_max" : tv ? "ymin" : "0"
+    bl =  in ? tv ? "ymax" : "range_max" : tv ? "ymin" : "0"
     x  = is422() || is420() ? 2. : isYV411() ? 4. : 1
     y  = is420()            ? 2. :                  1
 
@@ -57,9 +58,9 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
     Luma = Format("x {x1}  >= x {x2}  <= & y {y1}  >= y {y2}  <= & & "+wh+" "+bl+" ?")
     Chrm = Format("x {x1c} >= x {x2c} <= & y {y1c} >= y {y2c} <= & & "+wh+" "+bl+" ?")
 
-    ex_lutspa(mode="absolute", expr=Luma, cexpr=Chrm, UV=UV)
+    ex_lutspa(mode="absolute", expr=Luma, cexpr=Chrm, UV=UV, fulld=!tv)
 
-    !show ? last : ex_blend(clp,last,"softlight",0.5) }
+    !show ? last : ex_blend(clp,last,"softlight",0.5,tv_range=tv) }
 
 
 
@@ -90,14 +91,14 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 
     a
     rgb   = isRGB()
-    bi    = BitsPerComponent()
     w     = width ()
     h     = height()
-    fs    = propNumElements ("_ColorRange")  > 0 ? \
-            propGetInt      ("_ColorRange") == 0 : rgb
+    bi    = BitsPerComponent()
+    fs    = propNumElements("_ColorRange")  > 0 ? \
+            propGetInt     ("_ColorRange") == 0 : rgb
 
-    isHD  = (w > 1099 ||  h >  599)
-    isUHD = (w > 2599 ||  h > 1499)
+    isHD  = (w > 1099 || h >  599)
+    isUHD = (w > 2599 || h > 1499)
 
     rd    = Default(rad, isHD?3:1)   # 1 or 2 for SD, 3 for HD and >=4 for 1080p or higher. 0 is a plain edge mask (ex_edge("qprewitt") )
     scl   = Default(scale,      5)   # Scale of the mask. Increase to convert edge mask to a flat mask
@@ -212,7 +213,7 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
                    Format("0         range_max {LO} {HI} - / x {LO} - * - "+bi32)
 
     str    = ex_dlut(code, bi, true)
-    cstr   = ex_UVexpr("", UV, bi, rgb, true)
+    cstr   = ex_UVexpr("", max(7,UV), bi, rgb, true)
 
     isy     ?  Expr(a, str,       lut=lut) : \
     UV == 1 ?  Expr(a, str, "",   lut=lut) : \
