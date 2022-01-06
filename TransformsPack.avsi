@@ -857,8 +857,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             o_fmt  = o_fmt[0]
             c_col  = cplace[0]
             c_cot  = cplace[1]
-            tv_in  = tv_in  ? "Lim" : "Full"
-            tv_out = tv_out ? "Lim" : "Full"
+            tv_i   = tv_in  ? "Lim" : "Full"
+            tv_o   = tv_out ? "Lim" : "Full"
             msize  = min(nw,nh)
 
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
@@ -889,7 +889,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                            +"{cs_in} \n "       \
                            +"{D_in} \n "        \
                            +"{i_jab} \n "       \
-                           +"{tv_in} \n "       \
+                           +"{tv_i} \n "        \
                            +"{cplace_in} \n "   \
                            +string(c_col,"%1.3f")+" \n "\
                            +"{kernel} \n "      \
@@ -904,7 +904,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                            +"{cs_out} \n "      \
                            +"{D_out} \n "       \
                            +"{o_jab} \n "       \
-                           +"{tv_out} \n "      \
+                           +"{tv_o} \n "        \
                            +"{cplace_out} \n "  \
                            +string(c_cot,"%1.3f")),x=msize/2.25,size=msize/25,lsp=4)
     } }
