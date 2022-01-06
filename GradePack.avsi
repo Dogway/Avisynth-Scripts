@@ -883,7 +883,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     s_gam = moncurve_coef(mat[0])
 
     rgb ? rgbp ? c : ConvertToPlanarRGB(c) : \
-    YUV_to_RGB(c, mat[0], tv_range_in=tv, tv_range_out=false, kernel="Point", cplace="", fulls=!tv)
+    YUV_to_RGB(c, mat[0], tv_range_in=tv, tv_range_out=false, kernel="Point", cplace="")
 
     temp3 = 1000.       /     temp
     temp6 = 1000000.    / pow(temp, 2.)
@@ -918,7 +918,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     moncurve_r(s_gam[0], s_gam[1], false, false, 1)
 
     rgb ? rgbp ? last : MatchClip(c) : \
-    RGB_to_YUV( mat[0], tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c), cplace="", fulls=true) }
+    RGB_to_YUV( mat[0], tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c), cplace="") }
 
 
 
