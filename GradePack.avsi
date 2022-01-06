@@ -953,7 +953,7 @@ function GradientLinear(clip "a", float "zoom", bool "positive", bool "smooth", 
 
     !tv ? ex_lutspa(mode="relative", expr=sm?"sxr":"sxr 0.5 + 2 % 1 < 0 1 ?",                          UV=128) : \
           ex_lutspa(mode="relative", expr=sm?"x ymax ymin - * ymin +":"sxr 0.5 + 2 % 1 < ymin ymax ?", UV=128).Full_scale(false)
-          ps ? ex_lut(Format("x {zm} *"),"")         : \
+          ps ? ex_lut(Format("x {of} *"),"")         : \
                ex_lut(Format("x {zm} * {of} -"),"")  }
 
 
@@ -967,7 +967,8 @@ function HistoCurve(clip a, float "size", float "zoom") {
 
     of = zm
     zm = zm * 2.
-    ps ? a : ex_lut(a,Format("x {of} + {zm} / "),"")
+    ps ? ex_lut(a,Format("x {of} /"),"") : \
+         ex_lut(a,Format("x {of} + {zm} / "),"")
     TurnRight()
     Histogram(mode="classic")
     TurnLeft()
