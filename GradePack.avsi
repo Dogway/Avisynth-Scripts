@@ -318,7 +318,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     # Half the modes ported from HAvsFunc, some from Overlay_MTools(), some from Blend_MT_alpha3 and rest from web
     str = Format(                                                                                                                                                                 \
                                                                                                                                                                                   \
-        md == "blend"        ? iso ? "y" : "x "+srcmx+" dup y "+srcmx+" swap - {op} * + "                                                                                                           : \
+        md == "blend"        ? iso ? "y" : "x "+srcmx+" dup y "+srcmx+" swap - {op} * + "                                                                                       : \
         md == "interpolation"? "x "+srcmx+" "+V+" "+rngmx+" / pi * cos 0.25 * 0.5 swap - y "+srcmx+" "+rngmx+" / pi * cos 0.25 * - "+rngmx+" * "                                : \
         md == "watermark"    ? "x "+srcmx+" A^ y "+srcmx+" "+rngmx+" B@ / 0 max 1 {wm} {op} ^ / ^  B * "                                                                        : \
                              \
@@ -620,8 +620,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
            mA=="HUE" ? mB=="SAT"  ? " X" :    " H" : \
            mB!="HUE"              ? " x "+rangePCc : mA=="SAT" ? " X Y atan2" : " y "+offS+rangePCc+varX+" z "+offS+rangePCc+varY+" atan2 "
 
-    msk = mA=="LUM" ? Format("f32 x "     +rangePC+" X@                                                                  {dA} - abs 1 swap - {bA} ^       0 1 clip"+sA) : \
-          mA=="SAT" ? Format("f32 x "+offS+rangePCc+varX+" dup * y "+offS+rangePCc+varY+" dup * + sqrt 0.5 + "+varM+"    {dA} - abs 1 swap - {bA} ^ 0.5 - 0 1 clip"+sA) : \
+    msk = mA=="LUM" ? Format("f32 x "     +rangePC+" X@                                                                  {dA} - abs 1 swap - {bA} ^       0 1 clip "+sA) : \
+          mA=="SAT" ? Format("f32 x "+offS+rangePCc+varX+" dup * y "+offS+rangePCc+varY+" dup * + sqrt 0.5 + "+varM+"    {dA} - abs 1 swap - {bA} ^ 0.5 - 0 1 clip "+sA) : \
                       Format("f32 x "+offS+rangePCc+varX+"       y "+offS+rangePCc+varY+" atan2 "+varM+" pi + 0.159155 * {dA} + 1 % {bA} ^ "+sA) # "0.159155 *" = "pi 2 * /"
     op  = mB=="LUM" ? Format(clpB+" dup dup dup dup 0.005 > swap {str} ^ swap ? 0 1 clip    swap - swap swap2 * + "+rangeTV)  : \
           mB=="SAT" ? Format(clpB+" dup dup                      {str} *                    swap - swap swap2 * + "+rangeTVc) : \
