@@ -861,8 +861,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             tv_out = tv_out ? "Lim" : "Full"
             msize  = min(nw,nh)
 
-            bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true)
-            ex_blend(bg,"multiply",opacity=0.5)
+            bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
+            ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
             Subtitle(" ConvertFormat() 1.0 RC31",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
