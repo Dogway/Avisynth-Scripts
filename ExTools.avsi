@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.0   (26-12-2021)                ##
+###           ExTools v7.1   (06-01-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -28,7 +28,7 @@
 ### fulls: Defines the source bitdepth scale (full/bitshift range) when converting from/to integer HBD formats (10, 12, 14, 16)
 ###        ConvertBits() defaults to false for YUV, same in ExTools if frame properties are not present.
 ###
-### Dependencies: AviSynth+ 3.7.1 test34+ (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.7.1 (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -49,24 +49,22 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "
     UV   = Default(UV,  rgb ? 3 : isc || Y!=3 ? 3 : 1)
     fs   = Default(fulls,    fs)
     cf   = Default(clamp_float, false)
-    si   = Defined(scale_inputs) ? \
-           scale_inputs : ex_UVf(rgb, bi)
+    si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    sp   =              FindStr(LCase(si),      "none") != 0 || FindStr(LCase(si), "floatuv") != 0
-    sp   = sp ? false : FindStr(LeftStr(str, 5), "f32") != 0
+    f32  = FindStr(LeftStr(str,  5), "f32") != 0
+    sn   = si == "none" || si == "floatUV"
+    sp   = sn || !(f32 && (si == "float" || si == "floatf"))
+    sp   = sp ? false : f32
     px   = FindStr(str, "[") > 0 || (isc ? FindStr(cstr, "[") > 0 : false)
     lut  = px || sp || bi == 32 ? 0 : 1
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str # Evaluate str as cstr if Y!=3 and cstr is not defined
-    cstr =                      ex_UVexpr(cstr, UV, bi, rgb, fs)
-    cstr =  rgb ? str         : ex_dlut  (cstr, bi, fs)
+    ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
+    cstr = rgb ? ex_dlut(str, bi, fs) : ex_UVexpr(cstr, UV, bi, rgb, fs, si, isc)
 
-    ystr =                      ex_Yexpr(  str,  Y, bi, rgb, fs)
-    str  =                      ex_dlut ( ystr, bi, fs)
-
-    isy     ?  Expr(a, str,       scale_inputs=si, clamp_float=cf, lut=lut) : \
-    UV == 1 ?  Expr(a, str, "",   scale_inputs=si, clamp_float=cf, lut=lut) : \
-               Expr(a, str, cstr, scale_inputs=si, clamp_float=cf, lut=lut) }
+    isy     ?  Expr(a, ystr,       scale_inputs=si, clamp_float=cf, lut=lut) : \
+    UV == 1 ?  Expr(a, ystr, "",   scale_inputs=si, clamp_float=cf, lut=lut) : \
+               Expr(a, ystr, cstr, scale_inputs=si, clamp_float=cf, lut=lut) }
 
 
 
@@ -84,24 +82,22 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     UV   = Default(UV,  rgb ? 3 : isc || Y!=3 ? 3 : 1)
     fs   = Default(fulls,    fs)
     cf   = Default(clamp_float, false)
-    si   = Defined(scale_inputs) ? \
-           scale_inputs : ex_UVf(rgb, bi)
+    si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    sp   =              FindStr(LCase(si),      "none") != 0 || FindStr(LCase(si),   "floatuv") != 0
-    sp   = sp ? false : FindStr(LeftStr(str, 5), "i16") != 0 || FindStr(LeftStr(str, 5), "f32") != 0
+    f32  = FindStr(LeftStr(str, 5), "f32") != 0
+    sn   = si == "none" || si == "floatUV"
+    sp   = sn || !(f32 && (si == "float" || si == "floatf"))
+    sp   = sp ? false : FindStr(LeftStr(str, 5), "i16") != 0 || f32
     px   = FindStr(str, "[") > 0 || (isc ? FindStr(cstr, "[") > 0 : false)
     lut  = px || !(!sp && bi < 16) ? 0 : 2
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str
-    cstr =                      ex_UVexpr(cstr, UV, bi, rgb, fs)
-    cstr =  rgb ? str         : ex_dlut  (cstr, bi, fs)
+    ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
+    cstr = rgb ? ex_dlut(str, bi, fs) : ex_UVexpr(cstr, UV, bi, rgb, fs, si, isc)
 
-    ystr =                      ex_Yexpr(  str,  Y, bi, rgb, fs)
-    str  =                      ex_dlut ( ystr, bi, fs)
-
-    isy     ?  Expr(a, b, str,       scale_inputs=si, clamp_float=cf, lut=lut) : \
-    UV == 1 ?  Expr(a, b, str, "",   scale_inputs=si, clamp_float=cf, lut=lut) : \
-               Expr(a, b, str, cstr, scale_inputs=si, clamp_float=cf, lut=lut) }
+    isy     ?  Expr(a, b, ystr,       scale_inputs=si, clamp_float=cf, lut=lut) : \
+    UV == 1 ?  Expr(a, b, ystr, "",   scale_inputs=si, clamp_float=cf, lut=lut) : \
+               Expr(a, b, ystr, cstr, scale_inputs=si, clamp_float=cf, lut=lut) }
 
 
 function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "opt", bool "fulls") {
@@ -119,19 +115,15 @@ function ex_lutxyz(clip a, clip b, clip c, string str, string "cstr", int "Y", i
     fs   = Default(fulls,    fs)
     cf   = Default(clamp_float, false)
     op   = Default(opt,         false)
-    si   = Defined(scale_inputs) ? \
-           scale_inputs : ex_UVf(rgb, bi)
+    si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str
-    cstr =                      ex_UVexpr(cstr, UV, bi, rgb, fs)
-    cstr =  rgb ? str         : ex_dlut  (cstr, bi, fs)
+    ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
+    cstr = rgb ? ex_dlut(str, bi, fs) : ex_UVexpr(cstr, UV, bi, rgb, fs, si, isc)
 
-    ystr =                      ex_Yexpr(  str,  Y, bi, rgb, fs)
-    str  =                      ex_dlut ( ystr, bi, fs)
-
-    isy     ?  Expr(a, b, c, str,       scale_inputs=si, clamp_float=cf, optSingleMode=op) : \
-    UV == 1 ?  Expr(a, b, c, str, "",   scale_inputs=si, clamp_float=cf, optSingleMode=op) : \
-               Expr(a, b, c, str, cstr, scale_inputs=si, clamp_float=cf, optSingleMode=op) }
+    isy     ?  Expr(a, b, c, ystr,       scale_inputs=si, clamp_float=cf, optSingleMode=op) : \
+    UV == 1 ?  Expr(a, b, c, ystr, "",   scale_inputs=si, clamp_float=cf, optSingleMode=op) : \
+               Expr(a, b, c, ystr, cstr, scale_inputs=si, clamp_float=cf, optSingleMode=op) }
 
 
 function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "opt", bool "fulls") {
@@ -149,19 +141,15 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
     fs   = Default(fulls,    fs)
     cf   = Default(clamp_float, false)
     op   = Default(opt,         false)
-    si   = Defined(scale_inputs) ? \
-           scale_inputs : ex_UVf(rgb, bi)
+    si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str
-    cstr =                      ex_UVexpr(cstr, UV, bi, rgb, fs)
-    cstr =  rgb ? str         : ex_dlut  (cstr, bi, fs)
+    ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
+    cstr = rgb ? ex_dlut(str, bi, fs) : ex_UVexpr(cstr, UV, bi, rgb, fs, si, isc)
 
-    ystr =                      ex_Yexpr(  str,  Y, bi, rgb, fs)
-    str  =                      ex_dlut ( ystr, bi, fs)
-
-    isy     ?  Expr(a, b, c, d, str,       scale_inputs=si, clamp_float=cf, optSingleMode=op) : \
-    UV == 1 ?  Expr(a, b, c, d, str, "",   scale_inputs=si, clamp_float=cf, optSingleMode=op) : \
-               Expr(a, b, c, d, str, cstr, scale_inputs=si, clamp_float=cf, optSingleMode=op) }
+    isy     ?  Expr(a, b, c, d, ystr,       scale_inputs=si, clamp_float=cf, optSingleMode=op) : \
+    UV == 1 ?  Expr(a, b, c, d, ystr, "",   scale_inputs=si, clamp_float=cf, optSingleMode=op) : \
+               Expr(a, b, c, d, ystr, cstr, scale_inputs=si, clamp_float=cf, optSingleMode=op) }
 
 
 # mt_makediff() is 5% slower
@@ -186,10 +174,9 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     aug  = Daug ? Baug ? aug ? 50 : -1 : aug == -1 ? 50 : aug : mcf == "none" ? 0 : 50
     Y    = Default(Y,               3)
     UV   = Default(UV,        rgb ? 3 : aug > 0 ? 128 : 1)
-    si   = Defined(scale_inputs) ? \
-                   scale_inputs : ex_UVf(rgb, bi)
+    si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    sp   = FindStr(LCase(si), "none") != 0 || FindStr(LCase(si), "floatuv") != 0
+    sp   = si == "none" || si == "floatuv"
     lut  = !sp || bi < 16 ? 2 : 0
 
     gr   =             tv ? "ygrey" : "range_half"
@@ -197,14 +184,12 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                   dif     ? "x y - "+gr+" +"       : \
                             "x y -")
 
-    ystr = ex_Yexpr (           str,                        Y, bi, rgb, fs)
-    cstr = ex_UVexpr(ReplaceStr(str,"ygrey","range_half"), UV, bi, rgb, fs)
-    str  = dif ? ex_dlut(ystr, bi, fs) : str
-    cstr = dif ? ex_dlut(cstr, bi, fs) : cstr
+    ystr = ex_Yexpr (           str,                        Y, bi, rgb, fs, si)
+    cstr = ex_UVexpr(ReplaceStr(str,"ygrey","range_half"), UV, bi, rgb, fs, si)
 
-    isy     ? Expr(a, b, str      , scale_inputs=si, clamp_float=cf, lut=lut) : \
-    UV == 1 ? Expr(a, b, str, ""  , scale_inputs=si, clamp_float=cf, lut=lut) : \
-              Expr(a, b, str, cstr, scale_inputs=si, clamp_float=cf, lut=lut)
+    isy     ? Expr(a, b, ystr      , scale_inputs=si, clamp_float=cf, lut=lut) : \
+    UV == 1 ? Expr(a, b, ystr, ""  , scale_inputs=si, clamp_float=cf, lut=lut) : \
+              Expr(a, b, ystr, cstr, scale_inputs=si, clamp_float=cf, lut=lut)
     !tv     ? PropSet("_ColorRange", 0) : last
 
     # Cost Functions for Similarity Index Metric Distances (Residuals)
@@ -381,24 +366,21 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_rang
     dif = Default(dif,     bi!=32)
     fs  = Default(fulls, Defined(tv_range) ? tv_range ? false : fs : fs)
     tv  = Default(tv_range, false)
-    si  = Defined(scale_inputs) ? \
-                  scale_inputs : ex_UVf(rgb, bi)
+    si  = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    sp   = FindStr(LCase(si), "none") != 0 || FindStr(LCase(si), "floatuv") != 0
+    sp   = si == "none" || si == "floatuv"
     lut  = !sp || bi < 16 ? 2 : 0
 
     gr  = tv  ? "ygrey" : "range_half"
     str = dif ? "x y + "+gr+" -"      : \
                 "x y +"
 
-    ystr = ex_Yexpr (str,  Y, bi, rgb, fs)
-    cstr = ex_UVexpr(str, UV, bi, rgb, fs)
-    str  = dif ? ex_dlut(ystr, bi, fs) : str
-    cstr = dif ? ex_dlut(cstr, bi, fs) : cstr
+    ystr = ex_Yexpr (str,  Y, bi, rgb, fs, si)
+    cstr = ex_UVexpr(str, UV, bi, rgb, fs, si)
 
-    isy     ? Expr(a, b, str      , scale_inputs=si, lut=lut) : \
-    UV == 1 ? Expr(a, b, str, ""  , scale_inputs=si, lut=lut) : \
-              Expr(a, b, str, cstr, scale_inputs=si, lut=lut) }
+    isy     ? Expr(a, b, ystr      , scale_inputs=si, lut=lut) : \
+    UV == 1 ? Expr(a, b, ystr, ""  , scale_inputs=si, lut=lut) : \
+              Expr(a, b, ystr, cstr, scale_inputs=si, lut=lut) }
 
 
 function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "scale_inputs", bool "clamp_float") {
@@ -412,17 +394,16 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "sca
     UV  = Default(UV,    rgb ? 3 : 1)
     un  = Undefined()
     cf  = Default(clamp_float, false)  # Works two ways. Not only it will clamp floats output, but also the first in-expression differential
-    si  = Defined(scale_inputs) ? \
-                  scale_inputs : ex_UVf(rgb, bi)
+    si  = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    sp   = FindStr(LCase(si), "none") != 0 || FindStr(LCase(si), "floatuv") != 0
+    sp   = si == "none" || si == "floatuv"
     lut  = !sp || bi < 16 ? 2 : 0
 
     str = cf  ? "0 max" : ""
     str = isc ? "x y - "+str+" z +" : "x y - "+str+" x +"
 
-    ystr = ex_Yexpr (str,  Y, bi, rgb, un)
-    cstr = ex_UVexpr(str, UV, bi, rgb, un)
+    ystr = ex_Yexpr (str,  Y, bi, rgb, un, si)
+    cstr = ex_UVexpr(str, UV, bi, rgb, un, si)
 
     isc     ?                                                                        \
     isy     ? Expr(a, b, c, ystr      , scale_inputs=si, clamp_float=cf          ) : \
@@ -448,6 +429,7 @@ function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV")
     th1  = Default(thx,     0 )       # threshold for clip x in modes 'min' or 'max'
     th2  = Default(thy,     0 )       # threshold for clip y in modes 'min' or 'max'
     UV   = Default(UV,    rgb ? 3 : 1)
+    si   = ex_UVf(rgb, bi)
 
     th1 = th1 != 0 ? string(ex_bs(th1, 8, bi, fulls=fs))+" + " : ""
     th2 = th2 != 0 ? string(ex_bs(th2, 8, bi, fulls=fs))+" + " : ""
@@ -461,11 +443,12 @@ function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV")
         mode == "max"   ?        "x "+th1+" y "+th2+" max"                     : \
                                  Assert (false, "ex_logic: Unsupported logic mode.")
 
-    str  = ex_dlut(str, bi, fs)
+    cstr = ex_UVexpr(str, UV, bi, rgb, fs, si)
+    str  = ex_dlut  (str, bi, fs)
 
-    isy     ? Expr(a, b, str                                                               , lut=lut) : \
-    UV == 1 ? Expr(a, b, str, ""                                                           , lut=lut) : \
-              Expr(a, b, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), lut=lut) }
+    isy     ? Expr(a, b, str                       , lut=lut) : \
+    UV == 1 ? Expr(a, b, str, ""                   , lut=lut) : \
+              Expr(a, b, str, cstr, scale_inputs=si, lut=lut) }
 
 
 # The higher the mask value the more the second clip merges into the first (mask bitdepth scale should always saturate full range -ie. 65535 for 16-bit int-)
@@ -486,6 +469,7 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV") {
     Y   = Default(Y,                  3)
     UV  = Default(UV,    isya ? 1 : rgb || lm ? 3 : 2)
     un  = Undefined()
+    si  = ex_UVf(rgb, bi)
 
     isRGB(msk) ? Assert (!lm, "ex_merge: 'luma=true' unsupported for RGB masks.") : nop()
 
@@ -501,13 +485,12 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV") {
 
      str = bi == 32 ? "x dup y - z * -" : "x dup y - z range_max / * -"
 
-     str = ex_dlut  ( str,     bi,      un)
-    ystr = ex_Yexpr ( str,  Y, bi, rgb, un)
-    cstr = ex_UVexpr( str, UV, bi, rgb, un)
+    cstr = ex_UVexpr( str, UV, bi, rgb, un, si)
+    ystr = ex_Yexpr ( str,  Y, bi, rgb, un, si)
 
-    isya    ? Expr(a, b, msk, ystr,                                     optSingleMode=false) : \
-    UV == 1 ? Expr(a, b, msk, ystr, "",                                 optSingleMode=false) : \
-              Expr(a, b, msk, ystr, cstr, scale_inputs=ex_UVf(rgb, bi), optSingleMode=false) }
+    isya    ? Expr(a, b, msk, ystr,                        optSingleMode=false) : \
+    UV == 1 ? Expr(a, b, msk, ystr, "",                    optSingleMode=false) : \
+              Expr(a, b, msk, ystr, cstr, scale_inputs=si, optSingleMode=false) }
 
 
 # mt_clamp() is 6% slower
@@ -522,6 +505,7 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
     os = Default(overshoot,  0)
     us = Default(undershoot, 0)
     UV = Default(UV,    rgb ? 3 : 1)
+    si = ex_UVf(rgb, bi)
 
     os = ex_bs(os, 8, bi, fulls=fs)
     us = ex_bs(us, 8, bi, fulls=fs)
@@ -529,9 +513,11 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
     str = (os == 0) && (us == 0) ?        "x y min z max"              : \
                                    Format("x y {os} + min z {us} - max")
 
-    isy     ? Expr(a, hi, lo, str,                                                                optSingleMode=false) : \
-    UV == 1 ? Expr(a, hi, lo, str, "",                                                            optSingleMode=false) : \
-              Expr(a, hi, lo, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false) }
+    cstr = ex_UVexpr( str, UV, bi, rgb, fs, si)
+
+    isy     ? Expr(a, hi, lo, str,                        optSingleMode=false) : \
+    UV == 1 ? Expr(a, hi, lo, str, "",                    optSingleMode=false) : \
+              Expr(a, hi, lo, str, cstr, scale_inputs=si, optSingleMode=false) }
 
 
 # mt_binarize() is 12% slower than ex_binarize()
@@ -565,8 +551,9 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     in = Default(invert, false)       # Use this for invert instead of lo=255 and hi=0
     sm = Default(smooth, false)
     md = Default(mode, "simple")      # 'simple', 'dynamic' or 'otsu'
-    UV = Default(UV,      1)          # Currently this is noop as chroma thresholding makes no sense
+    UV = Default(UV,        128)      # Currently this is noop as chroma thresholding makes no sense
     fs = Default(fulls,  fs)
+    si = ex_UVf(rgb, bi)
 
     th  = ex_bs(th,  8, bi, fulls=fs)
     lox = lo < 0   hix = hi < 0
@@ -642,7 +629,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
             th = th == th0 ? 1 : th == th1 ? 2 : th == th2 ? 3 : th == th3 ? 4 : th == th4 ? 5 : th == th5 ? 6 : th == th6 ? 7 : th == th7 ? 8 : th == th8 ? 9 : 10
             th = (th*bnth+off)-bnth/2
 
-            ex_binarize(th,in,sm,"simple",lo,hi,1,fs)
+            ex_binarize(th,in,sm,"simple",lo,hi,UV,fs)
 
         } )
 
@@ -653,7 +640,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
         ScriptClip(a, function [br,in,sm,lo,hi,UV,fs] () {
 
             th = (AverageLuma(br,-2)+AverageLuma(br,0)+AverageLuma(br,2))*0.333333333
-            ex_binarize(th,in,sm,"simple",lo,hi,1,fs)
+            ex_binarize(th,in,sm,"simple",lo,hi,UV,fs)
 
         } )
 
@@ -697,12 +684,13 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
                               "x {th} > "+hi+" "+lo+" ?")
         }
 
+    cstr = ex_UVexpr(  str, UV, bi, rgb, fs, si)
 
-    isy     ?  Expr(a, str                                                               , lut=lut, clamp_float=sm && bi32 ) : \
-    UV == 1 ?  Expr(a, str, ""                                                           , lut=lut, clamp_float=sm && bi32 ) : \
-               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), lut=lut, clamp_float=sm && bi32 )
-    fd      ?  PropSet("_ColorRange", 0)              : last
-    sm      ?  ex_boxblur(0.3, mode="weighted", UV=1) : last } }
+    isy     ?  Expr(a, str                       , lut=lut, clamp_float=sm && bi32 ) : \
+    UV == 1 ?  Expr(a, str, ""                   , lut=lut, clamp_float=sm && bi32 ) : \
+               Expr(a, str, cstr, scale_inputs=si, lut=lut, clamp_float=sm && bi32 )
+    fd      ?  PropSet("_ColorRange", 0)                                             : last
+    sm      ?  ex_boxblur(0.3, mode="weighted", UV=1)                                : last } }
 
 
 
@@ -728,6 +716,7 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
     md  = Default(mode,    "gaussian")    # 'mean' or 'gaussian'
     UV  = Default(UV,    rgb ? 3 : 128)
     un  = Undefined()
+    si  = ex_UVf(rgb, bi)
 
     sg = max(sg,0)
     th = 1 - (th / 1000.)
@@ -741,22 +730,22 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
 
            + + + + + + 0.012345679 *"
 
-    isy     ?  Expr(a, str                                                               ) : \
-    UV == 1 ?  Expr(a, str, ""                                                           ) : \
-               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, un), scale_inputs=ex_UVf(rgb, bi))
+    isy     ?  Expr(a, str                                                      ) : \
+    UV == 1 ?  Expr(a, str, ""                                                  ) : \
+               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, un, si), scale_inputs=si)
 
     integral = last
 
     # BLUR
-    md=="gaussian" ? ex_gaussianblur(sg,pad=false,UV=uv) : ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
+    md=="gaussian" ? ex_gaussianblur(sg,pad=false,UV=uv!=3?2:3) : ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
 
     # THRESHOLD
     str  = Format("y x {th} * "+(in ? ">" : "<")+" 0 range_max ?")
 
-    isy     ? Expr(last, integral, str                                                       , lut=lut) : \
-    UV == 1 ? Expr(last, integral, str,  ""                                                  , lut=lut) : \
-              Expr(last, integral, str,  ex_UVexpr(str, UV, bi, rgb, un), scale_inputs="none", lut=lut)
-              PropSet("_ColorRange", 0)                                                                 }
+    isy     ? Expr(last, integral, str                                                      , lut=lut) : \
+    UV == 1 ? Expr(last, integral, str, ""                                                  , lut=lut) : \
+              Expr(last, integral, str, ex_UVexpr(str, UV, bi, rgb, un), scale_inputs="none", lut=lut)
+              PropSet("_ColorRange", 0)                                                              }
 
 
 # mt_invert() is 10% slower and invert(channels="Y") is 17% slower
@@ -772,6 +761,7 @@ function ex_invert(clip a, bool "tv_range", int "UV") {
     fs  = Defined(tv_range) ? tv_range ? false : fs : fs
     tv  = Default(tv_range, false)    # enable for non-scalar TV range clips
     UV  = Default(UV, rgb ? 3 : 1)
+    si  = ex_UVf(rgb, bi)
 
     if (tv) {
 
@@ -783,18 +773,18 @@ function ex_invert(clip a, bool "tv_range", int "UV") {
 
         str  = Format("{tvr}  x -")
         cstr = Format("{tvcr} x -")
-        cstr = ex_UVexpr(cstr, UV, bi, rgb, fs)
+        cstr = ex_UVexpr(cstr, UV, bi, rgb, fs, si)
 
     } else {
 
         str  = "range_max x -"
+        cstr = ex_UVexpr(str, UV, bi, rgb, fs, si)
         str  = ex_dlut  (str,     bi,      fs)
-        cstr = ex_UVexpr(str, UV, bi, rgb, fs)
     }
 
-    isy     ?  Expr(a, str                                    , lut=lut) : \
-    UV == 1 ?  Expr(a, str, ""                                , lut=lut) : \
-               Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi), lut=lut) }
+    isy     ?  Expr(a, str                       , lut=lut) : \
+    UV == 1 ?  Expr(a, str, ""                   , lut=lut) : \
+               Expr(a, str, cstr, scale_inputs=si, lut=lut) }
 
 
 
@@ -816,15 +806,15 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
+    isc  = Defined(cexpr)
 
     str  = Default(expr,  "")
-    cstr = Default(cexpr, "")
+    cstr = Default(cexpr, str)
     mix  = FindStr(LCase(" "+str), " sx") > 0 || FindStr(LCase(" "+str), " sy") > 0
     mode = Default(mode, mix ? "mix" : "absolute")
     UV   = Default(UV,   rgb ? 3 : 1)
     cf   = Default(clamp_float, false)
-    si   = Defined(scale_inputs) ? \
-           scale_inputs : ex_UVf(rgb, bi)
+    si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
     tem  = FindStr(LCase(str), "frameno")  > 0 || FindStr(LCase(str), "time") > 0
 
@@ -837,8 +827,8 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV
            mode=="mix"      ?                           cstr                                      : \
                               Assert (false, "ex_lutspa: Unsupported mode.")
 
-    cstr = ex_dlut(ex_UVexpr(cstr, UV, bi, rgb, true), bi, true)
-    str  = ex_dlut(str, bi, true)
+    cstr = ex_UVexpr(cstr, UV, bi, rgb, true, si, isc)
+    str  = ex_Yexpr(  str,  3, bi, rgb, true, si)
 
     isy     ?  Expr(a, str      , scale_inputs=si, clamp_float=cf ) : \
     UV == 1 ?  Expr(a, str, ""  , scale_inputs=si, clamp_float=cf ) : \
@@ -851,7 +841,7 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV
 # ex_motion() replaces mt_motion(). A very basic motion mask filter.
 # A better alternative to study in the future is to include a Kalman filter.
 #
-function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV", string "scale_inputs") {
+function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -867,19 +857,16 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV", string "scale_
 
     lo   = ex_bs(lo, 8, bi, fulls=true)
     hi   = ex_bs(hi, 8, bi, fulls=true)
-    th   = (lo == 0) && (hi == ex_bs(255, 8, bi, fulls=true)) ? "" : ex_dlut(Format(" {lo} - range_max {hi} {lo} - / *"), bi, un)
+    th   = (lo == 0) && (hi == ex_bs(255, 8, bi, fulls=true)) ? "" : Format(" {lo} - range_max {hi} {lo} - / *")
     str  = "x y - abs"+th
 
-    cstr =                      ex_UVexpr( str, UV, bi, rgb, un)
-    cstr = rgb ? str          : ex_dlut  (cstr, bi, un)
-
-    ystr =                      ex_Yexpr(  str,  Y, bi, rgb, un)
-    str  =                      ex_dlut ( ystr, bi, un)
+    ystr =              ex_Yexpr(  str,  Y, bi, rgb, un)
+    cstr = rgb ? ystr : ex_UVexpr( str, UV, bi, rgb, un)
 
     b    = a.selectevery(1,-1)
-    isy     ?  Expr(a, b, str,       lut=lut) : \
-    UV == 1 ?  Expr(a, b, str, "",   lut=lut) : \
-               Expr(a, b, str, cstr, lut=lut)
+    isy     ?  Expr(a, b, ystr,       lut=lut) : \
+    UV == 1 ?  Expr(a, b, ystr, "",   lut=lut) : \
+               Expr(a, b, ystr, cstr, lut=lut)
                PropSet("_ColorRange", 0)    }
 
 
@@ -898,7 +885,7 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV", string "scale_
 
 # EQUIVALENCES (ex_blur with default mode="binomial"):
 # blur(0.5)                                       ~> ex_boxblur(0.5,mode="weighted") ~> ex_blur(0.63)
-# removegrain(12) / blur(1.0)                     -> ex_boxblur(1,mode="weighted")
+# removegrain(12) / blur(1.0)                     -> ex_boxblur(1,mode="weighted") (also called half-band lowpass)
 # removegrain(20) / blur(1.58)                    -> ex_boxblur(1,mode="mean")       -> ex_blur(1.5,n=300,mode="butterworth")
 # removegrain(19)                                 -> ex_boxblur(1,mode="rg19")
 # removegrain(12).removegrain(20)                 ~> ex_blur(2.45)
@@ -1115,7 +1102,11 @@ function binom_coeffs(n, k) {
 # modes:
 # gaussian:    true gaussian blur
 # binomial:    discreet gaussian blur approximation (Default)
-# butterworth: bias between a ~gaussian (n=8) and mean (n=300) blur distribution with default n=6 (decay of 6dB/oct) typical for lowpass.
+# butterworth: bias between a ~gaussian (n=8) and mean (n=300) blur distribution with default n=6 (decay of 6dB/oct) typical for low-pass.
+#
+# Other:
+# half-band:    ex_blur(1) or ex_boxblur(1,mode="weighted"). 'low-pass' filter, reduces the maximum bandwidth of sampled data (resolution) by a factor of 2 (1 octave)
+# quarter-band: ex_blur(5) or ex_boxblur(5,mode="weighted"). 'low-pass' filter, reduces the maximum bandwidth of sampled data (resolution) by a factor of 4 (2 octaves)
 #
 function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode", string "gamma", int "Y", int "UV", bool "fulls") {
 
@@ -1558,8 +1549,11 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 
 function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool "mblur", int "Y", int "UV") {
 
-    rgb = isRGB(a)
-    isy = isy(a)
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    w0   = Width(a)
+    h0   = Height(a)
+    bi   = BitsPerComponent(a)
 
     rd   = Default(sigma,    10)
     rv   = Default(sigmaV,   rd)
@@ -1567,9 +1561,6 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     mb   = Default(mblur,  true)              # minimum blur. Default true to swap to ex_blur() for low sigmas (more accuracy)
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 2)
-
-    w0 = a.Width()
-    h0 = a.Height()
 
     # Reparametrization to gaussian like standard deviation via piecewise multi-regression fit
     py = "a1   = -0.000484987*pow(rd, -0.0101*rd+3.86267)-5.58416
@@ -1645,7 +1636,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
         Y  == 3 && UV < 3 ? mergeluma(a,last) : \
         Y  == 3 && UV ==3 ? YtoUV(Bu,Bv,last) : \
         UV == 3 && Y  < 3 ? YtoUV(Bu,Bv,  ay) : \
-        Y  != 3 && UV !=3 ?                a  : last } }
+        Y  != 3 && UV !=3 ?                a  : UV>6 ? mskY_to_YYY(a, last, true, rgb, UV, bi) : last } }
 
 
 
@@ -1666,6 +1657,7 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
     th  = Default(th,   1)                                     # Soft threshold (Default: 1 to respond similar to original Default: 7)
     UV  = Default(UV,    rgb ? 3 : 1)
     un  = Undefined()
+    si  = ex_UVf(rgb, bi)
 
     Assert (rd < 4, "ex_FluxSmoothT: radii > 3 is not supported")
 
@@ -1721,10 +1713,10 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
     str   = ex_dlut( FL, bi, un)
     clips = rd == 7 ? "b3,b2,b,f,f2,f3" : rd == 5 ? "b2,b,f,f2" : "b,f"
 
-    rd == 0 ?              a                                                                                        : \
-    isy     ? Eval("""Expr(a, """+clips+""", str                                                              )""") : \
-    UV == 1 ? Eval("""Expr(a, """+clips+""", str, ""                                                          )""") : \
-              Eval("""Expr(a, """+clips+""", str, ex_UVexpr(FL, UV, bi, rgb, un), scale_inputs=ex_UVf(rgb, bi))""") }
+    rd == 0 ?              a                                                                               : \
+    isy     ? Eval("""Expr(a, """+clips+""", str                                                     )""") : \
+    UV == 1 ? Eval("""Expr(a, """+clips+""", str, ""                                                 )""") : \
+              Eval("""Expr(a, """+clips+""", str, ex_UVexpr(FL, UV, bi, rgb, un, si), scale_inputs=si)""") }
 
 
 
@@ -2019,8 +2011,8 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
     bias =        min(2*cos(pi+2*pi*thr/255.)+2,1)*20           # Minimize soft threshold spread on extremes
     thr1 = ex_bs( max(thr-10 - bias,   0), 8, bi, fulls=true)
     thr2 = ex_bs( min(thr+10 + bias, 255), 8, bi, fulls=true)
-    ths = mode!="EMF" && mode!="SNN" && !smart && FindStr(mode,"DGM")==0 && thr != 255 ?                                                                      \
-          ex_dlut(Format(" x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -"), bi, un) : ""
+    ths = mode!="EMF" && mode!="SNN" && !smart && FindStr(mode,"DGM")==0 && thr != 255 ?                                                  \
+          Format(" x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -") : ""
 
     Assert(IsVersionOrGreater(3,7,1), "ex_median: Update AviSynth+ version to 3.7.1+")
 
@@ -4213,20 +4205,18 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
         mode == "Vertical" ?"x[0,-1] x[0,1] dup1 dup1 max swap2 min
                              x swap2 clip"+ths                                                                                                                      : \
                                                                                                                                                                       \
-        mode == "verticalS"? ex_dlut("
-                             x[0,-2] B2^ x[0,-1] B1^ x[0,1] T1^ x[0,2] T2^
+        mode == "verticalS"?"x[0,-2] B2^ x[0,-1] B1^ x[0,1] T1^ x[0,2] T2^
                              B1 B2    - 0 range_max clip B1 + 0 range_max clip    T1 T2 - 0 range_max clip T1 + 0 range_max clip min B1 max T1 max
                              B1 B2 B1 - 0 range_max clip -    0 range_max clip T1 T2 T1 - 0 range_max clip    - 0 range_max clip max B1 T1 min min
-                             x swap2 clip"+ths, bi, un)                                                                                                             : \
+                             x swap2 clip"+ths                                                                                                                      : \
                                                                                                                                                                       \
         mode == "horizontal"?"x[-1,0] x[1,0] dup1 dup1 max swap2 min
-                              x swap2 clip"+ths                                                                                                                      : \
+                              x swap2 clip"+ths                                                                                                                     : \
                                                                                                                                                                       \
-        mode == "horizontalS"?ex_dlut("
-                             x[-2,0] B2^ x[-1,0] B1^ x[1,0] T1^ x[2,0] T2^
-                             B1 B2    - 0 range_max clip B1 + 0 range_max clip    T1 T2 - 0 range_max clip T1 + 0 range_max clip min B1 max T1 max
-                             B1 B2 B1 - 0 range_max clip -    0 range_max clip T1 T2 T1 - 0 range_max clip    - 0 range_max clip max B1 T1 min min
-                             x swap2 clip"+ths, bi, un)                                                                                                             : \
+        mode == "horizontalS"?"x[-2,0] B2^ x[-1,0] B1^ x[1,0] T1^ x[2,0] T2^
+                               B1 B2    - 0 range_max clip B1 + 0 range_max clip    T1 T2 - 0 range_max clip T1 + 0 range_max clip min B1 max T1 max
+                               B1 B2 B1 - 0 range_max clip -    0 range_max clip T1 T2 T1 - 0 range_max clip    - 0 range_max clip max B1 T1 min min
+                               x swap2 clip"+ths                                                                                                                    : \
                                                                                                                                                                       \
         mode == "DGM0"   ?  Format("
                             x[1,-1] x[-1,1]  dup1 dup1 min A^ max B^
@@ -5162,7 +5152,8 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
     temp  = mode == "medianT" || mode == "medianST" || mode == "ML3D" || mode == "ML3Dex" || mode == "BDM" || mode == "MMF" || mode == "PML" || \
             FindStr(mode,"DGM")>0 || mode == "unblob3D" || mode == "TL3D" || mode == "Hybrid" || mode == "SixNN" ||  temp5
 
-    ystr  = ex_Yexpr (str, Y, bi, rgb, un)
+    cstr = ex_UVexpr(str, UV, bi, rgb, un)
+    str  = ex_Yexpr (str, Y,  bi, rgb, un)
 
     if (temp) {
 
@@ -5171,19 +5162,19 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
         b2 = temp5 ? rc ? b.selectevery(1,-1) :                                a.selectevery(1,-2) : nop()
         f2 = temp5 ?                                                           a.selectevery(1,+2) : nop()
 
-       !temp5                                                                                                              ? \
-        isy     ? Expr(a, b,     f,     ystr,                                  optSingleMode = false                     ) : \
-        UV == 1 ? Expr(a, b,     f,     ystr, "",                              optSingleMode = false                     ) : \
-                  Expr(a, b,     f,     ystr, ex_UVexpr(str, UV, bi, rgb, un), optSingleMode = false, scale_inputs="none") : \
-        isy     ? Expr(a, b2, b, f, f2, ystr,                                  optSingleMode = false                     ) : \
-        UV == 1 ? Expr(a, b2, b, f, f2, ystr, "",                              optSingleMode = false                     ) : \
-                  Expr(a, b2, b, f, f2, ystr, ex_UVexpr(str, UV, bi, rgb, un), optSingleMode = false, scale_inputs="none")
+       !temp5                                                                                  ? \
+        isy     ? Expr(a, b,     f,     str,       optSingleMode = false                     ) : \
+        UV == 1 ? Expr(a, b,     f,     str, "",   optSingleMode = false                     ) : \
+                  Expr(a, b,     f,     str, cstr, optSingleMode = false, scale_inputs="none") : \
+        isy     ? Expr(a, b2, b, f, f2, str,       optSingleMode = false                     ) : \
+        UV == 1 ? Expr(a, b2, b, f, f2, str, "",   optSingleMode = false                     ) : \
+                  Expr(a, b2, b, f, f2, str, cstr, optSingleMode = false, scale_inputs="none")
 
     } else {
 
-        isy     ? Expr(a, ystr,                                  optSingleMode = mode == "PWM"                           ) : \
-        UV == 1 ? Expr(a, ystr, "",                              optSingleMode = mode == "PWM"                           ) : \
-                  Expr(a, ystr, ex_UVexpr(str, UV, bi, rgb, un), optSingleMode = mode == "PWM",       scale_inputs="none") } }
+        isy     ? Expr(a, str,       optSingleMode = mode == "PWM"                           ) : \
+        UV == 1 ? Expr(a, str, "",   optSingleMode = mode == "PWM"                           ) : \
+                  Expr(a, str, cstr, optSingleMode = mode == "PWM",       scale_inputs="none") } }
 
 
 
@@ -5440,8 +5431,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             y max swap y min
                             x swap2 clip"                                                                                                                           : \
                                                                                                                                                                       \
-        mode=="edgeSP"   ? ex_dlut("
-                            y[1,-1] y[-1,1]  dup1 dup1 min A^ max B^
+        mode=="edgeSP"   ? "y[1,-1] y[-1,1]  dup1 dup1 min A^ max B^
                             y[1,1]  y[-1,-1] dup1 dup1 min C^ max D^
                             y[0,1]  y[0,-1]  dup1 dup1 min E^ max F^
                             y[1,0]  y[-1,0]  dup1 dup1 min G^ max H^
@@ -5454,7 +5444,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                                AC == x y G min y H max clip
                             BB AA == x y C min y D max clip
                             BB AB == x y E min y F max clip
-                                     x y A min y B max clip ? ? ?", bi, un)                                                                                         : \
+                                     x y A min y B max clip ? ? ?"                                                                                                  : \
                                                                                                                                                                       \
         mode == "edgeS"  ? "y[-1,0] y[1,0]   dup1 dup1 min swap2 max
                             y[1,1]  y[-1,-1] dup1 dup1 min swap2 max
@@ -5473,11 +5463,11 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             S@ DD == x D E dup1 dup1 min I min swap2 max I max clip  S BB == x B G dup1 dup1 min I min swap2 max I max clip
                             S  CC == x C F dup1 dup1 min I min swap2 max I max clip          x A H dup1 dup1 min I min swap2 max I max clip ? ? ?"                 : \
                                                                                                                                                                      \
-        mode == "cartoonc"? ex_dlut("y[0,0] Y@ y[1,1] - abs Y y[1,0] - abs min Y y[1,-1] - abs min Y y[-1,1] - abs min Y y[-1,0] - abs min Y y[-1,-1] - abs min Y y[0,1] - abs min Y y[0,-1] - abs min
-                                     DI@ Y + range_max min Y DI - 0 max x swap2 clip", bi, un)                                                                     : \
+        mode == "cartoonc"? "y[0,0] Y@ y[1,1] - abs Y y[1,0] - abs min Y y[1,-1] - abs min Y y[-1,1] - abs min Y y[-1,0] - abs min Y y[-1,-1] - abs min Y y[0,1] - abs min Y y[0,-1] - abs min
+                             DI@ Y + range_max min Y DI - 0 max x swap2 clip"                                                                                      : \
                                                                                                                                                                      \
-        mode == "cartoon" ? ex_dlut("x[0,0] X@ y[1,1] - abs X y[1,0] - abs min X y[1,-1] - abs min X y[-1,1] - abs min X y[-1,0] - abs min X y[-1,-1] - abs min X y[0,1] - abs min X y[0,-1] - abs min
-                                     DI@ X + range_max min X DI - 0 max y swap2 clip", bi, un)                                                                     : \
+        mode == "cartoon" ? "x[0,0] X@ y[1,1] - abs X y[1,0] - abs min X y[1,-1] - abs min X y[-1,1] - abs min X y[-1,0] - abs min X y[-1,-1] - abs min X y[0,1] - abs min X y[0,-1] - abs min
+                             DI@ X + range_max min X DI - 0 max y swap2 clip"                                                                                      : \
                                                                                                                                                                      \
         mode == "temp0"  ? "y z max a max y z min a min x swap2 clip"                                                                                              : \
                                                                                                                                                                      \
@@ -5571,20 +5561,23 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             Assert (false, "ex_repair: "+mode+": Unsupported repair mode.")
 
 
+    cstr = ex_UVexpr(str, UV, bi, rgb, un)
+    str  = ex_dlut  (str, bi, fs)
+
     if (FindStr(mode, "emp")>0) {
 
         c  = a.selectevery(1,-1)
         d  = a.selectevery(1,+1)
 
-        isy     ? Expr(a, c, d, b, str,                                  optSingleMode = false                     ) : \
-        UV == 1 ? Expr(a, c, d, b, str, "",                              optSingleMode = false                     ) : \
-                  Expr(a, c, d, b, str, ex_UVexpr(str, UV, bi, rgb, un), optSingleMode = false, scale_inputs="none")
+        isy     ? Expr(a, c, d, b, str,       optSingleMode = false                     ) : \
+        UV == 1 ? Expr(a, c, d, b, str, "",   optSingleMode = false                     ) : \
+                  Expr(a, c, d, b, str, cstr, optSingleMode = false, scale_inputs="none")
 
     } else {
 
-        isy     ? Expr(a, b,       str                                                                             ) : \
-        UV == 1 ? Expr(a, b,       str, ""                                                                         ) : \
-                  Expr(a, b,       str, ex_UVexpr(str, UV, bi, rgb, un),                        scale_inputs="none") } }
+        isy     ? Expr(a, b,       str                                                  ) : \
+        UV == 1 ? Expr(a, b,       str, ""                                              ) : \
+                  Expr(a, b,       str, cstr,                        scale_inputs="none") } }
 
 
 
@@ -5656,9 +5649,9 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 # 'disk' is an antialiased 'circle', slower but looks better. Inspired by ImageMagick morphology shapes.
 #
 # 'square'            is like calling mode="vertical" then mode="horizontal"
-# 'circle' + radius=2 is like calling mode="plus" twice but faster
-# 'disk'   + radius=2 is like calling mode="square", then mode="plus" but faster
-# 'disk'   + radius=3 is like calling mode="square", then mode="plus" twice but faster
+# 'circle' + radius=2 is like calling mode="plus"     twice but faster
+# 'disk'   + radius=2 is like calling mode="square",  then mode="plus" but faster
+# 'disk'   + radius=3 is like calling mode="square",  then mode="plus" twice but faster
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rgb  = isRGB(a)
@@ -5873,7 +5866,7 @@ function ex_inflate(clip a, int "radius", int "UV") {
 # junction     - Extracts junction pixels (to be used after skeleton). Also known as branched points
 # 4-connected  - Extracts connected components by shared edges
 # 8-connected  - Extracts connected components by a Chebyshev distance of 1
-# 4x4          - Prunes everything under a 4x4 square kernel. Useful as a mask cleaner. Iterate for iterative cleaning
+# 4x4          - Prunes everything under a 4x4 square kernel. Useful as a (binary) mask cleaner. Iterate for iterative cleaning
 # fill         - (Boundary) fill element bodies (not implemented)
 #
 function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
@@ -6053,19 +6046,21 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
                                "H D max G max range_max B - O@ max range_max F - P@ max
                                 F I max H max           O      max range_max D - Q@ max min
                                 B C max F max           Q      max range_max H - R@ max min
-                                A B max D max           P      max           R      max min range_max swap -"       : ""
+                                A B max D max           P      max           R      max min range_max swap -"    : ""
 
-    str = ex_dlut(str, bi, un)
+    cstr = ex_UVexpr(str, UV, bi, rgb, un)
+    str  = ex_dlut  (str, bi, un)
 
-    rd < 1  ?      a                                                             : \
-    isy     ? Expr(a, str                                                      ) : \
-    UV == 1 ? Expr(a, str, ""                                                  ) : \
-              Expr(a, str, ex_UVexpr(str, UV, bi, rgb, un), scale_inputs="none") } }
+    rd < 1  ?      a                                  : \
+    isy     ? Expr(a, str                           ) : \
+    UV == 1 ? Expr(a, str, ""                       ) : \
+              Expr(a, str, cstr, scale_inputs="none") } }
 
 
 
 # mt_edge() (488fps) is 16% faster (varies with kernel)
-# "canny" is a bit too complex (requires mt_hysteresis) so that's better used in a plugin (ie. vsTCanny)
+# "Canny" is a bit too complex (requires mt_hysteresis) so that's better used in a plugin (ie. vsTCanny)
+# For a Ridge Detection filter check FlatMask() in MasksPack.
 # RITE, SUSAN or Cumani are not implemented. Resizer based kernel derivatives aren't implemented either, read more here: https://en.wikipedia.org/wiki/Image_derivative#Hast_derivatives
 #
 # The typical computation for the output after the (partial) first order derivatives is to calculate the Euclidean distance sqrt(Dx^2 + Dy^2),
@@ -6114,9 +6109,10 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
     bi   = BitsPerComponent(a)
 
     mode = Default(mode, "mt_sobel")
-    in   = Default(invert,  false)
+    in   = Default(invert,    false)
     UV   = Default(UV,    rgb ? 3 : 1)
     un   = Undefined()
+    si   = ex_UVf(rgb, bi)
 
     th   = mode=="prewitt"   ?  [10, 100, 1.0] : \
            mode=="hprewitt"  ?  [10, 130, 1.0] : \
@@ -6155,7 +6151,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
     hi = ex_bs(Defined(hi)    ? hi    : th[1], 8, bi, fulls=true)
     sc =       Defined(scale) ? scale : th[2]
 
-    th  = (lo == 0) && (hi == ex_bs(255, 8, bi, fulls=true)) ? "" : ex_dlut(Format(" {lo} - range_max {hi} {lo} - / *"), bi, un)
+    th  = (lo == 0) && (hi == ex_bs(255, 8, bi, fulls=true)) ? "" : Format(" {lo} - range_max {hi} {lo} - / *")
     th  = in       ? th + " range_max swap -" : th
     th  = sc != 1. ? Format(" {sc} *") + th   : th
 
@@ -6251,18 +6247,21 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
           mode=="Std"       ? "x[1,1] A@ x[1,0] B@ x[1,-1] C@ x[-1,1] D@ x[-1,0] E@ x[-1,-1] F@ x[0,1] G@ x[0,-1] H@ + + + + + + + 0.125 * J@ "                                                        \
                              +"A - dup * B J - dup * C J - dup * D J - dup * E J - dup * F J - dup * G J - dup * H J - dup * + + + + + + + 0.125 * sqrt "+th                                         : \
                                                                                                                                                                                                        \
-                             ex_dlut(mode+th, bi, un)
+                             mode+th
 
-    isy     ? Expr(a, str                                                               ) : \
-    UV == 1 ? Expr(a, str, ""                                                           ) : \
-              Expr(a, str, ex_UVexpr(str, UV, bi, rgb, un), scale_inputs=ex_UVf(rgb, bi))
-              PropSet("_ColorRange", 0)                                                 }
+    cstr = ex_UVexpr(str, UV, bi, rgb, un, si)
+    str  = ex_dlut  (str, bi, un)
+
+    isy     ? Expr(a, str                       ) : \
+    UV == 1 ? Expr(a, str, ""                   ) : \
+              Expr(a, str, cstr, scale_inputs=si)
+              PropSet("_ColorRange", 0)         }
 
 
 
 
 # Performs declared expression with 'mode' mode from clip 'a' to neighbour pixels defined in 'pixels' of clip 'b' (or 'a' if 'b' is undefined)
-# In other words, it's like a do-it-all powerhorse filter whereas otherwise would take several calls and performance penalty.
+# In other words, it's like a do-it-all powerhorse convolution filter whereas otherwise would take several calls and a performance penalty.
 #
 # !! Beware, don't write variables in the expressions with capital letters (ie. A@), unless you want to call X or Y in 'exprf'
 #    use instead lower case preceded with underscore (ie. _var@)
@@ -6277,7 +6276,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 #   ex_luts(mode="rng",pixels=ex_shape(1))  -> ex_edge(mode="min/max")
 #   ex_luts(a,ex_blur(),mode="clp")         -> ex_clamp(a,ex_blur().ex_expand(),ex_blur().ex_inpand())
 #
-# For more check Morphological examples above at line: 5653
+# For more check Morphological examples above at line: 5585
 #
 function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf", string "mode", string "pixels", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "optSingleMode", bool "fulls") {
 
@@ -6299,8 +6298,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     fs   = Default(fulls,  fs)
     opt  = Default(optSingleMode,false)
     cf   = Default(clamp_float,  false)
-    si   = Defined(scale_inputs) ? \
-           scale_inputs : ex_UVf(rgb, bi)
+    si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
     md = md == "average"   ? "avg"          : \
          md == "maximum"   ? "max"          : \
@@ -6327,8 +6325,8 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
          md == "med"   ? ""                 : \
          Assert(false, "ex_luts: "+md+" unsupported mode.")
 
-    null= px == ""
-    px  = FindStr(px,"[") != 0 ? px : null ? "" : pixel_parser(px)
+    nul = px == ""
+    px  = FindStr(px,"[") != 0 ? px : nul ? "" : pixel_parser(px)
     px0 = FindStr(px,"x[0,0]") == 0
 
     in  = FindStrInstance(px, "^")
@@ -6376,12 +6374,10 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     expr = ReplaceStr(expr, "  ", " ")
     msk  = FindStr(md, "rng") > 0 || md == "std"
 
-    ystr =               ex_Yexpr (expr,  Y, bi, rgb, fs)
-    cstr = isc ? exprc : ex_UVexpr(expr, UV, bi, rgb, fs)
-    str  =               ex_dlut(ystr, bi, fs)
-    cstr = rgb ?   str : ex_dlut(cstr, bi, fs)
+    str  =                           ex_Yexpr (expr,  Y, bi, rgb, fs, si)
+    cstr = rgb ? str : isc ? exprc : ex_UVexpr(expr, UV, bi, rgb, fs, si, isc)
 
-    null    ?       a                                                                     : \
+    nul     ?       a                                                                     : \
     isb     ?                                                                               \
     isy     ?  Expr(a, b, str,      optSingleMode = opt, scale_inputs=si, clamp_float=cf) : \
     UV == 1 ?  Expr(a, b, str, "",  optSingleMode = opt, scale_inputs=si, clamp_float=cf) : \
@@ -6416,7 +6412,7 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop
     krnlrd = krnlsz/2
     krnlrv = krnlsv/2
 
-    # 49 vars (Y, X and XX reserved)
+    # 49 vars (X, Y and XX reserved)
     vars = "A B C D E F G H I J K L M N O P Q R S T U V W Z " \
           +"AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWYYZZ"
 
@@ -6503,7 +6499,7 @@ function DivideStr(string str, string separator) {
     return [Left, Right] }
 
 
-# Parses a string of pixel pairs in masktools2/mt_luts() format to Expr Pixel Addressing format
+# Parses a string of pixel pairs in masktools2/mt_luts() format to Expr() Pixel Addressing format
 # ie: " 1 -1  1  0 0 0 -2 0 " -> "x[1,-1] A^ x[1,0] B^ x[-2,0] C^ x[0,0] X^ "
 function pixel_parser(string str) {
 
@@ -6550,54 +6546,93 @@ function pixel_parser(string str) {
     return px }
 
 
-function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls") {
+function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls", string "scale_inputs", bool "defined") {
 
     str = Default(str, "")
     UV  = Default(UV,   1)
     bi  = Default(bits, 8)
-    rgb = Default(rgb,   false)
+    rgb = Default(rgb,    false)
+    def = Default(defined,false)        # Whether 'cstr' is defined or not to do chroma auto-shift for 32-bit
     fs  = Default(fulls, rgb)
+    si  = Default(scale_inputs, "none") # Whether expression is scaled or not (should be compared against bitdepth decorators)
+    si  = LCase(si)
 
-    bd  = bi == 32 && !rgb ? 0.5 : 0
+    if (si!="none" && si!="floatUV") {
 
-    str = rgb ? str : ReplaceStr(str, "ymax",  "cmax")
-    str = rgb ? str : ReplaceStr(str, "ygrey", "range_half")
+        str5 = LeftStr(str,5)
 
-    # "" is the same as "copy first"
+        bc   = UV!=3                 ? -1 : \
+               FindStr(str5,"f32")>0 ? 32 : \
+               FindStr(str5,"i16")>0 ? 16 : \
+               FindStr(str5,"i14")>0 ? 14 : \
+               FindStr(str5,"i12")>0 ? 12 : \
+               FindStr(str5,"i10")>0 ? 10 : \
+               FindStr(str5,"i8" )>0 ?  8 : -1
+
+        bi   = FindStr(si, "int"  )>0 && bi!=32 ? max(8,bc) : \
+                       si=="float"    && bi==32 ? max(8,bc) : \
+                       si=="floatf"   && bi==32 ? max(8,bc) : \
+               FindStr(si, "all"  )>0           ? max(8,bc) : bi
+    }
+
+    # Shifting/Centering expression automatically when UV==3 + cstr is not defined + input bitdepth is 32-bit float
+    off = bi==32 && si!="floatUV" && !rgb
+    pos = off && !def && UV==3
+    str = pos ? ReplaceStr(" "+str+" ", " x ", " x 0.5 + ").ReplaceStr(" y ", " y 0.5 + ").\
+                ReplaceStr(             " z ", " z 0.5 + ").ReplaceStr(" a ", " a 0.5 + ") : str
+    str = pos ? str+" 0.5 -" : str
+    # Shifting Chroma when UV is a constant (UV=128) and input bitdepth is 32-bit float
+    off = off ? -0.5 : 0
+
+    str = rgb ?   str : ReplaceStr(str, "ymax",  "cmax")
+    str = rgb ?   str : ReplaceStr(str, "ygrey", "range_half")
+    str = ex_dlut(str, bi, fs)
+
     str = UV == 1   ? ""          : \
           UV == 2   ? ""          : \
           UV == 3   ? str         : \
           UV == 4   ? "y"         : \
           UV == 6   ? "z"         : \
-          UV == 128 ? "range_half": \
-          UV == 0   ? "0"         : \
-          UV == 255 ? "range_max" : \
-          string(ex_bs(UV, 8, bi, fulls=fs)+bd)
-
-    str = UV == 128 || UV == 255 ? ex_dlut(str, bi, fs) : str
+          string(ex_bs(UV, 8, bi, fulls=fs)+off)
 
     return str }
 
 
-function ex_Yexpr(string "str", int "Y", int "bits", bool "rgb", bool "fulls") {
+function ex_Yexpr(string "str", int "Y", int "bits", bool "rgb", bool "fulls", string "scale_inputs") {
 
     str = Default(str, "")
     Y   = Default(Y,    3)
     bi  = Default(bits, 8)
     rgb = Default(rgb,   false)
     fs  = Default(fulls, rgb)
+    si  = Default(scale_inputs, "none")
+    si  = LCase(si)
 
+    if (si!="none") {
+
+        str5 = LeftStr(str,5)
+
+        by   = Y != 3                ? -1 : \
+               FindStr(str5,"f32")>0 ? 32 : \
+               FindStr(str5,"i16")>0 ? 16 : \
+               FindStr(str5,"i14")>0 ? 14 : \
+               FindStr(str5,"i12")>0 ? 12 : \
+               FindStr(str5,"i10")>0 ? 10 : \
+               FindStr(str5,"i8" )>0 ?  8 : -1
+
+        bi   = FindStr(si, "int"  )>0 && bi!=32 ? max(8,by) : \
+                       si=="float"    && bi==32 ? max(8,by) : \
+                       si=="floatf"   && bi==32 ? max(8,by) : \
+               FindStr(si, "all"  )>0           ? max(8,by) : bi
+    }
+
+    str = ex_dlut(str, bi, fs)
     str = Y == 1   ? ""          : \
           Y == 2   ? ""          : \
           Y == 3   ? str         : \
           Y == 4   ? "y"         : \
           Y == 6   ? "z"         : \
-          Y == 128 ? "range_half": \
-          Y == 0   ? "0"         : \
-          Y == 255 ? "range_max" : \
           string(ex_bs(Y, 8, bi, fulls=fs))
-
-    str = Y == 128 || Y == 255 ? ex_dlut(str, bi, fs) : str
 
     return str }
 
@@ -6683,7 +6718,7 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],       [3840.,3855.],       [15360.,15420.],       [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
     range_max   = Select (bitd,  [255.,255.],    [1023.,1023.],       [4095.,4095.],       [16383.,16383.],       [65535.,65535.],    [16776960.,16776960.],    [       1.,       1.])
     range_size  = Select (bitd,  [256.,256.],    [1024.,1024.],       [4096.,4096.],       [16384.,16384.],       [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
-#   range_max   = Select (bitd,  [255.,255.],    [1020.,1023.984],    [4080.,4095.938],    [16320.,16383.750],    [65280.,65535.],    [16711680.,16776960.],    [       1.,       1.]) # Legacy
+#   vmax        = Select (bitd,  [255.,255.],    [1020.,1020.],       [4080.,4080.],       [16320.,16320.],       [65280.,65280.],    [16711680.,16711680.],    [       1.,       1.]) # Legal upper bound for video signal
 
     fs  = fs ? 1 : 0
     str = ReplaceStr(str, "ymax ymin - range_max /", string(yrange[fs]/range_max[fs]))
@@ -6769,7 +6804,7 @@ function atanTM(bool "expand", bool "negative") {
 # Use expand (Default true) to compute atan for larger values beyond -2.1 and +2.1
 #
 # Example (atan for sigmoidal contrast):
-#   ex_lut(Format("f32 x {b} - {a} * "+atanT()+" 1 {b} - + "),scale_inputs="int") # {a} is strength, {b} is pivot/bias
+#   ex_lut(Format("f32 x {b} - {a} * "+atanT()+" 1 {b} - + "), scale_inputs="int") # {a} is strength, {b} is pivot/bias
 #
 function atanT(bool "expand") {
 
@@ -9857,8 +9892,7 @@ function sel_med(int n) {
                 K CC                  dup1 dup1 min K^  max CC^
                 K S                   dup1 dup1 min K^  max S^
                 G W                   dup1 dup1 min G^  max W^
-                O GG                            min O^
-                O W                   dup1 dup1 min O^  max W^
+                O GG min W            dup1 dup1 min O^  max W^
                 G K                   dup1 dup1 min G^  max K^
                 O S                   dup1 dup1 min O^  max S^
                 W CC                  dup1 dup1 min W^  max CC^
@@ -9882,8 +9916,7 @@ function sel_med(int n) {
                 L DD                  dup1 dup1 min L^  max DD^
                 L T                   dup1 dup1 min L^  max T^
                 H Z                   dup1 dup1 min H^  max Z^
-                P HH                            min P^
-                P Z                   dup1 dup1 min P^  max Z^
+                P HH min Z            dup1 dup1 min P^  max Z^
                 H L                   dup1 dup1 min H^  max L^
                 P T                   dup1 dup1 min P^  max T^
                 Z DD                  dup1 dup1 min Z^  max DD^
@@ -9893,7 +9926,6 @@ function sel_med(int n) {
                 P R                   dup1 dup1 min P^  max R^
                 T V                   dup1 dup1 min T^  max V^
                 Z BB                  dup1 dup1 min Z^  max BB^
-                DD FF                           min DD^
                 B C                   dup1 dup1 min B^  max C^
                 D E                   dup1 dup1 min D^  max E^
                 F G                   dup1 dup1 min F^  max G^
@@ -9907,7 +9939,6 @@ function sel_med(int n) {
                 V W                   dup1 dup1 min V^  max W^
                 Z AA                  dup1 dup1 min Z^  max AA^
                 BB CC                 dup1 dup1 min BB^ max CC^
-                DD EE                           min DD^
                 II JJ                 dup1 dup1 min II^ max JJ^
                 KK LL                 dup1 dup1 min KK^ max LL^
                 II KK                 dup1 dup1 min II^ max KK^
@@ -10022,8 +10053,7 @@ function sel_med(int n) {
                 D LL                                    max LL^
                 T LL                                    max LL^
                 L TT                                    max TT^
-                DD TT                           min DD^
-                DD LL                           min DD^
+                DD FF min EE min TT min LL      min DD^
                 H PP                                    max PP^
                 Z PP                            min Z^
                 P YY                            min P^
