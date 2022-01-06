@@ -801,7 +801,7 @@ function ex_invert(clip a, bool "tv_range", int "UV") {
 # Example for a zone plate (0.8 is the scale):
 #     ex_lutspa(Format("f32 x width 0.5 * - 2 ^ y height 0.5 * - 2 ^ + E@ pi 0.8 * * width 2 * / sin width E sqrt - width 0.1 * / "+tanhT()+" 0.5 * 0.5 + * 1 + 0.5 *"), scale_inputs="all")
 #
-function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV", string "scale_inputs", bool "clamp_float") {
+function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV", string "scale_inputs", bool "clamp_float", bool "fulld") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -814,6 +814,7 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV
     mode = Default(mode, mix ? "mix" : "absolute")
     UV   = Default(UV,   rgb ? 3 : 1)
     cf   = Default(clamp_float, false)
+    fd   = Default(fulld,        true)
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
     tem  = FindStr(LCase(str), "frameno")  > 0 || FindStr(LCase(str), "time") > 0
@@ -827,14 +828,14 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV
            mode=="mix"      ?                           cstr                                      : \
                               Assert (false, "ex_lutspa: Unsupported mode.")
 
-    cstr = ex_UVexpr(cstr, UV, bi, rgb, true, si, isc)
-    str  = ex_Yexpr(  str,  3, bi, rgb, true, si)
+    cstr = ex_UVexpr(cstr, UV, bi, rgb, fd, si, isc)
+    str  = ex_Yexpr(  str,  3, bi, rgb, fd, si)
 
     isy     ?  Expr(a, str      , scale_inputs=si, clamp_float=cf ) : \
     UV == 1 ?  Expr(a, str, ""  , scale_inputs=si, clamp_float=cf ) : \
                Expr(a, str, cstr, scale_inputs=si, clamp_float=cf )
     tem     ?  last : trim(last,0,-1).Loop(FrameCount(a))
-               PropSet("_ColorRange", 0)                          }
+               PropSet("_ColorRange", fd?0:1)                     }
 
 
 
