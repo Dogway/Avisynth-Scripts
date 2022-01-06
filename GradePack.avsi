@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v4.4 (01-01-2022)               ##
+###           Grade Pack v4.5 (06-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -29,6 +29,7 @@
 ###     ExTools
 ###     ResizersPack   (for show=1)
 ###     TransformsPack (for show=1)
+###     MasksPack      (for show=1)
 ###
 ### modes:
 ###     Saturation: Simple saturation operator without any masks
@@ -103,11 +104,11 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
         if (sh==1) {
             bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
             sw = nmod(w/3.75)
-            sh = nmod(w/4.25)
-            lvl = Histogram(mode="levels").crop(w,0,0,-h+226).GaussResize(sw,sh,p=100)
-            lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,w-sw,0,0,h-sh,mode="[0,128,128]")
-            lvl = ex_blend(lvl,"blend", opacity=0.5,UV=3)
-            ex_merge(GamutWarning(),lvl,BoxMask(w-sw,w,0,sh),UV=3)
+            sh = nmod(w/2.10)
+            lvl = Histogram(mode="levels").crop(w,0,0,-h+226)
+            lvl = StackVertical(lvl,Histogram(mode="color2").crop(w,0,0,-h+256)).GaussResize(sw,sh,p=100)
+            lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
+            StackHorizontal(GamutWarning(),lvl)
 
         } else if (sh==2) {
             ExtractU().PropSet("_ColorRange", 0).BicubicResize(w, h, 0, 0.5) } } } }
@@ -141,7 +142,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
             propGetInt      (c,"_ColorRange") == 0 : rgb
     lut   = bi == 32 ? 0 : 1
 
-    UV    = Default(UV, Defined(sat) || rgb ? 3 : 1)
+    UV    = Default(UV, (Defined(sat) ? sat!=1 : Defined(sat)) || rgb ? 3 : 1)
     cont  = Default(cont, 0.0)                     # [-1.0 to +1.0] can set further though
     sat   = Default(sat,  (cont+3)/3)              # [ 0.0 to +inf] By default can't be disabled in RGB
     tv    = Default(tv_range, !fs)                 # TV or PC. Luma range of your source
@@ -170,11 +171,11 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     str    = cont != 0. ? ex_dlut(Format(cont > 0. ? ycont : yconti), bi, !tv) : ""
 
     cstr = sat != 1. ? Format(rangePCc+" {sat} * "+rangeTVc) : ""
-    cstr = rgb ? str : ex_dlut(ex_UVexpr(cstr, UV, bi, rgb, !tv), bi, !tv)
+    cstr = rgb ? str : sat==1 ? "" : ex_UVexpr(cstr, UV, bi, rgb, !tv)
 
-    isy     ? Expr(c, str                                     , lut=lut, scale_inputs=si) : \
-    UV == 1 ? Expr(c, str, ""                                 , lut=lut, scale_inputs=si) : \
-              Expr(c, str, ex_UVexpr(cstr, UV, bi, rgb, !tv)  , lut=lut, scale_inputs=si) }
+    isy     ? Expr(c, str      , lut=lut, scale_inputs=si) : \
+    UV == 1 ? Expr(c, str, ""  , lut=lut, scale_inputs=si) : \
+              Expr(c, str, cstr, lut=lut, scale_inputs=si) }
 
 
 
@@ -189,10 +190,11 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###                 ExTools
 ###                 ResizersPack   (for show=true)
 ###                 TransformsPack (for show=true)
+###                 MasksPack      (for show=true)
 ###
 ### Example: ex_levels(23, 1.200, 255, 0, 255, tv_range=true)
 ###
-### Equation = (input - input_low) / (input_high - input_low)] ^ (1/gamma) * (output_high - output_low) + output_low
+### Formula = (input - input_low) / (input_high - input_low)] ^ (1/gamma) * (output_high - output_low) + output_low
 ###
 ####################################
 
@@ -218,7 +220,8 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     tv   = Default(tv_range,     !fs)
     sh   = Default(show,       false)
     cf   = Default(clamp_float, bi32)
-    UV   = Default(UV,        rgb ? 3 : 2)
+    UV   = Default(UV,   rgb ? 3 : 2)
+    si   = ex_UVf(rgb, bi)
 
     Assert(IsVersionOrGreater(3,7,1), "ex_levels: Update AviSynth+ version")
 
@@ -244,11 +247,11 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     oho  = oho / float(crg)
     iho  = crg / float(iho)
     rt   = oho * iho
-    cstr = ex_dlut(Format(rangePCc+" {rt} * "+rangeTVc), bi, !tv)
+    cstr = ex_UVexpr(Format(rangePCc+" {rt} * "+rangeTVc), UV, bi, rgb, !tv, si)
 
-    isy     ? Expr(c, str                                                                 , lut=lut, clamp_float=bi32) : \
-    UV == 1 ? Expr(c, str, ""                                                             , lut=lut, clamp_float=bi32) : \
-              Expr(c, str, ex_UVexpr(cstr, UV, bi, rgb, !tv), scale_inputs=ex_UVf(rgb, bi), lut=lut, clamp_float=bi32)
+    isy     ? Expr(c, str      ,                  lut=lut, clamp_float=bi32) : \
+    UV == 1 ? Expr(c, str, ""  ,                  lut=lut, clamp_float=bi32) : \
+              Expr(c, str, cstr, scale_inputs=si, lut=lut, clamp_float=bi32)
 
     if (sh) {
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
@@ -296,6 +299,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     wm   = Default(watermark, 1.0)  # 0.0 to 2.0. At default 1.0 behaves like 'blend'
     tv   = Default(tv_range,  !fs)  # TV or PC. Luma range of your source
     UV   = Default(UV,        rgb ? 3 : 1)
+    si   = ex_UVf(rgb, bi)
 
                                         Assert(IsVersionOrGreater(3,7,1), "ex_blend: Update AviSynth+ version")
     md == "darker" || md == "lighter" ? Assert(rgb && UV == 3,            "ex_blend: 'darker' and 'lighter' modes require RGB inputs and UV = 3.") : nop()
@@ -376,12 +380,12 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
 
     } else {
 
-    cstr = ex_dlut( ex_UVexpr(str, UV, bi, rgb, !tv), bi, !tv)
-    str  = ex_dlut( str, bi, !tv)
+    cstr = ex_UVexpr(str, UV, bi, rgb, !tv, si)
+    str  = ex_dlut  (str, bi, !tv)
 
-    isy     ? Expr(a, b, str,                                     optSingleMode=true, lut=lut) : \
-    UV == 1 ? Expr(a, b, str, "",                                 optSingleMode=true, lut=lut) : \
-              Expr(a, b, str, cstr, scale_inputs=ex_UVf(rgb, bi), optSingleMode=true, lut=lut) } }
+    isy     ? Expr(a, b, str,                        optSingleMode=true, lut=lut) : \
+    UV == 1 ? Expr(a, b, str, "",                    optSingleMode=true, lut=lut) : \
+              Expr(a, b, str, cstr, scale_inputs=si, optSingleMode=true, lut=lut) } }
 
 
 
@@ -471,8 +475,8 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
 function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth", float "blur", bool "invert") {
 
     rgb = IsRGB(c)
-    bi  = BitsPerComponent(c)
     ID  = color_propGet(c)
+    bi  = ID[7]
 
     dg  = Default (degrees,      43)   # Degrees in IPT HUE
     str = Default (str,         0.8)   # Strength of mask
@@ -510,22 +514,25 @@ function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth"
 
 
 
-### HSVxHSV() - (01-01-2022)
+### HSVxHSV() - (05-01-2022)
 ###
 ### 3x3 operator matrix. Adjust Hue, Saturation or Luminance based on Hue, Saturation or Luminance.
+### This is similar to internal Tweak(), but double the speed, easier to use and more modes (+5 modes involving 'LUM')
 ###
 ### Dependencies:
 ###     ExTools 7.1+
 ###     TransformsPack
+###     ResizersPack  (for show=1)
+###     MasksPack     (for show=1)
 ###
 ### This includes the following 9 operators (modeA x modeB):
-###   HUExHUE (WIP)
+###   HUExHUE
 ###   HUExSAT
 ###   HUExLUM
-###   SATxHUE (WIP)
-###   SATxSAT
+###   SATxHUE
+###   SATxSAT (This is similar to ex_vibrance() )
 ###   SATxLUM
-###   LUMxHUE (WIP)
+###   LUMxHUE
 ###   LUMxSAT
 ###   LUMxLUM
 ###
@@ -533,27 +540,29 @@ function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth"
 ###     To add as a function definition to enable sliders, include the following in AvsPmod.
 ###     (
 ###     clip,
-###     float str=1.0 (0.0 to 360.0 by 0.01),
+###     float str=1.0 (0.0 to 360.0 by 0.1),
 ###     string modeA="HUE" ("HUE"/ "SAT"/ "LUM"),
 ###     string modeB="LUM" ("HUE"/ "SAT"/ "LUM"),
-###     float dA=1.0 (0.0 to 360.0 by 0.01),
-###     float bA=1.0 (0.0 to 1.0 by 0.01),
+###     float Delta=1 (0.0 to 360.0 by 1),
+###     float Q=1.0 (0.0 to 1.0 by 0.01),
+###     float Opacity=1.0 (0.0 to 1.0 by 0.1),
 ###     [int show=1 (0 to 2)]
 ###     )
 ###
-function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "dA", float "bA", float "sA", float "tv_range", int "show") {
+function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "Delta", float "Q", float "Opacity", float "tv_range", int "show") {
 
     rgb = IsRGB(c)
     isy = isy(c)
     ID  = color_propGet(c)
     bi  = ID[7]
+    bi32= bi==32
 
-    str = Default (str,     0.1)   # Strength of 'modeB' operator. 0.0-1.0 and 0-360 for modeB="HUE"
+    str = Default (str,     0.1)   # Strength of 'modeB' operator. 0-360 for 'L' and 'H' and 0.0-4.0 for 'S'
     mA  = Default (modeA, "HUE")   # 'modeA' (HUE or H, SAT or S, LUM or L or V)
     mB  = Default (modeB, "SAT")   # 'modeB' (HUE or H, SAT or S, LUM or L or V)
-    dA  = Default (dA,      0.5)   # Degrees   of 'modeA' (isolate this area. 0-255 for 'L', 0-360 for for 'H' and 0.0-1.0 for 'S')
-    bA  = Default (bA,      0.2)   # Bandwidth of 'modeA' Spread of the isolated area. 0.0-1.0
-    sA  = Default (sA,      1.0)   # Scale     of 'modeA' Scale  of the isolated area (typical to scale down since by default it's white). 0.0-1.0
+    dA  = Default (Delta,   0.5)   # Degrees of 'modeA' (isolate this area. 0-255 for 'L', 0-360 for for 'H' and 0.0-100.0 for 'S')
+    bA  = Default (Q,       0.2)   # Q-factor (Bandwidth) of 'modeA' Spread of the isolated area. 0.0-1.0
+    sA  = Default (opacity, 1.0)   # Scale   of 'modeA' Scale  of the isolated area (typical to scale down since by default it's white). 0.0-1.0
     tv  = Default (tv_range, ID[6])
     sh  = Default (show,      0)   # 0: disabled, 1: show histogram, 2: show mask
     sh2 = sh == 2
@@ -563,73 +572,111 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "dA
 
     U   = ExtractU(c)
     V   = ExtractV(c)
-    Y   = ExtractY(c)
-    Ys  = is444(c) ? Y : Y.BicubicResize(U.width(),U.height(),-0.5,0.25)
+    Yf  = ExtractY(c)
+    Ys  = is444(c) ? Yf : Yf.BicubicResize(U.width(),U.height(),-0.5,0.25)
     c4  = is444(c) ? c : c.ConverttoYUV444(matrix=ID[2],chromaresample="spline16")
     c4U = ExtractU(c4)
     c4V = ExtractV(c4)
     Uc  = YtoUV(U,U,c4U)
     Vc  = YtoUV(V,V,c4V)
-    Y   = YtoUV(Ys,Ys,Y)
+    Y   = YtoUV(Ys,Ys,Yf)
 
-    mA = mA=="H" ? "HUE" : \
-         mA=="S" ? "SAT" : \
-         mA=="V" ? "LUM" : \
-         mA=="L" ? "LUM" : mA
-    mB = mB=="H" ? "HUE" : \
-         mB=="S" ? "SAT" : \
-         mB=="V" ? "LUM" : \
-         mB=="L" ? "LUM" : mB
+    mA  = mA=="H" ? "HUE" : \
+          mA=="S" ? "SAT" : \
+          mA=="V" ? "LUM" : \
+          mA=="L" ? "LUM" : mA
+    mB  = mB=="H" ? "HUE" : \
+          mB=="S" ? "SAT" : \
+          mB=="V" ? "LUM" : \
+          mB=="L" ? "LUM" : mB
+    nul = mB=="SAT" ? str==1.0 : mB=="LUM" ? str==180. : str==0.0
 
-    dA = mA=="HUE" ? min(360,max(0,dA))/360. : \
-         mA=="LUM" ? min(255,max(0,dA))/255. : \
-         mA=="SAT" ? min(1.0,max(0,dA))      : dA
+    dA  = mA=="HUE" ? min(360,max(0,dA))/360. : \
+          mA=="LUM" ? min(255,max(0,dA))/255. : \
+          mA=="SAT" ? min(100,max(0,dA))/100. : dA
 
-    str= mB=="HUE" ? str / 360. : str
-    sA = min(1.0,sA)
+    sc  = 0.32*atan(0.32*tan((dA+0.507)/0.32))+0.5 # less granularity to extremes and more to center
+    dA  = mA=="SAT" ? min(1,sc) : dA
 
-    # Scaling HUE bandwidth to its PDF
-    h   = (da-0.93)/3.5
-    PDF = exp((-0.5*pow(h/0.14,2))/(0.14*2.50663))
-    CDF = 0.5 * (1+atan(-100*h*0.7071))
-    hA  = 1./bA / (1 - (2/3.5) * PDF * CDF)
+    str = mB=="HUE" ? str * ( pi /180.)                        : \
+          mB=="LUM" ? 1./((str/360.) * (0.5 + str/360.) + 0.5) : str
+    sA  = sA < 1.0  ? string(sA)+" * "    : ""
 
-    bA  = mA=="HUE" ? hA : 1. / ( mA=="SAT" ? max(0.04,(0.4+bA)*cos(1.57+pi*(1-dA))+0.4+bA) : bA)  # Saturation is broad on the mid spectrum so narrow it down
+    bA  = 1. / (mA=="SAT" ? dA < 0.5 ? bA/2 : bA/(2-4*pow(dA-0.5,2)) : bA)
 
     rangePC  = tv ? "ymin - ymax ymin - /"      : ""
     rangeTV  = tv ? "ymax ymin - * ymin +"      : ""
     rangePCc = tv ? "range_max cmax cmin - / *" : ""
     rangeTVc = tv ? "cmax cmin - range_max / *" : ""
 
-    clpB = mA=="LUM" && mB=="LUM" ? " X" : \
-           mA=="LUM" ? " y "+rangePCc    : \
-           mB=="LUM" ? " x "+rangePC     : " x "+rangePCc
+    offS     = bi32 || (mB=="SAT" && !sh2) ? "" : " 0.5 - "
+    varX     = mB=="HUE" ? " X@" : mA=="HUE" && mB=="SAT" ? " X@" : ""
+    varY     = mB=="HUE" ? " Y@" : mA=="HUE" && mB=="SAT" ? " Y@" : ""
+    varM     = mB!="HUE" ?    "" : mA=="SAT" ? "S@" : mA=="HUE" ? "H@" : ""
 
-    bi32     =  bi==32
-    bi32H    = !bi32 && mA=="HUE" ? "" : mA!="HUE" && (bi32 || sh2) ? "" : " 0.5 + "
-    bi32S    = !bi32 && mA=="SAT" ? "" : mA!="SAT" && (bi32 || sh2) ? "" : " 0.5 + "
+    clpB = mA=="LUM" && mB=="LUM" ? " X"           : \
+           mB=="LUM"              ? " x "+rangePC  : \
+           mA=="LUM" && mB!="HUE" ? " y "+rangePCc : \
+           mA=="HUE" ? mB=="SAT"  ? " X" :    " H" : \
+           mB!="HUE"              ? " x "+rangePCc : mA=="SAT" ? " X Y atan2" : " y "+offS+rangePCc+varX+" z "+offS+rangePCc+varY+" atan2 "
 
-    msk = mA=="LUM" ? Format("f32 x "      +rangePC+"  X@                                                  {dA} - abs 1 swap - {bA} ^ {sA} * 0 1 clip") : \
-          mA=="SAT" ? Format("f32 x "+bi32S+rangePCc+" Y@ dup * y "+bi32S+rangePCc+" dup * + sqrt 0.7071 * {dA} - abs 1 swap - {bA} ^ {sA} * 0 1 clip") : \
-                      Format("f32 x "+bi32H+rangePCc+" Y@       y "+bi32H+rangePCc+" atan2  0 1 clip       {dA} - abs 1 swap - {bA} ^ {sA} * 0 1 clip")
-    op  = mB=="LUM" ? Format(clpB+" dup dup {str} * swap - swap swap2 * + "+rangeTV)  : \
-          mB=="SAT" ? Format(clpB+" dup dup {str} * swap - swap swap2 * + "+rangeTVc) : \
-                      Format(clpB+" {str} + *                             "+rangeTVc) # modeB=="HUE" is Work In Progress
+    msk = mA=="LUM" ? Format("f32 x "     +rangePC+" X@                                                                  {dA} - abs 1 swap - {bA} ^       0 1 clip"+sA) : \
+          mA=="SAT" ? Format("f32 x "+offS+rangePCc+varX+" dup * y "+offS+rangePCc+varY+" dup * + sqrt 0.5 + "+varM+"    {dA} - abs 1 swap - {bA} ^ 0.5 - 0 1 clip"+sA) : \
+                      Format("f32 x "+offS+rangePCc+varX+"       y "+offS+rangePCc+varY+" atan2 "+varM+" pi + 0.159155 * {dA} + 1 % {bA} ^ "+sA) # "0.159155 *" = "pi 2 * /"
+    op  = mB=="LUM" ? Format(clpB+" dup dup dup dup 0.005 > swap {str} ^ swap ? 0 1 clip    swap - swap swap2 * + "+rangeTV)  : \
+          mB=="SAT" ? Format(clpB+" dup dup                      {str} *                    swap - swap swap2 * + "+rangeTVc) : \
+                      Format(clpB+" dup dup                      {str} pi + + pi 2 * % pi - swap - swap swap2 * + " )
 
-    msk = !sh2 ? mA=="LUM" && mB!="LUM"   && !bi32 ? \
-           ReplaceStr(msk," x ",  " x 0.5 + ")     : \
-                 mA!="LUM" && mB=="LUM"            ? \
-           ReplaceStr(msk," y ", " z ").             \
-           ReplaceStr(    " x ", " y ")      : msk : msk
 
-           !sh2 && str==1   ?           c                                                             : \
-            sh2 ? mA=="LUM" ? ex_lut   (c,                 msk,   UV=bi32?0:128, scale_inputs="intf") : \
-                              ex_lutxy (c4U,c4V,           msk,   UV=1,          scale_inputs="intf") : \
-    mA=="LUM"   ? mB=="LUM" ? ex_lut   (c,                 msk+op,UV=2,          scale_inputs="intf") : \
-                              ex_lutxyz(Y,c,c.SwapUV(),"", msk+op,UV=3,          scale_inputs="intf") : \
-                  mB=="LUM" ? ex_lutxyz(c,Uc,Vc,           msk+op,UV=2,          scale_inputs="intf") : \
-                              ex_lutxy (  c,c.SwapUV(),"", msk+op,UV=3,          scale_inputs="intf")
-    sh2                     ? PropSet("_OutGamut", 0)                                                 : last
+    if (sh2) {
+
+        msk  = ReplaceStr(msk, "X@", "").ReplaceStr("Y@", "").ReplaceStr("^ 0.5 -", "^")
+
+        mA=="LUM" ? ex_lut  (c,       msk, UV=128, scale_inputs="intf") : \
+                    ex_lutxy(c4U,c4V, msk, UV=1,   scale_inputs="intf")
+                    PropSet("_OutGamut", 0)
+
+    } else if (nul) {
+
+        c
+
+    } else if (mB!="LUM" && (mA=="HUE" || mB=="HUE")) {
+
+        if (mB=="HUE") {
+
+            # For modeAxHUE
+            bi32H = bi32 ? "" : " 0.5695 + "
+            clpS  = mA=="SAT" ? "S" : "X dup * Y dup * + sqrt "
+            msk   = mA=="SAT" ? ReplaceStr(msk, "0.5 + S@", "S@ 0.5 +") : msk
+            mBU   = msk+op+" sin "+clpS+" * "+bi32H+rangeTVc
+            mBV   = msk+op+" cos "+clpS+" * "+bi32H+rangeTVc
+
+            U = mA=="LUM" ? ex_lutxyz(Ys,U,V,mBU,scale_inputs="intf") : ex_lutxy(U,V,mBU,scale_inputs="intf")
+            V = mA=="LUM" ? ex_lutxyz(Ys,U,V,mBV,scale_inputs="intf") : ex_lutxy(U,V,mBV,scale_inputs="intf")
+            CombinePlanes(Yf, U, V, planes="YUV",Pixel_Type=PixelType(c))
+
+        } else if (mA=="HUE") {
+
+            # HUExSAT
+            mskV  = ReplaceStr(msk, " x ", " z ").ReplaceStr(" y ", " x ").ReplaceStr(" z ", " y ")
+            opV   = ReplaceStr(op,  " X ", " Y ")
+
+            U  = ex_dlut(msk +op,  32, !tv)
+            V  = ex_dlut(mskV+opV, 32, !tv)
+            Expr(c,c.SwapUV(),"",U,V,scale_inputs="intf",Format=PixelType(c))
+
+        }
+
+    } else {
+
+    msk = mA=="LUM" && mB!="LUM" && !bi32 ? ReplaceStr(msk," x ",  " x 0.5 + ")                   : \
+          mA!="LUM" && mB=="LUM"          ? ReplaceStr(msk," y ", " z ").ReplaceStr(" x ", " y ") : msk
+
+    # Here in order: LUMxLUM, LUMxSAT, SATxLUM, HUExLUM, SATxSAT
+    mA=="LUM"   ? mB=="LUM" ? ex_lut   (c,                 msk+op,UV=2,   scale_inputs="intf") : \
+                              ex_lutxyz(Y,c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs="intf") : \
+                  mB=="LUM" ? ex_lutxyz(c,Uc,Vc,           msk+op,UV=2,   scale_inputs="intf") : \
+                              ex_lutxy (  c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs="intf") }
 
     if (sh==1) {
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
@@ -639,9 +686,10 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "dA
         sh  = nmod(w/2.10)
         lvl = Histogram(mode="levels").crop(w,0,0,-h+226)
         lvl = StackVertical(lvl,Histogram(mode="color2").crop(w,0,0,-h+256)).GaussResize(sw,sh,p=100)
-        lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,w-sw,0,0,h-sh,mode="[0,128,128]")
-        lvl = ex_blend(lvl,"blend", opacity=0.5,UV=3)
-        ex_merge(last,lvl,BoxMask(w-sw,w,0,sh), UV=3) } }
+        lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
+        StackHorizontal(last,lvl) } }
+
+
 
 
 
@@ -683,8 +731,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "dA
 
 function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
 
-    bi      = BitsPerComponent(yuv)
     propIDs = color_propGet(yuv)
+    bi      =  propIDs[7]
     fs      = !propIDs[6]
 
     mat     = Default (matrix, propIDs[2])
@@ -883,20 +931,21 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 ###            ExTools
 ###            manyplus
 ###            ResizersPack
+###            TransformsPack (if tv_range=true)
 ###
 ### Example:
 ###    GradientLinear()
-###    # ex_contrast(cont=1,tv_range=false)  # Here the 32-bit aware curve expression
+###    # ex_contrast(cont=1,tv_range=false)  # Here the 32-bit aware curve expression (for not 32-bit aware expressions, you can use scale_inputs="int" with 'f32' decorator to scale to 32-bit)
 ###    HistoCurve()
 ###
 ######################
 
 function GradientLinear(clip "a", float "zoom", bool "positive", bool "smooth", bool "tv_range") {
 
-    sm = Default(smooth,   true)
+    sm = Default(smooth,   true)             # Enabled for most filters. Disable is you want to test 'blur' filters.
     tv = Default(tv_range, false)
-    global zm = Default(zoom, 2)
-    global ps = Default(positive, false)
+    global zm = Default(zoom, 2)             # Zoom out factor of the graph
+    global ps = Default(positive, false)     # Disable to also show -x and -y axis
 
     of = zm
     zm = zm * 2.
@@ -904,7 +953,8 @@ function GradientLinear(clip "a", float "zoom", bool "positive", bool "smooth", 
 
     !tv ? ex_lutspa(mode="relative", expr=sm?"sxr":"sxr 0.5 + 2 % 1 < 0 1 ?",                          UV=128) : \
           ex_lutspa(mode="relative", expr=sm?"x ymax ymin - * ymin +":"sxr 0.5 + 2 % 1 < ymin ymax ?", UV=128).Full_scale(false)
-          ps ? last : ex_lut(Format("x {zm} * {of} -"),"")  }
+          ps ? ex_lut(Format("x {zm} *"),"")         : \
+               ex_lut(Format("x {zm} * {of} -"),"")  }
 
 
 
@@ -921,8 +971,9 @@ function HistoCurve(clip a, float "size", float "zoom") {
     TurnRight()
     Histogram(mode="classic")
     TurnLeft()
-    hist=crop(0,0,0,-256).ex_lut("x 0.5 < 0 x ?", UV=128).ex_blend(grid,mode="screen",opacity=0.2,tv_range=false,UV=1)
-    grad=crop(0,256,0,0)
+    hist = crop(0,0,0,-256).ex_lut("x 0.5 < 0 x ?", UV=128).ex_blend(grid,mode="screen",opacity=0.2,tv_range=false,UV=1)
+    hist = ps ? hist : hist.ex_lutspa(mode="mix",expr="sx 128 % 1 < sy 0 != sy 128 % 1 < and or 0.5 x ?", UV=128)
+    grad = crop(0,256,0,0)
     StackHorizontal(grad,hist)
 
     RatioResize(sz,"%",kernel="Point")
