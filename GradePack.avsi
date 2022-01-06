@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v4.5 (06-01-2022)               ##
+###           Grade Pack v4.6 (06-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -295,10 +295,10 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     lut  = bi < 16 ? 2 : 0
 
     md   = Default(mode, "multiply")
-    op   = Default(opacity,   1.0)
-    wm   = Default(watermark, 1.0)  # 0.0 to 2.0. At default 1.0 behaves like 'blend'
-    tv   = Default(tv_range,  !fs)  # TV or PC. Luma range of your source
-    UV   = Default(UV,        rgb ? 3 : 1)
+    op   = Default(opacity,     1.0)
+    wm   = Default(watermark,   1.0)  # 0.0 to 2.0. At default 1.0 behaves like 'blend'
+    tv   = Default(tv_range,    !fs)  # TV or PC. Luma range of your source
+    UV   = Default(UV,  rgb ? 3 : 1)
     si   = ex_UVf(rgb, bi)
 
                                         Assert(IsVersionOrGreater(3,7,1), "ex_blend: Update AviSynth+ version")
@@ -318,7 +318,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     # Half the modes ported from HAvsFunc, some from Overlay_MTools(), some from Blend_MT_alpha3 and rest from web
     str = Format(                                                                                                                                                                 \
                                                                                                                                                                                   \
-        md == "blend"        ? iso ? "y" : "x dup y swap - {op} * + "                                                                                                           : \
+        md == "blend"        ? iso ? "y" : "x "+srcmx+" dup y "+srcmx+" swap - {op} * + "                                                                                                           : \
         md == "interpolation"? "x "+srcmx+" "+V+" "+rngmx+" / pi * cos 0.25 * 0.5 swap - y "+srcmx+" "+rngmx+" / pi * cos 0.25 * - "+rngmx+" * "                                : \
         md == "watermark"    ? "x "+srcmx+" A^ y "+srcmx+" "+rngmx+" B@ / 0 max 1 {wm} {op} ^ / ^  B * "                                                                        : \
                              \
@@ -363,7 +363,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
                                Assert (false, "ex_blend: '"+md+"', unsupported blend mode") )
 
 
-    off = !tv || md == "blend" || md == "lighten" || md == "darken" ? "" : "ymin +"
+    off = !tv || md == "lighten" || md == "darken" ? "" : "ymin +"
     str = iso || md == "blend" ? str+off : \
                                  str+Format(" A - {op} * A + ")+off
 
@@ -802,18 +802,20 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
 ####################################
 
 
-function Vignette (clip c, float "Vignette", bool "show") {
+function Vignette (clip c, float "Vignette", bool "show", bool "tv_range") {
 
-    str   = Default(Vignette, 0.8)
-    show  = Default(show,   false)
+    str   = Default(Vignette, 0.5)
+    show  = Default(show,    false)
+    tv    = Default(tv_range, true)
+    str   = pow((min(1,max(0,str)) + 0.5) / 1.5, 0.5)
 
     Assert(IsVersionOrGreater(3,7,1), "Vignette: Update AviSynth+ version")
 
     msk = ex_lutspa(c, Format("x  width 0.5 * - abs width 0.5 * / range_max * 1.5 {str} 0.5 * + ^ range_max / 0 max "+ \
                               "y height 0.5 * - abs width 0.5 * / range_max * 1.5 {str} 0.5 * + ^ range_max / 0 max "+ \
-                              "+ range_max min range_max - abs"), UV=128)
+                              "+ range_max min range_max - abs")+(tv ? " ymax ymin - range_max / * ymin +" : ""), UV=128, fulld=!tv)
 
-    show ? msk : ex_blend(msk, c, mode="multiply", UV=4) }
+    show ? msk : ex_blend(msk, c, mode="multiply", UV=4, tv_range=tv) }
 
 
 
@@ -931,7 +933,6 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 ###            ExTools
 ###            manyplus
 ###            ResizersPack
-###            TransformsPack (if tv_range=true)
 ###
 ### Example:
 ###    GradientLinear()
@@ -951,10 +952,10 @@ function GradientLinear(clip "a", float "zoom", bool "positive", bool "smooth", 
     zm = zm * 2.
     BlankClip(Eval(Defined(a) ? "a" : "length=100"), width=256, height=256, pixel_type="YUV420PS")
 
-    !tv ? ex_lutspa(mode="relative", expr=sm?"sxr":"sxr 0.5 + 2 % 1 < 0 1 ?",                          UV=128) : \
-          ex_lutspa(mode="relative", expr=sm?"x ymax ymin - * ymin +":"sxr 0.5 + 2 % 1 < ymin ymax ?", UV=128).Full_scale(false)
-          ps ? ex_lut(Format("x {of} *"),"")         : \
-               ex_lut(Format("x {zm} * {of} -"),"")  }
+    !tv ? ex_lutspa(mode="relative", expr=sm?"sxr":"sxr 0.5 + 2 % 1 < 0 1 ?",                          UV=128, fulld=true) : \
+          ex_lutspa(mode="relative", expr=sm?"x ymax ymin - * ymin +":"sxr 0.5 + 2 % 1 < ymin ymax ?", UV=128, fulld=false)
+     ps ? ex_lut(Format("x {of} *"),"")         : \
+          ex_lut(Format("x {zm} * {of} -"),"")  }
 
 
 
