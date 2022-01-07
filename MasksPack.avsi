@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.6 By Dogway  (06-01-2022)            ##
+###           MasksPack 4.7 By Dogway  (07-01-2022)            ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
@@ -87,7 +87,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ###
 ###########################
 
-function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip "filt", bool "show") {
+function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip "filt", bool "invert", bool "show") {
 
     a
     rgb   = isRGB()
@@ -105,6 +105,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     lo    = Default(lo,         4)   # Clip pixels under this value
     lvl   = Default(MSR,       40)   # Low level for ex_retinex normalization
     sh    = Default(show,   false)   # True to show mask in split view
+    in    = Default(invert, false)
     fil   = Defined(filt)
 
     !isy() ? ExtractY() : last
@@ -130,7 +131,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     xx2=xx2.ex_lut(Format("x[1,1]  x[-1,-1] -"))
     yy2=    ex_lut(Format("x[1,-1] x[-1,1]  -"))
     yy2=yy2.ex_lutxyza(xx1,yy1,xx2,            \
-                   Format("x[1,-1] x[-1,1] - 0 max dup * y dup * z dup * a dup * + + + sqrt {scl} * dup {lo} {scl} * > swap 0 ?"))
+                   Format("x[1,-1] x[-1,1] - 0 max dup * y dup * z dup * a dup * + + + sqrt {scl} * dup {lo} {scl} * > swap 0 ?"+(in && rd==1 ? " range_max swap -" : "")))
 
     # Pre for 'Fill holes'
     ex_contrast(scl>9?yy2.ex_median("median"):yy2,1,pivot=80,tv_range=false)
@@ -144,11 +145,11 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     ex_lutxy(MSR,last,Format("x[-1,-1] A@ x[-1,0] x[-1,1] F@ + + x[1,-1] C@ - x[1,0] - x[1,1] H@ - dup *
                               A C x[0,-1] + + F - H - x[0,1] - dup * + sqrt {lo} 2.5 * - {rd} 3 / 1 + * y max" ))
     # Close gaps
-    ex_luts(     mode="avg", pixels=ex_shape(ceil(rd/2.), mode="ring"), exprf="dup dup x > swap 128 > & swap 1.15 * x ?")
+    ex_luts(mode="avg", pixels=ex_shape(ceil(rd/2.), mode="ring"), exprf="dup dup x > swap 128 > & swap 1.15 * x ?"+(in ? " range_max swap -" : ""))
 
     rd  = round(rd)
-    rd == 1 ? yy2                          : \
-    rd == 0 ? ex_edge(MSR,"qprewitt")      : last                                # maybe add back qprewitt on top for rd==1
+    rd == 1 ? yy2                               : \
+    rd == 0 ? ex_edge(MSR,"qprewitt",invert=in) : last                                # maybe add back qprewitt on top for rd==1
 
     !isHD   ? BicubicResize(w,h,-0.5,0.25) : ex_smooth(2, mode="SG", sharp=true) # Clean up result. No need when resizing down
      isUHD  ? BicubicResize(w,h,1/3.,1/3.) : last
