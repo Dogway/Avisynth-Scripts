@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v4.6 (06-01-2022)               ##
+###           Grade Pack v5.0 (07-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -125,6 +125,9 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
+###                 ResizersPack   (for show=true)
+###                 TransformsPack (for show=true)
+###                 MasksPack      (for show=true)
 ###
 ### Apply over gamma encoded clip
 ###
@@ -133,7 +136,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 ####################################
 
 
-function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv_range", int "UV") {
+function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv_range", int "UV", bool "show") {
 
     rgb   = isRGB(c)
     isy   = isy(c)
@@ -142,9 +145,15 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
             propGetInt      (c,"_ColorRange") == 0 : rgb
     lut   = bi == 32 ? 0 : 1
 
+    # Storing for 'show'
+    sc = cont
+    ss = sat
+    sp = pivot
+
     UV    = Default(UV, (Defined(sat) ? sat!=1 : Defined(sat)) || rgb ? 3 : 1)
     cont  = Default(cont, 0.0)                     # [-1.0 to +1.0] can set further though
     sat   = Default(sat,  (cont+3)/3)              # [ 0.0 to +inf] By default can't be disabled in RGB
+    sh    = Default(show,      false)              # Show the contrast curve
     tv    = Default(tv_range, !fs)                 # TV or PC. Luma range of your source
     pivot = Default(pivot,    !tv ? 127.5 : 125.5) # Pivot: 64 to 192 (roughly)
     si    = bi == 32 || tv ? "none" : "intf"
@@ -175,7 +184,23 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
     isy     ? Expr(c, str      , lut=lut, scale_inputs=si) : \
     UV == 1 ? Expr(c, str, ""  , lut=lut, scale_inputs=si) : \
-              Expr(c, str, cstr, lut=lut, scale_inputs=si) }
+              Expr(c, str, cstr, lut=lut, scale_inputs=si)
+
+    if (sh) {
+
+        out = ConvertBits(8,dither=1,fulls=!tv)
+        w   = c.width()
+        h   = c.height()
+        sw  = nmod(w/5.)
+        sh  = nmod(w/5.)
+        GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
+        ex_contrast (sc,ss,sp,tv,128)
+        HistoCurve(size=1,gradient=false)
+        plt = GaussResize(sw,sh,p=100)
+        plt = PadBorders(plt,w-sw,0,0,h-sh)
+        plt = ex_blend(out,plt,"blend",opacity=0.5,tv_range=tv,UV=1)
+        ex_merge(out,plt,BoxMask(out,w-sw,w,0,sh),UV=3)
+    } }
 
 
 
@@ -211,6 +236,13 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
            propGetInt      (c,"_ColorRange") == 0 : rgb
     bi32 = bi == 32
     lut  = bi32 ? 0 : 1
+
+    # Storing for 'show'
+    silo = input_low
+    sgam = gamma
+    sihi = input_high
+    solo = output_low
+    sohi = output_high
 
     ilo  = Default(input_low,      0)
     gam  = Default(gamma,        1.0)
@@ -257,12 +289,16 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
         w   = c.width()
         h   = c.height()
-        sw  = nmod(w/3.75)
-        sh  = nmod(w/4.25)
-        lvl = Histogram(mode="levels").crop(w,0,0,-h+226).GaussResize(sw,sh,p=100)
-        lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,w-sw,0,0,h-sh,mode="[0,128,128]")
-        lvl = ex_blend(lvl,"blend", opacity=0.5,UV=3)
-        ex_merge(last,lvl,BoxMask(w-sw,w,0,sh),UV=3) } }
+        sw  = nmod(w/4.00)
+        sh  = nmod(w/2.10)
+        lvl = Histogram(mode="levels").crop(w,0,0,-h+226)
+        plt = GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
+        plt = ex_levels (plt,silo,sgam,sihi,solo,sohi,tv,128)
+        plt = HistoCurve(plt,size=1,gradient=false)
+        plt = StackVertical(plt,lvl).GaussResize(sw,sh,p=100)
+        plt = PadBorders(tv?plt.SMPTE_Legal(false):plt,w-sw,0,0,h-sh)
+        plt = ex_blend(plt,"blend",tv_range=tv,opacity=0.5,UV=3)
+        ex_merge(last,plt,BoxMask(w-sw,w,0,sh),UV=3) } }
 
 
 ###
@@ -363,7 +399,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
                                Assert (false, "ex_blend: '"+md+"', unsupported blend mode") )
 
 
-    off = !tv || md == "lighten" || md == "darken" ? "" : "ymin +"
+    off = !tv || md == "lighten" || md == "darken" ? "" : " ymin + "
     str = iso || md == "blend" ? str+off : \
                                  str+Format(" A - {op} * A + ")+off
 
@@ -566,6 +602,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     tv  = Default (tv_range, ID[6])
     sh  = Default (show,      0)   # 0: disabled, 1: show histogram, 2: show mask
     sh2 = sh == 2
+    si  = tv ? "int" : "intf" # study if this is correct or I need "intf" always
 
     Assert(IsVersionOrGreater(3,7,1), "HSVxHSV: Update AviSynth+ version")
     Assert(!isy && !rgb,              "HSVxHSV: Only YUV format is supported")
@@ -589,7 +626,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
           mB=="S" ? "SAT" : \
           mB=="V" ? "LUM" : \
           mB=="L" ? "LUM" : mB
-    nul = mB=="SAT" ? str==1.0 : mB=="LUM" ? str==180. : str==0.0
+    nul = mB=="SAT" ? str==1.0 : mB=="LUM" ? str==180. : str==0.0 || str==360.0
 
     dA  = mA=="HUE" ? min(360,max(0,dA))/360. : \
           mA=="LUM" ? min(255,max(0,dA))/255. : \
@@ -598,8 +635,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     sc  = 0.32*atan(0.32*tan((dA+0.507)/0.32))+0.5 # less granularity to extremes and more to center
     dA  = mA=="SAT" ? min(1,sc) : dA
 
-    str = mB=="HUE" ? str * ( pi /180.)                        : \
-          mB=="LUM" ? 1./((str/360.) * (0.5 + str/360.) + 0.5) : str
+    str = mB=="HUE" ? str * ( pi /180.)                        :          \
+          mB=="LUM" ? 1./((str/360.) * (0.5 + str/360.) + 0.5) : min(6,str)
     sA  = sA < 1.0  ? string(sA)+" * "    : ""
 
     bA  = 1. / (mA=="SAT" ? dA < 0.5 ? bA/2 : bA/(2-4*pow(dA-0.5,2)) : bA)
@@ -632,8 +669,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
         msk  = ReplaceStr(msk, "X@", "").ReplaceStr("Y@", "").ReplaceStr("^ 0.5 -", "^")
 
-        mA=="LUM" ? ex_lut  (c,       msk, UV=128, scale_inputs="intf") : \
-                    ex_lutxy(c4U,c4V, msk, UV=1,   scale_inputs="intf")
+        mA=="LUM" ? ex_lut  (c,       msk, UV=128, scale_inputs=si) : \
+                    ex_lutxy(c4U,c4V, msk, UV=1,   scale_inputs=si)
                     PropSet("_OutGamut", 0)
 
     } else if (nul) {
@@ -651,8 +688,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
             mBU   = msk+op+" sin "+clpS+" * "+bi32H+rangeTVc
             mBV   = msk+op+" cos "+clpS+" * "+bi32H+rangeTVc
 
-            U = mA=="LUM" ? ex_lutxyz(Ys,U,V,mBU,scale_inputs="intf") : ex_lutxy(U,V,mBU,scale_inputs="intf")
-            V = mA=="LUM" ? ex_lutxyz(Ys,U,V,mBV,scale_inputs="intf") : ex_lutxy(U,V,mBV,scale_inputs="intf")
+            U = mA=="LUM" ? ex_lutxyz(Ys,U,V,mBU,scale_inputs=si) : ex_lutxy(U,V,mBU,scale_inputs=si)
+            V = mA=="LUM" ? ex_lutxyz(Ys,U,V,mBV,scale_inputs=si) : ex_lutxy(U,V,mBV,scale_inputs=si)
             CombinePlanes(Yf, U, V, planes="YUV",Pixel_Type=PixelType(c))
 
         } else if (mA=="HUE") {
@@ -663,7 +700,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
             U  = ex_dlut(msk +op,  32, !tv)
             V  = ex_dlut(mskV+opV, 32, !tv)
-            Expr(c,c.SwapUV(),"",U,V,scale_inputs="intf",Format=PixelType(c))
+            Expr(c,c.SwapUV(),"",U,V,scale_inputs=si,Format=PixelType(c))
 
         }
 
@@ -673,10 +710,10 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
           mA!="LUM" && mB=="LUM"          ? ReplaceStr(msk," y ", " z ").ReplaceStr(" x ", " y ") : msk
 
     # Here in order: LUMxLUM, LUMxSAT, SATxLUM, HUExLUM, SATxSAT
-    mA=="LUM"   ? mB=="LUM" ? ex_lut   (c,                 msk+op,UV=2,   scale_inputs="intf") : \
-                              ex_lutxyz(Y,c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs="intf") : \
-                  mB=="LUM" ? ex_lutxyz(c,Uc,Vc,           msk+op,UV=2,   scale_inputs="intf") : \
-                              ex_lutxy (  c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs="intf") }
+    mA=="LUM"   ? mB=="LUM" ? ex_lut   (c,                 msk+op,UV=2,   scale_inputs=si) : \
+                              ex_lutxyz(Y,c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs=si) : \
+                  mB=="LUM" ? ex_lutxyz(c,Uc,Vc,           msk+op,UV=2,   scale_inputs=si) : \
+                              ex_lutxy (  c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs=si) }
 
     if (sh==1) {
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
@@ -931,7 +968,6 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 ###
 ### Dependencies:
 ###            ExTools
-###            manyplus
 ###            ResizersPack
 ###
 ### Example:
@@ -939,44 +975,58 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 ###    # ex_contrast(cont=1,tv_range=false)  # Here the 32-bit aware curve expression (for not 32-bit aware expressions, you can use scale_inputs="int" with 'f32' decorator to scale to 32-bit)
 ###    HistoCurve()
 ###
+###    (
+###    clip,
+###    int zoom=1 (1 to 6 by 1),
+###    bool smooth=true,
+###    bool positive=false,
+###    int x=0 (-50 to 50 by 1),
+###    int y=0 (-50 to 50 by 1),
+###    )
+###
 ######################
 
-function GradientLinear(clip "a", float "zoom", bool "positive", bool "smooth", bool "tv_range") {
+function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive", bool "smooth", bool "tv_range") {
 
     sm = Default(smooth,   true)             # Enabled for most filters. Disable is you want to test 'blur' filters.
     tv = Default(tv_range, false)
     global zm = Default(zoom, 2)             # Zoom out factor of the graph
+    global xo = Default(x,    0)/(zm*10.)    # shift on x axis
+    global yo = Default(y,    0)/(zm*10.)    # shift on x axis
     global ps = Default(positive, false)     # Disable to also show -x and -y axis
 
     of = zm
     zm = zm * 2.
     BlankClip(Eval(Defined(a) ? "a" : "length=100"), width=256, height=256, pixel_type="YUV420PS")
 
-    !tv ? ex_lutspa(mode="relative", expr=sm?"sxr":"sxr 0.5 + 2 % 1 < 0 1 ?",                          UV=128, fulld=true) : \
-          ex_lutspa(mode="relative", expr=sm?"x ymax ymin - * ymin +":"sxr 0.5 + 2 % 1 < ymin ymax ?", UV=128, fulld=false)
-     ps ? ex_lut(Format("x {of} *"),"")         : \
-          ex_lut(Format("x {zm} * {of} -"),"")  }
+    !tv ? ex_lutspa(mode="relative", expr=sm?"x":"x 0.5 + 2 % 1 < 0 1 ?",                            UV=128, fulld=true) : \
+          ex_lutspa(mode="relative", expr=sm?"x ymax ymin - * ymin +":"x 0.5 + 2 % 1 < ymin ymax ?", UV=128, fulld=false)
+     ps ? ex_lut(Format("x {xo} - {of} *        "),"")  : \
+          ex_lut(Format("x {xo} - {zm} * {of}  -"),"")  }
 
 
 
-function HistoCurve(clip a, float "size", float "zoom") {
+function HistoCurve(clip a, float "size", bool "gradient") {
 
     sz = Default(size,2.)
-    zm = Default(zoom, zm)
-
-    grid=BlankClip(a).Grid(nmod(26./zm,2,4,bankers=true),1,2,$ffffff,$ffffff,$ffffff,grid=true,axis=true)
+    gr = Default(gradient, true)
 
     of = zm
     zm = zm * 2.
-    ps ? ex_lut(a,Format("x {of} /"),"") : \
-         ex_lut(a,Format("x {of} + {zm} / "),"")
+    ps ? ex_lut(a,Format("x {of} /         {yo} -"),"") : \
+         ex_lut(a,Format("x {of}  + {zm} / {yo} -"),"")
     TurnRight()
     Histogram(mode="classic")
     TurnLeft()
-    hist = crop(0,0,0,-256).ex_lut("x 0.5 < 0 x ?", UV=128).ex_blend(grid,mode="screen",opacity=0.2,tv_range=false,UV=1)
-    hist = ps ? hist : hist.ex_lutspa(mode="mix",expr="sx 128 % 1 < sy 0 != sy 128 % 1 < and or 0.5 x ?", UV=128)
+    zm = zm * (ps ? 1. : 2.)
+    clean = crop(0,0,0,-256)
+    grid  =            clean.ex_lutspa(mode="mix",expr=Format("sx {xo} neg 256 * + round X@ 256 {zm} 2 * / round % 0 ==
+                                                               sy {yo} neg 256 * + round Y@ 256 {zm} 2 * / round % 0 == or
+                                                               X 4 % 0 != Y 0 != Y 4 % 0 != and or 0.25 0 ? x 0.5 < 0 x ? B@ max B ?"), UV=128)
+    axis  = ps ? grid : grid.ex_lutspa(mode="mix",expr=Format("sx 128 {xo} 256 * + round abs ==
+                                                       sy 0 != sy 128 {yo} 256 * + round abs == and or 0.35 x max sy 255 == 0 x ? ?"), UV=128)
     grad = crop(0,256,0,0)
-    StackHorizontal(grad,hist)
+    gr ? StackHorizontal(grad,axis) : axis
 
     RatioResize(sz,"%",kernel="Point")
     ConvertBits(8,dither=1,fulls=true) }
