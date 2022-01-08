@@ -14,7 +14,7 @@
 ###
 ####################################
 ###
-### ex_vibrance() v3.1 (28-05-2021)
+### ex_vibrance() v3.2 (07-01-2022)
 ###
 ### Inspired by Motenai Yoda's script (20-11-2011): (https://forum.doom9.org/showthread.php?t=162882)
 ###
@@ -117,7 +117,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 
 
 ###
-### ex_contrast() - v7.0 (12-12-2021)
+### ex_contrast() - v7.1 (07-01-2022)
 ###
 ###
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
@@ -205,7 +205,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
 
 ###
-### ex_levels() - v4.0 (12-12-2021)
+### ex_levels() - v4.1 (07-01-2022)
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
@@ -302,7 +302,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 
 
 ###
-### ex_blend() - v3.0 (12-12-2021)
+### ex_blend() - v3.2 (07-01-2022)
 ###
 ###
 ### Works like Overlay() but supports more modes, better handling of TV range and performs much faster in either 8-bit or HBD.
@@ -550,7 +550,7 @@ function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth"
 
 
 
-### HSVxHSV() - (05-01-2022)
+### HSVxHSV() - (07-01-2022)
 ###
 ### 3x3 operator matrix. Adjust Hue, Saturation or Luminance based on Hue, Saturation or Luminance.
 ### This is similar to internal Tweak(), but double the speed, easier to use and more modes (+5 modes involving 'LUM')
@@ -827,7 +827,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
 
 ###
 ###
-### Vignette() - v3.0 (28-12-2021)
+### Vignette() - v4.0 (06-01-2022)
 ###
 ###
 ### Adds a vignette (darkening around the frame) to the source.
