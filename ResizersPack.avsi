@@ -357,7 +357,7 @@ function ColortoHex(string color) {
     Y  = min(255,max(0,cl[0]))
     U  = min(255,max(0,cl[1]))
     V  = min(255,max(0,cl[2]))
-    Return "$"+string(Y,2))+string(U,2))+string(V,2)) }
+    Return "$"+string(Hex(Y,2))+string(Hex(U,2))+string(Hex(V,2)) }
 
 
 
