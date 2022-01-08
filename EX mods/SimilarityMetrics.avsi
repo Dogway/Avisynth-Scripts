@@ -215,8 +215,8 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
     w2 = clip2.Width ()
     h2 = clip2.Height()
 
-    Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)) , "MDSI: clip1 and clip2 must be in the same format and must be in planar RGB format")
-    Assert(w1 == w2 && h1 == h2,                                                                 "MDSI: clip1 and clip2 must be of the same width and height")
+    Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)), "MDSI: clip1 and clip2 must be in the same format and must be in planar RGB format")
+    Assert(w1 == w2 && h1 == h2,                                                                "MDSI: clip1 and clip2 must be of the same width and height")
 
     c1 = 140 / pow(255, 2)
     c2 = 55  / pow(255, 2)
@@ -242,7 +242,7 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
     g_d = ex_edge(l2, "qprewitt", 0, 255)
     g_f = ex_edge(f,  "qprewitt", 0, 255)
 
-    # HVS-based gradient similarity
+    # HVS (Human Visual System) based gradient similarity
     gs_hvs = ex_lutxyz(g_r, g_d, g_f, Format("f32 x y * 2 * {c1} + x dup * XX@ y dup * YY@ {c1} + + /
                                                   x z * 2 * {c2} +         XX  z dup * ZZ@ {c2} + + / +
                                                   y z * 2 * {c2} +         YY          ZZ  {c2} + + / -"), UV=1, scale_inputs="allf").ConvertBits(32, fulls=true, fulld=true)
@@ -568,9 +568,9 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
         o = vsTCanny(ex_lutxy(r, m, "x y *", UV=3, scale_inputs="none"), sigmaY=smooth, mode=-1)
 
         ex_lutxyza(m, n, l, o, "x y z * + a -", UV=3, scale_inputs="none")
-    }
-    else
-    {
+
+    } else {
+
         m = l.Eval(smooth)
         n = ex_lut(m, "x dup *", UV=3, scale_inputs="none")
         r = ex_lutxyz(sqr.Eval(smooth), Eval(kernel + """(ex_lut("x dup *", UV=3, scale_inputs="none"),""" + sw + "," +  sh + resample_args + ")").Eval(smooth),  n, Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"), UV=3, scale_inputs="none")
