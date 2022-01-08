@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.1   (06-01-2022)                ##
+###           ExTools v7.2   (08-01-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -155,6 +155,17 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 # mt_makediff() is 5% slower
 # Use aug=n to augment difference map
 # Use metric="metric_name" to show metrics (requires YUV input, SimilarityMetrics and TransformsPack)
+#
+# Function Definition:
+#    (
+#    clip,
+#    clip,
+#    string "metric"="none" ("none" / "ME" / "MAE" / "SMAE" / "MAD" / "MAD2" / "MSE" / "MSLE" / "RMSE" / "PSNR" / "CHAR" / "OkMSE" / "RedMe" / "R2" / "ZTest" / "SSIM" / "BSSIM" / "GMSD" / "BUTT" / "MDSI"),
+#    bool "aug"=false,
+#    bool "dif"=false,
+#    int "show"=2,
+#    )
+#
 function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", string "metric", int "show", int "Y", int "UV", bool "fulls", bool "clamp_float", string "scale_inputs") {
 
     rgb  = isRGB(a)
@@ -415,6 +426,14 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "sca
 
 
 # mt_logic(mode="and") is 6% slower
+#
+# Function Definition:
+#    (
+#    clip,
+#    clip,
+#    string "mode"="and" ("and" / "andn" / "or" / "xor" / "min" / "max"),
+#    )
+#
 function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV") {
 
     rgb  = isRGB(a)
@@ -535,6 +554,15 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
 #
 # Example:
 #     ex_binarize(10,hi=-1) # Cleaning/clamping faint values. Same as: "x < 10 ? 0 : x"
+#
+# Function Definition:
+#    (
+#    clip,
+#    float thres=115.0 (0.0 to 255.0 by 1.0),
+#    string "mode"="simple" ("simple" / "dynamic" / "otsu"),
+#    bool "smooth"=false,
+#    bool "invert"=false,
+#    )
 #
 function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string "mode", int "lo", int "hi", int "UV", bool "fulls") {
 
@@ -812,7 +840,7 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV
     cstr = Default(cexpr, str)
     mix  = FindStr(LCase(" "+str), " sx") > 0 || FindStr(LCase(" "+str), " sy") > 0
     mode = Default(mode, mix ? "mix" : "absolute")
-    UV   = Default(UV,   rgb ? 3 : 1)
+    UV   = Default(UV,   rgb ? 3 : 128)
     cf   = Default(clamp_float, false)
     fd   = Default(fulld,        true)
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
@@ -923,6 +951,15 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
 # trimmed  average: mean average of a square kernel with equal weight per component limited by its local median
 #
 # ex_boxblur(2,mode="weighted") same to ex_blur(2.1) and ex_boxblur(1,mode="mean").ex_boxblur(1,mode="mean"), and Dither_box_filter16(1,U=1,V=1).Dither_box_filter16(1,U=1,V=1), Dither_ about same speed
+#
+#
+# Function Definition:
+#    (
+#    clip,
+#    int radius=1 (0 to 14 by 1),
+#    [int radiusV=1 (0 to 14 by 1)],
+#    string "mode"="mean" ("mean" / "weighted" / "rg19" / "trimmed" / "bokeh"),
+#    )
 #
 function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int "Y", int "UV") {
 
@@ -1109,6 +1146,17 @@ function binom_coeffs(n, k) {
 # half-band:    ex_blur(1) or ex_boxblur(1,mode="weighted"). 'low-pass' filter, reduces the maximum bandwidth of sampled data (resolution) by a factor of 2 (1 octave)
 # quarter-band: ex_blur(5) or ex_boxblur(5,mode="weighted"). 'low-pass' filter, reduces the maximum bandwidth of sampled data (resolution) by a factor of 4 (2 octaves)
 #
+#
+# Function Definition:
+#    (
+#    clip,
+#    int radius=1 (0 to 43 by 1),
+#    [int radiusV=1 (0 to 43 by 1)],
+#    int "n"=6 (0 to 300 by 1),
+#    string "mode"="binomial" ("gaussian" / "binomial" / "butterworth"),
+#    string "gamma"="none" ("none" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "xvYCC" / "1361" / "sRGB" / "Rec2020" / "AdobeRGB / "ACESCCt"),
+#    )
+#
 function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode", string "gamma", int "Y", int "UV", bool "fulls") {
 
     rgb = isRGB(a)
@@ -1121,7 +1169,7 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     rv = Default(radiusv, rm)
     n  = Default(n,        6)             # 0-inf. slope in frequency domain of the lowpass in dB/oct units. In spatial domain a bias between "butterworth" 1st order (similar to "gaussian") and "sinc" or "brickwall" ideal filter (same to "mean" blur with rad+0.5 and n>300)
     md = Default(mode,"binomial")         # "gaussian": true gaussian distribution  "binomial": binomial distribution fit (like blur() or ex_boxblur(mode="weighted") )  "butterworth": between gaussian and mean blur falloff distribution
-    gm = Default(gamma,   "none")         # Set matrix for gamma encoded clips (ie. 601, 709, 2020...) Requires TransformsPack
+    gm = Default(gamma,   "none")         # Set transfer for "gamma" encoded clips (ie. 601, 709, 2020...). Requires TransformsPack
     Y  = Default( Y,          3)
     UV = Default(UV,    rgb ? 3 : 1)
     fs = Default(fulls, fs)
@@ -1147,8 +1195,8 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     cstrh = md == "butterworth" ? butt_constructor(sm,n,false) : gauss_constructor(sm,false)
 
     if (gm != "none") {
-        matrix = Matrix_fuzzy_search (gm)
-        s_gam  = moncurve_coef(matrix)
+        matrix = Color_Fuzzy_search (gm)
+        s_gam  = moncurve_coef(matrix[0])
         a      = moncurve_f(a, s_gam[0], s_gam[1], !fs, false, UV)
     }
 
@@ -1223,7 +1271,16 @@ function butt_constructor(float rad, int n, bool vert) {
 # weighted - spherical blur (beware this mode doesn't have SCD -scene change detection-)
 #
 # By order of strength: mean3D > weighted3D > ex_median("IQMT") > ex_fluxsmoothST(th=255>0)
-
+#
+# Function Definition:
+#    (
+#    clip,
+#    int x=1 (0 to 14 by 1),
+#    int y=1 (0 to 14 by 1),
+#    int z=1 (0 to 7 by 1),
+#    string "mode"="mean" ("mean" / "weighted"),
+#    )
+#
 function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV") {
 
     rgb = isRGB(a)
@@ -1268,6 +1325,16 @@ function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV") {
 #  59% vsTBilateral(diameterY=3, sdevY=4, idevY=4.0,    u=1, v=1)
 #  43% TBilateral(3,3,chroma=false)                                        # only supports 8-bits
 #  23% bilateral(sigmaSY=1, sigmaRY=0.02, algorithmY=2, u=1, v=1)
+#
+# Function Definition:
+#    (
+#    clip,
+#    int radius=1 (0 to 3 by 1),
+#    [int radiusV=1 (0 to 3 by 1)],
+#    float "ithres"=4.0 (0.0 to 10.0 by 0.1),
+#    float "sthres"=4.0 (0.0 to 10.0 by 0.1),
+#    bool "dejaggie"=true,
+#    )
 #
 function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", float "sthres", bool "dejaggie", int "UV") {
 
@@ -1410,6 +1477,17 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
 # modes:
 # SG  - Savitzky-Golay (S-G) smoothing filter, a least-squares polynomial smoothing approach (between an antialiaser and a blur)
 # SNN - Symmetrical Nearest Neighbour based pair average
+#
+# Function Definition:
+#    (
+#    clip,
+#    int radius=1 (0 to 3 by 1),
+#    [int radiusV=1 (0 to 3 by 1)],
+#    string "mode"="SG" ("SG" / "SNN"),
+#    bool "limit"=false,
+#    bool "sharp"=false,
+#    )
+#
 function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limit", string "mode", int "UV") {
 
     rgb  = isRGB(a)
@@ -1728,6 +1806,16 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
 # Works good as a prefilter when sharp=false.
 # radius can go up to 3 for temporal and spatial (slow in high spatial though)
 #
+# Function Definition:
+#    (
+#    clip,
+#    int rad=1 (0 to 3 by 1),
+#    int radT=1 (0 to 3 by 1),
+#    int th=7 (0 to 255 by 1),
+#    int Tth=7 (0 to 255 by 1),
+#    bool "sharp"=true, ; disable to use output as a prefilter
+#    )
+#
 function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", bool "sharp", int "UV") {
 
     rgb = isRGB(a)
@@ -1753,6 +1841,17 @@ function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", boo
 # Spatio-Temporal Thresholded Weighted Median (STPresso() inspired / not a port)
 # Spatial  3x3
 # Temporal 1x5
+#
+# Function Definition:
+#    (
+#    clip,
+#    int sw=24 (0 to 100 by 1),
+#    int tw=49 (0 to 100 by 1),
+#    int aw=1 (0 to 100 by 1),
+#    int sthres=5 (0 to 255 by 1),
+#    int tthres=5 (0 to 255 by 1),
+#    )
+#
 function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres", int "UV") {
 
     rgb = isRGB(a)
@@ -1975,11 +2074,18 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 # DGM3       - Mode=3 of DeGrainMedian (similar    to spatial only RemoveGrain(7)) (Spatio-Temporal, Motion Protected)
 # DGM4       - Mode=4 of DeGrainMedian (similar    to spatial only RemoveGrain(6)) (Spatio-Temporal, Motion Protected)
 # DGM5       - Mode=5 of DeGrainMedian (similar    to spatial only RemoveGrain(5)) (Spatio-Temporal, Motion Protected)
-
-
-
+#
 # SNN (Symmetric Nearest Neighbour Median) is not implemented due to low edge integrity protection. -removegrain(9)-
 # *SmartMedian and SmartMedian2 from RemoveGrainHD are not included. With radius=1 output is blotchy and jagged lines, with radius=2 it's like strong undot, it protects lines to some degree
+#
+#
+# Function Definition:
+#    (
+#    clip,
+#    string "mode"="median" ("undot" / "undot2" / "undot3" / "unblob3" / "unblob3D" / "median" / "median5" / "median7" / "median7o" / "smart" / "smart2" / "smart3" / "midsum" / "Winsor" / "Winsor5" / "Trimean" / "Trimean5" / "IQM" / "IQM5" / "IQMT" / "EMF" / "CWM" / "CWM2" / "WMF" / "AWM" / "PWM" / "RMF" / "AMF" / "CAM" / "SNN" / "kuwahara" / "edgeW" / "edgeS" / "edgeC" / "edgeCL" / "cartoon" / "vertical" / "verticalS" / "horizontal" / "horizontalS" / "GaussT5" / "GaussST5" / "medianT" / "medianT5" / "medianST" / "medianSTS" / "SixNN" / "STWM" / "PML" / "TL3D" / "ML3D" / "ML3Dex" / "Hybrid" / "BDM" / "MMF" / "DGM0" / "DGM1" / "DGM2" / "DGM3" / "DGM4" / "DGM5"),
+#    float "thres"=255.0 (0.0 to 255.0 by 1.0),
+#    bool "recursion"=false,
+#    )
 
 function ex_median(clip a, string "mode", float "thres", bool "recursion", int "Y", int "UV") {
 
@@ -5207,6 +5313,12 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 ## temp2     - TemporalRepair mode=2
 ## temp3     - TemporalRepair mode=3
 ## temp4     - TemporalRepair mode=4
+##
+## Function Definition:
+##    (
+##    clip,
+##    string "mode"="undot2" ("median" / "medianc" / "undot" / "undot2" / "undot3" / "edgeSP" / "edgeS" / "edgeW" / "cartoon" / "cartoonc" / "temp0" / "temp1" / "temp2" / "temp3" / "temp4"),
+##    )
 
 function ex_repair(clip a, clip b, string "mode", int "UV") {
 
@@ -5870,6 +5982,13 @@ function ex_inflate(clip a, int "radius", int "UV") {
 # 4x4          - Prunes everything under a 4x4 square kernel. Useful as a (binary) mask cleaner. Iterate for iterative cleaning
 # fill         - (Boundary) fill element bodies (not implemented)
 #
+# Function Definition:
+#    (
+#    clip,
+#    int iter=1 (1 to 50 by 1),
+#    string "mode"="thin" ("thin" / "thicken" / "prune" / "pruneS" / "end" / "undot" / "inline" / "outline" / "boundary" / "convexhull" / "convexhull45" / "corner" / "cornerS" / "junction" / "4-connected" / "8-connected" / "4x4"),
+#    )
+#
 function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 
     rgb = isRGB(a)
@@ -6101,7 +6220,14 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 # SGDD      - (2d) Savitzky-Golay Digital Differentiator cubic first derivative with 5x5 kernel
 # SGDD7     - (2d) Savitzky-Golay Digital Differentiator cubic first derivative with 7x7 kernel
 # kirsch    - (4d) or Kirsch compass kernel is a non-linear edge detector that finds the maximum edge strength in 45º increments. Coefficients 3 and 5
-
+#
+# Function Definition:
+#    (
+#    clip,
+#    string "mode"="qprewitt" ("prewitt" / "hprewitt" / "qprewitt" / "tritical" / "hotdog" / "kayyali" / "mt_sobel" / "sobel" / "sobel5" / "scharr" / "pscharr" / "kroon" / "farid" / "farid5" / "frei-chen / "roberts" / "robinson" / "FDoG" / "DoG" / "DoB" / "LoG" / "SGDD" / "SGDD7" / "Std" / "laplace" / "cartoon" / "TEdge" / "min/max" / "max" / "SG" / "kirsch"),
+#    float "scale"=1.0 (0.0 to 25.0 by 0.1),
+#    float "invert"=false,
+#    )
 
 function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool "invert", int "UV") {
 
@@ -6111,7 +6237,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 
     mode = Default(mode, "mt_sobel")
     in   = Default(invert,    false)
-    UV   = Default(UV,    rgb ? 3 : 1)
+    UV   = Default(UV,    rgb ? 3 : 128)
     un   = Undefined()
     si   = ex_UVf(rgb, bi)
 
@@ -6278,7 +6404,14 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 #   ex_luts(a,ex_blur(),mode="clp")         -> ex_clamp(a,ex_blur().ex_expand(),ex_blur().ex_inpand())
 #
 # For more check Morphological examples above at line: 5585
-#
+###
+### Function Definition:
+###    (
+###    clip,
+###    string "mode"="avg" ("average" / "median" / "max" / "min" / "clip" / "boundary" / "inline" / "outline" / "stdev"),
+###    string "pixels"=ex_shape(),
+###    )
+###
 function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf", string "mode", string "pixels", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "optSingleMode", bool "fulls") {
 
     rgb  = isRGB(a)
@@ -6295,7 +6428,6 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     md   = Default(mode,     "avg")
     md   = ReplaceStr(md, " ",  "")
     Y    = Default(Y,            3)
-    UV   = Default(UV,     rgb ? 3 : isc ? 3 : 1)
     fs   = Default(fulls,  fs)
     opt  = Default(optSingleMode,false)
     cf   = Default(clamp_float,  false)
@@ -6304,7 +6436,9 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     md = md == "average"   ? "avg"          : \
          md == "maximum"   ? "max"          : \
          md == "minimum"   ? "min"          : \
+         md == "clip"      ? "clp"          : \
          md == "clamp"     ? "clp"          : \
+         md == "boundary"  ? "rng"          : \
          md == "range"     ? "rng"          : \
          md == "range-"    ? "rngmin"       : \
          md == "range+"    ? "rngmax"       : \
@@ -6324,7 +6458,10 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
          md == "rngmax"? " max "            : \
          md == "std"   ? " XX - dup * "     : \
          md == "med"   ? ""                 : \
-         Assert(false, "ex_luts: "+md+" unsupported mode.")
+         Assert(false, "ex_luts: '"+md+"', unsupported mode.")
+
+    msk  = FindStr(md, "rng") > 0 || md == "std"
+    UV   = Default(UV,     rgb ? 3 : isc ? 3 : msk ? 128 : 1)
 
     nul = px == ""
     px  = FindStr(px,"[") != 0 ? px : nul ? "" : pixel_parser(px)
@@ -6373,7 +6510,6 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
                             px + expr + exprY + exprX                                                                  + exprf
 
     expr = ReplaceStr(expr, "  ", " ")
-    msk  = FindStr(md, "rng") > 0 || md == "std"
 
     str  =                           ex_Yexpr (expr,  Y, bi, rgb, fs, si)
     cstr = rgb ? str : isc ? exprc : ex_UVexpr(expr, UV, bi, rgb, fs, si, isc)
@@ -6390,7 +6526,17 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
 
 
 
-# Outputs a string with the kernel shape in 'shape'
+### Outputs a string with the kernel shape in 'shape'
+###
+### Function Definition:
+###    (
+###    clip,
+###    int rad=1 (0 to 8 by 1),
+###    [int radV=1 (0 to 8 by 1)],
+###    string "mode"="square" ("square" / "diamond" / "circle" / "disk" / "ring" / "cross" / "horizontal" / "vertical"),
+###    bool "center"=true,
+###    )
+###
 function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop") {
 
     rd = Default(rad,             1)  # integers from 0 to 8 (depends on mode)
@@ -6585,8 +6731,7 @@ function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls",
     # Shifting Chroma when UV is a constant (UV=128) and input bitdepth is 32-bit float
     off = off ? -0.5 : 0
 
-    str = rgb ?   str : ReplaceStr(str, "ymax",  "cmax")
-    str = rgb ?   str : ReplaceStr(str, "ygrey", "range_half")
+    str = rgb ? str : ReplaceStr(str, "ymax", "cmax").ReplaceStr("ygrey", "range_half")
     str = ex_dlut(str, bi, fs)
 
     str = UV == 1   ? ""          : \
