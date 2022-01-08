@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v5.1 (08-01-2022)               ##
+###           Grade Pack v5.2 (08-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -213,9 +213,9 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
         GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
         ex_contrast (sc,ss,sp,tv,128)
         HistoCurve(size=1,gradient=false)
-        plt = GaussResize(sw,sh,p=100)
+        plt = BicubicResize(sw,sh,-0.5,0.25)
         plt = PadBorders(plt,w-sw,0,0,h-sh)
-        plt = ex_blend(out,plt,"blend",opacity=0.5,tv_range=tv,UV=1)
+        plt = Merge(out,plt)
         ex_merge(out,plt,BoxMask(out,w-sw,w,0,sh),UV=3)
     } }
 
@@ -323,9 +323,9 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
         plt = GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
         plt = ex_levels (plt,silo,sgam,sihi,solo,sohi,tv,128)
         plt = HistoCurve(plt,size=1,gradient=false)
-        plt = StackVertical(plt,lvl).GaussResize(sw,sh,p=100)
+        plt = StackVertical(plt,lvl).BicubicResize(sw,sh,-0.5,0.25)
         plt = PadBorders(tv?plt.SMPTE_Legal(false):plt,w-sw,0,0,h-sh)
-        plt = ex_blend(plt,"blend",tv_range=tv,opacity=0.5,UV=3)
+        plt = Merge(plt)
         ex_merge(last,plt,BoxMask(w-sw,w,0,sh),UV=3) } }
 
 
@@ -820,7 +820,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     A quarter band filter applied horizontally and a half band filter applied vertically is recommended.
 */
 
-function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
+function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103", bool "show") {
 
     propIDs = color_propGet(yuv)
     bi      =  propIDs[7]
@@ -829,6 +829,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
     mat     = Default (matrix, propIDs[2])
     tv      = Default (tv_in,         !fs)
     ebu     = Default (EBUR103,     false)  # Enable for EBU R103 (frameprops and less strict thresholds)
+    sh      = Default (show,        false)
 
     Assert(IsVersionOrGreater(3,7,1), "GamutWarning: Update AviSynth+ version")
     Assert(!isRGB(yuv),               "GamutWarning: Only YUV format supported")
@@ -864,6 +865,20 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103") {
     Expr(Y,yuv,yuv.SwapUV(),"",ex_dlut(Format("x "+rangeY+" X@ "+string(m0)+" * z "+UVf+" Z@ "+string(m2)+" * +                      dup {pn} < swap {pm} > or
                                                X               "+string(m6)+" * y "+UVf+" Y@ "+string(m7)+" * +                      dup {pn} < swap {pm} > or or
                                                X               "+string(m3)+" * Y            "+string(m4)+" * + Z "+string(m5)+" * + dup {pn} < swap {pm} > or or range_max y ?"), bi, !tv), format=PixelType(yuv))
+
+    if (sh) {
+
+        bin = ex_lut("x range_size 1 - < 0 x ?",Y=1,UV=3)
+        div = (ex_bs(256, 8, bi, !tv)-1)*(2/100.)
+
+        ScriptClip( function[bin,div] () {
+
+            U = bin.ExtractU().AverageLuma()
+            V = bin.ExtractV().AverageLuma()
+            Subtitle("Out of Gamut: "+string((U+V)/div,"%1.3f")+"%") # In percentage
+        } )
+
+    }
 
     !ebu ? last : \
     ScriptClip( function[bi,tv] () {
