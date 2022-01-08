@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.1    (14-12-2021)   ##
+###   Resizers Functions Pack 7.2    (08-01-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -48,13 +48,24 @@
 ### i.e.
 ### ((706/478)*(4320/4739))/(720/480)=0.8975
 ###
+### Example:
+###     RatioResize(0.8975,"PAR",prew=720,preh=480)
 ###
-### RatioResize(0.8975,"PAR",prew=720,preh=480)
+### Function Definition:
+###    (
+###    clip,
+###    float ratio=1.0 (0.0 to 2.0 by 0.1),
+###    string mode="%" ("adjust2w" / "adjust2h" / "DAR" / "DARconform" / "PAR" / "%"),
+###    int mod=2 (1 to 16 by 2),
+###    string kernel="spline36" ("spline16" / "spline36" / "spline64" / "lanczos" / "lanczos4" / "blackman" / "Sinc" / "Point" / "bilinear" / "bicubic" / "nnedi3"),
+###    float b=0.0 (0.0 to 1.0 by 0.01),
+###    float c=0.5 (0.0 to 1.0 by 0.01),
+###    )
 ###
 ###############################################################################
 
 
-function RatioResize(clip s, float "ratio", string "mode", int "PreW", int "PreH", int "mod", string "kernel", float "b", float "c", float "p") {
+function RatioResize(clip s, float "ratio", string "mode", int "mod", string "kernel", float "b", float "c", float "p", int "PreW", int "PreH") {
 
     rgb   = isrgb(s)
     r     = Default(ratio,      0.5)
@@ -103,6 +114,17 @@ function RatioResize(clip s, float "ratio", string "mode", int "PreW", int "PreH
 ###
 ### *Color mode has two ways for inputs, the classical PC range based hexadecimal (see link below) or an alternative more intuitive way
 ###  by using an int array as string. For example for YUV TV Black you can input "$108080" or "[16,128,128]". Both modes are valid.
+###
+### Function Definition:
+###    (
+###    clip,
+###    int width=1920 (0 to 3840 by 1),
+###    int height=1080 (0 to 2160 by 1),
+###    int "mod"=2 (1 to 16 by 2),
+###    string "mode"="$108080" ("Dilate" / "Mirror" / "[16,128,128]" / "[0,128,128]"),
+###    int "biasW"=0 (-1920 to 1920 by 1),
+###    int "biasH"=0 (-1080 to 1080 by 1),
+###    )
 ###
 function PadResize(clip c, int "width", int "height", int "mod", string "mode", int "biasW", int "biasH") {
 
@@ -165,6 +187,16 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###
 ### *Color mode has two ways for inputs, the classical PC range based hexadecimal (see link above) or an alternative more intuitive way
 ###  by using an int array as string. For example for YUV TV Black you can input "$108080" or "[16,128,128]". Both modes are valid.
+###
+### Function Definition:
+###    (
+###    clip,
+###    int left=0 (0 to 1000 by 2),
+###    int top=0 (0 to 1000 by 2),
+###    int right=0 (0 to 1000 by 2),
+###    int bottom=0 (0 to 1000 by 2),
+###    string "mode"="$108080" ("Dilate" / "Mirror" / "[16,128,128]" / "[0,128,128]"),
+###    )
 ###
 function PadBorders(clip src, int "left", int "top", int "right", int "bottom", string "mode") {
 
@@ -322,7 +354,10 @@ function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
 # "[16,128,128]" -> "$108080"
 function ColortoHex(string color) {
     cl = Eval(Color)
-    Return "$"+string(Hex(cl[0],2))+string(Hex(cl[1],2))+string(Hex(cl[2],2)) }
+    Y  = min(255,max(0,cl[0]))
+    U  = min(255,max(0,cl[1]))
+    V  = min(255,max(0,cl[2]))
+    Return "$"+string(Y,2))+string(U,2))+string(V,2)) }
 
 
 
