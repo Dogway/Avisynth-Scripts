@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v5.0 (07-01-2022)               ##
+###           Grade Pack v5.1 (08-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -48,6 +48,15 @@
 ###     ex_vibrance(2.0, mode="Dullness")      # Lower saturation where is high
 ###
 ###     ex_vibrance(1.0, mode="Recover", Rc=b) # Recover saturation from clip 'b'
+###
+### Function Definition:
+###    (
+###    clip,
+###    float sat=1.0 (0.0 to 2.0 by 0.01),
+###    string mode="Vibrance" ("Vibrance" / "Dullness" / "Saturation" / "Recover"),
+###    float bias=5.0 (0.0 to 10.0 by 0.5),
+###    bool "show"=false,
+###    )
 ###
 ###########################
 
@@ -133,8 +142,16 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 ###
 ### Example: ex_contrast(0.7, 1.0, 125.5, true)  # 125.5 is mid-grey for TV range sources
 ###
+### Function Definition:
+###    (
+###    clip,
+###    float cont=0.0 (-1.0 to 1.0 by 0.1),
+###    float sat=1.0 (0.0 to 3.0 by 0.01),
+###    float pivot=125.5 (64.0 to 192.0 by 1.0),
+###    bool "show"=false,
+###    )
+###
 ####################################
-
 
 function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv_range", int "UV", bool "show") {
 
@@ -220,6 +237,17 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ### Example: ex_levels(23, 1.200, 255, 0, 255, tv_range=true)
 ###
 ### Formula = (input - input_low) / (input_high - input_low)] ^ (1/gamma) * (output_high - output_low) + output_low
+###
+### Function Definition:
+###    (
+###    clip,
+###    float input_low=0.0 (0.0 to 255.0 by 1.0),
+###    float gamma=1.0 (0.0 to 3.0 by 0.01),
+###    float input_high=255.0 (0.0 to 255.0 by 1.0),
+###    float output_low=0.0 (0.0 to 255.0 by 1.0),
+###    float output_high=255.0 (0.0 to 255.0 by 1.0),
+###    bool "show"=false,
+###    )
 ###
 ####################################
 
@@ -313,6 +341,14 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ###                 TransformsPack (for 'darker'/'lighter')
 ###
 ### Example: ex_blend(a, mode="multiply", opacity=1.0, tv_range=true, UV=2)
+###
+### Function Definition:
+###    (
+###    clip,
+###    string mode="multiply" ("blend" / "interpolation" / "watermark" / "lighter" / "lighten" / "screen" / "softdodge" / "colordodge" / "lineardodge" / "darker" / "darken" / "multiply" / "softburn" / "colorburn" / "linearburn" / "overlay" / "softlight" / "hardlight" / "vividlight" / "linearlight" / "pinlight" / "hardmix" / "glow" / "reflect" / "heat" / "freeze" / "grainextract" / "grainmerge" / "difference" / "exclusion" / "subtract" / "divide" / "extremity" / "negation" / "phoenix"),
+###    float opacity=1.0 (0.0 to 1.0 by 0.1),
+###    float watermark=1.0 (0.0 to 2.0 by 0.1),
+###    )
 ###
 ####################################
 
@@ -471,6 +507,14 @@ function ex_glow(clip a, int "radius", int "thres", float "opacity", bool "tv_ra
 ###
 ### Similar to "dither_bits" argument from ConvertBits() but more flexible and more options.
 ###
+###
+### Function Definition:
+###    (
+###    clip,
+###    int bits=3 (0 to 7 by 1),
+###    int mode=-1 (-1 to 7 by 1), ;-1: round  0: Bayer ordered  1: Floyd-Steinberg ED  2: Sierra-2-4A ED  3: Stucki ED  4: Atkinson ED  5: Ostromoukhov ED  6: Void & cluster ordered  7: Quasirandom
+###    )
+###
 function ex_posterize (clip c, int "bits", int "mode", int "UV") {
 
     rgb  = isRGB(c)
@@ -508,15 +552,25 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
 ### Segmentation of skin tones. Extracts a skin mask to use elsewhere.
 ### It does so in OkLab Jch space which is perceptually uniform (UCS).
 ###
-function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth", float "blur", bool "invert") {
+### Function Definition:
+###    (
+###    clip,
+###    float str=0.8 (0.1 to 2.0 by 0.01),
+###    float Delta=43.0 (0.0 to 360.0 by 1.0),
+###    float Q=0.7 (0.0 to 1.0 by 0.01),
+###    float blur=3.0 (0.0 to 6.0 by 0.5),
+###    bool invert=false,
+###    )
+###
+function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "blur", bool "invert") {
 
     rgb = IsRGB(c)
     ID  = color_propGet(c)
     bi  = ID[7]
 
-    dg  = Default (degrees,      43)   # Degrees in IPT HUE
     str = Default (str,         0.8)   # Strength of mask
-    bw  = Default (bandwidth,   0.7)   # 0.0 to 1.0. Bandwidth of mask
+    dg  = Default (Delta,        43)   # Degrees in IPT HUE
+    bw  = Default (Q,           0.7)   # 0.0 to 1.0. Bandwidth of mask
     bl  = Default (blur,          3)   # Post-blur
     in  = Default (invert,    false)   # invert mask
     fs  = !ID[6]
@@ -579,10 +633,10 @@ function Skin_Qualifier (clip c, float "degrees", float "str", float "bandwidth"
 ###     float str=1.0 (0.0 to 360.0 by 0.1),
 ###     string modeA="HUE" ("HUE"/ "SAT"/ "LUM"),
 ###     string modeB="LUM" ("HUE"/ "SAT"/ "LUM"),
-###     float Delta=1 (0.0 to 360.0 by 1),
+###     float Delta=1.0 (0.0 to 360.0 by 1.0),
 ###     float Q=1.0 (0.0 to 1.0 by 0.01),
 ###     float Opacity=1.0 (0.0 to 1.0 by 0.1),
-###     [int show=1 (0 to 2)]
+###     int "show"=1 (0 to 2),
 ###     )
 ###
 function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "Delta", float "Q", float "Opacity", float "tv_range", int "show") {
@@ -602,7 +656,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     tv  = Default (tv_range, ID[6])
     sh  = Default (show,      0)   # 0: disabled, 1: show histogram, 2: show mask
     sh2 = sh == 2
-    si  = tv ? "int" : "intf" # study if this is correct or I need "intf" always
+    si  = tv ? "int" : "intf"
 
     Assert(IsVersionOrGreater(3,7,1), "HSVxHSV: Update AviSynth+ version")
     Assert(!isy && !rgb,              "HSVxHSV: Only YUV format is supported")
@@ -681,7 +735,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
         if (mB=="HUE") {
 
-            # For modeAxHUE
+            # modeAxHUE
             bi32H = bi32 ? "" : " 0.5695 + "
             clpS  = mA=="SAT" ? "S" : "X dup * Y dup * + sqrt "
             msk   = mA=="SAT" ? ReplaceStr(msk, "0.5 + S@", "S@ 0.5 +") : msk
@@ -709,7 +763,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     msk = mA=="LUM" && mB!="LUM" && !bi32 ? ReplaceStr(msk," x ",  " x 0.5 + ")                   : \
           mA!="LUM" && mB=="LUM"          ? ReplaceStr(msk," y ", " z ").ReplaceStr(" x ", " y ") : msk
 
-    # Here in order: LUMxLUM, LUMxSAT, SATxLUM, HUExLUM, SATxSAT
+    # In order: LUMxLUM, LUMxSAT, SATxLUM, HUExLUM, SATxSAT
     mA=="LUM"   ? mB=="LUM" ? ex_lut   (c,                 msk+op,UV=2,   scale_inputs=si) : \
                               ex_lutxyz(Y,c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs=si) : \
                   mB=="LUM" ? ex_lutxyz(c,Uc,Vc,           msk+op,UV=2,   scale_inputs=si) : \
@@ -904,6 +958,13 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 ###                 TransformsPack
 ###                 ExTools
 ###
+### Function Definition:
+###    (
+###    clip,
+###    int temperature=6504 (4004 to 12004 by 1),
+###    string matrix="Rec709" ("470M" / "470BG" / "Rec601" / "Rec709" / "Rec2020" / "Rec2020" / "Display-P3" / "ACEScg"),
+###    )
+###
 ####################################
 
 function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range") {
@@ -975,13 +1036,14 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 ###    # ex_contrast(cont=1,tv_range=false)  # Here the 32-bit aware curve expression (for not 32-bit aware expressions, you can use scale_inputs="int" with 'f32' decorator to scale to 32-bit)
 ###    HistoCurve()
 ###
+### Function Definition:
 ###    (
 ###    clip,
-###    int zoom=1 (1 to 6 by 1),
-###    bool smooth=true,
-###    bool positive=false,
-###    int x=0 (-50 to 50 by 1),
-###    int y=0 (-50 to 50 by 1),
+###    int "zoom"=1 (1 to 6 by 1),
+###    int "x"=0 (-50 to 50 by 1),
+###    int "y"=0 (-50 to 50 by 1),
+###    bool "positive"=false,
+###    bool "smooth"=true,
 ###    )
 ###
 ######################
@@ -1024,7 +1086,7 @@ function HistoCurve(clip a, float "size", bool "gradient") {
                                                                sy {yo} neg 256 * + round Y@ 256 {zm} 2 * / round % 0 == or
                                                                X 4 % 0 != Y 0 != Y 4 % 0 != and or 0.25 0 ? x 0.5 < 0 x ? B@ max B ?"), UV=128)
     axis  = ps ? grid : grid.ex_lutspa(mode="mix",expr=Format("sx 128 {xo} 256 * + round abs ==
-                                                       sy 0 != sy 128 {yo} 256 * + round abs == and or 0.35 x max sy 255 == 0 x ? ?"), UV=128)
+                                                       sy 0 != sy 128 {yo} 256 * + round abs == and or 0.35 x max sy 255 == 0 x ? ?"),  UV=128)
     grad = crop(0,256,0,0)
     gr ? StackHorizontal(grad,axis) : axis
 
