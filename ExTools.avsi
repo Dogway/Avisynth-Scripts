@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.2   (08-01-2022)                ##
+###           ExTools v7.2   (09-01-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -1212,7 +1212,7 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     UV == 1 ? Expr(last, strh, ""                                                    ) : \
               Expr(last, strh, ex_UVexpr(cstrh, UV, bi, rgb, fs), scale_inputs="none")
 
-    gm != "none" ? moncurve_r(last, s_gam[0], s_gam[1], false, !fs, UV) : last      }
+    gm != "none" ? moncurve_r(last, s_gam[0], s_gam[1], false, !fs, UV) : last       }
 
 
 function gauss_constructor(float rad, bool vert) {
@@ -5675,7 +5675,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 
 
     cstr = ex_UVexpr(str, UV, bi, rgb, un)
-    str  = ex_dlut  (str, bi, fs)
+    str  = ex_dlut  (str, bi, un)
 
     if (FindStr(mode, "emp")>0) {
 
