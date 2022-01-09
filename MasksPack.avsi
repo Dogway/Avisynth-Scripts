@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 4.7 By Dogway  (07-01-2022)            ##
+###           MasksPack 5.0 By Dogway  (09-01-2022)            ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
@@ -18,6 +18,19 @@
 ###         ExTools
 ###         ResizersPack
 ###         GradePack (for show=true)
+###
+### Function Definition:
+###    (
+###    clip,
+###    int x1=0 (0 to 1920 by 1),
+###    int x2=0 (0 to 1920 by 1),
+###    int y1=0 (0 to 1080 by 1),
+###    int y2=0 (0 to 1080 by 1),
+###    bool "invert"=false,
+###    bool "show"=false,
+###    bool "tv_out"=false,
+###    bool "UV"=3 (1 to 128 by 1),
+###    )
 ###
 ###########################
 
@@ -84,6 +97,18 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ### Example:
 ###     filt = YourFilter()
 ###     flatmask(1,filt=filt) # to merge with filtered clip
+###
+###
+### Function Definition:
+###    (
+###    clip,
+###    float rad=3.0 (1.0 to 4.0 by 0.5),
+###    float "scale"=5.0 (1.0 to 10.0 by 0.5),
+###    int "lo"=0 (0 to 32 by 1),
+###    int "MSR"=40 (0 to 128 by 1),
+###    bool "invert"=false,
+###    bool "show"=false,
+###    )
 ###
 ###########################
 
@@ -187,6 +212,15 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 ### Remaps value 0 to 50 and 255 to 100, clipping above and below.
 ### Useful to protect dark/bright areas from certain filters without
 ### a hard threshold like ex_binarize()
+###
+###
+### Function Definition:
+###    (
+###    clip,
+###    int "lo"=24 (0 to 255 by 1),
+###    int "hi"=48 (0 to 255 by 1),
+###    bool "invert"=false,
+###    )
 ###
 ##############################################################
 
