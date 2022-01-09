@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC31  (06-01-2022)           ##
+###    Transforms Pack v1.0 RC32  (09-01-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -851,6 +851,19 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
         # Show panel
         if (dg) {
+
+            w   = width()
+            h   = height()
+            sw  = nmod(w/5.)
+            plt = GradientLinear(last,zoom=1, positive=true, smooth=true, tv_range=tv_in)
+            plt = plt.moncurve_r(t_gam[0], t_gam[1], tv_in, tv_out, 1)
+            plt = plt.HistoCurve(size=1,gradient=false)
+            plt = plt.BicubicResize(sw,sw,-0.5,0.25).Subtitle("EOTF: "+EOTF)
+            plt = PadBorders(plt,w-sw,0,0,h-sw)
+            plt = Merge(plt)
+            ex_merge(plt,BoxMask(w-sw,w,0,sw),UV=3)
+
+
             i_jab  = i_fmt[1]
             i_fmt  = i_fmt[0]
             o_jab  = o_fmt[1]
@@ -864,7 +877,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC31",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC32",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
