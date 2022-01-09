@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.4.1d      by Dogway    - 08 Jan  2022                           ###
+###                       v3.4.2d      by Dogway    - 09 Jan  2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -33,7 +33,7 @@
 ###              LSFmod/SharpenersPack  (for Contrasharp)
 ###                 ResizersPack        (for Contrasharp
 ###                                      or  Str=0.1 to 1.0 ~ex_retinex()~)
-###              GradePack              (for Str=0.1 to 1.0 ~ex_retinex()~ )
+###              GradePack              (for Str=0.1 to 1.0 ~ex_retinex()~)
 ###              RgTools                (for Contrasharp
 ###                                      or  prefilter=0~3)
 ###              DFTTest                (for prefilter=4)
@@ -46,10 +46,31 @@
 ###              Average                (for mfilter + (Contrasharp or mode!=MDegrain) )
 ###
 ###
+### Function Definition:
+###   (
+###   clip,
+###   int tr=1 (0 to 9 by 1),
+###   int thSAD=300 (100 to 1000 by 1),
+###   [int "blksize"=16 (4 to 64 by 4)],
+###   [int "overlap"=8 (2 to 32 by 4)],
+###   string "mode"="MDegrain" ("MDegrain" / "MedianT" / "MedianST" / "MedianSTS" / "TemporalSoften" / "FluxSmoothT" / "ML3DEx" / "Hybrid" / "TL3D" / "STWM" / "IQMT" / "GaussT5" / "GaussST5" / "rMDegrain" / "rMedianST" / "rMedianSTS" / "rML3DEx" / "rHybrid" / "rTL3D" / "rSTWM" / "rIQMT" /"rGaussT5" / "rGaussST5"),
+###   int "prefilter"=-1 (-1 to 6 by 1),
+###   bool "ContraSharp"=false,
+###   bool "RefineMotion"=false,
+###   float "Str"=3.0 (0.0 to 6.0 by 0.1),
+###   float "Amp"=0.0625 (0.0 to 1.0 by 0.01),
+###   int "plane"=4 (1 to 4 by 1),
+###   bool "chroma"=true,
+###   int "LFR"=300 (50 to 1920 by 1),
+###   bool "DCTFlicker"=false,
+###   bool "TrueMotion"=false,
+###   bool "show"=false,
+###   )
+###
 ################################################################################################
 
 function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , string "mode"     , bool "interlaced" , int   "plane"  , int   "Globals"   , bool "tv_range" ,  \
-                     int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , float "limitC"    , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2"      ,  \
+                     int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , float "limitC"    , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2",  \
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,  \
                   int "device_id", bool "trymany", int "divide"   , int  "rfilter", bool "UHDhalf"     ) {
 
@@ -501,7 +522,6 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
           # Common Variables
 
-        h     = h
         w2    = float(w)
         h2    = float(h)
         hi    = isInter ? round(h/2.0) : h
@@ -524,14 +544,13 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         if (DefTV && tv || Str > 1.0) {
 
             sw  = nmod(w2/5.)
-            sh  = nmod(w2/5.)
             plt = pref8.GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
             plt = plt.ex_Luma_Rebuild(S0=Str,c=Amp,tv_range=tv)
             plt = plt.HistoCurve(size=1,gradient=false)
-            plt = plt.BicubicResize(sw,sh,-0.5,0.25)
-            plt = PadBorders(plt,w-sw,0,0,h-sh)
+            plt = plt.BicubicResize(sw,sw,-0.5,0.25)
+            plt = PadBorders(plt,w-sw,0,0,h-sw)
             plt = Merge(pref8,plt)
-            pref8 = ex_merge(pref8,plt,BoxMask(pref8,w-sw,w,0,sh),UV=3)
+            pref8 = ex_merge(pref8,plt,BoxMask(pref8,w-sw,w,0,sw),UV=3)
         }
 
         pref   = pref8.ConvertBits(min(bi,16), fulls=true)
@@ -574,7 +593,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.4.1",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.4.2",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -638,7 +657,17 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 ## Optimized (~58% speed gain for r=1), updated and ported to ExTools by Dogway (25-08-2021)
 ## Output is slightly different by default, medians have been replaced with edge retaining versions...
 ## and a following blur to "calm" edges (read Didée's quote above). Enable 'old' for old output.
-
+##
+## Function Definition:
+##    (
+##    clip,
+##    int r=1 (0 to 3 by 1),
+##    string "mode"="median" ("median" / "blur" / "blur_horizontal" / "blur_vertical"),
+##    [int thres=20 (0 to 255 by 1)],
+##    bool "sharp"=false,
+##    bool "old"=false,
+##    )
+##
 function ex_MinBlur(clip clp, int "r", int "UV", string "mode", bool "sharp", int "thres", bool "old", int "Y") {
 
     rgb     = isrgb(clp)
@@ -729,7 +758,15 @@ function ex_sbr(clip c, int "r", int "Y", int "UV") {
 ## Dither_Luma_Rebuild()  by cretindesalpes (02-01-2012)
 ## https://forum.doom9.org/showthread.php?p=1548318
 ## Converts luma (and chroma) to PC levels, and optionally allows tweaking for pumping up the darks. (for the clip to be fed to motion search only)
-
+##
+## Function Definition:
+##    (
+##    clip,
+##    float S0=1.0 (0.0 to 9.0 by 0.1),
+##    float c=0.0625 (0.0 to 1.0 by 0.01),
+##    bool "show"=false,
+##    )
+##
 function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bool "tv_range", bool "show") {
 
     rgb   = isrgb(src)
@@ -767,14 +804,13 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
         w   = src.width()
         h   = src.height()
         sw  = nmod(w/5.)
-        sh  = nmod(w/5.)
         GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
         ex_Luma_Rebuild(s0,c,tv_range=tv)
         HistoCurve(size=1,gradient=false)
-        plt = BicubicResize(sw,sh,-0.5,0.25)
-        plt = PadBorders(plt,w-sw,0,0,h-sh)
+        plt = BicubicResize(sw,sw,-0.5,0.25)
+        plt = PadBorders(plt,w-sw,0,0,h-sw)
         plt = Merge(out,plt)
-        ex_merge(out,plt,BoxMask(out,w-sw,w,0,sh),UV=3)
+        ex_merge(out,plt,BoxMask(out,w-sw,w,0,sw),UV=3)
     } }
 
 
@@ -803,7 +839,16 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ##               ResizersPack
 ##               TransformsPack (for RGB)
 ##
-
+##
+## Function Definition:
+##    (
+##    clip,
+##    int lvl=1 (0 to 2 by 1),
+##    float lo=40.0 (0.0 to 128.0 by 1.0),
+##    float hi=242.0 (128.0 to 255.0 by 1.0),
+##    float sigma=1.0 (1.0 to 5.0 by 0.1),
+##    )
+##
 function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", bool "tv_range", int "UV") {
 
     rgb  = isRGB(clp)
@@ -910,7 +955,16 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 #   | "high"  || 4/4    | 2/2    | 7/8      | 1/1/1/1 |
 #   | "vn"    || 4/4    | 2/2    | 5/6      | 1/1/1/1 |
 #   ---------------------------------------------------
-
+#
+# Function Definition:
+#    (
+#    clip,
+#    float sigma=3.0 (1.0 to 5.0 by 0.5),
+#    int radius=1 (1 to 5 by 1),
+#    bool CUDA=true,
+#    bool OPP=true,
+#    )
+#
 function ex_BM3D(clip a, float "sigma", int "radius", bool "CUDA", bool "OPP", int "UV", bool "tv_range") {
 
     rgb = isRGB(a)
@@ -952,7 +1006,19 @@ function ex_BM3D(clip a, float "sigma", int "radius", bool "CUDA", bool "OPP", i
 
 ## ex_KNLMeansCL() - KNLMeansCL wrapper by Dogway (10-10-2021)
 ##
-
+##
+## Function Definition:
+##    (
+##    clip,
+##    float h=7.0 (1.0 to 15.0 by 0.5),
+##    int d=0 (0 to 6 by 1),
+##    int a=1 (1 to 6 by 1),
+##    int s=2 (1 to 6 by 1),
+##    int wmode=0 (0 to 2 by 1),
+##    bool "chroma"=true,
+##    bool "LFR"=false,
+##    )
+##
 function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode", clip "rclip", bool "LFR", bool "chroma", string "device_type", int "device_id",  string "knlm_params") {
 
     h            = Default( h, 7.0)         # Sigma
