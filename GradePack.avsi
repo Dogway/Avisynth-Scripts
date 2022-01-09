@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v5.2 (08-01-2022)               ##
+###           Grade Pack v5.3 (09-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -209,14 +209,13 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
         w   = c.width()
         h   = c.height()
         sw  = nmod(w/5.)
-        sh  = nmod(w/5.)
         GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
         ex_contrast (sc,ss,sp,tv,128)
         HistoCurve(size=1,gradient=false)
-        plt = BicubicResize(sw,sh,-0.5,0.25)
-        plt = PadBorders(plt,w-sw,0,0,h-sh)
+        plt = BicubicResize(sw,sw,-0.5,0.25)
+        plt = PadBorders(plt,w-sw,0,0,h-sw)
         plt = Merge(out,plt)
-        ex_merge(out,plt,BoxMask(out,w-sw,w,0,sh),UV=3)
+        ex_merge(out,plt,BoxMask(out,w-sw,w,0,sw),UV=3)
     } }
 
 
@@ -1065,8 +1064,10 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 
 function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive", bool "smooth", bool "tv_range") {
 
+    Da = Defined(a)
     sm = Default(smooth,   true)             # Enabled for most filters. Disable is you want to test 'blur' filters.
     tv = Default(tv_range, false)
+    global bt = Da ? BitsPerComponent(a) : 0
     global zm = Default(zoom, 2)             # Zoom out factor of the graph
     global xo = Default(x,    0)/(zm*10.)    # shift on x axis
     global yo = Default(y,    0)/(zm*10.)    # shift on x axis
@@ -1074,7 +1075,7 @@ function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive",
 
     of = zm
     zm = zm * 2.
-    BlankClip(Eval(Defined(a) ? "a" : "length=100"), width=256, height=256, pixel_type="YUV420PS")
+    BlankClip(Eval(Da ? "a" : "length=100"), width=256, height=256, pixel_type=Da?LeftStr(PixelType(a),6)+"PS":"YUV420PS")
 
     !tv ? ex_lutspa(mode="relative", expr=sm?"x":"x 0.5 + 2 % 1 < 0 1 ?",                            UV=128, fulld=true) : \
           ex_lutspa(mode="relative", expr=sm?"x ymax ymin - * ymin +":"x 0.5 + 2 % 1 < ymin ymax ?", UV=128, fulld=false)
@@ -1092,6 +1093,7 @@ function HistoCurve(clip a, float "size", bool "gradient") {
     zm = zm * 2.
     ps ? ex_lut(a,Format("x {of} /         {yo} -"),"") : \
          ex_lut(a,Format("x {of}  + {zm} / {yo} -"),"")
+
     TurnRight()
     Histogram(mode="classic")
     TurnLeft()
@@ -1106,4 +1108,4 @@ function HistoCurve(clip a, float "size", bool "gradient") {
     gr ? StackHorizontal(grad,axis) : axis
 
     RatioResize(sz,"%",kernel="Point")
-    ConvertBits(8,dither=1,fulls=true) }
+    ConvertBits(bt>0?bt:8,dither=1,fulls=true) }
