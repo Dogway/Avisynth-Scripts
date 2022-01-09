@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v2.8  (21-12-2021)                             ###
+###        Sharpeners Pack v3.0  (09-01-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -77,7 +77,7 @@
 ###########################################################################
 ###
 ###
-### Adaptive_Sharpen() - v1.6 (04-12-2021)
+### Adaptive_Sharpen() - v1.7 (06-01-2022)
 ###
 ### https://forum.doom9.org/showthread.php?t=182881
 ###
@@ -97,6 +97,27 @@
 ###                 ExTools
 ###
 ### Example: Adaptive_Sharpen(1.0)
+###
+###
+### Function Definition:
+###    (
+###    clip,
+###    float str=1.0 (0.3 to 2.0 by 0.1),
+###    float slope=0.5 (0.0 to 2.0 by 0.01),
+###    float H_over=0.765 (0.01 to 255.0 by 0.1),
+###    float L_over=2.295 (0.01 to 255.0 by 0.1),
+###    float H_compr_lo=0.167 (0.0 to 1.0 by 0.01),
+###    float H_compr_hi=0.334 (0.0 to 1.0 by 0.01),
+###    float L_compr_lo=0.250 (0.0 to 1.0 by 0.01),
+###    float L_compr_hi=0.500 (0.0 to 1.0 by 0.01),
+###    float scale_lim=0.1 (0.0 to 1.0 by 0.1),
+###    float scale_cs=0.056 (0.0 to 1.0 by 0.01),
+###    float dW_lothr=76.5 (0.0 to 255.0 by 0.5),
+###    float dW_hithr=204.0 (0.0 to 255.0 by 0.5),
+###    float lowthr_mxw=0.1 (0.0 to 255.0 by 0.1),
+###    float pm_p=0.7 (0.0 to 1.0 by 0.1),
+###    float a_offset=2.0 (0.0 to 255.0 by 0.5),
+###    )
 ###
 ####################################
 
@@ -128,7 +149,8 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     lowthr_mxw   = Default(lowthr_mxw,    0.1  )                # Edge value for max lowthr weight [>0.01]
     pm_p         = Default(pm_p,          0.7  )                # Power mean p-value [>0-1.0]
     a_offset     = Default(a_offset,      2.0  )                # Edge channel offset, MUST BE THE SAME IN ALL PASSES [0-255]
-    UV           = Default(UV,              rgb ? 3 : 1)
+    UV           = Default(UV,      rgb ? 3 : 1)
+    si           = ex_UVf(rgb, bi)
 
     r_max1   = 1. / ex_bs(255,    8, bi, fulls=fs)
     r_max    = bi == 32 ? "" : Format("{r_max1} *")
@@ -163,16 +185,18 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     Soft_limited_antiringing_with_tanh__wpmean_to_control_compression_slope = ""
 
     # Custom weighted DoG edge detection
-    edge = ex_dlut(Format("x[0,0] A@ 2 * x[0,1] B@ x[0,-1] E@ x[1,0] D@ x[-1,0] C@ + + + + 2 * x[-1,1] J@ x[-1,-1] K@ x[1,1] L@ x[1,-1] M@ + + + + 0.0625 *
-                           S@ x[0,2] - abs S x[0,-2] - abs S x[2,0] - abs S x[-2,0] - abs + + + 0.23 *
-                           S  J      - abs S K       - abs S L      - abs S M       - abs + + + 0.92 * +
-                           S  B      - abs S E       - abs S D      - abs S C       - abs + + + 1.15 * +
-                                                                          S A       - abs       1.38 * +
-                           "+r_max+" 0.65 ^ 2 S {r_max1} -2.466666681 1.442695040888963 * * * ^ 0.90 * 0.266666666 + 1 min * "+f_max+" {a_epsb} +"), bi, fs)
+    edge = Format("x[0,0] A@ 2 * x[0,1] B@ x[0,-1] E@ x[1,0] D@ x[-1,0] C@ + + + + 2 * x[-1,1] J@ x[-1,-1] K@ x[1,1] L@ x[1,-1] M@ + + + + 0.0625 *
+                   S@ x[0,2] - abs S x[0,-2] - abs S x[2,0] - abs S x[-2,0] - abs + + + 0.23 *
+                   S  J      - abs S K       - abs S L      - abs S M       - abs + + + 0.92 * +
+                   S  B      - abs S E       - abs S D      - abs S C       - abs + + + 1.15 * +
+                                                                  S A       - abs       1.38 * +
+                   "+r_max+" 0.65 ^ 2 S {r_max1} -2.466666681 1.442695040888963 * * * ^ 0.90 * 0.266666666 + 1 min * "+f_max+" {a_epsb} +")
 
-    edge = isy ? Expr(a, edge                                                                , optSingleMode=false) : \
-      UV == 1  ? Expr(a, edge, ""                                                            , optSingleMode=false) : \
-                 Expr(a, edge, ex_UVexpr(edge, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
+    cstr = ex_UVexpr(    edge, UV, bi, rgb, fs, si)
+    edge = ex_dlut  (    edge,     bi,      fs)
+    edge = isy ? Expr(a, edge                       , optSingleMode=false) : \
+      UV == 1  ? Expr(a, edge, ""                   , optSingleMode=false) : \
+                 Expr(a, edge, cstr, scale_inputs=si, optSingleMode=false)
 
     edge = edge.ConvertBits(32,fulls=true)
     a    =    a.ConvertBits(32,fulls=fs)
@@ -193,9 +217,11 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
            x[-2,-1] x[-1,-2] F  {sbe_m} + + + M * {sbe_h} - * +
            2 - 0.909090909 * 0 1 clip dup dup * swap 2 * 3 swap - * ")
 
-    sbe = isy ? Expr(edge, sbe                                                               , optSingleMode=false) : \
-      UV == 1 ? Expr(edge, sbe, ""                                                           , optSingleMode=false) : \
-                Expr(edge, sbe, ex_UVexpr(sbe, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
+    cstr = ex_UVexpr(       sbe, UV, 32, rgb, fs, si)
+    sbe  = ex_dlut  (       sbe,     32,      fs)
+    sbe  = isy ? Expr(edge, sbe                       , optSingleMode=false) : \
+      UV == 1 ?  Expr(edge, sbe, ""                   , optSingleMode=false) : \
+                 Expr(edge, sbe, cstr, scale_inputs=si, optSingleMode=false)
 
 
     # Sharp difference
@@ -309,21 +335,23 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
     eexp = ex_lut(edge,Format("x {a_offset} - {lthr_r} * 1 min dup dup 1.98 * 2.97 swap - * * 0.01 +"), UV=uv)
     a2   = ex_lut(a,          "x 0.06 + 2.4 ^",                                                         UV=uv)
 
-    sharpdiff = isy ? Expr(a, eexp, edge, a2, sharpdiff                                                                     , optSingleMode=false) : \
-            UV == 1 ? Expr(a, eexp, edge, a2, sharpdiff, ""                                                                 , optSingleMode=false) : \
-                      Expr(a, eexp, edge, a2, sharpdiff, ex_UVexpr(sharpdiff, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
+    cstr      = ex_UVexpr(                    sharpdiff, UV, bi, rgb, fs, si)
+    sharpdiff = isy ? Expr(a, eexp, edge, a2, sharpdiff                       , optSingleMode=false) : \
+            UV == 1 ? Expr(a, eexp, edge, a2, sharpdiff, ""                   , optSingleMode=false) : \
+                      Expr(a, eexp, edge, a2, sharpdiff, cstr, scale_inputs=si, optSingleMode=false)
 
     # Mean blur of eexp with 'circle' kernel
     eexp      = ex_luts(eexp, mode="avg", pixels=ex_shape(2,mode="circle",center=false), UV=uv)
 
     sharpen_val = Format("
                   "+sharpen_val__Compute_sharpening_magnitude_function+"
-                z {a_offset} - abs 3.5 ^ {curveslope} {curve_height} * * 0.625 + {curve_height} swap /
+                  z {a_offset} - abs 3.5 ^ {curveslope} {curve_height} * * 0.625 + {curve_height} swap /
                   y * 0.01 + x a - * ")
 
-    sharpdiff = isy ? Expr(a, eexp, edge, sharpdiff, sharpen_val                                                                     , optSingleMode=false) : \
-            UV == 1 ? Expr(a, eexp, edge, sharpdiff, sharpen_val, ""                                                                 , optSingleMode=false) : \
-                      Expr(a, eexp, edge, sharpdiff, sharpen_val, ex_UVexpr(sharpdiff, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
+    cstr      = ex_UVexpr(                           sharpen_val, UV, bi, rgb, fs, si)
+    sharpdiff = isy ? Expr(a, eexp, edge, sharpdiff, sharpen_val                       , optSingleMode=false) : \
+            UV == 1 ? Expr(a, eexp, edge, sharpdiff, sharpen_val, ""                   , optSingleMode=false) : \
+                      Expr(a, eexp, edge, sharpdiff, sharpen_val, cstr, scale_inputs=si, optSingleMode=false)
 
 
     # Soft limiter. Anti-ringing block
@@ -432,10 +460,11 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
             x + ")
 
-            isy     ? Expr(a, sharpdiff, sbe, sharp                                                                 , optSingleMode=false) : \
-            UV == 1 ? Expr(a, sharpdiff, sbe, sharp, ""                                                             , optSingleMode=false) : \
-                      Expr(a, sharpdiff, sbe, sharp, ex_UVexpr(sharp, UV, bi, rgb, fs), scale_inputs=ex_UVf(rgb, bi), optSingleMode=false)
-                      bi2 != 32 ? ConvertBits(bi2, dither=1, fulls=fs) : last }
+            cstr    = ex_UVexpr(              sharp, UV, bi, rgb, fs, si)
+            isy     ? Expr(a, sharpdiff, sbe, sharp                       , optSingleMode=false) : \
+            UV == 1 ? Expr(a, sharpdiff, sbe, sharp, ""                   , optSingleMode=false) : \
+                      Expr(a, sharpdiff, sbe, sharp, cstr, scale_inputs=si, optSingleMode=false)
+                      bi2 != 32 ? ConvertBits(bi2, dither=1, fulls=fs)    : last               }
 
 
 
@@ -467,12 +496,21 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 ### unsharp    (strength=str,vary=rad)               --> ex_unsharp(str=str/(1.489*pow(rad,-1.112)+0.51), Fc=width()*0.8,                     th=0)
 ### Internal Sharpen(0.75)            roughly matches    ex_unsharp(2.5,width()*1.5,0,UV=3)
 ###
+###
+### Function Definition:
+###    (
+###    clip,
+###    float str=1.0 (0.0 to 2.0 by 0.1),
+###    float Fc=1920.0 (0.0 to 1920.0 by 1.0),
+###    float thr=0.0 (0.0 to 255.0 by 1.0),
+###    )
+###
 function ex_unsharp(clip a, float "str", float "Fc", float "th", int "Y", int "UV") {
 
     rgb   = isRGB(a)
     isy   = isy(a)
     bi    = BitsPerComponent(a)
-    full  = propNumElements (a,"_ColorRange")  > 0 ? \
+    fulls = propNumElements (a,"_ColorRange")  > 0 ? \
             propGetInt      (a,"_ColorRange") == 0 : rgb
 
     w     = a.width()
@@ -488,7 +526,7 @@ function ex_unsharp(clip a, float "str", float "Fc", float "th", int "Y", int "U
     th    = Default(th,           0)   # Good values are 1, 2 or 3
     Y     = Default( Y,           3)
     UV    = Default(UV,    rgb  ? 3 : 1)
-    fs    = full
+    fs    = fulls
     th    = ex_bs(th, 8, bi, fulls=fs)
 
     krnlsz = ceil(2 * max(rad,1))
@@ -653,7 +691,6 @@ function NVSharpen(clip a, float "str", float "th", float "rat", float "boost", 
 
     str = Default(str,        0.5)  # 0: no sharpening, to 1: full sharpening.
     UV  = Default(UV, rgb ? 3 : 1)
-    si  = bi==32 ? "none" : fs ? "intf" : "int"
 
     sharpness = max(min(1.0, str), 0)
     sharpen_slider = sharpness - 0.5   # Map 0 to 1 to -0.5 to +0.5
@@ -753,9 +790,8 @@ function NVSharpen(clip a, float "str", float "th", float "rat", float "boost", 
                       e_45 1 == T@ Q e_45_135 T2 e_45  0 ? T4@ ? Q 0         T4 ? ? USM3 * +
                                 T  Q        0 T2 e_135 0 ? T3@ ? Q e_45_135  T3 ? ? USM4 * + x +")
 
-    isy     ? Expr(a, str                                    , scale_inputs=si) : \
-    UV == 1 ? Expr(a, str, ""                                , scale_inputs=si) : \
-              Expr(a, str, cstr, scale_inputs=ex_UVf(rgb, bi), scale_inputs=si) }
+
+    ex_lut(a, str, UV=uv, fulls=fs, scale_inputs=fs ? "intf" : "int") }
 
 
 
@@ -928,7 +964,7 @@ function SeeSaw( clip  input, clip "denoised",
     (NRlimit==0) ? clp : ex_lutxy(clp, NRdiff, Format("y range_half {NRL} + > x {NRL} - y range_half {NRL} - < x {NRL} + x y range_half - - ? ?"),fulls=fs)
 
       Slimit>=0  ? ex_lutxyz(last, soothe, tame, Format("z y - Z@ {SLIM} > x {SLIM} - Z 0 {SLIM} - < x {SLIM} + x Z - ? ?"), fulls=fs) : \
-                   ex_lutxyz(last, soothe, tame, Format("z y - Z@ 0 == x dup Z abs 1 {limit} / ^ Z sgn * - ?"),       fulls=fs)
+                   ex_lutxyz(last, soothe, tame, Format("z y - Z@ 0 == x dup Z abs 1 {limit} / ^ Z sgn * - ?"),              fulls=fs)
 
     isy ? last : CombinePlanes(last, input, planes="YUV", sample_clip=input) }
 
@@ -986,7 +1022,7 @@ function SeeSaw2( clip  input, clip "denoised",
     BIAS1 = bias
     BIAS2 = 100-bias
 
-    denoised = Defined(denoised) ? denoised.ExtractY() : ex_lutxy(clp, clp.removegrain(1, -1), Format("y x {NRL} - x {NRL} + clip"), fulls=fs)
+    denoised = Defined(denoised) ? denoised.ExtractY() : ex_lutxy(clp, clp.removegrain(1, -1), Format("y x {NRL} - x {NRL} + clip"),     fulls=fs)
 
     NRdiff = ex_makediff(clp, denoised, fulls=fs)
     tame   = ex_lutxy(clp, denoised, Format("x {NRLL} + y < x {NRL2} + x {NRLL} - y > x {NRL2} - x {BIAS1} * y {BIAS2} * + 0.01 * ? ?"), fulls=fs)
@@ -1124,6 +1160,20 @@ Function SeeSawMulti(clip  c, int "Times", val "IG",
 ###     mod 2020.04.12 HBD by real.finder
 ### mix mod 2021.08.16     by Dogway
 ###
+###
+### Function Definition:
+###    (
+###    clip,
+###    float sstr=2.0 (0.0 to 5.0 by 0.1),
+###    string mode=1 (0 to 3 by 1),
+###    [float cstr=1.0 (0.5 to 1.25 by 0.1)],
+###    float "xstr"=0.19 (0.0 to 0.250 by 0.01),
+###    float "lstr"=1.49 (0.0 to 2.0 by 0.01),
+###    float "pstr"=1.272 (0.0 to 2.0 by 0.01),
+###    float "ldmp"=2.1 (0.0 to 8.0 by 0.01),
+###    float "hdmp"=0.01 (0.0 to 8.0 by 0.01),
+###    )
+###
 function FineSharp(clip c, float "sstr", int "mode", float "cstr", float "xstr", float "lstr", float "pstr", float "ldmp", float "hdmp") {
 
     rgb   = isRGB(c)
@@ -1210,7 +1260,17 @@ function FineSharp(clip c, float "sstr", int "mode", float "cstr", float "xstr",
 ## | NonlinUSM(str=1,   z=6,  pow=1.0, rad=36 )             ## local contrast
 ## | NonlinUSM(str=0.6, z=1,  pow=1.0, rad=40 )             ## local contrast (modified original Didée's defaults)
 ## | NonlinUSM(str=2,   z=16, pow=2.0, rad=36 )             ## solarized
-
+##
+## Function Definition:
+##    (
+##    clip,
+##    float str=0.7 (0.0 to 20.0 by 0.1),
+##    float z=6.0 (0.0 to 20.0 by 0.1),
+##    float pow=1.6 (0.0 to 5.0 by 0.1),
+##    float rad=9.0 (0.0 to 60.0 by 0.1),
+##    float ldmp=0.001 (0.0 to 0.5 by 0.001),
+##    )
+##
 function NonlinUSM(clip o, float "str", float "z", float "pow", float "rad", float "ldmp", int "UV") {
 
     rgb = isRGB(o)
@@ -1254,10 +1314,10 @@ function NonlinUSM(clip o, float "str", float "z", float "pow", float "rad", flo
 # It sharpens the picture by adjusting the slope of the gradient values inbetween the local min/max interval.
 # Effectively, edges are sharpened without oversharpening (halos) (but risk to make them jaggy).
 #
-# str:       Not really usable yet - leave at '100'. Bigger gives jagged artefacts, smaller gives ... an interesting effect.
+# str:       Not really usable yet - leave at '75'. Bigger gives jagged artefacts, smaller gives ... an interesting effect.
 # rad:       The distance to search for the current pixel's upper & lower boundary.
 #            The bigger, the stronger the effect, but the slower the script runs.
-#            range: 1-5 / default: 2
+#            range: 1-5 / default: 1
 # overshoot: not yet implemented
 # ss_x,ss_y: If needed, the filter may work supersampled. Generally it's not needed, but comes handy for
 #            "uneven" sharpening like i.e. resizing 1:1 PAR --> anamorphic PAR, or for strength values > 100.
@@ -1266,8 +1326,18 @@ function NonlinUSM(clip o, float "str", float "z", float "pow", float "rad", flo
 # 10.08.2004 - got the method initially working for the first time ("how to correctly implement?!"),
 #              after having it in mind for several months.
 #
-
-function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x", float "ss_y", bool "soft") {
+#
+# Function Definition:
+#    (
+#    clip,
+#    int str=75 (0 to 150 by 1),
+#    int rad=1 (1 to 5 by 1),
+#    float ss_x=1.0 (0.0 to 2.0 by 0.1),
+#    float ss_y=1.0 (0.0 to 2.0 by 0.1),
+#    bool "soft"=false,
+#    )
+#
+function SlopeBend( clip a, int "str", int "rad", float "ss_x", float "ss_y", bool "soft") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -1277,14 +1347,12 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
 
     str       = Default( str,       75 )
     rad       = Default( rad,        1 )
-    overshoot = Default( overshoot,  1 )
     ss_x      = Default( ss_x,     1.0 )
     ss_y      = Default( ss_y,     1.0 )
     soft      = Default( soft,   false )
 
     Sstr      = str/100.0
     rad       = max(min(rad,5),1)
-    overshoot = max(overshoot,0)
     ox        = a.width ()
     oy        = a.height()
     ss        = ss_x != 1.0 || ss_y != 1.0
@@ -1328,7 +1396,7 @@ function SlopeBend( clip a, int "str", int "rad", int "overshoot", float "ss_x",
 # Requires MedianBlur2 for str > 3: https://avisynth.nl/index.php/MedianBlur2
 # Also known as DDSharp(). 'pass' concept imported from DDSharp()
 
-function MedianSharp (clip a, int "str", float "pwr", int "UV", bool "fulls") {
+function MedianSharp (clip a, int "str", float "pwr", int "UV") {
 
     rgb = isRGB(a)
     bi  = BitsPerComponent(a)
@@ -1382,7 +1450,18 @@ function MedianSharp (clip a, int "str", float "pwr", int "UV", bool "fulls") {
 #  Examples:
 #      DetailSharpen()                            # Original DetailSharpen by Didée.
 #      DetailSharpen(power=1.5, mode=0, med=True) # Mini-SeeSaw...just without See, and without Saw.
-
+#
+# Function Definition:
+#    (
+#    clip,
+#    int z=4 (0 to 20.0 by 1),
+#    float sstr=1.5 (0.0 to 3.0 by 0.1),
+#    int power=4 (0 to 8 by 1),
+#    int ldmp=1 (0 to 5 by 1),
+#    int mode=1 (0 to 1 by 1),
+#    bool med=false,
+#    )
+#
 function DetailSharpen(clip c, int "z", float "sstr", int "power", int "ldmp", int "mode", bool "med") {
 
     rgb  = isRGB(c)
@@ -1587,7 +1666,18 @@ function SSW(clip c) {
 ###
 ### Also, I'm curious if rad 4 ever works better then rad 3.
 ### Some artifacts, similar quality than SSSharp.
-
+###
+### Function Definition:
+###    (
+###    clip,
+###    float str=7.0 (0.0 to 20.0 by 0.1),
+###    [float strV=7.0 (0.0 to 20.0 by 0.1)],
+###    float "rad"=1.0 (0.0 to 20.0 by 0.1),
+###    [float "radV"=1.0 (0.0 to 20.0 by 0.1)],
+###    int "lmode"=1 (0 to 4 by 1),
+###    int "thresh"=720 (0 to 1000 by 1),
+###    )
+###
 Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int "lmode", int "thresh") {
 
     rgb   = isRGB(c)
@@ -1669,21 +1759,34 @@ Function ReCon(clip c, float "str", float "strv", float "rad", float "radv", int
 ### After reading this post by Didée I decided to
 ### take a crack at the problem of sharpening an interpolated or lowpassed image. Out of curiosity I tried the resulting function
 ### on a few difficult to sharpen non-interpolated sources (GITS R1 Special eddition, etc.), and it did very well (imo, of course).
-### So here is a new, general sharpening function. Right now its named "blah". Because naming things is difficult, and naming it
+### So here is a new, general sharpening function. Right now it's named "blah". Because naming things is difficult, and naming it
 ### after what it is actually doing would require a paragraph long function call.
 ###
 ###
-### Defaults are intended for strong sharpening on 2x upscaled material. For normal sharpening, set de to 0.02, str to 3 and cstr
+### Defaults are intended for strong sharpening on 2x upscaled material. For normal sharpening, set 'de' to 0.02, 'str' to 3 and 'cstr'
 ### to 0.75 and go from there. The failure modes are as graceful as I can reasonably get them, considering the strength of the
 ### sharpening required. Also, the degree of sharpening that can be "gotten away with" varies pretty wildly by source.
 ###
-### str = strength of highpass sharpening default 4
+### str  = strength of highpass sharpening default 4
 ### cstr = strength of contrast sharpening default 1, values above 1 will cause halos
-### de = de-emphasis strength default 0.2
-### re = re-emphasis strength defaults to de/2
+### de   = de-emphasis strength default 0.2
+### re   = re-emphasis strength defaults to 'de'/2
 ###
-
-function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re", float "rev",  float "cstr", float "cstrv") {
+###
+### Function Definition:
+###    (
+###    clip,
+###    float str=4 (0 to 20 by 1),
+###    [float strV=4 (0 to 20 by 1)],
+###    float "de"=0.2 (0.0 to 1.0 by 0.1),
+###    [float "deV"=0.2 (0.0 to 1.0 by 0.1)],
+###    float "re"=0.1 (0.0 to 1.0 by 0.1),
+###    [float "reV"=0.1 (0.0 to 1.0 by 0.1)],
+###    float "cstr"=0.5 (0.0 to 1.0 by 0.1),
+###    [float "cstrV"=0.5 (0.0 to 1.0 by 0.1)],
+###    )
+###
+function blah(Clip c, int "str", int "strv", float "de", float "dev", float "re", float "rev",  float "cstr", float "cstrv") {
 
     rgb   = isRGB(c)
     isy   = isy(c)
@@ -1772,8 +1875,21 @@ function blah(Clip c, Int "str", int "strv", float "de", float "dev", float "re"
 ### 2. soft-limit each difference
 ### 3. find median of differences
 ### 4. add median difference to source
-
-Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "hp", bool "nr", float "str", int "kernel") {
+###
+### Function Definition:
+###    (
+###    clip,
+###    float str=1.0 (0.0 to 2.0 by 0.1),
+###    int rad=1 (0 to 8 by 1),
+###    int "thresh"=255 (0 to 255 by 1),
+###    int "mode"=1 (0 to 1 by 1),
+###    int "kernel"=2 (1 to 2 by 1),
+###    bool "lp"=false,
+###    bool "hp"=false,
+###    bool "nr"=false,
+###    )
+###
+Function MedSharp(Clip C, float "str", int "rad", int "thresh", int "mode", bool "lp", bool "hp", bool "nr", int "kernel") {
 
     rgb  = isRGB(C)
     isy  = isy(c)
@@ -1799,8 +1915,8 @@ Function MedSharp(Clip C, int "thresh", int "rad", int "mode", bool "lp", bool "
     Lowpass1       =  C.NLLV(1,false,fs).NLLH(1,false,fs)
     Lowpass_Return = lp && RAD >= 2 ? Lowpass1 : C
 
-    Lowpass_NR_1 = Lowpass_Return.TMed2(thresh=THR,   rad=RAD, Kernel=1, fulls=fs)
-    Lowpass_NR_2 = Lowpass_Return.TMed2(thresh=THR/4, rad=RAD, Kernel=2, fulls=fs)
+    Lowpass_NR_1 = Lowpass_Return.TMed2(thresh=THR,   rad=RAD, mode=mode, Kernel=1, fulls=fs)
+    Lowpass_NR_2 = Lowpass_Return.TMed2(thresh=THR/4, rad=RAD, mode=mode, Kernel=2, fulls=fs)
 
     Diff1 = ex_luts(C, Lowpass_NR_1, mode="med", pixels = ex_shape(RAD, mode="plus",   center=true),  \
                                                    expr = Format("x y - dup dup abs {un} + dup swap2 * swap {THR1}     {un} >= {THR2} {THR1}     ? + / - range_half +"), UV=1, fulls=fs, optSingleMode=true)
@@ -1834,9 +1950,9 @@ function TMed2(Clip c, float "thresh", int "rad", int "mode", int "kernel", bool
     fs     = Default(fulls, false)
 
     bi    = BitsPerComponent(c)
-    THR2  = ex_bs(pow(THR,0.5),   8, bi, fulls=fs)
-    THR   = ex_bs(THR, 8, bi, fulls=fs)
-    un    = ex_bs(1,   8, bi, fulls=fs)
+    THR2  = ex_bs(pow(THR,0.5), 8, bi, fulls=fs)
+    THR   = ex_bs(    THR,      8, bi, fulls=fs)
+    un    = ex_bs(1,            8, bi, fulls=fs)
 
     expr = Format("x y - dup dup abs {un} + dup swap2 * swap {THR} {un} >= {THR2} {THR} ? + / - 0 max range_half +")
 
@@ -1996,12 +2112,12 @@ function YAHR(clip clp) {
 ##
 ##    Dependencies:
 ##                  ExTools
-##                  ResizersPack
+##                  MVTools
 ##                  RgTools
+##                  nnedi3
+##                  ResizersPack
 ##                  manyPlus
 ##                  KNLMeansCL
-##                  nnedi3
-##                  MVTools
 ##                  SysInfo
 ##
 
@@ -2303,7 +2419,18 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 ### unless you're going to set the unsharp amount/kernels (in which case this
 ### script actually becomes useful; the default edge/non-edge filters are
 ### sufficiently similar to be pointless).
-
+###
+### Function Definition:
+###    (
+###    clip,
+###    float str0=2.0 (0.0 to 4.0 by 0.1),
+###    float str1=1.125 (0.0 to 4.0 by 0.1),
+###    float k0=0.5 (0.0 to 4.0 by 0.1),
+###    int k1=1 (0 to 4 by 1),
+###    float "edgethr"=0.2 (0.0 to 1.0 by 0.1),
+###    bool "debug"=false,
+###    )
+###
 function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "k1", float "edgethr", bool "debug") {
 
     str0 = Default(str0, 2.0)   # corresponds to CoefFlou
@@ -2316,7 +2443,6 @@ function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "
                                 # mind that blurrier interpolators lead to more sharpening
     dg   = Default(debug, false)
     thr  = Default(edgethr,0.2) # corresponds to SharpenEdge
-    fs   = Default(fulls, false)
 
     thr=round(255*thr)
 
@@ -2335,21 +2461,22 @@ function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "
 ## subtle sharpening effect by raffriff42
 ## based on an idea by videofred
 ##
-## @ multi   - suggested range 1 to 5; no effect if <=0
+## @ multi   - suggested range 1 to 5; no effect if multi<=0
 ## @ sharpen - strength of each Sharpen operation; default 0.6
 ## @ blur    - strength of each Blur    operation; default 0.3
 ##
-## Simple sharpening without limiting.
-function ex_MultiSharpen(clip C, int multi, float "sharpen", float "blur")
-{
+## Simple sharpening without limiting
+function ex_MultiSharpen(clip C, int multi, float "sharpen", float "blur") {
+
     shrp = Min(Max(0.0, Default(sharpen, 0.6)), 1.0)
     blr  = Min(Max(0.0, Default(blur,    0.3)), 1.0)
+
     C
     for (i=multi, 1, -1) {
         Sharpen(shrp).ex_blur(blr)
     }
-    return Last
-}
+
+    return last }
 
 
 
@@ -2362,8 +2489,19 @@ function ex_MultiSharpen(clip C, int multi, float "sharpen", float "blur")
 ##  ss_x and ss_y fix    by colours     (16-03-2016)
 ##  HBD mod              by real.finder (31-10-2020)
 ##  Optimized            by Dogway      (19-10-2021)
-
-function pSharpen   (clip clp, int "strength", int "threshold", float "ss_x", float "ss_y", int "dest_x", int "dest_y") {
+##
+## Function Definition:
+##    (
+##    clip,
+##    int strength=25 (0 to 100 by 1),
+##    int threshold=75 (0 to 100 by 1),
+##    float ss_x=1.0 (0.0 to 2.0 by 0.1),
+##    float ss_y=1.0 (0.0 to 2.0 by 0.1),
+##    float dest_x=1.0 (0.0 to 2.0 by 0.1),
+##    float dest_y=1.0 (0.0 to 2.0 by 0.1),
+##    )
+##
+function pSharpen (clip clp, int "strength", int "threshold", float "ss_x", float "ss_y", int "dest_x", int "dest_y") {
 
     ox  = clp.width ()
     oy  = clp.height()
@@ -2404,7 +2542,7 @@ function pSharpen   (clip clp, int "strength", int "threshold", float "ss_x", fl
     clp = ex_lutxyz(nval,nmax,ss.mt_inpand(),expr,UV=1,scale_inputs=fs?"allf":"all")
 
     # resizing the image to the output values
-    clp  = ss_x!=1.0 || ss_y!=1.0 || dest_x!=ox || dest_y!=oy ? clp.lanczosresize(dest_x,dest_y) : clp
+    clp = ss_x!=1.0 || ss_y!=1.0 || dest_x!=ox || dest_y!=oy ? clp.lanczosresize(dest_x,dest_y) : clp
 
     return clp }
 
