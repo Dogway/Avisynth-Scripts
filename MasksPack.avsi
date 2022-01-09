@@ -104,7 +104,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ###    clip,
 ###    float rad=3.0 (1.0 to 4.0 by 0.5),
 ###    float "scale"=5.0 (1.0 to 10.0 by 0.5),
-###    int "lo"=0 (0 to 32 by 1),
+###    int "lo"=4 (0 to 32 by 1),
 ###    int "MSR"=40 (0 to 128 by 1),
 ###    bool "invert"=false,
 ###    bool "show"=false,
@@ -174,7 +174,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 
     rd  = round(rd)
     rd == 1 ? yy2                               : \
-    rd == 0 ? ex_edge(MSR,"qprewitt",invert=in) : last                                # maybe add back qprewitt on top for rd==1
+    rd == 0 ? ex_edge(MSR,"qprewitt",invert=in) : last                           # Maybe add back qprewitt on top for rd==1
 
     !isHD   ? BicubicResize(w,h,-0.5,0.25) : ex_smooth(2, mode="SG", sharp=true) # Clean up result. No need when resizing down
      isUHD  ? BicubicResize(w,h,1/3.,1/3.) : last
