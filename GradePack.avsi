@@ -55,7 +55,7 @@
 ###    float sat=1.0 (0.0 to 2.0 by 0.01),
 ###    string mode="Vibrance" ("Vibrance" / "Dullness" / "Saturation" / "Recover"),
 ###    float bias=5.0 (0.0 to 10.0 by 0.5),
-###    bool "show"=false,
+###    int "show"=0 (0 to 2 by 1),
 ###    )
 ###
 ###########################
@@ -631,9 +631,9 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 ###     clip,
 ###     float str=1.0 (0.0 to 360.0 by 0.1),
 ###     string modeA="HUE" ("HUE"/ "SAT"/ "LUM"),
-###     string modeB="LUM" ("HUE"/ "SAT"/ "LUM"),
-###     float Delta=1.0 (0.0 to 360.0 by 1.0),
-###     float Q=1.0 (0.0 to 1.0 by 0.01),
+###     string modeB="SAT" ("HUE"/ "SAT"/ "LUM"),
+###     float Delta=180.0 (0.0 to 360.0 by 1.0),
+###     float Q=0.2 (0.0 to 1.0 by 0.01),
 ###     float Opacity=1.0 (0.0 to 1.0 by 0.1),
 ###     int "show"=1 (0 to 2),
 ###     )
@@ -646,10 +646,10 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     bi  = ID[7]
     bi32= bi==32
 
-    str = Default (str,     0.1)   # Strength of 'modeB' operator. 0-360 for 'L' and 'H' and 0.0-4.0 for 'S'
+    str = Default (str,     1.0)   # Strength of 'modeB' operator. 0-360 for 'L' and 'H' and 0.0-4.0 for 'S'
     mA  = Default (modeA, "HUE")   # 'modeA' (HUE or H, SAT or S, LUM or L or V)
     mB  = Default (modeB, "SAT")   # 'modeB' (HUE or H, SAT or S, LUM or L or V)
-    dA  = Default (Delta,   0.5)   # Degrees of 'modeA' (isolate this area. 0-255 for 'L', 0-360 for for 'H' and 0.0-100.0 for 'S')
+    dA  = Default (Delta, 180.0)   # Degrees of 'modeA' (isolate this area. 0-255 for 'L', 0-360 for for 'H' and 0.0-100.0 for 'S')
     bA  = Default (Q,       0.2)   # Q-factor (Bandwidth) of 'modeA' Spread of the isolated area. 0.0-1.0
     sA  = Default (opacity, 1.0)   # Scale   of 'modeA' Scale  of the isolated area (typical to scale down since by default it's white). 0.0-1.0
     tv  = Default (tv_range, ID[6])
