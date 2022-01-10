@@ -543,14 +543,14 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         if (DefTV && tv || Str > 1.0) {
 
-            sw  = nmod(w2/5.)
+            sw  = nmod(w2/5.)   sh = sw
             plt = pref8.GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
             plt = plt.ex_Luma_Rebuild(S0=Str,c=Amp,tv_range=tv)
             plt = plt.HistoCurve(size=1,gradient=false)
-            plt = plt.BicubicResize(sw,sw,-0.5,0.25)
-            plt = PadBorders(plt,w-sw,0,0,h-sw)
+            plt = plt.BicubicResize(sw,sh,-0.5,0.25)
+            plt = PadBorders(plt,w-sw,0,0,h-sh)
             plt = Merge(pref8,plt)
-            pref8 = ex_merge(pref8,plt,BoxMask(pref8,w-sw,w,0,sw),UV=3)
+            pref8 = ex_merge(pref8,plt,BoxMask(pref8,w-sw,w,0,sh),UV=3)
         }
 
         pref   = pref8.ConvertBits(min(bi,16), fulls=true)
@@ -803,14 +803,14 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
         out = ConvertBits(8,dither=1,fulls=!tv)
         w   = src.width()
         h   = src.height()
-        sw  = nmod(w/5.)
-        GradientLinear(zoom=1, positive=true, smooth=true, tv_range=tv)
+        sw  = nmod(w/5.)   sh = sw
+        GradientLinear(last,zoom=1, positive=true, smooth=true, tv_range=tv)
         ex_Luma_Rebuild(s0,c,tv_range=tv)
         HistoCurve(size=1,gradient=false)
-        plt = BicubicResize(sw,sw,-0.5,0.25)
-        plt = PadBorders(plt,w-sw,0,0,h-sw)
+        plt = BicubicResize(sw,sh,-0.5,0.25)
+        plt = PadBorders(plt,w-sw,0,0,h-sh)
         plt = Merge(out,plt)
-        ex_merge(out,plt,BoxMask(out,w-sw,w,0,sw),UV=3)
+        ex_merge(out,plt,BoxMask(out,w-sw,w,0,sh),UV=3)
     } }
 
 
