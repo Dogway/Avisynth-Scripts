@@ -230,13 +230,13 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
                          DctRe==3 ? 1.09 : \
                          DctRe==4 ? 1.28 : 1
 
-    # For some reason feeding PC range and increasing chroma weight for good sources don't improve motion interpolation. Prolly the filter is very tuned to tv range
+    # For some reason feeding PC range and increasing chroma weight for good sources doesn't improve motion interpolation. Prolly the filter is very tuned to tv range
     # Hard-coded ex_luma_rebuild(S0=3) with tv range output (didn't scale up tv range as an optimization trick)
     rangePC = tv ? " ymin - 0 max " : ""
     rangeTV = tv ? " ymin +"        : ""
     pre = prefilter.ConvertBits(8,dither=-1,fulls=!tv)
-    pre = lr ? pre.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" A@ 0.0625 + / - * A 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : pre
     Cp  =         C.ConvertBits(8,dither=-1,fulls=!tv)
+    pre = lr ? pre.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" A@ 0.0625 + / - * A 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : pre
     Cp  = lr ?  Cp.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" A@ 0.0625 + / - * A 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : Cp
 
 
