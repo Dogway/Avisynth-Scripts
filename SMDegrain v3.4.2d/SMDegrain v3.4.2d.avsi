@@ -53,7 +53,7 @@
 ###   int thSAD=300 (100 to 1000 by 1),
 ###   [int "blksize"=16 (4 to 64 by 4)],
 ###   [int "overlap"=8 (2 to 32 by 4)],
-###   string "mode"="MDegrain" ("MDegrain" / "MedianT" / "MedianST" / "MedianSTS" / "TemporalSoften" / "FluxSmoothT" / "ML3DEx" / "Hybrid" / "TL3D" / "STWM" / "IQMT" / "GaussT5" / "GaussST5" / "rMDegrain" / "rMedianST" / "rMedianSTS" / "rML3DEx" / "rHybrid" / "rTL3D" / "rSTWM" / "rIQMT" /"rGaussT5" / "rGaussST5"),
+###   string "mode"="MDegrain" ("MDegrain" / "MedianT" / "MedianST" / "MedianSTS" / "TemporalSoften" / "FluxSmoothT" / "ML3DEx" / "Hybrid" / "TL3D" / "STWM" / "IQMT" / "GaussT5" / "GaussST5" / "--" / "rMDegrain" / "rMedianST" / "rMedianSTS" / "rML3DEx" / "rHybrid" / "rTL3D" / "rSTWM" / "rIQMT" /"rGaussT5" / "rGaussST5"),
 ###   int "prefilter"=-1 (-1 to 6 by 1),
 ###   bool "ContraSharp"=false,
 ###   bool "RefineMotion"=false,
@@ -220,8 +220,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     # Input preparation for: Interlacing, Motion Filter and MSuper optimization when pel=2
 
-    inputP  = !isInter    ? (pel == 2 ? input.AssumeFrameBased()             : input)                             : \
-                            (InterPar ? input.AssumeTFF().SeparateFields()   : input.AssumeBFF().SeparateFields())
+    inputP  = !isInter ? (pel == 2 ? input.AssumeFrameBased()           : input)                             : \
+                         (InterPar ? input.AssumeTFF().SeparateFields() : input.AssumeBFF().SeparateFields())
 
     Mfilter = MFilterB ? MFilter : inputP
 
@@ -382,9 +382,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 \ :               interleave(                          f1c, inputP, b1c                          )
 
 
-                output = TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                                        : \
-                         md == "medianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                                       : \
-                         T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1)                                                : \
+                output = TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                             : \
+                         md == "medianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
+                         T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1)                                     : \
                                             inter.ex_median(mode=md, thres=limit, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1)
 
 
@@ -395,7 +395,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                     mfilterLP = inputP.ex_gaussianblur(LFR)
                     DCTF_pass = DCTF ? inputP.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/2,blksize=blksize,prefilter=mfilterLP,rfilter=0,str=0,tv_range=false,plane=0,truemotion=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349#post1073349)
                     mfilterLP = DCTF ? ex_repair(mfilterLP, DCTF_pass.ex_gaussianblur(LFR),"temp4") : mfilterLP
-                    outputLP  =  output.ex_gaussianblur(LFR)
+                    outputLP  = output.ex_gaussianblur(LFR)
                     output    = ex_makeadddiff(output, outputLP, mfilterLP, UV=2)
                 }
 
@@ -804,7 +804,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
         w   = src.width()
         h   = src.height()
         sw  = nmod(w/5.)   sh = sw
-        GradientLinear(last,zoom=1, positive=true, smooth=true, tv_range=tv)
+        GradientLinear(last, zoom=1, positive=true, smooth=true, tv_range=tv)
         ex_Luma_Rebuild(s0,c,tv_range=tv)
         HistoCurve(size=1,gradient=false)
         plt = BicubicResize(sw,sh,-0.5,0.25)
