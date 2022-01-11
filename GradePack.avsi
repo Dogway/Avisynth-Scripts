@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v5.4 (10-01-2022)               ##
+###           Grade Pack v6.0 (11-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -14,7 +14,7 @@
 ###
 ####################################
 ###
-### ex_vibrance() v3.2 (07-01-2022)
+### ex_vibrance() v3.3 (11-01-2022)
 ###
 ### Inspired by Motenai Yoda's script (20-11-2011): (https://forum.doom9.org/showthread.php?t=162882)
 ###
@@ -100,17 +100,19 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 
         msk1 = "x range_half - XC@ abs y range_half - abs + "
         msk2 = "z range_half -     abs a range_half - abs + "
-        ex_lutxyza(a, a.SwapUV(), Rc, Rc.SwapUV(), "", msk2+msk1+" / 0 max "+mode, fulls=!tv)
+        ex_lutxyza(a, a.SwapUV(), Rc, Rc.SwapUV(), "", msk2+msk1+" 0.000001 + / "+mode, fulls=!tv)
 
     } else {
 
         if (sh==0 && sat==1) { last } else {
 
-        ex_lutxy  (a, a.SwapUV(), "", fulls=!tv, cstr=sh==2 ? msk+" M 1 swap - range_max *"       : mode )
+        ex_lutxy  (a, a.SwapUV(), "", fulls=!tv, cstr=sh==2 ? msk+" M 1 swap - range_max *" : mode )
 
         w  = a.width()
         h  = a.height()
+
         if (sh==1) {
+
             bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
             sw = nmod(w/3.75)
             sh = nmod(w/2.10)
@@ -162,11 +164,6 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
             propGetInt      (c,"_ColorRange") == 0 : rgb
     lut   = bi == 32 ? 0 : 1
 
-    # Storing for 'show'
-    sc = cont
-    ss = sat
-    sp = pivot
-
     UV    = Default(UV, (Defined(sat) ? sat!=1 : Defined(sat)) || rgb ? 3 : 1)
     cont  = Default(cont, 0.0)                     # [-1.0 to +1.0] can set further though
     sat   = Default(sat,  (cont+3)/3)              # [ 0.0 to +inf] By default can't be disabled in RGB
@@ -174,6 +171,11 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     tv    = Default(tv_range, !fs)                 # TV or PC. Luma range of your source
     pivot = Default(pivot,    !tv ? 127.5 : 125.5) # Pivot: 64 to 192 (roughly)
     si    = bi == 32 || tv ? "none" : "intf"
+
+    # Storing for 'show'
+    sc = cont
+    ss = sat
+    sp = pivot
 
     pivot = ex_bs(pivot, 8, 32, tv_in=tv || tv && 125.4 < pivot <= 126, tv_out=false) # Pivot to float PC levels
 
@@ -264,13 +266,6 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     bi32 = bi == 32
     lut  = bi32 ? 0 : 1
 
-    # Storing for 'show'
-    silo = input_low
-    sgam = gamma
-    sihi = input_high
-    solo = output_low
-    sohi = output_high
-
     ilo  = Default(input_low,      0)
     gam  = Default(gamma,        1.0)
     ihi  = Default(input_high,   255)
@@ -281,6 +276,13 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     cf   = Default(clamp_float, bi32)
     UV   = Default(UV,   rgb ? 3 : 2)
     si   = ex_UVf(rgb, bi)
+
+    # Storing for 'show'
+    silo = ilo
+    sgam = gam
+    sihi = ihi
+    solo = olo
+    sohi = ohi
 
     Assert(IsVersionOrGreater(3,7,1), "ex_levels: Update AviSynth+ version")
 
@@ -329,22 +331,23 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 
 
 ###
-### ex_blend() - v3.3 (10-01-2022)
+### ex_blend() - v4.0 (11-01-2022)
 ###
 ###
-### Works like Overlay() but supports more modes (46 in total), better handling of TV range and performs much faster in either 8-bit or HBD (YUV or RGB).
+### Works like Overlay() but supports more modes (50 in total), better handling of TV range and performs much faster in either 8-bit or HBD (YUV or RGB).
 ###
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
-###                 TransformsPack (for 'darker'/'lighter')
+###                 TransformsPack (for 'hue')
 ###
 ### Example: ex_blend(a, mode="multiply", opacity=1.0, tv_range=true, UV=2)
 ###
 ### Function Definition:
 ###    (
 ###    clip,
-###    string mode="multiply" ("normal" / "blend" / "interpolation" / "harmonic" / "geometric" / "watermark" / "lighter" / "lighten" / "screen" / "softdodge" / "colordodge" / "lineardodge" / "hypot" / "darker" / "darken" / "multiply" / "multiply128" / "softburn" / "colorburn" / "linearburn" / "overlay" / "hardoverlay" / "softlight" / "hardlight" / "vividlight" / "linearlight" / "pinlight" / "hardmix" / "glow" / "reflect" / "heat" / "freeze" / "grainextract" / "grainmerge" / "difference" / "softdifference" / "exclusion" / "subtract" / "from" / "divide" / "andn" / "bleach" / "extremity" / "stain" / "negation" / "phoenix"),
+###    clip,
+###    string mode="multiply" ("normal" / "blend" / "interpolation" / "harmonic" / "geometric" / "watermark" / "--" / "lighter" / "lighten" / "screen" / "softdodge" / "colordodge" / "lineardodge" / "hypot" / "--" / "darker" / "darken" / "multiply" / "multiply128" / "softburn" / "colorburn" / "linearburn" / "--" / "overlay" / "hardoverlay" / "softlight" / "hardlight" / "vividlight" / "linearlight" / "pinlight" / "hardmix" / "glow" / "reflect" / "heat" / "freeze" / "--" / "grainextract" / "grainmerge" / "--" / "difference" / "softdifference" / "exclusion" / "subtract" / "from" / "divide" / "andn" / "bleach" / "extremity" / "stain" / "negation" / "phoenix" / "--" / "hue" / "saturation" / "color" / "luminosity"),
 ###    float opacity=1.0 (0.0 to 1.0 by 0.1),
 ###    float watermark=1.0 (0.0 to 2.0 by 0.1),
 ###    )
@@ -366,14 +369,17 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     lut  = bi < 16 ? 2 : 0
 
     md   = Default(mode, "multiply")
-    op   = Default(opacity,     1.0)
+    op   = Default(opacity, md == "blend" ? 0.5 : 1.0)
     wm   = Default(watermark,   1.0)  # 0.0 to 2.0. At default 1.0 behaves like 'blend'
     tv   = Default(tv_range,    !fs)  # TV or PC. Luma range of your source
-    UV   = Default(UV,  rgb ? 3 : 1)
+    UV   = Default(UV,  rgb ? 3 : md == "normal" ? 4 : 1)
     si   = ex_UVf(rgb, bi)
 
                                         Assert(IsVersionOrGreater(3,7,1), "ex_blend: Update AviSynth+ version")
-    md == "darker" || md == "lighter" ? Assert(rgb && UV == 3,            "ex_blend: 'darker' and 'lighter' modes require RGB inputs and UV = 3.") : nop()
+    md == "darker" || md == "lighter" ? Assert(rgb && UV == 3,            "ex_blend: 'darker' and 'lighter' modes require RGB inputs and UV = 3") : nop()
+    md == "color"  || md == "luminosity" || \
+    md == "hue" || md == "saturation" ? Assert(!rgb && !isy,              "ex_blend: 'hue', 'saturation', 'color' and 'luminosity' modes require YUV inputs") : nop()
+
     op  = min(max(op,0.),1.)
     iso = op == 1.0
 
@@ -397,8 +403,10 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     # Half the modes ported from HAvsFunc, rest from Overlay_MTools(), Blend_MT_alpha3, ffmpeg, Nuke docs and web
     # 'softlight' uses Pegtop's improved formula
     # 'bleach' and 'hardoverlay' are not math exact to originals, revise later
+    # 'hue' mode is in WIP
     str = Format(                                                                                                                                                                 \
                                                                                                                                                                                   \
+        md == "--"           ? "x"                                                                                                                                              : \
         md == "normal"       ? "y"                                                                                                                                              : \
         md == "blend"        ? iso ? "y" : "x "+srcmx+" dup y "+srcmx+" swap - {op} * + "                                                                                       : \
         md == "interpolation"? "x "+srcmx+" "+V+" "+rngmx+" / pi * cos 0.25 * 0.5 swap - y "+srcmx+" "+rngmx+" / pi * cos 0.25 * - "+rngmx+" * "                                : \
@@ -452,12 +460,17 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
         md == "negation"     ? ""+rngmx+" dup    x "+srcmx+" "+V+" - y "+srcmx+" - abs - "                                                                                      : \
         md == "phoenix"      ? "x "+srcmx+" "+V+" y "+srcmx+" dup1 dup1 min swap2 max - "+rngmx+" + "                                                                           : \
                              \
+        md == "hue"          ? "see footer "                                                                                                                                    : \
+        md == "saturation"   ? "see footer "                                                                                                                                    : \
+        md == "color"        ? "see footer "                                                                                                                                    : \
+        md == "luminosity"   ? "see footer "                                                                                                                                    : \
+                             \
                                Assert (false, "ex_blend: '"+md+"', unsupported blend mode") )
 
 
-    off = !tv || md == "lighten" || md == "darken" ? "" : " ymin + "
-    str = iso || md == "blend" ? str+off : \
-                                 str+Format(" A - {op} * A + ")+off
+    off = !tv || md == "--" || md == "lighten" || md == "darken" ? "" : " ymin + "
+    str = iso || md == "--" || md == "blend" ? str+off : \
+                                               str+Format(" A - {op} * A + ")+off
 
     if (md == "darker" || md == "lighter") {
 
@@ -470,10 +483,21 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
 
         ex_merge(a, b, msk, luma=false, UV=3)
 
+    } else if (md == "hue" || md == "saturation" || md == "color" || md == "luminosity") {
+
+        md == "color"      ? CombinePlanes(a, b, planes="YUV")                            : \
+        md == "luminosity" ? CombinePlanes(b, a, planes="YUV")                            : \
+        md == "saturation" ? ex_vibrance  (a, 1.0, mode="Recover", Rc=b,     tv_range=tv) : \
+                             HSVxHSV(b, 1.0, "HUE", "LUM", 0.0,   1.00, 1.0, tv_range=tv, show=2)
+
+        Ch = md == "hue"   ? HSVxHSV(a, 1.0, "SAT", "LUM", 100.0, 1.00, 1.0, tv_range=tv, show=2) : nop()
+             md == "hue"   ? Expr(last,ch,"","f32 x sin y *","f32 x cos y *",scale_inputs="intf",lut=bi>14?0:2,Format="YUV444P"+string(bi==32?"S":bi)) : last
+             md == "hue"   ? CombinePlanes(a, last, planes="YUV") : last
+
     } else {
 
     cstr = ex_UVexpr(str, UV, bi, rgb, !tv, si)
-    str  = ex_dlut  (str, bi, !tv)
+    str  = ex_dlut  (str,     bi,      !tv)
 
     isy     ? Expr(a, b, str,                        optSingleMode=true, lut=lut) : \
     UV == 1 ? Expr(a, b, str, "",                    optSingleMode=true, lut=lut) : \
@@ -619,12 +643,12 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
     ex_lutxy(C, H, Format("f32 y 6.283185 * pi - {dg} + cos "+Cnorm+" * 0 swap {LO} - 1 {LO} {HI} - / * - "+in), scale_inputs="intf", fulls=true, clamp_float=true)
 
     ConvertBits(bi, dither= bi==32 ? -1 : 1, fulls=true)
-    ex_gaussianblur(bl, pad=false, UV=3)               }
+    bl > 0 ? ex_gaussianblur(bl, pad=false, UV=3) : last }
 
 
 
 
-### HSVxHSV() - (07-01-2022)
+### HSVxHSV() - (11-01-2022)
 ###
 ### 3x3 operator matrix. Adjust Hue, Saturation or Luminance based on Hue, Saturation or Luminance.
 ### This is similar to internal Tweak(), but double the speed, easier to use and more modes (+5 modes involving 'LUM')
@@ -659,7 +683,7 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 ###     int "show"=1 (0 to 2),
 ###     )
 ###
-function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "Delta", float "Q", float "Opacity", float "tv_range", int "show") {
+function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "Delta", float "Q", float "Opacity", bool "tv_range", int "show") {
 
     rgb = IsRGB(c)
     isy = isy(c)
@@ -743,8 +767,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
         msk  = ReplaceStr(msk, "X@", "").ReplaceStr("Y@", "").ReplaceStr("^ 0.5 -", "^")
 
-        mA=="LUM" ? ex_lut  (c,       msk, UV=128, scale_inputs=si) : \
-                    ex_lutxy(c4U,c4V, msk, UV=1,   scale_inputs=si)
+        mA=="LUM" ? ex_lut  (c,   msk, UV=128, scale_inputs=si) : \
+                    ex_lutxy(U,V, msk, UV=1,   scale_inputs=si)
                     PropSet("_OutGamut", 0)
 
     } else if (nul) {
@@ -774,7 +798,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
             U  = ex_dlut(msk +op,  32, !tv)
             V  = ex_dlut(mskV+opV, 32, !tv)
-            Expr(c,c.SwapUV(),"",U,V,scale_inputs=si,Format=PixelType(c))
+            Expr(c,c.SwapUV(),"",U,V,scale_inputs=si,Format=PixelType(c),lut=bi>14?0:2)
 
         }
 
@@ -840,14 +864,14 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     A quarter band filter applied horizontally and a half band filter applied vertically is recommended.
 */
 
-function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103", bool "show") {
+function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103", bool "show") {
 
     propIDs = color_propGet(yuv)
     bi      =  propIDs[7]
     fs      = !propIDs[6]
 
     mat     = Default (matrix, propIDs[2])
-    tv      = Default (tv_in,         !fs)
+    tv      = Default (tv_range,      !fs)
     ebu     = Default (EBUR103,     false)  # Enable for EBU R103 (frameprops and less strict thresholds)
     sh      = Default (show,        false)
 
@@ -884,21 +908,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103", b
 
     Expr(Y,yuv,yuv.SwapUV(),"",ex_dlut(Format("x "+rangeY+" X@ "+string(m0)+" * z "+UVf+" Z@ "+string(m2)+" * +                      dup {pn} < swap {pm} > or
                                                X               "+string(m6)+" * y "+UVf+" Y@ "+string(m7)+" * +                      dup {pn} < swap {pm} > or or
-                                               X               "+string(m3)+" * Y            "+string(m4)+" * + Z "+string(m5)+" * + dup {pn} < swap {pm} > or or range_max y ?"), bi, !tv), format=PixelType(yuv))
-
-    if (sh) {
-
-        bin = ex_lut("x range_size 1 - < 0 x ?",Y=1,UV=3)
-        div = (ex_bs(256, 8, bi, !tv)-1)*(2/100.)
-
-        ScriptClip( function[bin,div] () {
-
-            U = bin.ExtractU().AverageLuma()
-            V = bin.ExtractV().AverageLuma()
-            Subtitle("Out of Gamut: "+string((U+V)/div,"%1.3f")+"%") # In percentage
-        } )
-
-    }
+                                               X               "+string(m3)+" * Y            "+string(m4)+" * + Z "+string(m5)+" * + dup {pn} < swap {pm} > or or range_max y ?"), bi, !tv), Format=PixelType(yuv))
 
     !ebu ? last : \
     ScriptClip( function[bi,tv] () {
@@ -910,7 +920,19 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_in", bool "EBUR103", b
         V  = ex_bs(V[2], bi, 8, !tv,     float=true)    V = bi==32 ? 2 * V + 1 : V
 
         U >= 255 || V >= 255 ? PropSet("_OutGamut", 1) : \
-                               PropSet("_OutGamut", 0) } ) }
+                               PropSet("_OutGamut", 0) } )
+
+    if (sh) {
+
+        bin = ex_lut("x range_size 1 - < 0 x ?",Y=1,UV=3)
+        div = (ex_bs(256, 8, bi, !tv)-1)*(2/100.)
+
+        ScriptClip( function[bin,div] () {
+
+            U = bin.ExtractU().AverageLuma()
+            V = bin.ExtractV().AverageLuma()
+            Subtitle("Out of Gamut: "+string((U+V)/div,"%1.3f")+"%") # In percentage
+        } ) } }
 
 
 
