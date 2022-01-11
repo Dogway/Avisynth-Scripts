@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC32  (09-01-2022)           ##
+###    Transforms Pack v1.0 RC33  (11-01-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -852,16 +852,16 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
         # Show panel
         if (dg) {
 
-            w   = width()
-            h   = height()
-            sw  = nmod(w/5.)
-            plt = GradientLinear(last,zoom=1, positive=true, smooth=true, tv_range=tv_in)
+            w2   = width()
+            h2   = height()
+            sw  = nmod(w2/5.)   sh = sw
+            plt = GradientLinear(last, zoom=1, positive=true, smooth=true, tv_range=tv_in)
             plt = plt.moncurve_r(t_gam[0], t_gam[1], tv_in, tv_out, 1)
             plt = plt.HistoCurve(size=1,gradient=false)
-            plt = plt.BicubicResize(sw,sw,-0.5,0.25).Subtitle("EOTF: "+EOTF)
-            plt = PadBorders(plt,w-sw,0,0,h-sw)
+            plt = plt.BicubicResize(sw,sh,-0.5,0.25).Subtitle("EOTF: "+EOTF)
+            plt = PadBorders(plt,w2-sw,0,0,h2-sh)
             plt = Merge(plt)
-            ex_merge(plt,BoxMask(w-sw,w,0,sw),UV=3)
+            ex_merge(plt,BoxMask(w2-sw,w2,0,sh),UV=3)
 
 
             i_jab  = i_fmt[1]
@@ -877,7 +877,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC32",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC33",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -2269,7 +2269,7 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV") {
     !fsd           ? PropSet("_ColorRange", !fw?1:0)              : last }
 
 
-# SoftLimiter (27-11-2021)
+# SoftLimiter (11-01-2022)
 #
 # SoftLimiter is an inclusive limiter, it brings clips with under or overshoot values to in-range legal broadcast values
 # It does so in a gentle manner by rolling off the values into range without altering the clip's levels and then clipping leftovers.
@@ -2295,6 +2295,8 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
     rgb = isRGB(a)
     isy = isy(a)
+    w   = Width(a)
+    h   = Height(a)
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
@@ -2306,9 +2308,18 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     hic = Default(hi_c,   240)   # High limit (Chroma)
     tol = Default(tolerance,0)   # 0-100 Percentage of allowed under/overshoot
     dyn = Default(dyn,      0)   # 0: static  1: accumulated loose (min/max 0.454% ignored)  2: medium (min/max 0.2% ignored)  3: strict (min/max 0.1% ignored)
-    dg  = Default(show, false)
+    sh  = Default(show, false)
     UV  = Default(UV, isy ? 1 : 3 )
     si  = ex_UVf(rgb, bi)
+
+    # Store for 'show' when dyn=0
+    if (sh && dyn==0) {
+        slo  = lo
+        shi  = hi
+        sloc = loc
+        shic = hic
+        sdyn = dyn
+    }
 
     lo  = min(16, max(0,   lo))   loc  = min(16, max(0,   loc))
     hi  = min(255,max(235, hi))   hic  = min(255,max(240, hic))
@@ -2323,11 +2334,9 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     hi0 = hi == 235               hic0 = hic == 240
 
 
-    if (dg) {
+    if (sh) {
 
         a.ConvertBits(8, dither=1, fulls=fs)
-        w    = Width()
-        h    = Height()
         w4   = nmod(w/4.)
         h2   = nmod(h/2.)
         w2   = w4*2
@@ -2366,12 +2375,13 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
               U1 = ex_bs(U[2], bi, 8, fs, float=true) U2 = ex_bs(U[3], bi, 8, fs, float=true)
               V1 = ex_bs(V[2], bi, 8, fs, float=true) V2 = ex_bs(V[3], bi, 8, fs, float=true)"
 
-        if (dg) {
-            ScriptClip( function [ab,bi,fs,th,PS] () {
+        if (sh) {
+            ScriptClip( function [ab,bi,fs,th,PS,tol,uv] () {
             Eval(PS)
-            fl = "%0.2f"
-            Subtitle("YMin: "+string(Y1, fl)+"     "+"YMax: "+string(Y2, fl)+"     "+"UVMin: "+string((U1+V1)/2., fl)+"     "+"UVMax: "+string((U2+V2)/2., fl), align=1) }, after_frame=true )
-            StackVertical(last, s)
+            fl = "%0.2f"  gp="     "
+            SoftLimiter(             Y1,Y2,(U1+V1)/2.,(U2+V2)/2., tol, 0, false, uv)
+            PropSet("_MinMaxStats", [Y1,Y2,(U1+V1)/2.,(U2+V2)/2.])
+            Subtitle("YMin: "+string(Y1, fl)+gp+"YMax: "+string(Y2, fl)+gp+"UVMin: "+string((U1+V1)/2., fl)+gp+"UVMax: "+string((U2+V2)/2., fl), align=1) }, after_frame=true )
         } else {
             ScriptClip( function [ab,bi,fs,th,tol,uv,PS] () {
             Eval(PS)
@@ -2380,14 +2390,12 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
     } else {
 
-    if (dg) { StackVertical(a, s) }
-    else {
 
         lol  = ex_bs(16,  8, bi, fs)
         hil  = ex_bs(235, 8, bi, fs)
         hicl = ex_bs(240, 8, bi, fs)
 
-    if (lo0 && loc0 && hi0 && hic0) {
+    if (lo0 && loc0 && hi0 && hic0 && !(w == h == 256)) {
 
         limiter(a, lol,hil,bi>16?lol-0.5:lol,bi>16?hicl-0.5:hicl)
 
@@ -2408,8 +2416,9 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         hic = Format("    x "+bi32d+"   dup log {phi} * exp 1 + log {phr} {c} * * "+expT(1)+" *  ")
         loc = Format("1 1 x "+bi32d+" - dup log {phi} * exp 1 + log {phr} {e} * * "+expT(1)+" * -")
 
-        str  = (lo0  && hi0  ? "x " :  (lo0  && !hi0  ? hi  : !lo0  && hi0  ? lo  : "x range_half > "+hi +" "+lo +" ?") + bi32m) + Format(" {lol} {hil}  clip") # still need to account for 'tolerance'
-        cstr =  loc0 && hic0 ? "x " : ((loc0 && !hic0 ? hic : !loc0 && hic0 ? loc : "x range_half > "+hic+" "+loc+" ?") + bi32m  + Format(" {lol} {hicl} clip"))
+        clp = w == h == 256 # for plot purposes
+        str  = (lo0  && hi0  ? "x " :  (lo0  && !hi0  ? hi  : !lo0  && hi0  ? lo  : "x range_half > "+hi +" "+lo +" ?") + bi32m) + ( clp ? "" : Format(" {lol} {hil}  clip")) # still need to account for 'tolerance'
+        cstr =  loc0 && hic0 ? "x " : ((loc0 && !hic0 ? hic : !loc0 && hic0 ? loc : "x range_half > "+hic+" "+loc+" ?") + bi32m  + ( clp ? "" : Format(" {lol} {hicl} clip")))
 
 
         str  =        ex_dlut  ( str,     bi,      fs)
@@ -2417,7 +2426,23 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
         isy     ? Expr(a, str                       , lut=lut) : \
         UV == 1 ? Expr(a, str, ""                   , lut=lut) : \
-                  Expr(a, str, cstr, scale_inputs=si, lut=lut) } } } }
+                  Expr(a, str, cstr, scale_inputs=si, lut=lut) } }
+
+    if (sh) {
+        sts = propNumElements("_MinMaxStats") > 0
+        sw  = nmod(w/5.)   sh = sw
+        plt = GradientLinear(last, zoom=1, positive=true, smooth=true, tv_range=false)
+        plt = sts ? ScriptClip(blankclip(last,width=256,height=256,channels=0), function[last,plt] () {
+                        sts = propGetAsArray("_MinMaxStats")
+                        SoftLimiter(plt,sts[0],sts[1],sts[2],sts[3],0,0)
+                        HistoCurve(size=1,gradient=false) } ) : \
+                    plt.SoftLimiter (slo,shi,sloc,shic,0,0)
+        plt = sts ? plt : plt.HistoCurve(size=1,gradient=false)
+        plt = plt.BicubicResize(sw,sh,-0.5,0.25)
+        plt = PadBorders(plt,w-sw,0,0,h-sh)
+        plt = Merge(plt)
+        plt = ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
+        StackVertical(plt, s) } }
 
 
 
