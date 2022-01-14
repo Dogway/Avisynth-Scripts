@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v6.0 (11-01-2022)               ##
+###           Grade Pack v6.1 (14-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -14,7 +14,7 @@
 ###
 ####################################
 ###
-### ex_vibrance() v3.3 (11-01-2022)
+### ex_vibrance() v3.4 (13-01-2022)
 ###
 ### Inspired by Motenai Yoda's script (20-11-2011): (https://forum.doom9.org/showthread.php?t=162882)
 ###
@@ -72,10 +72,11 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
     tv    = Default(tv_range,    !fs)
     sh    = Default(show,          0) # 0: disabled, 1: show histogram and gamut warning, 2: show mask
     sat   = max(sat, 0)
+    Rec   = FindStr(LCase(md),"recover") > 0
 
-                    Assert(IsVersionOrGreater(3,7,1), "ex_vibrance: Update AviSynth+ version")
-                    Assert(!isRGB(a),                 "ex_vibrance: RGB format not supported")
-    md=="Recover" ? Assert(Defined(Rc),               "ex_vibrance: 'Recover' mode requires a clip defined in the 'Rc' parameter to recover saturation from") : nop()
+          Assert(IsVersionOrGreater(3,7,1), "ex_vibrance: Update AviSynth+ version")
+          Assert(!isRGB(a),                 "ex_vibrance: RGB format not supported")
+    Rec ? Assert(Defined(Rc),               "ex_vibrance: 'Recover' mode requires a clip defined in the 'Rc' parameter to recover saturation from") : nop()
 
     rangePCc = tv ? "range_max cmax cmin - / *"              : ""
     rangeTVc = tv ? "cmax cmin - range_max / * range_half +" : "range_half +"
@@ -87,8 +88,17 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
            md == "Dullness"   ? Format(       msk+" XC "+rangePCc+" dup dup 1 {sat} / * swap - 1 M - * + "+rangeTVc) : \
            md == "Saturation" ? Format("x range_half - "+rangePCc+"           {sat}                  *   "+rangeTVc) : \
            md == "Recover"    ?                   " XC "+rangePCc+"                                  *   "+rangeTVc  : \
+           md == "Recover2"   ?                   " XC "+rangePCc+"                                  *   "+rangeTVc  : \
           Assert (false, "ex_vibrance: '"+md+"', unsupported mode")
 
+    # 'Recover' mode masks
+    msk1  = "x range_half - XC@ abs y range_half - abs + 0.000001 + "
+    msk2  = "z range_half -     abs a range_half - abs + "
+    # 'Saturation' blend mode masks
+    msk21 = "x range_half - XC@ abs y range_half - abs + M max"
+    msk22 = "z range_half -     abs a range_half - abs + ymin 0.5 * M@ max "
+    msk1  = md == "Recover2" ? msk21 : msk1
+    msk2  = md == "Recover2" ? msk22 : msk2
 
     if (md == "Saturation" && sh==0) {
 
@@ -96,17 +106,22 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
         ex_lut    (a, "", mode, fulls=!tv )
 
     } else \
-    if (md == "Recover"    && sh==0) {
+    if (Rec                && sh==0) {
 
-        msk1 = "x range_half - XC@ abs y range_half - abs + "
-        msk2 = "z range_half -     abs a range_half - abs + "
-        ex_lutxyza(a, a.SwapUV(), Rc, Rc.SwapUV(), "", msk2+msk1+" 0.000001 + / "+mode, fulls=!tv)
+        ex_lutxyza(a, a.SwapUV(), Rc, Rc.SwapUV(), "", fulls=!tv, cstr=msk2+msk1+" / "+mode)
 
     } else {
 
         if (sh==0 && sat==1) { last } else {
 
-        ex_lutxy  (a, a.SwapUV(), "", fulls=!tv, cstr=sh==2 ? msk+" M 1 swap - range_max *" : mode )
+        rangePCc = tv      ?        "range_max cmax cmin - / *"   : ""
+        offset   = bi < 32 ?        " 0.5 - "                     : ""
+        bias     = bias!=1 ? Format("1 swap - {bias} ^ 1 swap -") : ""
+
+        Rec && sh==1 ? \
+        ex_lutxyza(a, a.SwapUV(), Rc, Rc.SwapUV(), "", fulls=!tv, cstr=msk2+msk1+" / "+mode) : \
+        ex_lutxy  (a, a.SwapUV(),                  "", fulls=!tv, cstr= sh != 2 ?      mode  : \
+        Format("f32 x "+rangePCc+" dup * y "+rangePCc+" dup * + sqrt "+bias+offset+" "), scale_inputs=tv?"int":"intf")
 
         w  = a.width()
         h  = a.height()
@@ -122,7 +137,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
             StackHorizontal(GamutWarning(),lvl)
 
         } else if (sh==2) {
-            ExtractU().PropSet("_ColorRange", 0).BicubicResize(w, h, 0, 0.5) } } } }
+            ExtractU().PropSet("_ColorRange", 0) } } } }
 
 
 
@@ -168,7 +183,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     cont  = Default(cont, 0.0)                     # [-1.0 to +1.0] can set further though
     sat   = Default(sat,  (cont+3)/3)              # [ 0.0 to +inf] By default can't be disabled in RGB
     sh    = Default(show,      false)              # Show the contrast curve
-    tv    = Default(tv_range, !fs)                 # TV or PC. Luma range of your source
+    tv    = Default(tv_range, !fs)                 # TV or PC. Color range of your source
     pivot = Default(pivot,    !tv ? 127.5 : 125.5) # Pivot: 64 to 192 (roughly)
     si    = bi == 32 || tv ? "none" : "intf"
 
@@ -331,15 +346,15 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 
 
 ###
-### ex_blend() - v4.0 (11-01-2022)
+### ex_blend() - v4.1 (13-01-2022)
 ###
 ###
-### Works like Overlay() but supports more modes (50 in total), better handling of TV range and performs much faster in either 8-bit or HBD (YUV or RGB).
+### Works like Overlay() but supports more modes (52 in total), better handling of TV range and performs much faster in either 8-bit or HBD (YUV or RGB).
 ###
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
-###                 TransformsPack (for 'hue')
+###                 TransformsPack (for mode='hue')
 ###
 ### Example: ex_blend(a, mode="multiply", opacity=1.0, tv_range=true, UV=2)
 ###
@@ -347,17 +362,85 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ###    (
 ###    clip,
 ###    clip,
-###    string mode="multiply" ("normal" / "blend" / "interpolation" / "harmonic" / "geometric" / "watermark" / "--" / "lighter" / "lighten" / "screen" / "softdodge" / "colordodge" / "lineardodge" / "hypot" / "--" / "darker" / "darken" / "multiply" / "multiply128" / "softburn" / "colorburn" / "linearburn" / "--" / "overlay" / "hardoverlay" / "softlight" / "hardlight" / "vividlight" / "linearlight" / "pinlight" / "hardmix" / "glow" / "reflect" / "heat" / "freeze" / "--" / "grainextract" / "grainmerge" / "--" / "difference" / "softdifference" / "exclusion" / "subtract" / "from" / "divide" / "andn" / "bleach" / "extremity" / "stain" / "negation" / "phoenix" / "--" / "hue" / "saturation" / "color" / "luminosity"),
+###    string mode="multiply" ("normal" / "blend" / "interpolation" / "harmonic" / "geometric" / "watermark" / "--" / "lighter" / "lighten" / "screen" / "softdodge" / "colordodge" / "lineardodge" / "linearadd" / "--" / "darker" / "darken" / "multiply" / "multiply128" / "softburn" / "colorburn" / "linearburn" / "--" / "overlay" / "softoverlay" / "hardoverlay" / "softlight" / "hardlight" / "vividlight" / "linearlight" / "pinlight" / "hardmix" / "glow" / "reflect" / "heat" / "freeze" / "--" / "grainextract" / "grainmerge" / "--" / "difference" / "softdifference" / "exclusion" / "subtract" / "linearsubtract" / "from" / "divide" / "andn" / "bleach" / "extremity" / "stain" / "negation" / "phoenix" / "--" / "hue" / "saturation" / "color" / "luminosity"),
 ###    float opacity=1.0 (0.0 to 1.0 by 0.1),
 ###    float watermark=1.0 (0.0 to 2.0 by 0.1),
 ###    )
 ###
 ####################################
-
-# 100% ex_blend   (a, mode="multiply")
-#  99% OverlayPlus(a, mode="multiply",chroma=false) # only in PC range
-#  92% Overlay_MTools(mode="multiply")              # only in PC range
-#  56% Overlay       (mode="multiply")              # only in PC range
+###
+### 100% ex_blend   (a, mode="multiply")
+###  99% OverlayPlus(a, mode="multiply",chroma=false) # only in PC range
+###  92% Overlay_MTools(mode="multiply")              # only in PC range
+###  56% Overlay       (mode="multiply")              # only in PC range
+###
+### MODES:
+### BLENDING
+### normal       - Simply returns the Top layer
+### blend        - Linear interpolation of Base and Top layer
+### interpolation
+### harmonic
+### geometric
+### watermark
+###
+### LIGHTEN
+### lighter
+### lighten     - Keep only the lightest colors from either Base or Top layers
+### screen
+### softdodge
+### colordodge
+### lineardodge
+### linearadd
+###
+### DARKEN
+### darker
+### darken      - Keep only the darkest colors from either Base or Top layers
+### multiply
+### multiply128
+### softburn
+### colorburn
+### linearburn
+###
+### CONTRAST
+### overlay     - A combination of multiply and screen.
+### softoverlay - A combination of multiply and screen. Same as Overlay but with half weight
+### hardoverlay - A combination of multiply and screen. Same as Overlay but with double weight
+### hardlight   - A combination of multiply and screen. Same as Overlay but commuted
+### softlight   - A combination of multiply and screen. Same as Hard Light but with half weight
+### vividlight  - A combination of color burn and color dodge
+### linearlight - A combination of linear burn and linear dodge
+### pinlight    - A combination of darken and lighten
+### hardmix     - Sum of Base and Top layers and thresholded at range max
+###
+### glow
+### reflect
+### heat
+### freeze
+###
+### INVERSION
+### grainextract
+### grainmerge
+###
+### difference     - Absolute difference of Base and Top layers
+### softdifference
+### exclusion
+### subtract       - Difference of Base and Top layers (clamped)
+### linearsubtract
+### from           - Subtract mode commuted
+### divide         -
+### andn
+### extremity
+### bleach
+### stain
+### negation
+### phoenix
+###
+### HSV COMPONENT
+### hue        - Keep LUMINANCE and SATURATION of the Base layer and inherit HUE        of the Top  layer
+### saturation - Keep LUMINANCE and HUE        of the Base layer and inherit SATURATION of the Top  layer
+### color      - Keep LUMINANCE of the Base layer and mix with HUE and SATURATION of the Top  layer
+### luminosity - Keep LUMINANCE of the Top  layer and mix with HUE and SATURATION of the Base layer
+###
 
 function ex_blend(clip a, clip b, string "mode", float "opacity", float "watermark", bool "tv_range", int "UV") {
 
@@ -371,7 +454,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     md   = Default(mode, "multiply")
     op   = Default(opacity, md == "blend" ? 0.5 : 1.0)
     wm   = Default(watermark,   1.0)  # 0.0 to 2.0. At default 1.0 behaves like 'blend'
-    tv   = Default(tv_range,    !fs)  # TV or PC. Luma range of your source
+    tv   = Default(tv_range,    !fs)  # TV or PC. Color range of your source
     UV   = Default(UV,  rgb ? 3 : md == "normal" ? 4 : 1)
     si   = ex_UVf(rgb, bi)
 
@@ -393,6 +476,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
          md == "dodge"        ? "colordodge"   : \
          md == "burn"         ? "colorburn"    : \
          md == "average"      ? "blend"        : \
+         md == "hypot"        ? "linearadd"    : \
          md == "minus"        ? "subtract"     : \
          md == "and"          ? "multiply"     : md
 
@@ -402,75 +486,78 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
 
     # Half the modes ported from HAvsFunc, rest from Overlay_MTools(), Blend_MT_alpha3, ffmpeg, Nuke docs and web
     # 'softlight' uses Pegtop's improved formula
-    # 'bleach' and 'hardoverlay' are not math exact to originals, revise later
-    # 'hue' mode is in WIP
-    str = Format(                                                                                                                                                                 \
-                                                                                                                                                                                  \
-        md == "--"           ? "x"                                                                                                                                              : \
-        md == "normal"       ? "y"                                                                                                                                              : \
-        md == "blend"        ? iso ? "y" : "x "+srcmx+" dup y "+srcmx+" swap - {op} * + "                                                                                       : \
-        md == "interpolation"? "x "+srcmx+" "+V+" "+rngmx+" / pi * cos 0.25 * 0.5 swap - y "+srcmx+" "+rngmx+" / pi * cos 0.25 * - "+rngmx+" * "                                : \
-        md == "harmonic"     ? "x "+srcmx+" "+V+" dup y "+srcmx+" dup swap2 * 2 * swap2 + / "                                                                                   : \
-        md == "geometric"    ? "x "+srcmx+" "+V+"     y "+srcmx+"           *     sqrt      "                                                                                   : \
-        md == "watermark"    ? "x "+srcmx+" A^ y "+srcmx+" "+rngmx+" B@ / 0 max 1 {wm} {op} ^ / ^ B * "                                                                         : \
-                             \
-        md == "lighter"      ? "see footer"                                                                                                                                     : \
-        md == "lighten"      ? "x "+V+" y max "                                                                                                                                 : \
-        md == "screen"       ? ""+rngmx+" C@ dup x "+srcmx+" "+V+" - C y "+srcmx+" - * C / - "                                                                                  : \
-        md == "softdodge"    ? "x "+srcmx+" A@ y "+srcmx+" B@ + "+rngmx+" < A range_half "+srcmx+" * "+rngmx+" B - C@ / "+rngmx+" C range_half "+srcmx+" * A / - ? "            : \
-        md == "colordodge"   ? "x "+srcmx+" "+V+" "+rngmx+" * "+rngmx+" y "+srcmx+" 0 max - / "                                                                                 : \
-        md == "lineardodge"  ? "x "+srcmx+" "+V+" y "+srcmx+" + "+rngmx+" min "                                                                                                 : \
-        md == "hypot"        ? "x "+srcmx+" "+V+" dup * y "+srcmx+" dup * + sqrt "                                                                                              : \
-                             \
-        md == "darker"       ? "see footer"                                                                                                                                     : \
-        md == "darken"       ? "x "+V+" y min "                                                                                                                                 : \
-        md == "multiply"     ? "x "+srcmx+" "+V+" y "+srcmx+" * "+rngmx+" / "                                                                                                   : \
-        md == "multiply128"  ? "x "+srcmx+" "+V+" range_half "+srcmx+" - y "+srcmx+" ymin 2 * / * range_half "+srcmx+" + 0 "+rngmx+" clip "                                     : \
-        md == "softburn"     ? "y "+srcmx+" B@ x "+srcmx+" A@ + "+rngmx+" < B range_half "+srcmx+" * "+rngmx+" A - 0 max C@ / "+rngmx+" C range_half "+srcmx+" * B / - ? "      : \
-        md == "colorburn"    ? ""+rngmx+" dup x "+srcmx+" "+V+" - "+rngmx+" * 0 max y "+srcmx+" 0 max / - "                                                                     : \
-        md == "linearburn"   ? "x "+srcmx+" "+V+" y "+srcmx+" + B@ "+rngmx+" < 0 B "+rngmx+" - ? "                                                                              : \
-                             \
-        md == "overlay"      ? "x "+srcmx+" A@ range_half "+srcmx+" < 2 A y "+srcmx+" B@ * "+rngmx+" / * "+rngmx+" 2 "+rngmx+" A - "+rngmx+" B - * "+rngmx+" / * - ? "          : \
-        md == "hardoverlay"  ? "x "+srcmx+" A@ "+rngmx+" == "+rngmx+" y "+srcmx+" B@ "+rngmx+" * "+rngmx+" 2 * A 2 * - / 0.3333 * A B * 3 * "+rngmx+" 2 * / + "+rngmx+" min ? " : \
-        md == "softlight"    ? ""+rngmx+" C@ x "+srcmx+" A@ - A y "+srcmx+" B@ * C / * A C dup A - C B - * C / - * + C / "                                                      : \
-        md == "hardlight"    ? "y "+srcmx+" B@ range_half "+srcmx+" < 2 B x "+srcmx+" A@ * "+rngmx+" / * "+rngmx+" 2 "+rngmx+" B - "+rngmx+" A - * "+rngmx+" / * - ? "          : \
-        md == "vividlight"   ? "y "+srcmx+" B@ range_half "+srcmx+" C@ < B 0 <= 2 B * "+rngmx+" dup x "+srcmx+" A@ - "+rngmx+" * 2 B * / - ? 2 B C - * "+rngmx+" >= 2 B C - * A "+rngmx+" * "+rngmx+" 2 B C - * - / ? ? ": \
-        md == "linearlight"  ? "x "+srcmx+" A@ range_half "+srcmx+" < A 2 y "+srcmx+" B@ * + "+rngmx+" - A 2 B range_half "+srcmx+" - * + ? "                                   : \
-        md == "pinlight"     ? "y "+srcmx+" B@ range_half "+srcmx+" < x "+srcmx+" A@ 2 B * min A 2 B range_half "+srcmx+" - * max ? "                                           : \
-        md == "hardmix"      ? "x "+srcmx+" "+V+" "+rngmx+" y "+srcmx+" - < 0 "+rngmx+" ? "                                                                                     : \
-                             \
-        md == "glow"         ? "y "+srcmx+" dup * "+rngmx+" x "+srcmx+" "+V+" 0 max - / "                                                                                       : \
-        md == "reflect"      ? "x "+srcmx+" "+V+" dup * "+rngmx+" y "+srcmx+" 0 max - /  "                                                                                      : \
-        md == "heat"         ? ""+rngmx+" dup y "+srcmx+" - dup * x "+srcmx+" 0 max "+V+" / "+rngmx+" min - "                                                                   : \
-        md == "freeze"       ? ""+rngmx+" dup x "+srcmx+" "+V+" - dup * y "+srcmx+" 0 max / "+rngmx+" min - "                                                                   : \
-                             \
-        md == "grainextract" ? "x "+srcmx+" "+V+"  y "+srcmx+" - range_half "+srcmx+" + 0 "+rngmx+" clip "                                                                      : \
-        md == "grainmerge"   ? "x "+srcmx+" "+V+"  y "+srcmx+" + range_half "+srcmx+" - 0 "+rngmx+" clip "                                                                      : \
-                             \
-        md == "difference"   ? "x "+srcmx+" "+V+"  y "+srcmx+"                    - abs   "                                                                                     : \
-        md == "softdifference"?"x "+srcmx+" A@     y "+srcmx+" B@ > B "+rngmx+" == 0 A B - "+rngmx+" * "+rngmx+" B - / 0 max ? B 0 == 0 B A - "+rngmx+" * B / 0 max ? ? "       : \
-        md == "exclusion"    ? "x "+srcmx+" A@ dup y "+srcmx+" B@ + A B * 2 * + + "+rngmx+" / "                                                                                 : \
-        md == "subtract"     ? "x "+srcmx+" "+V+"  y "+srcmx+"      - "                                                                                                         : \
-        md == "from"         ? "x "+srcmx+" "+V+"  y "+srcmx+" swap - "                                                                                                         : \
-        md == "divide"       ? ""+rngmx+" x "+srcmx+" "+V+" * y "+srcmx+" 0 max / "                                                                                             : \
-        md == "andn"         ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" * "+rngmx+" / "                                                                                : \
-        md == "bleach"       ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" "+rngmx+" swap - + "+rngmx+" - "                                                               : \
-        md == "extremity"    ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" - abs   "                                                                                      : \
-        md == "stain"        ? ""+rngmx+"  2 *   x "+srcmx+" "+V+" - y "+srcmx+" -       "                                                                                      : \
-        md == "negation"     ? ""+rngmx+" dup    x "+srcmx+" "+V+" - y "+srcmx+" - abs - "                                                                                      : \
-        md == "phoenix"      ? "x "+srcmx+" "+V+" y "+srcmx+" dup1 dup1 min swap2 max - "+rngmx+" + "                                                                           : \
-                             \
-        md == "hue"          ? "see footer "                                                                                                                                    : \
-        md == "saturation"   ? "see footer "                                                                                                                                    : \
-        md == "color"        ? "see footer "                                                                                                                                    : \
-        md == "luminosity"   ? "see footer "                                                                                                                                    : \
-                             \
-                               Assert (false, "ex_blend: '"+md+"', unsupported blend mode") )
+    # 'hue' mode is YUV (not RGB) based so it differs from Photoshop's
+    # 'bleach' and 'stain' modes look the same in ffmpeg (bug?) ('stain' alike here)
+    # 'hardoverlay' is close but not math exact to original, revise later
+    str = Format(                                                                                                                                                                  \
+                                                                                                                                                                                   \
+        md == "--"            ? "x"                                                                                                                                              : \
+        md == "normal"        ? "y"                                                                                                                                              : \
+        md == "blend"         ? iso ? "y" : "x "+srcmx+" dup y "+srcmx+" swap - {op} * + "                                                                                       : \
+        md == "interpolation" ? "x "+srcmx+" "+V+" "+rngmx+" / pi * cos 0.25 * 0.5 swap - y "+srcmx+" "+rngmx+" / pi * cos 0.25 * - "+rngmx+" * "                                : \
+        md == "harmonic"      ? "x "+srcmx+" "+V+" dup y "+srcmx+" dup swap2 * 2 * swap2 + / "                                                                                   : \
+        md == "geometric"     ? "x "+srcmx+" "+V+"     y "+srcmx+"           *     sqrt      "                                                                                   : \
+        md == "watermark"     ? "x "+srcmx+" A^ y "+srcmx+" "+rngmx+" B@ / 0 max 1 {wm} {op} ^ / ^ B * "                                                                         : \
+                              \
+        md == "lighter"       ? "see footer"                                                                                                                                     : \
+        md == "lighten"       ? "x "+V+" y max "                                                                                                                                 : \
+        md == "screen"        ? ""+rngmx+" C@ dup x "+srcmx+" "+V+" - C y "+srcmx+" - * C / - "                                                                                  : \
+        md == "softdodge"     ? "x "+srcmx+" A@ y "+srcmx+" B@ + "+rngmx+" < A range_half "+srcmx+" * "+rngmx+" B - C@ / "+rngmx+" C range_half "+srcmx+" * A / - ? "            : \
+        md == "colordodge"    ? "x "+srcmx+" "+V+" "+rngmx+" * "+rngmx+" y "+srcmx+" 0 max - / "                                                                                 : \
+        md == "lineardodge"   ? "x "+srcmx+" "+V+" y "+srcmx+" + "+rngmx+" min "                                                                                                 : \
+        md == "linearadd"     ? "x "+srcmx+" "+V+" dup * y "+srcmx+" dup * + sqrt "                                                                                              : \
+                              \
+        md == "darker"        ? "see footer"                                                                                                                                     : \
+        md == "darken"        ? "x "+V+" y min "                                                                                                                                 : \
+        md == "multiply"      ? "x "+srcmx+" "+V+" y "+srcmx+" * "+rngmx+" / "                                                                                                   : \
+        md == "multiply128"   ? "x "+srcmx+" "+V+" range_half "+srcmx+" - y "+srcmx+" ymin 2 * / * range_half "+srcmx+" + 0 "+rngmx+" clip "                                     : \
+        md == "softburn"      ? "y "+srcmx+" B@ x "+srcmx+" A@ + "+rngmx+" < B range_half "+srcmx+" * "+rngmx+" A - 0 max C@ / "+rngmx+" C range_half "+srcmx+" * B / - ? "      : \
+        md == "colorburn"     ? ""+rngmx+" dup x "+srcmx+" "+V+" - "+rngmx+" * 0 max y "+srcmx+" 0 max / - "                                                                     : \
+        md == "linearburn"    ? "x "+srcmx+" "+V+" y "+srcmx+" + B@ "+rngmx+" < 0 B "+rngmx+" - ? "                                                                              : \
+                              \
+        md == "overlay"       ? "x "+srcmx+" A@ range_half "+srcmx+" < 2 A y "+srcmx+" B@ * "+rngmx+" / * "+rngmx+" 2 "+rngmx+" A - "+rngmx+" B - * "+rngmx+" / * - ? "          : \
+        md == "softoverlay"   ? ""+rngmx+" C@ x "+srcmx+" A@ - A y "+srcmx+" B@ * C / * A C dup A - C B - * C / - * + C / "                                                      : \
+        md == "hardoverlay"   ? "x "+srcmx+" A@ "+rngmx+" == "+rngmx+" y "+srcmx+" B@ "+rngmx+" * "+rngmx+" 2 * A 2 * - / 0.3333 * A B * 3 * "+rngmx+" 2 * / + "+rngmx+" min ? " : \
+        md == "softlight"     ? ""+rngmx+" C@ y "+srcmx+" B@ - B x "+srcmx+" A@ * C / * B C dup B - C A - * C / - * + C / "                                                      : \
+        md == "hardlight"     ? "y "+srcmx+" B@ range_half "+srcmx+" < 2 B x "+srcmx+" A@ * "+rngmx+" / * "+rngmx+" 2 "+rngmx+" B - "+rngmx+" A - * "+rngmx+" / * - ? "          : \
+        md == "vividlight"    ? "y "+srcmx+" B@ range_half "+srcmx+" C@ < B 0 <= 2 B * "+rngmx+" dup x "+srcmx+" A@ - "+rngmx+" * 2 B * / - ? 2 B C - * "+rngmx+" >= 2 B C - * A "+rngmx+" * "+rngmx+" 2 B C - * - / ? ? ": \
+        md == "linearlight"   ? "x "+srcmx+" A@ range_half "+srcmx+" < A 2 y "+srcmx+" B@ * + "+rngmx+" - A 2 B range_half "+srcmx+" - * + ? "                                   : \
+        md == "pinlight"      ? "y "+srcmx+" B@ range_half "+srcmx+" < x "+srcmx+" A@ 2 B * min A 2 B range_half "+srcmx+" - * max ? "                                           : \
+        md == "hardmix"       ? "x "+srcmx+" "+V+" y "+srcmx+" + "+rngmx+" < 0 "+rngmx+" ? "                                                                                     : \
+                              \
+        md == "glow"          ? "y "+srcmx+" dup * "+rngmx+" x "+srcmx+" "+V+" 0 max - / "                                                                                       : \
+        md == "reflect"       ? "x "+srcmx+" "+V+" dup * "+rngmx+" y "+srcmx+" 0 max - /  "                                                                                      : \
+        md == "heat"          ? ""+rngmx+" dup y "+srcmx+" - dup * x "+srcmx+" 0 max "+V+" / "+rngmx+" min - "                                                                   : \
+        md == "freeze"        ? ""+rngmx+" dup x "+srcmx+" "+V+" - dup * y "+srcmx+" 0 max / "+rngmx+" min - "                                                                   : \
+                              \
+        md == "grainextract"  ? "x "+srcmx+" "+V+"  y "+srcmx+" - range_half "+srcmx+" + 0 "+rngmx+" clip "                                                                      : \
+        md == "grainmerge"    ? "x "+srcmx+" "+V+"  y "+srcmx+" + range_half "+srcmx+" - 0 "+rngmx+" clip "                                                                      : \
+                              \
+        md == "difference"    ? "x "+srcmx+" "+V+"  y "+srcmx+"                    - abs   "                                                                                     : \
+        md == "softdifference"? "x "+srcmx+" A@     y "+srcmx+" B@ > B "+rngmx+" == 0 A B - "+rngmx+" * "+rngmx+" B - / 0 max ? B 0 == 0 B A - "+rngmx+" * B / 0 max ? ? "       : \
+        md == "exclusion"     ? "x "+srcmx+" A@ dup y "+srcmx+" B@ + A B * 2 * + + "+rngmx+" / "                                                                                 : \
+        md == "subtract"      ? "x "+srcmx+" "+V+"  y "+srcmx+"                    - "                                                                                           : \
+        md == "linearsubtract"? "x "+srcmx+" "+V+" dup * y "+srcmx+" dup * - sqrt "                                                                                              : \
+        md == "from"          ? "x "+srcmx+" "+V+"  y "+srcmx+" swap               - "                                                                                           : \
+        md == "divide"        ? ""+rngmx+" x "+srcmx+" "+V+" * y "+srcmx+" 0 max / "                                                                                             : \
+        md == "andn"          ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" * "+rngmx+" / "                                                                                : \
+        md == "extremity"     ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" - abs   "                                                                                      : \
+        md == "bleach"        ? ""+rngmx+" 2 *    x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" - "                                                                              : \
+        md == "stain"         ? ""+rngmx+" 2 *    x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" %     "                                                                          : \
+        md == "negation"      ? ""+rngmx+" dup    x "+srcmx+" "+V+" - y "+srcmx+" - abs - "                                                                                      : \
+        md == "phoenix"       ? "x "+srcmx+" "+V+" y "+srcmx+" dup1 dup1 min swap2 max - "+rngmx+" + "                                                                           : \
+                              \
+        md == "hue"           ? "see footer "                                                                                                                                    : \
+        md == "saturation"    ? "see footer "                                                                                                                                    : \
+        md == "color"         ? "see footer "                                                                                                                                    : \
+        md == "luminosity"    ? "see footer "                                                                                                                                    : \
+                              \
+                                Assert (false, "ex_blend: '"+md+"', unsupported blend mode") )
 
 
-    off = !tv || md == "--" || md == "lighten" || md == "darken" ? "" : " ymin + "
-    str = iso || md == "--" || md == "blend" ? str+off : \
-                                               str+Format(" A - {op} * A + ")+off
+    off = !tv || md == "--" || md == "normal" || md == "lighten" || md == "darken" ? "" : " ymin + "
+    str = iso || md == "--" || md == "normal" || md == "blend" ? str+off : \
+                                                                 str+Format(" A - {op} * A + ")+off
 
     if (md == "darker" || md == "lighter") {
 
@@ -487,11 +574,11 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
 
         md == "color"      ? CombinePlanes(a, b, planes="YUV")                            : \
         md == "luminosity" ? CombinePlanes(b, a, planes="YUV")                            : \
-        md == "saturation" ? ex_vibrance  (a, 1.0, mode="Recover", Rc=b,     tv_range=tv) : \
+        md == "saturation" ? ex_vibrance  (a, 1.0, mode="Recover2", Rc=b,    tv_range=tv) : \
                              HSVxHSV(b, 1.0, "HUE", "LUM", 0.0,   1.00, 1.0, tv_range=tv, show=2)
 
-        Ch = md == "hue"   ? HSVxHSV(a, 1.0, "SAT", "LUM", 100.0, 1.00, 1.0, tv_range=tv, show=2) : nop()
-             md == "hue"   ? Expr(last,ch,"","f32 x sin y *","f32 x cos y *",scale_inputs="intf",lut=bi>14?0:2,Format="YUV444P"+string(bi==32?"S":bi)) : last
+        Ch = md == "hue"   ? ex_vibrance(a,bias=1,show=2).ex_lut("x range_half - abs") : nop()
+             md == "hue"   ? Expr(last,ch,"","f32 x cos y *","f32 x sin y *",scale_inputs="intf",lut=bi>14?0:2,Format="YUV444P"+string(bi==32?"S":bi)) : last
              md == "hue"   ? CombinePlanes(a, last, planes="YUV") : last
 
     } else {
@@ -745,8 +832,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     rangeTVc = tv ? "cmax cmin - range_max / *" : ""
 
     offS = bi32 || (mB=="SAT" && !sh2) ? "" : " 0.5 - "
-    varX = mB=="HUE" ? " X@" : mA=="HUE" && mB=="SAT" ? " X@" : ""
-    varY = mB=="HUE" ? " Y@" : mA=="HUE" && mB=="SAT" ? " Y@" : ""
+    varX = mB=="HUE" ? " X@" : mA=="HUE" && mB=="SAT" ? " X@"      : ""
+    varY = mB=="HUE" ? " Y@" : mA=="HUE" && mB=="SAT" ? " Y@"      : ""
     varM = mB!="HUE" ?    "" : mA=="SAT" ? "S@" : mA=="HUE" ? "H@" : ""
 
     clpB = mA=="LUM" && mB=="LUM" ? " X"           : \
@@ -765,7 +852,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
     if (sh2) {
 
-        msk  = ReplaceStr(msk, "X@", "").ReplaceStr("Y@", "").ReplaceStr("^ 0.5 -", "^")
+        msk = ReplaceStr(msk, "X@", "").ReplaceStr("Y@", "").ReplaceStr("^ 0.5 -", "^")
 
         mA=="LUM" ? ex_lut  (c,   msk, UV=128, scale_inputs=si) : \
                     ex_lutxy(U,V, msk, UV=1,   scale_inputs=si)
@@ -933,6 +1020,50 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
             V = bin.ExtractV().AverageLuma()
             Subtitle("Out of Gamut: "+string((U+V)/div,"%1.3f")+"%") # In percentage
         } ) } }
+
+
+
+###
+###
+### PseudoColor() - v1.0 (14-01-2022)
+###
+### Color coded "heat map" based on clip (gamma encoded) luminosity.
+### Useful to find the distribution of luminosity ranges.
+### Cool colors represent low luminosity while warm colors represent high luminosity.
+### 32-bit support is work in progress.
+###
+### Dependencies: > AviSynth+ 3.7.1
+###                 ExTools
+###
+####################################
+
+function PseudoColor(clip a, bool "tv_range") {
+
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    bi   = BitsPerComponent(a)
+    fs   = propNumElements (a,"_ColorRange")  > 0 ? \
+           propGetInt      (a,"_ColorRange") == 0 : rgb
+    lut  = bi < 32 ? 1 : 0
+
+    tv   = Default(tv_range,    !fs)  # TV or PC. Color range of your source
+
+    Assert(IsVersionOrGreater(3,7,1), "PseudoColor: Update AviSynth+ version")
+    Assert(!rgb && !isy,              "PseudoColor: Only YUV format supported")
+
+    Y  = mskY_to_YYY(a, a, true, false, 3, bi)
+
+    rangePC = tv ? "ymin - ymax ymin - /" : "range_max /"
+
+    Expr(Y,"x "+rangePC+" X@ dup * XX@ -9.88 *   X  10.23 * + 2.13  - 0.12 max
+                                   XX -68.54 *   X  115.1 * + 47.46 - 0 1 clip
+                  XX X * -201.77 * XX  84.23 * + X  -9.21 * + 1     + 0.06 max + + 1.176 swap - range_max *", \
+            "x "+rangePC+" 1 swap -              X@ -1.91 * 0.642   + 0 0.5 clip
+                           X dup * XX@ -80.9 *   X  81.86 * + 20.16 - 0 max
+                                   XX -17.11 *   X  28.18 * + 10.57 - 0 max + + range_max *",                 \
+           "x "+rangePC+" 1 swap - X@ 0.15 - 2 ^ 25.510204082 * neg "+expT(5)+" 1.225322718 * 0.22 - 0 1 clip
+                               X dup * -41.6 *   X   44.4 * + 11.6  - 0 max
+            X 0.874 - 2 ^ 37.65117896 * neg "+expT(5)+" 1.149644624 * 0.13 - 0 1 clip + + range_max *",scale_inputs="floatUV",lut=lut,Format=PixelType(a)) }
 
 
 
