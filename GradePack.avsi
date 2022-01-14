@@ -265,12 +265,14 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###    bool "show"=false,
 ###    )
 ###
+###
+### Benchmark:
+### 100.0% Levels       (10*256, 1.40, 245*256, 10*256, 255*256, false, false) (495fps)
+###  93.7% ex_levels    (10,     1.40, 245,     10,     255,     false, 1)
+###  16.0% oSmoothLevels(10,     1.40, 245,     10,     255,         0, 0)
+###
 ####################################
 
-# 100.0% Levels       (10*256, 1.40, 245*256, 10*256, 255*256, false, false) (495fps)
-#  93.7% ex_levels    (10,     1.40, 245,     10,     255,     false, 1)
-#  16.0% oSmoothLevels(10,     1.40, 245,     10,     255,         0, 0)
-#
 function ex_levels (clip c, float "input_low", float "gamma", float "input_high", float "output_low", float "output_high", bool "tv_range", int "UV", bool "show", bool "clamp_float") {
 
     rgb  = isRGB(c)
@@ -1034,6 +1036,11 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
+###
+###
+### Benchmark:
+### 100.0% PseudoColor() (290fps)
+###  32.8% RGB().Cube("lutfile.cube").YV12()
 ###
 ####################################
 
