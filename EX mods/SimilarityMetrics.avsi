@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v2.1  (27-12-2021)                     ###
+###        Similarity Metrics Pack v2.2  (13-01-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -29,7 +29,7 @@ This script is a port of the VapourSynth GMSD - https://github.com/WolframRhodiu
     The distortion degree of the distorted image will be stored as frame property '_PlaneGMSD' in the output clip.
 
     The value of GMSD reflects the range of distortion severities in an image.
-    The lowerer the GMSD score, the higher the image perceptual quality.
+    The lower the GMSD score, the higher the image perceptual quality.
     If "clip1" == "clip2", GMSD = 0.
 
     All the internal calculations are done at 32-bit float, only one channel of the image will be processed.
@@ -144,10 +144,10 @@ MDSI - Mean Deviation Similarity Index Calculator
 This script is a port of the VapourSynth MDSI - https://github.com/WolframRhodium/muvsfunc/blob/master/muvsfunc.py#L4641
 
 
-    MDSI is a full reference IQA model that utilize gradient similarity (GS), chromaticity similarity (CS), and deviation pooling (DP).
-    The lowerer the MDSI score, the higher the image perceptual quality.
+    MDSI is a full reference IQA model that utilizes gradient similarity (GS), chromaticity similarity (CS), and deviation pooling (DP).
+    The lower the MDSI score, the higher the image perceptual quality.
 
-    Larger MDSI values indicate to the more severe distorted images, while an image with perfect quality is assessed by a quality score of zero.
+    Larger MDSI values indicate more severe distorted images, while an image with perfect quality is assessed by a quality score of zero.
     The distortion degree of the distorted image will be stored as frame property '_PlaneMDSI' in the output clip.
 
     Note that bilinear downsampling is used in this implementation (but disabled by default), as opposed to the original paper.
@@ -186,26 +186,25 @@ Ref:
 
 ### Changelog ###
 #---------------
-# Ported to ExTools and TransformsPack (117% speed gain) by Dogway
+# Ported to ExTools and TransformsPack (131% speed gain) by Dogway. Also implemented back IQA downsample from the official paper.
 #---------------
 # Changed global scope of gcs to local.
 #---------------
 # Initial port version by Asd-g.
 
 
-function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_map", int "show", bool "fulls") {
+function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_map", int "show", bool "fulls") {
 
     rgb = isRGB(dist)
     bi  = BitsPerComponent(dist)
     fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
           propGetInt      (dist,"_ColorRange") == 0 : rgb
 
-    down_scale = Default(down_scale, 1)
-    down_scale = Float  (down_scale)
-    alpha      = Default(alpha,    0.6)
-    show_map   = Default(show_map, false)
-    show       = Default(show,         0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
-    fs         = Default(fulls,       fs)
+    downscl    = Default(downsample, false)
+    alpha      = Default(alpha,        0.6)
+    show_map   = Default(show_map,   false)
+    show       = Default(show,           0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
+    fs         = Default(fulls,         fs)
 
     clip1 = dist
     clip2 = ref
@@ -222,30 +221,25 @@ function MDSI(clip dist, clip ref, int "down_scale", float "alpha", bool "show_m
     c2 = 55  / pow(255, 2)
     c3 = 550 / pow(255, 2)
 
+    down1 = !downscl ? clip1 : _IQA_downsample(clip1, fulls=fs, fulld=true) # saturating range for correct calculations
+    down2 = !downscl ? clip2 : _IQA_downsample(clip2, fulls=fs, fulld=true)
 
-    down1 = down_scale > 1 ?
-    \ Bilinearresize(clip1, RoundHalfToEven(w1 / down_scale), RoundHalfToEven(h1 / down_scale)) :
-    \ clip1
+    down1 = down1.ConvertBits(bi, fulls=!downscl ? fs : true, fulld=true).ExtractClip()
+    down2 = down2.ConvertBits(bi, fulls=!downscl ? fs : true, fulld=true).ExtractClip()
 
-    down2 = down_scale > 1 ?
-    \ Bilinearresize(clip2, RoundHalfToEven(w2 / down_scale), RoundHalfToEven(h2 / down_scale)) :
-    \ clip2
-
-    down1 = ExtractClip(down1.ConvertBits(bi, fulls=fs, fulld=true)) # saturating range for correct calculations
-    down2 = ExtractClip(down2.ConvertBits(bi, fulls=fs, fulld=true))
-
-    l1 = DotClipA(down1,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
-    l2 = DotClipA(down2,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
-    f  = Merge(l1, l2)
-
-    g_r = ex_edge(l1, "qprewitt", 0, 255)
-    g_d = ex_edge(l2, "qprewitt", 0, 255)
-    g_f = ex_edge(f,  "qprewitt", 0, 255)
+    l1  = DotClipA(down1,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
+    l2  = DotClipA(down2,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
+    g_f = ex_edge(Merge(l1, l2),  "qprewitt", 0, 255)
 
     # HVS (Human Visual System) based gradient similarity
-    gs_hvs = ex_lutxyz(g_r, g_d, g_f, Format("f32 x y * 2 * {c1} + x dup * XX@ y dup * YY@ {c1} + + /
-                                                  x z * 2 * {c2} +         XX  z dup * ZZ@ {c2} + + / +
-                                                  y z * 2 * {c2} +         YY          ZZ  {c2} + + / -"), UV=1, scale_inputs="allf").ConvertBits(32, fulls=true, fulld=true)
+    gs_hvs = ex_lutxyz(l1, l2, g_f, Format("f32 x[-1,-1] A@ x[-1,0] x[-1,1] F@ + + x[1,-1] C@ - x[1,0] - x[1,1] H@ - dup *
+                                                A C x[0,-1] + + F - H - x[0,1] - dup * + sqrt X^
+                                                y[-1,-1] A@ y[-1,0] y[-1,1] F@ + + y[1,-1] C@ - y[1,0] - y[1,1] H@ - dup *
+                                                A C y[0,-1] + + F - H - y[0,1] - dup * + sqrt Y@
+                                                X * 2 * {c1} + X dup * XX@ Y dup * YY@ {c1} + + /
+                                              X z * 2 * {c2} +         XX  z dup * ZZ@ {c2} + + / +
+                                              Y z * 2 * {c2} +         YY          ZZ  {c2} + + / -"), UV=1, scale_inputs="intf").ConvertBits(32, fulls=true, fulld=true)
+
     # opponent color space
     h1 = DotClipA(down1,[0.30,0.04,0.35]).ConvertBits(32, fulls=true, fulld=true)
     h2 = DotClipA(down2,[0.30,0.04,0.35]).ConvertBits(32, fulls=true, fulld=true)
