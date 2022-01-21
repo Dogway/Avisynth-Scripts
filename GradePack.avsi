@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v6.1 (14-01-2022)               ##
+###           Grade Pack v6.2 (19-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -70,7 +70,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
     bias  = Default(bias, 5)          # Adjust saturation mask
     md    = Default(mode, "Vibrance")
     tv    = Default(tv_range,    !fs)
-    sh    = Default(show,          0) # 0: disabled, 1: show histogram and gamut warning, 2: show mask
+    sh    = Default(show,          0) # 0: disabled, 1: show histogram and gamut warning, 2: show mask (resized to luma dimensions) 3: show mask at original size
     sat   = max(sat, 0)
     Rec   = FindStr(LCase(md),"recover") > 0
 
@@ -136,8 +136,9 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
             lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
             StackHorizontal(GamutWarning(),lvl)
 
-        } else if (sh==2) {
-            ExtractU().PropSet("_ColorRange", 0) } } } }
+        } else if (sh>1) {
+            ExtractU().PropSet("_ColorRange", 0)
+            sh==2 ? BicubicResize(w, h, 0, 0.5) : last } } } }
 
 
 
@@ -157,7 +158,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 ###
 ### Apply over gamma encoded clip
 ###
-### Example: ex_contrast(0.7, 1.0, 125.5, true)  # 125.5 is mid-grey for TV range sources
+### Example: ex_contrast(0.7)  # Default pivot=125.5 is mid-grey for TV range sources (Color range read from frameprops)
 ###
 ### Function Definition:
 ###    (
@@ -379,7 +380,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ### MODES:
 ### BLENDING
 ### normal       - Simply returns the Top layer
-### blend        - Linear interpolation of Base and Top layer
+### blend        - Linear interpolation of Base and Top layer by opacity setting
 ### interpolation
 ### harmonic
 ### geometric
@@ -438,8 +439,8 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ### phoenix
 ###
 ### HSV COMPONENT
-### hue        - Keep LUMINANCE and SATURATION of the Base layer and inherit HUE        of the Top  layer
-### saturation - Keep LUMINANCE and HUE        of the Base layer and inherit SATURATION of the Top  layer
+### hue        - Keep LUMINANCE and SATURATION of the Base layer and inherit HUE        of the Top layer
+### saturation - Keep LUMINANCE and HUE        of the Base layer and inherit SATURATION of the Top layer
 ### color      - Keep LUMINANCE of the Base layer and mix with HUE and SATURATION of the Top  layer
 ### luminosity - Keep LUMINANCE of the Top  layer and mix with HUE and SATURATION of the Base layer
 ###
@@ -577,9 +578,9 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
         md == "color"      ? CombinePlanes(a, b, planes="YUV")                            : \
         md == "luminosity" ? CombinePlanes(b, a, planes="YUV")                            : \
         md == "saturation" ? ex_vibrance  (a, 1.0, mode="Recover2", Rc=b,    tv_range=tv) : \
-                             HSVxHSV(b, 1.0, "HUE", "LUM", 0.0,   1.00, 1.0, tv_range=tv, show=2)
+                             HSVxHSV(b, 1.0, "HUE", "LUM", 0.0,   1.00, 1.0, tv_range=tv, show=3)
 
-        Ch = md == "hue"   ? ex_vibrance(a,bias=1,show=2).ex_lut("x range_half - abs") : nop()
+        Ch = md == "hue"   ? ex_vibrance(a,bias=1,show=3).ex_lut("x range_half - abs") : nop()
              md == "hue"   ? Expr(last,ch,"","f32 x cos y *","f32 x sin y *",scale_inputs="intf",lut=bi>14?0:2,Format="YUV444P"+string(bi==32?"S":bi)) : last
              md == "hue"   ? CombinePlanes(a, last, planes="YUV") : last
 
@@ -769,7 +770,7 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 ###     float Delta=180.0 (0.0 to 360.0 by 1.0),
 ###     float Q=0.2 (0.0 to 1.0 by 0.01),
 ###     float Opacity=1.0 (0.0 to 1.0 by 0.1),
-###     int "show"=1 (0 to 2),
+###     int "show"=1 (0 to 2 by 1),
 ###     )
 ###
 function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "Delta", float "Q", float "Opacity", bool "tv_range", int "show") {
@@ -787,8 +788,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     bA  = Default (Q,       0.2)   # Q-factor (Bandwidth) of 'modeA' Spread of the isolated area. 0.0-1.0
     sA  = Default (opacity, 1.0)   # Scale   of 'modeA' Scale  of the isolated area (typical to scale down since by default it's white). 0.0-1.0
     tv  = Default (tv_range, ID[6])
-    sh  = Default (show,      0)   # 0: disabled, 1: show histogram, 2: show mask
-    sh2 = sh == 2
+    sh  = Default (show,      0)   # 0: disabled, 1: show histogram, 2: show mask (resized to luma dimensions) 3: show mask at original size
+    sm  = sh > 1
     si  = tv ? "int" : "intf"
 
     Assert(IsVersionOrGreater(3,7,1), "HSVxHSV: Update AviSynth+ version")
@@ -833,7 +834,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     rangePCc = tv ? "range_max cmax cmin - / *" : ""
     rangeTVc = tv ? "cmax cmin - range_max / *" : ""
 
-    offS = bi32 || (mB=="SAT" && !sh2) ? "" : " 0.5 - "
+    offS = bi32 || (mB=="SAT" && !sm) ? "" : " 0.5 - "
     varX = mB=="HUE" ? " X@" : mA=="HUE" && mB=="SAT" ? " X@"      : ""
     varY = mB=="HUE" ? " Y@" : mA=="HUE" && mB=="SAT" ? " Y@"      : ""
     varM = mB!="HUE" ?    "" : mA=="SAT" ? "S@" : mA=="HUE" ? "H@" : ""
@@ -852,13 +853,14 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
                        Format(clpB+" dup dup                      {str} pi + + pi 2 * % pi - swap - swap swap2 * + " )
 
 
-    if (sh2) {
+    if (sm) {
 
         msk = ReplaceStr(msk, "X@", "").ReplaceStr("Y@", "").ReplaceStr("^ 0.5 -", "^")
 
         mA=="LUM" ? ex_lut  (c,   msk, UV=128, scale_inputs=si) : \
                     ex_lutxy(U,V, msk, UV=1,   scale_inputs=si)
-                    PropSet("_OutGamut", 0)
+                    PropSet("_ColorRange", 0)
+                    sh==2 ? BicubicResize(c.width(),c.height(), 0, 0.5) : last
 
     } else if (nul) {
 
@@ -1015,11 +1017,12 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 
         bin = ex_lut("x range_size 1 - < 0 x ?",Y=1,UV=3)
         div = (ex_bs(256, 8, bi, !tv)-1)*(2/100.)
+        U = bin.ExtractU()
+        V = bin.ExtractV()
 
-        ScriptClip( function[bin,div] () {
-
-            U = bin.ExtractU().AverageLuma()
-            V = bin.ExtractV().AverageLuma()
+        ScriptClip( function[bin,div,U,V] () {
+            U = U.AverageLuma()
+            V = V.AverageLuma()
             Subtitle("Out of Gamut: "+string((U+V)/div,"%1.3f")+"%") # In percentage
         } ) } }
 
@@ -1029,9 +1032,10 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ###
 ### PseudoColor() - v1.0 (14-01-2022)
 ###
-### Color coded "heat map" based on clip (gamma encoded) luminosity.
-### Useful to find the distribution of luminosity ranges.
-### Cool colors represent low luminosity while warm colors represent high luminosity.
+### Rainbow color coded "heat map" based on clip's (gamma encoded) luminosity.
+### Useful for luminosity segmentation and augment luma ranges with color coded isoparams.
+### Also serves for debugging purposes in algorithms such as blend modes or gradient magnitudes.
+### Cool colors represent low luminosity while warm colors represent high luminosity, green stands for neutral.
 ### 32-bit support is work in progress.
 ###
 ### Dependencies: > AviSynth+ 3.7.1
@@ -1065,7 +1069,7 @@ function PseudoColor(clip a, bool "tv_range") {
     Expr(Y,"x "+rangePC+" X@ dup * XX@ -9.88 *   X  10.23 * + 2.13  - 0.12 max
                                    XX -68.54 *   X  115.1 * + 47.46 - 0 1 clip
                   XX X * -201.77 * XX  84.23 * + X  -9.21 * + 1     + 0.06 max + + 1.176 swap - range_max *", \
-            "x "+rangePC+" 1 swap -              X@ -1.91 * 0.642   + 0 0.5 clip
+           "x "+rangePC+" 1 swap -               X@ -1.91 * 0.642   + 0 0.5 clip
                            X dup * XX@ -80.9 *   X  81.86 * + 20.16 - 0 max
                                    XX -17.11 *   X  28.18 * + 10.57 - 0 max + + range_max *",                 \
            "x "+rangePC+" 1 swap - X@ 0.15 - 2 ^ 25.510204082 * neg "+expT(5)+" 1.225322718 * 0.22 - 0 1 clip
