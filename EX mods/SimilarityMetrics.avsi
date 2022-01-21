@@ -419,7 +419,7 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
 #     ExTools
 #     StainlessS's RT_Stats for the standard deviation
 #     vsTCanny  (if '_PlaneSSIM' frame property is not present)
-#     	fmtconv
+#       fmtconv
 
 function BSSIM(clip dist, clip ref, int "show", bool "fulls") {
 
