@@ -233,17 +233,17 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     Lthres  = ex_bs(75, 8, bi, tv_in=true, tv_out=tv)
 
-    pref    = !GlobalR ? preclip ? UHDhalf        ?  pref : prefilter                                                                                                         : \
-                                  (prefilter==-1) ?  pref                                                                                                                     : \
-                                  (prefilter== 0) ?  pref.ex_MinBlur(0,Chr)                                                                                                   : \
-                                  (prefilter== 1) ?  pref.ex_MinBlur(1,Chr)                                                                                                   : \
-                                  (prefilter== 2) ?  pref.ex_MinBlur(2,Chr)                                                                                                   : \
-                                  (prefilter== 3) ?  pref.ex_FluxSmoothST(2,2,255,0,false,UV=Chr)                                                                             : \
-                                  (prefilter== 4) ?  ex_merge(dfttest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1),pref,              \
-                                                     pref.ex_lut(Format("range_max range_max {Lthres} ymin - / x ymin - * -"),UV=1,clamp_float=true), luma=chroma, UV=chr)    : \
-                                  (prefilter== 5) ?  pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=0,chroma=chroma,device_type="GPU",device_id=device_id,LFR=600*(w/1920.))      : \
-                                  (prefilter== 6) ?  pref.ex_BM3D(sigma=10,radius=1,CUDA=true,UV=Chr,tv_range=tv)                                                             : \
-                                                     Assert(false, "SMDegrain: Prefilter must be between -1~6: "+string(prefilter))                                           : \
+    pref    = !GlobalR ? preclip ? UHDhalf        ?  pref : prefilter                                                                                                          : \
+                                  (prefilter==-1) ?  pref                                                                                                                      : \
+                                  (prefilter== 0) ?  pref.ex_MinBlur(0,Chr)                                                                                                    : \
+                                  (prefilter== 1) ?  pref.ex_MinBlur(1,Chr)                                                                                                    : \
+                                  (prefilter== 2) ?  pref.ex_MinBlur(2,Chr)                                                                                                    : \
+                                  (prefilter== 3) ?  pref.ex_FluxSmoothST(2,2,255,0,false,UV=Chr)                                                                              : \
+                                  (prefilter== 4) ?  ex_merge(dfttest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1),pref,               \
+                                                     pref.ex_lut(Format("range_max range_max {Lthres} ymin - / x ymin - * -"),UV=1,clamp_float=true), luma=chroma, UV=chr)     : \
+                                  (prefilter== 5) ?  pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=0,chroma=chroma,device_type="GPU",device_id=device_id,LFR=round(600*(w/1920.))): \
+                                  (prefilter== 6) ?  pref.ex_BM3D(sigma=10,radius=1,CUDA=true,UV=Chr,tv_range=tv)                                                              : \
+                                                     Assert(false, "SMDegrain: Prefilter must be between -1~6: "+string(prefilter))                                            : \
                                   pref
 
 
@@ -1031,7 +1031,7 @@ function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode
     wmode        = Default( wmode, 0)
     deviceid     = Default( device_id, 0)
     chroma       = Default( chroma, true)
-    LFR          = Default( LFR, wmode < 1 || d > 0 ? min(2,d+1)*300*(w/1920.) : 0) # Restore low frequency details, specially on wmode=0, and more specially with d > 0 (motion stimation is very bad in KNLMeansCL)
+    LFR          = Default( LFR, wmode < 1 || d > 0 ? min(2,d+1)*300*(w/1920.) : 0) # Restore low frequency details, specially on wmode=0, and more specially with d > 0 (motion estimation is very bad in KNLMeansCL)
     knlm_params  = Defined( knlm_params) ? ","+knlm_params : ""
 
     LFRc    = max(LFR,50)
