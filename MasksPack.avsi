@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 5.0 By Dogway  (09-01-2022)            ##
+###           MasksPack 5.1 By Dogway  (23-01-2022)            ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
@@ -79,7 +79,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 
 ##################
 ###
-### FlatMask() (22-12-2021)
+### FlatMask() (23-12-2021)
 ###
 ###
 ### This is a dual purpose filter for 2D cartoons to create either high quality edge/ridge masks or flat masks.
@@ -136,9 +136,9 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     !isy() ? ExtractY() : last
     ConvertBits(8,dither=-1,fulls=fs)
     # 3x3 is too broad for SD so upscale
-    !isHD  ? BlackmanResize(w*2,h*2)                 : last
+    !isHD  ? BlackmanResize(w*2,h*2)                         : last
     # UHD size is too big for good performance
-     isUHD ? BilinearResize(nmod(w/2,2),nmod(h/2,2)) : last
+     isUHD ? BicubicResize(nmod(w/2,2),nmod(h/2,2),-0.6,0.4) : last
 
     ex_retinex(lvl=1,lo=lvl,tv_range=!fs)  # some issues here on flat areas (quantization)
     MSR=ex_median("IQM")                   # pre for full 'qprewitt'
@@ -152,11 +152,11 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     yy1=    ex_lut(Format("x[-1,1]  x[1,-1] -"))
     yy1=yy1.ex_lut(Format("x[-1,1]  x[1,-1] -"))
 
-    xx2=    ex_lut(Format("x[1,1]  x[-1,-1] -"))
-    xx2=xx2.ex_lut(Format("x[1,1]  x[-1,-1] -"))
-    yy2=    ex_lut(Format("x[1,-1] x[-1,1]  -"))
+    xx2=    ex_lut(Format("x[-1,-1] x[1,1]  swap -"))
+    xx2=xx2.ex_lut(Format("x[-1,-1] x[1,1]  swap -"))
+    yy2=    ex_lut(Format("x[-1,1]  x[1,-1] swap -"))
     yy2=yy2.ex_lutxyza(xx1,yy1,xx2,            \
-                   Format("x[1,-1] x[-1,1] - 0 max dup * y dup * z dup * a dup * + + + sqrt {scl} * dup {lo} {scl} * > swap 0 ?"+(in && rd==1 ? " range_max swap -" : "")))
+                   Format("x[-1,1]  x[1,-1] swap - 0 max dup * y dup * z dup * a dup * + + + sqrt {scl} * dup {lo} {scl} * > swap 0 ?"+(in && rd==1 ? " range_max swap -" : "")))
 
     # Pre for 'Fill holes'
     ex_contrast(scl>9?yy2.ex_median("median"):yy2,1,pivot=80,tv_range=false)
@@ -174,7 +174,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 
     rd  = round(rd)
     rd == 1 ? yy2                               : \
-    rd == 0 ? ex_edge(MSR,"qprewitt",invert=in) : last                           # Maybe add back qprewitt on top for rd==1
+    rd == 0 ? ex_edge(MSR,"qprewitt",invert=in) : last                           # Maybe add back qprewitt on top for rd==1 ?
 
     !isHD   ? BicubicResize(w,h,-0.5,0.25) : ex_smooth(2, mode="SG", sharp=true) # Clean up result. No need when resizing down
      isUHD  ? BicubicResize(w,h,1/3.,1/3.) : last
