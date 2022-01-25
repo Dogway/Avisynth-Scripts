@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v2.3  (16-01-2022)                     ###
+###        Similarity Metrics Pack v2.4  (25-01-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -95,14 +95,10 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     clip1 = dist
     clip2 = ref
 
-    w1 = clip1.Width ()
-    h1 = clip1.Height()
-    w2 = clip2.Width ()
-    h2 = clip2.Height()
-
-    Assert(PixelType(clip1) == PixelType(clip2),              "GMSD: clip1 and clip2 must be of the same format")
-    Assert(w1 == w2 && h1 == h2,                              "GMSD: clip1 and clip2 must be of the same width and height")
-    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "GMSD: only one plane must be processed")
+    Assert(IsVersionOrGreater(3,7,1),                                         "GMSD: Update AviSynth+ version")
+    Assert(PixelType(clip1) == PixelType(clip2),                              "GMSD: clip1 and clip2 must be of the same format")
+    Assert(clip1.Width() == clip2.Width() && clip1.Height() == clip2.Height(),"GMSD: clip1 and clip2 must be of the same width and height")
+    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v),                 "GMSD: only one plane must be processed")
 
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
@@ -175,7 +171,7 @@ Ref:
 #---------------
 # clip2: The second clip, to be compared with the first one.
 #---------------
-# down_scale (default 1): Factor of downsampling before quality assessment.
+# downsample (default false): Whether to average the clips over local 2x2 window and downsample by a factor of 2 before calculation.
 #---------------
 # alpha (default 0.6): Weight used to merge Gradient Similarity (GS) map and Chromaticity Similarity (CS) map.
 #---------------
@@ -209,13 +205,9 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
     clip1 = dist
     clip2 = ref
 
-    w1 = clip1.Width ()
-    h1 = clip1.Height()
-    w2 = clip2.Width ()
-    h2 = clip2.Height()
-
-    Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)), "MDSI: clip1 and clip2 must be in the same format and must be in planar RGB format")
-    Assert(w1 == w2 && h1 == h2,                                                                "MDSI: clip1 and clip2 must be of the same width and height")
+    Assert(IsVersionOrGreater(3,7,1),                                                           "MDSI: Update AviSynth+ version")
+    Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)), "MDSI: clip1 and clip2 must be in planar RGB format")
+    Assert(clip1.Width() == clip2.Width() && clip1.Height() == clip2.Height(),                  "MDSI: clip1 and clip2 must be of the same width and height")
 
     c1 = 140 / pow(255, 2)
     c2 = 55  / pow(255, 2)
@@ -361,14 +353,10 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     clip1 = dist
     clip2 = ref
 
-    w1 = clip1.Width ()
-    h1 = clip1.Height()
-    w2 = clip2.Width ()
-    h2 = clip2.Height()
-
-    Assert(PixelType(clip1) == PixelType(clip2),              "SSIM: clip1 and clip2 must be of the same format")
-    Assert(w1 == w2 && h1 == h2,                              "SSIM: clip1 and clip2 must be of the same width and height")
-    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "SSIM: only one plane must be processed")
+    Assert(IsVersionOrGreater(3,7,1),                                         "vsSSIM: Update AviSynth+ version")
+    Assert(PixelType(clip1) == PixelType(clip2),                              "vsSSIM: clip1 and clip2 must be of the same format")
+    Assert(clip1.Width() == clip2.Width() && clip1.Height() == clip2.Height(),"vsSSIM: clip1 and clip2 must be of the same width and height")
+    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v),                 "vsSSIM: only one plane must be processed")
 
     c1 = Pow(k1 * DR, 2.0)
     c2 = Pow(k2 * DR, 2.0)
@@ -417,9 +405,8 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
 #
 # Dependencies:
 #     ExTools
-#     StainlessS's RT_Stats for the standard deviation
-#     vsTCanny  (if '_PlaneSSIM' frame property is not present)
-#       fmtconv
+#     vsTCanny
+#     fmtconv
 
 function BSSIM(clip dist, clip ref, int "show", bool "fulls") {
 
@@ -433,6 +420,8 @@ function BSSIM(clip dist, clip ref, int "show", bool "fulls") {
     show = Default(show,        0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     fs   = Default(fulls,      fs)
 
+    Assert(IsVersionOrGreater(3,7,1), "BSSIM: Update AviSynth+ version")
+
     source  = ref
     blurred = vSSIM
 
@@ -445,14 +434,22 @@ function BSSIM(clip dist, clip ref, int "show", bool "fulls") {
     ScriptClip(show == 1 ? ref : dist, function [blurred, source8, blurred8, scharr_orig, scharr_blurred, show] () {
 
         SSIM        = propGetFloat  (blurred, "_PlaneSSIM")
-        stddev_orig = RT_YPlaneStdev(scharr_orig)        # only works on 8-bit (output is also 8-bit)
-        stddev_alt  = RT_YPlaneStdev(scharr_blurred)     # only works on 8-bit (output is also 8-bit)
 
-        bssim = SSIM * (2*stddev_orig*stddev_alt) / (stddev_orig*stddev_orig + stddev_alt*stddev_alt)
+        mean8       = AverageLuma(scharr_orig)
+        var8        = ex_lut(scharr_orig,   Format("x {mean8} - dup *"))
+        varian_orig = AverageLuma(var8)
+      # stddev_orig = sqrt(varian_orig)
 
-        propSet(last,"_PlaneBSSIM", bssim, 0)
+        mean8       = AverageLuma(scharr_blurred)
+        var8        = ex_lut(scharr_blurred,Format("x {mean8} - dup *"))
+        varian_alt  = AverageLuma(var8)
+      # stddev_alt  = sqrt(varian_alt)
 
-        return show == 2 ? Subtitle(Format("PlaneBSSIM: {bssim}")) : last } ) }
+        BSSIM = SSIM * (2*sqrt(varian_orig * varian_alt)) / (varian_orig + varian_alt)
+
+        propSet(last,"_PlaneBSSIM", BSSIM, 0)
+
+        return show == 2 ? Subtitle(Format("PlaneBSSIM: {BSSIM}")) : last } ) }
 
 
 
@@ -475,7 +472,6 @@ This script is port of the VapourSynth SSIM_downsample - https://github.com/Wolf
 
 */
 
-
 ### Requirements - AviSynth+, vsTCanny and ExTools.
 
 
@@ -486,7 +482,7 @@ This script is port of the VapourSynth SSIM_downsample - https://github.com/Wolf
 ## Parameters ##
 #---------------
 # c: Source clip.
-# 32-bit source clip is assumed full range.
+# 32-bit source clip is assumed full range otherwise it's internally converted.
 #---------------
 # target_width: The width of the output.
 #---------------
