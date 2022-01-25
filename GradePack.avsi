@@ -414,7 +414,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ### softoverlay - A combination of multiply and screen. Same as Overlay but with half weight
 ### hardoverlay - A combination of multiply and screen. Same as Overlay but with double weight
 ### hardlight   - A combination of multiply and screen. Same as Overlay but commuted
-### softlight   - A combination of multiply and screen. Same as Hard Light but with half weight
+### softlight   - A combination of multiply and screen. Same as Hard Light but with half weight (or commuted softoverlay)
 ### vividlight  - A combination of color burn and color dodge
 ### linearlight - A combination of linear burn and linear dodge
 ### pinlight    - A combination of darken and lighten
@@ -581,7 +581,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     } else if (md == "hue" || md == "saturation" || md == "color" || md == "luminosity") {
 
         md == "color"      ? CombinePlanes(a, b, planes="YUV")                            : \
-        md == "luminosity" ? CombinePlanes(b, a, planes="YUV")                            : \
+        md == "luminosity" ? CombinePlanes(b, a, planes="YUV").propCopy(a)                : \
         md == "saturation" ? ex_vibrance  (a, 1.0, mode="Recover2", Rc=b,    tv_range=tv) : \
                              HSVxHSV(b, 1.0, "HUE", "LUM", 0.0,   1.00, 1.0, tv_range=tv, show=3)
 
@@ -930,6 +930,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
 
 
+
 ###
 ###
 ### GamutWarning() - (30-12-2021)
@@ -1049,6 +1050,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ### Cool colors represent low luminosity while warm colors represent high luminosity, green stands for neutral.
 ### 32-bit support is work in progress.
 ###
+###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
 ###
@@ -1076,9 +1078,9 @@ function PseudoColor(clip a, bool "tv_range") {
 
     Y    = mskY_to_YYY(a, a, true, false, 3, bi)
 
-    rangemx  = !bi32 ? ex_dlut("range_max", bi, !tv) : ""
-    rangePC  = tv    ? ex_dlut("ymin - ymax ymin -", bi, !tv)+" /" : bi32 ? "" : rangemx+" /"
-    rangemx  = !bi32 ? rangemx+" *" : "0.5 -"
+    rangemx = !bi32 ? ex_dlut("range_max", bi, !tv) : ""
+    rangePC = tv    ? ex_dlut("ymin - ymax ymin -", bi, !tv)+" /" : bi32 ? "" : rangemx+" /"
+    rangemx = !bi32 ? rangemx+" *" : "0.5 -"
 
     Expr(Y,"x "+rangePC+" X@ dup * XX@ -9.88 *   X  10.23 * + 2.13  - 0.12 max
                                    XX -68.54 *   X  115.1 * + 47.46 - 0 1 clip
@@ -1088,7 +1090,9 @@ function PseudoColor(clip a, bool "tv_range") {
                                    XX -17.11 *   X  28.18 * + 10.57 - 0 max + + "+rangemx,                 \
            "x "+rangePC+" 1 swap - X@ 0.15 - 2 ^ 25.510204082 * neg "+expT(5)+" 1.225322718 * 0.22 - 0 1 clip
                           X dup  *     -41.6 *   X   44.4 * + 11.6  - 0 max
-              X 0.874 - 2 ^ 37.65117896 * neg "+expT(5)+" 1.149644624 * 0.13 - 0 1 clip + + "+rangemx,lut=lut,Format=PixelType(a)) }
+              X 0.874 - 2 ^ 37.65117896 * neg "+expT(5)+" 1.149644624 * 0.13 - 0 1 clip + + "+rangemx,lut=lut,Format=PixelType(a))
+
+    PropSet("_ColorRange", 0) }
 
 
 
@@ -1128,7 +1132,7 @@ function Vignette (clip c, float "Vignette", bool "show", bool "tv_range") {
 ### greyscale_rgb()
 ###
 ###
-### Properly convert RGB to luminance (gamma encoded)
+### Properly convert RGB to luminance (PC range gamma encoded)
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 TransformsPack
@@ -1222,8 +1226,8 @@ function GreyWorld(clip a) {
 function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range") {
 
     rgb  = isRGB(c)
-    rgbp = rgb ? isPlanar (c) : false
-    ID   = color_propGet(c)
+    rgbp = rgb ? isPlanar(c) : false
+    ID   = color_propGet (c)
 
     temp = Default(temperature, 6504)  # Target temperature in Kelvin units (Default: D65 == nop())
     mat  = Default(matrix,   ID[2] )
