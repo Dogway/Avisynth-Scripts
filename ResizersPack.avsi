@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.2    (08-01-2022)   ##
+###   Resizers Functions Pack 7.3    (26-01-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -207,8 +207,8 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     isy = isy()
     fch = isy || rgb || is444()
     mod = fch ? 1 : 2
-    fs  = propNumElements ("_ColorRange")  > 0 ? \
-          propGetInt      ("_ColorRange") == 0 : rgb
+    fs  = propNumElements("_ColorRange")  > 0 ? \
+          propGetInt     ("_ColorRange") == 0 : rgb
 
     l  = Default( left,   0 )
     t  = Default( top,    0 )
@@ -314,12 +314,10 @@ function nmod(val n, int "mod", val "min", int "dec", bool "bankers") {
 function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
 
     c
-    rgb = isRGB()
-    fch = rgb || isy() || is444()
     w   = width()
     h   = height()
 
-    mdh    = Default(modH, fch ? 1 : 2)
+    mdh    = Default(modH,   2)
     mdv    = Default(modV, mdh)
     md     = Default(mode, "auto")
     # borders: 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
