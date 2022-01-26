@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v6.3 (25-01-2022)               ##
+###           Grade Pack v6.4 (26-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -115,7 +115,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 
     } else {
 
-        if (sat==1 && sh==0) { last } else {
+        if (sat==1 && sh==0) { a } else {
 
         rangePCc = tv      ?        "range_max cmax cmin - / *"   : ""
         offset   = !bi32   ?        " 0.5 - "                     : ""
@@ -1167,7 +1167,7 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 
 ###
 ###
-### GreyWorld() - v1.0 (25-01-2022)
+### GreyWorld() - v1.1 (26-01-2022)
 ###
 ###
 ### Remove color cast, including extreme cases like underwater shots
@@ -1191,13 +1191,16 @@ function GreyWorld(clip a) {
 
     ScriptClip(a,function[bi,bi32,px] () {
 
-        U  = PlaneMinMaxStats(0, 0, 1, false)
-        V  = PlaneMinMaxStats(0, 0, 2, false)
+        U  = PlaneMinMaxStats(1, 0, 1, false)
+        V  = PlaneMinMaxStats(1, 0, 2, false)
         H  = bi32 ? 0 : ex_bs(128,  8, bi, true, float=true)
-        Ux = H - U[4]   Uf = U[4] + 0.5
-        Vy = H - V[4]   Vf = V[4] + 0.5
-        Us = abs(Ux) > abs(Vy) ? bi32 ? string(Uf / Vf)+" *" : "range_half - "+string(U[4] / V[4])+" * range_half +" : ""
-        Vs = abs(Ux) < abs(Vy) ? bi32 ? string(Vf / Uf)+" *" : "range_half - "+string(V[4] / U[4])+" * range_half +" : ""
+        Ux = H - U[4]
+        Vy = H - V[4]
+        Un = U[0] - U[4]   Um = U[1] - U[4]   Ud = min(abs(Un), abs(Um))
+        Vn = V[0] - V[4]   Vm = V[1] - V[4]   Vd = min(abs(Vn), abs(Vm))
+
+        Us = Ud > Vd ? bi32 ? string(Vd / Ud)+" *" : "range_half - "+string(Vd / Ud)+" * range_half +" : ""
+        Vs = Ud < Vd ? bi32 ? string(Ud / Vd)+" *" : "range_half - "+string(Ud / Vd)+" * range_half +" : ""
 
         Expr(last,SwapUV(),"",Format("x {Ux} + "+Us),Format("x {Vy} + "+Vs), Format=px) } ) }
 
