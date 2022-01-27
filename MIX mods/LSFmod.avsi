@@ -502,7 +502,7 @@
 ###
 ###
 ### preset="fast"   : - strength    = 50
-### ----------------- - Smode       = 3
+### ----------------- - Smode       = 4
 ###                   - Smethod     = 2
 ###
 ###                   - preblur     = "OFF"
@@ -573,7 +573,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
     #                                                                         LSF                  SLOW                 MEDIUM                  FAST
 
-    Smode       = Default( Smode,       Select(num,                             4 ,                  5 ,                  5 ,                  3 ) )
+    Smode       = Default( Smode,       Select(num,                             4 ,                  5 ,                  5 ,                  4 ) )
     ss_x        = Default( ss_x,        Select(num,     isHD?1.:Smode==4?1.5:1.25 ,                1.5 ,               1.25 ,               1.25 ) )
     ss_y        = Default( ss_y,        Select(num,                          ss_x ,               ss_x ,               ss_x ,               ss_x ) )
     dest_x      = Default( dest_x,      Select(num,                            ox ,                 ox ,                 ox ,                 ox ) )
