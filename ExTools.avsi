@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.2   (09-01-2022)                ##
+###           ExTools v7.3   (28-01-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -28,7 +28,7 @@
 ### fulls: Defines the source bitdepth scale (full/bitshift range) when converting from/to integer HBD formats (10, 12, 14, 16)
 ###        ConvertBits() defaults to false for YUV, same in ExTools if frame properties are not present.
 ###
-### Dependencies: AviSynth+ 3.7.1 (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.7.1+ (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -160,12 +160,35 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 #    (
 #    clip,
 #    clip,
-#    string "metric"="none" ("none" / "ME" / "MAE" / "SMAE" / "MAD" / "MAD2" / "MSE" / "MSLE" / "RMSE" / "PSNR" / "CHAR" / "OkMSE" / "RedMe" / "R2" / "ZTest" / "SSIM" / "BSSIM" / "GMSD" / "BUTT" / "MDSI"),
+#    string "metric"="none" ("none" / "ALL" / "--" / "ME" / "MAE" / "SMAE" / "MAD" / "MAD2" / "MSE" / "MSLE" / "RMSE" / "--" / "OkMSE" / "RedMe" / "R2" / "ZTest" / "--" / "PSNR" / "SSIM" / "BSSIM" / "GMSD" / "MDSI" / "BUTT" / "CHAR"),
 #    bool "aug"=false,
 #    bool "dif"=false,
 #    int "show"=2,
 #    )
 #
+# modes:
+# error = e = (predicted - observed) or (distorted - reference) = x - y
+# ME      - Mean Error or Bias. M(e). Measures additive bias in the error
+# MAE     - Mean Absolute Error -Manhattan or L1 norm-. M(|e|). Measures additive bias in the error but in a magnitude scale without sign
+# SMAE    - Smooth Mean Absolute Error or Huber Loss. Same as MAE but less sensitive to outliers. It performs like MAE with low error and like MSE with high error
+# MAD     - Mean Absolute Deviation
+# MAD2    - Median Absolute Deviation. median(|e-median(|e|)|). Similar to a standard deviation but more robust to outliers by replacing the means of squares with median of absolutes
+# MSE     - Mean Square Error / SSR / Quadratic Loss. Sometimes also erroneously labeled L2 norm. M(e^2) Gives more weight to large deviations or outliers
+# MSLE    - Mean Square Log Error. Gives less weight to large deviations or outliers. Useful when dealing with right skewed references
+# RMSLE   - Not implemented
+# RMSE    - Root Mean Squared Error / Standard Error / SRSS -Euclidean or L2 norm-. sqrt(M(e^2)). Gives more weight to large deviations or outliers. Same as MSE but rooted to normalize the units
+# PSNR    - Peak Signal-to-Noise Ratio
+# CHAR    - Charbonnier -L1-L2 loss-
+# OkMSE   - Euclidean Distance -RMSE- in OkLab
+# RedMean - RedMean -sRGB fast metric-
+# R2      - Coefficient of determination. Measure of the ratio of variability between the distorted and the reference
+# ZTest   - Two Sample Z-Test / Z-Score -Difference of Means of Distributions-
+# SSIM    - Structural SIMilarity
+# BSSIM   - Structural SIMilarity for Blurred
+# GMSD    - Gradient Magnitude Similarity Deviation
+# BUTT    - Butteraugli
+# MDSI    - Mean Deviation Similarity Index. IQA model that utilizes gradient similarity (GS), chromaticity similarity (CS), and deviation pooling (DP)
+
 function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", string "metric", int "show", int "Y", int "UV", bool "fulls", bool "clamp_float", string "scale_inputs") {
 
     rgb  = isRGB(a)
@@ -177,10 +200,11 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     Daug = Defined(aug)     Baug = isBool(aug)
     met  = Daug && !Baug ? aug == -1 ? "ALL" : "none" : "none"
     dif  = Default(dif,        bi!=32)
-    tv   = Default(tv_range,    false)   # Enable to mimic Subtract(), "ygrey" centered instead of "range_half" (only applied to luma plane)
+    tv   = Default(tv_range,    false)   # Enable to mimic Subtract(), "ygrey" centered instead of "range_half" (only applies to luma plane)
     fs   = Default(fulls,          fs)
     cf   = Default(clamp_float, false)
     mcf  = Default(metric,        met)   # "ALL", "none" or "metric_name".
+    mcf  = mcf=="--" ? "none" : mcf
     out  = Default(show,            2)   # Output clip to return when 'metric' is defined. 0: clip 'a'  1: clip 'b'  2: diff subtitled (no frameprops)
     aug  = Daug ? Baug ? aug ? 50 : -1 : aug == -1 ? 50 : aug : mcf == "none" ? 0 : 50
     Y    = Default(Y,               3)
@@ -343,7 +367,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                          +"PlaneMDSI:\n",lsp=4)
                 Subtitle(  String(propGetFloat(y,"_PlaneME"   ))  +"   (Mean Error or Bias)\n"                             \
                          + String(propGetFloat(y,"_PlaneMAE"  ))  +"   (Mean Absolute Error -Manhattan or L1 norm-)\n"     \
-                         + String(propGetFloat(y,"_PlaneSMAE" ))  +"   (Smooth Mean Absolute Error)\n"                     \
+                         + String(propGetFloat(y,"_PlaneSMAE" ))  +"   (Smooth Mean Absolute Error -Huber Loss-)\n"        \
                          + String(propGetFloat(y,"_PlaneMAD"  ))  +"   (Mean Absolute Deviation)\n"                        \
                          + String(propGetFloat(y,"_PlaneMAD2" ))  +"   (Median Absolute Deviation)\n"                      \
                          + String(propGetFloat(y,"_PlaneMSE"  ))  +"   (Mean Square Error / SSR)\n"                        \
@@ -502,7 +526,8 @@ function ex_merge(clip a, clip b, clip msk, bool "luma", int "Y", int "UV") {
           height(msk)!=height(a)      ? \
           mskY_to_YYY(a, msk, lm, rgb, UV, bi) : msk
 
-     str = bi == 32 ? "x dup y - z * -" : "x dup y - z range_max / * -"
+    mr  = bi  > 14 ? "range_max /"     : string(1. / Eval(ex_dlut("range_max", bi))) + " *"
+    str = bi == 32 ? "x dup y - z * -" : "x dup y - z "+mr+" * -"
 
     cstr = ex_UVexpr( str, UV, bi, rgb, un, si)
     ystr = ex_Yexpr ( str,  Y, bi, rgb, un, si)
@@ -829,7 +854,7 @@ function ex_invert(clip a, bool "tv_range", int "UV") {
 # Example for a zone plate (0.8 is the scale):
 #     ex_lutspa(Format("f32 x width 0.5 * - 2 ^ y height 0.5 * - 2 ^ + E@ pi 0.8 * * width 2 * / sin width E sqrt - width 0.1 * / "+tanhT()+" 0.5 * 0.5 + * 1 + 0.5 *"), scale_inputs="all")
 #
-function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV", string "scale_inputs", bool "clamp_float", bool "fulld") {
+function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulld") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -837,15 +862,18 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV
     isc  = Defined(cexpr)
 
     str  = Default(expr,  "")
+    Lstr = LCase(" "+str)
     cstr = Default(cexpr, str)
-    mix  = FindStr(LCase(" "+str), " sx") > 0 || FindStr(LCase(" "+str), " sy") > 0
+    Lcst = LCase(" "+cstr)
+    mix  = FindStr(Lstr, " sx") > 0 || FindStr(Lstr, " sy") > 0 || FindStr(Lcst, " sx") > 0 || FindStr(Lcst, " sy") > 0
     mode = Default(mode, mix ? "mix" : "absolute")
+    Y    = Default(Y,          3)
     UV   = Default(UV,   rgb ? 3 : 128)
     cf   = Default(clamp_float, false)
     fd   = Default(fulld,        true)
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    tem  = FindStr(LCase(str), "frameno")  > 0 || FindStr(LCase(str), "time") > 0
+    tem  = FindStr(Lstr, " frameno")  > 0 || FindStr(Lstr, " time") > 0 || FindStr(Lcst, " frameno")  > 0 || FindStr(Lcst, " time") > 0
 
     str  = mode=="absolute" ? ReplaceStr(ReplaceStr(" "+str+" " ," y "," sy " ), " x ", " sx " )  : \
            mode=="relative" ? ReplaceStr(ReplaceStr(" "+str+" " ," y "," syr "), " x ", " sxr ")  : \
@@ -857,12 +885,13 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "UV
                               Assert (false, "ex_lutspa: Unsupported mode.")
 
     cstr = ex_UVexpr(cstr, UV, bi, rgb, fd, si, isc)
-    str  = ex_Yexpr(  str,  3, bi, rgb, fd, si)
+    str  = ex_Yexpr(  str,  Y, bi, rgb, fd, si)
 
     isy     ?  Expr(a, str      , scale_inputs=si, clamp_float=cf ) : \
     UV == 1 ?  Expr(a, str, ""  , scale_inputs=si, clamp_float=cf ) : \
                Expr(a, str, cstr, scale_inputs=si, clamp_float=cf )
-    tem     ?  last : trim(last,0,-1).Loop(FrameCount(a))
+    UV < 3 || \
+    Y  < 3 ||  tem ? last : trim(last,0,-1).Loop(FrameCount(a))
                PropSet("_ColorRange", fd?0:1)                     }
 
 
@@ -1641,7 +1670,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 2)
 
-    # Reparametrization to gaussian like standard deviation via piecewise multi-regression fit
+    # Reparametrization to gaussian like standard deviation via piecewise multivariate regression
     py = "a1   = -0.000484987*pow(rd, -0.0101*rd+3.86267)-5.58416
           a1   = rd < 28.5 ? a1 : -6.28157*rd+96.4469
           c1   = -0.00628214*(rd*rd)+0.126164*rd-1.43351
@@ -1813,7 +1842,7 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
 #    int radT=1 (0 to 3 by 1),
 #    int th=7 (0 to 255 by 1),
 #    int Tth=7 (0 to 255 by 1),
-#    bool "sharp"=true, ; disable to use output as a prefilter
+#    bool "sharp"=true,
 #    )
 #
 function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", bool "sharp", int "UV") {
@@ -1827,7 +1856,7 @@ function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", boo
     sth = Default( th,    7)           # Spatial  Hard threshold
     tth = Default(Tth,    0)           # Temporal Soft threshold (I don't recommend going higher than 0, except if passed through a motion mask)
     UV  = Default(UV,    rgb ? 3 : 1)
-    sh  = Default(sharp, true)
+    sh  = Default(sharp, true)         # Disable to use output as a prefilter
 
     rd = min(rd,3)
     rt = min(rt,3)
@@ -1874,7 +1903,7 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
     wa  = aw/100.
     wr  = 1 - wa
 
-    Assert(IsVersionOrGreater(3,7,1), "STTWM: Update AviSynth+ version to 3.7.1+")
+    Assert(IsVersionOrGreater(3,7,1), "STTWM: Update AviSynth+ version")
 
     str =  Format(                                         \
            "x[-1,1]  x[1,1]       dup1 dup1 min K^ max P^
@@ -2011,11 +2040,12 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 ##
 ## Recommended: EMF, smart1/2/3, IQM/5/T, CAM, edgeCL, cartoon, DGM1, ML3D and STWM
 #
-# 61 modes (with '*' own algos):
+# 62 modes (with '*' own algos):
 # undot(1)   - Also called "conservative", removes 1 pixel "salt'n'pepper" impulsive noise            -removegrain(1)-
 # undot2     - Same as undot but clip up to the second closest minimum values. Prune 1x2 pixels       -removegrain(2)-
 # undot3     - Same as undot but clip up to the third  closest minimum values. Prune 3 pixel clusters -removegrain(3)-
 # undot4     - Same as undot but clip up to the fourth closest minimum values. Prune 2x2 pixels       -removegrain(4)- *Same as 'median'
+# undot6     - Median of 2x3 -upper and lower rows- (alike vsDegrainMedian(norows=true). Useful for 'ghosting' like artifacts after deblending field blends. Port from @Colours' source: https://gist.github.com/torchlight/5b5df916c5a7a7b00204
 #*unblob3    - Same as undot3 but over a 5x5   kernel matrix.                                                          *Maybe suited for HD/UHD sources
 #*unblob3D   - Same as undot3 but over a 3x3x3 kernel matrix.                      (Spatio-Temporal, Motion Protected) *Similar output to 'unblob3'
 # median     - True median. Replace with kernel middle value (3x3 kernel)                             -removegrain(4)- *Same as 'undot4'
@@ -2082,7 +2112,7 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 # Function Definition:
 #    (
 #    clip,
-#    string "mode"="median" ("undot" / "undot2" / "undot3" / "unblob3" / "unblob3D" / "median" / "median5" / "median7" / "median7o" / "smart" / "smart2" / "smart3" / "midsum" / "Winsor" / "Winsor5" / "Trimean" / "Trimean5" / "IQM" / "IQM5" / "IQMT" / "EMF" / "CWM" / "CWM2" / "WMF" / "AWM" / "PWM" / "RMF" / "AMF" / "CAM" / "SNN" / "kuwahara" / "edgeW" / "edgeS" / "edgeC" / "edgeCL" / "cartoon" / "vertical" / "verticalS" / "horizontal" / "horizontalS" / "GaussT5" / "GaussST5" / "medianT" / "medianT5" / "medianST" / "medianSTS" / "SixNN" / "STWM" / "PML" / "TL3D" / "ML3D" / "ML3Dex" / "Hybrid" / "BDM" / "MMF" / "DGM0" / "DGM1" / "DGM2" / "DGM3" / "DGM4" / "DGM5"),
+#    string "mode"="median" ("undot" / "undot2" / "undot3" / "undot4" / "undot6" / "unblob3" / "unblob3D" / "--" / "median" / "median5" / "median7" / "median7o" / "--" / "smart" / "smart2" / "smart3" / "--" / "midsum" / "Winsor" / "Winsor5" / "Trimean" / "Trimean5" / "IQM" / "IQM5" / "--" / "EMF" / "CWM" / "CWM2" / "WMF" / "AWM" / "PWM" / "RMF" / "AMF" / "CAM" / "SNN" / "kuwahara" / "--" / "edgeW" / "edgeS" / "edgeC" / "edgeCL" / "cartoon" / "--" / "vertical" / "verticalS" / "horizontal" / "horizontalS" / "--" / "GaussT5" / "GaussST5" / "IQMT" / "medianT" / "medianT5" / "medianST" / "medianSTS" / "SixNN" / "STWM" / "PML" / "TL3D" / "ML3D" / "ML3Dex" / "Hybrid" / "BDM" / "MMF" / "--" / "DGM0" / "DGM1" / "DGM2" / "DGM3" / "DGM4" / "DGM5"),
 #    float "thres"=255.0 (0.0 to 255.0 by 1.0),
 #    bool "recursion"=false,
 #    )
@@ -2095,35 +2125,35 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 
     mode = Default(mode,     "median")
     mode = ReplaceStr(UCase(mode)," ","")
-    rc   = Default(recursion,   false)                    # Use recursion for temporal modes. Performance penalty for little improvement though
+    rc   = Default(recursion,   false)                          # Use recursion for temporal modes. Performance penalty for little improvement though
     Y    = Default( Y,          3)
     UV   = Default(UV,    rgb ? 3 : 1)
     un   = Undefined()
     smart= FindStr(mode,"SMART")>0
+    DGM  = FindStr(mode,"DGM"  )>0
     thr  = Default(thres, mode=="EMF"           ?   9 : \
                           mode=="smart"         ?  50 : \
                           mode=="smart1"        ?  50 : \
                           mode=="smart2"        ? 128 : \
                           mode=="smart3"        ? 128 : \
-                          FindStr(mode,"DGM")>0 ?   4 : \
-                          mode=="SNN"           ?  20 : 255)    # Absolute Error threshold. For all modes.
+                          mode=="SNN"           ?  20 : \
+                          DGM                   ?   4 : 255)    # Absolute Error threshold. For all modes
 
-    # Beware 'smart' mode threshold doesn't hold up between 8-bit and HBD
-    th = smart         && bi >  8? bi == 32        ? \
-         ex_bs(          thr-5, 8, bi, fulls=true) : \
-         ex_bs(pow(2,bi-8)*thr, 8, bi, fulls=true) : \
-         ex_bs(            thr, 8, bi, fulls=true)
+    th   = ex_bs(thr, 8, bi, fulls=true)
+
 
     # Soft threshold
     bias =        min(2*cos(pi+2*pi*thr/255.)+2,1)*20           # Minimize soft threshold spread on extremes
     thr1 = ex_bs( max(thr-10 - bias,   0), 8, bi, fulls=true)
     thr2 = ex_bs( min(thr+10 + bias, 255), 8, bi, fulls=true)
-    ths = mode!="EMF" && mode!="SNN" && !smart && FindStr(mode,"DGM")==0 && thr != 255 ?                                                  \
+    ths = mode!="EMF" && mode!="SNN" && !smart && !DGM && thr != 255 ?                                                  \
           Format(" x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -") : ""
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_median: Update AviSynth+ version to 3.7.1+")
+    Assert(IsVersionOrGreater(3,7,1), "ex_median: Update AviSynth+ version")
 
     str =                                                                                                                                                                       \
+        mode == "--"     ? "x"                                                                                                                                                : \
+                                                                                                                                                                                \
         mode == "median5"? "x[-2,-2] x[-2,-1]     dup1 dup1 min D^ max X^
                             x[-2,0]  x[-2,1]      dup1 dup1 min L^ max W^
                             x[-2,2]  x[-1,-2]     dup1 dup1 min H^ max V^
@@ -3056,6 +3086,12 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                                                   dup1 dup1 max swap2 min
                             x swap2 clip"+ths                                                                                                                       : \
                                                                                                                                                                       \
+        mode == "undot6" ? "x[-1,-1] A@     x[1,-1] B@ max x[0,-1] C@ max
+                            x[-1,1]  D@ max x[1,1]  E@ max x[0,1]  F@ max M^
+                            A B min C min D min E min F min
+
+                            x swap M clip "+ths                                                                                                                     : \
+                                                                                                                                                                      \
         mode == "IQM"    ? "x[-1,-1] x[-1,0]      dup1 dup1 min swap2 max
                             x[-1,1] x[0,-1]       dup1 dup1 min swap2 max
                             x[1,1] x[0,1]         dup1 dup1 min swap2 max
@@ -3703,7 +3739,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                             swap2                                     max
                                                   dup1 dup1 min swap2 max
                             E^ D^ H^
-                              W - dup * H W - dup * + 0.79 *
+                              W - dup * H W - dup * + sqrt 13 *
                               x - abs {th} <= x D E clip x ?")                                                                                                      : \
                                                                                                                                                                       \
         mode == "smart2" ?   Format(ex_shape(2,center=false,pop=false)+"
@@ -3790,7 +3826,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                             V Z                                    max
                             A C                             min
 
-                              Y - dup * swap Y - dup * + 0.79 *
+                              Y - dup * swap Y - dup * + sqrt 13 *
                               x - abs {th} <= x L M clip x ?")                                                                                                      : \
                                                                                                                                                                       \
         mode == "smart3" ?   Format(ex_shape(3,center=false,pop=false)+"
@@ -4107,7 +4143,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                             A G min D J min        dup1 dup1 min A^ max D^
                             C I min F L min min A min B H min E K min min D min min
 
-                            Y - dup * YY Y - dup * + 0.79 *
+                            Y - dup * YY Y - dup * + sqrt 13 *
                             x - abs {th} <= x Z AA clip x ?")                                                                                                       : \
                                                                                                                                                                       \
         mode == "CWM" ?    "x[-1,1] x[0,1]        dup1 dup1 min I^ max J^
@@ -5331,7 +5367,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
     UV   = Default(UV,    rgb ? 3 : 1)
     un   = Undefined()
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_repair: Update AviSynth+ version to 3.7.1+")
+    Assert(IsVersionOrGreater(3,7,1), "ex_repair: Update AviSynth+ version")
 
     str =                                                                                                                                                            \
                                                                                                                                                                      \
@@ -5843,7 +5879,7 @@ function ex_inpand(clip a, int "radius", string "mode", int "thres", int "UV") {
     UV   = Default(UV,    rgb ? 3 : 1)
     un   = Undefined()
 
-    th  = ex_bs(thr, 8, bi, fulls=true)
+    th   = ex_bs(thr, 8, bi, fulls=true)
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -5986,7 +6022,7 @@ function ex_inflate(clip a, int "radius", int "UV") {
 #    (
 #    clip,
 #    int iter=1 (1 to 50 by 1),
-#    string "mode"="thin" ("thin" / "thicken" / "prune" / "pruneS" / "end" / "undot" / "inline" / "outline" / "boundary" / "convexhull" / "convexhull45" / "corner" / "cornerS" / "junction" / "4-connected" / "8-connected" / "4x4"),
+#    string "mode"="thin" ("thin" / "thicken" / "--" / "prune" / "pruneS" / "undot" / "4x4" / "--" / "inline" / "outline" / "boundary" / "--" / "convexhull" / "convexhull45" / "--" / "end" / "corner" / "cornerS" / "junction" / "4-connected" / "8-connected"),
 #    )
 #
 function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
@@ -6000,7 +6036,7 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
     UV = Default(UV,    rgb ? 3 : 1)
     un = Undefined()
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_hitormiss: Update AviSynth+ version to 3.7.1+")
+    Assert(IsVersionOrGreater(3,7,1), "ex_hitormiss: Update AviSynth+ version")
     !(md == "thin" || md == "thicken" || md == "prune" || md == "pruneS" || md == "convexhull" || md == "convexhull45" || md == "4x4") ? \
     Assert(rd == 1, "ex_hitormiss: "+md+" mode only supports radius=1") : nop()
 
@@ -6189,8 +6225,8 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 # Recommended: hotdog, qprewitt, kroon, frei-chen, and FDoG (slow)
 #
 # 31 modes:
-# tritical  - (2d) Plain and simple        orthogonal first order derivative
-# hotdog    - (2d) Plain and simple angled orthogonal first order derivative. Very fast yet high quality edge detection. (own derivative)
+# tritical  - (2d) Plain and simple orthogonal first order derivative
+# hotdog    - (2d) Plain and simple cross      first order derivative. Very fast yet high quality edge detection. (own derivative)
 # prewitt   - (4d) Technically, a discrete differentiation operator, an approximation of the gradient magnitude in 45º increments. Optimized with partial derivatives like in all modes.
 # hprewitt  - (2d) Half Prewitt
 # qprewitt  - (2d) Quarter Prewitt. Same as 'hprewitt' but using Euclidean distance output. Very similar to 'prewitt' but much faster
@@ -6198,28 +6234,28 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 # sobel5    - (2d) Stronger sobel as appeared in LSharpAAF()
 # mt_sobel  - (2d) masktools2 simplified version of the sobel operator
 # pscharr   - (2d) Original simplified Scharr operator which attempts to achieve the perfect rotational symmetry with coefficients 3 and 10
-# scharr    - (2d) Refined scharr operator to more accurately calculate 1st derivatives for a 3x3 kernel with coeffs 47 and 162
+# scharr    - (2d) Refined Scharr operator to more accurately calculate 1st derivatives for a 3x3 kernel with coeffs 47 and 162
 # frei-chen - (2d) Isotropic version of the frei-chen operator. Better than Scharr for noisy sources. With coefficients 1 and sqrt(2) (also seen as 7 and 10 for integer calculations)
 # farid     - (2d) Farid & Simoncelli 3x3 rotationally invariant derivative filter. Lightly worse than refined 'scharr'
 # farid5    - (2d) Same as 'farid' but over a 5x5 kernel. There's also a 7x7 farid kernel which is almost rotation-invariant perfect, but it is slow even if in separable form
 # kroon     - (2d) kroon operator with ideal coefficients 17 and 61. Better than 'farid' and slightly better than 'farid5' -> http://waynegm.github.io/OpendTect-Plugin-Docs/plugins/GradientAttrib.html
-# roberts   - (1d) Roberts Cross edge detector
+# roberts   - (1d) Roberts Cross 2x2 edge detector
+# cartoon   - (1d) like 'roberts', but takes only negative edges into account
 # kayyali   - (1d) kayyali SENW
 # robinson  - (4d) Robinson compass mask
+# kirsch    - (4d) or Kirsch compass kernel is a non-linear edge detector that finds the maximum edge strength in 45º increments. Coefficients 3 and 5
+# TEdge     - Port of TEdgeMask plugin's kernel. Uses a 'plus' kernel with coefficients 12 and 74 so good for orthographic lines
 # FDoG      - (2d) Flow-based Difference of Gaussians
 # DoG       - zero-cross (of the 2nd derivative) of a Difference of Gaussians
 # DoB       - zero-cross (of the 2nd derivative) of a Difference of Boxes
 # LoG       - zero-cross (of the 2nd derivative) of a Laplacian of Gaussian
-# Std       - Standard Deviation
 # laplace   - Laplace
-# cartoon   - (1d) like 'roberts', but takes only negative edges into account
-# TEdge     - Port of TEdgeMask plugin's kernel. Uses a 'plus' kernel with coefficients 12 and 74 so good for orthographic lines.
+# Std       - Standard Deviation
 # min/max   - Gradient magnitude. zero-cross (of the 2nd derivative) of: (dilation - erosion)
 # max       - MAE (Maximum Absolute Error)
 # SG        - Savitzky-Golay (?) first derivative
 # SGDD      - (2d) Savitzky-Golay Digital Differentiator cubic first derivative with 5x5 kernel
 # SGDD7     - (2d) Savitzky-Golay Digital Differentiator cubic first derivative with 7x7 kernel
-# kirsch    - (4d) or Kirsch compass kernel is a non-linear edge detector that finds the maximum edge strength in 45º increments. Coefficients 3 and 5
 #
 # Function Definition:
 #    (
@@ -6387,28 +6423,29 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 
 
 
-# Performs declared expression with 'mode' mode from clip 'a' to neighbour pixels defined in 'pixels' of clip 'b' (or 'a' if 'b' is undefined)
-# In other words, it's like a do-it-all powerhorse convolution filter whereas otherwise would take several calls and a performance penalty.
-#
-# !! Beware, don't write variables in the expressions with capital letters (ie. A@), unless you want to call X or Y in 'exprf'
-#    use instead lower case preceded with underscore (ie. _var@)
-#
-# Some examples:
-#   ex_luts(mode="med",pixels=ex_shape(3))  -> ex_median("median7")
-#   ex_luts(mode="avg",pixels=ex_shape(3))  -> ex_boxblur(3,mode="mean")
-#   ex_luts(mode="avg",exprf="x max")       -> ex_boxblur(1,mode="mean").ex_logic(a,"max") -> ex_inflate()
-#   ex_luts(mode="avg",exprf="x min")       -> ex_boxblur(1,mode="mean").ex_logic(a,"min") -> ex_deflate()
-#   ex_luts(mode="max",pixels=ex_shape(2))  -> ex_expand(2)
-#   ex_luts(mode="min",pixels=ex_shape(2))  -> ex_inpand(2)
-#   ex_luts(mode="rng",pixels=ex_shape(1))  -> ex_edge(mode="min/max")
-#   ex_luts(a,ex_blur(),mode="clp")         -> ex_clamp(a,ex_blur().ex_expand(),ex_blur().ex_inpand())
-#
-# For more check Morphological examples above at line: 5585
+###
+### Performs declared expression with 'mode' mode from clip 'a' to neighbour pixels defined in 'pixels' of clip 'b' (or 'a' if 'b' is undefined)
+### In other words, it's like a do-it-all powerhorse convolution filter whereas otherwise would take several calls and a performance penalty.
+###
+### !! Beware, don't write variables in the expressions with capital letters (ie. A@), unless you want to call X or Y in 'exprf'
+###    use instead lower case preceded with underscore (ie. _var@)
+###
+### Some examples:
+###   ex_luts(mode="med",pixels=ex_shape(3))  -> ex_median("median7")
+###   ex_luts(mode="avg",pixels=ex_shape(3))  -> ex_boxblur(3,mode="mean")
+###   ex_luts(mode="avg",exprf="x max")       -> ex_boxblur(1,mode="mean").ex_logic(a,"max") -> ex_inflate()
+###   ex_luts(mode="avg",exprf="x min")       -> ex_boxblur(1,mode="mean").ex_logic(a,"min") -> ex_deflate()
+###   ex_luts(mode="max",pixels=ex_shape(2))  -> ex_expand(2)
+###   ex_luts(mode="min",pixels=ex_shape(2))  -> ex_inpand(2)
+###   ex_luts(mode="rng",pixels=ex_shape(1))  -> ex_edge(mode="min/max")
+###   ex_luts(a,ex_blur(),mode="clp")         -> ex_clamp(a,ex_blur().ex_expand(),ex_blur().ex_inpand())
+###
+### For more check Morphological examples above at line: 5585
 ###
 ### Function Definition:
 ###    (
 ###    clip,
-###    string "mode"="avg" ("average" / "median" / "max" / "min" / "clip" / "boundary" / "inline" / "outline" / "stdev"),
+###    string "mode"="avg" ("average" / "median" / "--" / "min" / "max" / "minmax" / "--" / "boundary" / "inline" / "outline" / "--" / "clamp" / "stdev"),
 ###    string "pixels"=ex_shape(),
 ###    )
 ###
@@ -6434,15 +6471,20 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
     md = md == "average"   ? "avg"          : \
+         md == "mean"      ? "avg"          : \
          md == "maximum"   ? "max"          : \
          md == "minimum"   ? "min"          : \
-         md == "clip"      ? "clp"          : \
          md == "clamp"     ? "clp"          : \
+         md == "clip"      ? "clp"          : \
          md == "boundary"  ? "rng"          : \
          md == "range"     ? "rng"          : \
          md == "range-"    ? "rngmin"       : \
+         md == "rng-"      ? "rngmin"       : \
          md == "range+"    ? "rngmax"       : \
+         md == "rng+"      ? "rngmax"       : \
          md == "min/max"   ? "rng"          : \
+         md == "min+max"   ? "minmax"       : \
+         md == "minmax"    ? "minmax"       : \
          md == "inline"    ? "rngmin"       : \
          md == "outline"   ? "rngmax"       : \
          md == "stdev"     ? "std"          : \
@@ -6453,6 +6495,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
          md == "max"   ? " max "            : \
          md == "min"   ? " min "            : \
          md == "clp"   ? " max "            : \
+         md == "minmax"? " max "            : \
          md == "rng"   ? " max "            : \
          md == "rngmin"? " min "            : \
          md == "rngmax"? " max "            : \
@@ -6500,14 +6543,15 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
         exprS = exprS + string(1./in) + " * XX^ " + expr + exprY + exprX
         exprM = nex ? " "                         : expr + exprY + exprX
 
-    expr = md == "clp"    ? px + " x " + expr + exprY + " min " + ReplaceStr(expr      +exprY, "max", "min") + " max " + exprf : \
-           md == "rng"    ? px + expr + exprY + exprX           + ReplaceStr(expr+exprX+exprY, "max", "min") + " - "   + exprf : \
-           md == "rngmin" ? px + expr + exprY + exprX + " X swap - "                                                   + exprf : \
-           md == "rngmax" ? px + expr + exprY + exprX + " X  - "                                                       + exprf : \
-           md == "avg"    ? px + expr + exprY + exprX + string(1./in) + " * "                                          + exprf : \
-           md == "std"    ? px + exprS                + string(1./in) + " * sqrt "                                     + exprf : \
-           md == "med"    ? px + exprM                + med                                                            + exprf : \
-                            px + expr + exprY + exprX                                                                  + exprf
+    expr = md == "clp"    ? px + " x " + expr + exprY + " min " + ReplaceStr(expr      +exprY, "max", "min") + " max "    + exprf : \
+           md == "minmax" ? px + expr + exprY +                   ReplaceStr(expr      +exprY, "max", "min") + " + 0.5 *" + exprf : \
+           md == "rng"    ? px + expr + exprY + exprX           + ReplaceStr(expr+exprX+exprY, "max", "min") + " - "      + exprf : \
+           md == "rngmin" ? px + expr + exprY + exprX + " X swap - "                                                      + exprf : \
+           md == "rngmax" ? px + expr + exprY + exprX + " X  - "                                                          + exprf : \
+           md == "avg"    ? px + expr + exprY + exprX + string(1./in) + " * "                                             + exprf : \
+           md == "std"    ? px + exprS                + string(1./in) + " * sqrt "                                        + exprf : \
+           md == "med"    ? px + exprM                + med                                                               + exprf : \
+                            px + expr + exprY + exprX                                                                     + exprf
 
     expr = ReplaceStr(expr, "  ", " ")
 
@@ -6526,7 +6570,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
 
 
 
-### Outputs a string with the kernel shape in 'shape'
+### Outputs a string with the kernel shape in 'mode'
 ###
 ### Function Definition:
 ###    (
@@ -6790,7 +6834,7 @@ function ex_UVf(bool rgb, int bits) {
 
 # Pixel Value Converter (unsigned)
 # Convert values from one bitdepth to another or/and from one scale to another or/and from one (luma) range to another
-function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", bool "tv_in", bool "tv_out", bool "float") {
+function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", bool "tv_in", bool "tv_out", bool "flt") {
 
     ibi = Default(ibits,    8)
     obi = Default(obits,   16)
@@ -6799,7 +6843,7 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
     tvo = Default(tv_out,  false)
     fs  = Default(fulls,      !tvi)      # fulls
     fd  = Default(fulld, tv ? !tvo : fs) # fulld
-    fl  = Default(float,  obi==32)       # force float output
+    fl  = Default(flt,    obi==32)       # force float output
 
     ibi  = min(max(8,ibi),32)  ibi = ibi-ibi%2
     obi  = min(max(8,obi),32)  obi = obi-obi%2
@@ -6852,19 +6896,19 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 \   :  Assert (false, "ex_dlut: "+string(bits)+": Unsupported bit depth.")
 
 
-    #                            8-bit UINT      10-bit UINT          12-bit UINT          14-bit UINT            16-bit UINT         24-bit UINT               32-bit Ufloat (by default AVS+ constants are signed)
-    range_min   = Select (bitd,  [  0.,  0.],    [   0.,   0.],       [   0.,   0.],       [    0.,    0.],       [    0.,    0.],    [       0.,       0.],    [       0.,       0.])
-    ymin        = Select (bitd,  [ 16., 16.],    [  64.,  64.],       [ 256., 257.],       [ 1024., 1028.],       [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
-    cmin        = Select (bitd,  [ 16., 16.],    [  64.,  64.],       [ 256., 257.],       [ 1024., 1028.],       [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
-    ygrey       = Select (bitd,  [126.,126.],    [ 502., 504.],       [2008.,2016.],       [ 8032., 8063.],       [32128.,32254.],    [ 8224768., 8256896.],    [ 125.5/255.,125.5/255.])
-    range_half  = Select (bitd,  [128.,128.],    [ 512., 514.],       [2048.,2056.],       [ 8192., 8224.],       [32768.,32896.],    [ 8388608., 8421376.],    [ 128/255., 128/255.])
-    yrange      = Select (bitd,  [219.,219.],    [ 876., 879.],       [3504.,3517.],       [14016.,14070.],       [56064.,56283.],    [14352384.,14408448.],    [ 219/255., 219/255.])
-    crange      = Select (bitd,  [224.,224.],    [ 896., 899.],       [3584.,3598.],       [14336.,14392.],       [57344.,57568.],    [14680064.,14737408.],    [ 224/255., 224/255.])
-    ymax        = Select (bitd,  [235.,235.],    [ 940., 943.],       [3760.,3774.],       [15040.,15098.],       [60160.,60395.],    [15400960.,15461120.],    [ 235/255., 235/255.])
-    cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],       [3840.,3855.],       [15360.,15420.],       [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
-    range_max   = Select (bitd,  [255.,255.],    [1023.,1023.],       [4095.,4095.],       [16383.,16383.],       [65535.,65535.],    [16776960.,16776960.],    [       1.,       1.])
-    range_size  = Select (bitd,  [256.,256.],    [1024.,1024.],       [4096.,4096.],       [16384.,16384.],       [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
-#   vmax        = Select (bitd,  [255.,255.],    [1020.,1020.],       [4080.,4080.],       [16320.,16320.],       [65280.,65280.],    [16711680.,16711680.],    [       1.,       1.]) # Legal upper bound for video signal
+    #                            8-bit UINT      10-bit UINT       12-bit UINT       14-bit UINT         16-bit UINT         24-bit UINT               32-bit Ufloat (by default AVS+ constants are signed)
+    range_min   = Select (bitd,  [  0.,  0.],    [   0.,   0.],    [   0.,   0.],    [    0.,    0.],    [    0.,    0.],    [       0.,       0.],    [       0.,       0.])
+    ymin        = Select (bitd,  [ 16., 16.],    [  64.,  64.],    [ 256., 257.],    [ 1024., 1028.],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
+    cmin        = Select (bitd,  [ 16., 16.],    [  64.,  64.],    [ 256., 257.],    [ 1024., 1028.],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
+    ygrey       = Select (bitd,  [126.,126.],    [ 502., 504.],    [2008.,2016.],    [ 8032., 8063.],    [32128.,32254.],    [ 8224768., 8256896.],    [ 125.5/255.,125.5/255.])
+    range_half  = Select (bitd,  [128.,128.],    [ 512., 514.],    [2048.,2056.],    [ 8192., 8224.],    [32768.,32896.],    [ 8388608., 8421376.],    [ 128/255., 128/255.])
+    yrange      = Select (bitd,  [219.,219.],    [ 876., 879.],    [3504.,3517.],    [14016.,14070.],    [56064.,56283.],    [14352384.,14408448.],    [ 219/255., 219/255.])
+    crange      = Select (bitd,  [224.,224.],    [ 896., 899.],    [3584.,3598.],    [14336.,14392.],    [57344.,57568.],    [14680064.,14737408.],    [ 224/255., 224/255.])
+    ymax        = Select (bitd,  [235.,235.],    [ 940., 943.],    [3760.,3774.],    [15040.,15098.],    [60160.,60395.],    [15400960.,15461120.],    [ 235/255., 235/255.])
+    cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],    [3840.,3855.],    [15360.,15420.],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
+    range_max   = Select (bitd,  [255.,255.],    [1023.,1023.],    [4095.,4095.],    [16383.,16383.],    [65535.,65535.],    [16776960.,16776960.],    [       1.,       1.])
+    range_size  = Select (bitd,  [256.,256.],    [1024.,1024.],    [4096.,4096.],    [16384.,16384.],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
+#   vmax        = Select (bitd,  [255.,255.],    [1020.,1020.],    [4080.,4080.],    [16320.,16320.],    [65280.,65280.],    [16711680.,16711680.],    [       1.,       1.]) # Legal upper bound for video signal (whether full or legal range)
 
     fs  = fs ? 1 : 0
     str = ReplaceStr(str, "ymax ymin - range_max /", string(yrange[fs]/range_max[fs]))
@@ -6909,8 +6953,7 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     mskC    = (is444  (a) || rgb)     ? mskYr                   : \
                                         mskYt.BilinearResize(w,h)
 
-    mskC    = luma && UV==3 ? p_float ? ex_lut(mskC, "x range_half -",fulls=true).ConvertBits(32,fulls=true) : \
-                                        mskC.ConvertBits(bits,fulls=true)                                    : \
+    mskC    = luma && UV==3 ?           mskC.ConvertBits(bits,fulls=true)                         : \
                                         BlankClip(a,1,w,h,"Y"+string(bits),colors=[clr],channels=0)
 
     msk     = isy(a) ? mskYr : CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
@@ -7047,7 +7090,7 @@ function sinT(bool "expand") {
     ex = Default(expand, true)
 
     # Bhaskara I  ( 16x(pi-x) / 5pi^2-4x(pi-x) )
-    sinT  = "XX@ pi swap - P@ XX 4 * X4@ * pi dup * 5 * swap - X4 4 * P * swap /"
+    sinT    = "XX@ pi swap - P@ XX 4 * X4@ * pi dup * 5 * swap - X4 4 * P * swap /"
     # Taylor series (14% slower than above but perfect match to sin(x) )
     # sinT  = "pi 0.5 * swap - dup * X2@ 0.5 * 1 swap - X2 dup * X4@ 0.041666666 * + X4 X2 * 0.001388888 * -"
 
