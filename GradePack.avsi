@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v6.4 (26-01-2022)               ##
+###           Grade Pack v6.5 (28-01-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -135,7 +135,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
             sw = nmod(w/3.75)
             sh = nmod(w/2.10)
             lvl = Histogram(mode="levels").crop(w,0,0,-h+226)
-            lvl = StackVertical(lvl,Histogram(mode="color2").crop(w,0,0,-h+256)).GaussResize(sw,sh,p=100)
+            lvl = StackVertical(lvl,Vectorscope()).GaussResize(sw,sh,p=100)
             lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
             StackHorizontal(GamutWarning(),lvl)
 
@@ -246,7 +246,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
-### ...and proper handling of tv range levels
+### ...and proper handling of tv range levels. Includes also a 'show' mode.
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
@@ -466,10 +466,10 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     UV   = Default(UV,  rgb ? 3 : md == "normal" ? 4 : 1)
     si   = ex_UVf(rgb, bi)
 
-                                        Assert(IsVersionOrGreater(3,7,1), "ex_blend: Update AviSynth+ version")
-    md == "darker" || md == "lighter" ? Assert(rgb && UV == 3,            "ex_blend: 'darker' and 'lighter' modes require RGB inputs and UV = 3") : nop()
-    md == "color"  || md == "luminosity" || \
-    md == "hue" || md == "saturation" ? Assert(!rgb && !isy,              "ex_blend: 'hue', 'saturation', 'color' and 'luminosity' modes require YUV inputs") : nop()
+                                          Assert(IsVersionOrGreater(3,7,1), "ex_blend: Update AviSynth+ version")
+    md == "darker"   || md == "lighter" ? Assert(rgb && UV == 3,            "ex_blend: 'darker' and 'lighter' modes require RGB inputs and UV = 3") : nop()
+    md == "color"    || md == "luminosity" || \
+    md =="saturation"|| md == "hue"     ? Assert(!rgb && !isy,              "ex_blend: 'hue', 'saturation', 'color' and 'luminosity' modes require YUV inputs") : nop()
 
     op  = min(max(op,0.),1.)
     iso = op == 1.0
@@ -810,7 +810,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     U   = ExtractU(c)
     V   = ExtractV(c)
     Yf  = ExtractY(c)
-    Ys  = is444(c) ? Yf : Yf.BicubicResize(U.width(),U.height(),-0.5,0.25)
+    Ys  = is444(c) ? Yf : Yf.BicubicResize(U.width(),U.height(),-0.6,0.4)
     c4  = is444(c) ? c : c.ConverttoYUV444(matrix=ID[2],chromaresample="spline16")
     c4U = ExtractU(c4)
     c4V = ExtractV(c4)
@@ -923,7 +923,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
         sw  = nmod(w/3.85)
         sh  = nmod(w/2.10)
         lvl = Histogram(mode="levels").crop(w,0,0,-h+226)
-        lvl = StackVertical(lvl,Histogram(mode="color2").crop(w,0,0,-h+256)).GaussResize(sw,sh,p=100)
+        lvl = StackVertical(lvl,Vectorscope()).GaussResize(sw,sh,p=100)
         lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
         StackHorizontal(last,lvl) } }
 
@@ -1019,8 +1019,8 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
         # Evaluate also Luminance (Y) stats?
         U  = PlaneMinMaxStats(last, 99, 0, 1, false)
         V  = PlaneMinMaxStats(last, 99, 0, 2, false)
-        U  = ex_bs(U[2], bi, 8, !tv,     float=true)    U = bi==32 ? 2 * U + 1 : U
-        V  = ex_bs(V[2], bi, 8, !tv,     float=true)    V = bi==32 ? 2 * V + 1 : V
+        U  = ex_bs(U[2], bi, 8, !tv,       flt=true)    U = bi==32 ? 2 * U + 1 : U
+        V  = ex_bs(V[2], bi, 8, !tv,       flt=true)    V = bi==32 ? 2 * V + 1 : V
 
         U >= 255 || V >= 255 ? PropSet("_OutGamut", 1) : \
                                PropSet("_OutGamut", 0) } )
@@ -1167,42 +1167,68 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 
 ###
 ###
-### GreyWorld() - v1.1 (26-01-2022)
+### GreyWorld() - v1.2 (27-01-2022)
 ###
 ###
-### Remove color cast, including extreme cases like underwater shots
-### Doesn't include averaged metrics so it may not be apt for video yet
+### Remove color cast, including extreme cases like underwater shots.
+### Doesn't include averaged metrics so it may not be apt for video yet.
+### HBD processing is recommended.
+###
+### fast: When Default 'false' hue/colors don't get skewed nor clipped. Enable for speed.
 ###
 ### Dependencies: > AviSynth+ 3.7.1
 ###                 ExTools
 ###
 ####################################
 
-function GreyWorld(clip a) {
+function GreyWorld(clip a, bool "fast", bool "show") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
     px   = PixelType(a)
     bi   = BitsPerComponent(a)
+    fs   = propNumElements (a,"_ColorRange")  > 0 ? \
+           propGetInt      (a,"_ColorRange") == 0 : false
     bi32 = bi == 32
+    fast = Default(fast, false)
+    sh   = Default(show, false)
 
     Assert(IsVersionOrGreater(3,7,1), "GreyWorld: Update AviSynth+ version")
     Assert(!rgb && !isy,              "GreyWorld: Only works on YUV formats")
 
-    ScriptClip(a,function[bi,bi32,px] () {
+    HUE = fast ? a : HSVxHSV(a.ConvertBits(8,dither=bi32?-1:1,fulls=fs, fulld=true), 1.0, "HUE", "SAT", 180.0, 1.00, 1.0, show=3).removegrain(12)
 
-        U  = PlaneMinMaxStats(1, 0, 1, false)
-        V  = PlaneMinMaxStats(1, 0, 2, false)
-        H  = bi32 ? 0 : ex_bs(128,  8, bi, true, float=true)
+    ScriptClip(a,function[bi,bi32,px,HUE,fast] () {
+
+        Hu = PlaneMinMaxStats(HUE, 1, 0, 0, false)
+        Hu = 180 - ((Hu[4] / 224.) * 360 )
+        Tw = fast ? last : Tweak(hue=Hu,sat=0.5)
+        Ts = fast ? last : Tw.removegrain(-1,12)
+
+        U  = PlaneMinMaxStats(Ts,  1, 0, 1, false)
+        V  = PlaneMinMaxStats(Ts,  1, 0, 2, false)
+
+        H  = bi32 ? 0 : ex_bs(128,  8, bi, true, flt=true)
         Ux = H - U[4]
         Vy = H - V[4]
+
         Un = U[0] - U[4]   Um = U[1] - U[4]   Ud = min(abs(Un), abs(Um))
         Vn = V[0] - V[4]   Vm = V[1] - V[4]   Vd = min(abs(Vn), abs(Vm))
 
         Us = Ud > Vd ? bi32 ? string(Vd / Ud)+" *" : "range_half - "+string(Vd / Ud)+" * range_half +" : ""
         Vs = Ud < Vd ? bi32 ? string(Ud / Vd)+" *" : "range_half - "+string(Ud / Vd)+" * range_half +" : ""
 
-        Expr(last,SwapUV(),"",Format("x {Ux} + "+Us),Format("x {Vy} + "+Vs), Format=px) } ) }
+        Expr(Tw,Tw.SwapUV(),"",Format("x {Ux} + "+Us),Format("x {Vy} + "+Vs), Format=px)
+        fast ? last : Tweak(hue=-Hu,sat=2.0) } )
+
+    if (sh) {
+        bi > 8 ? ConvertBits(8,dither=1,fulls=fs) : last
+        w   = a.width()
+        h   = a.height()
+        sw  = nmod(w/3.85)  sh = sw
+        lvl = Vectorscope().GaussResize(sw,sh,p=100)
+        lvl = PadBorders(!fs?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
+        StackHorizontal(last,lvl) } }
 
 
 
@@ -1359,3 +1385,18 @@ function HistoCurve(clip a, float "size", bool "gradient") {
 
     RatioResize(sz,"%",kernel="Point")
     ConvertBits(bt>0?bt:8,dither=bt>0?bt==32?-1:1:-1,fulls=true) }
+
+
+
+function Vectorscope(clip a) {
+
+    a
+    w = width()
+    h = height()
+    Histogram(mode="color2")
+    crop(w,0,0,-h+256)
+    subtitle("U+\n0�"  ,lsp=1,align=6,text_color=$FFFFFF,size=12)
+    subtitle("V+\n90�" ,lsp=1,align=2,text_color=$FFFFFF,size=12,x=128+3,y=256-20)
+    subtitle("U-\n180�",lsp=1,align=4,text_color=$FFFFFF,size=12)
+    subtitle("V-\n270�",lsp=1,align=8,text_color=$FFFFFF,size=12,x=128+3,y=+6)
+}
