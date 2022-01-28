@@ -21,7 +21,7 @@
 ### +-----------+
 ###
 ### v5.0mx : - Remove 'smode=5' (old 'smode=4') as it was flawed
-###          - Add 'smode=3', with plain ex_unsharp() sharpener, and pass supersampling to its 'Fc' arg. Shift up index for all other modes
+###          - Add 'smode=3' (plain ex_unsharp() sharpener) and pass supersampling to its 'Fc' arg. Shift up index for all other modes
 ###          - Reenable 'secure' for HBD (still had issues)
 ###          - Expression optimization when 'preblur' or 'secure' is used in 'smode' 4 or 5
 ###          - Replace resizers with more suited ones to reduce ringing (upscale) or minimize blurring (downscale)
@@ -214,7 +214,7 @@
 ### | GENERAL |
 ### +---------+
 ###
-### strength [int]
+### strength [float]
 ### --------------
 ### Strength of the sharpening
 ###
@@ -254,7 +254,7 @@
 ### secure [bool]
 ### -------------
 ### Mode to avoid banding & oil painting (or face wax) effect of sharpening
-### (only used in Smode=3,4,5,6 for 8-bit and 10-bits)
+### (only used in Smode=3,4,5,6)
 ###
 ### source [clip]
 ### -------------
@@ -275,15 +275,15 @@
 ###    - differences below Szrp are amplified (overdrive sharpening)
 ###    - differences above Szrp are reduced   (reduced sharpening)
 ###
-### Spwr [int]
+### Spwr [float]
 ### ----------
 ### Power: exponent for sharpener
 ###
-### SdmpLo [int]
+### SdmpLo [float]
 ### ------------
 ### Damp Low: reduce sharpening for small changes [0:disable]
 ###
-### SdmpHi [int]
+### SdmpHi [float]
 ### ------------
 ### Damp High: reduce sharpening for big changes [0:disable]
 ###
@@ -305,19 +305,19 @@
 ###    =5 : 3x3 or 5x5 spatial limit to over/undershoot on edges and to zero             on not-edges
 ###    =6 : Temporal           limit to over/undershoot on edges and to zero             on not-edges
 ###
-### overshoot [int]
+### overshoot [float]
 ### ---------------
 ### Limit for pixels that get brighter during sharpening
 ###
-### undershoot [int]
+### undershoot [float]
 ### ----------------
 ### Limit for pixels that get darker during sharpening
 ###
-### overshoot2 [int]
+### overshoot2 [float]
 ### ----------------
 ### Same as overshoot, only for Lmode=4
 ###
-### undershoot2 [int]
+### undershoot2 [float]
 ### -----------------
 ### Same as undershoot, only for Lmode=4
 ###
@@ -456,7 +456,7 @@
 ###
 ###                   - edgemode    = 0
 ###
-###                   - ss_x        = Smode==3 ? 1.00 : 1.50
+###                   - ss_x        = 1.50
 ###                   - ss_y        = ss_x
 ###                   - dest_x      = ox
 ###                   - dest_y      = oy
@@ -491,7 +491,7 @@
 ###
 ###                   - edgemode    = 0
 ###
-###                   - ss_x        = Smode==3 ? 1.00 : 1.25
+###                   - ss_x        = 1.25
 ###                   - ss_y        = ss_x
 ###                   - dest_x      = ox
 ###                   - dest_y      = oy
@@ -526,7 +526,7 @@
 ###
 ###                   - edgemode    = 0
 ###
-###                   - ss_x        = Smode==3 ? 1.00 : 1.25
+###                   - ss_x        = 1.25
 ###                   - ss_y        = ss_x
 ###                   - dest_x      = ox
 ###                   - dest_y      = oy
@@ -677,6 +677,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     secur  = secure ? Format("y z < y 0.51 + y z > y 0.51 - y ? ?") : "y"
     prebl  = preblur=="ON" ? "x z "+secur+" - - " : secur
 
+
     ### SHARP
     # Smode==1 Parametrized to original WarpSharp's    unsharpmask()
     # Smode==2 Parametrized to original VariableBlur's unsharp()
@@ -703,7 +704,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     \         :                                      pre.CAS(min(Str, 1))
 
 
-    # Temporal limiting
+    ### Temporal limiting
     if (Lmode==6) {
 
         isg = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
@@ -740,7 +741,6 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     normal2 = os10 ? zero2 : ex_clamp(normsharp, bright_limit2, dark_limit2, round(overshoot),  round(undershoot),  UV=1)
 
 
-    # really like Lmode=5 and 6
     limit1 = Lmode <0 ? normsharp.repair(Smethod > 3 ? normsharp.repair(tmp,abs(Lmode),-1) : tmp, abs(Lmode),-1)
     \      : Lmode==0 ? normsharp
     \      : Lmode==1 ?                                             Smethod < 4 ? normal : normal2
@@ -823,7 +823,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
        o = scale > 0 ? o.addborders(0,scale/4,0,scale/4) : o
        o = scale < 0 ? o.crop(0,-scale/4,0,scale/4,true) : o
 
-       e =  blankclip(input, width=384, height=resoH)
+       e =   blankclip(input, width=384, height=resoH)
        e = e.SubTitle("LSFmod "          + string(version)             ,text_color=$FFFFFF,font="Verdana"    ,size=34,x=40,y=40 )
        e = e.SubTitle("PRESET        = " + string(preset)              ,text_color=$FFFFFF,font="COURIER NEW",size=20,x=40,y=100)
 
