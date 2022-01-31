@@ -1,13 +1,95 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.3    (26-01-2022)   ##
+###   Resizers Functions Pack 7.4    (31-01-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
 ### https://forum.doom9.org/showthread.php?t=182881 ##
 ###                                                 ##
 ######################################################
+
+
+
+##############################
+###
+### deep_resize() - by Dogway (31-01-2022)
+###
+### Convenient and high performance function to resize in high quality (different kernel for edge/flat areas).
+### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
+### If you want more control (ColorSpaces, UVRecon, nomoiree, etc) use directly ConvertFormat().
+### Supports all YUV formats in any given bitdepth.
+###
+###
+### Dependencies:
+###   ExTools
+###   MasksPack
+###   Resizer of choice
+###       LSFmod         (for default "nnedi3") (and its dependencies)
+###       SharpenersPack (for default "nnedi3")
+###       SysInfo        (for default "nnedi3")
+###
+###
+### 100.0% deep_resize()     (15.7fps) (16.4fps with qual=1)
+###  23.6% nnedi3_resize16() (3.7fps)
+###
+function deep_resize(clip a, float "width", float "height", string "edge", string "flat", float "ratio", float "th", float "elast", int "qual") {
+
+    w   = width (a)
+    h   = height(a)
+    rgb = isRGB (a)
+    is4 = is444 (a)
+    FC  = FrameCount(a)>1
+    bi  = BitsPerComponent(a)
+    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
+          propGetInt      (a,"_ColorRange") == 0 : rgb
+
+    w2     = nmod(Default(width,  w),rgb||is4?1:2)
+    h2     = nmod(Default(height, h),rgb||is4?1:2)
+    rw     = w2/float(w)
+    rh     = h2/float(h)
+    factor = rw <= 3 && rh <= 3 ? 2 : 4
+    rat    = abs(max(rw,rh)-1)+1
+
+    rth   = Default(ratio, 1.125)                                                   # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
+    krn1  = Default(edge, rat<=rth ? "spline16" : rw<1 && rh<1 ? "DPID" : "nnedi3") # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti
+    krn2  = Default(flat, "sinc")                                                   # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here.
+    thr   = Default(th,      1.0)                                                   # 0-255 (normally up to 10)
+    ela   = Default(elast,   1.5)                                                   # 1-255 (normally up to 10)
+    qual  = Default(qual,      2)
+    nns   = 3
+    nsize = 0
+    etype = 0
+    pscrn = 2
+
+    Assert(IsVersionOrGreater(3,7,1), "deep_resize: Update AviSynth+ version")
+
+    if (rw==1 && rh==1) {
+
+        a
+
+    } else if (rw<1 && rh<1) {
+
+        ConvertFormat(a, w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,nomoiree=false, noring=false, UVrecon=false)
+
+    } else {
+
+        nfactor = (rw == 2 || rh == 2) || (rw == 4 || rh == 4)
+        rfactor = rw<factor || rh<factor
+        kernel2 = (rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'zopti' for down 'blackman' for up
+        ep0     =  rfactor ?          -0.6 : 3
+        sh      =  krn1 == "nnedi3" ? nfactor ? 0.25 : 0 : 0
+
+        cores   = krn1 == "nnedi3" ? SI_PhysicalCores() : nop()
+        threads = krn1 == "nnedi3" ? SI_LogicalCores() : nop()
+
+        a8   = ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs)
+        edge = krn1 == "nnedi3" ? nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,cshift=nfactor?Undefined():kernel2,fwidth=w2,fheight=h2,ep0=ep0,ep1=0.4,threads=cores,prefetch=(threads+cores)/2,csresize=true,mpeg2=true,range=fs?1:2) : \
+                                  ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,nomoiree=false, noring=false, UVrecon=false)
+        edge = krn1 == "nnedi3" ? LSFmod(edge,preset="LSF",strength=FC?3*rat:3,Smode=5,Lmode=1,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0).ex_unsharp(0.1,max(w2,h2)/(rat*2),deconv=true).ConvertBits(bi, fulls=fs, fulld=fs) : edge
+        flat =                    ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn2,nomoiree=false, noring=false, UVrecon=false,src_left=sh,src_top=sh)
+        rat <= rth ? edge : ex_limitdif(flat, edge, thr=thr, elast=ela, UV=isy(a)?1:3).propCopy(a) } }
+
 
 
 ##############################
