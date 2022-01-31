@@ -188,6 +188,7 @@
 ### -> ExTools        (v7.3 or up)
 ### -> ResizersPack   (v7.3 or up)
 ### -> SMDegrain      (v3.4.3 or up)   [for preblur="ON"]
+### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v3.0 or up)     [for Smode=1, Smode=2 and Smode=3]
 ### -> CAS                             [for Smode=6]
 ### -> if you use AviSynth+ then make sure it's the latest one
@@ -557,7 +558,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     fs     = propNumElements (inclip,"_ColorRange")  > 0 ? \
              propGetInt      (inclip,"_ColorRange") == 0 : rgb
 
-    isHD   = (ox > 1099 ||  oy > 599)
+    isHD   = (ox > 1099 || oy > 599)
 
     tv     = Default(tv_range, !fs)
     preset = Default(preset,isHD?"LSF":"mid")
@@ -736,7 +737,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     zero    =                ex_clamp(normsharp, bright_limit,  dark_limit,                  0,                  0, UV=1)
     zero2   =                ex_clamp(normsharp, bright_limit2, dark_limit2,                 0,                  0, UV=1)
     second  = os20 ? zero  : ex_clamp(normsharp, bright_limit,  dark_limit,  round(overshoot2), round(undershoot2), UV=1)
-#    second2 = os20 ? zero2 : ex_clamp(normsharp, bright_limit2, dark_limit2, round(overshoot2), round(undershoot2), UV=1)
+#   second2 = os20 ? zero2 : ex_clamp(normsharp, bright_limit2, dark_limit2, round(overshoot2), round(undershoot2), UV=1)
     normal  = os10 ? zero  : ex_clamp(normsharp, bright_limit,  dark_limit,  round(overshoot),  round(undershoot),  UV=1)
     normal2 = os10 ? zero2 : ex_clamp(normsharp, bright_limit2, dark_limit2, round(overshoot),  round(undershoot),  UV=1)
 
