@@ -5,7 +5,7 @@
 #                r.f    mod in 2020.05.07 for HBD
 #                Dogway mod in 2021.07.16 Optimization + Cleanup
 #                Dogway mod in 2021.12.11 Use old minblur() code path, update for HD and optimize with 'sgn' -faster and bugfix(?)-
-#                Dogway mod in 2022.01.22 Decoupled limiter from SPresso and Defaults for RGB inputs
+#                Dogway mod in 2022.01.31 Decoupled limiter from SPresso and Defaults for RGB inputs
 #
 # SPresso (Spatial Pressdown) is a purely spatial script designed to achieve better compressibility without doing too much harm to the original detail.
 # SPresso was not designed for 1080p processing/encoding; due to its 3x3 kernel it works better on standard definition (SD) content like DVDs and possibly on 720p.
@@ -14,6 +14,7 @@
 # Dependencies:
 #     ExTools
 #     RgTools
+#     MasksPack
 #     SMDegrain (for HD inputs)
 #
 #
@@ -71,48 +72,8 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
              RGmode == 26 ? isHD ? "smart2"  : 26 : \
              RGmode == 27 ? isHD ? "smart2"  : 27 : isHD ? "median5" : RGmode
 
-    b = isHD ? bmode ? clp.ex_boxblur(radius, mode=RGmode,y=yy,uv=uv)                                                                 : \
-                       clp.ex_MinBlur(radius,old=true,mode=Format("""ex_median(" """+RGmode+""" ",thres=th,Y=y,UV=uv)"""),y=yy,uv=uv) : \
-                       clp.removegrain(RGmode,RGmodeC)
+    isHD ? bmode ? clp.ex_boxblur(radius, mode=RGmode,y=yy,uv=uv)                                                                 : \
+                   clp.ex_MinBlur(radius,old=true,mode=Format("""ex_median(" """+RGmode+""" ",thres=th,Y=y,UV=uv)"""),y=yy,uv=uv) : \
+                   clp.removegrain(RGmode,RGmodeC)
 
-    ex_limitchange( clp, b, limit, bias, limitC, biasC, yy, uv) }
-
-
-# SPresso limiter as a standalone function
-function ex_limitchange(clip a, clip b, float "limit", float "bias", float "limitC", float "biasC", int "Y", int "UV") {
-
-    rgb = a.isRGB()
-    w   = a.width()
-    h   = a.height()
-    bi  = BitsPerComponent(a)
-    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
-          propGetInt      (a,"_ColorRange") == 0 : rgb
-
-    limit   = Default( limit,   2 )
-    limitC  = Default( limitC,  rgb?limit:limit*2 )
-    bias    = Default( bias,   25 )
-    biasC   = Default( biasC,   rgb?bias : bias*2 )
-    Y       = Default( Y,       3 )
-    UV      = Default( UV,      rgb?3:2 )
-
-    Assert(IsVersionOrGreater(3,7,1), "ex_limitchange: Update AviSynth+ version")
-
-    LIM1  = ex_bs(limit >0 ? round(limit *(100.0/bias) -1.0) : round(100.0/bias),  8, bi, fulls=fs)
-    LIM1c = ex_bs(limitC>0 ? round(limitC*(100.0/biasC)-1.0) : round(100.0/biasC), 8, bi, fulls=fs)
-    LIM2  = ex_bs(limit <0 ? 1 : limit,  8, bi, fulls=fs)
-    LIM2c = ex_bs(limitC<0 ? 1 : limitC, 8, bi, fulls=fs)
-    BIA   = ex_bs(bias,                  8, bi, fulls=fs)
-    BIAc  = ex_bs(biasc,                 8, bi, fulls=fs)
-    CTH   = ex_bs(100,                   8, bi, fulls=fs)
-    un    = ex_bs(1,                     8, bi, fulls=fs)
-
-    expr  = Format(limit<0 ? "x y - A@ abs {LIM1} < x dup A sgn {un} * - ?"                                                          : \
-                             "x y - abs 0 <= x dup {LIM1}  + y < x {LIM2}  + x {LIM1}  - y > x {LIM2}  - x {CTH} {BIA}  - * y {BIA}  * + 1 {CTH} / * ? ? ?" )
-
-    exprC = Format(limit<0 ? "x y - A@ abs {LIM1c} < x dup A sgn {un} * - ?"                                                         : \
-                             "x y - abs 0 <= x dup {LIM1c} + y < x {LIM2c} + x {LIM1c} - y > x {LIM2c} - x {CTH} {BIAc} - * y {BIAc} * + 1 {CTH} / * ? ? ?" )
-
-
-    ex_lutxy( a, b, expr, exprC, Y=y, UV=uv, fulls=fs) }
-
-# TODO: Do ex_limitdif() (port of Dither Tools Dither_limit_dif16 and vs LimitFilter)
+    ex_limitchange( last, clp, limit, bias, limitC, biasC, yy, uv) }
