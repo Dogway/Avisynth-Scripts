@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.4.3d      by Dogway    - 23 Jan  2022                           ###
+###                       v3.4.4d      by Dogway    - 28 Jan  2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -30,7 +30,7 @@
 ### Dependencies:
 ###              MVTools2
 ###              ExTools
-###              LSFmod/SharpenersPack  (for Contrasharp)
+###              LSFmod/SharpenersPack  (for Contrasharp or LFR)
 ###                 ResizersPack        (for Contrasharp
 ###                                      or  Str=0.1 to 1.0 ~ex_retinex()~)
 ###              GradePack              (for Str=0.1 to 1.0 ~ex_retinex()~)
@@ -93,7 +93,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     md           = FindStr(md, "mediant") > 0 ? rc && tr==1 ? "MedianT" : rc && tr==2 ? "MedianT5" : "medianTn" : md
     T3           = md == "MedianT"    || md == "MedianST" || md == "ML3DEx"  || md == "Hybrid"   || md == "TL3D"
-    T5           = md == "MedianT5"   || md == "STWM"     || md == "GaussT5" || md == "GaussST5" || md == "MedianSTS"
+    T5           = md == "MedianT5"   || md == "STWM"     || md == "GaussT5" || md == "GaussST5" || md == "MedianSTS" || md == "IQMT"
     T7           = FindStr(md, "fluxsmooth") > 0
     TS           = md == "TemporalSoften"
 
@@ -261,10 +261,10 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)
         threads = pelclip ? SI_LogicalCores()  : nop()
         cores   = pelclip ? SI_PhysicalCores() : nop()
-        pclip   = pelclip             ? pel==4 ?   pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2)                                       :  \
-                                                   pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2)                                       : nop()
-        pclip2  = pelclip && !GlobalR ? pel==4 ? inputP8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2).ConvertBits(bi, fulls=!tv, fulld=!tv) :  \
-                                                 inputP8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2).ConvertBits(bi, fulls=!tv, fulld=!tv) : nop()  # nnedi3 is too slow in HBD
+        pclip   = pelclip             ? pel==4 ?   pref8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2,range=tv?2:1)                                       :  \
+                                                   pref8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2,range=tv?2:1)                                       : nop()
+        pclip2  = pelclip && !GlobalR ? pel==4 ? inputP8.nnedi3_rpow2(rfactor=4,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2,range=tv?2:1).ConvertBits(bi, fulls=!tv, fulld=!tv) :  \
+                                                 inputP8.nnedi3_rpow2(rfactor=2,nns=1,nsize=0,threads=cores,prefetch=(threads+cores)/2,range=tv?2:1).ConvertBits(bi, fulls=!tv, fulld=!tv) : nop()  # nnedi3 is too slow in HBD
 
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
@@ -502,9 +502,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
 
-        output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, overshoot=TS?100:0) : \
-                                      SLimit ? LSFmod(output,source=CClip,preset="slow",strength=Contrasharp,Smode=5,Lmode=0,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25) : \
-                                               LSFmod(output,             preset="slow",strength=Contrasharp,Smode=5,Lmode=6,LRad=isHD?2:1,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0,ss_x=1.25,ss_y=1.25) : output
+        output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, overshoot=TS?100:0)                                                      : \
+                                      SLimit ? LSFmod(output,source=CClip,preset="LSF",strength=Contrasharp,Smode=5,Lmode=0,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : \
+                                               LSFmod(output,             preset="LSF",strength=Contrasharp,Smode=5,Lmode=6,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : output
 
                  !GlobalO ? (isInter ? output.weave() : output) : input
 
@@ -592,7 +592,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.4.3",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.4.4",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -1014,8 +1014,8 @@ function ex_BM3D(clip a, float "sigma", int "radius", bool "CUDA", bool "OPP", i
 ##    int a=1 (1 to 6 by 1),
 ##    int s=2 (1 to 6 by 1),
 ##    int wmode=0 (0 to 2 by 1),
+##    [int "LFR"=1920 (50 to 1920 by 1),]
 ##    bool "chroma"=true,
-##    bool "LFR"=false,
 ##    )
 ##
 function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode", clip "rclip", int "LFR", bool "chroma", string "device_type", int "device_id",  string "knlm_params") {
