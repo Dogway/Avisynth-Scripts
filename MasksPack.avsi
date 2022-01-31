@@ -1,6 +1,7 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 5.1 By Dogway  (23-01-2022)            ##
+###           MasksPack 5.2 By Dogway  (31-01-2022)            ##
+###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
@@ -238,7 +239,7 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
     inv    = Default(invert, false)
     UV     = Default(UV,  !isy ? 128 : 2)
 
-    Assert(IsVersionOrGreater(3,7,1), "LumaMask: Update AviSynth+ version.")
+    Assert(IsVersionOrGreater(3,7,1), "LumaMask: Update AviSynth+ version")
 
     bi32   = bi == 32 ? "0 1 clip" : ""
     LO     = ex_bs(LO, 8, bi, fulls=fs)
@@ -254,3 +255,106 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
     UV == 1 ?  Expr(a, str, "",   lut=lut) : \
                Expr(a, str, cstr, lut=lut)
                PropSet("_ColorRange", 0)   }
+
+
+
+
+### ex_limitdif() by Dogway (30-01-2022)
+### Ported from slimit_dif() and HQDeringmod_limit_dif(). Description from Dither_limit_dif16
+###
+### Compare a filtered clip with its original version, and keeps the filtered pixels only if the difference between the filtered pixel and the reference pixel is below the given threshold.
+### This is a building block of SmoothGrad, GradFun3, nnedi3_resize16() and deep_resize().
+###
+### flt:   Filtered clip.
+### src:   Original clip.
+### ref:   Reference clip for the filter output comparison. Specify here the first original clip when you cascade several limited filters. When undefined, the src clip is taken as reference.
+### thr:   Thershold between reference data and filtered data, on an 8-bit scale. > 0.
+### elast: To avoid artifacts, the threshold has some kind of elasticity. Value differences falling over this thershold are gradually attenuated, up to thr * elast. > 1.
+###
+function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast", float "brighten_thr", float "thrc", int "Y", int "UV", bool "smooth") {
+
+    rgb = flt.isRGB()
+    w   = flt.width()
+    h   = flt.height()
+    bi  = BitsPerComponent(flt)
+    fs  = propNumElements (flt,"_ColorRange")  > 0 ? \
+          propGetInt      (flt,"_ColorRange") == 0 : rgb
+
+    dref   = Defined(ref)
+    thr    = Default(thr,                 0.25)
+    thrc   = Default(thrc,                 thr)  # 0-255 (normally up to 10)
+    sm     = Default(smooth,              true)
+    elast  = Default(elast, sm ? 3.0 : 255./thr) # 1-255 (normally up to 10)
+    elast  = max(elast, 1.0)
+    bthr   = Default(brighten_thr,         thr)  # 0-255 (normally up to 10)
+    Y      = Default( Y,       3 )
+    UV     = Default( UV,      3 )
+
+    sm     = elast==1.0 ? False : sm
+
+    celast = ex_bs(elast*thrc, 8, bi, true, flt=true)
+    thr    = ex_bs(thr,        8, bi, true, flt=true)
+    thrc   = ex_bs(thrc,       8, bi, true, flt=true)
+    bthr   = ex_bs(bthr,       8, bi, true, flt=true)
+
+    Assert(IsVersionOrGreater(3,7,1), "ex_limitdif: Update AviSynth+ version")
+
+    # from HQDeringmod_limit_dif()
+    # diff   = filtered - original
+    # alpha  = 1 / (thr * (elast - 1))
+    # beta   = elast * thr
+    #
+    # When smooth=True  :
+    # output = diff <= thr  ? filtered : \
+    #          diff >= beta ? original : \
+    #                         original + alpha * diff * (beta - abs(diff))
+    # When smooth=False :
+    # output = diff <= thr  ? filtered : \
+    #          diff >= beta ? original : \
+    #                         original + thr * (diff / abs(diff))
+
+    dref ? ex_lutxyz(flt,src,ref, Format("x z - abs D1@ x y - D2@ 0 > {bthr} {thr} ? D2T@ <= x D1 D2T {elast} * D3T@ >= y dup D2 D3T D1 - * D3T D2T - / + ? ?"), \
+                                  Format("x z - abs D@ {thrc} <= x D {celast} >= y dup x y - {celast} D - * {celast} {thrc} - / + ? ?"),Y=Y,UV=UV) : \
+           ex_lutxy (flt,src,     Format("x y - D1@ dup abs DA@ swap 0 > {bthr} {thr} ? D2T@  <= x DA D2T {elast} * D3T@ >= y dup D1 D3T DA - * D3T D2T - / + ? ?"), \
+                                  Format("x y - D1@ abs DA@ {thrc} <= x DA {celast} >= y dup D1 {celast} DA - * {celast} {thrc} - / + ? ?"),Y=Y,UV=UV) }
+
+
+
+
+# Didée's SPresso() internal limiter as a standalone function
+# Not to confuse with Kassandro's LimitChange (either the StainlessS update or real.finder's HBD mod)
+function ex_limitchange(clip flt, clip src, float "limit", float "bias", float "limitC", float "biasC", int "Y", int "UV") {
+
+    rgb = flt.isRGB()
+    w   = flt.width()
+    h   = flt.height()
+    bi  = BitsPerComponent(flt)
+    fs  = propNumElements (flt,"_ColorRange")  > 0 ? \
+          propGetInt      (flt,"_ColorRange") == 0 : rgb
+
+    limit   = Default( limit,   2 )
+    limitC  = Default( limitC,  rgb?limit:limit*2 )
+    bias    = Default( bias,   25 )
+    biasC   = Default( biasC,   rgb?bias : bias*2 )
+    Y       = Default( Y,       3 )
+    UV      = Default( UV,      rgb?3:2 )
+
+    Assert(IsVersionOrGreater(3,7,1), "ex_limitchange: Update AviSynth+ version")
+
+    LIM1  = ex_bs(limit >0 ? round(limit *(100.0/bias) -1.0) : round(100.0/bias),  8, bi, fulls=fs)
+    LIM1c = ex_bs(limitC>0 ? round(limitC*(100.0/biasC)-1.0) : round(100.0/biasC), 8, bi, fulls=fs)
+    LIM2  = ex_bs(limit <0 ? 1 : limit,  8, bi, fulls=fs)
+    LIM2c = ex_bs(limitC<0 ? 1 : limitC, 8, bi, fulls=fs)
+    BIA   = ex_bs(bias,                  8, bi, fulls=fs)
+    BIAc  = ex_bs(biasc,                 8, bi, fulls=fs)
+    CTH   = ex_bs(100,                   8, bi, fulls=fs)
+    un    = ex_bs(1,                     8, bi, fulls=fs)
+
+    expr  = Format(limit<0 ? "y x - A@ abs {LIM1} < y dup A sgn {un} * - ?"                                                          : \
+                             "y x - abs 0 <= y dup {LIM1}  + x < y {LIM2}  + y {LIM1}  - x > y {LIM2}  - y {CTH} {BIA}  - * x {BIA}  * + 1 {CTH} / * ? ? ?" )
+
+    exprC = Format(limit<0 ? "y x - A@ abs {LIM1c} < y dup A sgn {un} * - ?"                                                         : \
+                             "y x - abs 0 <= y dup {LIM1c} + x < y {LIM2c} + y {LIM1c} - x > y {LIM2c} - y {CTH} {BIAc} - * y {BIAc} * + 1 {CTH} / * ? ? ?" )
+
+
+    ex_lutxy( flt, src, expr, exprC, Y=y, UV=uv, fulls=fs) }
