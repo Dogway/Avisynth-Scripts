@@ -1,12 +1,12 @@
 # Frame Rate Converter ex mod
-# Version: 2.2.0  (10-01-2022)
+# Version: 2.2.1  (31-01-2022)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (2.2.0)  (10-01-2022) replaced MaskTools2 with internal HBD aware Expr() wrappers, performance optimizations + cosmetics. (Requires ExTools and AviSynth+ 3.7.1+)
+# Dogway (2.2.0)  (10-01-2022) replaced MaskTools2 with internal HBD aware Expr() wrappers, performance optimizations + cosmetics. (Requires ExTools, GradePack and AviSynth+ 3.7.1+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -25,11 +25,12 @@
 # https:#www.gnu.org/copyleft/gpl.html.
 
 #######################################################################################
-### Frame Rate Converter
-### Increases the frame rate with interpolation and fine artifact removal.
+##
+## Frame Rate Converter
+## Increases the frame rate with interpolation and fine artifact removal.
 ##
 ## YV12/YV24/Y8 over any bitdepth
-## Requires: FrameRateConverter.dll, ExTools and MVTools2
+## Requires: FrameRateConverter.dll, MVTools, ExTools and GradePack
 ##
 ## @ NewNum      - The new framerate numerator (if FrameDouble = false, default = 60)
 ##
@@ -177,13 +178,13 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
     SkipOver  = Default(SkipOver,  SkipOvern)
 
     Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
-    Assert(MaskThr >= 0 && MaskThr <= 255, String(MaskThr, "FrameRateConverter: MaskThr must be between 0 and 255 {%.f}"))
-    Assert(MaskOcc >= 0 && MaskOcc <= 255, String(MaskOcc, "FrameRateConverter: MaskOcc must be between 0 and 255 {%.f}"))
-    Assert(SkipThr < MaskThr, "FrameRateConverter: SkipThr must be lower (stronger) than MaskThr")
+    Assert(MaskThr >= 0 && MaskThr <= 255, String(MaskThr,       "FrameRateConverter: MaskThr must be between 0 and 255 {%.f}"))
+    Assert(MaskOcc >= 0 && MaskOcc <= 255, String(MaskOcc,       "FrameRateConverter: MaskOcc must be between 0 and 255 {%.f}"))
+    Assert(SkipThr < MaskThr,                                    "FrameRateConverter: SkipThr must be lower (stronger) than MaskThr")
     Assert(BlendOver >= 0 && BlendOver <= 255, String(BlendOver, "FrameRateConverter: BlendOver must be between 0 and 255 {%.f}"))
-    Assert(SkipOver >= 0 && SkipOver <= 255, String(SkipOver, "FrameRateConverter: SkipOver must be between 0 and 255 {%.f}"))
-    Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver, "FrameRateConverter: SkipOver must be greater than BlendOver")
-    Assert(CalcDiff || OPut!=7, "FrameRateConverter: You can only use Output='Diff' when using Preset=slower or slowest")
+    Assert(SkipOver >= 0 && SkipOver <= 255, String(SkipOver,    "FrameRateConverter: SkipOver must be between 0 and 255 {%.f}"))
+    Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver,  "FrameRateConverter: SkipOver must be greater than BlendOver")
+    Assert(CalcDiff || OPut!=7,                                  "FrameRateConverter: You can only use Output='Diff' when using Preset=slower or slowest")
 
     # "B" - Blending, "BHard" - No blending
     B = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
@@ -235,8 +236,8 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
     rangePC = tv ? " ymin - 0 max " : ""
     rangeTV = tv ? " ymin +"        : ""
     pre = prefilter.ConvertBits(8,dither=-1,fulls=!tv)
-    pre = lr ? pre.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" A@ 0.0625 + / - * A 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : pre
     Cp  =         C.ConvertBits(8,dither=-1,fulls=!tv)
+    pre = lr ? pre.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" A@ 0.0625 + / - * A 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : pre
     Cp  = lr ?  Cp.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" A@ 0.0625 + / - * A 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : Cp
 
 
@@ -395,9 +396,9 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
 ##
 function ex_InterpolateDoubles(clip C, float "Thr", bool "Show", string "Preset", int "BlkSize", int "BlkSizeV", int "MaskThr", int "MaskOcc", int "SkipThr", int "BlendOver", int "SkipOver", bool "Stp", int "Dct", int "DctRe", bool "tv_range") {
 
-    bi     = C.BitsPerComponent()
-    fs     = propNumElements(C,"_ColorRange")  > 0 ? \
-             propGetInt     (C,"_ColorRange") == 0 : false
+    bi     = BitsPerComponent(C)
+    fs     = propNumElements (C,"_ColorRange")  > 0 ? \
+             propGetInt      (C,"_ColorRange") == 0 : false
     Thr    = Default(thr, .1)
     tv     = Default(tv_range, !fs)
     Show   = Default(Show,  false)
@@ -434,10 +435,10 @@ function ex_StripeMask(clip C, int "blksize", int "blksizev", int "str", int "st
     strf      = Default(strf, 0)
     fullRange = Default(fullRange, false)
 
-    mask1    = C.StripeMaskPass(blksize=blkSize, blksizev=blkSizeV, overlap=16/2+1, overlapV=16/2+1, thr=29, range=241, gamma=2.2, str=str, fullRange=fullRange)
+    mask1    = C.StripeMaskPass(blksize=blkSize, blksizev=blkSizeV, overlap=16/2+1, overlapV=16/2+1, thr=29, range=241, gamma=2.222, str=str, fullRange=fullRange)
     blksize  = int(float(blksize)  * 1.25)
     blksizev = int(float(blksizev) * 1.25)
-    mask2    = C.StripeMaskPass(blksize=blkSize, blksizev=blkSizeV, overlap=16/2+1, overlapV=16/2+1, thr=42, range=214, gamma=2.2, str=str, fullRange=fullRange, comp=5)
+    mask2    = C.StripeMaskPass(blksize=blkSize, blksizev=blkSizeV, overlap=16/2+1, overlapV=16/2+1, thr=42, range=214, gamma=2.222, str=str, fullRange=fullRange, comp=5)
 
     mask1f = mask1.DeleteFrame(0).DuplicateFrame(C.FrameCount() - 2)
     mask2f = mask2.DeleteFrame(0).DuplicateFrame(C.FrameCount() - 2)
