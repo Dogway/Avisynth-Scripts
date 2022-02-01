@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.73 mix mod by Dogway 2021, based on 3.382s            #
+#     QTGMC 3.74 mix mod by Dogway 2022, based on 3.382s            #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -16,6 +16,11 @@
 # Full documentation is in the 'QTGMC' html file that may comes with this script, or even better see avisynth wiki
 #
 # --- LATEST CHANGES ---
+#
+# v3.74mx
+# - Optimize expressions with lerp
+# - Optimize convolutions fetching first pixels first
+# - Add 'range' arg to nnedi3 calls
 #
 # v3.73mx
 # - Increase EdiQual Defaults for Placebo
@@ -230,14 +235,14 @@
 #   MaskTools2 (2.2.29 or above)
 #   NNEDI3     (0.9.4.59 or above)
 #   RgTools    (1.2 or above)
-#   vsTCanny   (1.1.1 for gaussian blur)
+#   vsTCanny   (1.1.5 for gaussian blur)
 #   SysInfo    (0.1.2.9)
 #   Vinverse
 #
 # Core scripts:
-#   ExTools      (7.0   or above)
-#   SMDegrain    (3.4.0 or above) (for ex_luma_rebuild() )
-#   Zs_RF_Shared (1.154 or above) (for sh_Bob, slimit_dif2, nonyuy2clipin and nonyuy2clipout)
+#   ExTools      (7.3   or above)
+#   SMDegrain    (3.4.4 or above) (for ex_luma_rebuild() )
+#   Zs_RF_Shared (1.156 or above) (for sh_Bob(), for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
 #   NNEDI2, NNEDI, EEDI3, EEDI2, TDeInt - if selected directly or via a source-match preset
@@ -639,7 +644,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     srchClip    =  srchcheck        ? srchClip            : \
                   (SrchClipPP == 0) ? repair0             : \
                   (SrchClipPP  < 3) ? spatialBlur         : \
-                  (SrchClipPP  > 1) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - x 0.51 * Y 0.49 * + ? ?", UV=CMmt, fulls=!tv ) : nop()
+                  (SrchClipPP  > 1) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - Y x - 0.49 * x + ? ?", UV=CMmt, fulls=!tv ) : nop()
     srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_range=tv).ConvertBits(8,dither=-1,fulls=true) : srchClip.ConvertBits(8,dither=-1)
 
     # Calculate forward and backward motion vectors from motion search clip
@@ -818,7 +823,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Slightly thin down 1-pixel high horizontal edges that have been widened into neigboring field lines by the interpolator
     SVThinSc  =  SVThin * 6.0
-    vertMedD  = (SVthin > 0.0) ? ex_lut( lossed1, Format("x[0,1] x[0,-1] dup1 dup1 max swap2 min x swap2 clip  x - {SVThinSc} * "+bi32p), clamp_float=true, UV=1, fulls=!tv ) : nop() # vertical median - x
+    vertMedD  = (SVthin > 0.0) ? ex_lut( lossed1, Format("x[0,-1] x[0,1] dup1 dup1 max swap2 min x swap2 clip x - {SVThinSc} * "+bi32p), clamp_float=true, UV=1, fulls=!tv ) : nop() # vertical median - x
     vertMedD  = (SVthin > 0.0) ? (vertMedD.ex_boxblur( 1, 0, "weighted", UV=1 )) : nop()
     thin      = (SVthin > 0.0) ? ex_lutxyz( vertMedD, vertMedD.RemoveGrain( 12, -1 ), resharp, "y "+bi32m+" Y@ abs x "+bi32m+" abs > Y z + z ?", UV=2, fulls=!tv  ) : resharp
 
@@ -949,9 +954,9 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
     cores     = SI_PhysicalCores()
 
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
-                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.NNEDI3( field=-2, nsize=NNSize, threads=cores,   U=CEed,V=CEed, qual=EdiQual, nns=NNeurons, prefetch=(threads+cores)/2 )             : Undefined()
+                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.NNEDI3( field=-2, nsize=NNSize, threads=cores,   U=CEed,V=CEed, qual=EdiQual, nns=NNeurons, prefetch=(threads+cores)/2, range=fulls?1:2) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp.nonyuy2clipin(true) ).slimit_dif2(NNEDI3clp.nonyuy2clipin(true),thr=4, U=CEed?3:2,V=CEed?3:2).nonyuy2clipout(true) : \
-                                                                               Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2) : \
+                                                                               Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2)     : \
                 EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ?              Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ) : nop()
 
     interp = (InputType == 1)            ? Input                                                                                     : \
@@ -975,11 +980,11 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
     interp = (EdiMode == "BWDIF+NNEDI3") || \
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.ex_vinverse(custem=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2,fulls=fulls).nonyuy2clipout(true) : interp.ex_vinverse(custem=NNEDI3clp,UV=CEed?3:2,fulls=fulls) : interp
 
-    interpuv = (InputType == 1)          ? nop()                                                                                                          : \
-               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=cores, prefetch=(threads+cores)/2, Y=false )           : \
-               (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 ) : \
-               (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                          : \
-               (ChromaEdi == "Bob")      ? Input.sh_Bob( 0,0.5 )                                                                                          : \
+    interpuv = (InputType == 1)          ? nop()                                                                                                                 : \
+               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=cores, prefetch=(threads+cores)/2, Y=false, range=fulls?1:2 ) : \
+               (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 )        : \
+               (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                                 : \
+               (ChromaEdi == "Bob")      ? Input.sh_Bob( 0,0.5 )                                                                                                 : \
                                            nop()
 
     return (!IsClip(interpuv)) ? interp : interp.MergeChroma( interpuv ) }
@@ -1089,9 +1094,9 @@ function QTGMC_MakeLossless( clip Input, clip Source, int InputType, bool fulls 
     processed  = Interleave( srcFields, newFields ).SelectEvery(4, 0,1,3,2 ).Weave()
 
     # Clean some of the artefacts caused by the above - creating a second version of the "new" fields
-    vertMedDiff = ex_lut( processed,  "x[0,1] x[0,-1] dup1 dup1 max swap2 min x swap2 clip x swap -", UV=3 ) # x - vertical median
+    vertMedDiff = ex_lut( processed,  "x[0,-1] x[0,1] dup1 dup1 max swap2 min x swap2 clip x swap -", UV=3 ) # x - vertical median
     vmNewDiff1  = vertMedDiff.SeparateFields().SelectEvery( 4, 1,2 )
-    vmNewDiff2  = ex_lut( vmNewDiff1, "x[0,1] x[0,-1] dup1 dup1 max swap2 min x swap2 clip M@ x * 0 < range_half M x min ?", UV=3, fulls=fulls )
+    vmNewDiff2  = ex_lut( vmNewDiff1, "x[0,-1] x[0,1] dup1 dup1 max swap2 min x swap2 clip M@ x * 0 < range_half M x min ?", UV=3, fulls=fulls )
     vmNewDiff3  = vmNewDiff2.Repair( vmNewDiff2.RemoveGrain( 2 ), 1 )
 
     # Reweave final result
@@ -1126,7 +1131,7 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     errorAdjust1   = Select( MatchTR1, 1.0, 2.0 / (1.0 + errorTemporalSimilarity), 8.0 / (3.0 + 5.0 * errorTemporalSimilarity) )
     match1Clip     = (SourceMatch < 1 || InputType == 1) ? Deinterlace : Deinterlace.SeparateFields().SelectEvery( 4, 0,3 ).Weave()
     match1Update   = (SourceMatch < 1 || MatchTR1 == 0) \
-                        ? Source : ex_lutxy( Source, match1Clip, Format("x {errorAdjust1} 1 + * y {errorAdjust1} * -"), clamp_float=true, UV=3 )
+                        ? Source : ex_lutxy( Source, match1Clip, Format("x dup y - {errorAdjust1} * +"), clamp_float=true, UV=3 )
     noyv16ma1Edi   = MatchEdi =="NNEDI2" || MatchEdi =="NNEDI" || MatchEdi =="EEDI3+NNEDI3" || MatchEdi =="EEDI3" || MatchEdi =="TDeint" || MatchEdi =="cYadif" || MatchEdi =="RepcYadif"
     noyv16ma2Edi   = MatchEdi2=="NNEDI2" || MatchEdi2=="NNEDI" || MatchEdi2=="EEDI3+NNEDI3" || MatchEdi2=="EEDI3" || MatchEdi2=="TDeint" || MatchEdi2=="cYadif" || MatchEdi2=="RepcYadif"
     match1Edi      = (SourceMatch == 0) ? nop() : \
@@ -1142,7 +1147,7 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     match1         = (SourceMatch < 1) ? Deinterlace                                                            : \
                      (MatchTR1 == 0)   ? match1Edi                                                              : \
                      (MatchTR1 == 1)   ? match1Degrain1.Merge( match1Edi,      0.25 )                           : \
-                                         ex_lutxyz(match1Degrain1,match1Degrain2,match1Edi,   "x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
+                                         ex_lutxyz(match1Degrain1,match1Degrain2,match1Edi, "x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
 
     # Enhance effect of source-match stages 2 & 3 by sharpening clip prior to refinement (source-match tends to underestimate so this will leave result sharper)
     match1Shp = (SourceMatch > 1 && MatchEnhance > 0.0) ? match1.ex_lutxy( match1.RemoveGrain( 12 ), Format("x dup y - {MatchEnhance} * +"), clamp_float=true, UV=3, fulls=fs ) : match1
@@ -1171,7 +1176,7 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     # Source-match second refinement - correct error introduced in the refined difference by temporal smoothing. Similar to error correction from basic step
     errorAdjust2   = Select( MatchTR2, 1.0, 2.0 / (1.0 + errorTemporalSimilarity), 8.0 / (3.0 + 5.0 * errorTemporalSimilarity) )
     match3Update   = (SourceMatch < 3 || MatchTR2 == 0) \
-                         ? match2Edi : ex_lutxy( match2Edi, match2, Format("x {errorAdjust2} 1 + * y {errorAdjust2} * -"), clamp_float=true, UV=3, fulls=fs )
+                         ? match2Edi : ex_lutxy( match2Edi, match2, Format("x dup y - {errorAdjust2} * +"), clamp_float=true, UV=3, fulls=fs )
     match3Super    = (SourceMatch > 2 && MatchTR2 > 0) ? match3Update.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
     match3Degrain1 = (SourceMatch > 2 && MatchTR2 > 0) ? Eval("match3Update.MDegrain1( match3Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match3Degrain2 = (SourceMatch > 2 && MatchTR2 > 1) ? Eval("match3Update.MDegrain1( match3Super, bVec2,fVec2, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
