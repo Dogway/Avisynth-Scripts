@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC35  (30-01-2022)           ##
+###    Transforms Pack v1.0 RC35  (31-01-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -192,16 +192,16 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     ConvertBits(10,fulls=true)     # RGB conversion from YUV requires at least 10-bit precision
 ###     ConvertFormat(1,1,"YUV","RGB")
 ###
-### Example 2 - Scale HD Rec.709 YUV to SD Rec.601 YUV:
+### Example 2 - Downscale HD Rec.709 YUV to SD Rec.601 YUV:
 ###     ConvertFormat(720,0) # 0 stands for automatic size given width/height ratio
 ###     or
-###     ConvertFormat(preset="DVD-NTSC")
+###     ConvertFormat(preset="DVD-NTSC") # Work-in-Progress
 ###
-### Example 3 - YUV420 to YUV444 and scale up by 2 with chroma reconstruction and noring (cs_out to "" or "none" to skip color space autoconversion):
-###     ConvertFormat(2,fmt_out="44",cs_out="",kernel="FSRCC",noring=true,UVRecon=true,cplace_in="MPEG2")
+### Example 3 - YUV420 to YUV444 and scale up by 2 in sigmoid space with chroma reconstruction and noring (cs_out to "" or "none" to skip color space autoconversion):
+###     ConvertFormat(2,fmt_out="44",cs_out="",kernel="FSRCC",scale_space="sigmoid,noring=true,UVRecon=true,cplace_in="MPEG2")
 ###
-### Example 4 - Scale down by 2 with no moirée in sigmoid space (typically pre-blurring -for nomoiree- is done in linear light so "linear" is also a good option):
-###     ConvertFormat(0.5,scale_space="sigmoid",kernel="RobiSharp",nomoiree=true)
+### Example 4 - Scale down by 2 with no moirée in linear light space (typically pre-blurring -for nomoiree- is done in linear light):
+###     ConvertFormat(0.5,kernel="RobiSharp",scale_space="linear",nomoiree=true)
 ###
 ### Example 5 - Scale width to 1280 and height to half:
 ###     ConvertFormat(1280,0.5)
@@ -322,28 +322,32 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 #          ref: https://artoriuz.github.io/blog/mpv_upscaling.html
 #          ref: https://en.wikipedia.org/wiki/Window_function
 #          ref: https://legacy.imagemagick.org/Usage/filter/nicolas/
-# Bartlett          is a Bartlett-windowed sinc filter (3 lobes)
-# Hann(ing)         is a Hanning-windowed  sinc filter (3 lobes)
-# Hamming           is a Hamming-windowed  sinc filter (3 lobes)
+#          ref: https://legacy.imagemagick.org/discourse-server/viewtopic.php?f=22&t=20942
+# -- untapered decay
 # Welch/Welsh       is a Welch-windowed    sinc filter (parabolic window, 3 lobes)
 # Cosine            is a Cosine-windowed   sinc filter (3 lobes)
 # Bessel            is a unnormalized      sinc filter (3 lobes)
+# -- tapered decay (in order)
+# -Bartlett         is a Bartlett-windowed sinc filter (4 lobes) (actually the same mathematical function used for a 'Triangle' filter, as well as the 'Bilinear' interpolation filter)
+# -Sinc             is a Sinc-windowed     sinc filter (4 lobes)
+# Hamming           is a Hamming-windowed  sinc filter (4 lobes) (has a gradient discontinuity so not recommended)
+# Hann(ing)         is a Hanning-windowed  sinc filter (4 lobes) (although can do with 2-lobes for upscaling sharp images)
+# Kaiser            is a Kaiser-windowed   sinc filter (4 lobes) (also a small gradient discontinuity so not recommended)
+# Bohman            is a Bohman-windowed   sinc filter (5 lobes) (Blackman would fall between Kaiser and Bohman)
+# Parzen            is a Parzen-windowed   sinc filter (6 lobes)
 # Ginseng           is a Jinc-windowed     sinc filter (3 lobes). Better for HBD than ewa_lanczos3.
-# Bohman            is a Bohman-windowed   sinc filter (3 lobes)
-# Kaiser            is a Kaiser-windowed   sinc filter (3 lobes)
-# Parzen            is a Parzen-windowed   sinc filter (3 lobes)
-# Lagrange
+# Lagrange          is a Lagrange cubic polynomial filter that approximates a windowed filter https://legacy.imagemagick.org/Usage/filter/#lagrange
 # Jinc              is a Box-windowed      jinc filter (3.2383154841662362 lobes). Jinc filters are not separable so they're usually slower than sinc, cubic, etc but more pleasant artifacts. See here: https://legacy.imagemagick.org/Usage/filter/#cylindrical
 # ewa_hanning       is a Hanning-windowed  jinc filter (3.238 lobes).
 # ewa_ginseng       is a sinc-windowed     jinc filter (3.238 lobes).
 # -ewa_lanczos      is a lanczos-windowed  jinc filter (3.238 lobes).
-# -ewa_lanczossharp is a lanczos-windowed  jinc filter (3.238 lobes). Slightly sharpened as per calculations by Nicolas Robidoux. Can be replicated with Jinc filter and blur = 0.9812505644269356
+# -ewa_lanczossharp is a lanczos-windowed  jinc filter (3.238 lobes). Slightly sharpened as per calculations by Nicolas Robidoux, his preferred all-around scaler. Can be replicated with Jinc filter and blur = 0.9812505644269356
 # -ewa_lanczossharpest is a lanczos-windowed jinc filter (3.238 lobes). Very sharp, technically not recommended by Robidoux except when downscaling. Can be replicated with Jinc filter and blur = 0.88549061701764
 # -ewa_lanczos2sharp   is a lanczos-windowed jinc filter (2.2331305943815286 lobes). Good alternative to the other EWAs when you don't want the moiree or "hash pattern blur" artifact, so use this for dithered content or RobiSharp.
-# -ewa_lanczosradius3  is a lanczos-windowed jinc filter (3 lobes). More sharpened than ewa_lanczossharp and very similar to Ginseng tensor. Can be replicated with Jinc filter and blur = 0.9264075766146068 (scales lobes from 3.238 to 3)
+# -ewa_lanczosradius3  is a lanczos-windowed jinc filter (3 lobes). More sharpened than ewa_lanczossharp and very similar to Ginseng tensor, good for up and downscale. Can be replicated with Jinc filter and blur = 0.9264075766146068 (scales lobes from 3.238 to 3)
 # -ewa_lanczos4     is a lanczos-windowed  jinc filter (4.2410628637960699 lobes).
 # -ewa_lanczossoft  is a lanczos-windowed  jinc filter (3.238 lobes). Softened instead. This one makes hash patterns disappear completely. Can be replicated with Jinc filter and blur = 1.015
-# -Haasnsoft        is a Hanning-windowed  jinc filter (3.238 lobes). Removes almost all aliasing. Blur value to match orthogonal and diagonal contributions. Can be replicated with Jinc filter and blur = 1.11
+# -Haasnsoft        is a Hanning-windowed  jinc filter (3.238 lobes). Removes almost all aliasing. Blur value to match orthogonal and diagonal contributions on a regular grid. Can be replicated with Jinc filter and blur = 1.11
 # Tukey             is a Hanning-windowed  jinc filter taper = 0.5
 # Quadratic/Quadric like Cubic but 66% faster (1.5 taps/lobes)
 # RAVU / RAISR      similar to XBR and nnedi3
@@ -412,7 +416,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     tv_out     = Default (tv_out, tv_in_d ? tv_in : !(isRGBo || cs_outF=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") )
     kernel     = Default (kernel,   (w>nw||h>nh)?"Didee":"Precise")
     kernel_c   = Default (kernel_c, kernel)
-    space      = Default (scale_space, "gamma")  # resizing space: "gamma", "linear", "sigmoid" or "log" for quasi-log. Assumes gamma encoded input. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (http://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
+    space      = Default (scale_space, "gamma")  # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasi-log. Assumes gamma encoded input. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (http://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
     cplace_in  = Default (cplace_in,   "")       # Assumes default from format
     cplace_out = Default (cplace_out,  "")       # Assumes default from format
     D_in       = Default (Defined(D_in)  ? D_in  =="" ? Und  : D_in  : D_in , cs_in_d  ? cs_in ==""  ? propIDs[2] : cs_in : propIDs[2])
@@ -499,6 +503,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
 
     resampler = Format( kernel == "nnedi3"       ?  "deep_resize({nw},{nh}"                                  : \
+                        kernel == "Bilinear" || kernel == "Bartlett" ? "BilinearResize({nw},{nh}"            : \
                         kernel == "Bicubic"      ?  "BicubicResize({nw},{nh},b={bc_b},c={bc_c}"              : \
                         kernel == "Spline100"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=5"""      : \
                         kernel == "Spline144"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=6"""      : \
@@ -510,17 +515,17 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                                                    """ResizeShader({nw},{nh},kernel="SSIM",b=0.1"""          : \
                         kernel == "SSIM2"                                                                    ? \
                                         """SSIM_downsample({nw},{nh},smooth=0.43,resample_args="-0.6,0.4" """: \
-                        kernel == "Gauss"        ?    "GaussResize({nw},{nh},p=pd?9:p"                       : \
+                        kernel == "Gauss"        ?    "GaussResize({nw},{nh},p=pd?p:9"                       : \
                         kernel == "Nearest" || kernel == "NearestNeighbour" || kernel == "NN"                ? \
                                                       "GaussResize({nw},{nh},p=100"                          : \
                         kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" ? \
                                                      """fmtc_resample({nw},{nh},kernel="box" """             : \
-                        kernel == "Sinc"         ?     "SincResize({nw},{nh},taps=pd?p:4"                    : \
-                        kernel == "Blackman"     ?     "BlackmanResize({nw},{nh},taps=pd?p:5"                : \
-                        kernel == "Lanczos"      ?     "LanczosnResize({nw},{nh},taps=pd?p:3"                : \
+                        kernel == "Sinc"         ?     "SincResize({nw},{nh},taps=pd?int(p):4"               : \
+                        kernel == "Blackman"     ?     "BlackmanResize({nw},{nh},taps=pd?int(p):5"           : \
+                        kernel == "Lanczos"      ?     "LanczosResize({nw},{nh},taps=pd?int(p):3"            : \
                         kernel == "DPID"         ?     "DPID({nw},{nh},lambdaY=0.5"                          : \
                         kernel == "EWA"          || kernel == "Jinc"       || kernel == "ewa_lanczos"        ? \
-                                                       "JincResize({nw},{nh},tap=pd?p:3"                     : \
+                                                       "JincResize({nw},{nh},tap=pd?int(p):3"                : \
                         kernel == "EWASharp2"    || kernel == "JincSharp2" || kernel == "ewa_lanczos2sharp"  ? \
                                                        "JincResize({nw},{nh},tap=2,blur=0.9549963639785485"  : \
                         kernel == "EWASharp"     || kernel == "JincSharp"  || kernel == "ewa_lanczossharp"   ? \
@@ -528,11 +533,11 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                         kernel == "EWASharp4"    || kernel == "JincSharp4" || kernel == "ewa_lanczos4sharp"  ? \
                                                        "JincResize({nw},{nh},tap=4,blur=0.9885973386557245"  : \
                         kernel == "EWASharper2"  || kernel == "JincSharper2"||kernel =="ewa_lanczosradius2"  ? \
-                                                       "JincResize({nw},{nh},tap=3,blur=0.895603689740279282": \
+                                                       "JincResize({nw},{nh},tap=2,blur=0.895603689740279282": \
                         kernel == "EWASharper"   || kernel == "JincSharper"|| kernel =="ewa_lanczosradius3" || kernel =="Ginseng" ? \
                                                        "JincResize({nw},{nh},tap=3,blur=0.9264075766146068"  : \
                         kernel == "EWASharper4"  || kernel == "JincSharper4"||kernel =="ewa_lanczosradius4"  ? \
-                                                       "JincResize({nw},{nh},tap=3,blur=0.943159799432847707": \
+                                                       "JincResize({nw},{nh},tap=4,blur=0.943159799432847707": \
                         kernel == "EWASharpest"  || kernel == "JincSharpest"|| kernel =="ewa_lanczossharpest"? \
                                                        "JincResize({nw},{nh},tap=3,blur=0.88549061701764"    : \
                         kernel == "EWASoft"      || kernel == "JincSoft"   || kernel == "ewa_lanczossoft"    ? \
