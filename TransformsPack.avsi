@@ -340,7 +340,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # Jinc              is a Box-windowed      jinc filter (3.2383154841662362 lobes). Jinc filters are not separable so they're usually slower than sinc, cubic, etc but more pleasant artifacts. See here: https://legacy.imagemagick.org/Usage/filter/#cylindrical
 # ewa_hanning       is a Hanning-windowed  jinc filter (3.238 lobes).
 # ewa_ginseng       is a sinc-windowed     jinc filter (3.238 lobes).
-# -ewa_lanczos      is a lanczos-windowed  jinc filter (3.238 lobes).
+# -ewa_lanczos      is a lanczos-windowed  jinc filter (3.238 lobes). Under same circumstances -in this case 'taps'- Jinc (radial) is always sharper than their Sinc (orthogonal) equivalent. Check ewa_lanczosradius3 below.
 # -ewa_lanczossharp is a lanczos-windowed  jinc filter (3.238 lobes). Slightly sharpened as per calculations by Nicolas Robidoux, his preferred all-around scaler. Can be replicated with Jinc filter and blur = 0.9812505644269356
 # -ewa_lanczossharpest is a lanczos-windowed jinc filter (3.238 lobes). Very sharp, technically not recommended by Robidoux except when downscaling. Can be replicated with Jinc filter and blur = 0.88549061701764
 # -ewa_lanczos2sharp   is a lanczos-windowed jinc filter (2.2331305943815286 lobes). Good alternative to the other EWAs when you don't want the moiree or "hash pattern blur" artifact, so use this for dithered content or RobiSharp.
@@ -2952,8 +2952,9 @@ function Format_fuzzy_search (clip c, string format, int bits) {
 # Bicubic kernels are very performant but tends to 'blocking' in upscales compared to more advanced kernels
 function bicubic_coeffs (string kernel) {
 
-    # info: Keys Cubic family of filters are those that satisfy 2C+B = 1  (along the dotted line in the Cubic filters diagram)
-    # Examples are Mitchell-Netravali, Robidoux (and its flavours), Catmull-Rom, Spline and Bartvander.
+    # info: Keys Cubics family of filters are BC-splines that exactly reproduce affine gradients, those that satisfy 2C+B = 1 (along the dotted line in the Cubic filters diagram)
+    # Examples are Mitchell-Netravali, Robidoux (and its flavours), Catmull-Rom, Cub-grange and Spline.
+    # For downscaling you can follow a different formula: B+2C = 0, although I find the next better/sharper: 3B+2C = -1
 
     rb  = 12. /(19.  +9.*sqrt(2))    # 0.378216
     rc  = 113./(58.+216.*sqrt(2))    # 0.310892
@@ -2961,24 +2962,22 @@ function bicubic_coeffs (string kernel) {
     rsc = 7.  /(2.  +12.*sqrt(2))    # 0.368993
     rbb =      (9   -3. *sqrt(2))/7. # 0.679623
     rbc =      (1   -        rbb)/2. # 0.160189
-    bbb = 0.6796227589829592
-    bbc = 0.1601886205085204
 
     # From smoother to sharper
     c = [-1,-1]
     c = kernel == "SoftCubic100"      ? [1.0,0.0]   : c # same as GaussResize(p=21)
     c = kernel == "Robidoux Soft"     ? [rbb,rbc]   : c
     c = kernel == "SoftCubic75"       ? [0.75,0.25] : c
-    c = kernel == "Bartvander"        ? [bbb,bbc]   : c # dw Originally implemented as an EWA filter by BartvanderWolf with a post-sharpening step in mind
     c = kernel == "BilcubicD"         ? [1/3.,0.0]  : c # dw Bicubic practical match to Bilinear
     c = kernel == "BilcubicU"         ? [0.5, 0.2]  : c # up Bicubic practical match to Bilinear
     c = kernel == "Hermite"           ? [0.0,0.0]   : c # dw Bicubic approximation   to Bilinear (a bit sharper than it)
-    c = kernel == "Robidoux"          ? [rb,  rc]   : c
+    c = kernel == "Robidoux"          ? [rb,  rc]   : c # Derived from EWA considerations, the values that "minimize the maximum possible change in vertical or horizontal straight lines (Robidoux) or any image (RobidouxSharp) under no-op" while satisfying Keys Cubics (affine gradients)
     c = kernel == "Centroid"          ? [0.37,0.35] : c # Arithmetic mean of the satisfactory zone (by Dogway)
-    c = kernel == "Mitchell-Netravali"? [1/3.,1/3.] : c # Canonical Bicubic
+    c = kernel == "Mitchell-Netravali"? [1/3.,1/3.] : c # Canonical Bicubic (roughly equivalent to EWA Robidoux)
     c = kernel == "Robidoux Sharp"    ? [rsb,rsc]   : c
     c = kernel == "SoftCubic50"       ? [0.5,0.5]   : c
-    c = kernel == "Catmull-Rom"       ? [0.0,0.5]   : c # Canonical sharp Bicubic
+    c = kernel == "Cub-grange"        ? [0.0308,0.4846] : c # dw but also up. Bicubic approximation to Lagrange scaling (a bit sharper than it)
+    c = kernel == "Catmull-Rom"       ? [0.0,0.5]   : c # Canonical sharp Bicubic (roughly equivalent to EWA RobidouxSharp)
     c = kernel == "Didee"             ? [-0.5,0.25] : c # dw Didée's downscaling sharp coefficients
     c = kernel == "Zopti"             ? [-0.6,0.4]  : c # dw Zopti calculated best from UHD to 720p: https://forum.doom9.org/showthread.php?p=1865218#post1865218
     c = kernel == "Precise Bicubic"   ? [0.0,0.75]  : c
@@ -3006,6 +3005,8 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "C-Spline"          ? [0.0,1.0]   : c
     c = kernel == "Didée"             ? [-0.5,0.25] : c
     c = kernel == "Dide"              ? [-0.5,0.25] : c
+    c = kernel == "lagrange"          ? [0.0308,0.4846] : c
+    c = kernel == "cubgrange"         ? [0.0308,0.4846] : c
 
     c }
 
