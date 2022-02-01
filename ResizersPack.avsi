@@ -24,6 +24,7 @@
 ### Dependencies:
 ###   ExTools
 ###   MasksPack
+###   TransformsPack
 ###   Resizer of choice
 ###       LSFmod         (for default "nnedi3") (and its dependencies)
 ###       SharpenersPack (for default "nnedi3")
@@ -38,8 +39,10 @@
 ### -For downscaling use a 2-lobes sinc function (aka not bicubics)
 ### -For downscaling while preventing moiree use a 4-lobes sinc filter (ie. Lanczos4)
 ### -For sharp images use 3-lobes, for blurry ones 4 or more
-### -More tappered kernel bell shapes require higher taps (4 or above; Hann, Bohman, Blackman, Parzen, etc)
-### -Use even number of taps (taps=lobes in AviSynth) to avoid a final positive "ringing" lobe before cutoff of the window support. Negative "ringing" (halos) are rarely created in gamma light resizing.
+### -More tappered (rolled-off) kernel bell shapes require higher taps (4 or above; Hann, Bohman, Blackman, Parzen, etc)
+### -Use even number of taps (taps=lobes in AviSynth) to avoid a final positive lobe ("ringing") before cutoff of the window support. Negative "ringing" (halos) are rarely created in gamma light resizing.
+###
+### More info: http://avisynth.nl/index.php/Resampling
 function deep_resize(clip a, float "width", float "height", string "edge", string "flat", float "ratio", float "th", float "elast", int "qual") {
 
     w   = width (a)
@@ -86,7 +89,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
         rfactor =  rw<factor || rh<factor
         kernel2 =  ( rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'zopti' for down 'blackman' for up
         ep0     =    rfactor ?      -0.6 : 6
-        sh      =    krn1 == "nnedi3" ? nfactor ? 0.25 : 0 : 0
+        sh      = krn1 == "nnedi3" ? nfactor ? 0.25 : 0 : 0
 
         cores   = krn1 == "nnedi3" ? SI_PhysicalCores() : nop()
         threads = krn1 == "nnedi3" ? SI_LogicalCores()  : nop()
@@ -95,7 +98,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
         edge    = krn1 == "nnedi3" ? nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,cshift=nfactor?Undefined():kernel2,fwidth=w2,fheight=h2,ep0=ep0,ep1=0.4,threads=cores,prefetch=(threads+cores)/2,csresize=true,mpeg2=true,range=fs?1:2) : \
                                      ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,taps=krn1=="blackman"?8:Undefined())
         edge    = krn1 == "nnedi3" ? LSFmod(edge,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=1,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0).ex_unsharp(0.08,max(w2,h2)/(rat*2),deconv=true).ConvertBits(bi, fulls=fs, fulld=fs) : edge
-        flat    =                    ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn2,taps=krn1=="blackman"?8:Undefined(),src_left=sh,src_top=sh)
+        flat    =                    ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn2,taps=krn2=="blackman"?8:Undefined(),src_left=sh,src_top=sh)
 
         rat <= rth ? edge : ex_limitdif(flat, edge, thr=thr, elast=ela, UV=isy(a)?1:3).propCopy(a) } }
 
