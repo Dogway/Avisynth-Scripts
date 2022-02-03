@@ -1,0 +1,311 @@
+#############################################################
+###                                                       ###
+###  GradFun3 EX mod by Dogway     (02-02-2022)           ###
+###                                                       ###
+###                                                       ###
+###  A simple port of:                                    ###
+###  GradFun3    by cretindesalpes (24-09-2010)           ###
+###  http://avisynth.nl/index.php/Dither_tools#GradFun3   ###
+###                                                       ###
+#############################################################
+###
+### This function is equivalent to GradFun2db and helps removing the existing color banding from a source, dithered or not.
+### To keep all the advantages of the gradient smoothing and dithering, you should make GradFun3 the very last filter of your encoding chain.
+### You should run this on a clip with bitdepth higher than 8-bit for the debanding to come to effect
+### and dither it down to an ordered dithering type, more resilient to lossy codec quantification than the other patterns.
+###
+###
+### Dependencies:
+###   ExTools
+###   RgTools
+###   masktools2
+###   ResizersPack (for smode=0 or smode=3)
+###   MasksPack    (for smode>0)
+###   DFTTest      (for smode==1)
+###
+###
+### Benchmarks:
+###
+###     100.0% 65.5 fps
+###     Convertbits(16)
+###     ex_GradFun3()
+###     Convertbits(8,dither=1)
+###
+###     60.2% 39.4 fps
+###     Dither_convert_8_to_16()
+###     GradFun3()
+###     DitherPost(stacked=true,prot=false,mode=6)
+###
+###
+### Arguments:
+###
+### thr, thrc:
+### Filter threshold. Below this value, the changes made by the banding filter on pixel values are not attenuated.
+### The higher, the more effective the filter will be, but details will be smoothed and artifacts will appear near the edges between two flat areas.
+### thrc is the parameter for the chroma planes. Keep it below 1.0. Range: 0.1-10.0.
+###
+### radius, radiusc:
+### Filter radius, in pixels. Basically, this is the extent of artifical gradient introduced on the band edges. radiusc is the parameter for the chroma planes.
+### The default value is tuned for SD video and 720p, but you might probably want to increase it to 16 for 1080p video. Range: 1-68 for smode=0, 1-128 for smode=1 and = 3 for smode=2.
+###
+### elast, elastc:
+### Elasticity of the filter attenuation. It’s a multiplier on the threshold. A pixel difference above thr * elast won’t have any effect.
+### elastc is the parameter for the chroma planes. Good values are in the range 1.25-4.
+###
+### mask:
+### Depth in pixels of the detail/edge masking. Set it to 0 to disable it.
+###
+### thr_det:
+### Local contrast threshold for detail detection and masking. The lower, the better the details will be protected, but the lower the smoothing efficiency.
+### Must be > 0, and above the height of a color-banding step. When kept unspecified, it more or less follows the main debanding threshold thr.
+###
+###
+### smode:
+### Indicates which filter to use for gradient smoothing.
+### 0   Gauss filter. Very fast, whatever the radius. Drawback: can introduce slight but large halos, especially with high thresholds.
+### 1   dfttest. Much slower, but less prone to artefacts and halos than the gauss filter.
+### 2   Bilateral filter. VERY slow, and slower for bigger radius, but much less prone to artefacts than the gauss filter. Almost haloless, even for high thresholds.
+### 3   Undocumented mode.
+###
+### show:
+### 0   Normal output, without debugging information.
+### 1   Shows the detail/edge mask.
+###
+### ref:
+### Reference clip used to limit changes. Allows cascading multiple GradFun3 calls (for example by combining small and large radius settings) without going too far from the original picture.
+### ref must have the same format as the input clip. When not specified, the reference clip is the input.
+###
+###
+function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "mask", int "smode", float "thr_det", int "show", float "thrc", int "radiusc", float "elastc", int "Y", int "UV", clip "ref") {
+
+    bi    = BitsPerComponent(src)
+    fs    = propNumElements (src,"_ColorRange")  > 0 ? \
+            propGetInt      (src,"_ColorRange") == 0 : false
+
+    thr     = Default (thr,       0.35)
+    thrc    = Default (thrc,       thr)
+    radius  = Default (radius,      12)
+    radiusc = Default (radiusc, radius)
+    elast   = Default (elast,      3.0)
+    elastc  = Default (elastc,   elast)
+    mask    = Default (mask,         2)
+    smode   = Default (smode,        0)
+    thr_det = Default (thr_det, 2 + Round (max(thr - 0.35, 0) / 0.3))
+    debug   = Default (show,        0)
+    refd    = Defined (ref)
+    mask    = min(mask, 3) # 'disk' shape max radius
+
+    # Input range check.
+    Assert(IsVersionOrGreater(3,7,1), "ex_GradFun3: Update AviSynth+ version")
+    Assert (radius  > 0, "ex_GradFun3: "+chr(34)+"radius" +chr(34)+" must be strictly positive.")
+    Assert (radiusc > 0, "ex_GradFun3: "+chr(34)+"radiusc"+chr(34)+" must be strictly positive.")
+    Assert (thr     > 0, "ex_GradFun3: "+chr(34)+"thr"    +chr(34)+" must be strictly positive.")
+    Assert (thrc    > 0, "ex_GradFun3: "+chr(34)+"thrc"   +chr(34)+" must be strictly positive.")
+    Assert (thr_det > 0, "ex_GradFun3: "+chr(34)+"thr_det"+chr(34)+" must be strictly positive.")
+    Assert (elast  >= 1, "ex_GradFun3: "+chr(34)+"elast"  +chr(34)+" must be greater or equal to 1.")
+    Assert (elastc >= 1, "ex_GradFun3: "+chr(34)+"elastc" +chr(34)+" must be greater or equal to 1.")
+
+    src_8  = src
+    src_16 = src
+    ref_16 = refd ? ref : src
+    yv411_flag = src.isYV411()
+
+    # Main debanding
+
+    yp     = (! Defined (y)  || (y  == 3)) ? 3 : 1
+    uvp    = (! Defined (uv) || (uv == 3)) ? 3 : 1
+
+    chroma_flag = (  (thrc != thr || radiusc != radius || elastc != elast)
+\                  && yp == 3 && uvp == 3)
+    uvp2   = (chroma_flag) ? 1 : uvp
+
+    src_16
+    flt_y  =                 gf_grad_smooth (last, src_8, ref_16, smode, radius,  thr,  elast,  yp, uvp2)
+    flt_c  = (chroma_flag) ? gf_grad_smooth (last, src_8, ref_16, smode, radiusc, thrc, elastc, 1,  uvp) : flt_y
+    flt    = (chroma_flag) ? flt_y.MergeChroma (flt_c) : flt_y
+
+    # Edge/detail mask
+
+    td_lo  = ex_bs(max(thr_det * 0.75, 1), 8, bi, fs, flt=true) - 0.0001
+    td_hi  = ex_bs(max(thr_det,        1), 8, bi, fs, flt=true) + 0.0001
+
+    dmask  = (mask > 0 && yv411_flag) ? src_8.ExtractY()         : src_8
+    dmask  = (mask > 0) ? dmask.ex_luts(mode="rng", pixels=ex_shape(mask,mode="disk"), exprf=Format(" {td_lo} - {td_hi} {td_lo} - / 0 1 clip range_max *")) : dmask
+    dmask1 = (mask > 0) ? dmask.ex_median(mode="cartoon")        : dmask
+    dmask2 = (mask > 1) ? dmask1.ex_boxblur(1,mode="weighted")   : dmask1
+    dmask3 = (mask > 2) ? dmask1.ex_boxblur(2,mode="weighted")   : dmask2
+    dmask  = (mask > 0 && yv411_flag) ? dmask3.ConvertToYV411 () : dmask3
+
+    result = (mask > 0) ? ex_merge(flt, src_16, dmask, luma=true, y=yp, uv=uvp) : flt
+
+    (debug == 1       ) ? dmask.GreyScale () : result }
+
+
+
+### SmoothGrad() by Dogway (02-02-2022)
+###     Port from cretindesalpes' Dither Tools plugin to AviSynth+ wrapper
+###     http://avisynth.nl/index.php/Dither_tools#SmoothGrad
+###
+### "SmoothGrad smooths the low gradients or flat areas of a 16-bit clip. It proceeds by applying a huge blur filter and comparing the result with the input data for each pixel.
+### If the difference is below the specified threshold, the filtered version is taken into account, otherwise the input pixel remains unchanged."
+###
+###
+### Dependencies:
+###   ExTools
+###   ResizersPack
+###
+###
+### Benchmarks:
+###
+###     100.0% 196 fps
+###     Convertbits(16)
+###     ex_SmoothGrad(thr=0.25,elast=3)
+###     Convertbits(8,dither=1)
+###
+###     93.9% 184 fps
+###     Dither_convert_8_to_16()
+###     SmoothGrad()
+###     DitherPost(stacked=true,prot=false,mode=6)
+###
+###
+### Arguments:
+###
+### radius:
+### Radius in pixels of the smoothing filter. > 0
+###
+### thr:
+### Threshold between reference data and filtered data, on an 8-bit scale. > 0.
+###
+### elast:
+### To avoid artifacts, the threshold has some kind of elasticity.
+### Value differences falling over this thershold are gradually attenuated, up to thr * elast. > 1.
+###
+### ref:
+### Reference clip for the filter output comparison. Specify here the input clip when you cascade several SmoothGrad calls.
+### When undefined, the input clip is taken as reference.
+###
+###
+function ex_SmoothGrad(clip a, int "radius", float "thr", float "elast", clip "ref", int "Y", int "UV") {
+
+    bi  = BitsPerComponent(a)
+    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
+          propGetInt      (a,"_ColorRange") == 0 : false
+
+    rfd = Defined(ref)
+    rad = Default(radius, 16)
+    thr = Default(thr,  0.25)
+    el  = Default(elast, 3.0)
+    Y   = Default(Y,       3)
+    UV  = Default(UV,      3)
+
+    Assert(IsVersionOrGreater(3,7,1), "ex_SmoothGrad: Update AviSynth+ version")
+
+    th2   = min(max(thr,    0.1 ), 10.0)
+    el2   = min(max(el,     1.01), 10.0)
+    thr_1 = int(th2       * 128.0 + 0.5)
+    thr_2 = int(th2 * el2 * 128.0 + 0.5)
+
+    min_thr_dif = 2
+    thr_dif     = max    (thr_2 - thr_1,     min_thr_dif)
+    thr_1       = min(max(thr_1, 0), 32767 - min_thr_dif)
+    thr_2       = min    (thr_1 + thr_dif, 32767)
+
+    thr_slope  = 32768. / (thr_2 - thr_1)
+    thr_offset = thr_1 * thr_slope + 32768
+
+    thr_offset = ex_bs(thr_offset,   16, bi, fs, flt=true)
+    thr_1      = ex_bs(thr_1,        16, bi, fs, flt=true)
+    thr_2      = ex_bs(thr_2,        16, bi, fs, flt=true)
+    hhr        = 1 / ex_bs(32768/2., 16, bi, fs, flt=true)
+
+    val_orig = a
+    val_filt = ex_GaussianBlur(a, 0.635*rad+0.6,Y=Y, UV=UV)
+#   val_filt = ex_boxblur(a,rad,mode="mean",Y=Y,UV=UV) # original blur but much slower
+    val_ref  = rfd ? ref : val_orig
+
+    rfd ? ex_lutxyz(val_orig,val_filt,val_ref,Format("y z - 0.5 *     abs D@ {thr_1} < y D {thr_2} > x D {thr_slope} * {thr_offset} - y x - 0.5 {hhr} * * * x swap - ? ? "),Y=Y,UV=UV) : \
+          ex_lutxy (val_orig,val_filt,        Format("y x - 0.5 * D1@ abs D@ {thr_1} < y D {thr_2} > x D {thr_slope} * {thr_offset} - D1      * {hhr} *     x swap - ? ? "),Y=Y,UV=UV) }
+
+
+
+
+
+
+
+
+#### HELPER FUNCTIONS ###
+
+
+
+function gf_grad_smooth (clip src_16, clip src_8, clip ref_16, int smode, int radius, float thr, float elast, int y, int uv) {
+
+    src_16
+      (smode == 0) ? gf_smoothgrad_multi   (ref_16, radius, thr, elast, y, uv)
+\   : (smode == 1) ? gf_dfttest            (src_8, ref_16, radius, thr, elast, y, uv)
+\   : (smode == 2) ? gf_bilateral_multi    (ref_16, radius, thr, elast, y, uv)
+\   : (smode == 3) ? gf_smoothgrad_multi_3 (radius, thr, elast, y, uv)
+\   :                Assert (false, "ex_GradFun3: wrong smode value.") }
+
+
+
+function gf_smoothgrad_multi (clip src, clip ref, int radius, float thr, float elast, int Y, int UV) {
+
+    Assert (radius <=  68, "ex_GradFun3: max "+chr(34)+"radius" +chr(34)+" value is 68 when smode = 0.") # check for max radius
+
+    ela_2 = max (elast * 0.83, 1)
+    ela_3 = max (elast * 0.67, 1)
+    r2    = radius * 2 / 3
+    r3    = radius * 3 / 3
+    r4    = radius * 4 / 3
+
+    src
+    (r2 >= 1) ? ex_SmoothGrad (radius=r2, thr=thr,      elast=elast, ref=ref, y=y, uv=uv) : last
+    (r3 >= 1) ? ex_SmoothGrad (radius=r3, thr=thr*0.7,  elast=ela_2, ref=ref, y=y, uv=uv) : last
+    (r4 >= 1) ? ex_SmoothGrad (radius=r4, thr=thr*0.46, elast=ela_3, ref=ref, y=y, uv=uv) : last }
+
+
+
+function gf_smoothgrad_multi_3 (clip src, int radius, float thr, float elast, int y, int uv) {
+
+    src
+
+    uvr = uv == 3 ? 20 : -1
+    ref = ex_SmoothGrad (radius=radius/3, thr=thr*0.8, elast=elast)
+
+    radius == 2 ? removegrain(20, uvr) : ex_GaussianBlur(0.635*(radius-1)+0.6,Y=Y, UV=UV)
+    radius == 2 ? removegrain(20, uvr) : ex_GaussianBlur(0.635*(radius-1)+0.6,Y=Y, UV=UV)
+
+    ex_limitdif (last, src, thr=thr*0.6, elast=elast, ref=ref, y=y, uv=uv) }
+
+
+
+function gf_dfttest (clip src, clip ref, int radius, float thr, float elast, int Y, int UV)
+{
+    Assert (radius <= 128, "ex_GradFun3: max "+chr(34)+"radius" +chr(34)+" value is 128 when smode = 1.")
+
+    hrad = max (radius * 3 / 4, 1)
+
+    dfttest (src, sigma=hrad*thr*thr*32, tbsize=1, sbsize=hrad*4, sosize=hrad*3,lsb=false, lsb_in=false, Y=y==3, U=uv==3, V=uv==3)
+    ex_limitdif (last, src, ref, thr, elast, y=y, uv=uv).propCopy(src) }
+
+
+
+# ex_bilateral max rad is 6
+function gf_bilateral_multi (clip src, clip ref, int radius, float thr, float elast, int Y, int UV) {
+
+    thr_1    = max (thr * 4.5,  1.25)
+    thr_2    = max (thr * 4.5,   1.5)  # 5.0
+    r4       = max (min (radius * 4 / 3, 7), 4)
+    r2       = max (min (radius * 2 / 3, 6), 3)
+    r1       = max (min (radius * 1 / 3, 5), 2)
+
+    Assert (radius <=  68, "ex_GradFun3: max "+chr(34)+"radius" +chr(34)+" value is 12 when smode = 2.")
+
+    src
+    (r4 >= 2) ? ex_bilateral (radius=r4-1, ithres=thr_1, flat=0.75,  y=y, UV=uv) : last
+    (r2 >= 2) ? ex_bilateral (radius=r1-1, ithres=thr_2,  y=y, UV=uv)            : last  # ithres = 1.5
+    (r1 >= 2) ? ex_bilateral (radius=r1-1, ithres=thr_2,  y=y, UV=uv)            : last  # ithres = 1.5
+
+    ex_limitdif (last, src, ref, thr, elast, y=y, uv=uv).propCopy(src) }
+
+
