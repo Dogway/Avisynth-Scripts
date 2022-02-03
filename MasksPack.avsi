@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 5.2 By Dogway  (31-01-2022)            ##
+###           MasksPack 5.3 By Dogway  (03-02-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -259,7 +259,7 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
 
 
 
-### ex_limitdif() by Dogway (30-01-2022)
+### ex_limitdif() by Dogway (03-02-2022)
 ### Ported from slimit_dif() and HQDeringmod_limit_dif(). Description from Dither_limit_dif16
 ###
 ### Compare a filtered clip with its original version, and keeps the filtered pixels only if the difference between the filtered pixel and the reference pixel is below the given threshold.
@@ -270,6 +270,7 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
 ### ref:   Reference clip for the filter output comparison. Specify here the first original clip when you cascade several limited filters. When undefined, the src clip is taken as reference.
 ### thr:   Thershold between reference data and filtered data, on an 8-bit scale. > 0.
 ### elast: To avoid artifacts, the threshold has some kind of elasticity. Value differences falling over this thershold are gradually attenuated, up to thr * elast. > 1.
+### brighten_thr: Threshold for filtering diff that brightens the image. Setting a value different from "thr" is useful to limit the overshoot/undershoot/blurring introduced in sharpening/de-ringing
 ###
 function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast", float "brighten_thr", float "thrc", int "Y", int "UV", bool "smooth") {
 
@@ -281,21 +282,22 @@ function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast",
           propGetInt      (flt,"_ColorRange") == 0 : rgb
 
     dref   = Defined(ref)
-    thr    = Default(thr,                 0.25)
-    thrc   = Default(thrc,                 thr)  # 0-255 (normally up to 10)
-    sm     = Default(smooth,              true)
+    thr    = Default(thr,                  0.25)
+    thrc   = Default(thrc,                  thr)  # 0-255 (normally up to 10)
+    sm     = Default(smooth,               true)
     elast  = Default(elast, sm ? 3.0 : 255./thr) # 1-255 (normally up to 10)
     elast  = max(elast, 1.0)
-    bthr   = Default(brighten_thr,         thr)  # 0-255 (normally up to 10)
+    bthr   = Default(brighten_thr,          thr)  # 0-255 (normally up to 10)
     Y      = Default( Y,       3 )
     UV     = Default( UV,      3 )
 
     sm     = elast==1.0 ? False : sm
 
-    celast = ex_bs(elast*thrc, 8, bi, true, flt=true)
-    thr    = ex_bs(thr,        8, bi, true, flt=true)
-    thrc   = ex_bs(thrc,       8, bi, true, flt=true)
-    bthr   = ex_bs(bthr,       8, bi, true, flt=true)
+    thrc   = ex_bs(  thrc,     8, bi, true, flt=true)
+    celast = elast * thrc
+    thr    = ex_bs(  thr,      8, bi, true, flt=true)
+    telast = elast * thr
+    bthr   = ex_bs( bthr,      8, bi, true, flt=true)
 
     Assert(IsVersionOrGreater(3,7,1), "ex_limitdif: Update AviSynth+ version")
 
@@ -313,10 +315,13 @@ function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast",
     #          diff >= beta ? original : \
     #                         original + thr * (diff / abs(diff))
 
-    dref ? ex_lutxyz(flt,src,ref, Format("x z - abs D1@ x y - D2@ 0 > {bthr} {thr} ? D2T@ <= x D1 D2T {elast} * D3T@ >= y dup D2 D3T D1 - * D3T D2T - / + ? ?"), \
-                                  Format("x z - abs D@ {thrc} <= x D {celast} >= y dup x y - {celast} D - * {celast} {thrc} - / + ? ?"),Y=Y,UV=UV) : \
-           ex_lutxy (flt,src,     Format("x y - D1@ dup abs DA@ swap 0 > {bthr} {thr} ? D2T@  <= x DA D2T {elast} * D3T@ >= y dup D1 D3T DA - * D3T D2T - / + ? ?"), \
-                                  Format("x y - D1@ abs DA@ {thrc} <= x DA {celast} >= y dup D1 {celast} DA - * {celast} {thrc} - / + ? ?"),Y=Y,UV=UV) }
+    exprYref = bthr != thr ? Format("x z - abs DA@ x y - D2@    0 > {bthr} {thr} ? THR@ <= x DA THR {elast} * THRE@ >= y dup D2 THRE DA - * THRE THR - / + ? ?") : \
+                             Format("x z - abs DA@     {thr} <= x DA {telast} >= y dup x y - {telast} DA - * {telast} {thr} - / + ? ?")
+    exprY    = bthr != thr ? Format("x y - D1@ dup abs DA@ swap 0 > {bthr} {thr} ? THR@ <= x DA THR {elast} * THRE@ >= y dup D1 THRE DA - * THRE THR - / + ? ?") : \
+                             Format("x y - D1@ abs DA@ {thr} <= x DA {telast} >= y dup D1    {telast} DA - * {telast} {thr} - / + ? ?")
+
+    dref ? ex_lutxyz(flt,src,ref, exprYref, Format("x z -     abs D@  {thrc} <= x D  {celast} >= y dup x y - {celast} D  - * {celast} {thrc} - / + ? ?"), Y=Y,UV=UV) : \
+           ex_lutxy (flt,src,     exprY,    Format("x y - D1@ abs DA@ {thrc} <= x DA {celast} >= y dup D1    {celast} DA - * {celast} {thrc} - / + ? ?"), Y=Y,UV=UV) }
 
 
 
