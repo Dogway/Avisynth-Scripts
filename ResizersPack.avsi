@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.5    (01-02-2022)   ##
+###   Resizers Functions Pack 7.6    (04-02-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -35,7 +35,7 @@
 ###  22.3% nnedi3_resize16() (3.7fps)
 ###
 ### General guidelines:
-### -Avoid bicubics for highly compressed images as it will augment DCT blocks
+### -Avoid bicubics for highly compressed images as it will amplify DCT blocks
 ### -For downscaling use a 2-lobes sinc function (aka not bicubics)
 ### -For downscaling while preventing moiree use a 4-lobes sinc filter (ie. Lanczos4)
 ### -For sharp images use 3-lobes, for blurry ones 4 or more
@@ -81,7 +81,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
     } else if (rw<1 && rh<1) {
 
-        ConvertFormat(a, w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,nomoiree=false, noring=false, UVrecon=false)
+        ConvertFormat(a, w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,taps=krn1=="blackman"?8:Undefined())
 
     } else {
 
@@ -190,7 +190,7 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
     \  :  Assert(false, "RatioResize: Wrong Ratio mode")
 
 
-    kernel == "nnedi3" ? Eval("nnedi3_resize16(s," + String(op) + ")"    ) : \
+    kernel == "nnedi3" ? Eval(    "deep_resize(s," + String(op) + ")"    ) : \
     kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p)") : \
     kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c)") : \
                          Eval(kernel + "Resize(s," + String(op) + ")"    ) }
@@ -272,12 +272,15 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###
 ### PadBorders()
 ###
-### Superseeds AddBorders(), old PadMirror() and Didée's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804#post1596804)
+### Superseeds AddBorders(), Crop(), old PadMirror() and Didée's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804#post1596804)
 ### in one single filter.
 ### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (https://avisynth.nl/index.php/Color_presets).
 ###
 ### 'Dilate' is slightly faster than 'Mirror' (and probably filtering friendlier)
 ###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131#post518131)
+###
+### You can also crop at the same time, let's say crop sides, extend vertically:
+###     PadBorders(-10,20,-10,20,"Dilate")
 ###
 ### *Color mode has two ways for inputs, the classical PC range based hexadecimal (see link above) or an alternative more intuitive way
 ###  by using an int array as string. For example for YUV TV Black you can input "$108080" or "[16,128,128]". Both modes are valid.
@@ -285,10 +288,10 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ### Function Definition:
 ###    (
 ###    clip,
-###    int left=0 (0 to 1000 by 2),
-###    int top=0 (0 to 1000 by 2),
-###    int right=0 (0 to 1000 by 2),
-###    int bottom=0 (0 to 1000 by 2),
+###    int left=0 (-1000 to 1000 by 2),
+###    int top=0 (-1000 to 1000 by 2),
+###    int right=0 (-1000 to 1000 by 2),
+###    int bottom=0 (-1000 to 1000 by 2),
 ###    string "mode"="$108080" ("Dilate" / "Mirror" / "[16,128,128]" / "[0,128,128]"),
 ###    )
 ###
@@ -313,10 +316,11 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 
     md = LeftStr(md,1)=="[" ? ColortoHex(md) : md
 
-    l  = nmod(abs(l),mod)
-    t  = nmod(abs(t),mod)
-    r  = nmod(abs(r),mod)
-    b  = nmod(abs(b),mod)
+    lc  = nmod(min(l,0),mod)    l  = nmod(max(l,0),mod)
+    tc  = nmod(min(t,0),mod)    t  = nmod(max(t,0),mod)
+    rc  = nmod(min(r,0),mod)    r  = nmod(max(r,0),mod)
+    bc  = nmod(min(b,0),mod)    b  = nmod(max(b,0),mod)
+
 
     if (md=="mirror") {
 
@@ -328,15 +332,17 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
             (l  > 0) ? stackhorizontal(lft,last)               : last
         rgh=(r  > 0) ? crop(width()-r,0,0,0, true).fliphorizontal() : last
             (r  > 0) ? stackhorizontal(last,rgh)               : last
+                       crop(-lc,-tc,rc,bc)
 
     } else if (md=="dilate") {
 
-        PointResize(w+l+r, h+t+b, -l, -t, w+l+r, h+t+b+0.0001)
+        PointResize(w+l+r+lc+rc, h+t+b+tc+bc, -l-lc, -t-tc, w+l+r+lc+rc, h+t+b+tc+bc+0.0001)
 
     } else if (LeftStr(md,1)=="$") {
 
         rgb ? AddBorders(l,t,r,b,             Eval(md)) : \
               AddBorders(l,t,r,b, color_yuv = Eval(md))
+              Crop      (-lc,-tc,rc,bc)
 
     } else {
 
@@ -411,25 +417,25 @@ function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
     w   = width()
     h   = height()
 
-    mdh    = Default(modH,   2)
-    mdv    = Default(modV, mdh)
-    md     = Default(mode, "auto")
+    mdh = Default(modH,      2)
+    mdv = Default(modV,    mdh)
+    md  = Default(mode, "auto")
     # borders: 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
-    wm = nmod(w,mdh)
-    hm = nmod(h,mdv)
+    wm  = nmod(w,mdh)
+    hm  = nmod(h,mdv)
 
     # Crop or Pad
-    wc = md=="auto" ? wm < w : md=="crop"
-    hc = md=="auto" ? hm < h : md=="crop"
+    wc  = md=="auto" ? wm < w : md=="crop"
+    hc  = md=="auto" ? hm < h : md=="crop"
 
     # Rounding
-    wp = abs(w - wm)/2.  wi = round(wp)%2
-    hp = abs(h - hm)/2.  hi = round(hp)%2
-    wh = ceil (Frac(wp))+floor(wp)
-    hh = ceil (Frac(hp))+floor(hp)
-    wl = floor(Frac(wp))+floor(wp)
-    hl = floor(Frac(hp))+floor(hp)
+    wp  = abs(w - wm)/2.  wi = round(wp)%2
+    hp  = abs(h - hm)/2.  hi = round(hp)%2
+    wh  = ceil (Frac(wp))+floor(wp)
+    hh  = ceil (Frac(hp))+floor(hp)
+    wl  = floor(Frac(wp))+floor(wp)
+    hl  = floor(Frac(hp))+floor(hp)
 
     # Zeroing null transforms
     wc1 = wc ?  wh+wi : 0    wa1 = !wc ? wh+wi : 0
