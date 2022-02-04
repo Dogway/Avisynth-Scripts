@@ -26,12 +26,12 @@
 ###
 ### Benchmarks:
 ###
-###     100.0% 65.5 fps
+###     100.0% 56.5 fps
 ###     Convertbits(16)
 ###     ex_GradFun3()
 ###     Convertbits(8,dither=1)
 ###
-###     60.2% 39.4 fps
+###     69.7% 39.4 fps
 ###     Dither_convert_8_to_16()
 ###     GradFun3()
 ###     DitherPost(stacked=true,prot=false,mode=6)
