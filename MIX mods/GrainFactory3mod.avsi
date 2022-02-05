@@ -94,8 +94,8 @@
 ### -> RgTools           [v1.2]
 ### -> MaskTools2        [v2.2.29]
 ### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v7.0.0]
-### -> ResizersPack      [v7.1.0]
+### -> ExTools           [v7.3.0]
+### -> ResizersPack      [v7.6.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -115,7 +115,7 @@ function GrainFactory3mod(clip clp,
 {
 
 
-Assert(IsVersionOrGreater(3,5,0), "GrainFactory3mod: Update AviSynth+ version")
+Assert(IsVersionOrGreater(3,7,1), "GrainFactory3mod: Update AviSynth+ version")
 
 
 g1str        = Default( g1str,         13 )  # [ 0 - ???] strength of luma grain / for dark areas
