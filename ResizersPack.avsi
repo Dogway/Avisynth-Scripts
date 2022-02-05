@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.6    (04-02-2022)   ##
+###   Resizers Functions Pack 7.6    (05-02-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -526,7 +526,7 @@ function MatteCrop(clip s, int "width", int "height", float "thr", bool "CropMor
     addw==0 ? Assert( addh>0, "MatteCrop: You need to scan borders for at least one of the dimension") : nop()
     addh==0 ? Assert( addw>0, "MatteCrop: You need to scan borders for at least one of the dimension") : nop()
 
-    thr    = ex_bs(thr, 8, bi, fulls=fs)
+    thr    = ex_bs(thr, 8, bi, fulls=fs, flt=true)
     addwz  = addw > 0
     addhz  = addh > 0
 
