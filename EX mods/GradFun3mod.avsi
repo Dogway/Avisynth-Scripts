@@ -1,6 +1,6 @@
 #############################################################
 ###                                                       ###
-###  GradFun3 EX mod by Dogway     (04-02-2022)           ###
+###  GradFun3 EX mod by Dogway     (05-02-2022)           ###
 ###                                                       ###
 ###                                                       ###
 ###  A simple port of:                                    ###
@@ -85,7 +85,7 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
 
     thr     = Default (thr,       0.35)
     thrc    = Default (thrc,       thr)
-    radius  = Default (radius, round(w>h?0.0077*w+2.42:0.014*h+1.8))
+    radius  = Default (radius, round(w/1.51>h?0.0077*w+2.42:0.014*h+1.8))
     radiusc = Default (radiusc, is42?round(radius/2.):radius)
     elast   = Default (elast,      3.0)
     elastc  = Default (elastc,   elast)
@@ -225,7 +225,7 @@ function ex_SmoothGrad(clip a, int "radius", float "thr", float "elast", clip "r
     thr_2       = ex_bs(thr_2,        16, bi, fs, flt=true)
     hhr         = 1 / ex_bs(32768/2., 16, bi, fs, flt=true)
 
-    val_filt = ex_GaussianBlur(a, 0.635*(rad-1)+0.6,Y=Y, UV=UV) # Reparametrized to roughly mimic Dither_box_filter16()
+    val_filt    = ex_GaussianBlur(a, 0.635*(rad-1)+0.6,Y=Y, UV=UV) # Reparametrized to roughly mimic Dither_box_filter16()
 
     rfd ? ex_lutxyz(a,val_filt,ref,Format("y z - 0.5 *     abs D@ {thr_1} < y D {thr_2} > x D {thr_slope} * {thr_offset} - y x - 0.5 {hhr} * * * x swap - ? ? "),Y=Y,UV=UV) : \
           ex_lutxy (a,val_filt,    Format("y x - 0.5 * D1@ abs D@ {thr_1} < y D {thr_2} > x D {thr_slope} * {thr_offset} - D1      * {hhr} *     x swap - ? ? "),Y=Y,UV=UV) }
@@ -256,7 +256,7 @@ function gf3_smoothgrad_multi (clip src, clip ref, int radius, float thr, float 
 
     Assert (radius <=  156, "ex_GradFun3: max "+chr(34)+"radius" +chr(34)+" value is 156 when smode = 0.")
 
-    un    = Undefined()
+    ref   = isref ? ref : Undefined()
     ela_2 = max (elast * 0.83, 1)
     ela_3 = max (elast * 0.67, 1)
     r2    = radius * 2 / 3
@@ -264,9 +264,9 @@ function gf3_smoothgrad_multi (clip src, clip ref, int radius, float thr, float 
     r4    = radius * 4 / 3
 
     src
-    (r2 >= 1) ? ex_SmoothGrad (radius=r2, thr=thr,      elast=elast, ref=isref?ref:un, y=y, uv=uv) : last
-    (r3 >= 1) ? ex_SmoothGrad (radius=r3, thr=thr*0.7,  elast=ela_2, ref=isref?ref:un, y=y, uv=uv) : last
-    (r4 >= 1) ? ex_SmoothGrad (radius=r4, thr=thr*0.46, elast=ela_3, ref=isref?ref:un, y=y, uv=uv) : last }
+    (r2 >= 1) ? ex_SmoothGrad (radius=r2, thr=thr,      elast=elast, ref=ref, y=y, uv=uv) : last
+    (r3 >= 1) ? ex_SmoothGrad (radius=r3, thr=thr*0.7,  elast=ela_2, ref=ref, y=y, uv=uv) : last
+    (r4 >= 1) ? ex_SmoothGrad (radius=r4, thr=thr*0.46, elast=ela_3, ref=ref, y=y, uv=uv) : last }
 
 
 

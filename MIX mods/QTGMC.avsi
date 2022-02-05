@@ -512,7 +512,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     totalRestore = GrainRestore + NoiseRestore
     StabilizeNoise = (totalRestore <= 0) ? false : StabilizeNoise
     noiseTD      = Select( NoiseTR, 1, 3, 5 )
-    noiseCentre  = ex_bs((Denoiser == "DFTTest") ? 128 : 128.5, 8, bi, fulls=!tv)
+    noiseCentre  = ex_bs((Denoiser == "DFTTest") ? 128 : 128.5, 8, bi, fulls=!tv, flt=true)
 
     # MVTools settings
     SubPelInterp = Default( SubPelInterp, 2     )

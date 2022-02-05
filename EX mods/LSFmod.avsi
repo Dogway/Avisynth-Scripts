@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v5.0 ex - 27 January 2022                                 ###
+###                                v5.0 ex - 05 February 2022                                ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -190,10 +190,10 @@
 ### +--------------+
 ###
 ### -> ExTools        (v7.3 or up)
-### -> ResizersPack   (v7.3 or up)
-### -> SMDegrain      (v3.4.3 or up)   [for preblur="ON"]
+### -> ResizersPack   (v7.6 or up)
+### -> SMDegrain      (v3.4.4 or up)   [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
-### -> SharpenersPack (v3.0 or up)     [for Smode=1, Smode=2, Smode=3 and Smode=6]
+### -> SharpenersPack (v3.3 or up)     [for Smode=1, Smode=2, Smode=3 and Smode=6]
 ### -> if you use AviSynth+ then make sure it's the latest one
 ###
 ###
@@ -672,7 +672,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     \      : Smethod==5   ? Lmode < 1 ? minmaxavg.ex_boxblur(0.5,mode="weighted") : minmaxavg
     \      :                            minmaxavg.ex_boxblur(2,  mode="weighted")
 
-    sec    = ex_bs(0.51, 8, bi, fulls=true)
+    sec    = ex_bs(0.51, 8, bi, fulls=true, flt=true)
     secstr = Format("x y < x {sec} + x y > x {sec} - x ? ?")       # "whatever change you calculated, reduce that change by 1". Trick to fix banding and "face wax" effect
     method = Smode>3 ? method : secure ? method.ex_lutxy(pre,secstr, UV=1, fulls=!tv)
     \      :                             method
@@ -729,8 +729,8 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
 
         cb1     = ex_repair(pre.MCompensate(super, cb1, thSAD=220, mt=true), pre, "undot3", UV=1).ConvertBits(bi, fulls=!tv)
         cf1     = ex_repair(pre.MCompensate(super, cf1, thSAD=220, mt=true), pre, "undot3", UV=1).ConvertBits(bi, fulls=!tv)
-        os      = ex_bs(overshoot, 8, bi, fulls=!tv)       us     = ex_bs(undershoot, 8, bi, fulls=!tv)
-        os      = os  == 0 ? "" : Format("{os}  +")        us     = us  == 0 ? "" : Format("{us}  -")
+        os      = ex_bs(overshoot, 8, bi, fulls=!tv, flt=true)   us = ex_bs(undershoot, 8, bi, fulls=!tv, flt=true)
+        os      = os  == 0 ? "" : Format("{os}  +")              us = us  == 0 ? "" : Format("{us}  -")
         normalT = ex_lutxyza(tmp,normsharp,cb1,cf1,Format("y x z max a max "+os+" min x z min a min "+us+" max"),UV=1)
         }
 
@@ -774,7 +774,7 @@ function LSFmod( clip inclip, float "strength", int "Smode", int "Smethod",
     ### SOOTHE
     diff  = ex_makediff(tmp, PP1, UV=1, fulls=!tv)
     diff2 = diff.temporalsoften(1,255,0,32,2)
-    diff3 = ex_lutxyz(tmp,diff,diff2,Format("y "+bi32m+" A@ z "+bi32m+" B@ * 0 < A {keep} 0.01 * * "+bi32p+" A abs B abs > y {keep} * z 100 {keep} - * + 0.01 * y ? ? x swap - "+bi32p),  UV=1, fulls=!tv)
+    diff3 = ex_lutxyz(tmp,diff,diff2,Format("y "+bi32m+" A@ z "+bi32m+" B@ * 0 < A {keep} 0.01 * * "+bi32p+" A abs B abs > y {keep} * z 100 {keep} - * + 0.01 * y ? ? x swap - "+bi32p), UV=1, fulls=!tv)
 
     PP2 = soothe ? diff3 : PP1
 

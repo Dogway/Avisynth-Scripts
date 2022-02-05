@@ -1,12 +1,12 @@
 # Frame Rate Converter mix mod
-# Version: 2.2.1  (31-01-2022)
+# Version: 2.2.1  (05-02-2022)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (2.2.0)  (10-01-2022) replaced MaskTools2 with internal HBD aware Expr() wrappers, performance optimizations + cosmetics. (Requires ExTools, GradePack and AviSynth+ 3.7.1+)
+# Dogway (2.2.1)  (05-02-2022) replaced MaskTools2 with internal HBD aware Expr() wrappers, performance optimizations + cosmetics. (Requires ExTools, GradePack and AviSynth+ 3.7.1+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -361,11 +361,11 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
     ShowRaw = OutFps ? OutRaw.ChangeFPS(NewNum, NewDen) : OutRaw
     R       = Debug  ? R.ScriptClip(function [EM,EMskip,EMstp,EMdiff,ShowRaw,BlkSize,SkipOver,BlendOver,CalcDiff,Stp] () {
 
-                Skip    = EMskip.AverageLuma()     Skip    = ex_bs(Skip    ,bi,8,fulls=true)
-                EMdiff  = EMdiff.AverageLuma()     EMdiff  = ex_bs(EMdiff  ,bi,8,fulls=true)
-                EMstp   = EMstp.AverageLuma()      EMstp   = ex_bs(EMstp   ,bi,8,fulls=true)
-                EM      = EM.AverageLuma()         EM      = ex_bs(EM      ,bi,8,fulls=true)
-                ShowRaw = ShowRaw.AverageLuma()    ShowRaw = ex_bs(ShowRaw ,bi,8,fulls=true)
+                Skip    = EMskip.AverageLuma()     Skip    = ex_bs(Skip    ,bi,8,fulls=true,flt=true)
+                EMdiff  = EMdiff.AverageLuma()     EMdiff  = ex_bs(EMdiff  ,bi,8,fulls=true,flt=true)
+                EMstp   = EMstp.AverageLuma()      EMstp   = ex_bs(EMstp   ,bi,8,fulls=true,flt=true)
+                EM      = EM.AverageLuma()         EM      = ex_bs(EM      ,bi,8,fulls=true,flt=true)
+                ShowRaw = ShowRaw.AverageLuma()    ShowRaw = ex_bs(ShowRaw ,bi,8,fulls=true,flt=true)
 
                 SkipSoft = BlendOver > 0 && Skip >= BlendOver && (Skip < SkipOver || SkipOver == 0)
 
@@ -399,11 +399,11 @@ function ex_InterpolateDoubles(clip C, float "Thr", bool "Show", string "Preset"
     bi     = BitsPerComponent(C)
     fs     = propNumElements (C,"_ColorRange")  > 0 ? \
              propGetInt      (C,"_ColorRange") == 0 : false
-    Thr    = Default(thr, .1)
+    thr    = Default(thr, .1)
     tv     = Default(tv_range, !fs)
     Show   = Default(Show,  false)
 
-    thr = bi > 8 ? ex_bs(thr,8,bi,fulls=!tv) : thr
+    thr = bi > 8 ? ex_bs(thr,8, bi, fulls=!tv, flt=true) : thr
     PrevC  = C.DeleteFrame(c.FrameCount()-1).DuplicateFrame(0)
     #NextC  = C.DuplicateFrame(C.FrameCount-1).DeleteFrame(0)
     Flow = ex_FrameRateConverter(C, FrameDouble=true, Preset=preset, BlkSize=BlkSize, BlkSizeV=BlkSizeV, MaskThr=MaskThr, MaskOcc=MaskOcc, SkipThr=SkipThr, BlendOver=BlendOver, SkipOver=SkipOver, Stp=Stp, Dct=Dct, DctRe=DctRe, tv_range=tv).SelectOdd()

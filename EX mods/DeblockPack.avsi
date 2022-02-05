@@ -231,7 +231,7 @@ function oyster_Super(clip src, int "pel") {
 #    PadBorders(128, 128, 128, 128, "Dilate")
     PadBorders(64, 64, 64, 64, "Dilate")
 #    nnedi3_rpow2(rfactor=pel,nns=4,nsize=0,qual=2,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2)
+    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
 
     return last }
 

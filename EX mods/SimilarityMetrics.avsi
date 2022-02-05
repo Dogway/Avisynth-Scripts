@@ -433,7 +433,7 @@ function BSSIM(clip dist, clip ref, int "show", bool "fulls") {
 
     ScriptClip(show == 1 ? ref : dist, function [blurred, source8, blurred8, scharr_orig, scharr_blurred, show] () {
 
-        SSIM        = propGetFloat  (blurred, "_PlaneSSIM")
+        SSIM        = propGetFloat(blurred, "_PlaneSSIM")
 
         mean8       = AverageLuma(scharr_orig)
         var8        = ex_lut(scharr_orig,   Format("x {mean8} - dup *"))
@@ -512,7 +512,11 @@ SSIM_downsample(1280,532)
 SSIM_downsample(1280,532, resample_args="b=-0.6, c=0", dither=true, smooth="""ex_boxblur(1,mode="mean",UV=1)""")
 # Downsampling with custom kernel arguments, custom smooth function and dither.
 */
-
+###
+/*
+SSIM_downsample(w,h,smooth=0.43,resample_args="-0.6,0.4")
+# High Quality Downsampling with custom kernel arguments and custom smooth sigma.
+*/
 
 ### Changelog ###
 #---------------
