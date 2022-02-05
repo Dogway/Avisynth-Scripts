@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 5.3 By Dogway  (03-02-2022)            ##
+###           MasksPack 5.3 By Dogway  (05-02-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -348,10 +348,10 @@ function ex_limitchange(clip flt, clip src, float "limit", float "bias", float "
 
     LIM1  = ex_bs(limit >0 ? round(limit *(100.0/bias) -1.0) : round(100.0/bias),  8, bi, fulls=fs)
     LIM1c = ex_bs(limitC>0 ? round(limitC*(100.0/biasC)-1.0) : round(100.0/biasC), 8, bi, fulls=fs)
-    LIM2  = ex_bs(limit <0 ? 1 : limit,  8, bi, fulls=fs)
-    LIM2c = ex_bs(limitC<0 ? 1 : limitC, 8, bi, fulls=fs)
-    BIA   = ex_bs(bias,                  8, bi, fulls=fs)
-    BIAc  = ex_bs(biasc,                 8, bi, fulls=fs)
+    LIM2  = ex_bs(limit <0 ? 1 : limit,  8, bi, fulls=fs, flt=true)
+    LIM2c = ex_bs(limitC<0 ? 1 : limitC, 8, bi, fulls=fs, flt=true)
+    BIA   = ex_bs(bias,                  8, bi, fulls=fs, flt=true)
+    BIAc  = ex_bs(biasc,                 8, bi, fulls=fs, flt=true)
     CTH   = ex_bs(100,                   8, bi, fulls=fs)
     un    = ex_bs(1,                     8, bi, fulls=fs)
 
