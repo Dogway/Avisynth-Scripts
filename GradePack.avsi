@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v6.6 (02-02-2022)               ##
+###           Grade Pack v6.6 (05-02-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -312,10 +312,10 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     rangePCc = tv ? "x range_half - range_max cmax cmin - / * "  : "x range_half - "
     rangeTVc = tv ? " cmax cmin - range_max / * range_half + "   : "  range_half + "
 
-    ilo = ex_bs( ilo, 8, bi, tv_in=tv, tv_out=false)
-    ihi = ex_bs( ihi, 8, bi, tv_in=tv, tv_out=false)
-    olo = ex_bs( olo, 8, bi, tv_in=tv, tv_out=false)
-    ohi = ex_bs( ohi, 8, bi, tv_in=tv, tv_out=false)
+    ilo = ex_bs( ilo, 8, bi, tv_in=tv, tv_out=false, flt=true)
+    ihi = ex_bs( ihi, 8, bi, tv_in=tv, tv_out=false, flt=true)
+    olo = ex_bs( olo, 8, bi, tv_in=tv, tv_out=false, flt=true)
+    ohi = ex_bs( ohi, 8, bi, tv_in=tv, tv_out=false, flt=true)
     iho = ihi - ilo
     oho = ohi - olo
     ilo = ilo == 0 ? "" : Format(" {ilo} - ")
@@ -954,7 +954,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 ### Example for fixing out-of-gamut:
 ###
 ###     msk=GamutWarning(show=2)
-###     ex_merge(last,ex_vibrance(0.4,"vibrance"),msk,luma=true,Y=2,UV=3) # There's yet to add chroma induced luma recovery
+###     ex_merge(last,ex_vibrance(0.4,"vibrance",4),msk,luma=true,Y=2,UV=3) # There's yet to add chroma induced luma recovery
 ###   # GamutWarning(show=1) # show improvement
 ###
 ####################################
