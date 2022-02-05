@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v3.2  (04-02-2022)                             ###
+###        Sharpeners Pack v3.3  (05-02-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -31,6 +31,7 @@
 ###   feisty2:                                                            ###
 ###       Plum                                                            ###
 ###   Other:                                                              ###
+###       DGSharpen                                                       ###
 ###       SharpenComplex2 (uncredited)                                    ###
 ###       MultiSharpen                                                    ###
 ###       XSharpen                                                        ###
@@ -2399,6 +2400,40 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 ###      OTHER      ###
 ###                 ###
 #######################
+
+
+
+
+
+## ex_DGSharpen() - Wrapper for DGSharpen by Donald A. Graft
+##
+## DGSharpen() is a fast stand-alone CUDA filter that implements limited sharpening like the well-known filter LimitedSharpenFaster().
+## Supports YUV format in any bitdepth
+##
+function ex_DGSharpen(clip a, float "str") {
+
+    w   = width(a)
+    h   = height(a)
+    is42= is420(a)
+    bi  = BitsPerComponent(a)
+    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
+          propGetInt      (a,"_ColorRange") == 0 : false
+
+    str = Default(str,      1.0)
+    Assert(!isRGB(a), "ex_DGSharpen: clip has to be in YUV format")
+
+    a
+    !is42 ? ConverttoYUV420() : last
+    bi>8 && bi!= 16 ? ConvertBits(16, fulls=fs, fulld=fs) : last
+
+    DGSharpen(str)
+
+    ConvertBits(bi, dither=bi==32?-1:1, fulls=fs, fulld=fs)
+    !is42 ? MergeChroma(a) : last }
+
+
+
+
 
 
 ### SharpenComplex2() by ??? (??-11-2011)
