@@ -51,7 +51,7 @@
 ### elastc is the parameter for the chroma planes. Good values are in the range 1.25-4.
 ###
 ### mask:
-### Depth or width in pixels of the detail/edge masking. In the range 0-3.
+### Depth or width in pixels of the detail/edge masking. In the range 0-4.
 ###
 ### thr_det:
 ### Local contrast threshold for detail detection and masking. The lower, the better the details will be protected, but the lower the smoothing efficiency.
@@ -134,12 +134,11 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
     td_lo  = ex_bs(max(thr_det * 0.75, 1), 8, bi, fs, flt=true) - 0.0001
     td_hi  = ex_bs(max(thr_det,        1), 8, bi, fs, flt=true) + 0.0001
 
-    dmask  = (mask > 0 && yv411_flag) ? src.ExtractY()           : src
+    dmask  = (mask > 0 && yv411_flag) ? src.ExtractY()                   : src
     dmask  = (mask > 0) ? dmask.ex_luts(mode="rng", pixels=ex_shape(mask,mode=mask==4?"circle":"disk"), exprf=Format(" {td_lo} - {td_hi} {td_lo} - / 0 1 clip range_max *")) : dmask
-    dmask1 = (mask > 0) ? dmask.ex_median(mode="cartoon")        : dmask
-    dmask2 = (mask > 1) ? dmask1.ex_boxblur(1,mode="weighted")   : dmask1
-    dmask3 = (mask > 2) ? dmask1.ex_boxblur(2,mode="weighted")   : dmask2
-    dmask  = (mask > 0 && yv411_flag) ? dmask3.ConvertToYV411 () : dmask3
+    dmask  = (mask > 0) ? dmask.ex_median(mode="cartoon")               : dmask
+    dmask  = (mask > 1) ? dmask.ex_boxblur(min(2,mask),mode="weighted") : dmask
+    dmask  = (mask > 0 && yv411_flag) ? dmask.ConvertToYV411 ()         : dmask
 
     result = (mask > 0) ? ex_merge(flt, src, dmask, luma=true, y=yp, uv=uvp) : flt
 

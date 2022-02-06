@@ -53,7 +53,7 @@
 ### elastc is the parameter for the chroma planes. Good values are in the range 1.25-4.
 ###
 ### mask:
-### Depth or width in pixels of the detail/edge masking. In the range 0-3.
+### Depth or width in pixels of the detail/edge masking. In the range 0-4.
 ###
 ### thr_det:
 ### Local contrast threshold for detail detection and masking. The lower, the better the details will be protected, but the lower the smoothing efficiency.
