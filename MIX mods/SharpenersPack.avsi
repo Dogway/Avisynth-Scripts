@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v3.3  (05-02-2022)                             ###
+###        Sharpeners Pack v3.4  (06-02-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -30,6 +30,8 @@
 ###       MedSharp                                                        ###
 ###   feisty2:                                                            ###
 ###       Plum                                                            ###
+###       DelicateSharp                                                   ###
+###       RegularSharp                                                    ###
 ###   Other:                                                              ###
 ###       DGSharpen                                                       ###
 ###       SharpenComplex2 (uncredited)                                    ###
@@ -2092,14 +2094,163 @@ function YAHR(clip clp) {
 
 ################################
 ###                          ###
-###     Plum by feisty2      ###
+###        feisty2's         ###
 ###                          ###
 ################################
 
+# Note: Most of feisty2's filters (these or Plum, Oyster, Vine, etc) are benchmarked against SD 4:3 clips (namely old music clips)
+#       So keep that in mind when evaluating quality on HD or performance.
+
+function DelicateSharp (clip src, bool "relaxed", bool "coarse", int "lowpass") {
+
+    bi     = BitsPerComponent(src)
+    fs     = propNumElements (src,"_ColorRange")  > 0 ? \
+             propGetInt      (src,"_ColorRange") == 0 : false
+
+    rlx    = Default(relaxed,   false)
+    crs    = Default(coarse,    false)
+    lp     = Default(lowpass,      16)
+
+    med    = rlx ? Repair(RemoveGrain(src,4), src, 16) : RemoveGrain(src,4)
+    dif    = ex_lutxy(src, med, "y x - 3 * range_half +", fulls=fs)
+
+    rg12   = RemoveGrain (dif,   12, -1)
+    rg12D  = ex_makediff (dif, rg12, fulls=fs)
+    rg12DR = RemoveGrain (rg12D, 12, -1)
+    dif    = ex_lutxyz(rg12D, rg12DR, dif, "x y - D@ x range_half - X@ * 0 < z D abs X abs < D range_half + x ? z swap - range_half + ?", fulls=fs)
+
+    difrg  = RemoveGrain (dif,   12, -1)
+    fdif   = ex_lutxyz(dif, difrg, src, "y range_half - Y@ abs x range_half - abs > Y z + z ? ", fulls=fs)
+    crs || rlx ? fdif : hipass (src, fdif, p=lp)
+    return MergeChroma(src) }
+
+
+
+function RegularSharp (clip src, bool "median", int "lowpass", int "a", float "h", float "thr", float "elast") {
+
+    w      = src.width ()
+    h      = src.height()
+
+    bi     = BitsPerComponent(src)
+    fs     = propNumElements (src,"_ColorRange")  > 0 ? \
+             propGetInt      (src,"_ColorRange") == 0 : false
+
+    med    = Default(median,   false)
+    lp     = Default(lowpass,     16)
+    a      = Default(a,           32)
+    h      = Default(h,         12.8)
+    thr    = Default(thr,         1.)
+    ela    = Default(elast, thr / 6.)
+
+    u2x             = med ? nop() : genpelclip (src, pel=2)
+
+    for (i=4, 0, -1) {
+        clp         = u2x
+        blur        = BicubicResize(clp, w*8, h*8, b= 1, c=0)
+        sharp       = BicubicResize(clp, w*8, h*8, b=-1, c=0)
+        dif         = ex_makediff (blur, sharp, fulls=fs)
+        dif         = BicubicResize(dif, w*2, h*2, b=-1, c=0)
+        clp         = ex_adddiff (clp, dif, fulls=fs)
+        ublur       = clp  }
+
+    cdif            =  med ? nop() : BicubicResize(ex_makediff (u2x, ublur, fulls=fs), w, h, -4, -2, -0.5, -0.5)
+    csharp          =  med ? nop() : halonr (hipass (src, ex_adddiff (src, cdif, fulls=fs), lp), a, h, thr, ela, lp/2, UV=1)
+    msharp          = !med ? nop() : ex_makeadddiff (src, RemoveGrain(src,4,-1))
+    clp             =  med ? msharp : csharp
+    return MergeChroma(clp,src) }
+
+
+
+
+# Called 'SharpFinal' but actually is a temporal limiter
+#
+# soft:  Soft clip previous to being sharpened
+# dif:   Difference from sharpened clip to soft clip
+# limit: Local neighbourhood average clip (?)
+#
+# Example:
+#     soft = last
+#     RegularSharp()
+#     dif = ex_makediff(soft, dif=true)
+#     lcl = Merge(ex_expand(soft), ex_inpand(soft))
+#     SharpFinal(last,soft,lcl)
+
+function SharpFinal (clip soft, clip dif, clip limit, clip "peldif", clip "pellimit", int "pel", int "tr", int "thsad", int "thscd1", int "thscd2", float "str", int "lowpass", int "a", float "h", float "thr", float "elast") {
+
+    w         = soft.width ()
+    h         = soft.height()
+
+    bi        = BitsPerComponent(soft)
+    fs        = propNumElements (soft,"_ColorRange")  > 0 ? \
+                propGetInt      (soft,"_ColorRange") == 0 : false
+
+    pdif      = Default(peldif,   Undefined())
+    plim      = Default(pellimit, Undefined())
+
+    pel       = Default(pel,          4)
+    tr        = Default(tr,           6)
+    thsad     = Default(thsad,      400)
+    thscd1    = Default(thscd1,    1000)
+    thscd2    = Default(thscd2,     255)
+    lp        = Default(lowpass,      8)
+    a         = Default(a,           32)
+    h         = Default(h,          6.4)
+    thr       = Default(thr,         1.)
+    str       = Default(str,         1.)
+    ela       = Default(elast, thr / 6.)
+
+    blankd    = ex_lut(dif, "range_half", fulls=fs)
+    superdif  = MSuper (dif,   pelclip=peldif,   rfilter=2, pel=pel)
+    supercmp  = MSuper (limit, pelclip=pellimit, rfilter=2, pel=pel)
+    vmulti    = getvectors(dif, pel=pel, tr=tr, thsad=thsad) # clip is best guess, actually it was an argument input
+    coarse    = MDegrainN (blankd, superdif, vmulti, tr, thsad=10000, thscd1=thscd1, thscd2=thscd2, plane=0, limit=1.0)
+    fine      = MDegrainN (blankd, superdif, vmulti, tr, thsad=thsad, thscd1=thscd1, thscd2=thscd2, plane=0, limit=1.0)
+    averaged  = Expr(dif, coarse, blankd, fine, soft, ex_dlut("y z - abs x z - abs > a y ? b + range_half -", bi, fs),"")
+    comp      = MCompensate (soft, supercmp, vmulti, tr=tr, thsad=thsad, thscd1=thscd1, thscd2=thscd2)
+    bright    = ex_logic (maxmulti (comp, tr=tr), ex_inpand (limit), "min")
+    dark      = ex_logic (minmulti (comp, tr=tr), ex_inpand (limit), "max")
+    clamped   = ex_clamp (averaged, bright, dark, overshoot=0, undershoot=0)
+    amplified = ex_lutxy(soft, clamped, Format("y x - A@ abs 0.25 * 0.25 pow {str} 1.6 4 * * * A sgn * x +"), scale_inputs=fs?"allf":"all")
+    clp       = hipass  (soft, Repair (amplified, halonr (amplified, a, h, thr, elast, lowpass, 1), 16,0), lowpass)
+
+    return clp }
+
+
+
+function HaloNR (clip src, int "a", float "h", float "thr", float "elast", int "lowpass", int "UV") {
+
+    bi      = BitsPerComponent(src)
+    fs      = propNumElements (src,"_ColorRange")  > 0 ? \
+              propGetInt      (src,"_ColorRange") == 0 : false
+
+    lp      = Default(lowpass,      8)
+    a       = Default(a,           32)
+    h       = Default(h,          6.4)
+    thr     = Default(thr,         1.)
+    ela     = Default(elast, thr / 6.)
+    UV      = Default(UV,           3)
+
+    off     = ex_bs(0.24, 32, bi, fs, flt=true)
+    pad     = PadBorders(src, a, a, a, a, "Dilate")
+    Clean   = hipass (pad, ex_KNLMeansCL (pad, d=0, a=a, s=0, h=h, rclip=pad), p=lp)
+    Blurred = ex_KNLMeansCL (Clean, d=0, a=a, s=0, h=64)
+    EMask   = vsTCanny (Blurred, sigmaY=1.5, mode=1, op=0)
+    EMask   = ex_lut(EMask, Format("x {off} - 6.4 * 0 range_max clip"), UV=UV, fulls=fs)
+    EMask   = ex_expand(EMask).ex_inflate().ex_expand()
+    MRG     = ex_merge  (pad, Clean, EMask, luma=UV==3, UV=UV)
+    Final   = thrmerge  (pad, MRG, thr=thr, elast=ela)
+    clp     = Crop (Final, a, a, -a, -a)
+    return clp }
+
+
+
+##
+## Plum by feisty2
+##
 ## Initial VapourSynth release (12-08-2016)
 ## AviSynth+ port    by Dogway (21-09-2021) (WIP)
 ##
-## Input: YUV/RGB in 32-bit float
+## Input: YUV/RGB at any bitdepth
 ##
 ##   - A
 ##       ref = plum_Basic(clp, strength=6.4, cutoff=32)
@@ -2203,10 +2354,10 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
         sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
         ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
         sharp           = NLErrors(ref, a, h1, sharp).ConvertBits(32, fulls=fs)
-        dif             = ex_makediff(sharp, ref)
+        dif             = ex_makediff(sharp, ref, fulls=fs)
 #        dif             = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
         dif             = GaussResize(dif, src.width(), src.height(), p=100) # like PointResize but with centered chroma
-        sharp           = ex_adddiff(src, dif).ConvertBits(32, fulls=fs)
+        sharp           = ex_adddiff(src, dif, fulls=fs).ConvertBits(32, fulls=fs)
         src32           = src.ConvertBits(32, fulls=fs)
         sharp           = CutOff(src32, sharp, cutoff_1, 0)
         local_error     = NLErrors(src32, radius, h2, src32)
@@ -2288,9 +2439,9 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     src                = PadBorders(src, 64, 64, 64, 64, "Dilate")
     ref                = PadBorders(ref, 64, 64, 64, 64, "Dilate")
     src3               = Merge(src, ref, flexibility)
-    ref                = ex_makediff(ref, src)
-    super3             = isS && isF ? Merge(super, superf, flexibility) : Undefined()
-    superf             = isS && isF ? ex_makediff(superf, super)        : Undefined()
+    ref                = ex_makediff(ref, src, fulls=fs)
+    super3             = isS && isF ? Merge(super, superf, flexibility)    : Undefined()
+    superf             = isS && isF ? ex_makediff(superf, super, fulls=fs) : Undefined()
     blankdif           = ex_lut(src, "0")
     supersearch        = MSuper(src,  pelclip=super,  rfilter=4, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true)
     superdif           = MSuper(ref,  pelclip=superf, rfilter=2, pel=pel, hpad=0, vpad=0, sharp=2, levels=0, chroma=False, mt=true)
@@ -2313,7 +2464,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     compensated        = Crop(compensated,  64, 64, -64, -64)
     bright_limit       = TemporalExtremum(compensated, radius, "max")
     dark_limit         = TemporalExtremum(compensated, radius, "min")
-    averaged           = ex_adddiff(src, averaged_dif)
+    averaged           = ex_adddiff(src, averaged_dif, fulls=fs)
     clamped            = ex_clamp(averaged, bright_limit, dark_limit, 0, 0, UV=1)
     src                = src.ConvertBits(32, fulls=fs)
     amplified          = ex_lutxy(clamped.ConvertBits(32, fulls=fs), src, Format("x y - A@ abs {lstr} / 1 {pstr} / ^ {strength} * A sgn * A dup * dup {ldmp} + / * y +"), scale_inputs=fs?"allf":"all")
@@ -2324,21 +2475,79 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     return clp }
 
 
+
+
+
 #####################################
 #                                   #
-#   HELPER FUNCTIONS for Plum       #
+#   HELPER FUNCTIONS for feisty2's  #
 #                                   #
 #####################################
 
 
-    # this is just for blurring
+
+    function genpelclip (clip src, clip "src2", int "pel") {
+
+        bi      = BitsPerComponent(src)
+        fs      = propNumElements (src,"_ColorRange")  > 0 ? \
+                  propGetInt      (src,"_ColorRange") == 0 : false
+
+        pel     = Default(pel, 4)
+        src2d   = Defined(src2)
+
+        cores   = SI_PhysicalCores()
+        threads = SI_LogicalCores()
+
+        u2x     =                   nnedi3_rpow2(src, rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        u2x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        u4x     =                   nnedi3_rpow2(src, rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        u4x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        dif     = !src2d ? nop() : (pel==2 ? ex_makediff (u2x, u2x2, fulls=fs) : ex_makediff (u4x, u4x2, fulls=fs))
+        clp     =  src2d ? dif   : (pel==2 ? u2x : u4x)
+        return clp }
+
+
+    function getvectors (clip src, int "pel", int "tr", int "thsad") {
+
+        pel        = Default(pel,          4)
+        tr         = Default(tr,           6)
+        thsad      = Default(thsad,      400)
+
+        supersoft  = MSuper (src, rfilter=4, pel=pel, chroma=False, hpad=32, vpad=32, sharp=2, levels=0)
+        supersharp = MSuper (src, rfilter=2, pel=pel, chroma=False, hpad=32, vpad=32, sharp=2, levels=0)
+        vmulti     = MAnalyse (supersoft, badrange=-24,overlap=16, blksize=32, divide=2, delta=tr, search=3,   dct=7, chroma=False, truemotion=True, trymany=True, levels=0, multi=true)
+        vmulti     = MRecalculate (supersoft,  vmulti, overlap=8,  blksize=16, divide=2, tr=tr, thsad=thsad/2, dct=8, chroma=False, truemotion=True, search=3, smooth=1)
+        vmulti     = MRecalculate (supersharp, vmulti, overlap=4,  blksize=8,  divide=2, tr=tr, thsad=thsad/2, dct=6, chroma=False, truemotion=True, search=3, smooth=1)
+        vmulti     = MRecalculate (supersharp, vmulti, overlap=2,  blksize=4,  divide=0, tr=tr, thsad=thsad/2, dct=5, chroma=False, truemotion=True, search=3, smooth=1)
+        return vmulti }
+
+
+    function gauss (clip src, int "p") {
+
+        p     = Default(p, 30)
+
+        upsmp = GaussResize(src,   src.width() * 2, src.height() * 2, p=100)
+        clp   = GaussResize(upsmp, src.width(),     src.height(),     p=p)
+        return clp }
+
+
+    # Hipass recovery (recovers sharp range from 'sharp' clip to 'src' clip)
+    function hipass (clip src, clip sharp, int "p") {
+
+        lp            = Default(p, 16)
+
+        clp1          = gauss (sharp, p=lp)
+        clp2          = gauss (src,   p=lp)
+
+        clp           = ex_makeadddiff (sharp, clp1, clp2)
+
+        return clp }
+
+    # Bandpass recovery (recovers p+margin range bandpass from 'hi' clip to 'low' clip)
     function CutOff(clip low, clip hi, int p, int margin) {
 
-        upsmp         = GaussResize(hi,     hi.width()*2,  hi.height()*2, p=100)
-        clp1          = GaussResize(upsmp,  hi.width(),    hi.height(),   p=p+margin)
-
-        upsmp         = GaussResize(low,   low.width()*2, low.height()*2, p=100)
-        clp2          = GaussResize(upsmp, low.width(),   low.height(),   p=p)
+        clp1          = gauss(hi,  p+margin)
+        clp2          = gauss(low, p)
 
         clp           = ex_makeadddiff(hi, clp1, clp2)
 
@@ -2387,6 +2596,51 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
     return Eval(clp) }
 
 
+    function maxmulti (clip src, clip "start", int "a", int "tr") {
+        std             = Defined(start)
+        a               = Default(a, 0)
+        tr              = Default(tr,6)
+        start           = !std ? ex_lut(  SelectEvery (src, tr*2+1, 0), "0") : start
+        max             = ex_logic(start, SelectEvery (src, tr*2+1, a), "max")
+        a               = a+1
+        clp             = a == tr*2+1 ? max : maxmulti (src, start=max, tr=tr, a=a)
+        return clp }
+
+    function minmulti (clip src, clip "start", int "a", int "tr") {
+        std             = Defined(start)
+        a               = Default(a, 0)
+        tr              = Default(tr,6)
+        start           = !std ? ex_lut(  SelectEvery (src, tr*2+1, 0), "range_max") : start
+        min             = ex_logic(start, SelectEvery (src, tr*2+1, a), "min")
+        a               = a+1
+        clp             = a == tr*2+1 ? min : minmulti (src, start=min, tr=tr, a=a)
+        return clp }
+
+
+    function ThrMerge(clip flt, clip src, clip "ref", float "thr", float "elast") {
+
+        bi    = BitsPerComponent(flt)
+        rgb   = isRGB(flt)
+        fs    = propNumElements (flt,"_ColorRange")  > 0 ? \
+                propGetInt      (flt,"_ColorRange") == 0 : rgb
+
+        thr   = Default(thr, 0.0009765625)
+        ref   = Defined(ref)   ? ref   : src
+        elast = Defined(elast) ? elast : thr / 2.
+
+        elast = ex_bs(elast, 32, bi, fs, flt=true)
+        thr   = ex_bs(thr,   32, bi, fs, flt=true)
+
+        BDif  = ex_lut(src, "0", scale_inputs="none")
+        PBLD  = ex_lutxyza(src, BDif, flt, ref, Format("z x - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), scale_inputs="none")
+        NBLD  = ex_lutxyza(src, BDif, flt, ref, Format("x z - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), scale_inputs="none")
+        BLD   = ex_makeadddiff(PBLD, NBLD, src)
+        clp   = ex_lutxyza(flt, ref, BLD, src, Format("x y - abs X@ {thr} {elast} + < X {thr} {elast} - > z x ? a ?"), scale_inputs="none")
+
+        return clp }
+
+
+
 #   function XYClosest(clip src1, clip src2, clip ref) {
 #       clp               = ex_lutxyz(src1, src2, ref, "x z - abs y z - abs > y x ?")
 #       return clp }
@@ -2412,7 +2666,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 ##
 function ex_DGSharpen(clip a, float "str") {
 
-    w   = width(a)
+    w   = width (a)
     h   = height(a)
     is42= is420(a)
     bi  = BitsPerComponent(a)
@@ -2423,7 +2677,7 @@ function ex_DGSharpen(clip a, float "str") {
     Assert(!isRGB(a), "ex_DGSharpen: clip has to be in YUV format")
 
     a
-    !is42 ? ConverttoYUV420() : last
+    !is42 ? ConverttoYUV420(chromaresample="point")       : last
     bi>8 && bi!= 16 ? ConvertBits(16, fulls=fs, fulld=fs) : last
 
     DGSharpen(str)
