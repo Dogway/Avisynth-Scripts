@@ -2130,7 +2130,7 @@ function RegularSharp (clip src, bool "median", int "lowpass", int "a", float "h
 
     w      = src.width ()
     h      = src.height()
-
+    isHD   = (w > 1099 || h >  599)
     bi     = BitsPerComponent(src)
     fs     = propNumElements (src,"_ColorRange")  > 0 ? \
              propGetInt      (src,"_ColorRange") == 0 : false
@@ -2143,11 +2143,11 @@ function RegularSharp (clip src, bool "median", int "lowpass", int "a", float "h
     ela    = Default(elast, thr / 6.)
 
     u2x             = med ? nop() : genpelclip (src, pel=2)
-
+    mul             = isHD ? 4 : 8 # original was 8, reduced for sanity on HD
     for (i=4, 0, -1) {
         clp         = u2x
-        blur        = BicubicResize(clp, w*8, h*8, b= 1, c=0)
-        sharp       = BicubicResize(clp, w*8, h*8, b=-1, c=0)
+        blur        = BicubicResize(clp, w*mul, h*mul, b= 1, c=0)
+        sharp       = BicubicResize(clp, w*mul, h*mul, b=-1, c=0)
         dif         = ex_makediff (blur, sharp, fulls=fs)
         dif         = BicubicResize(dif, w*2, h*2, b=-1, c=0)
         clp         = ex_adddiff (clp, dif, fulls=fs)
