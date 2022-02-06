@@ -85,7 +85,7 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
 
     thr     = Default (thr,       0.35)
     thrc    = Default (thrc,       thr)
-    radius  = Default (radius, round(w/1.49>h?0.0077*w+2.42:0.014*h+1.8))
+    radius  = Default (radius, round(w/1.51>h?0.0077*w+2.42:0.014*h+1.8))
     radiusc = Default (radiusc, is42?round(radius/2.):radius)
     elast   = Default (elast,      3.0)
     elastc  = Default (elastc,   elast)
@@ -134,11 +134,11 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
     td_lo  = ex_bs(max(thr_det * 0.75, 1), 8, bi, fs, flt=true) - 0.0001
     td_hi  = ex_bs(max(thr_det,        1), 8, bi, fs, flt=true) + 0.0001
 
-    dmask  = (mask > 0 && yv411_flag) ? src.ExtractY()                   : src
+    dmask  = (mask > 0 && yv411_flag) ? src.ExtractY()                    : src
     dmask  = (mask > 0) ? dmask.ex_luts(mode="rng", pixels=ex_shape(mask,mode=mask==4?"circle":"disk"), exprf=Format(" {td_lo} - {td_hi} {td_lo} - / 0 1 clip range_max *")) : dmask
-    dmask  = (mask > 0) ? dmask.ex_median(mode="cartoon")               : dmask
-    dmask  = (mask > 1) ? dmask.ex_boxblur(min(2,mask),mode="weighted") : dmask
-    dmask  = (mask > 0 && yv411_flag) ? dmask.ConvertToYV411 ()         : dmask
+    dmask  = (mask > 0) ? dmask.ex_median(mode="cartoon")                 : dmask
+    dmask  = (mask > 1) ? dmask.ex_boxblur(min(2,mask-1),mode="weighted") : dmask
+    dmask  = (mask > 0 && yv411_flag) ? dmask.ConvertToYV411 ()           : dmask
 
     result = (mask > 0) ? ex_merge(flt, src, dmask, luma=true, y=yp, uv=uvp) : flt
 
