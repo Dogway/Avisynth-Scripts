@@ -5,6 +5,15 @@
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
 ###                                                            ##
+###                                                            ##
+### Functions:                                                 ##
+###      BoxMask                                               ##
+###      FlatMask                                              ##
+###      LumaMask                                              ##
+###      ex_limitdif                                           ##
+###      ex_limitchange                                        ##
+###                                                            ##
+###                                                            ##
 #################################################################
 
 

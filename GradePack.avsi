@@ -7,6 +7,25 @@
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###                                                      ##
+###                                                      ##
+### Functions:                                           ##
+###     ex_vibrance                                      ##
+###     ex_contrast                                      ##
+###     ex_levels                                        ##
+###     ex_blend                                         ##
+###     ex_glow                                          ##
+###     ex_posterize                                     ##
+###     Skin_Qualifier                                   ##
+###     HSVxHSV                                          ##
+###     GamutWarning                                     ##
+###     PseudoColor                                      ##
+###     Vignette                                         ##
+###     greyscale_rgb                                    ##
+###     GreyWorld                                        ##
+###     WhitePoint                                       ##
+###     Curve Fitting Evaluator                          ##
+###                                                      ##
+###                                                      ##
 ###########################################################
 ###
 ### Look transforms pack for grading and look tone adjustments.

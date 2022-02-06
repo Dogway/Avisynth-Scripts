@@ -7,6 +7,19 @@
 ###                                                 ##
 ### https://forum.doom9.org/showthread.php?t=182881 ##
 ###                                                 ##
+###                                                 ##
+###                                                 ##
+### Functions:                                      ##
+###      deep_resize                                ##
+###      RatioResize                                ##
+###      PadResize                                  ##
+###      PadBorders                                 ##
+###      nmod                                       ##
+###      mmod                                       ##
+###      ColortoHex                                 ##
+###      MatteCrop                                  ##
+###                                                 ##
+###                                                 ##
 ######################################################
 
 
@@ -370,7 +383,7 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 # mod:     Rounding to defined 'mod' value
 # min:     Rounding never goes below the 'min' value. Usually you want to set this to mod*2
 # dec:     Rounding to defined decimal number. Also works for mod > 1 (rounding is done prior to mod)
-# bankers: By default 2.5 rounds to 3. With 'bankers' half float values round towards 0, so 2 in this case
+# bankers: By default 2.5 rounds to 3. With 'bankers=true' half float values round towards 0, so 2 in this case
 #
 # Examples:
 #   nmod(3)                    -> 4
