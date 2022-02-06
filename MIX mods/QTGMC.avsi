@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.74 mix mod by Dogway 2022, based on 3.382s            #
+#     QTGMC 3.75 mix mod by Dogway 2022, based on 3.382s            #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -16,6 +16,11 @@
 # Full documentation is in the 'QTGMC' html file that may comes with this script, or even better see avisynth wiki
 #
 # --- LATEST CHANGES ---
+#
+# v3.75mx
+# - Fix ex_vinverse() vertical blur
+# - Optimize ex_vinverse() VshrpD expression
+# - Add float output for 'noiseCentre' variable
 #
 # v3.74mx
 # - Optimize expressions with lerp
@@ -88,7 +93,7 @@
 # - Replaced vinverse() with ex_vinverse() for custem arg
 # - Removed Dither tools related arguments
 #
-# v3.50mx
+# v3.50mx based on v3.382s by A.SONY
 # - Replaced MaskTools2 with Expr calls via ExTools pack wrappers (except mt_merge)
 # - Merged redundant expressions
 # - Replaced blurs and medians with ExTools equivalents
@@ -240,8 +245,8 @@
 #   Vinverse
 #
 # Core scripts:
-#   ExTools      (7.3   or above)
-#   SMDegrain    (3.4.4 or above) (for ex_luma_rebuild() )
+#   ExTools      (7.4   or above)
+#   SMDegrain    (3.4.5 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.156 or above) (for sh_Bob(), for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
@@ -408,21 +413,21 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     bs = Blocksize
     sr = max(1,bs / 8)
     Overlap      = Default( Overlap,      Select( pNum,  bs/2,      bs/2,     bs/2,     bs/2,     bs/2,     bs/2,     bs/2,     bs/4,     bs/4,      bs/4,      bs/4       ) )
-    Search       = Default( Search,       Select( pNum,  5,         4,        4,        4,        4,        4,        4,        4,        0,         0,         0          ) )
-    SearchParam  = Default( SearchParam,  Select( pNum, sr,        sr,       sr,       sr,       sr,       sr,       sr,       sr,       sr,        sr,        sr          ) )
+    Search       = Default( Search,       Select( pNum,     5,         4,        4,        4,        4,        4,        4,        4,        0,         0,         0       ) )
+    SearchParam  = Default( SearchParam,  Select( pNum,    sr,        sr,       sr,       sr,       sr,       sr,       sr,       sr,       sr,        sr,        sr       ) )
     PelSearch    = Default( PelSearch,    Select( pNum,  bs<16?6:1,   15,        2,        2,        2,        2,        2,        2,        2,         2,         2       ) )
-    ChromaMotion = Default( ChromaMotion, Select( pNum,  true,      true,     true,     false,    false,    false,    false,    false,    false,     false,     false ) )
-    Precise      = Default( Precise,      Select( pNum,  true,      true,     false,    false,    false,    false,    false,    false,    false,     false,     false ) )
-    ProgSADMask  = Default( ProgSADMask,  Select( pNum,  10.0,      10.0,     10.0,     10.0,     10.0,     0.0,      0.0,      0.0,      0.0,       0.0,       0.0        ) )
-#    Refinemotion = Default( Refinemotion, Select( pNum,  true,      true,     false,    false,    false,    false,    false,    false,    false,     false,     false ) )
+    ChromaMotion = Default( ChromaMotion, Select( pNum,  true,      true,     true,     false,    false,    false,    false,    false,    false,     false,     false      ) )
+    Precise      = Default( Precise,      Select( pNum,  true,      true,    false,     false,    false,    false,    false,    false,    false,     false,     false      ) )
+    ProgSADMask  = Default( ProgSADMask,  Select( pNum,  10.0,      10.0,     10.0,      10.0,     10.0,      0.0,      0.0,      0.0,      0.0,       0.0,       0.0      ) )
+#   Refinemotion = Default( Refinemotion, Select( pNum,  true,      true,    false,     false,    false,    false,    false,    false,    false,     false,     false      ) )
     Refinemotion = Default( Refinemotion, false) #https://github.com/Dogway/Avisynth-Scripts/pull/23#issuecomment-918586163
 
     # Noise presets                                           Slower     Slow       Medium     Fast       Faster
-    Denoiser       = Default( Denoiser,       Select( npNum, "DFTTest", "DFTTest", "DFTTest", "fft3df",  "fft3df" ) )
-    DenoiseMC      = Default( DenoiseMC,      Select( npNum,  true,      true,      false,     false,     false ) )
-    NoiseTR        = Default( NoiseTR,        Select( npNum,  2,         1,         1,         1,         0       ) )
-    NoiseDeint     = Default( NoiseDeint,     Select( npNum, "Generate","Bob",      "",        "",        ""      ) )
-    StabilizeNoise = Default( StabilizeNoise, Select( npNum,  true,      true,      true,      false,     false ) )
+    Denoiser       = Default( Denoiser,       Select( npNum,  "DFTTest", "DFTTest", "DFTTest", "fft3df",  "fft3df" ) )
+    DenoiseMC      = Default( DenoiseMC,      Select( npNum,       true,      true,     false,    false,     false ) )
+    NoiseTR        = Default( NoiseTR,        Select( npNum,          2,         1,         1,        1,         0 ) )
+    NoiseDeint     = Default( NoiseDeint,     Select( npNum, "Generate",     "Bob",        "",       "",        "" ) )
+    StabilizeNoise = Default( StabilizeNoise, Select( npNum,       true,      true,      true,    false,     false ) )
 
     # The basic source-match step corrects and re-runs the interpolation of the input clip. So it initialy uses same interpolation settings as the main preset
     SourceMatch   = Default( SourceMatch, 0 )
@@ -697,14 +702,14 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     noiseWindow = (NoiseProcess == 0) ? nop()    : \
                   (!DenoiseMC)        ? fullClip : \
                   (NoiseTR == 0)      ? fullClip : \
-                  (NoiseTR == 1)      ? Interleave( fullClip.MCompensate( fullSuper, fVec1, thSCD1=ThSCD1,thSCD2=ThSCD2, mt=bomt ),    \
+                  (NoiseTR == 1)      ? Interleave( fullClip.MCompensate( fullSuper, fVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt ),    \
                                                     fullClip, \
-                                                    fullClip.MCompensate( fullSuper, bVec1, thSCD1=ThSCD1,thSCD2=ThSCD2, mt=bomt ) ) : \
-                                        Interleave( fullClip.MCompensate( fullSuper, fVec2, thSCD1=ThSCD1,thSCD2=ThSCD2, mt=bomt ),    \
-                                                    fullClip.MCompensate( fullSuper, fVec1, thSCD1=ThSCD1,thSCD2=ThSCD2, mt=bomt ),    \
+                                                    fullClip.MCompensate( fullSuper, bVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt ) ) : \
+                                        Interleave( fullClip.MCompensate( fullSuper, fVec2, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt ),    \
+                                                    fullClip.MCompensate( fullSuper, fVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt ),    \
                                                     fullClip, \
-                                                    fullClip.MCompensate( fullSuper, bVec1, thSCD1=ThSCD1,thSCD2=ThSCD2, mt=bomt ),    \
-                                                    fullClip.MCompensate( fullSuper, bVec2, thSCD1=ThSCD1,thSCD2=ThSCD2, mt=bomt ) )
+                                                    fullClip.MCompensate( fullSuper, bVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt ),    \
+                                                    fullClip.MCompensate( fullSuper, bVec2, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt ) )
     noiseWindow = yuy2 && (Denoiser == "fft3df") && NoiseTR > 0 ? noiseWindow.nonyuy2clipout(true) : noiseWindow
     noiseWindow = (NoiseProcess != 0) && n16d ? noiseWindow.ConvertBits(16,fulls=!tv)              : noiseWindow
     dnWindow    = (NoiseProcess == 0)         ? nop() : \
@@ -949,7 +954,7 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
     # >>>> YUY2 is interleaved here
 
     ChromaEdi = Default( ChromaEdi, "" )
-    CEed      = (ChromaEdi == "")
+    CEed      =        ( ChromaEdi == "")
     threads   = SI_LogicalCores()
     cores     = SI_PhysicalCores()
 
@@ -1240,10 +1245,10 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
     bi32m  = bi == 32 ? "" : "range_half -"
     bi32p  = bi == 32 ? "" : "range_half +"
 
-    vblur  =  clp.ex_boxblur(0, 1, "weighted", UV=uv)
+    vblur  =  clp.ex_lut("x[0,-1] x[0,1] x 1.98 * + + 0.251256281 * ", UV=uv) # Custom weighted blur, like ex_boxblur(0,1,"weighted") but not quite
     vblurD =  dcus ? ex_makediff(clp, vblur, UV=uv, fulls=fs) : nop()
 
-    VshrpD = !dcus ? ex_lutxy(vblur, vblur.ex_boxblur(0, 2, "weighted", UV=uv), Format("x dup y - {sstr} * + x - "+bi32p), UV=uv, fulls=fs) : nop()
+    VshrpD = !dcus ? ex_lutxy(vblur, vblur.ex_boxblur(0, 2, "weighted", UV=uv), Format("x y - {sstr} * "+bi32p), UV=uv, fulls=fs) : nop()
 
     sl     = (amnt > 254) ? "" : Format(" x {amntb} - x {amntb} + clip")
     VlimD  =  dcus ? ex_lutxyz(clp, VblurD, custem, "x z -          A@ y "+bi32m+" B@ * 0 < A abs B abs < A B ? dup 0.25 * swap ? z +" + sl, UV=uv, fulls=fs) : \
