@@ -1,6 +1,6 @@
 #############################################################
 ###                                                       ###
-###  GradFun3 EX mod by Dogway     (05-02-2022)           ###
+###  GradFun3 EX mod by Dogway     (06-02-2022)           ###
 ###                                                       ###
 ###                                                       ###
 ###  A simple port of:                                    ###
@@ -51,7 +51,7 @@
 ### elastc is the parameter for the chroma planes. Good values are in the range 1.25-4.
 ###
 ### mask:
-### Depth in pixels of the detail/edge masking. In the range 0-3.
+### Depth or width in pixels of the detail/edge masking. In the range 0-3.
 ###
 ### thr_det:
 ### Local contrast threshold for detail detection and masking. The lower, the better the details will be protected, but the lower the smoothing efficiency.
@@ -85,7 +85,7 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
 
     thr     = Default (thr,       0.35)
     thrc    = Default (thrc,       thr)
-    radius  = Default (radius, round(w/1.51>h?0.0077*w+2.42:0.014*h+1.8))
+    radius  = Default (radius, round(w/1.49>h?0.0077*w+2.42:0.014*h+1.8))
     radiusc = Default (radiusc, is42?round(radius/2.):radius)
     elast   = Default (elast,      3.0)
     elastc  = Default (elastc,   elast)
@@ -94,7 +94,7 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
     thr_det = Default (thr_det, 2 + round(max(thr - 0.35, 0) / 0.3))
     debug   = Default (show,        0)
     refd    = Defined (ref)
-    mask    = min(mask, 3) # 'disk' shape max radius
+    mask    = min(mask, 4) # 'circle' shape max radius ('disk' used up to 3)
 
 #    Radius auto-adjust: 480p  ->  9
 #                        720p  -> 12
@@ -135,7 +135,7 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
     td_hi  = ex_bs(max(thr_det,        1), 8, bi, fs, flt=true) + 0.0001
 
     dmask  = (mask > 0 && yv411_flag) ? src.ExtractY()           : src
-    dmask  = (mask > 0) ? dmask.ex_luts(mode="rng", pixels=ex_shape(mask,mode="disk"), exprf=Format(" {td_lo} - {td_hi} {td_lo} - / 0 1 clip range_max *")) : dmask
+    dmask  = (mask > 0) ? dmask.ex_luts(mode="rng", pixels=ex_shape(mask,mode=mask==4?"circle":"disk"), exprf=Format(" {td_lo} - {td_hi} {td_lo} - / 0 1 clip range_max *")) : dmask
     dmask1 = (mask > 0) ? dmask.ex_median(mode="cartoon")        : dmask
     dmask2 = (mask > 1) ? dmask1.ex_boxblur(1,mode="weighted")   : dmask1
     dmask3 = (mask > 2) ? dmask1.ex_boxblur(2,mode="weighted")   : dmask2
