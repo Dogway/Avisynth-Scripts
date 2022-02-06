@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v1.6  (27-11-2021)                                ###
+###        Deblock Pack v1.7  (05-02-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -166,7 +166,7 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2", int "aOff1", int "b
 ## Initial VapourSynth release (01-05-2016)
 ## AviSynth+ port    by Dogway (20-09-2021) (WIP)
 ##
-## Input: 444 YUV/RGB in 32-bit float
+## Input: 444 YUV/RGB at any bitdepth (output is float)
 ##
 ##  - Destaircase + Deringing
 ##      sup   = oyster_Super(clp)
@@ -541,7 +541,7 @@ function NLMeans(clip src, int d, int a, int s, float h, clip rclip, bool color)
 
     function duplicate(clip src, int d) {
         if (d > 0) {
-                blank   = ex_lut(src.trim(0,-1), "0", UV=1, scale_input="none")
+                blank   = ex_lut(src.trim(0,-1), "0", UV=1, scale_inputs="none")
            for (i = 1, d, 1) {
                 blank   = blank + blank
             }
@@ -565,26 +565,6 @@ function NLMeans(clip src, int d, int a, int s, float h, clip rclip, bool color)
     clp                 = Crop(nlm, a+s, a+s, -a-s, -a-s)
 
     return clp.trim(d,src.framecount()-d) }
-
-
-function ThrMerge(clip flt, clip src, clip "ref", float "thr", float "elast") {
-
-    thr   = Default(thr, 0.0009765625)
-    ref   = Defined(ref)   ? ref   : src
-    elast = Defined(elast) ? elast : thr / 2.
-
-    BDif  = ex_lut(src, "0", scale_input="none")
-#    PDif  = ex_lutxy  (flt, src, "x y -", clamp_float=true)
-#    PRef  = ex_lutxy  (flt, ref, "x y -", clamp_float=true)
-    PBLD  = ex_lutxyza(src, BDif, flt, ref, Format("z x - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), scale_input="none")
-#    NDif  = ex_lutxy  (flt, src, "y x -", clamp_float=true)
-#    NRef  = ex_lutxy  (flt, ref, "y x -", clamp_float=true)
-    NBLD  = ex_lutxyza(src, BDif, flt, ref, Format("x z - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), scale_input="none")
-    BLD   = ex_makeadddiff(PBLD, NBLD, src)
-#    UDN   = ex_lutxyz (flt, ref, BLD, Format("x y - abs {thr} {elast} - > z x ?"))
-    clp   = ex_lutxyza(flt, ref, BLD, src, Format("x y - abs X@ {thr} {elast} + < X {thr} {elast} - > z x ? a ?"), scale_input="none")
-
-    return clp }
 
 
 
