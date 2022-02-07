@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.3   (28-01-2022)                ##
+###           ExTools v7.4   (07-02-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -608,7 +608,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     fs = Default(fulls,  fs)
     si = ex_UVf(rgb, bi)
 
-    th  = ex_bs(th,  8, bi, fulls=fs)
+    th  = ex_bs(th,  8, bi, fulls=fs, flt=true)
     lox = lo < 0   hix = hi < 0
     lox && hix ? Assert (false, "ex_binarize: 'lo' or 'hi': At least one bound should be binarized.") : nop()
 
@@ -1376,13 +1376,13 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
     sm = Default(radius,   1)           # from 0 to 6. More doesn't bring more denoising.
     sv = Default(radiusv, sm)           # from 0 to 6
     it = Default(ithres,   4)           # 0.1 to 10. Intensity standard deviation target used to compute coefficients for the intensity Gaussian filter. Keep low for more edge preservation.
-    st = Default(sthres,   4)           # 0.1 to 10. Spatial standard deviation target used to compute coefficients for the spatial Gaussian filter. Higher values spread the weights further away.
+    st = Default(sthres,   4)           # 0.1 to 10. Spatial   standard deviation target used to compute coefficients for the spatial   Gaussian filter. Higher values spread the weights further away.
     dj = Default(dejaggie, true)
     UV = Default(UV,    rgb ? 3 : 1)
 
-    sm > 6 || sv > 6 ? Assert (false, "ex_bilateral: Radius should be 6 or below") : nop()
-    sm = max(min(sm * 0.30,2.0),0)
-    sv = max(min(sv * 0.30,2.0),0)
+    sm > 13 || sv > 13 ? Assert (false, "ex_bilateral: Radius should be 13 or below") : nop()
+    sm = sm * 0.30
+    sv = sv * 0.30
 
     krnlsz = 2*ceil(3*sv)
     krnlrv = krnlsz/2
@@ -1390,7 +1390,7 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
     vars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     Vc   = MidStr(vars,krnlrv+1,1)
     dj   = dj ? Vc+" 0.3 * min" : ""
-    it   = 1./ ex_bs(it, 8, bi, fulls=fs)
+    it   = 1./ ex_bs(it, 8, bi, fulls=fs, flt=true)
 
     krnv2 = "" krnv3 = ""  Vv = "" krnh2 = "" krnh3 = "" Vh = ""
 
@@ -1455,11 +1455,11 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
     sv = Default(radiusv, sm)           # from 0 to 6
     th = Default(thres,   15)
     UV = Default(UV,    rgb ? 3 : 1)
-    th = ex_bs(th, 8, bi, fulls=fs)
+    th = ex_bs(th, 8, bi, fulls=fs, flt=true)
 
-    sm > 6 || sv > 6 ? Assert (false, "ex_smartblur: Radius should be 6 or below") : nop()
+    sm > 13 || sv > 13 ? Assert (false, "ex_smartblur: Radius should be 13 or below") : nop()
 
-    krnlsz = 2*ceil(3*max(min(sv * 0.30,2.0),0))
+    krnlsz = 2*ceil(3*sv * 0.30)
 
     vars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     Vc   = MidStr(vars,krnlsz/2+1,1)
@@ -1477,7 +1477,7 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
         divy  = divy + 1  }
 
 
-    krnlszh = 2*ceil(3*max(min(sm * 0.30,2.0),0))
+    krnlszh = 2*ceil(3*sm * 0.30)
     Vc      = MidStr(vars,krnlszh/2+1,1)
 
     for (i=0, krnlszh, 1) {
@@ -1574,7 +1574,6 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limi
               Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, un), scale_inputs="none")
 
     lm && sh ? ex_luts(last,a,mode="clamp",pixels=ex_shape(min(1,rd),min(1,rv)),UV=uv) : last }
-
 
 
 # Kawase blur multipass kernel for optimized Gaussian blur approximation with high sigma (don't use for binarized masks)
@@ -1762,7 +1761,7 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
     bi  = BitsPerComponent(a)
 
     rd  = Default(rad,  1)                                     # radius can be 1, 2 or 3 (original FluxSMoothT only does rad=1)
-    th  = Default(th,   1)                                     # Soft threshold (Default: 1 to respond similar to original Default: 7)
+    th  = Default(th,   1)                                     # Soft threshold (Default: 1 to respond similar to original "Default=7")
     UV  = Default(UV,    rgb ? 3 : 1)
     un  = Undefined()
     si  = ex_UVf(rgb, bi)
@@ -1771,8 +1770,8 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
 
     # Soft threshold
     bias =        min(2*cos(pi+2*pi*th/255.)+2,1)*10           # Minimize soft threshold spread on extremes
-    thr1 = ex_bs( max(th-10 - rd * bias,   0), 8, bi, fulls=true)
-    thr2 = ex_bs( min(th+10 + rd * bias, 255), 8, bi, fulls=true)
+    thr1 = ex_bs( max(th-10 - rd * bias,   0), 8, bi, fulls=true, flt=true)
+    thr2 = ex_bs( min(th+10 + rd * bias, 255), 8, bi, fulls=true, flt=true)
     ths  = th != 255 ? Format("x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -") : ""
 
     a
@@ -1841,7 +1840,7 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
 #    int rad=1 (0 to 3 by 1),
 #    int radT=1 (0 to 3 by 1),
 #    int th=7 (0 to 255 by 1),
-#    int Tth=7 (0 to 255 by 1),
+#    int Tth=0 (0 to 255 by 1),
 #    bool "sharp"=true,
 #    )
 #
@@ -2139,13 +2138,13 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                           mode=="SNN"           ?  20 : \
                           DGM                   ?   4 : 255)    # Absolute Error threshold. For all modes
 
-    th   = ex_bs(thr, 8, bi, fulls=true)
+    th = ex_bs(thr, 8, bi, fulls=true, flt=true)
 
 
     # Soft threshold
     bias =        min(2*cos(pi+2*pi*thr/255.)+2,1)*20           # Minimize soft threshold spread on extremes
-    thr1 = ex_bs( max(thr-10 - bias,   0), 8, bi, fulls=true)
-    thr2 = ex_bs( min(thr+10 + bias, 255), 8, bi, fulls=true)
+    thr1 = ex_bs( max(thr-10 - bias,   0), 8, bi, fulls=true, flt=true)
+    thr2 = ex_bs( min(thr+10 + bias, 255), 8, bi, fulls=true, flt=true)
     ths = mode!="EMF" && mode!="SNN" && !smart && !DGM && thr != 255 ?                                                  \
           Format(" x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -") : ""
 
@@ -6245,9 +6244,9 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 # robinson  - (4d) Robinson compass mask
 # kirsch    - (4d) or Kirsch compass kernel is a non-linear edge detector that finds the maximum edge strength in 45º increments. Coefficients 3 and 5
 # TEdge     - Port of TEdgeMask plugin's kernel. Uses a 'plus' kernel with coefficients 12 and 74 so good for orthographic lines
-# FDoG      - (2d) Flow-based Difference of Gaussians
-# DoG       - zero-cross (of the 2nd derivative) of a Difference of Gaussians
-# DoB       - zero-cross (of the 2nd derivative) of a Difference of Boxes
+# FDoG      - (2d) Flow-based Difference of Gaussians. Good for noisy sources
+# DoG       - zero-cross (of the 2nd derivative) of a Difference of Gaussians. Good for noisy sources
+# DoB       - zero-cross (of the 2nd derivative) of a Difference of Boxes. Good for noisy sources
 # LoG       - zero-cross (of the 2nd derivative) of a Laplacian of Gaussian
 # laplace   - Laplace
 # Std       - Standard Deviation
@@ -6572,19 +6571,30 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
 
 ### Outputs a string with the kernel shape in 'mode'
 ###
+### Maximum pixel fetches based on isotropic radius:
+### Square:                           3 (49) 2 (25) 1 (9)
+### Diamond:                   4 (41) 3 (25) 2 (13) 1 (5)
+### Circle:                    4 (49) 3 (29) 2 (13) 1 (5)
+### Disk:                             3 (37) 2 (21) 1 (5)
+### Ring:        6 (32) 5 (28) 4 (24) 3 (16) 2 (16) 1 (4) (center=false)
+### Cross:       8 (33)
+### Plus:        8 (33)
+### Horizontal: 16 (33)
+### Vertical:   16 (33)
+###
 ### Function Definition:
 ###    (
 ###    clip,
 ###    int rad=1 (0 to 8 by 1),
 ###    [int radV=1 (0 to 8 by 1)],
-###    string "mode"="square" ("square" / "diamond" / "circle" / "disk" / "ring" / "cross" / "horizontal" / "vertical"),
+###    string "mode"="square" ("square" / "diamond" / "circle" / "disk" / "ring" / "cross" / "plus" / "horizontal" / "vertical"),
 ###    bool "center"=true,
 ###    )
 ###
 function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop") {
 
-    rd = Default(rad,             1)  # integers from 0 to 8 (depends on mode)
-    rv = Default(radV,           rd)  # integers from 0 to 8 (depends on mode)
+    rd = Default(rad,             1)  # integers from 0 to 4 or 8 (see above)
+    rv = Default(radV,           rd)  # integers from 0 to 4 or 8 (see above)
     md = Default(mode,     "square")
     md = ReplaceStr(md,     " ", "")
     cn = Default(center, md!="ring")
@@ -7022,6 +7032,13 @@ function atan2T(bool "expand") {
 function tanhT() {
 
     tanh = "XX@ exp EE@ 0 XX - exp NN@ - EE NN + /"
+
+    return tanh }
+
+# Returns the hyperbolic arctangent function
+function atanhT() {
+
+    tanh = "dup 1 + swap 1 swap - / log 0.5 *"
 
     return tanh }
 
