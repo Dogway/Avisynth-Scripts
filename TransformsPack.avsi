@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC35  (31-01-2022)           ##
+###    Transforms Pack v1.0 RC36  (07-02-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -105,11 +105,10 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 
     fd      = propIDs[6]
 
-    isUHD   = (w  > 2599 ||  h  > 1499)
-    isUHDa  = (wa > 2599 ||  ha > 1499)
+    isUHD   = (w  > 2599 || h  > 1499)
+    isUHDa  = (wa > 2599 || ha > 1499)
 
     mat     = Default(matrix, propIDs[2])
-    mat     = ReplaceStr(mat, "Rec", "")
 
 
         a
@@ -119,7 +118,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 
     if (!fst) {
 
-        ConvertFormat(w, h, fmt_in=p_typea, fmt_out=p_type, cs_in=mat, cs_out="", kernel=krn, tv_range_in=!fs, tv_range_out=!fd, show=false)
+        ConvertFormat(w, h, fmt_in=p_typea, fmt_out=p_type, cs_in=mat, cs_out="", kernel=krn, tv_range_in=!fs, tv_range_out=!fd)
 
     } else {
 
@@ -221,6 +220,32 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###   Explicit:
 ###       ConvertFormat(1,1,"YUV","RGB","jpeg","sRGB",false,false,true,cplace_in="MPEG1",UVRecon=true)
 ###   ConvertBits(8, dither=1)
+###
+###
+### Function Definition:
+###     (
+###     clip,
+###     float width=1.0 (0.1 to 1920.0 by 0.1),
+###     float height=1.0 (0.1 to 1080.0 by 0.1),
+###     string "fmt_in"="" ("" / "YUV411" / "YUV420" / "YUV422" / "YUV444" / "RGB"),
+###     string "fmt_out"="" ("" / "YUV411" / "YUV420" / "YUV422" / "YUV444" / "RGB"),
+###     string "cs_in"="" ("" / "709" / "470M" / "470BG" / "170M" / "240M" / "2020NCL" / "2020CL" / "XYZ" / "DCI-P3" / "Display-P3" / "ACEScg" / "ACES2065" / "ACESCCt" / "AdobeRGB" / "AWG"),
+###     string "cs_out"="" ("" / "709" / "470M" / "470BG" / "170M" / "240M" / "2020NCL" / "2020CL" / "XYZ" / "DCI-P3" / "Display-P3" / "ACEScg" / "ACES2065" / "ACESCCt" / "AdobeRGB" / "AWG"),
+###     string "OETF"="" ("" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "log100" / "log316" / "xvYCC" / "1361" / "sRGB" / "2020NCL" / "2020CL" / "PQ" / "DCIXYZ" / "HLG" / "NHK HLG" / "AdobeRGB" / "ACESCCt"),
+###     string "EOTF"="" ("" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "log100" / "log316" / "xvYCC" / "1361" / "sRGB" / "2020NCL" / "2020CL" / "PQ" / "DCIXYZ" / "HLG" / "NHK HLG" / "AdobeRGB" / "ACESCCt"),
+###     string "D_in"="" ("" / "D50" / "D55" / "D60" / "DCI" / "D65" / "C" / "D75" / "D93"),
+###     string "D_out"="" ("" / "D50" / "D55" / "D60" / "DCI" / "D65" / "C" / "D75" / "D93"),
+###     bool "tv_in"=true,
+###     bool "tv_out"=true,
+###     string "scale_space"="gamma" ("gamma" / "linear" / "sigmoid" / "log"),
+###     string "kernel"="spline36" ("deep" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     string "kernel_c"="spline36" ("deep" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     bool "nomoiree"=false,
+###     bool "noring"=false,
+###     bool "UVrecon"=false,
+###     bool "show"=false,
+###     )
+###
 ###
 ####################################
 
@@ -364,6 +389,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     w          = width ()
     h          = height()
     fc         = FrameCount() < 2
+    isy        = isy()
     p_type     = PixelType()
     bi         = BitsPerComponent()
     lut1       = bi == 32 ? 0 : 1
@@ -391,8 +417,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     nw         =  nw == 0 || wu ? round((w*(nh/float(h)))/mod)*mod : nw
     nh         =  nh == 0 || hu ? round((h*(nw/float(w)))/mod)*mod : nh
 
-    isUHD      = ( w > 2599 ||   h > 1499)     isnUHD = (nw > 2599 ||  nh > 1499)
-    isHD       = ( w > 1099 ||   h > 599 )     isnHD  = (nw > 1099 ||  nh > 599 )
+    isUHD      = ( w > 2599 || h > 1499)      isnUHD = (nw > 2599 || nh > 1499)
+    isHD       = ( w > 1099 || h > 599 )      isnHD  = (nw > 1099 || nh > 599 )
 
     wr         = float(nw) / w                 hr     = float(nh) / h     # for nomoiree
     rat        = max(abs(wr - 1),abs(hr - 1)) == abs(wr - 1) ? wr : hr    # for nomoiree
@@ -494,7 +520,6 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
      i_type1  || o_type1        ? Assert(bi == 8,    "ConvertFormat: Unsupported Pixel Type: HBD YUV411")          : nop()
      i_type10 || o_type10       ? Assert(false,      "ConvertFormat: Unsupported Pixel Type: YUV410")              : nop()
-     !isRGBi                    ? Assert( h%2==0,    "ConvertFormat: Clip Height is not mod2" )                    : nop()
      i_type2||i_fmt[1]=="420"   ? Assert( w%2==0,    "ConvertFormat: Clip Width is not mod2" )                     : nop()
      i_type1                    ? Assert( w%4==0,    "ConvertFormat: Clip Width is not mod4" )                     : nop()
      o_type1                    ? Assert(nw%4==0,    "ConvertFormat: Target Width is not mod4" )                   : nop()
@@ -585,21 +610,22 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     c_kernel = InternalFunctionExists(kernel+"resize") || FindStr(LCase(kernel), "nearest") > 0 ? kernel : "bicubic"
     c_recon  = """threads = SI_LogicalCores()
                   cores   = SI_PhysicalCores()
+                  refs    = isRGBo || isSpace || isScale ? true : !tv
                   c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt[0], i_fmt[1], o_fmt[1], cplace_in, cplace_out )
                   ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
-                  Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=fs)
-                  Uu      =  Cb.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=bc_b, ep1=bc_c, cshift=kernel+"resize", csresize=true, mpeg2=cplace_in=="MPEG2",range=fs?1:2).ConvertBits(bi,fulls=fs)
-                  Vu      =  Cr.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=bc_b, ep1=bc_c, cshift=kernel+"resize", csresize=true, mpeg2=cplace_in=="MPEG2",range=fs?1:2).ConvertBits(bi,fulls=fs)
-                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=-0.5, c=0.25, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
-                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=-0.5, c=0.25, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
-                  Cb      = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(fcnw, fcnh, b=-0.5, c=0.25, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top))
-                  Cr      = ex_makeadddiff(Vnew, Removegrain(Vnew, 19), Vu.BicubicResize(fcnw, fcnh, b=-0.5, c=0.25, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top))"""
+                  Luma    = ref.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=fs)
+                  Uu      =  Cb.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=kernel=="bicubic"?bc_b:p, ep1=bc_c, cshift=kernel+"resize", csresize=true, mpeg2=cplace_in=="MPEG2",range=fs?1:2).ConvertBits(bi,fulls=refs)
+                  Vu      =  Cr.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=kernel=="bicubic"?bc_b:p, ep1=bc_c, cshift=kernel+"resize", csresize=true, mpeg2=cplace_in=="MPEG2",range=fs?1:2).ConvertBits(bi,fulls=refs)
+                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=-0.6, c=0.4, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
+                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=-0.6, c=0.4, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
+                  Cb      = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(fcnw, fcnh, b=-0.6, c=0.4, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top))
+                  Cr      = ex_makeadddiff(Vnew, Removegrain(Vnew, 19), Vu.BicubicResize(fcnw, fcnh, b=-0.6, c=0.4, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top))"""
 
 
 
 
     # Only scaling (or change in range, or gamma, or chroma placement, or subpixel shift, or odd cropping)
-    if (!isSpace && !isIllu && !isFrmt && !isJab) {
+    if (!isSpace && !isIllu && !isFrmt && !isJab || isy) {
 
         UVr = isRGBi ? 3 : 1
         space == "linear"  ? moncurve_f(s_gam[0], s_gam[1], tv_in, false, UVr)                                     : \
@@ -615,10 +641,11 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
         } else {
 
-            Y   = ExtractY()
-            Cb  = ExtractU()
-            Cr  = ExtractV()
+            Y   = isy ? last  : ExtractY()
+            Cb  = isy ? nop() : ExtractU()
+            Cr  = isy ? nop() : ExtractV()
 
+            if (!isy) {
             if (recon && !i_type4) {
 
                 Eval(ReplaceStr(c_recon, "fcn", "cn"))
@@ -629,14 +656,14 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                 str  = (cnw==cow && cnh==coh) ? Format("PointResize({cnw},{cnh}") : str # if chroma is not scaled (or scaled down to original) then use point as its faster and lossless
                 Cb   = Eval("Cb." + str + cplaceC)
                 Cr   = Eval("Cr." + str + cplaceC)
-            }
+            } }
 
             Ynr  = ReplaceStr(Ynr, "(Y,", "(")
             Y    = nomoir ? Y.ex_blur((1. / rat) / 2., mode="gaussian") : Y
             Y    = Eval("Y." + resampler + cplaceY + (noring ? Ynr : ""))
 
 
-            CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+i_fmt[1]+i_fmt[2])
+             isy ? Y : CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+i_fmt[1]+i_fmt[2])
         }
 
         space == "linear"  ?                                   moncurve_r(t_gam[0], t_gam[1], false, tv_out, UVr) : \
@@ -704,7 +731,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
         if (isRGBo || isSpace || isIllu) {
 
-            if (i_fmt[0]=="YcCbcCrc" || cs_in == "Rec2020CL") {
+            if (i_fmt[0]=="YcCbcCrc" || cs_in == "2020CL") {
 
                 RGB = YcCbcCrc_to_RGB( Y, Cb, Cr, cs_in, coef_i, !(isScale || !tv_in), !(isSpace || !tv_out))
 
@@ -810,7 +837,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
         G = isSpace || isIllu || isGamma ? G.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : G
         B = isSpace || isIllu || isGamma ? B.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : B
 
-        if (o_fmt[0]=="YcCbcCrc" || cs_out == "Rec2020CL") {
+        if (o_fmt[0]=="YcCbcCrc" || cs_out == "2020CL") {
 
             YCbCr = RGB_to_YcCbcCrc( R, G, B, cs_out, coef_o, !(isSpace || isIllu || !tv_in), tv_out)
 
@@ -917,7 +944,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC35",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC36",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1021,7 +1048,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     cplaceH = ",src_left="+string(cplace[0])+point
     cplaceV = ",src_top ="+string(cplace[1])
 
-    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(w) + "," + String(h) + cplaceH + cplaceV +")"                       : \
+    resampler = kernel == "nnedi3" ?     "deep_resize(" + String(w) + "," + String(h)                     + ")"                       : \
                 kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",b="+bc_b+",c="+bc_c+")" : \
                 kernel == "gauss"  ?     "GaussResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",p=p)"                   : \
                                      kernel + "Resize(" + String(w) + "," + String(h) + cplaceH + cplaceV +")"
@@ -1039,12 +1066,12 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
 
         ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
         Luma    = ref.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
-        Uu      = Uor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
-        Vu      = Vor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=0.0, ep1=0.75, cshift="bicubicresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
-        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
-        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.5, c=0.25)
-        U       = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(w, h, b=-0.5, c=0.25))
-        V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 19), Vu.BicubicResize(w, h, b=-0.5, c=0.25))
+        Uu      = Uor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
+        Vu      = Vor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
+        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.6, c=0.4)
+        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.6, c=0.4)
+        U       = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(w, h, b=-0.6, c=0.4))
+        V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 19), Vu.BicubicResize(w, h, b=-0.6, c=0.4))
 
     } else {
 
@@ -1054,7 +1081,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
         }
 
 
-    if (matrix[0]=="Rec2020CL" || matrix[0]=="DCI-P3" || matrix[0]=="Display-P3") {
+    if (matrix[0]=="2020CL" || matrix[0]=="DCI-P3" || matrix[0]=="Display-P3") {
 
         RGB = YcCbcCrc_to_RGB( Y, U, V, matrix[0], coef, tv_in, tv_out)
 
@@ -1136,7 +1163,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     Bx = ExtractB(rgb)
 
 
-    if (matrix[0]=="Rec2020CL" || matrix[0]=="DCI-P3" || matrix[0]=="Display-P3") {
+    if (matrix[0]=="2020CL" || matrix[0]=="DCI-P3" || matrix[0]=="Display-P3") {
 
         YCbCr = RGB_to_YcCbcCrc( Rx, Gx, Bx, matrix[0], coef, tv_in, tv_out)
 
@@ -1166,9 +1193,9 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
 
     point   = kernel=="Point" ? "+1.0" : ""
     cplaceH = ",src_left="+string(cplace[0])+point
-    cplaceV =  ",src_top="+string(cplace[1])
+    cplaceV = ",src_top ="+string(cplace[1])
 
-    resampler = kernel == "nnedi3" ? "nnedi3_resize16(" + String(nw+nw%2) + "," + String(nh+nh%2) + cplaceH + cplaceV + ")"         : \
+    resampler = kernel == "nnedi3" ?     "deep_resize(" + String(nw+nw%2) + "," + String(nh+nh%2)                     + ")"         : \
                 kernel == "bicubic"?   "BicubicResize(" + String(nw+nw%2) + "," + String(nh+nh%2) + cplaceH + cplaceV + ",b="+bc_b+",c="+bc_c+")" : \
                 kernel == "gauss"  ?     "GaussResize(" + String(nw+nw%2) + "," + String(nh+nh%2) + cplaceH + cplaceV + ",p=p)"     : \
                                      kernel + "Resize(" + String(nw+nw%2) + "," + String(nh+nh%2) + cplaceH + cplaceV + ")"
@@ -1185,7 +1212,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
     isy  = isy(RGB)
     bi   = BitsPerComponent(RGB)
     lut  = bi < 16 ? 2 : 0
-    mat  = Default (matrix, "Rec709")
+    mat  = Default (matrix, "709")
     coef = Default (coef, Matrix_coef(mat))
     tvi  = Default (tv_in,  false)
     tvo  = Default (tv_out, false)
@@ -1221,7 +1248,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
     Yc    = !tvo ?  Yx : moncurve_r(Y,  s_gam[0], s_gam[1], false, true, 1)
 
      isy ? [Yc, Cbc, Crc] : CombinePlanes(Yc, Cbc, Crc, planes="YUV")
-    !isy && mat[0] == "Rec2020CL" ? PropSet("_Matrix", 10) : last }
+    !isy && mat[0] == "2020CL" ? PropSet("_Matrix", 10) : last }
 
 
 # WIP. YcCbcCrc to RGB function (for Rec.2020CL)
@@ -1230,7 +1257,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", float
     isy  = isy(YUV)
     bi   = BitsPerComponent(YUV)
     lut  = bi < 16 ? 2 : 0
-    mat  = Default (matrix, "Rec709")
+    mat  = Default (matrix, "709")
     coef = Default (coef, Matrix_coef(mat))
     tvi  = Default (tv_in,  false)
     tvo  = Default (tv_out, false)
@@ -1759,13 +1786,16 @@ function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range") {
           y a == z x - "+rangePC+" D * 120 + 360 %
           z a == x y - "+rangePC+" D * 240 + 360 % 0 ? ? ? ? 0.002777778 range_max * * "
 
+    Ss = ex_dlut(Ss, bi, !tv)
+    Hs = ex_dlut(Hs, bi, !tv)
+
     if (isy) {
 
         S = Expr(R, G, B, V, Ss, optSingleMode=false)
         H = Expr(R, G, B, V, Hs, optSingleMode=true)
         [H, S, V]
 
-    } else { Expr(R, G, B, V, Hs, Ss, "a",format=PixelType(RGB), optSingleMode=true) } }
+    } else { Expr(R, G, B, V, Hs, Ss, "a", format=PixelType(RGB), optSingleMode=true) } }
 
 
 function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range") {
@@ -1788,6 +1818,10 @@ function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range") {
     Gs = "2 x "+rangePC+" 6 * 2 - abs   - "+m
     Bs = "2 x "+rangePC+" 6 * 4 - abs   - "+m
 
+    Rs = ex_dlut(Rs, bi, !tv)
+    Gs = ex_dlut(Gs, bi, !tv)
+    Bs = ex_dlut(Bs, bi, !tv)
+
     if (isy) {
 
         R = Expr(H, S, V, Rs, optSingleMode=false)
@@ -1806,7 +1840,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
 
-    mat = Default (matrix, "Rec709")
+    mat = Default (matrix, "709")
     cy  = Default (Jch,      false)    # enable to convert to JCh (cylindrical IPT) in the range 0 to 1.
     fs  = Default (fulls,     true)
 
@@ -1872,7 +1906,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
     isy = isy(IPT)
     bi  = BitsPerComponent(IPT)
 
-    mat = Default (matrix, "Rec709")
+    mat = Default (matrix, "709")
     cy  = Default (Jch,      false)   # enable to convert from Jch (cylindrical IPT) in the range 0 to 1.
     fs  = Default (fulls,     true)
 
@@ -1936,7 +1970,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
 
-    mat = Default (matrix, "Rec709")
+    mat = Default (matrix, "709")
     cy  = Default (Jch,      false)    # enable to convert to Oklch (cylindrical Oklab) in the range 0 to 1.
     fs  = Default (fulls,     true)
 
@@ -2005,7 +2039,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
     isy = isy(Lab)
     bi  = BitsPerComponent(Lab)
 
-    mat = Default (matrix, "Rec709")
+    mat = Default (matrix, "709")
     cy  = Default (Jch,      false)   # enable to convert from OkLch (cylindrical OkLab) in the range 0 to 1.
     fs  = Default (fulls,     true)
 
@@ -2376,7 +2410,7 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
     if (sh) {
 
-        a.ConvertBits(8, dither=1, fulls=fs)
+        a.ConvertBits(8, dither=bi==32?-1:1, fulls=fs)
         w4   = nmod(w/4.)
         h2   = nmod(h/2.)
         w2   = w4*2
@@ -2498,8 +2532,8 @@ function Color_Fuzzy_search (string matrix) {
 
     matrix = UCase(matrix)
     matrixn =
-\     (FindStr(matrix,"709" )>0 ) ? "Rec709"
-\   : (matrix == "HDTV"         ) ? "Rec709"
+\     (FindStr(matrix,"709" )>0 ) ? "709"
+\   : (matrix == "HDTV"         ) ? "709"
 \   : (matrix == "sRGB"         ) ? "sRGB"
 \   : (matrix == "XYZ"          ) ? "XYZ"
 \   : (matrix == "SDTV"         ) ? "170M"
@@ -2512,19 +2546,19 @@ function Color_Fuzzy_search (string matrix) {
 \   : (matrix == "NTSC"         ) ? "170M"
 \   : (matrix == "SMPTE-C"      ) ? "170M"
 \   : (matrix == "YPbPr"        ) ? "170M"
-\   : (matrix == "YCC"          ) ? "Rec709"
-\   : (matrix == "YUV"          ) ? "Rec709"
-\   : (matrix == "sYCC"         ) ? "Rec709"
-\   : (matrix == "YCbCr"        ) ? "Rec709"
-\   : (FindStr(matrix,"NCL"  )>0) ? "Rec2020NCL"
-\   : (FindStr(matrix,"20-10")>0) ? "Rec2020NCL"
-\   : (FindStr(matrix,"CL"   )>0) ? "Rec2020CL"
-\   : (FindStr(matrix,"20-12")>0) ? "Rec2020CL"
-\   : (FindStr(matrix,"2020")>0 ) ? "Rec2020NCL"
-\   : (FindStr(matrix,"2084")>0 ) ? "Rec2020CL"
-\   : (FindStr(matrix,"2100")>0 ) ? "Rec2020CL"
-\   : (FindStr(matrix,"DOVI")>0 ) ? "Rec2020DV5"
-\   : (FindStr(matrix,"VISION")>0)? "Rec2020DV5"
+\   : (matrix == "YCC"          ) ? "709"
+\   : (matrix == "YUV"          ) ? "709"
+\   : (matrix == "sYCC"         ) ? "709"
+\   : (matrix == "YCbCr"        ) ? "709"
+\   : (FindStr(matrix,"NCL"  )>0) ? "2020NCL"
+\   : (FindStr(matrix,"20-10")>0) ? "2020NCL"
+\   : (FindStr(matrix,"CL"   )>0) ? "2020CL"
+\   : (FindStr(matrix,"20-12")>0) ? "2020CL"
+\   : (FindStr(matrix,"2020")>0 ) ? "2020NCL"
+\   : (FindStr(matrix,"2084")>0 ) ? "2020CL"
+\   : (FindStr(matrix,"2100")>0 ) ? "2020CL"
+\   : (FindStr(matrix,"DOVI")>0 ) ? "2020DV5"
+\   : (FindStr(matrix,"VISION")>0)? "2020DV5"
 \   : (FindStr(matrix,"2085")>0 ) ? "YDzDx"
 \   : (matrix == "AdobeWideGamut")? "AWG"
 \   : (matrix == "AWG"          ) ? "AWG"
@@ -2558,7 +2592,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (FindStr(matrix,"2100")>0 ) ? "PQ"
 \   : (matrix == "PQ"           ) ? "PQ"
 \   : (matrix == "Perceptual"   ) ? "PQ"
-\   : (matrix == "Rec2020DVp5"  ) ? "PQ"
+\   : (matrix == "2020DVp5"     ) ? "PQ"
 \   : (matrix == "HLG"          ) ? "HLG"
 \   : (FindStr(matrix,"ARIB")>0 ) ? "HLG"
 \   : (FindStr(matrix,"B67" )>0 ) ? "HLG"
@@ -2568,7 +2602,7 @@ function Color_Fuzzy_search (string matrix) {
 \   : (FindStr(matrix,"1886")>0 ) ? "1886"
 \   : (FindStr(matrix,"428" )>0 ) ? "DCI-P3"
 \   : (matrix == "Camera"       ) ? "170M"
-\   : (matrix == "Rec709-Camera") ? "170M"
+\   : (matrix == "709-Camera"   ) ? "170M"
 \   : (matrix == "AWG"          ) ? "AdobeRGB"
 \   : (matrix == "XYZ"          ) ? "linear"
 \   : (matrix == "linear"       ) ? "linear"
@@ -2598,14 +2632,14 @@ function Color_Fuzzy_search (string matrix) {
 \     (matrixn == "XYZ"            ) ? 0
 \   : (matrixn == "RGB"            ) ? 0
 \   : (matrixn == "sRGB"           ) ? 1
-\   : (matrixn == "Rec709"         ) ? 1
+\   : (matrixn == "709"            ) ? 1
 \   : (matrixn == "470M"           ) ? 4
 \   : (matrixn == "470BG"          ) ? 5
 \   : (matrixn == "170M"           ) ? 6
 \   : (matrixn == "240M"           ) ? 7
-\   : (matrixn == "Rec2020NCL"     ) ? 9
-\   : (matrixn == "Rec2020CL"      ) ? 10
-\   : (matrixn == "Rec2020"        ) ? 9
+\   : (matrixn == "2020NCL"        ) ? 9
+\   : (matrixn == "2020CL"         ) ? 10
+\   : (matrixn == "2020"           ) ? 9
 \   : (matrixn == "YDzDx"          ) ? 11
 \   : (matrixn == "DCI-P3"         ) ? 12
 \   : (matrixn == "Display-P3"     ) ? 12
@@ -2618,7 +2652,7 @@ function Color_Fuzzy_search (string matrix) {
 
     # ID for _Primaries frame properties (BT.2380-2. Table 2.6)
     ids =
-\     (matrixn == "Rec2020CL"      ) ? 9
+\     (matrixn == "2020CL"         ) ? 9
 \   : (matrixn == "DCI-P3"         ) ? 11 : idm
 
     idi =
@@ -2633,30 +2667,30 @@ function Color_Fuzzy_search (string matrix) {
 
     # ID for _Transfer frame properties (BT.2380-2. Table 2.7)
     idt =
-\     (transfer == "1886a"        ) ? 0
-\   : (transfer == "1886"         ) ? 1
-\   : (transfer == "Rec709"       ) ? 1
-\   : (transfer == "470M"         ) ? 4
-\   : (transfer == "470BG"        ) ? 5
-\   : (transfer == "170M"         ) ? 6
-\   : (transfer == "Rec709-Camera") ? 6
-\   : (transfer == "240M"         ) ? 7
-\   : (transfer == "linear"       ) ? 8
-\   : (transfer == "log100"       ) ? 9
-\   : (transfer == "log316"       ) ? 10
-\   : (transfer == "xvYCC"        ) ? 11
-\   : (transfer == "1361"         ) ? 12
-\   : (transfer == "sRGB"         ) ? 13
-\   : (transfer == "Display-P3"   ) ? 13
-\   : (transfer == "Rec2020"      ) ? 14
-\   : (transfer == "Rec2020NCL"   ) ? 14
-\   : (transfer == "Rec2020CL"    ) ? 15
-\   : (transfer == "PQ"           ) ? 16
-\   : (transfer == "DCIXYZ"       ) ? 17
-\   : (transfer == "HLG"          ) ? 18
-\   : (transfer == "NHK HLG"      ) ? 19
-\   : (transfer == "AdobeRGB"     ) ? 20
-\   : (transfer == "ACESCCt"      ) ? 21 : -1
+\     (transfer == "1886a"         ) ? 0
+\   : (transfer == "1886"          ) ? 1
+\   : (transfer == "709"           ) ? 1
+\   : (transfer == "470M"          ) ? 4
+\   : (transfer == "470BG"         ) ? 5
+\   : (transfer == "170M"          ) ? 6
+\   : (transfer == "709-Camera"    ) ? 6
+\   : (transfer == "240M"          ) ? 7
+\   : (transfer == "linear"        ) ? 8
+\   : (transfer == "log100"        ) ? 9
+\   : (transfer == "log316"        ) ? 10
+\   : (transfer == "xvYCC"         ) ? 11
+\   : (transfer == "1361"          ) ? 12
+\   : (transfer == "sRGB"          ) ? 13
+\   : (transfer == "Display-P3"    ) ? 13
+\   : (transfer == "2020"          ) ? 14
+\   : (transfer == "2020NCL"       ) ? 14
+\   : (transfer == "2020CL"        ) ? 15
+\   : (transfer == "PQ"            ) ? 16
+\   : (transfer == "DCIXYZ"        ) ? 17
+\   : (transfer == "HLG"           ) ? 18
+\   : (transfer == "NHK HLG"       ) ? 19
+\   : (transfer == "AdobeRGB"      ) ? 20
+\   : (transfer == "ACESCCt"       ) ? 21 : -1
 # * DCIXYZ is defined in smpte428-1. It's XYZ space with DCI white point for cinema distribution in DCDM format
 
     str = illuminant != "" ? [illuminant,idm,ids,idi,idt] : \
@@ -2747,12 +2781,12 @@ function color_propGet (clip a) {
 
     # ID for _Primaries frame properties (BT.2380-2. Table 2.6)
     prim_i =
-\     (prim_i == 1    ) ? "Rec709"
+\     (prim_i == 1    ) ? "709"
 \   : (prim_i == 4    ) ? "470M"
 \   : (prim_i == 5    ) ? "470BG"
 \   : (prim_i == 6    ) ? "170M"
 \   : (prim_i == 7    ) ? "240M"
-\   : (prim_i == 9    ) ? "Rec2020"
+\   : (prim_i == 9    ) ? "2020"
 \   : (prim_i == 10   ) ? "XYZ"
 \   : (prim_i == 11   ) ? "DCI-P3"
 \   : (prim_i == 12   ) ? "Display-P3"
@@ -2766,14 +2800,14 @@ function color_propGet (clip a) {
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     mat_i =
 \     (mat_i == 0     ) ? "XYZ"
-\   : (mat_i == 1     ) ? "Rec709"
+\   : (mat_i == 1     ) ? "709"
 \   : (mat_i == 4     ) ? "470M"
 \   : (mat_i == 5     ) ? "470BG"
 \   : (mat_i == 6     ) ? "170M"
 \   : (mat_i == 7     ) ? "240M"
 \   : (cm_i  == 8     ) ? "YCoCg"
-\   : (mat_i == 9     ) ? "Rec2020"
-\   : (mat_i == 10    ) ? "Rec2020CL"
+\   : (mat_i == 9     ) ? "2020"
+\   : (mat_i == 10    ) ? "2020CL"
 \   : (mat_i == 11    ) ? "YDzDx"
 \   : (mat_i == 12    ) ? "DCI-P3"
 \   : (mat_i == 12    ) ? "Display-P3"
@@ -2805,8 +2839,8 @@ function color_propGet (clip a) {
 \   : (t_i == 11      ) ? "xvYCC"
 \   : (t_i == 12      ) ? "1361"
 \   : (t_i == 13      ) ? "sRGB"
-\   : (t_i == 14      ) ? "Rec2020NCL"
-\   : (t_i == 15      ) ? "Rec2020CL"
+\   : (t_i == 14      ) ? "2020NCL"
+\   : (t_i == 15      ) ? "2020CL"
 \   : (t_i == 16      ) ? "PQ"
 \   : (t_i == 17      ) ? "DCIXYZ"
 \   : (t_i == 18      ) ? "HLG"
@@ -3123,9 +3157,9 @@ function Matrix_coef (string matrix, string "illuminant") {
     mat_i =
 \     (matrix == "sRGB"           ) ? 1
 \   : (matrix == "170M"           ) ? 0
-\   : (matrix == "Rec709"         ) ? 1
-\   : (matrix == "Rec2020CL"      ) ? 5
-\   : (matrix == "Rec2020NCL"     ) ? 5
+\   : (matrix == "709"            ) ? 1
+\   : (matrix == "2020CL"         ) ? 5
+\   : (matrix == "2020NCL"        ) ? 5
 \   : (matrix == "AdobeRGB"       ) ? 6
 \   : (matrix == "AWG"            ) ? 7
 \   : (matrix == "Display-P3"     ) ? 8
@@ -3139,7 +3173,7 @@ function Matrix_coef (string matrix, string "illuminant") {
 
     mat_wp =
 \     (matrix == "170M"           ) ? 1
-\   : (matrix == "Rec709"         ) ? 1
+\   : (matrix == "709"            ) ? 1
 \   : (matrix == "DCI-P3"         ) ? 3
 \   : (matrix == "ACES2065"       ) ? 4
 \   : (matrix == "ACEScg"         ) ? 4
@@ -3195,14 +3229,14 @@ function moncurve_coef (string transfer) {
 \     (transfer == "sRGB"         ) ? 0
 \   : (transfer == "Display-P3"   ) ? 0
 \   : (transfer == "170M"         ) ? 1
-\   : (transfer == "Rec601"       ) ? 1
-\   : (transfer == "Rec709-Camera") ? 1
-\   : (transfer == "Rec2020NCL"   ) ? 1
-\   : (transfer == "Rec2020CL"    ) ? 1
-\   : (transfer == "Rec2020"      ) ? 1
+\   : (transfer == "601"          ) ? 1
+\   : (transfer == "709-Camera"   ) ? 1
+\   : (transfer == "2020NCL"      ) ? 1
+\   : (transfer == "2020CL"       ) ? 1
+\   : (transfer == "2020"         ) ? 1
 \   : (transfer == "240M"         ) ? 2
 \   : (transfer == "470BG"        ) ? 3
-\   : (transfer == "Rec709"       ) ? 4
+\   : (transfer == "709"          ) ? 4
 \   : (transfer == "1886"         ) ? 4
 \   : (transfer == "AdobeRGB"     ) ? 5
 \   : (transfer == "AWG"          ) ? 5
@@ -3260,15 +3294,15 @@ function RGB_to_XYZ (clip rgb, string cspace, bool "list") {
 
     list = Default(list, false)
 
-    matrix =        cspace == "sRGB"   || cspace == "Rec709"                                             ?  \
+    matrix =        cspace == "sRGB"   || cspace == "709"                                                ?  \
                                         [ 0.41241079568862915, 0.21264933049678802, 0.01933175697922707,    \
                                           0.35758456587791443, 0.71516913175582890, 0.11919485777616501,    \
                                           0.18045382201671600, 0.07218152284622192, 0.95039016008377080]  : \
-                    cspace == "Rec601" || cspace == "170M" || cspace == "240M"                           ?  \
+                    cspace == "601" || cspace == "170M" || cspace == "240M"                              ?  \
                                         [ 0.39354196190834045, 0.21238772571086884, 0.0187400933355093,     \
                                           0.36525884270668030, 0.70106136798858640, 0.1119341626763344,     \
                                           0.19164848327636720, 0.08655092865228653, 0.9582424163818359]   : \
-                    FindStr(cspace, "ec2")>0                                                             ?  \
+                    FindStr(cspace, "CL")>0                                                             ?  \
                                         [ 0.63697350025177000, 0.24840137362480164, 0.00000000000000000,    \
                                           0.15294560790061950, 0.67799961566925050, 0.04253686964511871,    \
                                           0.11785808950662613, 0.03913172334432602, 1.06084382534027100]  : \
@@ -3314,15 +3348,15 @@ function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
 
     list = Default(list, false)
 
-    matrix =        cspace == "sRGB"   || cspace == "Rec709"                                                ?  \
+    matrix =        cspace == "sRGB"   || cspace == "709"                                                   ?  \
                                         [  3.24081254005432130, -0.96924304962158200,  0.055638398975133896,   \
                                           -1.53730857372283940,  1.87596631050109860, -0.204007431864738460,   \
                                           -0.49858659505844116,  0.04155505076050758,  1.057129383087158200] : \
-                    cspace == "Rec601" || cspace == "170M" || cspace == "240M"                              ?  \
+                    cspace == "601" || cspace == "170M" || cspace == "240M"                                 ?  \
                                         [  3.5058159828186035, -1.06904542446136470,  0.05631496384739876,     \
                                           -1.7396978139877320,  1.97777497768402100, -0.19700492918491364,     \
                                           -0.5440292358398438,  0.035171352326869965, 1.05010843276977540]   : \
-                    FindStr(cspace, "ec2")>0                                                                ?  \
+                    FindStr(cspace, "CL")>0                                                                ?  \
                                         [  1.71660947799682620, -0.66668272018432620,  0.017642205581068993,   \
                                           -0.35566213726997375,  1.61647748947143550, -0.042776308953762054,   \
                                           -0.25336012244224550,  0.01576850563287735,  0.942228555679321300] : \
