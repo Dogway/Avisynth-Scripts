@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.7    (07-02-2022)   ##
+###   Resizers Functions Pack 7.8    (08-02-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -26,12 +26,40 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (07-02-2022)
+### deep_resize() - by Dogway (08-02-2022)
 ###
 ### Convenient and high performance function to resize in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
 ### If you want more control (ColorSpaces, UVRecon, nomoiree, etc) use directly ConvertFormat().
 ### Supports all YUV formats in any given bitdepth.
+###
+### deconv: An option to undo the oversharpening or blur of the original downscaling kernel.
+###         Following suggested values for deconv:
+###
+###         -10 "SoftCubic100"
+###         -7  "Robidoux Soft"
+###         -6  "SoftCubic75"
+###         -6  "Bilinear"
+###         -6  "BilcubicD"
+###         -6  "BilcubicU"
+###         -6  "Hermite"
+###         -5  "Robidoux"
+###         -5  "Centroid"
+###         -5  "Mitchell-Netravali"
+###         -4  "Robidoux Sharp"
+###         -5  "SoftCubic50"
+###         -0  "Cub-grange"
+###         -0  "Catmull-Rom"
+###         +1  "Didee"
+###         +4  "Zopti"
+###         +2  "Precise Bicubic"
+###         +2  "Sharp"
+###         +0  "spline16"
+###         +0  "spline36"
+###         +2  "DPID"
+###         +0  "SSIM2"
+###         +0  "SincLin"
+###         +15 "SinPow"
 ###
 ###
 ### Dependencies:
@@ -56,7 +84,7 @@
 ### -Use even number of taps (taps=lobes in AviSynth) to avoid a final positive lobe ("ringing") before cutoff of the window support. Negative "ringing" (halos) are rarely created in gamma light resizing.
 ###
 ### More info: http://avisynth.nl/index.php/Resampling
-function deep_resize(clip a, float "width", float "height", string "edge", string "flat", float "ratio", float "th", float "elast", int "qual") {
+function deep_resize(clip a, float "width", float "height", string "edge", string "flat", int "deconv", float "th_rat", float "th", float "elast", int "qual") {
 
     w   = width (a)
     h   = height(a)
@@ -74,13 +102,15 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
     factor = rw < 3 && rh < 3 ? 2 : 4
     rat    = abs(max(rw,rh)-1)+1
 
-    rth   = Default(ratio, 1.25)                                                         # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
+    rth   = Default(th_rat, 1.25)                                                        # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
     krn1  = Default(edge, rat<=rth*0.95 ? "spline16" : \
                            rw<1 && rh<1 ? "DPID"     : rat<=rth ? "blackman" : "nnedi3") # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti
     krn2  = Default(flat, "sinc")                                                        # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here.
     thr   = Default(th,      1.0)                                                        # 0-255 (normally up to 10)
     ela   = Default(elast,   4.0)                                                        # 1-255 (normally up to 10)
     qual  = Default(qual,      1)
+    dec   = Default(deconv,    0)                                                        # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
+    dec   = krn2 == "sinc" ? dec+2 : dec
     nns   = 3
     nsize = 0
     etype = 0
@@ -123,7 +153,8 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
         Fsa = max(w,h) * 2
         k   = sqrt(log(2)/2) * LFR
         LFR = Fsa / ( k * 2  * pi )
-        rat <= rth ? last : krn2!="sinc" ? last : ex_makeadddiff(last, last.ex_gaussianblur(LFR), krn1!="nnedi3" ? edge1.ex_gaussianblur(LFR) : edge1.ConvertBits(bi, fulls=fs, fulld=fs).ex_gaussianblur(LFR),UV=3) } }
+        rat <= rth ? last : krn2!="sinc" ? last : ex_makeadddiff(last, last.ex_gaussianblur(LFR), krn1!="nnedi3" ? edge1.ex_gaussianblur(LFR) : edge1.ConvertBits(bi, fulls=fs, fulld=fs).ex_gaussianblur(LFR),UV=3)
+        dec != 0 ? ex_unsharp(abs(dec)/100.,max(w2,h2)/(rat*2), deconv=dec>0) : last } }
 
 
 
@@ -559,7 +590,7 @@ function MatteCrop(clip s, int "width", int "height", float "thr", bool "CropMor
     avg  = avg.TemporalSoften(10,255,255,10,2)
     avg  = avg.RatioResize(float(w),"adjust2w",kernel="bicubic")
 
-    avgc = ex_merge(avgY, avg, BoxMask(s,addw,w-addw,addh,h-addh)).ConvertBits(bi,dither=-1,fulls=fs)
+    avgc = ex_merge(avgY, avg, BoxMask(avg,addw,w-addw,addh,h-addh)).ConvertBits(bi,dither=-1,fulls=fs)
 
     SC   = SCSelect_HBD(avg,dfactor=SC_thr,mindif=1.0)
 
