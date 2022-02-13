@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC36  (07-02-2022)           ##
+###    Transforms Pack v1.0 RC37  (13-02-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -63,7 +63,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     rgb ? ConvertToPlanarRGB(src[0])                                       : \
           YUV_to_RGB(src[0], tv_range_in=tv, kernel=kernel, b=b, c=c, p=p)
 
-    moncurve_f(s_gam[0], s_gam[1],tv,false)
+    moncurve_f(s_gam[0], s_gam[1],false,false)
 
     if (gamut) {
     mata = RGB_to_XYZ  (src[0],         list=true)
@@ -74,9 +74,9 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1],false,false) : \
                     gamut ? moncurve_r(s_gam[0], s_gam[1],false,false) : last
 
-    Defined(LUT) ? Cube(LUT, 4, true) : last
+    Defined(LUT) ? Cube(LUT, 3, true) : last
 
-    ConvertBits(8, dither=1, fulls=false)  }
+    ConvertBits(8, dither=1, fulls=true)  }
 
 
 
@@ -238,8 +238,8 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     bool "tv_in"=true,
 ###     bool "tv_out"=true,
 ###     string "scale_space"="gamma" ("gamma" / "linear" / "sigmoid" / "log"),
-###     string "kernel"="spline36" ("deep" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###     string "kernel_c"="spline36" ("deep" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
 ###     bool "nomoiree"=false,
 ###     bool "noring"=false,
 ###     bool "UVrecon"=false,
@@ -327,6 +327,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # DPID                                        (dw) https://github.com/Asd-g/AviSynth-DPID       (Best downscaler followed by SSIM_downsample > SSIM >>> SincLin > Zopti)
 # SincLin2ResizeMT                         (up,dw) https://github.com/jpsdr/ResampleMT/releases (like a sharper lanczos)
 # Spline100/Spline144                         (up) https://github.com/EleonoreMizo/fmtconv
+# Wiener                                      (up) https://github.com/EleonoreMizo/fmtconv
 # SinPowResizeMT                              (dw) https://github.com/jpsdr/ResampleMT/releases
 # Jinc (EWA Lanczos)                          (up) https://github.com/Asd-g/AviSynth-JincResize/releases
 # FCBI (Fast Curve Based Interp) (8-bit)      (up) https://github.com/chikuzen/FCBI/releases
@@ -356,7 +357,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # -Bartlett         is a Bartlett-windowed sinc filter (4 lobes) (actually the same mathematical function used for a 'Triangle' filter, as well as the 'Bilinear' interpolation filter)
 # -Sinc             is a Sinc-windowed     sinc filter (4 lobes)
 # Hamming           is a Hamming-windowed  sinc filter (4 lobes) (has a gradient discontinuity so not recommended)
-# Hann(ing)         is a Hanning-windowed  sinc filter (4 lobes) (although can do with 2-lobes for upscaling sharp images)
+# Hann(ing)         is a Hanning-windowed  sinc filter (4 lobes) (2-lobes can be used for upscaling sharp images)
 # Kaiser            is a Kaiser-windowed   sinc filter (4 lobes) (also a small gradient discontinuity so not recommended)
 # Bohman            is a Bohman-windowed   sinc filter (5 lobes) (Blackman would fall between Kaiser and Bohman)
 # Parzen            is a Parzen-windowed   sinc filter (6 lobes)
@@ -377,7 +378,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # Quadratic/Quadric like Cubic but 66% faster (1.5 taps/lobes)
 # RAVU / RAISR      similar to XBR and nnedi3
 # NGU               Next Generation Upscaler. madVR edge directed NN algo (closed source, similar to FSRCNN)
-# Sphinx            Continuation of Sinc and Jinc. interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
+# Sphinx            Continuation of Sinc and Jinc, interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
 # ICBI              (Iterative Curve Based Interpolation) is a single image superresolution technique described in Fast artifact-free image interpolation by Andrea Giachetti and Nicola Asuni, presented at BMVC 2008
 
 function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in", string  "fmt_out", string   "cs_in", string   "cs_out", string      "OETF", string   "EOTF", string "D_in", string "D_out", bool "tv_in", bool "tv_out", string "cplace_in", string "cplace_out", \
@@ -483,7 +484,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
                  Assert(IsVersionOrGreater(3,7,1), "ConvertFormat: Update AviSynth+ version")
     !(space=="sigmoid" || space=="gamma" || space=="linear" || space=="log") ? \
-                 Assert(false, "ConvertFormat: Invalid space type.")         : nop()
+                 Assert(false, "ConvertFormat: Invalid scale space type")    : nop()
 
 
     cs_in    = cs_inF
@@ -524,14 +525,28 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
      i_type1                    ? Assert( w%4==0,    "ConvertFormat: Clip Width is not mod4" )                     : nop()
      o_type1                    ? Assert(nw%4==0,    "ConvertFormat: Target Width is not mod4" )                   : nop()
     !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                  ? \
-                                  Assert(!recon,     "ConvertFormat: Invalid settings for chroma reconstruction.") : nop()
+                                  Assert(!recon,     "ConvertFormat: Invalid settings for chroma reconstruction")  : nop()
 
 
     resampler = Format( kernel == "nnedi3"       ?  "deep_resize({nw},{nh}"                                  : \
+                        kernel == "Nearest" || kernel == "NearestNeighbour" || kernel == "NN"                ? \
+                                                      "GaussResize({nw},{nh},p=100"                          : \
+                        kernel == "Gauss"        ?    "GaussResize({nw},{nh},p=pd?p:9"                       : \
+                        kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" ? \
+                                                     """fmtc_resample({nw},{nh},kernel="box" """             : \
                         kernel == "Bilinear" || kernel == "Bartlett" ? "BilinearResize({nw},{nh}"            : \
                         kernel == "Bicubic"      ?  "BicubicResize({nw},{nh},b={bc_b},c={bc_c}"              : \
                         kernel == "Spline100"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=5"""      : \
                         kernel == "Spline144"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=6"""      : \
+                        kernel == "Wiener"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[           0.03125,0,-0.15625,0,0.625 ,1.0,0.625 ,0,-0.15625,0,0.03125]           """: \
+                        kernel == "Hann"         ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00346,0,0.0393 ,0,-0.14671,0,0.6124,1.0,0.6124,0,-0.14671,0,0.0393 ,0,-0.00346]""": \
+                        kernel == "Hamming"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.0102 ,0,0.04605,0,-0.15173,0,0.6142,1.0,0.6142,0,-0.15173,0,0.04605,0,-0.0102]""" : \
+                        kernel == "Black-Harris" ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00028,0,0.0105 ,0,-0.0923 ,0,0.582 ,1.0,0.582 ,0,-0.0923 ,0,0.0105 ,0,-0.00028]""": \
+                        kernel == "Black-Nuttall"? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00038,0,0.0114 ,0,-0.0943 ,0,0.5833,1.0,0.5833,0,-0.0943 ,0,0.0114 ,0,-0.00038]""": \
+                        kernel == "Flat-Top"     ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00048,0,0.008  ,0,-0.0216 ,0,0.5275,1.0,0.5275,0,-0.0216 ,0,0.008  ,0,-0.00048]""": \
+                        kernel == "MinSide"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00008,0,0.0057 ,0,-0.07495,0,0.569 ,1.0,0.569 ,0,-0.07495,0,0.0057 ,0,-0.00008]""": \
+                        kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
+                                                   """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00024,0,0.01005,0,-0.09096,0,0.5812,1.0,0.5812,0,-0.09096,0,0.01005,0,-0.00024]""": \
                         kernel == "SincLin"      || kernel == "SincLin2ResizeMT"                             ? \
                                                  "SincLin2ResizeMT({nw},{nh},taps=16"                        : \
                         kernel == "SinPow"      || kernel == "SinPowResizeMT"                                ? \
@@ -540,11 +555,6 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                                                    """ResizeShader({nw},{nh},kernel="SSIM",b=0.1"""          : \
                         kernel == "SSIM2"                                                                    ? \
                                         """SSIM_downsample({nw},{nh},smooth=0.43,resample_args="-0.6,0.4" """: \
-                        kernel == "Gauss"        ?    "GaussResize({nw},{nh},p=pd?p:9"                       : \
-                        kernel == "Nearest" || kernel == "NearestNeighbour" || kernel == "NN"                ? \
-                                                      "GaussResize({nw},{nh},p=100"                          : \
-                        kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" ? \
-                                                     """fmtc_resample({nw},{nh},kernel="box" """             : \
                         kernel == "Sinc"         ?     "SincResize({nw},{nh},taps=pd?int(p):4"               : \
                         kernel == "Blackman"     ?     "BlackmanResize({nw},{nh},taps=pd?int(p):5"           : \
                         kernel == "Lanczos"      ?     "LanczosResize({nw},{nh},taps=pd?int(p):3"            : \
@@ -582,7 +592,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
 
     src_nul = kernel == "ResizeShader" || kernel == "SSIM" || kernel == "SSIM2" || kernel == "DPID" || kernel == "nnedi3" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
-    src_box = kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144"
+    src_box = kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || \
+              kernel == "Wiener" || kernel == "Hann" || kernel == "Hamming" || kernel == "Black-Harris" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || kernel == "Nuttall"
     src_wh  = src_box ? Format(",sw={src_width},sh={src_height}") : Format(",src_width={src_width},src_height={src_height}")
     src_whc = src_box ? Format(",sw={cow},     sh={coh}")         : Format(",src_width={cow},      src_height={coh}")
     fmtcb   = Format(".ConvertBits({bi},fulls={fs})")
@@ -610,16 +621,16 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     c_kernel = InternalFunctionExists(kernel+"resize") || FindStr(LCase(kernel), "nearest") > 0 ? kernel : "bicubic"
     c_recon  = """threads = SI_LogicalCores()
                   cores   = SI_PhysicalCores()
-                  refs    = isRGBo || isSpace || isScale ? true : !tv
+                  refs    = isRGBo || isSpace || isScale ? true : !tv_in
                   c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt[0], i_fmt[1], o_fmt[1], cplace_in, cplace_out )
                   ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
                   Luma    = ref.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=fs)
                   Uu      =  Cb.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=kernel=="bicubic"?bc_b:p, ep1=bc_c, cshift=kernel+"resize", csresize=true, mpeg2=cplace_in=="MPEG2",range=fs?1:2).ConvertBits(bi,fulls=refs)
                   Vu      =  Cr.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=kernel=="bicubic"?bc_b:p, ep1=bc_c, cshift=kernel+"resize", csresize=true, mpeg2=cplace_in=="MPEG2",range=fs?1:2).ConvertBits(bi,fulls=refs)
-                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=-0.6, c=0.4, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
-                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=-0.6, c=0.4, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
-                  Cb      = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(fcnw, fcnh, b=-0.6, c=0.4, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top))
-                  Cr      = ex_makeadddiff(Vnew, Removegrain(Vnew, 19), Vu.BicubicResize(fcnw, fcnh, b=-0.6, c=0.4, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top))"""
+                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
+                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
+                  Cb      = ex_LFR(Unew, Uu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top), LFR=fcnw/1.1)
+                  Cr      = ex_LFR(Vnew, Vu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top), LFR=fcnw/1.1)"""
 
 
 
@@ -944,7 +955,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC36",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC37",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1010,7 +1021,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     recon      = Default (UVrecon, false)
     b          = Default (b, 0.0)
     c          = Default (c, 0.75)               # Precise Bicubic
-    p          = Default (p, 0.25)
+    p          = Default (p,    9)
 
     Assert(IsVersionOrGreater(3,7,1), "YUV_to_RGB: Update AviSynth+ version")
     Assert(!isRGB(yuv),               "YUV_to_RGB: Only YUV format supported")
@@ -1035,17 +1046,13 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     nw = p_type4 ? w : p_type1 || p_type10 ? round(w/4.0) : round(w/2.0)
     nh = p_type4 ||    p_type1 || p_type2  ?            h : round(h/2.0)
 
-    cplace  = chroma_placement(w, h, w, h, matrix[0], matrix[0], "YUV", "RGB", p_type[1], "444", cplace, "center" )
+    cplace  = chroma_placement(w, h, nw, nh, matrix[0], matrix[0], "YUV"+p_type[1], "RGB", p_type[1], "444", cplace, "center" )
 
      p_type1             ? Assert(bi == 8,    "YUV_to_RGB: Unsupported Pixel Type: HBD YUV411") : nop()
                            Assert(!p_type10,  "YUV_to_RGB: Unsupported Pixel Type: YUV410")
 
-                           Assert(h%2==0,     "YUV_to_RGB: Height is not mod2" )
-    !p_type1 || !p_type4 ? Assert(w%2==0,     "YUV_to_RGB: Width is not mod2" )                 : nop()
-     p_type1             ? Assert(w%4==0,     "YUV_to_RGB: Width is not mod4" )                 : nop()
 
-    point   = kernel=="Point" ? "+1.0" : ""
-    cplaceH = ",src_left="+string(cplace[0])+point
+    cplaceH = ",src_left="+string(cplace[0])
     cplaceV = ",src_top ="+string(cplace[1])
 
     resampler = kernel == "nnedi3" ?     "deep_resize(" + String(w) + "," + String(h)                     + ")"                       : \
@@ -1068,10 +1075,10 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
         Luma    = ref.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
         Uu      = Uor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
         Vu      = Vor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
-        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.6, c=0.4)
-        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.6, c=0.4)
-        U       = ex_makeadddiff(Unew, Removegrain(Unew, 19), Uu.BicubicResize(w, h, b=-0.6, c=0.4))
-        V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 19), Vu.BicubicResize(w, h, b=-0.6, c=0.4))
+        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
+        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
+        U       = ex_LFR(Unew, Uu.BicubicResize(w, h, b=0.0, c=0.5), LFR=w/1.1)
+        V       = ex_LFR(Vnew, Vu.BicubicResize(w, h, b=0.0, c=0.5), LFR=w/1.1)
 
     } else {
 
@@ -1124,7 +1131,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     cplace     = Default (cplace, "")
     b          = Default (b, -0.5)
     c          = Default (c, 0.25)               # Didée's Bicubic
-    p          = Default (p, 0.25)
+    p          = Default (p,    9)
 
     Assert(IsVersionOrGreater(3,7,1),   "RGB_to_YUV: Update AviSynth+ version")
     Assert(isRGB(rgb) && IsPlanar(rgb), "RGB_to_YUV: Only Planar RGB format supported")
@@ -1148,7 +1155,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     nw = p_type4 ? w : p_type1 || p_type10 ? round(w/4.0) : round(w/2.0)
     nh = p_type4 ||    p_type1 || p_type2  ?            h : round(h/2.0)
 
-    cplace  = chroma_placement(w, h, w, h, matrix[0], matrix[0], "RGB", "YUV", "444", p_type[1], "center", cplace )
+    cplace  = chroma_placement(w, h, nw, nh, matrix[0], matrix[0], "RGB", "YUV"+p_type[1], "444", p_type[1], "center", cplace )
 
      p_type1             ? Assert(bi == 8,    "RGB_to_YUV: Unsupported Pixel Type: HBD YUV411") : nop()
                            Assert(!p_type10,  "RGB_to_YUV: Unsupported Pixel Type: YUV410")
@@ -1191,14 +1198,14 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
 
     }
 
-    point   = kernel=="Point" ? "+1.0" : ""
-    cplaceH = ",src_left="+string(cplace[0])+point
+    cplaceH = ",src_left="+string(cplace[0])
     cplaceV = ",src_top ="+string(cplace[1])
 
-    resampler = kernel == "nnedi3" ?     "deep_resize(" + String(nw+nw%2) + "," + String(nh+nh%2)                     + ")"         : \
-                kernel == "bicubic"?   "BicubicResize(" + String(nw+nw%2) + "," + String(nh+nh%2) + cplaceH + cplaceV + ",b="+bc_b+",c="+bc_c+")" : \
-                kernel == "gauss"  ?     "GaussResize(" + String(nw+nw%2) + "," + String(nh+nh%2) + cplaceH + cplaceV + ",p=p)"     : \
-                                     kernel + "Resize(" + String(nw+nw%2) + "," + String(nh+nh%2) + cplaceH + cplaceV + ")"
+    # Although not optimal, technically YUV420 accepts odd size chroma planes
+    resampler = kernel == "nnedi3" ?     "deep_resize(" + String(nw) + "," + String(nh)                     + ")"         : \
+                kernel == "bicubic"?   "BicubicResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ",b="+bc_b+",c="+bc_c+")" : \
+                kernel == "gauss"  ?     "GaussResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ",p=p)"     : \
+                                     kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ")"
 
     Cb = p_type4 ? Cb : Eval("Cb." + resampler)
     Cr = p_type4 ? Cr : Eval("Cr." + resampler)
@@ -2988,7 +2995,7 @@ function bicubic_coeffs (string kernel) {
 
     # info: Keys Cubics family of filters are BC-splines that exactly reproduce affine gradients, those that satisfy 2C+B = 1 (along the dotted line in the Cubic filters diagram)
     # Examples are Mitchell-Netravali, Robidoux (and its flavours), Catmull-Rom, Cub-grange and Spline.
-    # For downscaling you can follow a different formula: B+2C = 0, although I find the next better/sharper: 3B+2C = -1
+    # For downscaling you can follow a different formula: B+2C = 0, although I find the next better/sharper: 3B+2C = -1 , but neither will produce affine gradients.
 
     rb  = 12. /(19.  +9.*sqrt(2))    # 0.378216
     rc  = 113./(58.+216.*sqrt(2))    # 0.310892
@@ -3438,7 +3445,7 @@ function c_adaptation (clip c, string "source", string "target", bool "tv_range"
 
     wpsn   = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], CAT02)
     wptn   = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], CAT02)
-    trans  = MatrixDiv(wptn,wpsn)
+    trans  = ArrayOp(wptn,wpsn,"/")
     vk     = [same?1.:trans[0],   0.0000,        0.0000,  \
               0.0000,   same?1.:trans[1],        0.0000,  \
               0.0000,            0.0000,same?1.:trans[2]]
@@ -3576,48 +3583,35 @@ function Dot (float_array vec1, \
     (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]) }
 
 
-function MatrixDiv ( float_array mat1, \
-                     float_array mat2) {
 
-    asize = ArraySize(mat1)
+# Does an index wise operation on flat (int or float) arrays
+# If either is a scalar, it operates on all array indexes
+function ArrayOp (  val mat1, \
+                    val mat2, string "Op") {
+
+    Op = Default(Op, "+")
+
+    isa1 = IsArray(mat1)
+    isa2 = IsArray(mat2)
+
+    Assert(isa1 || isa2, "ArrayOp: At least one operand must be an array")
+
+    mat1 = isa1 ? mat1 : [mat1]
+    mat2 = isa2 ? mat2 : [mat2]
+
+    a1size = ArraySize(mat1)
+    a2size = ArraySize(mat2)
+
+    asize = max(a1size,a2size)
     str = ""
     for (i=0, asize, 1) {
+
+        mx1 = !isa1 ? false : a1size <= i
+        mx2 = !isa2 ? false : a2size <= i
+
         cm  = asize == i+1 ? "" : ","
-        str = str + string(mat1[i] / mat2[i]) + cm
+        str = str + (  mx1 ? "" : string(mat1[min(a1size-1,i)])) + " "+(mx1||mx2 ? "" : op)+" "+( mx2 ? "" : string(mat2[min(a2size-1,i)])) + cm
         i   = asize == i+1 ? asize : i
-       }
+        }
 
     return Eval("["+str+"]") }
-
-
-function MatrixMul ( float_array mat1, \
-                     float_array mat2) {
-
-    asize = ArraySize(mat1)
-    str = ""
-    for (i=0, asize, 1) {
-        cm  = asize == i+1 ? "" : ","
-        str = str + string(mat1[i] * mat2[i]) + cm
-        i   = asize == i+1 ? asize : i
-       }
-
-    return Eval("["+str+"]") }
-
-
-/*
-# (LEGACY: since v3.7.1 test29)
-function ArrayAdd( val_array "a", val_array "b") {
-
-    as = ArraySize(a)-1
-    bs = ArraySize(b)-1
-    na = ""
-    for (i = 0, as+bs+1, 1) {
-
-        o  = i  - as  - 1
-        cm = i != as+bs+1 ? "," : ""
-        na = na + ( i > as ? String(Eval(Format("b[{o}]"))) : \
-                             String(Eval(Format("a[{i}]")))) + cm
-      }
-
-    return Eval("["+na+"]") }
-*/
