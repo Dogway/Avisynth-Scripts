@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.4   (07-02-2022)                ##
+###           ExTools v7.5   (12-02-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -1698,7 +1698,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     au  = smc ? a.ExtractU() : a
     av  = smc ? a.ExtractV() : a
 
-    w2  = smc ? au.Width()  : w0
+    w2  = smc ? au.Width () : w0
     h2  = smc ? au.Height() : h0
 
     np = (rad<0.01 && radv<0.01)
@@ -1744,6 +1744,109 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
         Y  == 3 && UV ==3 ? YtoUV(Bu,Bv,last) : \
         UV == 3 && Y  < 3 ? YtoUV(Bu,Bv,  ay) : \
         Y  != 3 && UV !=3 ?                a  : UV>6 ? mskY_to_YYY(a, last, true, rgb, UV, bi) : last } }
+
+
+# Replace Low Frequency of first clip from the second clip
+# In other words, add the lowpass of the second clip into the highpass of the first
+#
+# LFR: 50 to width(). Frequency cutoff for the replacement
+function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
+
+    w    = c.width ()
+    h    = c.height()
+    LFR  = Default( LFR, 300*(w/1920.)) # Default is 300 for 1080p
+    UV   = Default( UV,              1) # Set UV to 4 to copy the chroma from the 'ref' clip
+    DCT  = Default( DCTFlicker,  false) # Clean up remaining blotches of the reference lowpass
+
+    LFR  = max(LFR,50)
+    Fs   = max(w,h) * 2                 # Frequency sample rate is resolution * 2 (for Nyquist)
+    k    = sqrt(log(2)/2) * LFR         # Constant for -3dB
+    LFR  = Fs / ( k * 2 * pi )          # Frequency Cutoff for Gaussian Sigma
+
+    lpc =   c.ex_gaussianblur(LFR, UV=UV==4?2:UV)
+    lpr = ref.ex_gaussianblur(LFR, UV=UV==4?2:UV)
+    ex_makeadddiff(c, lpc, !DCT ? lpr : ex_limitdif(lpc, lpr, thr=0.3, elast=4.0, UV=UV), UV=UV)
+    UV==4 ? MergeChroma(ref) : last }
+
+
+
+
+# Bandpass replacement
+# Replace Mid Frequencies of first clip from the second clip
+# Requires vsTCanny()
+#
+# ex_MFR() workflow diagram (shaded '/' means deleted by lowpassing):
+#
+#          HIPASS                      HIPASS   + LOWPASS
+#     A               A                  A            A                 A
+#  _______         _______            _______      _______           _______
+# |       |       |/ / / /|          |       |    |/ / / /|         |       |
+# |       |       | / / / |          |       |    | / / / |         |       |
+# |       |       |-------|-> HI      -------     |/ / / /|          -------
+# |       |       |       |                       | / / / |
+# |       |   -   |       |     =               + |/ / / /|     =
+# |       |       |       |                       |-------|-> LO     _______
+# |       |       |       |                       |       |         |       |
+# |       |       |       |                       |       |         |       |
+#  -------         -------                         -------           -------
+#
+#          BANDPASS                                         A
+#     B               B                  B                 /           A+B
+#  _______         _______                                /          _______
+# |/ / / /|       |/ / / /|                              /\ +       |       |
+# | / / / |       | / / / |                             /  \        |   A   |
+# |-------|-> HI  |/ / / /|           _______          /    \       |-------|
+# |       |       | / / / |          |       |        B      -----> |       |
+# |       |   -   |/ / / /|     =    |       |                      |   B   |
+# |       |       |-------|-> LO      -------                       |-------|
+# |       |       |       |                                         |       |
+# |       |       |       |                                         |   A   |
+#  -------         -------                                           -------
+#
+# Example:
+#     ex_MFR(a,b,1700,700) # Replace mid frequencies from 700 to 1700 of 'a' clip from 'b'
+#
+#
+function ex_MFR (clip c, clip ref, float "hi", float "lo", int "UV") {
+
+    rgb  = isRGB (c)
+    is42 = is420 (c)
+    w    = width (c)
+    h    = height(c)
+    bi   = BitsPerComponent(c)
+    fulls= propNumElements (c,"_ColorRange")  > 0 ? \
+           propGetInt      (c,"_ColorRange") == 0 : rgb
+
+    HI   = Default( HI, 1800*(w/1920.)) # Hi  frequency bound. Default is 1800 for 1080p
+    LO   = Default( LO,         HI/2. ) # Low frequency bound.
+    UV   = Default( UV,              3) # Set UV to 4 to copy the chroma from the 'ref' clip
+    UV2  = UV==4?2:UV
+
+    LO   = max(LO, 4)
+
+    Fs   = max(w,h) * 2                 # Frequency sample rate is resolution * 2 (for Nyquist)
+    k    = sqrt(log(2)/2) * HI          # Constant for -3dB
+    HI   = Fs / ( k * 2 * pi )          # Frequency Cutoff for Gaussian Sigma
+
+    k    = sqrt(log(2)/2) * LO
+    LO   = Fs / ( k * 2 * pi )
+
+  # The perfect lowpass filter is a brick-wall filter like a 'mean' blur
+  # We could use this instead for high frequency lowpass albeit much slower
+  # mpc   =   c.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
+  # mpr   = ref.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
+
+    LOUV = c.is422() || is42 ? LO/2. : c.isYV411() ? LO/4. : LO
+    LOUVv= is42              ? LO/2. :                       LO
+    HIUV = c.is422() || is42 ? HI/2. : c.isYV411() ? HI/4. : HI
+    HIUVv= is42              ? HI/2. :                       HI
+
+    mpc   =   c.vsTCanny(HI, HIUV, HIUVv, mode=-1, u=UV2, v=UV2)
+    mpc2  =   c.vsTCanny(LO, LOUV, LOUVv, mode=-1, u=UV2, v=UV2)
+    mpr   = ref.vsTCanny(HI, HIUV, HIUVv, mode=-1, u=UV2, v=UV2)
+    mpr2  = ref.vsTCanny(LO, LOUV, LOUVv, mode=-1, u=UV2, v=UV2)
+
+    Expr(c,   mpc, mpc2, mpr, mpr2, "x y - z + a b - +", isy(c) ? Undefined() : ex_UVexpr("x y - z + a b - +", UV2, bi, rgb, fulls, "none") ) }
 
 
 
