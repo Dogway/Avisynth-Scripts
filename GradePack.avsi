@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v6.6 (05-02-2022)               ##
+###           Grade Pack v6.7 (13-02-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -1276,7 +1276,7 @@ function GreyWorld(clip a, bool "fast", bool "show") {
 ###    (
 ###    clip,
 ###    int temperature=6504 (4004 to 12004 by 1),
-###    string matrix="Rec709" ("470M" / "470BG" / "Rec601" / "Rec709" / "Rec2020" / "Rec2020" / "Display-P3" / "ACEScg"),
+###    string matrix="Rec709" ("470M" / "470BG" / "Rec601" / "Rec709" / "Rec2020CL" / "Rec2020NCL" / "Display-P3" / "ACEScg"),
 ###    )
 ###
 ####################################
@@ -1315,7 +1315,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 
     fw1      = MatrixDot([0.950450,1.,1.088917],CAT02)
     fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,CAT02)
-    trans    = MatrixDiv(fw2,fw1)
+    trans    = ArrayOp(fw2,fw1,"/")
 
     vonkries = [trans[0], 0.0000,  0.0000,  \
                 0.0000, trans[1],  0.0000,  \
