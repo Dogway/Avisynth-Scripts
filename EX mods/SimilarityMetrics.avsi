@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v2.4  (25-01-2022)                     ###
+###        Similarity Metrics Pack v2.5  (15-02-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -78,7 +78,10 @@ Ref:
 
 function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
-    rgb = isRGB(dist)
+    rgb = isRGB (dist)
+    w   = width (dist)
+    h   = height(dist)
+    isHD= (w > 1099 || h >  599)
     bi  = BitsPerComponent(dist)
     fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
           propGetInt      (dist,"_ColorRange") == 0 : rgb
@@ -87,7 +90,7 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     y        = Default(y, true)
     u        = Default(u, false)
     v        = Default(v, false)
-    downscl  = Default(downsample, true)
+    downscl  = Default(downsample, isHD)
     show_map = Default(show_map,  false)
     show     = Default(show,          0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     fs       = Default(fulls,        fs)
@@ -95,10 +98,10 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     clip1 = dist
     clip2 = ref
 
-    Assert(IsVersionOrGreater(3,7,1),                                         "GMSD: Update AviSynth+ version")
-    Assert(PixelType(clip1) == PixelType(clip2),                              "GMSD: clip1 and clip2 must be of the same format")
-    Assert(clip1.Width() == clip2.Width() && clip1.Height() == clip2.Height(),"GMSD: clip1 and clip2 must be of the same width and height")
-    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v),                 "GMSD: only one plane must be processed")
+    Assert(IsVersionOrGreater(3,7,1),                         "GMSD: Update AviSynth+ version")
+    Assert(PixelType(clip1) == PixelType(clip2),              "GMSD: clip1 and clip2 must be of the same format")
+    Assert(w == clip2.Width() && h == clip2.Height(),         "GMSD: clip1 and clip2 must be of the same width and height")
+    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "GMSD: only one plane must be processed")
 
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
@@ -171,7 +174,7 @@ Ref:
 #---------------
 # clip2: The second clip, to be compared with the first one.
 #---------------
-# downsample (default false): Whether to average the clips over local 2x2 window and downsample by a factor of 2 before calculation.
+# downsample (default true): Whether to average the clips over local 2x2 window and downsample by a factor of 2 before calculation.
 #---------------
 # alpha (default 0.6): Weight used to merge Gradient Similarity (GS) map and Chromaticity Similarity (CS) map.
 #---------------
@@ -191,12 +194,15 @@ Ref:
 
 function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_map", int "show", bool "fulls") {
 
-    rgb = isRGB(dist)
+    rgb = isRGB (dist)
+    w   = width (dist)
+    h   = height(dist)
+    isHD= (w > 1099 || h >  599)
     bi  = BitsPerComponent(dist)
     fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
           propGetInt      (dist,"_ColorRange") == 0 : rgb
 
-    downscl    = Default(downsample, false)
+    downscl    = Default(downsample,  isHD)
     alpha      = Default(alpha,        0.6)
     show_map   = Default(show_map,   false)
     show       = Default(show,           0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
@@ -207,7 +213,7 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
 
     Assert(IsVersionOrGreater(3,7,1),                                                           "MDSI: Update AviSynth+ version")
     Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)), "MDSI: clip1 and clip2 must be in planar RGB format")
-    Assert(clip1.Width() == clip2.Width() && clip1.Height() == clip2.Height(),                  "MDSI: clip1 and clip2 must be of the same width and height")
+    Assert(w == clip2.Width() && h == clip2.Height(),                                           "MDSI: clip1 and clip2 must be of the same width and height")
 
     c1 = 140 / pow(255, 2)
     c2 = 55  / pow(255, 2)
@@ -333,7 +339,10 @@ Ref:
 
 function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", float "stddev", float "dynamic_range", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
-    rgb = isRGB(dist)
+    rgb = isRGB (dist)
+    w   = width (dist)
+    h   = height(dist)
+    isHD= (w > 1099 || h >  599)
     bi  = BitsPerComponent(dist)
     fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
           propGetInt      (dist,"_ColorRange") == 0 : rgb
@@ -343,7 +352,7 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     v        = Default(v, false)
     k1       = Default(k1, 0.01)
     k2       = Default(k2, 0.03)
-    downscl  = Default(downsample,   true)
+    downscl  = Default(downsample,   isHD)
     DR       = Default(dynamic_range, 1.0)
     stddev   = Default(stddev,        1.5)
     show_map = Default(show_map,    false)
@@ -353,10 +362,10 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     clip1 = dist
     clip2 = ref
 
-    Assert(IsVersionOrGreater(3,7,1),                                         "vsSSIM: Update AviSynth+ version")
-    Assert(PixelType(clip1) == PixelType(clip2),                              "vsSSIM: clip1 and clip2 must be of the same format")
-    Assert(clip1.Width() == clip2.Width() && clip1.Height() == clip2.Height(),"vsSSIM: clip1 and clip2 must be of the same width and height")
-    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v),                 "vsSSIM: only one plane must be processed")
+    Assert(IsVersionOrGreater(3,7,1),                         "vsSSIM: Update AviSynth+ version")
+    Assert(PixelType(clip1) == PixelType(clip2),              "vsSSIM: clip1 and clip2 must be of the same format")
+    Assert(w == clip2.Width() && h == clip2.Height(),         "vsSSIM: clip1 and clip2 must be of the same width and height")
+    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "vsSSIM: only one plane must be processed")
 
     c1 = Pow(k1 * DR, 2.0)
     c2 = Pow(k2 * DR, 2.0)
