@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.4.7d      by Dogway    - 11 Feb  2022                           ###
+###                       v3.4.7d      by Dogway    - 15 Feb  2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -236,19 +236,19 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     Lthres  = ex_bs(75, 8, bi, tv_in=true, tv_out=tv)
 
-    pref    = !GlobalR ? preclip ? UHDhalf        ?  pref : prefilter                                                                                                                                              : \
-                                  (prefilter==-1) ?  pref                                                                                                                                                          : \
-                                  (prefilter== 0) ?  pref.ex_MinBlur(0,Chr)                                                                                                                                        : \
-                                  (prefilter== 1) ?  pref.ex_MinBlur(1,Chr)                                                                                                                                        : \
-                                  (prefilter== 2) ?  pref.ex_MinBlur(2,Chr)                                                                                                                                        : \
-                                  (prefilter== 3) ?  pref.ex_FluxSmoothST(2,2,255,0,false,UV=Chr)                                                                                                                  : \
-                                  (prefilter== 4) ?  ex_merge(dfttest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1,sbsize=12,sosize=6,swin=2),pref,                         \
-                                                     pref.ex_lut(Format("range_max range_max {Lthres} ymin - / x ymin - * -"),UV=1,clamp_float=true), luma=chroma, UV=Chr)                                         : \
-                                  (prefilter== 5) ?  pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=1,chroma=chroma,device_type="GPU",device_id=device_id,LFR=600*(w/1920.)).ex_boxblur(0.5, mode="weighted", UV=Chr)  : \
-                                  (prefilter== 6) ?  pref.ex_BM3D(sigma=10,radius=1,CUDA=true,UV=Chr,tv_range=tv)                                                                                                  : \
-                                  (prefilter== 7) ?  pref.ex_DGDenoise(str=0.10,LFR=w/2.,UV=Chr).ex_boxblur(0.5, mode="weighted", UV=Chr)                                                                          : \
-                                                     Assert(false, "SMDegrain: Prefilter must be between -1~7: "+string(prefilter))                                                                                : \
-                                  pref
+    pref    = !GlobalR ? preclip ? UHDhalf        ?  pref : prefilter                                                                                                                                             : \
+                                  (prefilter==-1) ?  pref                                                                                                                                                         : \
+                                  (prefilter== 0) ?  pref.ex_MinBlur(0,Chr)                                                                                                                                       : \
+                                  (prefilter== 1) ?  pref.ex_MinBlur(1,Chr)                                                                                                                                       : \
+                                  (prefilter== 2) ?  pref.ex_MinBlur(2,Chr)                                                                                                                                       : \
+                                  (prefilter== 3) ?  pref.ex_FluxSmoothST(2,2,255,0,false,UV=Chr)                                                                                                                 : \
+                                  (prefilter== 4) ?  ex_merge(dfttest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1,sbsize=12,sosize=6,swin=2),pref,                        \
+                                                     pref.ex_lut(Format("range_max range_max {Lthres} ymin - / x ymin - * -"),UV=1,clamp_float=true), luma=chroma, UV=Chr)                                        : \
+                                  (prefilter== 5) ?  pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=1,chroma=chroma,device_type="GPU",device_id=device_id,LFR=600*(w/1920.)).ex_boxblur(0.5, mode="weighted", UV=Chr) : \
+                                  (prefilter== 6) ?  pref.ex_BM3D(sigma=10,radius=1,CUDA=true,UV=Chr,tv_range=tv)                                                                                                 : \
+                                  (prefilter== 7) ?  pref.ex_DGDenoise(str=0.10,LFR=w/2.,UV=Chr).ex_boxblur(0.5, mode="weighted", UV=Chr)                                                                         : \
+                                                     Assert(false, "SMDegrain: Prefilter must be between -1~7: "+string(prefilter))                                                                               : \
+                                   pref
 
 
     # Default Auto-Prefilter - Luma expansion TV->PC (up to 16% more values for motion estimation)
@@ -257,18 +257,18 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
              DefTV && tv || Str > 0.0 ? pref.ex_retinex(lo=Str==1?40:(Str)*100,UV=Chr,tv_range=tv)    .ConvertBits(8, dither=-1, fulls=true) : \
                       tv              ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) : pref.ConvertBits(8, dither=-1, fulls=true)
 
-    pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., w/8., 0.0) : pref8     # Low Frequency expansion (higher SAD -> more protection)
+    pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., Fc=w/8., th=0.0) : pref8 # Low Frequency expansion (higher SAD -> more protection)
 
     If (sShow ? false : !Show) {
 
         # Subpixel 3 and 4
-        inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv) # nnedi3 is too slow in HBD
+        inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)   # nnedi3 is too slow in HBD
         threads = pelclip && subpixel==4 ? SI_LogicalCores()  : nop()
         cores   = pelclip && subpixel==4 ? SI_PhysicalCores() : nop()
         pclip   = pelclip                ? subpixel==4 && prefilter==-1 ? pref8.  nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=tv?2:1) :  \
                                                                           Undefined()                                                                                                  : nop() # Wiener filter is good enough for MAnalyse
         pclip2  = pelclip && !GlobalR    ? subpixel==4 ?                  inputP8.nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=tv?2:1).ConvertBits(bi, fulls=!tv, fulld=!tv) : \
-                                                                          inputP .blackmanresize(w*pel,h*pel,taps=8, src_left=0.25, src_top=0.25)                                      : nop() # from the docs "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed)
+                                                                          inputP .blackmanresize(w*pel,h*pel, taps=8, src_left=0.25, src_top=0.25)                                     : nop() # from the docs "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed)
 
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
@@ -966,11 +966,11 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 #    float sigma=3.0 (1.0 to 10.0 by 0.5),
 #    int radius=1 (1 to 5 by 1),
 #    string preset="Low" ("Fast" / "Low" / "Normal" / "High" / "Noisy"),
-#    bool CUDA=false,
+#    bool CUDA=true,
 #    bool OPP=true,
 #    )
 #
-function ex_BM3D(clip a, float "sigma", int "radius", bool "CUDA", string "preset", bool "OPP", int "UV", bool "tv_range") {
+function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "CUDA", bool "OPP", int "UV", bool "tv_range") {
 
     rgb = isRGB(a)
     isy = isy  (a)
