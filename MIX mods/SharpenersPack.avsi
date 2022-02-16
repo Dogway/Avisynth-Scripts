@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v3.4  (06-02-2022)                             ###
+###        Sharpeners Pack v3.5  (16-02-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -503,12 +503,13 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str=1.0 (0.0 to 2.0 by 0.1),
+###    float str=1.0 (-1.0 to 2.0 by 0.1),
+###    float strv=1.0 (-1.0 to 2.0 by 0.1),
 ###    float Fc=1920.0 (0.0 to 1920.0 by 1.0),
 ###    float thr=0.0 (0.0 to 255.0 by 1.0),
 ###    )
 ###
-function ex_unsharp(clip a, float "str", float "Fc", float "th", bool "deconv", int "Y", int "UV") {
+function ex_unsharp(clip a, float "str", float "strv", float "Fc", float "th", int "Y", int "UV") {
 
     rgb   = isRGB(a)
     isy   = isy(a)
@@ -520,7 +521,8 @@ function ex_unsharp(clip a, float "str", float "Fc", float "th", bool "deconv", 
     h     = a.height()
     Fs    = max(w,h)*2.
 
-    str   = Default(str,     1)
+    strh  = Default(str,     1)        # Use negative values for frequency based blurring (deconvolution), works up to a certain extent (up to -0.5)
+    strv  = Default(strv, strh)
     Fc    = Default(Fc,  Fs/2.)        # Frequency cutoff in Hz for sharpening, by default same to sample rate (ie 1920Hz for 1080p, or 1 pixel accuracy)
 
     Fc    = (Fs/Fc)
@@ -529,7 +531,10 @@ function ex_unsharp(clip a, float "str", float "Fc", float "th", bool "deconv", 
     th    = Default(th,           0)   # Good values are 1, 2 or 3
     Y     = Default( Y,           3)
     UV    = Default(UV,    rgb  ? 3 : 1)
-    dcnv  = Default(deconv,  false)   # Enable for frequency based blurring
+    dcnv1 = strv < 0
+    dcnv2 = strh < 0
+    strv  = abs(strv)
+    strh  = abs(strh)
     fs    = fulls
     th    = ex_bs(th, 8, bi, fulls=fs, flt=true)
 
@@ -567,26 +572,37 @@ function ex_unsharp(clip a, float "str", float "Fc", float "th", bool "deconv", 
             divy2 = divy2 + 1
            }
 
-    dcnv  = dcnv ? "" : "swap"
-    strv  = krnv  + plsv  + " Z@ "  + string((1./divy) *0.8) + " * "
-    strh  = krnh  + plsh  + " Z@ "  + string((1./divx) *0.8) + " * "
+    dcnv1 = dcnv1 ? "" : "swap"
+    dcnv2 = dcnv2 ? "" : "swap"
+    strd  = strh != strv
+    th1   = !strd ? "" : "x "+dcnv1+" - " + (th > 0 ? Format("{strv} * A@ abs {th} > A x + x ?") : Format("{strv} * x +"))
+    th2   = !strd ?      "y "+dcnv2+" - " + (th > 0 ? Format("{strh} * A@ abs {th} > A y + y ?") : Format("{strh} * y +")) : \
+                         "x "+dcnv2+" - " + (th > 0 ? Format("{strh} * A@ abs {th} > A x + x ?") : Format("{strh} * x +"))
+    strv1 = krnv  + plsv  + " Z@ "  + string((1./divy) *0.8) + " * "
+    strh1 = krnh  + plsh  + " Z@ "  + string((1./divx) *0.8) + " * "
     strv2 = krnv2 + " Z + " + plsv2 + string((1./divy2)*0.2) + " * + "
-    strh2 = krnh2 + " Z + " + plsh2 + string((1./divx2)*0.2) + " * + y "+dcnv+" - " + (th > 0 ? Format("{str} * A@ abs {th} > A y + y ?") : Format("{str} * y +"))
+    strh2 = krnh2 + " Z + " + plsh2 + string((1./divx2)*0.2) + " * + "
 
-    strv  = strv + strv2
-    strh  = strh + strh2
+    strvf = strv1 + strv2 + th1
+    strhf = strh1 + strh2 + th2
 
     a     = Fc < 2.0 ? a.blackmanresize(nmod(w*(2./Fc),2),nmod(h*(2./Fc),2)) : a    # replace with butterworth fractional rad (n=300 or so) for subpixel sharpening
 
-    ystrv = ex_Yexpr (strv, Y, bi, rgb, fs)
-    ystrh = ex_Yexpr (strh, Y, bi, rgb, fs)
+    ystrv = ex_Yexpr (strvf, Y, bi, rgb, fs)
+    ystrh = ex_Yexpr (strhf, Y, bi, rgb, fs)
 
-    isy     ? Expr(a,       ystrv                                                       ) : \
-    UV == 1 ? Expr(a,       ystrv, ""                                                   ) : \
-              Expr(a,       ystrv, ex_UVexpr(strv, UV, bi, rgb, fs), scale_inputs="none")
-    isy     ? Expr(last, a, ystrh                                                       ) : \
-    UV == 1 ? Expr(last, a, ystrh, ""                                                   ) : \
-              Expr(last, a, ystrh, ex_UVexpr(strh, UV, bi, rgb, fs), scale_inputs="none")
+    strv==0 ?      a                                                                       : \
+    isy     ? Expr(a,       ystrv                                                        ) : \
+    UV == 1 ? Expr(a,       ystrv, ""                                                    ) : \
+              Expr(a,       ystrv, ex_UVexpr(strvf, UV, bi, rgb, fs), scale_inputs="none")
+    strd    ?                                                                                \
+    strh==0 ?      last                                                                    : \
+    isy     ? Expr(last,    ystrh                                                        ) : \
+    UV == 1 ? Expr(last,    ystrh, ""                                                    ) : \
+              Expr(last,    ystrh, ex_UVexpr(strhf, UV, bi, rgb, fs), scale_inputs="none") : \
+    isy     ? Expr(last, a, ystrh                                                        ) : \
+    UV == 1 ? Expr(last, a, ystrh, ""                                                    ) : \
+              Expr(last, a, ystrh, ex_UVexpr(strhf, UV, bi, rgb, fs), scale_inputs="none")
 
     Fc < 2.0 ? bicubicresize(w,h,-0.6,0.4) : last }
 
@@ -2543,7 +2559,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 
         return clp }
 
-    # Bandpass recovery (recovers p+margin range bandpass from 'hi' clip to 'low' clip)
+    # Strange filter, blurs mid-freqs of 'low' and replace its hi-freqs with those of 'hi'
     function CutOff(clip low, clip hi, int p, int margin) {
 
         clp1          = gauss(hi,  p+margin)
