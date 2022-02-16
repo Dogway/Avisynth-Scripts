@@ -238,7 +238,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     bool "tv_in"=true,
 ###     bool "tv_out"=true,
 ###     string "scale_space"="gamma" ("gamma" / "linear" / "sigmoid" / "log"),
-###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Wiener" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Hann" / "Hamming" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Haasn" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
 ###     string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
 ###     bool "nomoiree"=false,
 ###     bool "noring"=false,
@@ -350,18 +350,18 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 #          ref: https://legacy.imagemagick.org/Usage/filter/nicolas/
 #          ref: https://legacy.imagemagick.org/discourse-server/viewtopic.php?f=22&t=20942
 # -- untapered decay
-# Welch/Welsh       is a Welch-windowed    sinc filter (parabolic window, 3 lobes)
-# Cosine            is a Cosine-windowed   sinc filter (3 lobes)
+# -Welch/Welsh      is a Welch-windowed    sinc filter (parabolic window, 3 lobes)
+# -Cosine           is a Cosine-windowed   sinc filter (3 lobes)
 # Bessel            is a unnormalized      sinc filter (3 lobes)
 # -- tapered decay (in order)
 # -Bartlett         is a Bartlett-windowed sinc filter (4 lobes) (actually the same mathematical function used for a 'Triangle' filter, as well as the 'Bilinear' interpolation filter)
 # -Sinc             is a Sinc-windowed     sinc filter (4 lobes)
-# Hamming           is a Hamming-windowed  sinc filter (4 lobes) (has a gradient discontinuity so not recommended)
-# Hann(ing)         is a Hanning-windowed  sinc filter (4 lobes) (2-lobes can be used for upscaling sharp images)
+# -Hamming          is a Hamming-windowed  sinc filter (4 lobes) (has a gradient discontinuity so not recommended)
+# -Hann(ing)        is a Hanning-windowed  sinc filter (4 lobes) (2-lobes can be used for upscaling sharp images)
 # Kaiser            is a Kaiser-windowed   sinc filter (4 lobes) (also a small gradient discontinuity so not recommended)
 # Bohman            is a Bohman-windowed   sinc filter (5 lobes) (Blackman would fall between Kaiser and Bohman)
 # Parzen            is a Parzen-windowed   sinc filter (6 lobes)
-# Ginseng           is a Jinc-windowed     sinc filter (3 lobes). Better for HBD than ewa_lanczos3.
+# -Ginseng          is a Jinc-windowed     sinc filter (3 lobes). Better for HBD than ewa_lanczos3.
 # Lagrange          is a Lagrange cubic polynomial filter that approximates a windowed filter https://legacy.imagemagick.org/Usage/filter/#lagrange
 # Jinc              is a Box-windowed      jinc filter (3.2383154841662362 lobes). Jinc filters are not separable so they're usually slower than sinc, cubic, etc but more pleasant artifacts. See here: https://legacy.imagemagick.org/Usage/filter/#cylindrical
 # ewa_hanning       is a Hanning-windowed  jinc filter (3.238 lobes).
@@ -527,8 +527,10 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                  ? \
                                   Assert(!recon,     "ConvertFormat: Invalid settings for chroma reconstruction")  : nop()
 
-    Wiener       = [1,0.928293,0.847768,0.749610,0.625,0.470033,0.300445,0.136885,0,-0.094068,-0.147204,-0.165801,-0.15625,-0.1255,-0.082723,-0.037647,0,0.022825,0.032783,0.034161,0.03125,0.02491,0.017308,0.008864]
-    
+    wiener       = [1,0.928293,0.847768,0.749610,0.625,0.470033,0.300445,0.136885,0,-0.094068,-0.147204,-0.165801,-0.15625,-0.1255,-0.082723,-0.037647,0,0.022825,0.032783,0.034161,0.03125,0.02491,0.017308,0.008864]
+    welch        = [1,0.972804,0.894064,0.771960,0.618936,0.450106,0.281349,0.127371,0,-0.093051,-0.148802,-0.168948,-0.159155,-0.127874,-0.0848512,-0.039589,0,0.028562,0.0437654,0.046219,0.0389045,0.026257,0.0130728,0.003457]
+    cosine       = [1,0.972409,0.892614,0.769145,0.614928,0.445557,0.277261,0.124857,-0,-0.090029,-0.142854,-0.160801,-0.150053,-0.119324,-0.0782968,-0.036093,0,0.025353,0.0382818,0.039802,0.0329539,0.021856,0.0106832,0.002771]
+    ginseng      = [1,0.9706924517023813,0.8863037293563394,0.7568846746026882,0.5974484350594943,0.42568771143242046,0.2593638071484244,0.1138155395729318,0,-0.07663423509063601,-0.11630395745498025,-0.12412241952630289,-0.10861320529064979,-0.07983137551487393,-0.04746371544549015,-0.01925303598542219,0,0.008737966998564498,0.00827789347498015,0.0019289633237434013,-0.006160413752293629,-0.012153940393777712,-0.013434473237575344,-0.00910161101088654]
     hann         = [1,0.9721491276507364,0.8916666533754284,0.7673293227933666,0.6123898750249921,0.44274830753566713,0.27481699575031854,0.12341360408603762,0,-0.08848381495693607,-0.14005052617158592,-0.1573484857988253,-0.14670726866144826,-0.11675289338122011,-0.0768542368708979,-0.035667086889988917,0,0.025852297356152947,\
                     0.040259628673424544,0.043939594567039456,0.039299593276647324,0.029609836521073,0.018187607754470616,0.007745261904000362,0,-0.0044240051920867865,-0.005835794531242358,-0.005144384187084287,-0.0034614139060841795,-0.0017466187017072979,-0.0005766441854451786,-0.00007568486302246578]
     hamming      = [1,0.9723291304741598,0.8923302555040387,0.7686246617990514,0.6142487927491155,0.4448795641717659,0.27675712509487843,0.1246257815086694,0,-0.0900023682175275,-0.1431203033588165,-0.16168530396390082,-0.1517323766550889,-0.12167980632033411,-0.0808254466432445,-0.0379149269102415,0,0.02826674933221172,\
@@ -548,7 +550,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                         kernel == "Gauss"        ?    "GaussResize({nw},{nh},p=pd?p:9"                       : \
                         kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" ? \
                                                      """fmtc_resample({nw},{nh},kernel="box"             """ : \
-                        kernel == "Bilinear" || kernel == "Bartlett" ? "BilinearResize({nw},{nh}"            : \
+                        kernel == "Bilinear" || kernel == "Triangle" || kernel == "Bartlett"                 ? \
+                                                   "BilinearResize({nw},{nh}"                                : \
                         kernel == "Bicubic"      ?  "BicubicResize({nw},{nh},b={bc_b},c={bc_c}"              : \
                         kernel == "Spline100"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=5"""      : \
                         kernel == "Spline144"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=6"""      : \
@@ -559,6 +562,9 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                         kernel == "Black-Nuttall"? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(BlackNuttall) """ : \
                         kernel == "Flat-Top"     ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(FlatTop)      """ : \
                         kernel == "MinSide"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(MinSide)      """ : \
+                        kernel == "Ginseng"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Ginseng)      """ : \
+                        kernel == "Welch"        ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Welch)        """ : \
+                        kernel == "Cosine"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Cosine)       """ : \
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
                                                    """fmtc_resample({nw},{nh},kernel="blackmanminlobe"    """: \
                         kernel == "SincLin"      || kernel == "SincLin2ResizeMT"                             ? \
@@ -607,7 +613,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
     src_nul = kernel == "ResizeShader" || kernel == "SSIM" || kernel == "SSIM2" || kernel == "DPID" || kernel == "nnedi3" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
     src_box = kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || \
-              kernel == "Wiener" || kernel == "Hann" || kernel == "Hamming" || kernel == "Black-Harris" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || kernel == "Nuttall"
+              kernel == "Wiener" || kernel == "Hann" || kernel == "Hamming" || kernel == "Black-Harris" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || \
+              kernel == "Nuttall" || kernel == "Welch" || kernel == "Cosine" || kernel == "Ginseng"
     src_wh  = src_box ? Format(",sw={src_width},sh={src_height}") : Format(",src_width={src_width},src_height={src_height}")
     src_whc = src_box ? Format(",sw={cow},     sh={coh}")         : Format(",src_width={cow},      src_height={coh}")
     fmtcb   = Format(".ConvertBits({bi},fulls={fs})")
@@ -969,7 +976,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC37",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC38",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1680,6 +1687,7 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
                                       y "+string(rW[2])+" / Z@ {ep} > Z 0.333333333 ^ Z {coefr} * 16 116 / + ? - 200 * "+" 12.3  /"), bi, fs), optSingleMode=true,  lut=lut2)
 
     isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
+
 
 
 # WIP. CIE Lab to XYZ
@@ -3034,7 +3042,7 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "Cub-grange"        ? [0.0308,0.4846] : c # dw but also up. Bicubic approximation to Lagrange scaling (a bit sharper than it)
     c = kernel == "Catmull-Rom"       ? [0.0,0.5]   : c # Canonical sharp Bicubic (roughly equivalent to EWA RobidouxSharp)
     c = kernel == "Didee"             ? [-0.5,0.25] : c # dw Didée's downscaling sharp coefficients
-    c = kernel == "Zopti"             ? [-0.6,0.4]  : c # dw Zopti calculated best from UHD to 720p: https://forum.doom9.org/showthread.php?p=1865218#post1865218
+    c = kernel == "Zopti"             ? [-0.6,0.4]  : c # dw Zopti calculated best from UHD to 720p (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218#post1865218
     c = kernel == "Precise Bicubic"   ? [0.0,0.75]  : c
     c = kernel == "Sharp"             ? [0.0,1.0]   : c
     c = kernel == "Hatch"             ? [0.0,-5.0]  : c
