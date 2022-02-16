@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.75 mix mod by Dogway 2022, based on 3.382s            #
+#     QTGMC 3.76 mix mod by Dogway 2022, based on 3.382s            #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -16,6 +16,12 @@
 # Full documentation is in the 'QTGMC' html file that may comes with this script, or even better see avisynth wiki
 #
 # --- LATEST CHANGES ---
+#
+#
+# v3.76mx
+# - Frameprops passthrough
+# - Add function definitions
+# - Tweak 'Str' and 'Amp' defaults
 #
 # v3.75mx
 # - Fix ex_vinverse() vertical blur
@@ -245,8 +251,8 @@
 #   Vinverse
 #
 # Core scripts:
-#   ExTools      (7.4   or above)
-#   SMDegrain    (3.4.5 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   ExTools      (7.5   or above)
+#   SMDegrain    (3.4.7 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.156 or above) (for sh_Bob(), for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
@@ -289,6 +295,38 @@
 #        Setting MBlurLimit has been renamed to SBlurLimit
 #        Setting NoiseBypass has been renamed to NoiseProcess
 #
+#
+# Function Definition:
+#     (
+#     clip,
+#     string "Preset"="very slow" ("Placebo" / "Very Slow" / "Slower" / "Slow" / "Medium" / "Fast" / "Faster" / "Very Fast" / "Super Fast" / "Ultra Fast" / "Draft"),
+#     [int "TR0"=2 (0 to 4 by 1)],
+#     [int "TR1"=2 (0 to 4 by 1)],
+#     [int "TR2"=1 (0 to 4 by 1)],
+#     [float "Sharpness"=1.0 (0.0 to 1.0 by 0.1)],
+#     [float "SVThin"=0.0 (0.0 to 0.5 by 0.05)],
+#     [int "ThSAD1"=640 (100 to 1000 by 1)],
+#     [int "ThSAD2"=256 (100 to 1000 by 1)],
+#     int "SourceMatch"=0 (0 to 3 by 1),
+#     string "MatchPreset"="very slow" ("Placebo" / "Very Slow" / "Slower" / "Slow" / "Medium" / "Fast" / "Faster" / "Very Fast" / "Super Fast" / "Ultra Fast" / "Draft"),
+#     string "MatchPreset2"="very slow" ("Placebo" / "Very Slow" / "Slower" / "Slow" / "Medium" / "Fast" / "Faster" / "Very Fast" / "Super Fast" / "Ultra Fast" / "Draft"),
+#     [int "MatchTR2"=1 (0 to 2 by 1)],
+#     [float "MatchEnhance"=0.0 (0.0 to 1.0 by 0.05)],
+#     int "Lossless"=0 (0 to 2 by 1),
+#     float "EZDenoise"=0.0 (0.0 to 3.0 by 0.1),
+#     float "EZKeepGrain"=1.0 (0.0 to 1.0 by 0.1),
+#     string "NoisePreset"="Faster" ("Slower" / "Slow" / "Medium" / "Fast" / "Faster"),
+#     [int "InputType"=0 (0 to 3 by 1)],
+#     [int "ShutterBlur"=0 (0 to 3 by 1)],
+#     [int "FPSDivisor"=1 (1 to 2 by 1)],
+#     [bool "Precise"=false],
+#     [string "Tuning"="None" ("None" / "DV-SD" / "DV-HD")],
+#     bool "Show"=false,
+#     bool "tv_range"=true,
+#     int "Threads"=4 (2 to 16 by 2),
+#     )
+#
+#
 function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
                     int "NNSize", int "NNeurons", int "EdiQual", int "EdiMaxD", string "ChromaEdi", clip "EdiExt", float "Sharpness", \
                     int "SMode", int "SLMode", int "SLRad", int "SOvs", float "SVThin", int "Sbb", int "SrchClipPP", int "SubPel", int "SubPelInterp", \
@@ -317,8 +355,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     n16           = Default( n16,       false)
     n16d          = Default( n16d,      false)
     UseEdiExt     = Default( useEdiExt,    0 )
-    Str           = Default( Str,        3.0 )
-    Amp           = Default( Amp,     0.0625 )
+    Str           = Default( Str,        5.0 )
+    Amp           = Default( Amp,     0.0312 )
     tv            = Default( TV_range,    !fs)
 
     Assert(IsVersionOrGreater(3,7,1),            "QTGMC: Update AviSynth+ version")
@@ -920,6 +958,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # >>>> Restore YUY2 to interleaved
     output = (ShowNoise == 0.0) ? cropped : finalNoise.ex_lut(Format("x "+bi32m+" {ShowNoise} * "+bi32p), clamp_float=true, UV=CNmt128, fulls=!tv )
     output = yuy2 ? output.nonyuy2clipout(true) : output
+    output = output.propCopy(input).propSet("_FieldBased",0).propSet("_Combed", Lossless == 1 && SourceMatch > 0 ? 1 : 0 )
     return !ShowSettings ? output : \
         output.Subtitle( "TR0=" + string(TR0) + " | TR1=" + string(TR1) + " | TR2=" + string(TR2) + " | Rep0=" + string(Rep0) + " | Rep1=" + string(Rep1) + \
         " | Rep2=" + string(Rep2) + " | RepChroma=" + string(RepChroma) + "\nEdiMode='" + EdiMode + "' | NNSize=" + string(NNSize) + " | NNeurons=" + \
