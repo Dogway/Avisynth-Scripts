@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC37  (13-02-2022)           ##
+###    Transforms Pack v1.0 RC38  (16-02-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -527,26 +527,40 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                  ? \
                                   Assert(!recon,     "ConvertFormat: Invalid settings for chroma reconstruction")  : nop()
 
+    Wiener       = [1,0.928293,0.847768,0.749610,0.625,0.470033,0.300445,0.136885,0,-0.094068,-0.147204,-0.165801,-0.15625,-0.1255,-0.082723,-0.037647,0,0.022825,0.032783,0.034161,0.03125,0.02491,0.017308,0.008864]
+    
+    hann         = [1,0.9721491276507364,0.8916666533754284,0.7673293227933666,0.6123898750249921,0.44274830753566713,0.27481699575031854,0.12341360408603762,0,-0.08848381495693607,-0.14005052617158592,-0.1573484857988253,-0.14670726866144826,-0.11675289338122011,-0.0768542368708979,-0.035667086889988917,0,0.025852297356152947,\
+                    0.040259628673424544,0.043939594567039456,0.039299593276647324,0.029609836521073,0.018187607754470616,0.007745261904000362,0,-0.0044240051920867865,-0.005835794531242358,-0.005144384187084287,-0.0034614139060841795,-0.0017466187017072979,-0.0005766441854451786,-0.00007568486302246578]
+    hamming      = [1,0.9723291304741598,0.8923302555040387,0.7686246617990514,0.6142487927491155,0.4448795641717659,0.27675712509487843,0.1246257815086694,0,-0.0900023682175275,-0.1431203033588165,-0.16168530396390082,-0.1517323766550889,-0.12167980632033411,-0.0808254466432445,-0.0379149269102415,0,0.02826674933221172,\
+                    0.044845606381107544,0.05006826118507596,0.0460528222676711,0.03593314767037512,0.02307155155805429,0.010401622971455375,0,-0.00707512686962141,-0.010701323742157228,-0.011434689771183611,-0.010173206936358085,-0.00783656756150458,-0.005137221895242707,-0.002481597155711647]
+    blacknuttall = [1,0.9691956173858006,0.8808777891436077,0.7465903227462598,0.583261858851737,0.41026820009726694,0.2462414690601752,0.10626931490160989,0,-0.06906778816628918,-0.10311203169060508,-0.10858461954425613,-0.09429622625282544,-0.06945329948290131,-0.04204507233452078,-0.0178310531150637,0,0.010590373575929674,\
+                    0.014791046691013261,0.0143917812832477,0.01141108308851331,0.007582722772125722,0.004090031528918704,0.0015247187900517072,0,-0.0006668666328159042,-0.0007753811435345259,-0.0006111170869562098,-0.0003782503724444364,-0.00018625686680715366,-0.00006947677421552765,-0.00001734615796446616]
+    blackharris  = [1,0.9690685474542851,0.8804147429536661,0.7457038324654484,0.5820238498592893,0.408897820926439,0.24504664162741924,0.10556008266546878,0,-0.06828556374209023,-0.10164720692199704,-0.10668443324736704,-0.09229279162100884,-0.0676826118865924,-0.040770939188391156,-0.01719366607497128,0,0.010072521093743276,\
+                    0.013950171901372979,0.013442938661666109,0.010539924532807445,0.006912782290973393,0.0036717082778625404,0.001343980906503044,0,-0.0005599450449479095,-0.0006299356259012779,-0.00047599901604884737,-0.0002782179944466215,-0.0001254132897686219,-0.00003940328671242334,-0.000006272327028117027]
+    minside      = [1,0.9677067397427601,0.8754735424031383,0.7363116111669247,0.5690387749427253,0.3947100931903589,0.2328726279464744,0.09846997346812622,0,-0.060828473848914016,-0.08807741082408858,-0.08963798222912361,-0.07495103916223587,-0.05294982732350461,-0.030621864426414024,-0.012354100121804074,0,0.006550750370351611,\
+                    0.008581357979868063,0.007789505667884757,0.00572824890289049,0.0035077922683009735,0.001731217648211203,0.0005857853596332941,0,-0.0002050370640200731,-0.0002095361090755842,-0.00014308227339085642,-0.00007543851733140218,-0.000030927452169915216,-0.000009168350688844679,-0.00000158174014270345]
+    flattop      = [1,0.9633262343597194,0.859593850914732,0.7061738614429447,0.5274619393571068,0.3494083785508531,0.1941326535234994,0.07599859616307823,0,-0.03742790728859844,-0.045746423402100424,-0.03680885348596081,-0.021591047728118973,-0.007969308213425627,0.00010539639481656004,0.002167459237080162,0,-0.003812769923009659,\
+                   -0.007053787251496119,-0.008498312606009256,-0.007982808809703638,-0.0060878619550795154,-0.003677603986271232,-0.0015053481284463162,0,0.0007565960905941711,0.0009239058962157,0.0007553677173860026,0.0004791071697109673,0.00023850930336092043,0.00008824527524187423,0.000021135402405053327]
 
-    resampler = Format( kernel == "nnedi3"       ?  "deep_resize({nw},{nh}"                                  : \
+    resampler = Format( kernel == "nnedi3"       ?    "deep_resize({nw},{nh}"                                : \
                         kernel == "Nearest" || kernel == "NearestNeighbour" || kernel == "NN"                ? \
                                                       "GaussResize({nw},{nh},p=100"                          : \
                         kernel == "Gauss"        ?    "GaussResize({nw},{nh},p=pd?p:9"                       : \
                         kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" ? \
-                                                     """fmtc_resample({nw},{nh},kernel="box" """             : \
+                                                     """fmtc_resample({nw},{nh},kernel="box"             """ : \
                         kernel == "Bilinear" || kernel == "Bartlett" ? "BilinearResize({nw},{nh}"            : \
                         kernel == "Bicubic"      ?  "BicubicResize({nw},{nh},b={bc_b},c={bc_c}"              : \
                         kernel == "Spline100"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=5"""      : \
                         kernel == "Spline144"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=6"""      : \
-                        kernel == "Wiener"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[           0.03125,0,-0.15625,0,0.625 ,1.0,0.625 ,0,-0.15625,0,0.03125]           """: \
-                        kernel == "Hann"         ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00346,0,0.0393 ,0,-0.14671,0,0.6124,1.0,0.6124,0,-0.14671,0,0.0393 ,0,-0.00346]""": \
-                        kernel == "Hamming"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.0102 ,0,0.04605,0,-0.15173,0,0.6142,1.0,0.6142,0,-0.15173,0,0.04605,0,-0.0102]""" : \
-                        kernel == "Black-Harris" ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00028,0,0.0105 ,0,-0.0923 ,0,0.582 ,1.0,0.582 ,0,-0.0923 ,0,0.0105 ,0,-0.00028]""": \
-                        kernel == "Black-Nuttall"? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00038,0,0.0114 ,0,-0.0943 ,0,0.5833,1.0,0.5833,0,-0.0943 ,0,0.0114 ,0,-0.00038]""": \
-                        kernel == "Flat-Top"     ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00048,0,0.008  ,0,-0.0216 ,0,0.5275,1.0,0.5275,0,-0.0216 ,0,0.008  ,0,-0.00048]""": \
-                        kernel == "MinSide"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00008,0,0.0057 ,0,-0.07495,0,0.569 ,1.0,0.569 ,0,-0.07495,0,0.0057 ,0,-0.00008]""": \
+                        kernel == "Wiener"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Wiener)       """ : \
+                        kernel == "Hann"         ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Hann)         """ : \
+                        kernel == "Hamming"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Hamming)      """ : \
+                        kernel == "Black-Harris" ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(BlackHarris)  """ : \
+                        kernel == "Black-Nuttall"? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(BlackNuttall) """ : \
+                        kernel == "Flat-Top"     ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(FlatTop)      """ : \
+                        kernel == "MinSide"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(MinSide)      """ : \
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
-                                                   """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=2,cnorm=true,center=true,impulse=[-0.00024,0,0.01005,0,-0.09096,0,0.5812,1.0,0.5812,0,-0.09096,0,0.01005,0,-0.00024]""": \
+                                                   """fmtc_resample({nw},{nh},kernel="blackmanminlobe"    """: \
                         kernel == "SincLin"      || kernel == "SincLin2ResizeMT"                             ? \
                                                  "SincLin2ResizeMT({nw},{nh},taps=16"                        : \
                         kernel == "SinPow"      || kernel == "SinPowResizeMT"                                ? \
@@ -3586,21 +3600,21 @@ function Dot (float_array vec1, \
 
 # Does an index wise operation on flat (int or float) arrays
 # If either is a scalar, it operates on all array indexes
-function ArrayOp (  val mat1, \
-                    val mat2, string "Op") {
+function ArrayOp (  val arr1, \
+                    val arr2, string "Op") {
 
     Op = Default(Op, "+")
 
-    isa1 = IsArray(mat1)
-    isa2 = IsArray(mat2)
+    isa1 = IsArray(arr1)
+    isa2 = IsArray(arr2)
 
     Assert(isa1 || isa2, "ArrayOp: At least one operand must be an array")
 
-    mat1 = isa1 ? mat1 : [mat1]
-    mat2 = isa2 ? mat2 : [mat2]
+    arr1 = isa1 ? arr1 : [arr1]
+    arr2 = isa2 ? arr2 : [arr2]
 
-    a1size = ArraySize(mat1)
-    a2size = ArraySize(mat2)
+    a1size = ArraySize(arr1)
+    a2size = ArraySize(arr2)
 
     asize = max(a1size,a2size)
     str = ""
@@ -3610,8 +3624,62 @@ function ArrayOp (  val mat1, \
         mx2 = !isa2 ? false : a2size <= i
 
         cm  = asize == i+1 ? "" : ","
-        str = str + (  mx1 ? "" : string(mat1[min(a1size-1,i)])) + " "+(mx1||mx2 ? "" : op)+" "+( mx2 ? "" : string(mat2[min(a2size-1,i)])) + cm
+        str = str + (  mx1 ? "" : string(arr1[min(a1size-1,i)])) + " "+(mx1||mx2 ? "" : op)+" "+( mx2 ? "" : string(arr2[min(a2size-1,i)])) + cm
         i   = asize == i+1 ? asize : i
         }
 
     return Eval("["+str+"]") }
+
+
+# Reverses the array
+function ArrayInv ( val arr1 ) {
+
+    asize = ArraySize(arr1)
+    str = ""
+
+    for (i=asize-1, 0, -1) {
+        cm  = i == 0 ? "" : ","
+        str = str + string(arr1[i]) + cm
+       }
+    return Eval("["+str+"]") }
+
+# Casts the array to a string for debug purposes (print with subtitle())
+function ArrayPrint ( val arr1 ) {
+
+    asize = ArraySize(arr1)
+    str = ""
+    for (i=0, ArraySize(arr1)-1, 1) {
+        cm  = asize == i+1 ? "" : ","
+        str = str + string(arr1[i]) + cm
+       }
+    return "["+str+"]" }
+
+
+# Symmetrizes the array to the left, removing the middle dup
+function ArraySym ( val arr1 ) {
+
+    asize = ArraySize(arr1)
+    str = ""
+
+    for (i=asize-1, 1, -1) {
+        cm  = i == 1 ? "" : ","
+        str = str + string(arr1[i]) + cm
+       }
+    return ArrayAppend(Eval("["+str+"]"),arr1) }
+
+
+# Appends 'arr2' array to 'arr1' array
+function ArrayAppend( val arr1, val arr2) {
+
+    as = ArraySize(arr1)-1
+    bs = ArraySize(arr2)-1
+    na = ""
+    for (i = 0, as+bs+1, 1) {
+
+        o  = i  - as  - 1
+        cm = i != as+bs+1 ? "," : ""
+        na = na + ( i > as ? String(Eval(Format("arr2[{o}]"))) : \
+                             String(Eval(Format("arr1[{i}]")))) + cm
+      }
+
+    return Eval("["+na+"]") }
