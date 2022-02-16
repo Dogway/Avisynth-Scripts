@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v2.5  (15-02-2022)                     ###
+###        Similarity Metrics Pack v2.6  (16-02-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -417,19 +417,24 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
 #     vsTCanny
 #     fmtconv
 
-function BSSIM(clip dist, clip ref, int "show", bool "fulls") {
+function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls") {
 
+    w     = width (dist)
+    h     = height(dist)
+    isHD  = (w > 1099 || h >  599)
     rgb   = isRGB(dist)
     bi    = BitsPerComponent(dist)
     fs    = propNumElements (dist,"_ColorRange")  > 0 ? \
             propGetInt      (dist,"_ColorRange") == 0 : rgb
-    vSSIM = propNumElements (dist, "_PlaneSSIM")  > 0 ? \
-                             dist                     : vsSSIM(dist, ref, fulls=fs)
 
     show = Default(show,        0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
+    dw   = Default(downsample, isHD)
     fs   = Default(fulls,      fs)
 
     Assert(IsVersionOrGreater(3,7,1), "BSSIM: Update AviSynth+ version")
+
+    vSSIM = propNumElements (dist, "_PlaneSSIM")  > 0 ? \
+                             dist                     : vsSSIM(dist, ref, downsample=dw, fulls=fs)
 
     source  = ref
     blurred = vSSIM
