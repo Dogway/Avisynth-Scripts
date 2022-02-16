@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v1.7  (05-02-2022)                                ###
+###        Deblock Pack v1.8  (16-02-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -367,14 +367,15 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "h", float "si
 #    dif     = BM3D_CUDA(dif, ref, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
 #                         block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                         ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
-    dif     = BM3D_CPU(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
+#    dif     = BM3D_CPU(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
+    dif     = BM3D_CUDA(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif     = BM3D_VAggregate(dif, radius)
     ref     = ex_adddiff(ref, dif)
     refined = oy_loop(ref, ref, src, 4, strength0, strength1, color)
 #    bm3d    = BM3D_CUDA(refined, ref, radius=radius, th_mse=mse1, sigma=sigma, \
 #                         block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                         ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
-    bm3d    = BM3D_CPU(refined, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
+    bm3d    = BM3D_CUDA(refined, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     bm3d    = BM3D_VAggregate(bm3d, radius)
     bm3d    = FreqMerge(refined, bm3d, nmod(block_size,2) + 1, lowpass)
     clp     = oy_loop(bm3d, bm3d, refined, 4, strength0, strength1, color)
@@ -438,14 +439,14 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
 #    dif       = BM3D_CUDA(dif, ref, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
 #                           block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                           ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
-    dif       = BM3D_CPU(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
+    dif       = BM3D_CUDA(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif       = BM3D_VAggregate(dif, radius)
     ref       = ex_adddiff(ref, dif)
     dif       = ex_makediff(src, ref)
 #    dif       = BM3D_CUDA(dif, ref, radius=radius, th_mse=mse1, sigma=sigma, \
 #                           block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                           ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
-    dif       = BM3D_CPU(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
+    dif       = BM3D_CUDA(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif       = BM3D_VAggregate(dif, radius)
     ref       = ex_adddiff(ref, dif)
     clp       = ex_merge(src, ref, msk, luma=true)
@@ -502,14 +503,14 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
 #    dif      = BM3D_CUDA(dif, cleansed, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
 #                          block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                          ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
-    dif      = BM3D_CPU(dif, cleansed, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
+    dif      = BM3D_CUDA(dif, cleansed, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif      = BM3D_VAggregate(dif, radius)
     cleansed = ex_adddiff(cleansed, dif)
     dif      = ex_makediff(ref, cleansed)
 #    dif      = BM3D_CUDA(dif, cleansed, radius=radius, th_mse=mse1, sigma=sigma, \
 #                          block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                          ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
-    dif      = BM3D_CPU(dif, cleansed, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
+    dif      = BM3D_CUDA(dif, cleansed, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif      = BM3D_VAggregate(dif, radius)
     cleansed = ex_adddiff(cleansed, dif)
     ref      = FreqMerge(cleansed, ref, nmod(block_size,2) + 1, lowpass)
@@ -954,6 +955,11 @@ function SmoothDeblock4(clip orig, int "passes", int "density", int "inclOrig", 
 # Defaults SmoothD2c(quant=3, num_shift=3, Matrix=3, Qtype=1, ZW=1, Cpr=0, cWarpToLuma=0, downSize=1, ncpu=1)
 Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qtype", int "ZW", int "Cpr", int "cWarpToLuma", int "downSize", int "ncpu") {
 
+    px = PixelType(clp)
+    fs = propNumElements (clp,"_ColorRange")  > 0 ? \
+         propGetInt      (clp,"_ColorRange") == 0 : false
+
+
     quant       = default( quant,          3 )
     num_shift   = default( num_shift,      3 )
     Matrix      = default( Matrix,         3 )
@@ -988,8 +994,8 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
    zw1 = (Cpr == 0)  ?  sd1.ex_Ylevels( 0, 1.0, 255, 0, 0, fs)  :  sd1.buildZmask(cpr=cpr)
 
 
-   u2  = sd1.ExtractU()
-   v2  = sd1.ExtractV()
+   u2  = sd1.ShowU(pixel_type=px)
+   v2  = sd1.ShowV(pixel_type=px)
 
    cw  = u2.width()
    ch  = u2.height()
