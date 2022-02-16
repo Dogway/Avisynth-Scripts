@@ -6,7 +6,7 @@
 ###                                            ###
 ###            2012.04.06 v1.2 by 06_taro      ###
 ###            2020.04.06      by A.SONY.      ###
-###            2021.11.18 mx   by Dogway       ###
+###            2022.02.16 mx   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
@@ -18,6 +18,9 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2022.02.16 mx
+###      - Fix 'fulls' logic
 ###
 ### 2021.11.18 mx
 ###      - Update 'fulls' defaults
@@ -94,8 +97,8 @@
 ### -> RgTools           [v1.2]
 ### -> MaskTools2        [v2.2.29]
 ### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v7.3.0]
-### -> ResizersPack      [v7.6.0]
+### -> ExTools           [v7.5.0]
+### -> ResizersPack      [v7.9.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -154,11 +157,10 @@ ontop_cgrain = Default( ontop_cgrain,   0 )  # [ 0 - ???] additional chroma grai
 ontop_const  = Default( ontop_const, false)  # AddGrainC "constant" parameter of ontop clip
 use_ALMask   = Default( use_sAverageLumaMask, false)
 
-tv_D         = Defined( tv_range)
 rgb = isRGB(clp)
-fs  = tv_D ? tv : propNumElements (clp,"_ColorRange")  > 0 ? \
-                  propGetInt      (clp,"_ColorRange") == 0 : rgb
-tv           = Default( tv_range, !fs)
+fs  = propNumElements (clp,"_ColorRange")  > 0 ? \
+      propGetInt      (clp,"_ColorRange") == 0 : rgb
+tv  = Default( tv_range, !fs)
 
 
 #-----------------------------------------------------------------------------------
