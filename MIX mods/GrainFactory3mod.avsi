@@ -6,7 +6,7 @@
 ###                                            ###
 ###            2012.04.06 v1.2 by 06_taro      ###
 ###            2020.04.06      by A.SONY.      ###
-###            2022.02.16 mx   by Dogway       ###
+###            2022.02.17 mx   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
@@ -18,6 +18,9 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2022.02.17 mx
+###      - Fix '_ColorRange' override
 ###
 ### 2022.02.16 mx
 ###      - Fix 'fulls' logic
@@ -289,7 +292,7 @@ grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0,
 
 #-----------------------------------------------------------------------------------
 
-result = o.ex_makediff(grainlayer, UV=ochroma, fulls=!tv)
+result = ex_lutxy(o, grainlayer, "x y - range_half +", UV=ochroma, fulls=!tv)
 msk    = o.ScriptClip( function[] () { ex_lut(string(AverageLuma(last)),UV=1) } )
 
 use_ALMask ? mt_merge(result, o, msk, luma=chroma, U=ochroma,V=ochroma) : result }
