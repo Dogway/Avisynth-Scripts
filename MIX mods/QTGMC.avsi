@@ -246,7 +246,7 @@
 #
 # Core plugins:
 #   MVTools2   (2.7.45 or above)
-#   MaskTools2 (2.2.29 or above)
+#   MaskTools2 (2.2.30 or above)
 #   NNEDI3     (0.9.4.59 or above)
 #   RgTools    (1.2 or above)
 #   vsTCanny   (1.1.5 for gaussian blur)

@@ -98,7 +98,7 @@
 ###
 ### -> AddGrainC         [v1.8.4]
 ### -> RgTools           [v1.2]
-### -> MaskTools2        [v2.2.29]
+### -> MaskTools2        [v2.2.30]
 ### -> neo_f3kdb         [r6]       (Optional)
 ### -> ExTools           [v7.5.0]
 ### -> ResizersPack      [v7.9.0]
