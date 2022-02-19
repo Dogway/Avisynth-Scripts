@@ -1,12 +1,14 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v1.8  (16-02-2022)                                ###
+###        Deblock Pack v1.9  (19-02-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
 ###                                                                       ###
 ###        Included:                                                      ###
 ###            Deblock_QED     (+Deblock plugin)                          ###
+###            DeblockFFT3D    (+FFT3D plugin)                            ###
+###            MCDeblockFFT3D  (+FFT3D plugin)                            ###
 ###            SmoothD2c       (+SmoothD2 plugin)                         ###
 ###            MSUDeCor        (+MSU_Smart_Deblocking plugin)             ###
 ###            SmoothDeblock   (Script) (WIP)                             ###
@@ -153,6 +155,37 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2", int "aOff1", int "b
 
     # remove mod 8 borders
     deblocked.crop(0,0,-padX,-padY) }
+
+
+
+
+function DeblockFFT3D(clip a, int "UV", bool "fulls") {
+
+    rgb   = isRGB(a)
+    bi    = BitsPerComponent(a)
+
+    UV    = Default(UV,      3)
+    fs    = Default(fulls, rgb)
+
+    fft   = a.fft3dfilter(sigma=16,sigma2=6,sigma3=1,sigma4=0,bw=12,bh=12,ow=6,oh=6,bt=5,plane=UV==3?4:0,ncpu=2)
+#    fft   = a.FFT3DGPU(sigma=16,sigma2=8,sigma3=4,sigma4=2,bw=16,bh=16,ow=8,oh=8,bt=4,plane=UV==3?4:0,precision=bi>8?0:2)  # x7 performance but not a match (also severely bugged, avoid)
+    rg20D = ex_lutxy(fft,fft.removegrain(20,UV==3?20:-1),"x y - 1.49 * range_half +",UV=uv,fulls=fs)
+            ex_lutxyza(a,fft,rg20D,fft,"x y - X@ z range_half - Z@ * 0 < a X abs Z abs < X a + z a range_half - + ? ? ",UV=uv,fulls=fs) }
+
+
+
+## Motion Compensated Deblock
+function MCDeblockFFT3D(clip a, int "UV", bool "fulls") {
+
+    rgb     = isRGB(a)
+
+    UV      = Default(UV,      3)
+    fs      = Default(fulls, rgb)
+
+    sup     = a.MSuper(pel=1, hpad = 0, vpad = 0, chroma=UV==3, mt=true)
+    vectors = sup.MAnalyse(isb = false, lambda = 1000,truemotion=false,chroma=UV==3,mt=true)
+    compensation = a.MCompensate(sup,vectors)
+    compensation.DeblockFFT3D(UV=uv,fulls=fs) }
 
 
 
@@ -571,112 +604,6 @@ function NLMeans(clip src, int d, int a, int s, float h, clip rclip, bool color)
 
 
 
-###################################
-#                                 #
-#   DEBLOCK post-processors       #
-#                                 #
-###################################
-
-###############DeblockMT########################
-
-
-
-## fft3d deblock
-function DeblockMT(clip a, int "UV", bool "fulls") {
-
-    rgb  = isRGB(a)
-    bi   = BitsPerComponent(a)
-
-    UV   = Default(UV,      3)
-    fs   = Default(fulls, rgb)
-
-    fft   = a.fft3dfilter(sigma=16,sigma2=6,sigma3=1,sigma4=0,bw=12,bh=12,ow=6,oh=6,bt=5,plane=UV==3?4:0,ncpu=2)
-#    fft   = a.FFT3DGPU(sigma=16,sigma2=8,sigma3=4,sigma4=2,bw=16,bh=16,ow=8,oh=8,bt=4,plane=UV==3?4:0,precision=bi>8?0:2)  # x7 performance but not a match (also severely bugged, avoid)
-    rg11D = ex_lutxy(fft,fft.removegrain(20,UV==3?20:-1),"x y - 1.49 * range_half +",UV=uv,fulls=fs)
-            ex_lutxyza(a,fft,rg11D,fft,"x y - X@ z range_half - Z@ * 0 < a X abs Z abs < X a + z a range_half - + ? ? ",UV=uv,fulls=fs) }
-
-## Motion Compensated Deblock
-function MCDeblockMT(clip a, int "UV", bool "fulls") {
-
-    rgb  = isRGB(a)
-
-    UV   = Default(UV,      3)
-    fs   = Default(fulls, rgb)
-
-    sup     = a.MSuper(pel=1, hpad = 0, vpad = 0, chroma=UV==3, mt=true)
-    vectors = sup.MAnalyse(isb = false, lambda = 1000,truemotion=false,chroma=UV==3,mt=true)
-    compensation = a.MCompensate(sup,vectors)
-    compensation.DeblockMT(UV=uv,fulls=fs) }
-
-
-### Sames as DeblockMT but with temporal stabilization
-### Soothe(last,MyDeblock(),keep=0)
-function Soothe(clip sharp, clip orig, int "keep", bool "fulls") {
-
-    keep = Default(keep,   24)
-    fs   = Default(fulls, false)
-
-    Assert(sharp.width() == orig.width() && sharp.height() == orig.height(), "Soothe: clip dimensions must match!")
-
-    KP    = (keep>100) ? 100 : (keep<0) ? 0 : keep
-    diff  = ex_makediff(orig, sharp, UV=1, fulls=fs)
-    diff2 = diff.temporalsoften(1,255,0,32,2)
-            ex_lutxyz(diff, diff2, orig, Format("x range_half - X@ y range_half - Y@ * 0 < X 0.01 * {KP}
-                                                 * range_half + X abs Y abs > x {KP}
-                                                 * y 100 {KP} - * + 0.01 * x ? ? z swap - range_half +"),UV=1,fulls=fs) }
-
-
-### As before but using Clense() (temporal median) instead of TemporalSoften() (temporal blur). Also handles chroma.
-### https://forum.doom9.org/showthread.php?p=1367334#post1367334
-### SootheCl(last,MyDeblock(),keep=0,UV=3)
-function SootheCL(clip sharp, clip orig, int "keep", int "UV", bool "fulls") {
-
-    keep = Default(keep,   24)
-    UV   = Default(UV,      1)
-    fs   = Default(fulls, false)
-
-    Assert(sharp.width() == orig.width() && sharp.height() == orig.height(), "Soothe: clip dimensions must match!")
-
-    KP    = (keep>100) ? 100 : (keep<0) ? 0 : keep
-    diff  = ex_makediff(orig, sharp, UV=uv, fulls=fs)
-    diff2 = diff.ex_median("medianT",UV=uv)
-            ex_lutxyz(diff, diff2, orig, Format("x range_half - X@ y range_half - Y@ * 0 < X 0.01 * {KP}
-                                                 * range_half + X abs Y abs > x {KP}
-                                                 * y 100 {KP} - * + 0.01 * x ? ? z swap - range_half +"),UV=uv,fulls=fs) }
-
-### Motion Compensated Clense()
-### Recommended with previous spatial deblocking via Deblock_QED() or DFTTest()
-### Call as: MCSoothe()
-
-function MCSoothe(clip a, float "sigma", int "UV", bool "fulls") {
-
-    rgb  = isRGB(a)
-    bi   = BitsPerComponent(a)
-
-    s    = Default(sigma,  16)
-    UV   = Default(UV,      3)
-    fs   = Default(fulls, rgb)
-
-    Ch   = UV==3
-
-    fft   = a.fft3dfilter(sigma=s,sigma2=s/2.6,sigma3=s/16.,sigma4=0,bw=12,bh=12,ow=6,oh=6,bt=5,plane=Ch?4:0,ncpu=2)
-#    fft   = a.FFT3DGPU(sigma=s,sigma2=s/2.6,sigma3=s/16.,sigma4=0,bw=16,bh=16,ow=8,oh=8,bt=4,plane=Ch?4:0,precision=bi>8?0:2)  # x7 performance but not a match (also severely bugged, avoid)
-    rg11D = ex_lutxy(fft,fft.removegrain(20,Ch?20:-1),"x y - 1.49 * range_half +",UV=uv,fulls=fs)
-    DB    = ex_lutxyz(a,fft,rg11D,"x y - X@ z range_half - Z@ * 0 < y X abs Z abs < x z y range_half - + ? ?",UV=uv,fulls=fs)
-
-    pre= fft.MSuper(pel=1, hpad = 0, vpad = 0, chroma=Ch, mt=true)
-    bv = pre.MAnalyse(isb=true ,blksize=16,overlap=8,truemotion=false,chroma=Ch,mt=true)
-    fv = pre.Manalyse(isb=false,blksize=16,overlap=8,truemotion=false,chroma=Ch,mt=true)
-
-    osup=a.MSuper(pel=1, hpad = 0, vpad = 0, chroma=Ch, mt=true, levels=1)
-
-    interleave(a.MCompensate(osup,fv,thSCD1=255,thSCD2=255,mt=true),DB,a.MCompensate(osup,bv,thSCD1=255,thSCD2=255,mt=true))
-
-    raw=ex_median("medianT",UV=uv).selectevery(3,1)
-    ex_lutxyz(a,DB,raw,"z y - X@ x y - Y@ * 0 < y X abs Y abs < z x ? ?",UV=uv,fulls=fs)
-}
-
-
 
 #######################
 ###                 ###
@@ -899,6 +826,8 @@ function SmoothDeblock4(clip orig, int "passes", int "density", int "inclOrig", 
 #    SmoothD2       https://avisynth.nl/index.php/SmoothD2
 #    aWarpSharp2    https://avisynth.nl/index.php/AWarpSharp2
 #    MaskTools2     https://avisynth.nl/index.php/MaskTools2
+#    ExTools
+#    ResizersPack
 #
 ###
 #  RESTRICTIONS
@@ -960,15 +889,15 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
          propGetInt      (clp,"_ColorRange") == 0 : false
 
 
-    quant       = default( quant,          3 )
-    num_shift   = default( num_shift,      3 )
-    Matrix      = default( Matrix,         3 )
-    Qtype       = default( Qtype,          1 )
-    ZW          = default( ZW,             1 )
-    Cpr         = default( Cpr,            0 )  # Chroma Protection Strength aka Chroma Vampire Be Gone
-    cWarpToLuma = default( cWarpToLuma,    0 )
-    downSize    = default( downSize,       1 )
-    ncpu        = default( ncpu,           1 )
+    quant       = Default( quant,          3 )
+    num_shift   = Default( num_shift,      3 )
+    Matrix      = Default( Matrix,         3 )
+    Qtype       = Default( Qtype,          1 )
+    ZW          = Default( ZW,             1 )
+    Cpr         = Default( Cpr,            0 )  # Chroma Protection Strength aka Chroma Vampire Be Gone
+    cWarpToLuma = Default( cWarpToLuma,    0 )
+    downSize    = Default( downSize,       1 )
+    ncpu        = Default( ncpu,           1 )
 
     ow  = clp.width()
     oh  = clp.height()
@@ -989,7 +918,7 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
    sd1 = clp
 
    sd1 = (downSize    > 1) ? sd1.Lanczos4Resize(nmod(ow/float(downSize),32,64), nmod(oh/float(downSize),32,64)) : sd1
-   sd1 = (cWarpToLuma > 0) ? sd1.colorWarpToLuma(strength=cWarpToLuma)    : sd1
+   sd1 = (cWarpToLuma > 0) ? sd1.colorWarpToLuma(strength=cWarpToLuma)                                          : sd1
 
    zw1 = (Cpr == 0)  ?  sd1.ex_Ylevels( 0, 1.0, 255, 0, 0, fs)  :  sd1.buildZmask(cpr=cpr)
 
