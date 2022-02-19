@@ -19,7 +19,7 @@
 ### |  CHANGELOG  |
 ### +-------------+
 ###
-### 2022.02.17 mx
+### 2022.02.17 ex
 ###      - Fix '_ColorRange' override
 ###
 ### 2022.02.16 ex
@@ -96,7 +96,7 @@
 ### |  REQUIREMENTS  |
 ### +----------------+
 ###
-### -> AddGrainC         [v1.8.3]
+### -> AddGrainC         [v1.8.4]
 ### -> neo_f3kdb         [r6]       (Optional)
 ### -> ExTools           [v7.5.0]
 ### -> ResizersPack      [v7.9.0]
