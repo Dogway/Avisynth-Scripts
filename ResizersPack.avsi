@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.8    (08-02-2022)   ##
+###   Resizers Functions Pack 7.9    (11-02-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -26,7 +26,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (08-02-2022)
+### deep_resize() - by Dogway (11-02-2022)
 ###
 ### Convenient and high performance function to resize in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -72,8 +72,8 @@
 ###       SysInfo        (for default "nnedi3")
 ###
 ###
-### 100.0% deep_resize()     (13.6fps)
-###  27.2% nnedi3_resize16() (3.7fps)
+### 100.0% deep_resize()     (11.5fps)
+###  32.2% nnedi3_resize16() (3.7fps)
 ###
 ### General guidelines:
 ### -Avoid bicubics for highly compressed images as it will amplify DCT blocks
@@ -105,6 +105,10 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
     rth   = Default(th_rat, 1.25)                                                        # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
     krn1  = Default(edge, rat<=rth*0.95 ? "spline16" : \
                            rw<1 && rh<1 ? "DPID"     : rat<=rth ? "blackman" : "nnedi3") # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti
+                                                                                         # By default, for small upscales   -> "blackman" (define small with 'th_rat' value)
+                                                                                         # By default, for big   upscales   -> "nnedi3"
+                                                                                         # By default, for small downscales -> "spline16"
+                                                                                         # By default, for big   downscales -> "DPID"
     krn2  = Default(flat, "sinc")                                                        # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here.
     thr   = Default(th,      1.0)                                                        # 0-255 (normally up to 10)
     ela   = Default(elast,   4.0)                                                        # 1-255 (normally up to 10)
@@ -133,8 +137,8 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
             nfactor = (rw == 2 || rh == 2) || (rw == 4 || rh == 4)
             rfactor =  rw<factor || rh<factor
-            kernel2 =  ( rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'zopti' for down 'blackman' for up
-            ep0     =    rfactor ?      -0.6 : 6
+            kernel2 =  ( rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'Didée' for down 'Blackman' for up
+            ep0     =    rfactor ?      -0.5 : 6
 
             cores   = krn1 == "nnedi3" ? SI_PhysicalCores() : nop()
             threads = krn1 == "nnedi3" ? SI_LogicalCores()  : nop()
@@ -142,19 +146,15 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
             sh      = krn1 == "nnedi3" ? nfactor ? 0.25 : 0 : 0
 
         a8      = ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs)
-        edge1   = krn1 == "nnedi3" ? nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,cshift=nfactor?und:kernel2,fwidth=w2,fheight=h2,ep0=ep0,ep1=0.4,threads=cores,prefetch=(threads+cores)/2,csresize=true,mpeg2=true,range=fs?1:2) : \
+        edge1   = krn1 == "nnedi3" ? nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,cshift=nfactor?und:kernel2,fwidth=w2,fheight=h2,ep0=ep0,ep1=0.25,threads=cores,prefetch=(threads+cores)/2,csresize=true,mpeg2=true,range=fs?1:2) : \
                                      ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,taps=krn1=="blackman"?8:und)
         edge    = krn1 == "nnedi3" ? LSFmod(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0).ConvertBits(bi, fulls=fs, fulld=fs) : edge1
         flat    =                    ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn2,taps=krn2=="blackman"?8:und,src_left=sh,src_top=sh)
 
         rat <= rth ? edge : ex_limitdif(flat, edge, thr=thr, elast=ela, UV=isy(a)?1:3).propCopy(a)
 
-        LFR = max(w,h)/(rat*2)
-        Fsa = max(w,h) * 2
-        k   = sqrt(log(2)/2) * LFR
-        LFR = Fsa / ( k * 2  * pi )
-        rat <= rth ? last : krn2!="sinc" ? last : ex_makeadddiff(last, last.ex_gaussianblur(LFR), krn1!="nnedi3" ? edge1.ex_gaussianblur(LFR) : edge1.ConvertBits(bi, fulls=fs, fulld=fs).ex_gaussianblur(LFR),UV=3)
-        dec != 0 ? ex_unsharp(abs(dec)/100.,max(w2,h2)/(rat*2), deconv=dec>0) : last } }
+        rat <= rth ? last : krn2!="sinc" ? last : ex_LFR    (krn1!="nnedi3" ? edge1 : edge1.ConvertBits(bi, fulls=fs, fulld=fs), LFR=max(w,h)/(rat*2), UV=3)
+        rat <= rth ? last : dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) } }
 
 
 
