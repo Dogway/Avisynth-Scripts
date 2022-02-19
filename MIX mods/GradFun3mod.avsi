@@ -1,6 +1,6 @@
 #############################################################
 ###                                                       ###
-###  GradFun3 MIX mod by Dogway    (06-02-2022)           ###
+###  GradFun3 MIX mod by Dogway    (19-02-2022)           ###
 ###                                                       ###
 ###                                                       ###
 ###  A simple port of:                                    ###
@@ -135,9 +135,10 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
 
     td_lo  = ex_bs(max(thr_det * 0.75, 1), 8, bi, fs, flt=true) - 0.0001
     td_hi  = ex_bs(max(thr_det,        1), 8, bi, fs, flt=true) + 0.0001
+    td_df  = 1. / (td_hi - td_lo)
 
     dmask  = (mask > 0 && yv411_flag) ? src.ExtractY()              : src
-    dmask  = (mask > 0) ? dmask.ex_luts(mode="rng", pixels=ex_shape(mask,mode=mask==4?"circle":"disk"), exprf=Format(" {td_lo} - {td_hi} {td_lo} - / 0 1 clip range_max *")) : dmask
+    dmask  = (mask > 0) ? dmask.ex_luts(mode="rng", pixels=ex_shape(mask,mode=mask==4?"circle":"disk"), exprf=Format(" {td_lo} - {td_df} * range_max *"), clamp_float=true) : dmask
     dmask  = (mask > 0) ? dmask.removegrain(22, -1)                 : dmask # "cartoon" median blur
     dmask  = (mask > 1) ? dmask.removegrain(12, -1)                 : dmask
     dmask  = (mask > 2) ? dmask.removegrain(20, -1)                 : dmask
@@ -221,7 +222,7 @@ function ex_SmoothGrad(clip a, int "radius", float "thr", float "elast", clip "r
 
     thr_slope   = 32768. / (thr_2 - thr_1)
     thr_offset  = thr_1 * thr_slope + 32768
-              
+
     thr_offset  = ex_bs(thr_offset,   16, bi, fs, flt=true)
     thr_1       = ex_bs(thr_1,        16, bi, fs, flt=true)
     thr_2       = ex_bs(thr_2,        16, bi, fs, flt=true)
