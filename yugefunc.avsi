@@ -1,25 +1,22 @@
 /*
 
 IMPLEMENT:
+CheckMatrix: https://github.com/HomeOfVapourSynthEvolution/mvsfunc/blob/7948c8be129bc9cb282cf24e25b3c4b77328a9e0/mvsfunc.py#L1999
+PlaneStatistics: https://github.com/HomeOfVapourSynthEvolution/mvsfunc/blob/7948c8be129bc9cb282cf24e25b3c4b77328a9e0/mvsfunc.py#L1228
 detail_enhancement https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L107
 Defilter (https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L1945)
-LimitFilter https://github.com/HomeOfVapourSynthEvolution/mvsfunc/blob/7948c8be129bc9cb282cf24e25b3c4b77328a9e0/mvsfunc.py#L1776
-SmoothGrad https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L1899
 firniture https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L1688
 soothe_mod (add to Sharpeners Pack) https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L1301
 LocalStatisticsMatching https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L3771
-PlaneStatistics mvsfunc.py
 GuidedFilterColor https://github.com/WolframRhodium/muvsfunc/blob/f524942ac6cacd937f9479a417eb308a335dfc1d/muvsfunc.py#L3246
 LLSURE    https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L4143
 BMAFilter https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L4022
 MaskedLimitFilter https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L4759
 S_BoxFilter https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L5443
-gradfun3mod https://github.com/Irrational-Encoding-Wizardry/fvsfunc/blob/2f5b28d5ee5c61e37249bca9b3e10a07f337e785/fvsfunc.py#L35
 Wiener2 https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L170
 tv https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L229
 BernsteinFilter https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L282
 GPA https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L315
-XDoG https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L417
 sbr_detail https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L453
 chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/bffb6fa6b9f78f2e02e309b6e8fb606b471b0958/lvsfunc/recon.py#L22
 */
@@ -29,7 +26,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 
 #######################################################################
 ###                                                                 ###
-###    yugefunc  v0.7 (26-11-2021)                                  ###
+###    yugefunc  v0.8 (19-02-2022)                                  ###
 ###                                                                 ###
 ###    Collection of VapourSynth functions ported to AviSynth+      ###
 ###                                                                 ###
@@ -375,3 +372,49 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
 
     bi != 32 ? ConvertBits(res, bi, dither=1, fulls=true, fulld=fs) : \
                ConvertBits(res, bi,           fulls=true, fulld=fs) }
+
+
+
+
+/*
+    XDoG - An eXtended difference-of-Gaussian filter (WIP)
+
+    https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L417
+    Args:
+        clip: Input clip.
+        sigma: (float) Strength of gaussian filter.
+            Default is 1.
+        k: (float) Amplifier of "sigma" for second gaussian filtering.
+            Default is 1.6.
+        p: (float) Amplifier of difference of gaussian.
+            Default is 20.
+        epsilon: (float, 0~1) Threshold of DoG response. Scaled automatically.
+            Default is 0.7.
+        lamda: (float) Multiplier in the thresholding function.
+            Default is 0.01.
+    Ref:
+        [1] Winnemöller, H., Kyprianidis, J. E., & Olsen, S. C. (2012). XDoG: an extended difference-of-Gaussians compendium including advanced image stylization. Computers & Graphics, 36(6), 740-753.
+*/
+
+function XDoG(clip a, float "sigma", float "k", int "p", float "epsilon", float "lamda") {
+
+    rgb = isRGB(a)
+    isy = isy(a)
+    bi  = BitsPerComponent(a)
+
+    sm  = Default(sigma,    1.0) # Strength of gaussian filter
+    k   = Default(k,        1.6) # Amplifier of "sigma" for second gaussian filtering
+    p   = Default(p,         20) # Amplifier of difference of gaussian
+    eps = Default(epsilon,  0.7) # Threshold of DoG response. Scaled automatically
+    lam = Default(lamda,   0.01) # Multiplier in the thresholding function
+
+    eps = ex_bs(eps, 32, bi, true, flt=true)
+#    eps = ex_bs(eps, 8, bi, true)
+#    eps = eps
+
+    f1  = vsTCanny(a, sigmaY=sm,     mode=-1)
+    f2  = vsTCanny(a, sigmaY=sm * k, mode=-1)
+
+    ex_lutxy(f1, f2, Format("x y - {p} * x + A@ {eps} >= range_max 2 2 A {eps} - {lam} * 2 * exp 1 + / - range_max * ? ")) }
+#    return core.std.Expr([f1, f2], f'x y - {p} * x + {epsilon} >= 1 2 2 2 x y - {p} * x + {epsilon} - {lamda} * * exp 1 + / - ? {peak} *')
+
