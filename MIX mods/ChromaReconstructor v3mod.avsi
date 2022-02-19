@@ -116,9 +116,9 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
         Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, range=fs?1:2).ConvertBits(bi,fulls=fs)
         Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
         Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
-        Unew    = Uu.KNLMeansCL  (0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.6, c=0.4)
-        Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=-0.6, c=0.4)
-        U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=-0.6, c=0.4))  # Sharpening
-        V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 20), Vu.BicubicResize(w, h, b=-0.6, c=0.4))  # Sharpening
+        Unew    = Uu.KNLMeansCL  (0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
+        Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
+        U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
+        V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 20), Vu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
         return CombinePlanes(Y, U, V, planes="YUV")
 }
