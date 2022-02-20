@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC39  (19-02-2022)           ##
+###    Transforms Pack v1.0 RC40  (20-02-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -238,8 +238,8 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     bool "tv_in"=true,
 ###     bool "tv_out"=true,
 ###     string "scale_space"="gamma" ("gamma" / "linear" / "sigmoid" / "log"),
-###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Wiener" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Hann" / "Hamming" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Haasn" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###     string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Blackman" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Haasn" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
 ###     bool "nomoiree"=false,
 ###     bool "noring"=false,
 ###     bool "UVrecon"=false,
@@ -321,7 +321,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # Resizer Plugins:
 #
 # SimpleResize (2 tap lin) (8-bit)            (dw) https://avisynth.nl/index.php/SimpleResize (same than Box/Area but without pixel centering, very fast)
-# Box/Dirichlet/Area Average                  (dw) https://github.com/EleonoreMizo/fmtconv or https://github.com/Aktanusa/AreaResize
+# Box/Dirichlet/Area/Average                  (dw) https://github.com/EleonoreMizo/fmtconv or https://github.com/Aktanusa/AreaResize
 # SSIM                                        (dw) https://github.com/mysteryx93/AviSynthShader/releases
 # SSIM_downsample                             (dw) https://github.com/Dogway/Avisynth-Scripts/blob/master/EX%20mods/SimilarityMetrics.avsi ( HQ settings: SSIM_downsample(w,h,smooth=0.43,resample_args="-0.6,0.4") )
 # DPID                                        (dw) https://github.com/Asd-g/AviSynth-DPID       (Best downscaler followed by SSIM_downsample > SSIM >>> SincLin > Zopti)
@@ -340,46 +340,46 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # Bilinear / Triangular
 # Bicubic  / Cubic               (not recommended for highly quantized content: JPEGs, H.264, etc)
 # Spline   / Cubic Polynomials   (spline16 -2 lobes- spline36 -3 lobes- spline64 -4 lobes-)
-# Sinc     is a box-windowed      sinc filter (2 lobes).
-# Lanczos  is a Lanczos-windowed  sinc filter (3 lobes).
-# Blackman is a Blackman-windowed sinc filter (3 lobes). (improved lanczos with less ringing)
+# Sinc     is a box-windowed             sinc filter (2 lobes).
+# Lanczos  is a Lanczos or sinc-windowed sinc filter (3 lobes).
+# Blackman is a Blackman-windowed        sinc filter (3 lobes). (Improved lanczos with less ringing)
 
-# Missing. ref: https://github.com/mpv-player/mpv/blob/master/video/out/filter_kernels.c
-#          ref: https://artoriuz.github.io/blog/mpv_upscaling.html
-#          ref: https://en.wikipedia.org/wiki/Window_function
-#          ref: https://legacy.imagemagick.org/Usage/filter/nicolas/
-#          ref: https://legacy.imagemagick.org/discourse-server/viewtopic.php?f=22&t=20942
+# (-) Missing. ref: https://github.com/mpv-player/mpv/blob/master/video/out/filter_kernels.c
+#              ref: https://artoriuz.github.io/blog/mpv_upscaling.html
+#              ref: https://en.wikipedia.org/wiki/Window_function
+#              ref: https://legacy.imagemagick.org/Usage/filter/nicolas/
+#              ref: https://legacy.imagemagick.org/discourse-server/viewtopic.php?f=22&t=20942
 # -- untapered decay
-# -Welch/Welsh      is a Welch-windowed    sinc filter (parabolic window, 3 lobes)
-# -Cosine           is a Cosine-windowed   sinc filter (3 lobes)
-# -Bessel           is a unnormalized      sinc filter (3 lobes)
+# Welch/Welsh       is a Welch-windowed    sinc filter (parabolic window, 3 lobes)
+# Cosine            is a Cosine-windowed   sinc filter (3 lobes)
+# Bessel            is a unnormalized      sinc filter (3 lobes)
 # -- tapered decay (in order)
-# -Bartlett         is a Bartlett-windowed sinc filter (4 lobes) (actually the same mathematical function used for a 'Triangle' filter, as well as the 'Bilinear' interpolation filter)
-# -Sinc             is a Sinc-windowed     sinc filter (4 lobes)
-# -Hamming          is a Hamming-windowed  sinc filter (4 lobes) (has a gradient discontinuity so not recommended)
-# -Hann(ing)        is a Hanning-windowed  sinc filter (4 lobes) (2-lobes can be used for upscaling sharp images)
-# -Kaiser           is a Kaiser-windowed   sinc filter (4 lobes) (also a small gradient discontinuity so not recommended)
-# -Bohman           is a Bohman-windowed   sinc filter (5 lobes) (Blackman would fall between Kaiser and Bohman)
-# -Parzen           is a Parzen-windowed   sinc filter (6 lobes)
-# -Ginseng          is a Jinc-windowed     sinc filter (3 lobes). Better for HBD than ewa_lanczos3.
-# Lagrange          is a Lagrange cubic polynomial filter that approximates a windowed filter https://legacy.imagemagick.org/Usage/filter/#lagrange
-# Jinc/Bessel       is a Box-windowed      jinc filter (3.2383154841662362 lobes). Jinc filters are not separable so they're usually slower than sinc, cubic, etc but more pleasant artifacts. See here: https://legacy.imagemagick.org/Usage/filter/#cylindrical
-# ewa_hanning       is a Hanning-windowed  jinc filter (3.238 lobes).
-# ewa_ginseng       is a sinc-windowed     jinc filter (3.238 lobes).
-# -ewa_lanczos      is a lanczos-windowed  jinc filter (3.238 lobes). Under same circumstances -in this case 'taps'- Jinc (radial) is always sharper than their Sinc (orthogonal) equivalent. Check ewa_lanczosradius3 below.
-# -ewa_lanczossharp is a lanczos-windowed  jinc filter (3.238 lobes). Slightly sharpened as per calculations by Nicolas Robidoux, his preferred all-around scaler. Can be replicated with Jinc filter and blur = 0.9812505644269356
-# -ewa_lanczossharpest is a lanczos-windowed jinc filter (3.238 lobes). Very sharp, technically not recommended by Robidoux except when downscaling. Can be replicated with Jinc filter and blur = 0.88549061701764
-# -ewa_lanczos2sharp   is a lanczos-windowed jinc filter (2.2331305943815286 lobes). Good alternative to the other EWAs when you don't want the moiree or "hash pattern blur" artifact, so use this for dithered content or RobiSharp.
-# -ewa_lanczosradius3  is a lanczos-windowed jinc filter (3 lobes). More sharpened than ewa_lanczossharp and very similar to Ginseng tensor, good for up and downscale. Can be replicated with Jinc filter and blur = 0.9264075766146068 (scales lobes from 3.238 to 3)
-# -ewa_lanczos4     is a lanczos-windowed  jinc filter (4.2410628637960699 lobes).
-# -ewa_lanczossoft  is a lanczos-windowed  jinc filter (3.238 lobes). Softened instead. This one makes hash patterns disappear completely. Can be replicated with Jinc filter and blur = 1.015
+# Bartlett          is a Bartlett-windowed sinc filter (4 lobes) (actually the same mathematical function used for a 'Triangle' filter, as well as the 'Bilinear' interpolation filter)
+# Sinc              is a Sinc-windowed     sinc filter (4 lobes)
+# Hamming           is a Hamming-windowed  sinc filter (4 lobes) (has a gradient discontinuity so not recommended)
+# Hann(ing)         is a Hanning-windowed  sinc filter (4 lobes) (2-lobes can be used for upscaling sharp images)
+# Kaiser            is a Kaiser-windowed   sinc filter (4 lobes) (also a small gradient discontinuity so not recommended)
+# Bohman            is a Bohman-windowed   sinc filter (5 lobes) (Blackman would fall between Kaiser and Bohman)
+# Parzen            is a Parzen-windowed   sinc filter (6 lobes)
+# Ginseng           is a Jinc-windowed     sinc filter (3 lobes). Better for HBD than ewa_lanczos3.
+# -Lagrange         is a Lagrange cubic polynomial filter that approximates a windowed filter https://legacy.imagemagick.org/Usage/filter/#lagrange
+# -Jinc/Bessel      is a Box-windowed      jinc filter (3.2383154841662362 lobes). Jinc filters are not separable so they're usually slower than sinc, cubic, etc but more pleasant artifacts. See here: https://legacy.imagemagick.org/Usage/filter/#cylindrical
+# -ewa_hanning      is a Hanning-windowed  jinc filter (3.238 lobes).
+# -ewa_ginseng      is a sinc-windowed     jinc filter (3.238 lobes).
+# ewa_lanczos       is a lanczos-windowed  jinc filter (3.238 lobes). Under same circumstances -in this case 'taps'- Jinc (radial) is always sharper than their Sinc (orthogonal) equivalent. Check ewa_lanczosradius3 below.
+# ewa_lanczossharp  is a lanczos-windowed  jinc filter (3.238 lobes). Slightly sharpened as per calculations by Nicolas Robidoux, his preferred all-around scaler. Can be replicated with Jinc filter and blur = 0.9812505644269356
+# ewa_lanczossharpest is a lanczos-windowed jinc filter(3.238 lobes). Very sharp, technically not recommended by Robidoux except when downscaling. Can be replicated with Jinc filter and blur = 0.88549061701764
+# ewa_lanczos2sharp   is a lanczos-windowed jinc filter(2.2331305943815286 lobes). Good alternative to the other EWAs when you don't want the moiree or "hash pattern blur" artifact, so use this for dithered content or RobiSharp.
+# ewa_lanczosradius3  is a lanczos-windowed jinc filter(3 lobes). More sharpened than ewa_lanczossharp and very similar to Ginseng tensor, good for up and downscale. Can be replicated with Jinc filter and blur = 0.9264075766146068 (scales lobes from 3.238 to 3)
+# ewa_lanczos4      is a lanczos-windowed  jinc filter (4.2410628637960699 lobes).
+# ewa_lanczossoft   is a lanczos-windowed  jinc filter (3.238 lobes). Softened instead. This one makes hash patterns disappear completely (blur determined by trial and error). Can be replicated with Jinc filter and blur = 1.015. https://github.com/mpv-player/mpv/blob/27c38eac1040cd781f39d977ce53adcd65ddcfb6/video/out/filter_kernels.c#L380
 # -Haasnsoft        is a Hanning-windowed  jinc filter (3.238 lobes). Removes almost all aliasing. Blur value to match orthogonal and diagonal contributions on a regular grid. Can be replicated with Jinc filter and blur = 1.11
-# Tukey             is a Hanning-windowed  jinc filter taper = 0.5
-# -Quadratic/Quadric like Cubic but 66% faster (1.5 taps/lobes)
-# RAVU / RAISR      similar to XBR and nnedi3
-# NGU               Next Generation Upscaler. madVR edge directed NN algo (closed source, similar to FSRCNN)
-# Sphinx            Continuation of Sinc and Jinc, interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
-# ICBI              (Iterative Curve Based Interpolation) is a single image superresolution technique described in Fast artifact-free image interpolation by Andrea Giachetti and Nicola Asuni, presented at BMVC 2008
+# -Tukey            is a Hanning-windowed  jinc filter taper = 0.5
+# Quadratic/Quadric like Cubic but 66% faster (1.5 taps/lobes)
+# -RAVU / RAISR     similar to XBR and nnedi3
+# -NGU              Next Generation Upscaler. madVR edge directed NN algo (closed source, similar to FSRCNN)
+# -Sphinx           Continuation of Sinc and Jinc, interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
+# -ICBI             (Iterative Curve Based Interpolation) is a single image superresolution technique described in Fast artifact-free image interpolation by Andrea Giachetti and Nicola Asuni, presented at BMVC 2008
 
 function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in", string  "fmt_out", string   "cs_in", string   "cs_out", string      "OETF", string   "EOTF", string "D_in", string "D_out", bool "tv_in", bool "tv_out", string "cplace_in", string "cplace_out", \
                          string "scale_space", string "kernel", string "kernel_c", float  "src_left", float  "src_top", float "src_width", float "src_height",                                                                                                                       \
@@ -527,9 +527,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                  ? \
                                   Assert(!recon,     "ConvertFormat: Invalid settings for chroma reconstruction")  : nop()
 
-    # Fix Bessel
     bessel3       = [1.5708,1.525858,1.39627,1.196854,0.94988,0.681773,0.419361,0.186267,0,-0.129804,-0.201802,-0.222051,-0.202077,-0.156337,-0.0995575,-0.044427,0,0.029012,0.0420623,0.041868,0.0330862,0.020877,0.00967627,0.002371]
-    quadratic15   = [0.75,0.734375,0.6875,0.609375,0.5,0.382813,0.28125,0.195313,0.125,0.070313,0.03125,0.007813]
+    quadratic15   = [0.75,0.746094,0.734375,0.714844,0.6875,0.652344,0.609375,0.558594,0.5,0.439453,0.382813,0.330078,0.28125,0.236328,0.195313,0.158203,0.125,0.095703,0.070313,0.048828,0.03125,0.017578,0.007813,0.001953]
     wiener3       = [1,0.928293,0.847768,0.749610,0.625,0.470033,0.300445,0.136885,0,-0.094068,-0.147204,-0.165801,-0.15625,-0.1255,-0.082723,-0.037647,0,0.022825,0.032783,0.034161,0.03125,0.02491,0.017308,0.008864]
     welch3        = [1,0.972804,0.894064,0.771960,0.618936,0.450106,0.281349,0.127371,0,-0.093051,-0.148802,-0.168948,-0.159155,-0.127874,-0.0848512,-0.039589,0,0.028562,0.0437654,0.046219,0.0389045,0.026257,0.0130728,0.003457]
     cosine3       = [1,0.972409,0.892614,0.769145,0.614928,0.445557,0.277261,0.124857,-0,-0.090029,-0.142854,-0.160801,-0.150053,-0.119324,-0.0782968,-0.036093,0,0.025353,0.0382818,0.039802,0.0329539,0.021856,0.0106832,0.002771]
@@ -550,7 +549,6 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                      0.0214054,0.025619,0.0253622,0.021395,0.0149254,0.007348,0,-0.006043,-0.0100898,-0.011883,-0.0115622,-0.009575,-0.00654779,-0.003156,0,0.002475,0.00402406,0.004606,0.00434445,0.003478,0.00229289,0.001061,0,-0.000757,-0.0011651,-0.001252,-0.00109846,-0.000808,-0.000481802,-0.000197]
     bohman8       = [1,0.973334,0.896071,0.77599,0.624897,0.457161,0.287989,0.131668,0,-0.098853,-0.161007,-0.186917,-0.180888,-0.150148,-0.103645,-0.050742,0,0.04179,0.0702274,0.083521,0.0823302,0.069284,0.0482961,0.023797,0,-0.019685,-0.0330319,-0.039145,-0.0383729,-0.032053,-0.0221387,-0.010789,0,\
                      0.008687,0.0143432,0.016696,0.0160458,0.013115,0.00884562,0.0042,0,-0.003187,-0.00508814,-0.005708,-0.00526944,-0.004121,-0.00264747,-0.001192,0,0.000798,0.00118257,0.001221,0.00102559,0.00072,0.000408479,0.000159,0,-0.000073,-0.0000834291,-0.000062,-0.000033957,-0.000013,-0.00000291302,0]
-    # Fix Parzen (outputs greyish, not normalized)
     parzen8       = [0.666667,0.648727,0.596804,0.51624,0.415088,0.303095,0.190509,0.086876,0,-0.064824,-0.105205,-0.121655,-0.117225,-0.096848,-0.0665116,-0.032382,0,0.026335,0.0439404,0.051856,0.0506892,0.042271,0.0291773,0.014224,0,-0.011489,-0.0190243,-0.022227,-0.0214634,-0.017647,-0.0119891,-0.005745,0,\
                      0.004475,0.00727292,0.008338,0.00789788,0.006366,0.00423604,0.001986,0,-0.001471,-0.00232189,-0.002577,-0.00235492,-0.001824,-0.00116114,-0.000518,0,0.000341,0.000502619,0.000515,0.000430408,0.000301,0.000169602,0.000066,0,-0.00003,-0.0000341078,-0.000025,-0.0000138158,-0.000005,-0.00000118185,0]
 
@@ -562,7 +560,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                                                      """fmtc_resample({nw},{nh},kernel="box"             """ : \
                         kernel == "Bilinear" || kernel == "Triangle" || kernel == "Bartlett"                 ? \
                                                    "BilinearResize({nw},{nh}"                                : \
-                        kernel == "Bicubic"      ?  "BicubicResize({nw},{nh},b={bc_b},c={bc_c}"              : \
+                        kernel == "Bicubic"      ? "BicubicResize ({nw},{nh},b={bc_b},c={bc_c}"              : \
                         kernel == "Spline100"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=5"""      : \
                         kernel == "Spline144"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=6"""      : \
                         kernel == "Wiener"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Wiener3)       """ : \
@@ -575,11 +573,12 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                         kernel == "Ginseng"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Ginseng3)      """ : \
                         kernel == "Welch"        ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Welch3)        """ : \
                         kernel == "Cosine"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Cosine3)       """ : \
-                        kernel == "Bessel"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=false,center=true,impulse=ArraySym(bessel3)      """ : \
-                        kernel == "Quadratic"    ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=false,center=true,impulse=ArraySym(quadratic15)  """ : \
-                        kernel == "Parzen"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=false,center=true,impulse=ArraySym(parzen8)      """ : \
+                        kernel == "Bessel"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(bessel3)       """ : \
+                        kernel == "Parzen"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(parzen8)       """ : \
                         kernel == "Kaiser"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(kaiser8)       """ : \
                         kernel == "Bohman"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(bohman8)       """ : \
+                        kernel == "Quadratic"    || kernel == "Quadric"                                      ? \
+                                                   """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=16,cnorm=true,center=true,impulse=ArraySym(quadratic15) """ : \
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
                                                    """fmtc_resample({nw},{nh},kernel="blackmanminlobe"    """: \
                         kernel == "SincLin"      || kernel == "SincLin2ResizeMT"                             ? \
@@ -612,8 +611,6 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                                                        "JincResize({nw},{nh},tap=3,blur=0.88549061701764"    : \
                         kernel == "EWASoft"      || kernel == "JincSoft"   || kernel == "ewa_lanczossoft"    ? \
                                                        "JincResize({nw},{nh},tap=3,blur=1.015"               : \
-                        kernel == "Haasn"        || kernel == "HaasnSoft"  || kernel == "ewa_haasn"          ? \
-                                                       "JincResize({nw},{nh},tap=3,blur=1.11"                : \
                         kernel == "FCBI"         ? "FCBI().BicubicResize({nw},{nh},b=-0.6,c=0.4"             : \
                         kernel == "SuperResXBR"  || kernel == "XBR"                                          ? \
                                                          "SuperResXBR(factor=2)."                              \
@@ -991,7 +988,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC39",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC40",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
