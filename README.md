@@ -1,6 +1,6 @@
 # AviSynth+ Scripts
 
-Collection of filters for AviSynth+ 3.7.1 and above. Improved modern syntax allows much greater performance and HBD support (high bit depths).
+Collection of filters for AviSynth+ 3.7.2 and above. Improved modern syntax allows much greater performance and HBD support (high bit depths).
 
 For a full description of each check the main forum thread in [Doom9](https://forum.doom9.org/showthread.php?t=182881).
 
