@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.5   (12-02-2022)                ##
+###           ExTools v7.6   (24-02-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -28,7 +28,7 @@
 ### fulls: Defines the source bitdepth scale (full/bitshift range) when converting from/to integer HBD formats (10, 12, 14, 16)
 ###        ConvertBits() defaults to false for YUV, same in ExTools if frame properties are not present.
 ###
-### Dependencies: AviSynth+ 3.7.1+ (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.7.2+ (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -51,12 +51,11 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "
     cf   = Default(clamp_float, false)
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    f32  = FindStr(LeftStr(str,  5), "f32") != 0
-    sn   = si == "none" || si == "floatUV"
-    sp   = sn || !(f32 && (si == "float" || si == "floatf"))
-    sp   = sp ? false : f32
+    # Overall 1D LUT calculations work when input bitdepth is < 32, regardless of internal expression bitdepth scaling.
+    # In practice enabling LUT causes a slight (~7%) slowdown. But this has to be fixed upstream, not here.
+    # Supporting LUT calculations when internal bitdepth scaling might allow it (ie. Expr(32f_src,"i8 x 1 -", scale_inputs="all", lut=1) ) would also be a great addition to Expr().
     px   = FindStr(str, "[") > 0 || (isc ? FindStr(cstr, "[") > 0 : false)
-    lut  = px || sp || bi == 32 ? 0 : 1
+    lut  = px || bi == 32 ? 0 : 1
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str # Evaluate str as cstr if Y!=3 and cstr is not defined
     ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
@@ -84,12 +83,8 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     cf   = Default(clamp_float, false)
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    f32  = FindStr(LeftStr(str, 5), "f32") != 0
-    sn   = si == "none" || si == "floatUV"
-    sp   = sn || !(f32 && (si == "float" || si == "floatf"))
-    sp   = sp ? false : FindStr(LeftStr(str, 5), "i16") != 0 || f32
     px   = FindStr(str, "[") > 0 || (isc ? FindStr(cstr, "[") > 0 : false)
-    lut  = px || !(!sp && bi < 16) ? 0 : 2
+    lut  = px || bi > 14 ? 0 : 2
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str
     ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
@@ -152,9 +147,18 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
                Expr(a, b, c, d, ystr, cstr, scale_inputs=si, clamp_float=cf, optSingleMode=op) }
 
 
+
 # mt_makediff() is 5% slower
+#
 # Use aug=n to augment difference map
-# Use metric="metric_name" to show metrics (requires YUV input, SimilarityMetrics and TransformsPack)
+# Use metric="metric_name" to write/show metric(s) to frame properties (check dependencies below)
+# Use 'show' to choose output; 0: clip 'a'  1: clip 'b'  2: diff  3: diff subtitled (no frameprops)
+#
+# Dependencies:
+#           TransformsPack    (for some metrics)
+#           Butteraugli       (for said metric)
+#           SimilarityMetrics (for some metrics)
+#               fmtconv
 #
 # Function Definition:
 #    (
@@ -163,7 +167,7 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 #    string "metric"="none" ("none" / "ALL" / "--" / "ME" / "MAE" / "SMAE" / "MAD" / "MAD2" / "MSE" / "MSLE" / "RMSE" / "--" / "OkMSE" / "RedMe" / "R2" / "ZTest" / "--" / "PSNR" / "SSIM" / "BSSIM" / "GMSD" / "MDSI" / "BUTT" / "CHAR"),
 #    bool "aug"=false,
 #    bool "dif"=false,
-#    int "show"=2,
+#    int "show"=2 (0 to 3 by 1),
 #    )
 #
 # modes:
@@ -192,10 +196,11 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", string "metric", int "show", int "Y", int "UV", bool "fulls", bool "clamp_float", string "scale_inputs") {
 
     rgb  = isRGB(a)
-    isy  = isy(a)
+    isy  = isy  (a)
     bi   = BitsPerComponent(a)
     fs   = propNumElements (a,"_ColorRange")  > 0 ? \
            propGetInt      (a,"_ColorRange") == 0 : rgb
+    lut  = bi > 14 ? 0 : 2
 
     Daug = Defined(aug)     Baug = isBool(aug)
     met  = Daug && !Baug ? aug == -1 ? "ALL" : "none" : "none"
@@ -205,14 +210,12 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     cf   = Default(clamp_float, false)
     mcf  = Default(metric,        met)   # "ALL", "none" or "metric_name".
     mcf  = mcf=="--" ? "none" : mcf
-    out  = Default(show,            2)   # Output clip to return when 'metric' is defined. 0: clip 'a'  1: clip 'b'  2: diff subtitled (no frameprops)
+    sh   = Default(show,            2)   # Output clip to return when 'metric' is defined. 0: clip 'a'  1: clip 'b'  2: diff  3: diff subtitled (no frameprops)
     aug  = Daug ? Baug ? aug ? 50 : -1 : aug == -1 ? 50 : aug : mcf == "none" ? 0 : 50
     Y    = Default(Y,               3)
     UV   = Default(UV,        rgb ? 3 : aug > 0 ? 128 : 1)
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
-    sp   = si == "none" || si == "floatuv"
-    lut  = !sp || bi < 16 ? 2 : 0
 
     gr   =             tv ? "ygrey" : "range_half"
     str  = Format(aug > 0 ? "x y - abs {aug} *"    : \
@@ -242,10 +245,17 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         mcfa  =  mcf == "ALL"
         mPLUG = (mcf == "SSIM" || mcf == "GMSD" || mcf == "MDSI" || mcf == "BSSIM")
 
-                w = a.width() h = a.height() pd = max(w,h)/10
-        matA = (w  > 2599 ||  h  > 1499)  ? "PC.2020" : (w  > 1099 ||  h  > 599) ? "PC.709" : "PC.601"
-        a1   = mcfa && out != 2 ? a.propClearAll().ConvertBits(32,fulls=fs,fulld=true) : a.ConvertBits(32,fulls=fs,fulld=true)
-        b1   =                                                                           b.ConvertBits(32,fulls=fs,fulld=true)
+        w  = a.width()
+        h  = a.height()
+        pd = max(w,h)/10
+
+        isUHD = (w > 2599 || h > 1499)
+        isHD  = (w > 1099 || h >  599)
+
+        matA = isUHD ? "PC.2020" : isHD ? "PC.709" : "PC.601"
+
+        a1   = mcfa && sh < 2 ? a.propClearAll().ConvertBits(32,fulls=fs,fulld=true) : a.ConvertBits(32,fulls=fs,fulld=true)
+        b1   =                                                                         b.ConvertBits(32,fulls=fs,fulld=true)
         b2   = b1.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
       # y    = mcfa || mcf == "VMAF"  ? VMAF  (y, b1,show=false,model=0,log_path="") : a1 # Requires 16-bit input and write to disk = PASS (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
         y    = mcfa || mcf == "SSIM" || mcf == "BSSIM" ? \
@@ -270,7 +280,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         okb  = mcfa || mcf == "OkMSE" ? b2.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop()
         OkD  = mcfa || mcf == "OkMSE" ? Expr(oky[0],oky[1],oky[2],okb[0],okb[1],okb[2],"x a - dup * y b - dup * z c - dup * + + sqrt") : nop() # RMSE (Euclidean Distance) over OkLab
 
-        ScriptClip  (out==2?last:out==1?b:a, function [y,a,b,z1,z2,z3,z4,a1,b1,b3,OkD,pd,mcf,mcfa,mPLUG,out] () {
+        ScriptClip  (sh>1?last:sh==1?b:a, function [y,a,b,z1,z2,z3,z4,a1,b1,b3,OkD,pd,mcf,mcfa,mPLUG,sh,fs] () {
 
             Ava  = AverageLuma (a1)
             Avb  = AverageLuma (b1)
@@ -303,18 +313,21 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
             BUTT = mcfa || mcf == "BUTT"  ? propGetFloat(b3,"_FrameButteraugli") : nop()
 
 
-            if (out != 2) {
-
-            c = out == 1 ? b : a
-
             if (!mcfa && mPLUG) {
 
-                pG = propGetFloat(y,"_Plane"+MCF )
-                y  = propSet     (c,"_Plane"+MCF, pG, 0 )
+                pG = propGetFloat(y,   "_Plane"+MCF )
+                y  = propSet     (last,"_Plane"+MCF, pG, 0 )
 
             } else if (mcfa) {
 
-                y  = propCopy(c,y,true) } }
+                y  = propCopy(last,y,true).propSet("_Matrix", propGetInt(last, "_Matrix" ))
+                y  = sh < 2 && !fs ? y.propSet("_ColorRange", 1) : y
+
+            } else {
+
+                y  = last
+
+            }
 
 
             if (mcfa) {
@@ -338,15 +351,16 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
             } else {
 
                 MCF = ReplaceStr(MCF,"rMEA","RedMean" )
-                y   = !(mPLUG) ? propSet(y,"_Plane"+MCF, Eval(MCF),  0) : y
+                y   = !mPLUG ? propSet(y,"_Plane"+MCF, Eval(MCF), 0) : y
 
-                Subtitle( "Plane"+MCF+":  "+String(propGetFloat(y,"_Plane"+MCF )))
+                Subtitle(y, "Plane"+MCF+":  "+String(mPLUG ? propGetFloat(y,"_Plane"+MCF ) : Eval(MCF)))
             }
 
 
-            if (out != 2) { y } else if (mcfa) {
+            if (sh != 3) { y } else if (!mcfa) { last } else {
 
-                Subtitle( "PlaneME:\n"     \
+                Subtitle(last,\
+                          "PlaneME:\n"     \
                          +"PlaneMAE:\n"    \
                          +"PlaneSMAE:\n"   \
                          +"PlaneMAD:\n"    \
@@ -387,6 +401,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     } } ) } }
 
 
+
 # mt_adddiff() is 5% slower
 function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_range", bool "fulls", string "scale_inputs") {
 
@@ -395,6 +410,7 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_rang
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
+    lut = bi > 14 ? 0 : 2
 
     Y   = Default(Y,         3)
     UV  = Default(UV,  rgb ? 3 : 1)
@@ -402,9 +418,6 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_rang
     fs  = Default(fulls, Defined(tv_range) ? tv_range ? false : fs : fs)
     tv  = Default(tv_range, false)
     si  = Default(scale_inputs, ex_UVf(rgb, bi))
-
-    sp   = si == "none" || si == "floatuv"
-    lut  = !sp || bi < 16 ? 2 : 0
 
     gr  = tv  ? "ygrey" : "range_half"
     str = dif ? "x y + "+gr+" -"      : \
@@ -424,15 +437,13 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "sca
     isy = isy(a)
     isc = Defined(c)
     bi  = BitsPerComponent(a)
+    lut = bi > 14 ? 0 : 2
 
     Y   = Default(Y,           3)
     UV  = Default(UV,    rgb ? 3 : 1)
     un  = Undefined()
     cf  = Default(clamp_float, false)  # Works two ways. Not only it will clamp floats output, but also the first in-expression differential
     si  = Default(scale_inputs, ex_UVf(rgb, bi))
-
-    sp   = si == "none" || si == "floatuv"
-    lut  = !sp || bi < 16 ? 2 : 0
 
     str = cf  ? "0 max" : ""
     str = isc ? "x y - "+str+" z +" : "x y - "+str+" x +"
@@ -454,7 +465,6 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "sca
 # Function Definition:
 #    (
 #    clip,
-#    clip,
 #    string "mode"="and" ("and" / "andn" / "or" / "xor" / "min" / "max"),
 #    )
 #
@@ -466,7 +476,7 @@ function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV")
     fs   = propNumElements (a,"_ColorRange")  > 0 ? \
            propGetInt      (a,"_ColorRange") == 0 : true
     bi32 = bi == 32
-    lut  = bi < 16 ? 2 : 0
+    lut  = bi > 14 ? 0 : 2
 
     mode = Default(mode, "and")
     th1  = Default(thx,     0 )       # threshold for clip x in modes 'min' or 'max'
@@ -598,15 +608,15 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
           propGetInt      (a,"_ColorRange") == 0 : rgb
     lut = bi == 32 ? 0 : 1
 
-    th = Default(thres, 115)
-    lo = Default(lo,      0)          # Value for under threshold
-    hi = Default(hi,    255)          # Value for above threshold
-    in = Default(invert, false)       # Use this for invert instead of lo=255 and hi=0
-    sm = Default(smooth, false)
-    md = Default(mode, "simple")      # 'simple', 'dynamic' or 'otsu'
-    UV = Default(UV,        128)      # Currently this is noop as chroma thresholding makes no sense
-    fs = Default(fulls,  fs)
-    si = ex_UVf(rgb, bi)
+    th  = Default(thres, 115)
+    lo  = Default(lo,      0)          # Value for under threshold
+    hi  = Default(hi,    255)          # Value for above threshold
+    in  = Default(invert, false)       # Use this for invert instead of lo=255 and hi=0
+    sm  = Default(smooth, false)
+    md  = Default(mode, "simple")      # 'simple', 'dynamic' or 'otsu'
+    UV  = Default(UV,        128)      # Currently this is noop as chroma thresholding makes no sense
+    fs  = Default(fulls,  fs)
+    si  = ex_UVf(rgb, bi)
 
     th  = ex_bs(th,  8, bi, fulls=fs, flt=true)
     lox = lo < 0   hix = hi < 0
@@ -761,7 +771,7 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 14 ? 0 : 2
 
     th  = Default(th,        40)
     sg  = Default(sigma,      6)          # sigma=6 is default for 1080p inputs
@@ -904,8 +914,7 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
-
-    lut  = bi < 16 ? 2 : 0
+    lut  = bi > 14 ? 0 : 2
 
     lo   = Default(lo,       10)
     hi   = Default(hi,       10)
@@ -1754,6 +1763,7 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
 
     w    = c.width ()
     h    = c.height()
+    bi   = BitsPerComponent(c)
     LFR  = Default( LFR, 300*(w/1920.)) # Default is 300 for 1080p
     UV   = Default( UV,              1) # Set UV to 4 to copy the chroma from the 'ref' clip
     DCT  = Default( DCTFlicker,  false) # Clean up remaining blotches of the reference lowpass
@@ -1762,10 +1772,14 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
     Fs   = max(w,h) * 2                 # Frequency sample rate is resolution * 2 (for Nyquist)
     k    = sqrt(log(2)/2) * LFR         # Constant for -3dB
     LFR  = Fs / ( k * 2 * pi )          # Frequency Cutoff for Gaussian Sigma
+    sec  = ex_bs(0.51, 8, bi, fulls=true, flt=true)
 
     lpc =   c.ex_gaussianblur(LFR, UV=UV==4?2:UV)
     lpr = ref.ex_gaussianblur(LFR, UV=UV==4?2:UV)
-    ex_makeadddiff(c, lpc, !DCT ? lpr : ex_limitdif(lpc, lpr, thr=0.3, elast=4.0, UV=UV), UV=UV)
+
+    DCT = DCT ? Format("y z == swap dup y z - sgn {sec} * + ?") : "" # "shift-back-by-one": https://forum.doom9.org/showthread.php?p=1539241
+    ex_lutxyz(c, lpc, lpr, "x y - z + "+DCT, UV=UV) # ex_makeadddiff()
+
     UV==4 ? MergeChroma(ref) : last }
 
 
@@ -1777,7 +1791,7 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
 #
 # ex_MFR() workflow diagram (shaded '/' means deleted by lowpassing):
 #
-#          HIPASS                      HIPASS   + LOWPASS
+#          HIPASS                      HIPASS   + LOWPASS           BANDSTOP
 #     A               A                  A            A                 A
 #  _______         _______            _______      _______           _______
 # |       |       |/ / / /|          |       |    |/ / / /|         |       |
@@ -2005,7 +2019,7 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
     wa  = aw/100.
     wr  = 1 - wa
 
-    Assert(IsVersionOrGreater(3,7,1), "STTWM: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "STTWM: Update AviSynth+ version")
 
     str =  Format(                                         \
            "x[-1,1]  x[1,1]       dup1 dup1 min K^ max P^
@@ -2110,8 +2124,6 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 ## Replaces removegrain medians, adaptivemedian, verticalcleaner, clense, degrainmedian, medianblur, medianblurtemporal, DeSaltPepper/SaltPepper and UnDot plugins, and adds new modes.
 ## Sorting Networks perform better with Prefetch(logical_cores*0.75) in multi-threaded CPUs.
 ##
-## Requires AviSynth+ 3.7.1 test12 or above
-## https://forum.doom9.org/showthread.php?t=181351
 ##
 ## 100% removegrain(1,-1)
 ##  91% ex_median(mode="undot",UV=1) # same as DeSaltPepper or SaltPepper from manyplus, or UnDot by Tom Barry.
@@ -2251,7 +2263,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
     ths = mode!="EMF" && mode!="SNN" && !smart && !DGM && thr != 255 ?                                                  \
           Format(" x swap - dup abs {thr1} - range_max {thr2} {thr1} - / * range_max swap - 0 range_max clip 1 range_max / * * x swap -") : ""
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_median: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "ex_median: Update AviSynth+ version")
 
     str =                                                                                                                                                                       \
         mode == "--"     ? "x"                                                                                                                                                : \
@@ -5430,8 +5442,6 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 ##
 ## Replaces Repair() (only listed modes) and TemporalRepair() (which plugin seems broken)
 ##
-## Requires AviSynth+ 3.7.1 test12 or above
-## https://forum.doom9.org/showthread.php?t=181351
 ##
 ## median    - repair(4)
 ## medianc   - repair(14)
@@ -5469,7 +5479,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
     UV   = Default(UV,    rgb ? 3 : 1)
     un   = Undefined()
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_repair: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "ex_repair: Update AviSynth+ version")
 
     str =                                                                                                                                                            \
                                                                                                                                                                      \
@@ -6095,8 +6105,6 @@ function ex_inflate(clip a, int "radius", int "UV") {
 # Hit-or-Miss morphological transform (HMT)
 #                  to use with binary masks
 #
-# Requires AviSynth+ 3.7.1
-# https://forum.doom9.org/showthread.php?t=181351
 #
 # modes:
 # thin         - Like erode (inpand) but one pixel at a time without complete removal (leads to 'skeleton')
@@ -6138,7 +6146,7 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
     UV = Default(UV,    rgb ? 3 : 1)
     un = Undefined()
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_hitormiss: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "ex_hitormiss: Update AviSynth+ version")
     !(md == "thin" || md == "thicken" || md == "prune" || md == "pruneS" || md == "convexhull" || md == "convexhull45" || md == "4x4") ? \
     Assert(rd == 1, "ex_hitormiss: "+md+" mode only supports radius=1") : nop()
 
@@ -6521,6 +6529,63 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
     UV == 1 ? Expr(a, str, ""                   ) : \
               Expr(a, str, cstr, scale_inputs=si)
               PropSet("_ColorRange", 0)         }
+
+
+
+
+# ex_corner()
+# Pseudo-Harris corner detection
+#
+# Dependencies:
+#               vsTCanny
+#               GradePack (for show=true)
+#
+#
+# Function Definition:
+#    (
+#    clip,
+#    float "sigma"=1.0 (0.5 to 3.0 by 0.1),
+#    float "th"=0.3 (0.01 to 0.6 by 0.01),
+#    bool "show"=false,
+#    )
+#
+function ex_corner(clip a, float "sigma", float "th", bool "show") {
+
+    w    = width (a)
+    h    = height(a)
+    isHD = (w > 1099 || h > 599)
+
+    rd   = Default(sigma, isHD ? 1 : 0.5)
+    th   = Default(th,    0.3) # From 0.2 to 0.5 for sigma=1
+    sh   = Default(show,  false)
+    th   = th / 100
+
+    # Prefiltering
+    vsTCanny(a,rd,mode=-1,y=3,u=1,v=1)
+
+    # First derivatives
+    x1 = ex_edge("x[0,-1] x[0,1] -")
+    y1 = ex_edge("x[-1,0] x[1,0] -")
+    x2 = ex_edge("x[0,-1] x[0,1] swap -")
+    y2 = ex_edge("x[-1,0] x[1,0] swap -")
+
+    # Second derivatives + Minor|Major Eigenvalues + R
+    ex_lutxyza(x1,x2,y1,y2,Format( \
+               "f32 x[0,-1] x[0,1] - y[0,1] y[0,-1] - + X@
+                    z[-1,0] z[1,0] - a[1,0] a[-1,0] - + Y@
+                dup1 dup1 + S@ swap2 - 0.5 * dup * X dup * Y dup * + G@ + sqrt + 0.5 *
+                X Y * G - S /
+                dup1 dup1 * swap2 + dup * 0.05 * - {th} > range_max 0 ?"),UV=128,scale_inputs="intf") # (major Eigenvalue = Ridge Filter)
+
+    # Temporal Stabilization
+    ex_median("MMF", recursion=false)
+    # Corner augment
+    ex_expand(isHD ? 3 : 1,mode="disk").ex_deflate()
+
+    # Show
+    sh ? ex_blend(a,last, "linearadd", 0.4, 1.0) : last }
+
+
 
 
 
@@ -7049,29 +7114,48 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 
 function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits") {
 
-    w  = width (a)    wm = width (msk)
-    h  = height(a)    hm = height(msk)
+    w    = width (a)    wm = width (msk)
+    h    = height(a)    hm = height(msk)
+
+    cp   = propNumElements(a,"_ChromaLocation") > 0 ? \
+           propGetInt     (a,"_ChromaLocation") : 0
+
+    i11  = isYV411(a)
+    i20  = is420(a)
+    i22  = is422(a)
+    i44  = is444(a)
+
+    # Default 0.5 because it's always halving (except for 411)
+    cpc  = cp == 0 ? [-0.5, 0.0] : \
+           cp == 1 ? [ 0.0, 0.0] : \
+           cp == 2 ? [-0.5,-0.5] : \
+           cp == 3 ? [ 0.0,-0.5] : \
+           cp == 4 ? [-0.5, 0.5] : [ 0.0, 0.5]
+
+    cpw  =  i44 ? 0 : i11 ? cpc[0]/2 : cpc[0]
+    cph  = !i20 ? 0 : cpc[1]
+
 
     wh = wm!=w || hm!=h
     p_float = bits == 32
     clr     = UV > 6 ? ex_bs(UV, 8, bits, fulls=true) : 0
 
-    mskYs   =  isy(msk)               ? msk          : msk.  ExtractY()
-    mskYt   =                                          mskYs.ConvertBits(8,dither=-1,fulls=true)
-    mskYr   =  !wh                    ? mskYs        : mskYt.BicubicResize(w, h).ConvertBits(bits,fulls=true)
+    mskYs   =  isy(msk)        ? msk        : isRGB(msk) ? msk.ExtractR() : msk.ExtractY()
+    mskYt   =                                 mskYs.ConvertBits(8,dither=-1,fulls=true)
+    mskYr   =  !wh             ? mskYs      : mskYt.BicubicResize(w,h,b=0.262015,c=0.368993).ConvertBits(bits,fulls=true)
 
-    w       =  isYV411(a)             ? round(w/4.0) : round(w/2.0)
-    h       =  isYV411(a) || is422(a) ?            h : round(h/2.0)
+    w       = (i44 || rgb) ? w : i11        ? round(w/4.0) : round(w/2.0)
+    h       = (i44 || rgb) ? h : i11 || i22 ?            h : round(h/2.0)
 
-    mskC    = (is444  (a) || rgb)     ? mskYr                   : \
-                                        mskYt.BilinearResize(w,h)
+    mskC    = (i44 || rgb)     ? mskYr                           : \
+                                 mskYt.BicubicResize(w,h,cpw,cph,b=0.0,c=0.5) # no mod2 needed for chroma
 
-    mskC    = luma && UV==3 ?           mskC.ConvertBits(bits,fulls=true)                         : \
-                                        BlankClip(a,1,w,h,"Y"+string(bits),colors=[clr],channels=0)
+    mskC    = luma && UV==3    ? mskC.ConvertBits(bits,fulls=true)                         : \
+                                 BlankClip(a,1,w,h,"Y"+string(bits),colors=[clr],channels=0)
 
     msk     = isy(a) ? mskYr : CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
 
-    return msk }
+    return luma && UV==3 && !(i44 || rgb) ? msk.propSet("_ChromaLocation",cp) : msk }
 
 
 
