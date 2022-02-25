@@ -1,7 +1,7 @@
 ###
-### Logo v13.0  (https://forum.doom9.org/showthread.php?t=182881)
+### Logo v14.0  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (13-10-2021) By Dogway
+###  (25-02-2022) By Dogway
 ###
 ### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
 ### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465#post525465)
@@ -12,13 +12,17 @@
 ### -For help on parameters, read the #comments right next to the "Default()" column.
 ###
 ### Dependencies:
-###    AviSynth+ 3.5+, MaskTools2, ExTools, GradePack, ResizersPack, TransformsPack and Immaavs (for GIFs)
+###     ExTools
+###     MaskTools2
+###     GradePack
+###     ResizersPack
+###     TransformsPack
+###     Immaavs (for GIFs)
 ###
 ### Todo / Known bugs:
 ###   -Add interlaced support
 ###   -Fix Chroma in Blending Modes
 ###   -Fix FadeOut problem when end=Framecount-1
-###   -Add option for negative "y" values (hidden logo)
 ###   -Use dissolve and masktools2 to avoid using Blackness in FadeX()(?)
 ###   -Wiser trim logic(?)
 ###   -Add a loop option (repeat every n frames)
@@ -29,6 +33,8 @@
 ###   -Better matte workaround
 ###
 ### Changelog:
+###
+### 14.0 -Rebasing to latest AviSynth+ and ExTools versions (now accepts partial hidden logo)
 ###
 ### 13.0 -Replace with MatchClip() from TransformsPack, and nmod() and mmod() from ResizersPack
 ###
@@ -148,22 +154,25 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     \           : ImageSource(path, start=start, end= end == -1 ? start : end2, use_Devil=true, pixel_type="RGB32")
 
 
+    logo0 = isRGB(logo0) ? isPlanarRGB(logo0) ? logo0 : logo0.ConvertToPlanarRGBA() : logo0
+
     logo0 = PAR !=  1.0  ? logo0.BicubicResize(nmod(logo0.Width()/par,2),nmod(logo0.Height(),2),0.0,0.75)
     \                    : logo0.mmod(2)
-    logo0 = logo0.addborders(x,abs(y),w,h).crop(0,0,-logo0.Width()-x,-logo0.Height()-abs(y),true).ex_blur(Sblur/par,Sblur,UV=Ch?3:2)
 
-    lw = mat ? logo0.Width () : nop()
-    lh = mat ? logo0.Height() : nop()
+    lw = logo0.Width ()    mw = mat ? lw : nop()
+    lh = logo0.Height()    mh = mat ? lh : nop()
 
-    msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(lw*2,lh*2).ex_inpand(2,mode="plus").BicubicResize(lw,lh,-0.5,0.25).MatchClip(c)
+    logo0 = logo0.addborders(0,0,w,h).PadResize(w,h,2,"$108080",x+lw/2,y+lh/2).ex_blur(Sblur/par,Sblur,UV=Ch?3:2)
+
+    msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(mw*2,mh*2).ex_inpand(2,mode="plus").BicubicResize(mw,mh,-0.5,0.25).MatchClip(c)
     \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).MatchClip(c)
     logo0 = logo0.MatchClip(c).AssumeFPS(fps)
 
 
     V = c.trim(start,end)
     V =
-    \ (mode=="Over")     ? mt_merge(V,logo0,ex_lut(msk,Format(" x {Opac} * "),UV=1), luma=ch)
-    \:(mode=="Watermark")? mt_merge(V,ex_lut(V,Format(" x ymin - ymax ymin - A@ / 1 {Wstr} {Opac} ^ / ^ A * ymin + "),UV=1), msk)
+    \ (mode=="Over")     ? mt_merge(V,logo0,ex_lut(msk,Format("x {Opac} *"),UV=1), luma=ch)
+    \:(mode=="Watermark")? mt_merge(V,ex_lut(V,Format("x ymin - ymax ymin - A@ / 1 {Wstr} {Opac} ^ / ^ A * ymin +"),UV=1), msk)
     \:                     mt_merge(V,ex_blend(V,logo0,mode,Opac,1,true,UV=ch?4:2), msk, luma=ch)
 
 
