@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.77 mix mod by Dogway 2022, based on 3.382s            #
+#     QTGMC 3.78 mix mod by Dogway 2022, based on 3.382s            #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -16,6 +16,10 @@
 # Full documentation is in the 'QTGMC' html file that may comes with this script, or even better see avisynth wiki
 #
 # --- LATEST CHANGES ---
+#
+# v3.78mx
+# - Fix a memory leak with propCopy()
+# - Add ex_bob(), a port of sh_bob() for frameprops support
 #
 # v3.77mx
 # - Add ex_ReduceFlicker()
@@ -247,16 +251,16 @@
 # Core plugins:
 #   MVTools2   (2.7.45 or above)
 #   MaskTools2 (2.2.30 or above)
-#   NNEDI3     (0.9.4.59 or above)
+#   NNEDI3     (0.9.4.60 or above)
 #   RgTools    (1.2 or above)
 #   vsTCanny   (1.1.5 for gaussian blur)
 #   SysInfo    (0.1.2.9)
 #   Vinverse
 #
 # Core scripts:
-#   ExTools      (7.5   or above)
+#   ExTools      (7.6   or above)
 #   SMDegrain    (3.4.7 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
-#   Zs_RF_Shared (1.156 or above) (for sh_Bob(), for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
+#   Zs_RF_Shared (1.157 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
 #   NNEDI2, NNEDI, EEDI3, EEDI2, TDeInt - if selected directly or via a source-match preset
@@ -362,7 +366,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     Amp           = Default( Amp,     0.0312 )
     tv            = Default( TV_range,    !fs)
 
-    Assert(IsVersionOrGreater(3,7,1),            "QTGMC: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2),            "QTGMC: Update AviSynth+ version")
     Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "QTGMC: UseEdiExt need EdiExt to work")
 
     # Select presets / tuning
@@ -638,7 +642,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     planarClip = yuy2 ? clip.nonyuy2clipin(true) : clip
 
     # Bob the input as a starting point for motion search clip
-    bobbed = (InputType == 0) ? UseEdiExt > 0 ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true) : EdiExt : planarClip.sh_Bob( 0,0.5 ) : \
+    bobbed = (InputType == 0) ? UseEdiExt > 0 ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true) : EdiExt : planarClip.ex_Bob( 0,0.5 ) : \
              (InputType == 1) ? planarClip                                                                                        : \
                                 planarClip.ex_boxblur( 0, 1, "weighted", UV=CMmt)
     bobbed = (InputType == 0) && UseEdiExt > 1 ? bi8 ? bobbed.vinverse(uv=CMmt) : bobbed.ex_vinverse(uv=CMmt,fulls=!tv) : bobbed
@@ -735,7 +739,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # Expand fields to full frame size before extracting noise (allows use of motion vectors which are frame-sized)
     fullClip  = (NoiseProcess == 0)   ? nop()                        : \
                 (InputType > 0)       ? clip                         : \
-                                        clip.sh_Bob( 0, 1.0 )
+                                        clip.ex_Bob( 0, 1.0 )
     fullClip  = (yuy2 && NoiseTR > 0) ? fullClip.nonyuy2clipin(true) : fullClip
     fullSuper = (NoiseTR > 0)         ? fullClip.MSuper( pel=SubPel, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, mt=bomt ) : nop() #TEST chroma OK?
 
@@ -778,7 +782,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     noise          = (totalRestore >  0) ? ex_makediff( planarClip, planarDenoised, UV=CNmt1, fulls=!tv ) : nop()
     deintNoise     = (NoiseProcess == 0 || totalRestore == 0.0) ? nop()                                                          : \
                      (InputType != 0)                           ? noise                                                          : \
-                     (NoiseDeint == "Bob")                      ? noise.sh_Bob( 0,0.5 )                                          : \
+                     (NoiseDeint == "Bob")                      ? noise.ex_Bob( 0,0.5 )                                          : \
                      (NoiseDeint == "Generate")                 ? noise.QTGMC_Generate2ndFieldNoise( denoised, ChromaNoise, !tv) : \
                                                                   noise.DoubleWeave()
     # Motion-compensated stabilization of generated noise
@@ -961,7 +965,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # >>>> Restore YUY2 to interleaved
     output = (ShowNoise == 0.0) ? cropped : finalNoise.ex_lut(Format("x "+bi32m+" {ShowNoise} * "+bi32p), clamp_float=true, UV=CNmt128, fulls=!tv )
     output = yuy2 ? output.nonyuy2clipout(true) : output
-    output = output.propCopy(input).propSet("_FieldBased",0).propSet("_Combed", Lossless == 1 && SourceMatch > 0 ? 1 : 0 )
+    output = output.propCopy(bobbed).propSet("_Combed", Lossless == 1 && SourceMatch > 0 ? 1 : 0 )
     return !ShowSettings ? output : \
         output.Subtitle( "TR0=" + string(TR0) + " | TR1=" + string(TR1) + " | TR2=" + string(TR2) + " | Rep0=" + string(Rep0) + " | Rep1=" + string(Rep1) + \
         " | Rep2=" + string(Rep2) + " | RepChroma=" + string(RepChroma) + "\nEdiMode='" + EdiMode + "' | NNSize=" + string(NNSize) + " | NNeurons=" + \
@@ -1016,13 +1020,13 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
              (EdiMode == "Yadif")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 ) : \
              (EdiMode == "cYadif")       ? Input.Yadif( mode=3 )                                                                     : \
              (EdiMode == "TDeint")       ? Input.TDeInt( mode=1 )                                                                    : \
-             (EdiMode == "RepYadif")     ? isyuy2(Input) ? Repair( Input.nonyuy2clipin(true).Yadifmod2( mode=3 ), Default( Fallback, Input.sh_Bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
-                                                           Repair( Input.Yadifmod2( mode=3 ), Default( Fallback, Input.sh_Bob( 0,0.5 ) ), 2, -1 ) : \
-             (EdiMode == "RepcYadif")    ? isyuy2(Input) ? Repair( Input.Yadif( mode=3 ).nonyuy2clipin(true),     Default( Fallback, Input.sh_Bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
-                                                           Repair( Input.Yadif( mode=3 ),     Default( Fallback, Input.sh_Bob( 0,0.5 ) ), 2, -1 ) : \
+             (EdiMode == "RepYadif")     ? isyuy2(Input) ? Repair( Input.nonyuy2clipin(true).Yadifmod2( mode=3 ), Default( Fallback, Input.ex_Bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
+                                                           Repair( Input.Yadifmod2( mode=3 ), Default( Fallback, Input.ex_Bob( 0,0.5 ) ), 2, -1 ) : \
+             (EdiMode == "RepcYadif")    ? isyuy2(Input) ? Repair( Input.Yadif( mode=3 ).nonyuy2clipin(true),     Default( Fallback, Input.ex_Bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
+                                                           Repair( Input.Yadif( mode=3 ),     Default( Fallback, Input.ex_Bob( 0,0.5 ) ), 2, -1 ) : \
              (EdiMode == "BWDIF+NNEDI3") ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(-2,edeint=NNEDI3clp.nonyuy2clipin(true)) : Input.BWDIF(-2,edeint=NNEDI3clp) : \
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(-2,edeint= EEDI3clp.nonyuy2clipin(true)) : Input.BWDIF(-2,edeint=EEDI3clp)  : \
-                                           Default( Fallback, Input.sh_Bob( 0,0.5 ) )
+                                           Default( Fallback, Input.ex_Bob( 0,0.5 ) )
 
     interp = (EdiMode == "BWDIF+NNEDI3") || \
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.ex_vinverse(custem=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2,fulls=fulls).nonyuy2clipout(true) : interp.ex_vinverse(custem=NNEDI3clp,UV=CEed?3:2,fulls=fulls) : interp
@@ -1031,7 +1035,7 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
                (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=cores, prefetch=(threads+cores)/2, Y=false, range=fulls?1:2 ) : \
                (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 )        : \
                (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                                 : \
-               (ChromaEdi == "Bob")      ? Input.sh_Bob( 0,0.5 )                                                                                                 : \
+               (ChromaEdi == "Bob")      ? Input.ex_Bob( 0,0.5 )                                                                                                 : \
                                            nop()
 
     return (!IsClip(interpuv)) ? interp : interp.MergeChroma( interpuv ) }
@@ -1087,7 +1091,7 @@ function QTGMC_KeepOnlyBobShimmerFixes( clip Input, clip Ref, int Rep, bool Chro
     choke0 = (ed > 4)             ? choke2.ex_inpand(3, mode="vertical", UV=RCrg       ) : choke0
 
     # Over-erosion - extra deflation up to about 1 pixel
-    choke2 = (od == 0)            ? choke0 : \
+    choke2 = (od == 0)            ? choke0                                                         : \
              (od == 1)            ? choke0.mt_deflate( U=RCrg,V=RCrg )                             : \
              (od == 2)            ? choke0.mt_deflate( U=RCrg,V=RCrg ).mt_deflate( U=RCrg,V=RCrg ) : \
                                     choke0.mt_inpand ( U=RCrg,V=RCrg )
@@ -1292,11 +1296,57 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
 
     VshrpD = !dcus ? ex_lutxy(vblur, vblur.ex_boxblur(0, 2, "weighted", UV=uv), Format("x y - {sstr} * "+bi32p), UV=uv, fulls=fs) : nop()
 
+    # Take the less sharp variant and if they're same sharpness reduce its strength 1/4
     sl     = (amnt > 254) ? "" : Format(" x {amntb} - x {amntb} + clip")
     VlimD  =  dcus ? ex_lutxyz(clp, VblurD, custem, "x z -          A@ y "+bi32m+" B@ * 0 < A abs B abs < A B ? dup 0.25 * swap ? z +" + sl, UV=uv, fulls=fs) : \
                      ex_lutxyz(clp, VshrpD, Vblur,  "y "+bi32m+" A@ x z -          B@ * 0 < A abs B abs < A B ? dup 0.25 * swap ? z +" + sl, UV=uv, fulls=fs)
 
              (amnt ==  0) ?    clp : VlimD }
+
+
+# ex_bob() - port of sh_bob() by real.finder
+# Same as Bob, but keeps the field order the same.
+# Modded for frame properties support
+function ex_Bob(clip cp, float "b", float "c", int "height" ) {
+
+    w     = cp.Width()
+    h     = cp.Height()
+    h     = Default(height, h)
+    b     = Default(b,    0.0) # cubic coefficient 'b'
+    c     = Default(c,    1.0) # cubic coefficient 'c'. Bob(0.0, 1.0) preserves the original fields for RGB and YUY2, and preserves the Luma but not the Chroma for YV12.
+
+    par   = GetParity(cp)
+    shift = par ? 0.25 : -0.25
+    fd    = cp.SeparateFields()
+    cl    = propGetInt(fd,"_ChromaLocation")
+
+    if (is420(cp)) {
+
+        fd
+        w2    = w/2
+        fh    = Height()
+        even  = SelectEven()
+        odd   = SelectOdd()
+
+        yeven = even.ExtractY().BicubicResize(w, h, b, c, 0,  shift, w, fh)
+        yodd  =  odd.ExtractY().BicubicResize(w, h, b, c, 0, -shift, w, fh)
+
+        ceven = Interleave( even.ExtractU(), even.ExtractV()).BicubicResize(w2, h/2, b, c, 0,  shift, w2, fh/2)
+        codd  = Interleave(  odd.ExtractU() , odd.ExtractV()).BicubicResize(w2, h/2, b, c, 0, -shift, w2, fh/2)
+
+        YToUV(Interleave(ceven.SelectEven(), codd.SelectEven()),\
+              Interleave(ceven.SelectOdd (), codd.SelectOdd ()),\
+              Interleave(yeven,              yodd            )).AssumeFrameBased()
+
+    } else {
+
+        cp.Bob( b, c, h )
+    }
+
+    par ? AssumeTFF() : AssumeBFF()
+    propSet("_FieldBased",0)
+    propSet("_Combed",0)
+    propSet("_ChromaLocation",cl) }
 
 
 
