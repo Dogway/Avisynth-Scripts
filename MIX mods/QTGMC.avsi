@@ -3,7 +3,7 @@
 #     QTGMC 3.33         by Vit,   2012                             #
 #     QTGMC 3.34d    mod by Dogway 2015                             #
 #     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.78 mix mod by Dogway 2022, based on 3.382s            #
+#     QTGMC 3.79 mix mod by Dogway 2022, based on 3.382s            #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -17,9 +17,10 @@
 #
 # --- LATEST CHANGES ---
 #
-# v3.78mx
-# - Fix a memory leak with propCopy()
-# - Add ex_bob(), a port of sh_bob() for frameprops support
+# v3.79mx
+# - Fix a memory leak with propCopy() (v3.78)
+# - Add ex_bob(), a port of sh_bob() for frameprops support (v3.78)
+# - Add propNumElements to ex_blob() to check first if frameprops exist
 #
 # v3.77mx
 # - Add ex_ReduceFlicker()
@@ -1318,7 +1319,8 @@ function ex_Bob(clip cp, float "b", float "c", int "height" ) {
     par   = GetParity(cp)
     shift = par ? 0.25 : -0.25
     fd    = cp.SeparateFields()
-    cl    = propGetInt(fd,"_ChromaLocation")
+    ic    = propNumElements(fd,"_ChromaLocation") > 0
+    cl    = ic ? propGetInt(fd,"_ChromaLocation") : nop()
 
     if (is420(cp)) {
 
@@ -1344,9 +1346,9 @@ function ex_Bob(clip cp, float "b", float "c", int "height" ) {
     }
 
     par ? AssumeTFF() : AssumeBFF()
-    propSet("_FieldBased",0)
-    propSet("_Combed",0)
-    propSet("_ChromaLocation",cl) }
+          propSet("_FieldBased",0)
+          propSet("_Combed",0)
+    ic  ? propSet("_ChromaLocation",cl) : last }
 
 
 
