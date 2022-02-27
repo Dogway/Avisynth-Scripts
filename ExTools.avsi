@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v7.6   (24-02-2022)                ##
+###           ExTools v7.7   (27-02-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -55,7 +55,7 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "
     # In practice enabling LUT causes a slight (~7%) slowdown. But this has to be fixed upstream, not here.
     # Supporting LUT calculations when internal bitdepth scaling might allow it (ie. Expr(32f_src,"i8 x 1 -", scale_inputs="all", lut=1) ) would also be a great addition to Expr().
     px   = FindStr(str, "[") > 0 || (isc ? FindStr(cstr, "[") > 0 : false)
-    lut  = px || bi == 32 ? 0 : 1
+    lut  = px || bi == 32 || isRunTime(a,rgb) ? 0 : 1
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str # Evaluate str as cstr if Y!=3 and cstr is not defined
     ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
@@ -64,7 +64,6 @@ function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "
     isy     ?  Expr(a, ystr,       scale_inputs=si, clamp_float=cf, lut=lut) : \
     UV == 1 ?  Expr(a, ystr, "",   scale_inputs=si, clamp_float=cf, lut=lut) : \
                Expr(a, ystr, cstr, scale_inputs=si, clamp_float=cf, lut=lut) }
-
 
 
 function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
@@ -84,7 +83,7 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
     px   = FindStr(str, "[") > 0 || (isc ? FindStr(cstr, "[") > 0 : false)
-    lut  = px || bi > 14 ? 0 : 2
+    lut  = px || bi > 12 || isRunTime(a,rgb) ? 0 : 2  # Technically 14-bit supports LUT calcs but in practice depends on cache size which most not-too-recent CPUs lack
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str
     ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
@@ -200,7 +199,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     bi   = BitsPerComponent(a)
     fs   = propNumElements (a,"_ColorRange")  > 0 ? \
            propGetInt      (a,"_ColorRange") == 0 : rgb
-    lut  = bi > 14 ? 0 : 2
+    lut  = bi > 12 || isRunTime(a,rgb) ? 0 : 2
 
     Daug = Defined(aug)     Baug = isBool(aug)
     met  = Daug && !Baug ? aug == -1 ? "ALL" : "none" : "none"
@@ -410,7 +409,7 @@ function ex_adddiff(clip a, clip b, int "Y", int "UV", bool "dif", bool "tv_rang
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
-    lut = bi > 14 ? 0 : 2
+    lut = bi > 12 || isRunTime(a,rgb) ? 0 : 2
 
     Y   = Default(Y,         3)
     UV  = Default(UV,  rgb ? 3 : 1)
@@ -437,7 +436,7 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "sca
     isy = isy(a)
     isc = Defined(c)
     bi  = BitsPerComponent(a)
-    lut = bi > 14 ? 0 : 2
+    lut = bi > 12 || isRunTime(a,rgb) ? 0 : 2
 
     Y   = Default(Y,           3)
     UV  = Default(UV,    rgb ? 3 : 1)
@@ -476,7 +475,7 @@ function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV")
     fs   = propNumElements (a,"_ColorRange")  > 0 ? \
            propGetInt      (a,"_ColorRange") == 0 : true
     bi32 = bi == 32
-    lut  = bi > 14 ? 0 : 2
+    lut  = bi > 12 || isRunTime(a,rgb) ? 0 : 2
 
     mode = Default(mode, "and")
     th1  = Default(thx,     0 )       # threshold for clip x in modes 'min' or 'max'
@@ -606,7 +605,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
-    lut = bi == 32 ? 0 : 1
+    lut = isRunTime       (a,rgb) || bi==32  ? 0 : 1
 
     th  = Default(thres, 115)
     lo  = Default(lo,      0)          # Value for under threshold
@@ -771,7 +770,7 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
     rgb = isRGB(a)
     isy = isy(a)
     bi  = BitsPerComponent(a)
-    lut = bi > 14 ? 0 : 2
+    lut = bi > 12 || isRunTime(a,rgb) ? 0 : 2
 
     th  = Default(th,        40)
     sg  = Default(sigma,      6)          # sigma=6 is default for 1080p inputs
@@ -907,14 +906,14 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "Y"
 
 
 # ex_motion() replaces mt_motion(). A very basic motion mask filter.
-# A better alternative to study in the future is to include a Kalman filter.
+# A better alternative to study in the future is to include a Kalman filter or check ex_occlusion() below.
 #
 function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
-    lut  = bi > 14 ? 0 : 2
+    lut  = bi > 12 || isRunTime(a,rgb) ? 0 : 2
 
     lo   = Default(lo,       10)
     hi   = Default(hi,       10)
@@ -936,6 +935,72 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
                Expr(a, b, ystr, cstr, lut=lut)
                PropSet("_ColorRange", 0)    }
 
+
+# Better motion (occlusion) mask with selective direction; previous, next, or both (default) with radius of 1 or 2.
+# Own algorithm.
+#
+# Quality is similar to MMask() of MVTools but much faster.
+#
+# Benchmark:
+#     ex_occlusion() (470fps)
+#
+function ex_occlusion(clip a, int "lo", int "hi", float "scale", int "sharpness", int "dir", int "UV") {
+
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    w    = width(a)
+    h    = height(a)
+    bi   = BitsPerComponent(a)
+
+    lo   = Default(lo,        1)
+    hi   = Default(hi,       40)
+    sh   = Default(sharpness, 0)
+    sc   = Default(scale,  10.0)
+    dr   = Default(dir,      20) # Direction of the motion mask, -2 for previous+before, -1 for previous, 0 for both, 1 for next, 2 for next+following, 20 for both radius=2
+    UV   = Default(UV,  rgb ? 3 : 1)
+
+    ad   = abs(dr)
+    sc   = sc / (ad==1 ? 2. : ad==20 ? 5. : 4.)
+    lob  =     ex_bs(lo, 8, bi, fulls=true)
+    hib  = max(ex_bs(hi, 8, bi, fulls=true) / sc, lob)
+    th   = (lo == 0) && (hi == 255) ? sc == 2 ? ""    : Format(" {sc} *") : \
+           (lo == 0) ? Format(" range_max {hib} / *") : Format(" {lob} - range_max {hib} {lob} - / *")
+
+    UV = UV!=3 ? 1 : UV
+    UV==3 || isy ? a : a.ExtractY()
+    # 20x20 macroblocks (at 1080p)
+    RatioResize(96,"adjust2w",kernel="bilinear")
+    # Temporal Stabilization
+    ex_FluxSmoothT(2,5,UV=uv)
+    # Directional Derivative
+    ad==1 ? ex_lutxy (selectevery(1,dr), "x y[-1,-1] - abs x y[-1,1] - abs min x y[1,1] - abs x y[1,-1] - abs min min
+                                          x y[0,-1]  - abs x y[-1,0] - abs min x y[0,1] - abs x y[1,0]  - abs min min min x y - abs min"              +th, UV=uv) : \
+    ad==2 ? ex_lutxyz(selectevery(1,      dr) ,\
+                      selectevery(1, sign(dr)),\
+                                         "x y[-2,-2] - abs x y[-2,2] - abs min x y[2,2] - abs x y[2,-2] - abs min min
+                                          x y[0,-2]  - abs x y[-2,0] - abs min x y[0,2] - abs x y[2,0]  - abs min min min x y - abs min dup *
+                                          x z[-1,-1] - abs x z[-1,1] - abs min x z[1,1] - abs x z[1,-1] - abs min min
+                                          x z[0,-1]  - abs x z[-1,0] - abs min x z[0,1] - abs x z[1,0]  - abs min min min x z - abs min dup * + sqrt "+th, UV=uv) : \
+    ad==0 ? ex_lutxyz(selectevery(1,-1),\
+                      selectevery(1, 1), "x y[-1,-1] - abs x y[-1,1] - abs min x y[1,1] - abs x y[1,-1] - abs min min
+                                          x y[0,-1]  - abs x y[-1,0] - abs min x y[0,1] - abs x y[1,0]  - abs min min min x y - abs min dup *
+                                          x z[-1,-1] - abs x z[-1,1] - abs min x z[1,1] - abs x z[1,-1] - abs min min
+                                          x z[0,-1]  - abs x z[-1,0] - abs min x z[0,1] - abs x z[1,0]  - abs min min min x z - abs min dup * + sqrt "+th, UV=uv) : \
+            Expr(last,selectevery(1,-1),selectevery(1, 1),\
+                      selectevery(1,-2),selectevery(1, 2),\
+                                         "x a[-2,-2] - abs x a[-2,2] - abs min x a[2,2] - abs x a[2,-2] - abs min min
+                                          x a[0,-2]  - abs x a[-2,0] - abs min x a[0,2] - abs x a[2,0]  - abs min min min x a - abs min dup *
+                                          x b[-2,-2] - abs x b[-2,2] - abs min x b[2,2] - abs x b[2,-2] - abs min min
+                                          x b[0,-2]  - abs x b[-2,0] - abs min x b[0,2] - abs x b[2,0]  - abs min min min x b - abs min dup * +
+                                          x y[-1,-1] - abs x y[-1,1] - abs min x y[1,1] - abs x y[1,-1] - abs min min
+                                          x y[0,-1]  - abs x y[-1,0] - abs min x y[0,1] - abs x y[1,0]  - abs min min min x y - abs min dup * +
+                                          x z[-1,-1] - abs x z[-1,1] - abs min x z[1,1] - abs x z[1,-1] - abs min min
+                                          x z[0,-1]  - abs x z[-1,0] - abs min x z[0,1] - abs x z[1,0]  - abs min min min x z - abs min dup * + sqrt "+th)
+    # Mask Dilate
+    ex_expand(1, "plus", UV=uv)
+    # Blur
+    GaussResize(w,h,p=round(w/213.33)+sh)
+    PropSet("_ColorRange", 0) }
 
 
 
@@ -1694,7 +1759,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     Eval(str)
     Eval(ReplaceStr(str, "rd", "rv").ReplaceStr("w0", "h0").ReplaceStr("rad", "radv"))
 
-    p   = pad ? 64 : 0
+    p   = pad ? 64 : 0      p2  = p*2
 
     w1  = Min(nmod(w0/rad, 2), w0)
     h1  = Min(nmod(h0/radv,2), h0)
@@ -1725,26 +1790,26 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
 
     } else if (full && UV==3 || isy) {
 
-        B  = max(rd, rv) > 19.3 ? a.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) : \
-                                  a.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) # extend borders before resizing
+        B  = max(rd, rv) > 19.3 ? a.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w0+p2, src_height=h0+p2) : \
+                                  a.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p2, src_height=h0+p2) # extend borders before resizing
 
-        B.GaussResize(w0+p+p, h0+p+p, p=9)
+        B.GaussResize(w0+p2, h0+p2, p=9)
         pad ? crop (p, p, -p, -p) : last
 
     } else {
 
         Assert(!rgb, "ex_GaussianBlur: RGB requires UV=3!")
 
-        B  =       max(rd, rv) > 19.3 ? ay.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p) : \
-                                        ay.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p+p, src_height=h0+p+p)
-        Bu = !sm ? max(rd, rv) > 19.3 ? au.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : \
-                                        au.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : nop() # sm (>117 high radii) only possible for UV!=3
-        Bv = !sm ? max(rd, rv) > 19.3 ? av.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : \
-                                        av.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w2+p+p, src_height=h2+p+p) : nop()
+        B  =       max(rd, rv) > 19.3 ? ay.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w0+p2, src_height=h0+p2) : \
+                                        ay.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w0+p2, src_height=h0+p2)
+        Bu = !sm ? max(rd, rv) > 19.3 ? au.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w2+p2, src_height=h2+p2) : \
+                                        au.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w2+p2, src_height=h2+p2) : nop() # sm (>117 high radii) only possible for UV!=3
+        Bv = !sm ? max(rd, rv) > 19.3 ? av.BicubicResize (w1, h1, src_left=-p, src_top=-p, src_width=w2+p2, src_height=h2+p2) : \
+                                        av.BilinearResize(w1, h1, src_left=-p, src_top=-p, src_width=w2+p2, src_height=h2+p2) : nop()
 
-                   B. GaussResize(w0+p+p, h0+p+p, p=9)
-        Bu = !sm ? Bu.GaussResize(w2+p+p, h2+p+p, p=9) : nop()
-        Bv = !sm ? Bv.GaussResize(w2+p+p, h2+p+p, p=9) : nop()
+                   B. GaussResize(w0+p2, h0+p2, p=9)
+        Bu = !sm ? Bu.GaussResize(w2+p2, h2+p2, p=9) : nop()
+        Bv = !sm ? Bv.GaussResize(w2+p2, h2+p2, p=9) : nop()
         Bu = !sm ? pad ? Bu.crop (p, p, -p, -p) : Bu   : nop()
         Bv = !sm ? pad ? Bv.crop (p, p, -p, -p) : Bv   : nop()
                    pad ?    crop (p, p, -p, -p) : last
@@ -1758,18 +1823,18 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
 # Replace Low Frequency of first clip from the second clip
 # In other words, add the lowpass of the second clip into the highpass of the first
 #
-# LFR: 50 to width(). Frequency cutoff for the replacement
 function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
 
     w    = c.width ()
     h    = c.height()
     bi   = BitsPerComponent(c)
-    LFR  = Default( LFR, 300*(w/1920.)) # Default is 300 for 1080p
+    LFR  = Default( LFR, 300*(w/1920.)) # 50 to width(). Frequency cutoff for the replacement. Default 300 for 1080p
     UV   = Default( UV,              1) # Set UV to 4 to copy the chroma from the 'ref' clip
     DCT  = Default( DCTFlicker,  false) # Clean up remaining blotches of the reference lowpass
 
-    LFR  = max(LFR,50)
-    Fs   = max(w,h) * 2                 # Frequency sample rate is resolution * 2 (for Nyquist)
+    mwh  = max(w,h)
+    LFR  = min(max(LFR,50),mwh)
+    Fs   = mwh * 2                      # Frequency sample rate is resolution * 2 (for Nyquist)
     k    = sqrt(log(2)/2) * LFR         # Constant for -3dB
     LFR  = Fs / ( k * 2 * pi )          # Frequency Cutoff for Gaussian Sigma
     sec  = ex_bs(0.51, 8, bi, fulls=true, flt=true)
@@ -1836,9 +1901,11 @@ function ex_MFR (clip c, clip ref, float "hi", float "lo", int "UV") {
     UV   = Default( UV,              3) # Set UV to 4 to copy the chroma from the 'ref' clip
     UV2  = UV==4?2:UV
 
+    mwh  = max(w,h)
     LO   = max(LO, 4)
+    HI   = min(HI, mwh)
 
-    Fs   = max(w,h) * 2                 # Frequency sample rate is resolution * 2 (for Nyquist)
+    Fs   = mwh * 2                      # Frequency sample rate is resolution * 2 (for Nyquist)
     k    = sqrt(log(2)/2) * HI          # Constant for -3dB
     HI   = Fs / ( k * 2 * pi )          # Frequency Cutoff for Gaussian Sigma
 
@@ -1860,7 +1927,7 @@ function ex_MFR (clip c, clip ref, float "hi", float "lo", int "UV") {
     mpr   = ref.vsTCanny(HI, HIUV, HIUVv, mode=-1, u=UV2, v=UV2)
     mpr2  = ref.vsTCanny(LO, LOUV, LOUVv, mode=-1, u=UV2, v=UV2)
 
-    Expr(c,   mpc, mpc2, mpr, mpr2, "x y - z + a b - +", isy(c) ? Undefined() : ex_UVexpr("x y - z + a b - +", UV2, bi, rgb, fulls, "none") ) }
+    Expr(c, mpc, mpc2, mpr, mpr2, "x y - z + a b - +", isy(c) ? Undefined() : ex_UVexpr("x y - z + a b - +", UV2, bi, rgb, fulls, "none") ) }
 
 
 
@@ -5913,6 +5980,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 # 'circle' + radius=2 is like calling mode="plus"     twice but faster
 # 'disk'   + radius=2 is like calling mode="square",  then mode="plus" but faster
 # 'disk'   + radius=3 is like calling mode="square",  then mode="plus" twice but faster
+# 'disk'   + radius=3 is like calling mode="square",  then mode="circle" + radius=2 but faster
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rgb  = isRGB(a)
@@ -6544,19 +6612,19 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 # Function Definition:
 #    (
 #    clip,
+#    float "th"=0.2 (0.01 to 0.9 by 0.01),
 #    float "sigma"=1.0 (0.5 to 3.0 by 0.1),
-#    float "th"=0.3 (0.01 to 0.6 by 0.01),
 #    bool "show"=false,
 #    )
 #
-function ex_corner(clip a, float "sigma", float "th", bool "show") {
+function ex_corner(clip a, float "th", float "sigma", bool "show") {
 
     w    = width (a)
     h    = height(a)
     isHD = (w > 1099 || h > 599)
 
-    rd   = Default(sigma, isHD ? 1 : 0.5)
-    th   = Default(th,    0.3) # From 0.2 to 0.5 for sigma=1
+    th   = Default(th,    0.2) # From 0.2 to 0.5 for sigma=1
+    rd   = Default(sigma, 1.0)
     sh   = Default(show,  false)
     th   = th / 100
 
@@ -6569,23 +6637,27 @@ function ex_corner(clip a, float "sigma", float "th", bool "show") {
     x2 = ex_edge("x[0,-1] x[0,1] swap -")
     y2 = ex_edge("x[-1,0] x[1,0] swap -")
 
-    # Second derivatives + Minor|Major Eigenvalues + R
+    # Second derivatives + Minor|Major Eigenvalues (from Covariance Matrix) + R
     ex_lutxyza(x1,x2,y1,y2,Format( \
                "f32 x[0,-1] x[0,1] - y[0,1] y[0,-1] - + X@
                     z[-1,0] z[1,0] - a[1,0] a[-1,0] - + Y@
                 dup1 dup1 + S@ swap2 - 0.5 * dup * X dup * Y dup * + G@ + sqrt + 0.5 *
                 X Y * G - S /
-                dup1 dup1 * swap2 + dup * 0.05 * - {th} > range_max 0 ?"),UV=128,scale_inputs="intf") # (major Eigenvalue = Ridge Filter)
+                dup1 dup1 * swap2 + dup * 0.05 * - {th} > range_max 0 ?"), scale_inputs="intf") # (major Eigenvalue = Ridge Filter)
 
-    # Temporal Stabilization
-    ex_median("MMF", recursion=false)
     # Corner augment
-    ex_expand(isHD ? 3 : 1,mode="disk").ex_deflate()
+    ex_expand(round(w/480.), mode=isHD ? "circle" : "disk")
+    # Temporal Stabilization
+    or = last
+    ex_median("medianT5")
+    # Fix for Motion
+    mm = ex_occlusion(a,lo=15,hi=20,dir=20)
+    ex_merge(or,mm,UV=1)
+    # Smooth PP
+    ex_deflate(UV=128)
 
     # Show
     sh ? ex_blend(a,last, "linearadd", 0.4, 1.0) : last }
-
-
 
 
 
@@ -6847,6 +6919,24 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop
 
 ######### HELPER FUNCTIONS #########
 
+function isRunTime(clip a, bool rgb) {
+    try {
+      iRT = rgb ? a.AverageR() : a.AverageLuma()
+      iRT = true
+    } catch ( error_msg ) {
+      iRT = false
+    }
+return iRT }
+
+
+function DivideStr(string str, string separator) {
+
+    Sep   = FindStr(str, separator)
+    Left  = Sep == 0 ?  "" : LeftStr (str, Sep-1)
+    Right = Sep == 0 ? str : RightStr(str, StrLen(str)-Sep)
+
+    return [Left, Right] }
+
 
 function FindStrInstance(string haystack, string needle) {
 
@@ -6859,13 +6949,28 @@ function FindStrInstance(string haystack, string needle) {
     return in }
 
 
-function DivideStr(string str, string separator) {
+function ex_lutperf(string str) {
 
-    Sep   = FindStr(str, separator)
-    Left  = Sep == 0 ?  "" : LeftStr (str, Sep-1)
-    Right = Sep == 0 ? str : RightStr(str, StrLen(str)-Sep)
+    str= " "+str+" "
+    a  = FindStrInstance(str,"+") * 1
+    s  = FindStrInstance(str,"-") * 2
+    m  = FindStrInstance(str,"*") * 2
+    d  = FindStrInstance(str,"/") * 4
+    t  = FindStrInstance(str,"?") * 3
+    e  = FindStrInstance(str,"^") * 6
+    mn = FindStrInstance(str," min "  ) * 2
+    mx = FindStrInstance(str," max "  ) * 2
+    ab = FindStrInstance(str," abs "  ) * 2
+    r  = FindStrInstance(str," sqrt " ) * 2
+    l  = FindStrInstance(str," log "  ) * 2
+    c  = FindStrInstance(str," clip " ) * 3
+    x  = FindStrInstance(str," exp "  ) * 6
+    si = FindStrInstance(str," sin "  ) * 6
+    co = FindStrInstance(str," cos "  ) * 6
+    at = FindStrInstance(str," atan " ) * 6
+    a2 = FindStrInstance(str," atan2 ") * 6
 
-    return [Left, Right] }
+return a+s+m+d+t+e+mn+mx+ab+r+l+c+x+si+co+at+a2 }
 
 
 # Parses a string of pixel pairs in masktools2/mt_luts() format to Expr() Pixel Addressing format
@@ -7142,13 +7247,13 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 
     mskYs   =  isy(msk)        ? msk        : isRGB(msk) ? msk.ExtractR() : msk.ExtractY()
     mskYt   =                                 mskYs.ConvertBits(8,dither=-1,fulls=true)
-    mskYr   =  !wh             ? mskYs      : mskYt.BicubicResize(w,h,b=0.262015,c=0.368993).ConvertBits(bits,fulls=true)
+    mskYr   =  !wh             ? mskYs      : mskYt.BicubicResize(w,h,0.262015,0.368993).ConvertBits(bits,fulls=true)
 
     w       = (i44 || rgb) ? w : i11        ? round(w/4.0) : round(w/2.0)
     h       = (i44 || rgb) ? h : i11 || i22 ?            h : round(h/2.0)
 
     mskC    = (i44 || rgb)     ? mskYr                           : \
-                                 mskYt.BicubicResize(w,h,cpw,cph,b=0.0,c=0.5) # no mod2 needed for chroma
+                                 mskYt.BicubicResize(w,h,0.0,0.5,cpw,cph) # no mod2 needed for chroma
 
     mskC    = luma && UV==3    ? mskC.ConvertBits(bits,fulls=true)                         : \
                                  BlankClip(a,1,w,h,"Y"+string(bits),colors=[clr],channels=0)
