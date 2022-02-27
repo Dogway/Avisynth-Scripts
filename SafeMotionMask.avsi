@@ -66,17 +66,17 @@ function SafeMotionMask(clip source, int "MV", bool "MT", int "LM", bool "EM", f
 
 
     ### Luma Mask ###
-        Luma = LumaMask(source, b=darkb, w=darkw, invert=true)
+        Luma = LumaMask(source, lo=darkb, hi=darkw, invert=true)
 
 
     ### Motion Mask ###
     ts=3
     temp       = source.TemporalSoften(ts,255,255,25,2)
     inter      = Interleave(temp.Repair(source.TemporalSoften(1,255,255,25,2)),source)
-    MotionMask = mt_motion(inter, thy1=0,thy2=motion,tht=255,U=-128,V=-128).selectevery(2,1)
+    MotionMask = ex_motion(inter, lo=0, hi=motion,UV=128).selectevery(2,1)
 
     ### Line Mask ###
-    LineMask = mt_edge("prewitt",thY1=0,thY2=line)
+    LineMask = ex_edge("prewitt",lo=0,hi=line)
     # mask tuning
     #white=100
     #black=80
@@ -95,9 +95,9 @@ function SafeMotionMask(clip source, int "MV", bool "MT", int "LM", bool "EM", f
     Motion ? eval("""MMask.mtcv()
     w=width()
     h=height()
-    BicubicResize(round(w/4.),round(h/4.),2,0).mtcv().mt_expand().TemporalSoften(4,255,255,0,2)
+    BicubicResize(nmod(w/4.),nmod(h/4.),2,0).mtcv().mt_expand().TemporalSoften(4,255,255,0,2)
     GaussResize(w,h)
-    LumaMask(last, b=15, w=80, invert=false)""") : nop()
+    LumaMask(last, lo=15, hi=80, invert=false)""") : nop()
 
     # plus line mask
     MMask = EM ? (Motion ? ex_logic(LineMask, mode="max").mtcv() : \
@@ -114,7 +114,7 @@ function SafeMotionMask(clip source, int "MV", bool "MT", int "LM", bool "EM", f
                                ( Motion                                ? \
                                ex_logic(last, LinedLuma2, mode="max")  : \
                                               LinedLuma2)) : MMask
-    greyscale}
+    Greyscale() }
 
 
 function mtcv(clip source) {
