@@ -1,9 +1,9 @@
 #-------------------------------------------------------------------#
 #                                                                   #
-#     QTGMC 3.33         by Vit,   2012                             #
-#     QTGMC 3.34d    mod by Dogway 2015                             #
-#     QTGMC 3.382s   mod by A.SONY 2021, based on 3.34d             #
-#     QTGMC 3.79 mix mod by Dogway 2022, based on 3.382s            #
+#     QTGMC 3.33       by Vit,   2012                               #
+#     QTGMC 3.34d  mod by Dogway 2015                               #
+#     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
+#     QTGMC 3.80 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://avisynth.nl/index.php/QTGMC                           #
 #                                                                   #
@@ -15,84 +15,99 @@
 #
 # Full documentation is in the 'QTGMC' html file that may comes with this script, or even better see avisynth wiki
 #
+#
+# QTGMC+ features and changes (from v3.382s):
+#     - Frame properties support
+#     - Increased performance for HBD (+70%)
+#     - PC range aware
+#     - Pruned noop or redundant arguments
+#     - Adapted code and expressions to align to AVS+ features
+#
+#
 # --- LATEST CHANGES ---
 #
-# v3.79mx
+# v3.80p
+# - Add dumb nnedi3 interpolation to ex_bob()
+# - Update propCopy calls to v3.7.2 test8
+# - Rename ex_vinverse() 'custem' arg to 'clip2'
+# - Rename function to QTGMCp()
+#
+# v3.79p
 # - Fix a memory leak with propCopy() (v3.78)
 # - Add ex_bob(), a port of sh_bob() for frameprops support (v3.78)
 # - Add propNumElements to ex_blob() to check first if frameprops exist
 #
-# v3.77mx
+# v3.77p
 # - Add ex_ReduceFlicker()
 # - Fix addnoiseN clamp
 #
-# v3.76mx
+# v3.76p
 # - Frameprops passthrough
 # - Add function definitions
 # - Tweak 'Str' and 'Amp' defaults
 #
-# v3.75mx
+# v3.75p
 # - Fix ex_vinverse() vertical blur
 # - Optimize ex_vinverse() VshrpD expression
 # - Add float output for 'noiseCentre' variable
 #
-# v3.74mx
+# v3.74p
 # - Optimize expressions with lerp
 # - Optimize convolutions fetching first pixels first
 # - Add 'range' arg to nnedi3 calls
 #
-# v3.73mx
+# v3.73p
 # - Increase EdiQual Defaults for Placebo
 # - Rename 'Showsettings' to 'Show' and parametrize font size
 # - Update call for latest vsTCanny
 #
-# v3.72mx
-# - More expression optimizations (v3.71mx & v3.72mx)
-# - Some 'fs' fixes (v3.70mx)
+# v3.72p
+# - More expression optimizations (v3.71p & v3.72p)
+# - Some 'fs' fixes (v3.70p)
 #
-# v3.69mx
+# v3.69p
 # - Optimize code structure with loops
 # - Override 'fs' with 'tv' if defined
 # - Cosmetics
 #
-# v3.68mx
+# v3.68p
 # - Read bitdepth scale from frameprops, and remove 'fulls' arg
 # - Process NNEDI3 (and other deinterlacers) in 8-bit for HBD inputs (NNEDI3 is not optimized enough for HBD)
 #
-# v3.67mx
+# v3.67p
 # - Tweak again NNEDI3 thread settings
 # - Adjust chroma blur radius for chroma subsampling
 #
-# v3.66mx
+# v3.66p
 # - Replace sh_GetUserGlobalIMT with SysInfo's SI_LogicalCores()
 # - Update nnedi3 calls for more performance on given threads
 # - Readjusted gaussian blur sigmas
 # - Preliminar 32-bit float support (MDegrain is broken for 32-bit)
 #
-# v3.65mx
+# v3.65p
 # - Update QTGMC_Set/GetUserGlobal() functions
 # - Replace ex_gaussianblur() with vsTCanny(), faster
 # - Update dependencies list
 # - Revert Bankers' rounding workaround
 #
-# v3.64mx
+# v3.64p
 # - Optimize thin var expression
 # - Attach optimized ex_vinverse()
 #
-# v3.63mx
+# v3.63p
 # - re-add bomt var
 # - add Refinemotion to presets
 #
-# v3.62mx
+# v3.62p
 # - Revised chroma processing for vinverses and blurs
 # - Filled missing 'fulls'
 # - Cut redundant args (thanks real.finder)
 # - Tweaked some defaults based on zorr's zopti findings (more on this coming)
 #
-# v3.61mx
+# v3.61p
 # - EdiExtPre removed, UseEdiExt become int parameter, 0=false, 1=true, 2=same as old UseEdiExt+EdiExtPre
 #
-# v3.60mx
+# v3.60p
 # - Update to latest ExTools
 # - Added 'fulls' to ConvertBits()
 # - Replaced blurs with ex_GaussianBlur()
@@ -103,11 +118,11 @@
 # - Remove keep_tv_range limiter
 # - 32-bit support is Work In Progress
 #
-# v3.51mx
-# - Replaced vinverse() with ex_vinverse() for custem arg
+# v3.51p
+# - Replaced vinverse() with ex_vinverse() for custem (now clip2) arg
 # - Removed Dither tools related arguments
 #
-# v3.50mx based on v3.382s by A.SONY
+# v3.50p based on v3.382s by A.SONY
 # - Replaced MaskTools2 with Expr calls via ExTools pack wrappers (except mt_merge)
 # - Merged redundant expressions
 # - Replaced blurs and medians with ExTools equivalents
@@ -259,7 +274,7 @@
 #   Vinverse
 #
 # Core scripts:
-#   ExTools      (7.6   or above)
+#   ExTools      (8.0   or above)
 #   SMDegrain    (3.4.7 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.157 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
@@ -335,7 +350,7 @@
 #     )
 #
 #
-function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
+function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
                     int "NNSize", int "NNeurons", int "EdiQual", int "EdiMaxD", string "ChromaEdi", clip "EdiExt", float "Sharpness", \
                     int "SMode", int "SLMode", int "SLRad", int "SOvs", float "SVThin", int "Sbb", int "SrchClipPP", int "SubPel", int "SubPelInterp", \
                     int "BlockSize", int "Overlap", int "Search", int "SearchParam", int "PelSearch", bool "ChromaMotion", bool "TrueMotion", int "Lambda", \
@@ -367,8 +382,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     Amp           = Default( Amp,     0.0312 )
     tv            = Default( TV_range,    !fs)
 
-    Assert(IsVersionOrGreater(3,7,2),            "QTGMC: Update AviSynth+ version")
-    Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "QTGMC: UseEdiExt need EdiExt to work")
+    Assert(IsVersionOrGreater(3,7,2),            "QTGMCp: Update AviSynth+ version")
+    Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "QTGMCp: UseEdiExt need EdiExt to work")
 
     # Select presets / tuning
     Preset = Default( Preset, "Slower" )
@@ -384,7 +399,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
              (Preset == "Super Fast"      ) ? 8 : \
              (Preset == "Ultra Fast"      ) ? 9 : \
              (Preset == "Draft"           ) ? 10 : 11
-             Assert( pNum  < 11, "QTGMC: 'Preset' choice is invalid" )
+             Assert( pNum  < 11, "QTGMCp: 'Preset' choice is invalid" )
 
     mpNum1 = (!Defined(MatchPreset))       ? ((pNum + 3 <= 9) ? (pNum + 3) : 9) : \
              (MatchPreset == "Placebo"    ) ? 0 : \
@@ -398,7 +413,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
              (MatchPreset == "Super Fast" ) ? 8 : \
              (MatchPreset == "Ultra Fast" ) ? 9 : \
              (MatchPreset == "Draft"      ) ? 10 : 11
-             Assert( mpNum1 < 10, "QTGMC: 'MatchPreset' choice is invalid/unsupported" )
+             Assert( mpNum1 < 10, "QTGMCp: 'MatchPreset' choice is invalid/unsupported" )
 
     MatchPreset = Select( mpNum1, "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast", "Draft" )
 
@@ -414,7 +429,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
              (MatchPreset2 == "Super Fast") ? 8 : \
              (MatchPreset2 == "Ultra Fast") ? 9 : \
              (MatchPreset2 == "Draft"     ) ? 10 : 11
-    Assert( mpNum2 < 10, "QTGMC: 'MatchPreset2' choice is invalid/unsupported" )
+    Assert( mpNum2 < 10, "QTGMCp: 'MatchPreset2' choice is invalid/unsupported" )
     MatchPreset2 = Select( mpNum2, "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast", "Draft" )
 
     NoisePreset = Default( NoisePreset, "Fast" )
@@ -423,13 +438,13 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
             (NoisePreset == "Medium" ) ? 2 : \
             (NoisePreset == "Fast"   ) ? 3 : \
             (NoisePreset == "Faster" ) ? 4 : 5
-    Assert( npNum < 5, "QTGMC: 'NoisePreset' choice is invalid" )
+    Assert( npNum < 5, "QTGMCp: 'NoisePreset' choice is invalid" )
 
     Tuning = Default( Tuning, "None" )
     tNum = (Tuning == "None"  ) ? 0 : \
            (Tuning == "DV-SD" ) ? 1 : \
            (Tuning == "DV-HD" ) ? 2 : 3
-    Assert( tNum < 3, "QTGMC: 'Tuning' choice is invalid" )
+    Assert( tNum < 3, "QTGMCp: 'Tuning' choice is invalid" )
 
     # Tunings only affect blocksize in this version
     bs  = Select( tNum,  16, 16, 32 )
@@ -483,7 +498,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     MatchEdiQual  = EdiQual
 
     # However, can use a faster initial interpolation when using source-match allowing the basic source-match step to "correct" it with higher quality settings
-    Assert( SourceMatch == 0 || mpNum1 >= pNum, "QTGMC: 'MatchPreset' cannot use a slower setting than 'Preset'" )
+    Assert( SourceMatch == 0 || mpNum1 >= pNum, "QTGMCp: 'MatchPreset' cannot use a slower setting than 'Preset'" )
     #                                                                    Very                                                        Very      Super     Ultra
     # Basic source-match presets                                Placebo  Slow      Slower    Slow      Medium    Fast      Faster    Fast      Fast      Fast
     NNSize   = (SourceMatch == 0) ? NNSize   : Select( mpNum1,  1,       1,        1,        1,        5,        5,        4,        4,        4,        4     )
@@ -520,7 +535,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     MatchTR2     = Default( MatchTR2,     1   )
     MatchEnhance = Default( MatchEnhance, 0.5 )
     Lossless     = Default( Lossless,     0   )
-    Assert( Lossless <= 2, "QTGMC: Lossless setting only supports mode 1 ('true lossless') and mode 2 ('fake lossless') - see documentation in script and consider source-match settings" )
+    Assert( Lossless <= 2, "QTGMCp: Lossless setting only supports mode 1 ('true lossless') and mode 2 ('fake lossless') - see documentation in script and consider source-match settings" )
 
     # Sharpness defaults. Sharpness default is always 1.0 (0.2 with source-match), but adjusted to give roughly same sharpness for all settings
     SMode      = (Defined(Sharpness) && Sharpness == 0.0) ? 0 : SMode
@@ -536,7 +551,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     SVThin     = Default( SVThin, 0.0 )
 
     # Noise processing settings
-    Assert( !Defined(EZDenoise) || EZDenoise <= 0.0 || !Defined(EZKeepGrain) || EZKeepGrain <= 0.0, "QTGMC: EZDenoise and EZKeepGrain cannot be used together" )
+    Assert( !Defined(EZDenoise) || EZDenoise <= 0.0 || !Defined(EZKeepGrain) || EZKeepGrain <= 0.0, "QTGMCp: EZDenoise and EZKeepGrain cannot be used together" )
     NoiseProcess =  Defined(NoiseProcess) ? NoiseProcess              : \
                    (Defined(EZDenoise)   && EZDenoise   > 0.0)    ? 1 : \
                    (Defined(EZKeepGrain) && EZKeepGrain > 0.0)    ? 2 : \
@@ -649,13 +664,13 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     bobbed = (InputType == 0) && UseEdiExt > 1 ? bi8 ? bobbed.vinverse(uv=CMmt) : bobbed.ex_vinverse(uv=CMmt,fulls=!tv) : bobbed
 
     # If required, get any existing global clips with a matching "GlobalNames" setting. Unmatched values get NOP (= 0)
-    srchClip  = QTGMC_GetUserGlobal( GlobalNames, "srchClip",  ReuseGlobals )
-    srchSuper = QTGMC_GetUserGlobal( GlobalNames, "srchSuper", ReuseGlobals )
+    srchClip  = QTGMCp_GetUserGlobal( GlobalNames, "srchClip",  ReuseGlobals )
+    srchSuper = QTGMCp_GetUserGlobal( GlobalNames, "srchSuper", ReuseGlobals )
 
     for (i=1, 6, 1) {
 
-        Eval(Format("""bVec{i} = QTGMC_GetUserGlobal( GlobalNames, "bVec{i}", ReuseGlobals )"""))
-        Eval(Format("""fVec{i} = QTGMC_GetUserGlobal( GlobalNames, "fVec{i}", ReuseGlobals )"""))
+        Eval(Format("""bVec{i} = QTGMCp_GetUserGlobal( GlobalNames, "bVec{i}", ReuseGlobals )"""))
+        Eval(Format("""fVec{i} = QTGMCp_GetUserGlobal( GlobalNames, "fVec{i}", ReuseGlobals )"""))
     }
 
     srchcheck = IsClip(srchClip)
@@ -679,7 +694,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                                                    ex_lutxyz(ts1,ts2,bobbed,"x 0.562625 * y 0.312375 * z 0.125 * + +", UV=CMmt)
 
     # Remove areas of difference between temporal blurred motion search clip and bob that are not due to bob-shimmer - removes general motion blur
-    repair0 = (srchcheck || Rep0 == 0) ? binomial0 : binomial0.QTGMC_KeepOnlyBobShimmerFixes( bobbed, Rep0, (RepChroma && ChromaMotion), !tv )
+    repair0 = (srchcheck || Rep0 == 0) ? binomial0 : binomial0.QTGMCp_KeepOnlyBobShimmerFixes( bobbed, Rep0, (RepChroma && ChromaMotion), !tv )
 
     # Blur image and soften edges to assist in motion matching of edge blocks. Blocks are matched by SAD (sum of absolute differences between blocks), but even
     # a slight change in an edge from frame to frame will give a high SAD due to the higher contrast of edges
@@ -721,13 +736,13 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     } }
 
     # Expose search clip, motion search super clip and motion vectors to calling script through globals
-    QTGMC_SetUserGlobal( GlobalNames, "srchClip",  srchClip,  ReplaceGlobals )
-    QTGMC_SetUserGlobal( GlobalNames, "srchSuper", srchSuper, ReplaceGlobals )
+    QTGMCp_SetUserGlobal( GlobalNames, "srchClip",  srchClip,  ReplaceGlobals )
+    QTGMCp_SetUserGlobal( GlobalNames, "srchSuper", srchSuper, ReplaceGlobals )
 
     for (i=1, 6, 1) {
 
-        QTGMC_SetUserGlobal( GlobalNames, Format("bVec{i}"), Eval(Format("bVec{i}")), ReplaceGlobals )
-        QTGMC_SetUserGlobal( GlobalNames, Format("fVec{i}"), Eval(Format("fVec{i}")), ReplaceGlobals )
+        QTGMCp_SetUserGlobal( GlobalNames, Format("bVec{i}"), Eval(Format("bVec{i}")), ReplaceGlobals )
+        QTGMCp_SetUserGlobal( GlobalNames, Format("fVec{i}"), Eval(Format("fVec{i}")), ReplaceGlobals )
     }
 
 
@@ -781,10 +796,10 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     # Get actual noise from difference. Then 'deinterlace' where we have weaved noise - create the missing lines of noise in various ways
     planarDenoised = (NoiseProcess == 0) ? nop() : yuy2 ? denoised.nonyuy2clipin(true) : denoised
     noise          = (totalRestore >  0) ? ex_makediff( planarClip, planarDenoised, UV=CNmt1, fulls=!tv ) : nop()
-    deintNoise     = (NoiseProcess == 0 || totalRestore == 0.0) ? nop()                                                          : \
-                     (InputType != 0)                           ? noise                                                          : \
-                     (NoiseDeint == "Bob")                      ? noise.ex_Bob( 0,0.5 )                                          : \
-                     (NoiseDeint == "Generate")                 ? noise.QTGMC_Generate2ndFieldNoise( denoised, ChromaNoise, !tv) : \
+    deintNoise     = (NoiseProcess == 0 || totalRestore == 0.0) ? nop()                                                           : \
+                     (InputType != 0)                           ? noise                                                           : \
+                     (NoiseDeint == "Bob")                      ? noise.ex_Bob( 0,0.5 )                                           : \
+                     (NoiseDeint == "Generate")                 ? noise.QTGMCp_Generate2ndFieldNoise( denoised, ChromaNoise, !tv) : \
                                                                   noise.DoubleWeave()
     # Motion-compensated stabilization of generated noise
     noiseSuper = (StabilizeNoise) ? deintNoise.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, mt=bomt )    : nop()
@@ -805,7 +820,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Create interpolated image as starting point for output. Below same as but in one step: PadBorders(0,0,0,(EdiExt.Height()-h)/2,"Dilate").crop(0,(EdiExt.Height()-h)/2,0,0)
     edi1 = Defined(EdiExt) ? EdiExt.PointResize( w,h, 0,(EdiExt.Height()-h)/2, -0,h+eps )                                                              : \
-                             QTGMC_Interpolate( ediInput.ConvertBits(8,dither=-1,fulls=!tv), InputType, EdiMode, NNSize, NNeurons, EdiQual, EdiMaxD, Threads, bobbed, ChromaEdi, fulls=!tv ).ConvertBits(bi,fulls=!tv)
+                             QTGMCp_Interpolate( ediInput.ConvertBits(8,dither=-1,fulls=!tv), InputType, EdiMode, NNSize, NNeurons, EdiQual, EdiMaxD, Threads, bobbed, ChromaEdi, fulls=!tv ).ConvertBits(bi,fulls=!tv)
 
     # >>>> Switch to planar YUY2 during next step - remains planar until very end of script except blurring for back blending & SVThin
 
@@ -847,19 +862,19 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
                              ex_lutxyz(degrain1,degrain2,edi,"x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
 
     # Remove areas of difference between smoothed image and interpolated image that are not bob-shimmer fixes: repairs residual motion blur from temporal smooth
-    repair1 = (Rep1 == 0) ? binomial1 : binomial1.QTGMC_KeepOnlyBobShimmerFixes( edi, Rep1, RepChroma, !tv )
+    repair1 = (Rep1 == 0) ? binomial1 : binomial1.QTGMCp_KeepOnlyBobShimmerFixes( edi, Rep1, RepChroma, !tv )
 
     # Apply source match - use difference between output and source to succesively refine output [extracted to function to clarify main code path]
     match = (SourceMatch == 0) ? repair1 : \
-                                 repair1.QTGMC_ApplySourceMatch( InputType, ediInput, bVec1,fVec1, bVec2,fVec2, SubPel, SubPelInterp, hpad, vpad,              \
-                                                                 ThSAD1, ThSCD1, ThSCD2, SourceMatch, MatchTR1, MatchEdi, MatchNNSize, MatchNNeurons,          \
-                                                                 MatchEdiQual, MatchEdiMaxD, MatchTR2, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, \
+                                 repair1.QTGMCp_ApplySourceMatch( InputType, ediInput, bVec1,fVec1, bVec2,fVec2, SubPel, SubPelInterp, hpad, vpad,              \
+                                                                 ThSAD1, ThSCD1, ThSCD2, SourceMatch, MatchTR1, MatchEdi, MatchNNSize, MatchNNeurons,           \
+                                                                 MatchEdiQual, MatchEdiMaxD, MatchTR2, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2,  \
                                                                  MatchEdiMaxD2, MatchEnhance, Threads, n16, bomt, !tv )
 
     # Lossless=2 - after preparing an interpolated, de-shimmered clip, restore the original source fields into it and clean up any artefacts.
     # This mode will not give a true lossless result because the resharpening and final temporal smooth are still to come, but it will add further detail.
     # However, it can introduce minor combing. This setting is best used together with source-match (it's effectively the final source-match stage).
-    lossed1 = (Lossless == 2) ? QTGMC_MakeLossless( match, innerClip, InputType, !tv ) : match
+    lossed1 = (Lossless == 2) ? QTGMCp_MakeLossless( match, innerClip, InputType, !tv ) : match
 
 
     #---------------------------------------
@@ -909,7 +924,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
     stable      =  TR2  > 0 && n16 ? stable.ConvertBits(8,dither=-1,fulls=!tv) : stable
 
     # Remove areas of difference between final output & basic interpolated image that are not bob-shimmer fixes: repairs motion blur caused by temporal smooth
-    repair2 = (Rep2 == 0) ? stable : stable.QTGMC_KeepOnlyBobShimmerFixes( edi, Rep2, RepChroma, !tv )
+    repair2 = (Rep2 == 0) ? stable : stable.QTGMCp_KeepOnlyBobShimmerFixes( edi, Rep2, RepChroma, !tv )
 
     # Limit over-sharpening by clamping to neighboring (spatial or temporal) min/max values in original
     # Occurs here (after final temporal smooth) if SLMode == 3,4. Allows more sharpening here, but more prone to introducing minor artefacts
@@ -919,7 +934,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Lossless=1 - inject source fields into result and clean up inevitable artefacts. Provided NoiseRestore=0.0 or 1.0, this mode will make the script result
     # properly lossless, but this will retain source artefacts and cause some combing (where the smoothed deinterlace doesn't quite match the source)
-    lossed2 = (Lossless == 1) ? QTGMC_MakeLossless( sharpLimit2, innerClip, InputType, !tv ) : sharpLimit2
+    lossed2 = (Lossless == 1) ? QTGMCp_MakeLossless( sharpLimit2, innerClip, InputType, !tv ) : sharpLimit2
 
     # Add back any extracted noise, after final temporal smooth. This will appear as noise/grain in the output
     # Average luma of FFT3DFilter extracted noise is 128.5, so deal with that too
@@ -932,8 +947,8 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
     # Shutter motion blur - get level of blur depending on output framerate and blur already in source
     blurLevel = (ShutterAngleOut * FPSDivisor - ShutterAngleSrc) * 100.0 / 360.0
-    Assert( blurLevel >=   0, "QTGMC: Cannot reduce motion blur already in source: increase ShutterAngleOut or FPSDivisor" )
-    Assert( blurLevel <= 200, "QTGMC: Exceeded maximum motion blur level: decrease ShutterAngleOut or FPSDivisor" )
+    Assert( blurLevel >=   0, "QTGMCp: Cannot reduce motion blur already in source: increase ShutterAngleOut or FPSDivisor" )
+    Assert( blurLevel <= 200, "QTGMCp: Exceeded maximum motion blur level: decrease ShutterAngleOut or FPSDivisor" )
 
     # ShutterBlur mode 2,3 - get finer resolution motion vectors to reduce blur "bleeding" into static areas
     rBlockDivide = Select( ShutterBlur, 1, 1, 2, 4 )
@@ -996,7 +1011,7 @@ function QTGMC( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", in
 
 # Interpolate input clip using method given in EdiMode. Use Fallback or Bob as result if mode not in list. If ChromaEdi string if set then interpolate chroma
 # separately with that method (only really useful for EEDIx). The function is used as main algorithm starting point and for first two source-match stages
-function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSize, int NNeurons, int EdiQual, int EdiMaxD, int Threads, clip "Fallback", string "ChromaEdi", bool "fulls" ) {
+function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSize, int NNeurons, int EdiQual, int EdiMaxD, int Threads, clip "Fallback", string "ChromaEdi", bool "fulls" ) {
 
     # >>>> YUY2 is interleaved here
 
@@ -1030,7 +1045,7 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
                                            Default( Fallback, Input.ex_Bob( 0,0.5 ) )
 
     interp = (EdiMode == "BWDIF+NNEDI3") || \
-             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.ex_vinverse(custem=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2,fulls=fulls).nonyuy2clipout(true) : interp.ex_vinverse(custem=NNEDI3clp,UV=CEed?3:2,fulls=fulls) : interp
+             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.ex_vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2,fulls=fulls).nonyuy2clipout(true) : interp.ex_vinverse(clip2=NNEDI3clp,UV=CEed?3:2,fulls=fulls) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                                 : \
                (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=cores, prefetch=(threads+cores)/2, Y=false, range=fulls?1:2 ) : \
@@ -1046,7 +1061,7 @@ function QTGMC_Interpolate( clip Input, int InputType, string EdiMode, int NNSiz
 # Helper function: Compare processed clip with reference clip: only allow thin, horizontal areas of difference, i.e. bob shimmer fixes
 # Rough algorithm: Get difference, deflate vertically by a couple of pixels or so, then inflate again. Thin regions will be removed
 #                  by this process. Restore remaining areas of difference back to as they were in reference clip.
-function QTGMC_KeepOnlyBobShimmerFixes( clip Input, clip Ref, int Rep, bool Chroma, bool fulls ) {
+function QTGMCp_KeepOnlyBobShimmerFixes( clip Input, clip Ref, int Rep, bool Chroma, bool fulls ) {
 
     # >>>> YUY2 is planar here
 
@@ -1107,7 +1122,7 @@ function QTGMC_KeepOnlyBobShimmerFixes( clip Input, clip Ref, int Rep, bool Chro
 # Given noise extracted from an interlaced source (i.e. the noise is interlaced), generate "progressive" noise with a new "field" of noise injected. The new
 # noise is centered on a weighted local average and uses the difference between local min & max as an estimate of local variance
 # YUY2 clip input is planar, but must pass interleaved version of clip to setup noise
-function QTGMC_Generate2ndFieldNoise( clip Input, clip InterleavedClip, bool "ChromaNoise", bool "fulls" ) {
+function QTGMCp_Generate2ndFieldNoise( clip Input, clip InterleavedClip, bool "ChromaNoise", bool "fulls" ) {
 
     # >>>> YUY2 is planar here. Noise is generated (AddGrainC) interleaved, but immediately made planar
     ChromaNoise = Default( ChromaNoise, false )
@@ -1132,9 +1147,9 @@ function QTGMC_Generate2ndFieldNoise( clip Input, clip InterleavedClip, bool "Ch
 
 # Insert the source lines into the result to create a true lossless output. However, the other lines in the result have had considerable processing and won't
 # exactly match source lines. There will be some slight residual combing. Use vertical medians to clean a little of this away
-function QTGMC_MakeLossless( clip Input, clip Source, int InputType, bool fulls ) {
+function QTGMCp_MakeLossless( clip Input, clip Source, int InputType, bool fulls ) {
 
-    Assert( InputType != 1, "QTGMC: Lossless modes are incompatible with InputType=1" )
+    Assert( InputType != 1, "QTGMCp: Lossless modes are incompatible with InputType=1" )
 
     # >>>> YUY2: 'Input' is planar, 'Source' is interleaved (changed to planar here for processing) - returns planar result
 
@@ -1158,7 +1173,7 @@ function QTGMC_MakeLossless( clip Input, clip Source, int InputType, bool fulls 
 
 # Source-match, a three stage process that takes the difference between deinterlaced input and the original interlaced source, to shift the input more towards
 # the source without introducing shimmer. All other arguments defined in main script
-function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, val bVec1, val fVec1, val bVec2, val fVec2, \
+function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, val bVec1, val fVec1, val bVec2, val fVec2, \
                                  int SubPel, int SubPelInterp, int hpad, int vpad, int ThSAD1, int ThSCD1, int ThSCD2, int SourceMatch, \
                                  int MatchTR1, string MatchEdi, int MatchNNSize, int MatchNNeurons, int MatchEdiQual, int MatchEdiMaxD,\
                                  int MatchTR2, string MatchEdi2, int MatchNNSize2, int MatchNNeurons2, int MatchEdiQual2, int MatchEdiMaxD2, \
@@ -1187,9 +1202,9 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     noyv16ma1Edi   = MatchEdi =="NNEDI2" || MatchEdi =="NNEDI" || MatchEdi =="EEDI3+NNEDI3" || MatchEdi =="EEDI3" || MatchEdi =="TDeint" || MatchEdi =="cYadif" || MatchEdi =="RepcYadif"
     noyv16ma2Edi   = MatchEdi2=="NNEDI2" || MatchEdi2=="NNEDI" || MatchEdi2=="EEDI3+NNEDI3" || MatchEdi2=="EEDI3" || MatchEdi2=="TDeint" || MatchEdi2=="cYadif" || MatchEdi2=="RepcYadif"
     match1Edi      = (SourceMatch == 0) ? nop() : \
-    !noyv16ma1Edi || !yuy2 ? match1Update.ConvertBits(8,dither=-1,fulls=fs).QTGMC_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs ).ConvertBits(bi,fulls=fs) : \
-                             match1Update.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                  \
-                                                                           .QTGMC_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs )   \
+    !noyv16ma1Edi || !yuy2 ? match1Update.ConvertBits(8,dither=-1,fulls=fs).QTGMCp_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs ).ConvertBits(bi,fulls=fs) : \
+                             match1Update.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                   \
+                                                                           .QTGMCp_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs )   \
                                                                            .nonyuy2clipin(true).ConvertBits(bi,fulls=fs)
     match1Super    = (SourceMatch > 0 && MatchTR1 > 0) ? match1Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
     match1Degrain1 = (SourceMatch > 0 && MatchTR1 > 0) ? Eval("match1Edi.MDegrain1( match1Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
@@ -1211,9 +1226,9 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
     match2Clip     = (SourceMatch  < 2 || InputType == 1) ? match1Shp : match1Shp.SeparateFields().SelectEvery( 4, 0,3 ).Weave()
     match2Diff     = (SourceMatch  > 1) ? ex_makediff( Source, match2Clip, UV=3, fulls=fs ) : nop()
     match2Edi      = (SourceMatch <= 1) ? nop() : \
-    !noyv16ma2Edi || !yuy2 ? match2Diff.ConvertBits(8,dither=-1,fulls=fs).QTGMC_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs ).ConvertBits(bi,fulls=fs) : \
-                             match2Diff.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                        \
-                                                                         .QTGMC_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs )    \
+    !noyv16ma2Edi || !yuy2 ? match2Diff.ConvertBits(8,dither=-1,fulls=fs).QTGMCp_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs ).ConvertBits(bi,fulls=fs) : \
+                             match2Diff.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                         \
+                                                                         .QTGMCp_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs )    \
                                                                          .nonyuy2clipin(true).ConvertBits(bi,fulls=fs)
     match2Super    = (SourceMatch > 1 && MatchTR2 > 0) ? match2Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
     match2Degrain1 = (SourceMatch > 1 && MatchTR2 > 0) ? Eval("match2Edi.MDegrain1( match2Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
@@ -1245,7 +1260,7 @@ function QTGMC_ApplySourceMatch( clip Deinterlace, int InputType, val Source, va
 
 
 # Set global variable called "Prefix_Name" to "Value". Throws exception if global already exists unless Replace=true, in which case the global is overwritten
-function QTGMC_SetUserGlobal( string Prefix, string Name, val Value, bool "Replace" )
+function QTGMCp_SetUserGlobal( string Prefix, string Name, val Value, bool "Replace" )
 {
     Replace = Default( Replace, false )
     globalName = Prefix + "_" + Name
@@ -1254,11 +1269,11 @@ function QTGMC_SetUserGlobal( string Prefix, string Name, val Value, bool "Repla
     {
         Eval( "global " + globalName + " = Value" )
 
-    } else { Assert( false, """QTGMC: Multiple calls to QTGMC, set PrevGlobals="Replace" or read documentation on 'Multiple QTGMC Calls'""" ) }
+    } else { Assert( false, """QTGMCp: Multiple calls to QTGMC, set PrevGlobals="Replace" or read documentation on 'Multiple QTGMC Calls'""" ) }
 }
 
 # Return value of global variable called "Prefix_Name". Returns nop() if it doesn't exist or Reuse is false
-function QTGMC_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
+function QTGMCp_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
 {
     Reuse      = Default( Reuse, false )
     globalName = Prefix + "_" + Name
@@ -1273,17 +1288,16 @@ function QTGMC_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
 # Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
 # https://forum.doom9.org/showthread.php?p=891788#post891788
 # Optimization and port to EX mod from real.finder's HBD mod. by Dogway (15-09-2021)
-# custem stands for custom edge mask(?)
 
 # Vinverse_avsi() is 70% slower with Prefetch(physical cores) and 60% slower with Prefetch(logical cores)
-function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem", bool "fulls") {
+function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2", bool "fulls") {
 
     rgb  = isRGB(clp)
     bi   = BitsPerComponent(clp)
 
     sstr = Default(sstr, 2.7)       # strength of contra sharpening
     amnt = Default(amnt, 255)       # change no pixel by more than this (Default=255: unrestricted)
-    dcus = Defined(custem)
+    dcus = Defined(clip2)
     UV   = Default(UV,    rgb ? 3 : 1)
     fs   = Default(fulls, rgb)
 
@@ -1299,28 +1313,38 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "custem
 
     # Take the less sharp variant and if they're same sharpness reduce its strength 1/4
     sl     = (amnt > 254) ? "" : Format(" x {amntb} - x {amntb} + clip")
-    VlimD  =  dcus ? ex_lutxyz(clp, VblurD, custem, "x z -          A@ y "+bi32m+" B@ * 0 < A abs B abs < A B ? dup 0.25 * swap ? z +" + sl, UV=uv, fulls=fs) : \
+    VlimD  =  dcus ? ex_lutxyz(clp, VblurD, clip2,  "x z -          A@ y "+bi32m+" B@ * 0 < A abs B abs < A B ? dup 0.25 * swap ? z +" + sl, UV=uv, fulls=fs) : \
                      ex_lutxyz(clp, VshrpD, Vblur,  "y "+bi32m+" A@ x z -          B@ * 0 < A abs B abs < A B ? dup 0.25 * swap ? z +" + sl, UV=uv, fulls=fs)
 
-             (amnt ==  0) ?    clp : VlimD }
+             (amnt ==  0) ?    clp : VlimD.propSet("_Combed",0) }
 
 
-# ex_bob() - port of sh_bob() by real.finder
+# ex_bob() - port of sh_bob() by real.finder (original QTGMC_Bob() by Vit)
 # Same as Bob, but keeps the field order the same.
 # Modded for frame properties support
-function ex_Bob(clip cp, float "b", float "c", int "height" ) {
+#
+# Core plugins:
+#   nnedi3     (for nnedi3=true)
+#   SysInfo    (for nnedi3=true)
+#
+function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
+
+   fs     = propNumElements(cp, "_ColorRange")  > 0 ? \
+            propGetInt     (cp, "_ColorRange")      : 1
 
     w     = cp.Width()
     h     = cp.Height()
     h     = Default(height, h)
-    b     = Default(b,    0.0) # cubic coefficient 'b'
-    c     = Default(c,    1.0) # cubic coefficient 'c'. Bob(0.0, 1.0) preserves the original fields for RGB and YUY2, and preserves the Luma but not the Chroma for YV12.
+    b     = Default(b,    0.0)     # cubic coefficient 'b'
+    c     = Default(c,    1.0)     # cubic coefficient 'c'. Bob(0.0, 1.0) preserves the original fields for RGB and YUY2, and preserves the Luma but not the Chroma for YV12.
+    nn    = Default(nnedi3, false) # Use nnedi3 instead of cubic interpolation
 
     par   = GetParity(cp)
     shift = par ? 0.25 : -0.25
     fd    = cp.SeparateFields()
-    ic    = propNumElements(fd,"_ChromaLocation") > 0
-    cl    = ic ? propGetInt(fd,"_ChromaLocation") : nop()
+
+    threads = nn ? SI_LogicalCores()  : nop()
+    cores   = nn ? SI_PhysicalCores() : nop()
 
     if (is420(cp)) {
 
@@ -1330,8 +1354,10 @@ function ex_Bob(clip cp, float "b", float "c", int "height" ) {
         even  = SelectEven()
         odd   = SelectOdd()
 
-        yeven = even.ExtractY().BicubicResize(w, h, b, c, 0,  shift, w, fh)
-        yodd  =  odd.ExtractY().BicubicResize(w, h, b, c, 0, -shift, w, fh)
+        yeven = !nn ? even.ExtractY().BicubicResize(w, h, b, c, 0,  shift, w, fh) : \
+                      even.ExtractY().nnedi3(dh=true,nsize=3,nns=3,qual=2,threads=cores,prefetch=(threads+cores)/2,range=fs+1)
+        yodd  = !nn ?  odd.ExtractY().BicubicResize(w, h, b, c, 0, -shift, w, fh) : \
+                       odd.ExtractY().nnedi3(dh=true,nsize=3,nns=3,qual=2,threads=cores,prefetch=(threads+cores)/2,range=fs+1)
 
         ceven = Interleave( even.ExtractU(), even.ExtractV()).BicubicResize(w2, h/2, b, c, 0,  shift, w2, fh/2)
         codd  = Interleave(  odd.ExtractU() , odd.ExtractV()).BicubicResize(w2, h/2, b, c, 0, -shift, w2, fh/2)
@@ -1342,17 +1368,19 @@ function ex_Bob(clip cp, float "b", float "c", int "height" ) {
 
     } else {
 
-        cp.Bob( b, c, h )
+        !nn ? cp.Bob( b, c, h ) : \
+              cp.nnedi3(field=-2,nsize=3,nns=3,qual=2,threads=cores,prefetch=(threads+cores)/2,range=fs+1)
     }
 
     par ? AssumeTFF() : AssumeBFF()
-          propSet("_FieldBased",0)
-          propSet("_Combed",0)
-    ic  ? propSet("_ChromaLocation",cl) : last }
+    propCopy(fd,true,props="_ChromaLocation")
+    propSet("_FieldBased",0)
+    propSet("_Combed",0)                    }
 
 
 
 # ReduceFlicker by Kassandro (15-09-2005)
+# https://web.archive.org/web/20160702125433/http://videoprocessing.fr.yuku.com/topic/24/ReduceFlicker-05
 #
 # Port of ReduceFlicker plugin to internal Expr() wrappers by Dogway (18-02-2022)
 #
