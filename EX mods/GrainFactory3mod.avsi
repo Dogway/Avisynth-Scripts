@@ -6,7 +6,7 @@
 ###                                            ###
 ###            2012.04.06 v1.2 by 06_taro      ###
 ###            2020.04.06      by A.SONY.      ###
-###            2022.02.17 ex   by Dogway       ###
+###            2022.03.05 ex   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
@@ -18,6 +18,9 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2022.03.05 ex
+###      - Update requirements
 ###
 ### 2022.02.17 ex
 ###      - Fix '_ColorRange' override
@@ -98,8 +101,8 @@
 ###
 ### -> AddGrainC         [v1.8.4]
 ### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v7.5.0]
-### -> ResizersPack      [v7.9.0]
+### -> ExTools           [v8.0.0]
+### -> ResizersPack      [v8.0.0]
 ###
 
 function GrainFactory3mod(clip clp,
@@ -119,7 +122,7 @@ function GrainFactory3mod(clip clp,
 {
 
 
-Assert(IsVersionOrGreater(3,7,1), "GrainFactory3mod: Update AviSynth+ version")
+Assert(IsVersionOrGreater(3,7,2), "GrainFactory3mod: Update AviSynth+ version")
 
 
 g1str        = Default( g1str,         13 )  # [ 0 - ???] strength of luma grain / for dark areas
