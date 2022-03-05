@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v2.6  (16-02-2022)                     ###
+###        Similarity Metrics Pack v3.0  (05-03-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -12,7 +12,9 @@
 ###   SSIM                                                                ###
 ###   BSSIM                                                               ###
 ###   SSIM_downsample                                                     ###
-###   + Helper functions                                                  ###
+###   _IQA_downsample                                                     ###
+###   RoundHalfToEven                                                     ###
+###   RoundHalfToEven_mod                                                 ###
 ###                                                                       ###
 #############################################################################
 
@@ -41,7 +43,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ 3.7.1+, ExTools and fmtconv (for downsample=true)
+### Requirements - AviSynth+ 3.7.2+, ExTools and fmtconv (for downsample=true)
 
 
 ### Usage ###
@@ -81,7 +83,7 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     rgb = isRGB (dist)
     w   = width (dist)
     h   = height(dist)
-    isHD= (w > 1099 || h >  599)
+    isHD= (w > 1099 || h > 599)
     bi  = BitsPerComponent(dist)
     fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
           propGetInt      (dist,"_ColorRange") == 0 : rgb
@@ -98,7 +100,7 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     clip1 = dist
     clip2 = ref
 
-    Assert(IsVersionOrGreater(3,7,1),                         "GMSD: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2),                         "GMSD: Update AviSynth+ version")
     Assert(PixelType(clip1) == PixelType(clip2),              "GMSD: clip1 and clip2 must be of the same format")
     Assert(w == clip2.Width() && h == clip2.Height(),         "GMSD: clip1 and clip2 must be of the same width and height")
     Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "GMSD: only one plane must be processed")
@@ -161,7 +163,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ 3.7.1+, ExTools, TransformsPack and fmtconv (for downsample=true)
+### Requirements - AviSynth+ 3.7.2+, ExTools, TransformsPack and fmtconv (for downsample=true)
 
 
 ### Usage ###
@@ -197,7 +199,7 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
     rgb = isRGB (dist)
     w   = width (dist)
     h   = height(dist)
-    isHD= (w > 1099 || h >  599)
+    isHD= (w > 1099 || h > 599)
     bi  = BitsPerComponent(dist)
     fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
           propGetInt      (dist,"_ColorRange") == 0 : rgb
@@ -211,7 +213,7 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
     clip1 = dist
     clip2 = ref
 
-    Assert(IsVersionOrGreater(3,7,1),                                                           "MDSI: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2),                                                           "MDSI: Update AviSynth+ version")
     Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)), "MDSI: clip1 and clip2 must be in planar RGB format")
     Assert(w == clip2.Width() && h == clip2.Height(),                                           "MDSI: clip1 and clip2 must be of the same width and height")
 
@@ -300,7 +302,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ 3.7.1+, vsTCanny, ExTools and fmtconv (for downsample=true)
+### Requirements - AviSynth+ 3.7.2+, vsTCanny, ExTools and fmtconv (for downsample=true)
 
 
 ### Usage ###
@@ -342,7 +344,7 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     rgb = isRGB (dist)
     w   = width (dist)
     h   = height(dist)
-    isHD= (w > 1099 || h >  599)
+    isHD= (w > 1099 || h > 599)
     bi  = BitsPerComponent(dist)
     fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
           propGetInt      (dist,"_ColorRange") == 0 : rgb
@@ -362,13 +364,13 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     clip1 = dist
     clip2 = ref
 
-    Assert(IsVersionOrGreater(3,7,1),                         "vsSSIM: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2),                         "vsSSIM: Update AviSynth+ version")
     Assert(PixelType(clip1) == PixelType(clip2),              "vsSSIM: clip1 and clip2 must be of the same format")
     Assert(w == clip2.Width() && h == clip2.Height(),         "vsSSIM: clip1 and clip2 must be of the same width and height")
     Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "vsSSIM: only one plane must be processed")
 
-    c1 = Pow(k1 * DR, 2.0)
-    c2 = Pow(k2 * DR, 2.0)
+    c1 = pow(k1 * DR, 2)
+    c2 = pow(k2 * DR, 2)
 
     clip1 = y ? ExtractY(clip1) : u ? ExtractU(clip1) : ExtractV(clip1)
     clip2 = y ? ExtractY(clip2) : u ? ExtractU(clip2) : ExtractV(clip2)
@@ -421,7 +423,7 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
 
     w     = width (dist)
     h     = height(dist)
-    isHD  = (w > 1099 || h >  599)
+    isHD  = (w > 1099 || h > 599)
     rgb   = isRGB(dist)
     bi    = BitsPerComponent(dist)
     fs    = propNumElements (dist,"_ColorRange")  > 0 ? \
@@ -431,7 +433,7 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
     dw   = Default(downsample, isHD)
     fs   = Default(fulls,      fs)
 
-    Assert(IsVersionOrGreater(3,7,1), "BSSIM: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "BSSIM: Update AviSynth+ version")
 
     vSSIM = propNumElements (dist, "_PlaneSSIM")  > 0 ? \
                              dist                     : vsSSIM(dist, ref, downsample=dw, fulls=fs)
@@ -575,9 +577,9 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
 
         m = vsTCanny(m, sigmaY=smooth, mode=-1)
         n = vsTCanny(r, sigmaY=smooth, mode=-1)
-        o = vsTCanny(ex_lutxy(r, m, "x y *", UV=3, scale_inputs="none"), sigmaY=smooth, mode=-1)
+        o = vsTCanny(ex_lutxy(r, m, "x y *",     UV=3, scale_inputs="none"), sigmaY=smooth, mode=-1)
 
-        ex_lutxyza(m, n, l, o, "x y z * + a -", UV=3, scale_inputs="none")
+        ex_lutxyza(m, n, l, o, "y z * x + a -",  UV=3, scale_inputs="none")
 
     } else {
 
@@ -585,7 +587,7 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
         n = ex_lut(m, "x dup *", UV=3, scale_inputs="none")
         r = ex_lutxyz(sqr.Eval(smooth), Eval(kernel + """(ex_lut("x dup *", UV=3, scale_inputs="none"),""" + sw + "," +  sh + resample_args + ")").Eval(smooth),  n, Format("x z - X@ {epsilon} < 0 y z - X / sqrt ?"), UV=3, scale_inputs="none")
         o = ex_lutxy(r, m, "x y *", UV=3, scale_inputs="none").Eval(smooth)
-        ex_lutxyza(m.Eval(smooth), r.Eval(smooth), l, o, "x y z * + a -", UV=3, scale_inputs="none")
+        ex_lutxyza(m.Eval(smooth), r.Eval(smooth), l, o, "y z * x + a -", UV=3, scale_inputs="none")
     }
 
     bi != 32 ? ConvertBits(bits=bi, dither= dither ? 1 : -1, fulls=true, fulld=fs) : \
