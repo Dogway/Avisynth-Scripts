@@ -1,11 +1,11 @@
 #############################################################
 ###                                                       ###
-###  GradFun3 EX mod by Dogway     (19-02-2022)           ###
+###  GradFun3plus EX mod by Dogway    (05-03-2022)        ###
 ###                                                       ###
 ###                                                       ###
 ###  A simple port of:                                    ###
 ###  GradFun3    by cretindesalpes (24-09-2010)           ###
-###  http://avisynth.nl/index.php/Dither_tools#GradFun3   ###
+###  https://avisynth.nl/index.php/Dither_tools#GradFun3  ###
 ###                                                       ###
 #############################################################
 ###
@@ -74,7 +74,7 @@
 ### ref must have the same format as the input clip. When not specified, the reference clip is the input.
 ###
 ###
-function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "mask", int "smode", float "thr_det", int "show", float "thrc", int "radiusc", float "elastc", int "Y", int "UV", clip "ref") {
+function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "mask", int "smode", float "thr_det", int "show", float "thrc", int "radiusc", float "elastc", int "Y", int "UV", clip "ref") {
 
     w     = src.width ()
     h     = src.height()
@@ -104,14 +104,14 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
 #                        2160p -> 32
 
     # Input range check.
-    Assert (IsVersionOrGreater(3,7,1), "ex_GradFun3: Update AviSynth+ version")
-    Assert (radius  > 0,               "ex_GradFun3: "+chr(34)+"radius" +chr(34)+" must be strictly positive.")
-    Assert (radiusc > 0,               "ex_GradFun3: "+chr(34)+"radiusc"+chr(34)+" must be strictly positive.")
-    Assert (thr     > 0,               "ex_GradFun3: "+chr(34)+"thr"    +chr(34)+" must be strictly positive.")
-    Assert (thrc    > 0,               "ex_GradFun3: "+chr(34)+"thrc"   +chr(34)+" must be strictly positive.")
-    Assert (thr_det > 0,               "ex_GradFun3: "+chr(34)+"thr_det"+chr(34)+" must be strictly positive.")
-    Assert (elast  >= 1,               "ex_GradFun3: "+chr(34)+"elast"  +chr(34)+" must be greater or equal to 1.")
-    Assert (elastc >= 1,               "ex_GradFun3: "+chr(34)+"elastc" +chr(34)+" must be greater or equal to 1.")
+    Assert (IsVersionOrGreater(3,7,2), "GradFun3plus: Update AviSynth+ version")
+    Assert (radius  > 0,               "GradFun3plus: "+chr(34)+"radius" +chr(34)+" must be strictly positive.")
+    Assert (radiusc > 0,               "GradFun3plus: "+chr(34)+"radiusc"+chr(34)+" must be strictly positive.")
+    Assert (thr     > 0,               "GradFun3plus: "+chr(34)+"thr"    +chr(34)+" must be strictly positive.")
+    Assert (thrc    > 0,               "GradFun3plus: "+chr(34)+"thrc"   +chr(34)+" must be strictly positive.")
+    Assert (thr_det > 0,               "GradFun3plus: "+chr(34)+"thr_det"+chr(34)+" must be strictly positive.")
+    Assert (elast  >= 1,               "GradFun3plus: "+chr(34)+"elast"  +chr(34)+" must be greater or equal to 1.")
+    Assert (elastc >= 1,               "GradFun3plus: "+chr(34)+"elastc" +chr(34)+" must be greater or equal to 1.")
 
     ref = refd ? ref : src
     yv411_flag = src.isYV411()
@@ -149,7 +149,7 @@ function ex_GradFun3 (clip src, float "thr", int "radius", float "elast", int "m
 
 ### SmoothGrad() by Dogway (04-02-2022)
 ###     Port from cretindesalpes' Dither Tools plugin to AviSynth+ wrapper
-###     http://avisynth.nl/index.php/Dither_tools#SmoothGrad
+###     https://avisynth.nl/index.php/Dither_tools#SmoothGrad
 ###
 ### "SmoothGrad smooths the low gradients or flat areas of a 16-bit clip. It proceeds by applying a huge blur filter and comparing the result with the input data for each pixel.
 ### If the difference is below the specified threshold, the filtered version is taken into account, otherwise the input pixel remains unchanged."
@@ -203,7 +203,7 @@ function ex_SmoothGrad(clip a, int "radius", float "thr", float "elast", clip "r
     Y   = Default(Y,       3)
     UV  = Default(UV,      3)
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_SmoothGrad: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "ex_SmoothGrad: Update AviSynth+ version")
     Assert(rad <=  156,               "ex_SmoothGrad: max "+chr(34)+"radius" +chr(34)+" value is 156.")
 
     rad   = max(rad, 2)
@@ -248,13 +248,13 @@ function gf3_grad_smooth (clip src_16, clip src_8, clip ref_16, int smode, int r
 \   : (smode == 1) ? gf3_dfttest            (src_8, ref_16, radius, thr, elast, y, uv, isref)
 \   : (smode == 2) ? gf3_bilateral_multi    (ref_16,        radius, thr, elast, y, uv, isref)
 \   : (smode == 3) ? gf3_smoothgrad_multi_3 (               radius, thr, elast, y, uv)
-\   :                Assert (false, "ex_GradFun3: wrong smode value.") }
+\   :                Assert (false, "GradFun3plus: wrong smode value.") }
 
 
 
 function gf3_smoothgrad_multi (clip src, clip ref, int radius, float thr, float elast, int y, int uv, bool isref) {
 
-    Assert (radius <=  156, "ex_GradFun3: max "+chr(34)+"radius" +chr(34)+" value is 156 when smode = 0.")
+    Assert (radius <=  156, "GradFun3plus: max "+chr(34)+"radius" +chr(34)+" value is 156 when smode = 0.")
 
     ref   = isref ? ref : Undefined()
     ela_2 = max (elast * 0.83, 1)
@@ -280,19 +280,19 @@ function gf3_smoothgrad_multi_3 (clip src, int radius, float thr, float elast, i
     radius == 2 ? removegrain(20, uvr) : ex_GaussianBlur(0.635*(rad-1)+0.6, Y=y, UV=uv)
     radius == 2 ? removegrain(20, uvr) : ex_GaussianBlur(0.635*(rad-1)+0.6, Y=y, UV=uv)
 
-    ex_limitdif (last, src, thr=thr*0.6, elast=elast, ref=ref, y=y, uv=uv).propCopy(src) }
+    ex_limitdif (last, src, thr=thr*0.6, elast=elast, ref=ref, y=y, uv=uv) }
 
 
 
 function gf3_dfttest (clip src, clip ref, int radius, float thr, float elast, int y, int uv, bool isref) {
 
-    Assert (radius <= 128, "ex_GradFun3: max "+chr(34)+"radius" +chr(34)+" value is 128 when smode = 1.")
+    Assert (radius <= 128, "GradFun3plus: max "+chr(34)+"radius" +chr(34)+" value is 128 when smode = 1.")
 
     hrad = max (radius * 3 / 4, 1)
 
     dfttest (src, sigma=hrad*thr*thr*32, tbsize=1, sbsize=hrad*4, sosize=hrad*3, Y=y==3, U=uv==3, V=uv==3)
 
-    ex_limitdif (last, src, isref?ref:Undefined(), thr, elast, y=y, uv=uv).propCopy(src) }
+    ex_limitdif (last, src, isref?ref:Undefined(), thr, elast, y=y, uv=uv) }
 
 
 
@@ -311,5 +311,5 @@ function gf3_bilateral_multi (clip src, clip ref, int radius, float thr, float e
     (r2 >= 2) ? ex_bilateral (radius=r2, sthres=7, ithres=0.631*thr_2-0.568, UV=uv, dejaggie=false) : last
     (r1 >= 2) ? ex_bilateral (radius=r1, sthres=7, ithres=0.631*thr_2-0.568, UV=uv, dejaggie=false) : last
 
-    ex_limitdif (last, src, isref?ref:Undefined(), thr, elast, y=y, uv=uv).propCopy(src) }
+    ex_limitdif (last, src, isref?ref:Undefined(), thr, elast, y=y, uv=uv) }
 
