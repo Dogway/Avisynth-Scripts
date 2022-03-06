@@ -1,4 +1,4 @@
-# ChromaReconstructor v3.3 HBD mod: restore 420/422 to (almost) native 444
+# ChromaReconstructor v3.4 HBD mod: restore 420/422 to (almost) native 444
 # by feisty2
 #
 # just convert 420/422 to 444 with any regular resampling filter, bicubic, spline, kind of stuff
@@ -9,6 +9,7 @@
 # v3.1 HBD mod and faster "faster" mod by Dogway
 # v3.2 Rebasing (some copy-pasta bugfixes)
 # v3.3 Rename gauss() function to avoid name conflict. Some tweaks to kernel settings
+# v3.4 Reenable mode=1 for horizontally stretched chroma. "_faster", add center shift to nnedi3 and tweak taps
 #
 # Example:
 #
@@ -20,7 +21,7 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
         radius   = Default(radius, 32)
         str      = Default(str, 6.4)
         hipass   = Default(hipass, 6)
-        mode     = Default(mode, 0)
+        mode     = Default(mode,   0)   # set to mode=1 for only horizontally stretched chroma
         wild     = Default(wild, True)
 
         cores    = SI_PhysicalCores()
@@ -51,8 +52,8 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
         Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 16, str)
         Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 32, str)
         Vnew     = Vnew.Spline64Resize(w, h, src_left=-1.25, src_top=-1.25)
-        UHi      = ex_makeadddiff(Unew, gauss_b(Unew, hipass), srcU) # mode==1 seems to be broken (comparing different dimension) ex_makeadddiff(Unew, gauss_h(Unew, hipass), srcU)
-        VHi      = ex_makeadddiff(Vnew, gauss_b(Vnew, hipass), srcV)
+        UHi      = (mode == 1) ? ex_makeadddiff(Unew, gauss_h(Unew, hipass), srcU) : ex_makeadddiff(Unew, gauss_b(Unew, hipass), srcU)
+        VHi      = (mode == 1) ? ex_makeadddiff(Vnew, gauss_h(Vnew, hipass), srcV) : ex_makeadddiff(Vnew, gauss_b(Vnew, hipass), srcV)
         return CombinePlanes(src.ExtractY(), UHi, VHi, planes="YUV")
 }
 
@@ -71,7 +72,7 @@ function gauss_b(clip src, int "p")
 {
              p        = Default(p, 30)
              w        = src.width()
-             h        = src.height() / 2
+             h        = src.height()
              upsmp    = GaussResize(src, w * 2, h * 2, P=100)
              return GaussResize(upsmp, w, h, P=p)
 }
@@ -81,7 +82,7 @@ function gauss_h(clip src, int "p")
 {
              p        = Default(p, 30)
              w        = src.width()
-             h        = src.height() / 2
+             h        = src.height()
              upsmp    = GaussResize(src, w * 2, h, P=100)
              return GaussResize(upsmp, w, h, P=p)
 }
@@ -113,9 +114,9 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
         Vor = ExtractV(src)
 
         ref     =   Y.KNLMeansCL (0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
-        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, range=fs?1:2).ConvertBits(bi,fulls=fs)
-        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
-        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
+        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, range=fs?1:2, cshift="spline16resize").ConvertBits(bi,fulls=fs)
+        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
+        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
         Unew    = Uu.KNLMeansCL  (0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
         Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
         U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
