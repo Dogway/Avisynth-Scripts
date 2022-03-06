@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 7.9    (11-02-2022)   ##
+###   Resizers Functions Pack 8.0    (06-03-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -26,9 +26,9 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (11-02-2022)
+### deep_resize() - by Dogway (06-03-2022)
 ###
-### Convenient and high performance function to resize in high quality (different kernel for edge/flat areas).
+### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
 ### If you want more control (ColorSpaces, UVRecon, nomoiree, etc) use directly ConvertFormat().
 ### Supports all YUV formats in any given bitdepth.
@@ -52,6 +52,7 @@
 ###         -0  "Catmull-Rom"
 ###         +1  "Didee"
 ###         +4  "Zopti"
+###         +4  "Zopti2"
 ###         +2  "Precise Bicubic"
 ###         +2  "Sharp"
 ###         +0  "spline16"
@@ -67,13 +68,14 @@
 ###   MasksPack
 ###   TransformsPack
 ###   Resizer of choice
-###       LSFmod         (for default "nnedi3") (and its dependencies)
+###       LSFplus        (for default "nnedi3") (and its dependencies)
 ###       SharpenersPack (for default "nnedi3")
 ###       SysInfo        (for default "nnedi3")
 ###
 ###
-### 100.0% deep_resize()     (11.5fps)
-###  32.2% nnedi3_resize16() (3.7fps)
+### Benchmark (1080p to 2160p):
+###   100.0% deep_resize()     (6.4fps)
+###    57.8% nnedi3_resize16() (3.7fps)
 ###
 ### General guidelines:
 ### -Avoid bicubics for highly compressed images as it will amplify DCT blocks
@@ -83,7 +85,7 @@
 ### -More tappered (rolled-off) kernel bell shapes require higher taps (4 or above; Hann, Bohman, Blackman, Parzen, etc)
 ### -Use even number of taps (taps=lobes in AviSynth) to avoid a final positive lobe ("ringing") before cutoff of the window support. Negative "ringing" (halos) are rarely created in gamma light resizing.
 ###
-### More info: http://avisynth.nl/index.php/Resampling
+### More info: https://avisynth.nl/index.php/Resampling
 function deep_resize(clip a, float "width", float "height", string "edge", string "flat", int "deconv", float "th_rat", float "th", float "elast", int "qual") {
 
     w   = width (a)
@@ -92,8 +94,10 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
     is4 = is444 (a)
     FC  = FrameCount(a)>1
     bi  = BitsPerComponent(a)
-    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
-          propGetInt      (a,"_ColorRange") == 0 : rgb
+    fs  = propNumElements (a,"_ColorRange")     > 0 ? \
+          propGetInt      (a,"_ColorRange")    == 0 : rgb
+    cpl = propNumElements (a,"_ChromaLocation") > 0 ? \
+          propGetInt      (a,"_ChromaLocation")     : 0
 
     w2     = nmod(Default(width,  w),rgb||is4?1:2)
     h2     = nmod(Default(height, h),rgb||is4?1:2)
@@ -102,26 +106,29 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
     factor = rw < 3 && rh < 3 ? 2 : 4
     rat    = abs(max(rw,rh)-1)+1
 
-    rth   = Default(th_rat, 1.25)                                                        # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
-    krn1  = Default(edge, rat<=rth*0.95 ? "spline16" : \
-                           rw<1 && rh<1 ? "DPID"     : rat<=rth ? "blackman" : "nnedi3") # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti
-                                                                                         # By default, for small upscales   -> "blackman" (define small with 'th_rat' value)
-                                                                                         # By default, for big   upscales   -> "nnedi3"
-                                                                                         # By default, for small downscales -> "spline16"
-                                                                                         # By default, for big   downscales -> "DPID"
-    krn2  = Default(flat, "sinc")                                                        # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here.
-    thr   = Default(th,      1.0)                                                        # 0-255 (normally up to 10)
-    ela   = Default(elast,   4.0)                                                        # 1-255 (normally up to 10)
+    rth   = Default(th_rat, 1.25)                                                     # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
+    krn1  = Default(edge, rat<=rth*0.95 ? "Didée" : \
+                           rw<1 && rh<1 ? "DPID"  : rat<=rth ? "Blackman6" : "nnedi3")# Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti
+                                                                                      # By default, for small upscales   -> "blackman" (define small with 'th_rat' value)
+                                                                                      # By default, for big   upscales   -> "nnedi3"
+                                                                                      # By default, for small downscales -> "Didée"
+                                                                                      # By default, for big   downscales -> "DPID"
+    krn1c = rat<=rth*0.95 ? "Zopti2" : "Blackman8"                                    # Chroma resizing (no edge/flat discretion)
+    krn2  = Default(flat, "sinc")                                                     # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (max taps=8).
+    thr   = Default(th,      1.0)                                                     # 0-255 (normally up to 10)
+    ela   = Default(elast,   4.0)                                                     # 1-255 (normally up to 10)
     qual  = Default(qual,      1)
-    dec   = Default(deconv,    0)                                                        # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
+    dec   = Default(deconv,    0)                                                     # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
     dec   = krn2 == "sinc" ? dec+2 : dec
     nns   = 3
+    nns3  = 1 # for nnedi3()
     nsize = 0
+    nsize3= 6 # for nnedi3()
     etype = 0
     pscrn = 2
     und   = Undefined()
 
-    Assert(IsVersionOrGreater(3,7,1), "deep_resize: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "deep_resize: Update AviSynth+ version")
 
     if (rw==1 && rh==1) {
 
@@ -129,32 +136,51 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
     } else if (rw<1 && rh<1) {
 
-        ConvertFormat(a, w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,taps=krn1=="blackman"?8:und)
+        ConvertFormat(a, w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,kernel_c=krn1c)
 
     } else {
 
         if (krn1 == "nnedi3") {
 
-            nfactor = (rw == 2 || rh == 2) || (rw == 4 || rh == 4)
             rfactor =  rw<factor || rh<factor
-            kernel2 =  ( rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'Didée' for down 'Blackman' for up
+            krnn    =  ( rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'Didée' for down 'Blackman' for up
             ep0     =    rfactor ?      -0.5 : 6
 
             cores   = krn1 == "nnedi3" ? SI_PhysicalCores() : nop()
             threads = krn1 == "nnedi3" ? SI_LogicalCores()  : nop()
         }
-            sh      = krn1 == "nnedi3" ? nfactor ? 0.25 : 0 : 0
 
-        a8      = ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs)
-        edge1   = krn1 == "nnedi3" ? nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,cshift=nfactor?und:kernel2,fwidth=w2,fheight=h2,ep0=ep0,ep1=0.25,threads=cores,prefetch=(threads+cores)/2,csresize=true,mpeg2=true,range=fs?1:2) : \
-                                     ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,taps=krn1=="blackman"?8:und)
-        edge    = krn1 == "nnedi3" ? LSFmod(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0).ConvertBits(bi, fulls=fs, fulld=fs) : edge1
-        flat    =                    ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn2,taps=krn2=="blackman"?8:und,src_left=sh,src_top=sh)
+        # Y8 for nnedi3
+        an      = !isy(a) ? a.ExtractY() : a
+        a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
+        # nnedi3 one dimensional resize case
+        oned    = h == h2 || w == w2
+        a8L     = h == h2 ? TurnRight(a8)   : a8
+        edge1   = krn1 == "nnedi3" ? oned ? Eval("""for (i = factor/2, 2, 1) { a8L = \
+                                              nnedi3(a8L,field=1,dh=True,    nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2) return a8L }""") : \
+                                              nnedi3_rpow2(a8,rfactor=factor,nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,cshift=krnn,fwidth=w2,fheight=h2,ep0=ep0,ep1=0.25,range=fs?1:2) : \
+                                              ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,kernel_c=krn1c)
 
-        rat <= rth ? edge : ex_limitdif(flat, edge, thr=thr, elast=ela, UV=isy(a)?1:3).propCopy(a)
+        # nnedi3 one dimensional resize case, luma shift (not 'cshift' arg in nnedi3() )
+        edge1   = h == h2 ? TurnLeft(edge1) : edge1
+        edge1   = oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
 
-        rat <= rth ? last : krn2!="sinc" ? last : ex_LFR    (krn1!="nnedi3" ? edge1 : edge1.ConvertBits(bi, fulls=fs, fulld=fs), LFR=max(w,h)/(rat*2), UV=3)
+        # don't sharpen when nnedi3 one dimensional resize case
+        edge    = krn1 == "nnedi3" ? oned ?   ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
+                                              LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0).ConvertBits(bi, fulls=fs, fulld=fs) : edge1
+
+        # resizing flat area
+        flat    =                             ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn2,kernel_c=krn1c,src_left=[0.0,0.0])
+
+        # edge/flat limiting
+        rat <= rth ? edge : ex_limitdif(krn1 == "nnedi3" ? flat.ExtractY()  :  flat, edge, thr=thr, elast=ela, UV=1)
+
+        # deconvolution from 'sinc' upscaling. Special case to tone down leaked 'sinc' halos
+        rat <= rth ? last : krn2!="sinc" ? last : ex_LFR   (krn1!="nnedi3" ? edge1 : edge1.ConvertBits(bi, fulls=fs, fulld=fs), LFR=max(w,h)/(rat*2), UV=3)
+                                        krn1 == "nnedi3" ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
+        # deconvolution from source downscaling
         rat <= rth ? last : dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) } }
+
 
 
 
@@ -213,7 +239,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 ###############################################################################
 
 
-function RatioResize(clip s, float "ratio", string "mode", int "mod", string "kernel", float "b", float "c", float "p", int "PreW", int "PreH") {
+function RatioResize(clip s, float "ratio", string "mode", int "mod", string "kernel", float "b", float "c", float "p", float "src_left", float "src_top", int "PreW", int "PreH") {
 
     rgb   = isrgb(s)
     r     = Default(ratio,      0.5)
@@ -221,6 +247,10 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
     mod   = Default(mod, rgb ? 1 : 2)
     w     = Default(PreW,  s.width ())
     h     = Default(PreH,  s.height())
+    b     = Default(b,       0.0)
+    c     = Default(c,       0.5)
+    src_l = Default(src_left,  0)
+    src_t = Default(src_top,   0)
     kernel= Default(kernel,"spline36")
 
     r  = float(r)
@@ -244,10 +274,10 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
     \  :  Assert(false, "RatioResize: Wrong Ratio mode")
 
 
-    kernel == "nnedi3" ? Eval(    "deep_resize(s," + String(op) + ")"    ) : \
-    kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p)") : \
-    kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c)") : \
-                         Eval(kernel + "Resize(s," + String(op) + ")"    ) }
+    kernel == "nnedi3" ? Eval(    "deep_resize(s," + String(op) + ")"                                 ) : \
+    kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p,src_left=src_l,src_top=src_t)") : \
+    kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c,src_left=src_l,src_top=src_t)") : \
+                         Eval(kernel + "Resize(s," + String(op) + ",    src_left=src_l,src_top=src_t)") }
 
 
 
@@ -258,7 +288,7 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
 ### Write target size and image will crop or pad...
 ### depending on source dimensions by adding black borders, mirroring borders or extending them depending on 'mode'.
 ###
-### bias:  From -width() to +width(), to slide the frame within the resolution (ie. an asymmetrical matte)
+### bias:  From -width() or -height() to +width() or height(), to slide the frame within the resolution (ie. an asymmetrical matte)
 ###
 ### *Color mode has two ways for inputs, the classical PC range based hexadecimal (see link below) or an alternative more intuitive way
 ###  by using an int array as string. For example for YUV TV Black you can input "$108080" or "[16,128,128]". Both modes are valid.
