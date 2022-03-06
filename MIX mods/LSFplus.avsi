@@ -12,9 +12,10 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v5.1 mix - 02 March 2022                                  ###
+###                                v5.2 mix - 05 March 2022                                  ###
 ###                                                                                          ###
 ################################################################################################
+###
 ###
 ### LSFplus features and changes (compared to LSFmod v2.193):
 ###     - Frame properties support
@@ -23,6 +24,7 @@
 ###     - PC range aware
 ###     - Better edge detection algorithm
 ###     - Better preblur algorithm
+###     - Better supersampling kernels
 ###     - Higher kernel support (5x5)
 ###     - More limiting modes
 ###     - More and optimized defaults/presets
@@ -31,6 +33,8 @@
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v5.2mx : - Update resizer kernels
 ###
 ### v5.1mx : - Optimize 'secure' expression
 ###          - Update propCopy() call to AVS+ v3.7.2 test8
@@ -207,7 +211,7 @@
 ### -> ResizersPack   (v8.0 or up)
 ### -> SMDegrain      (v3.4.7 or up)   [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
-### -> SharpenersPack (v3.5 or up)     [for Smode=1, Smode=2 and Smode=3]
+### -> SharpenersPack (v4.1 or up)     [for Smode=1, Smode=2 and Smode=3]
 ### -> CAS                             [for Smode=6]
 ### -> if you use AviSynth+ then make sure it's the latest one
 ###
@@ -593,7 +597,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v5.1mix"
+    version = "v5.2mix"
 
     rgb    = isRGB(inclip)
     ox     = inclip.width()
@@ -689,7 +693,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRE
-    tmp  = SS ? input.blackmanresize(xxs,yys) : input
+    tmp  = SS ? input.blackmanresize(xxs,yys,taps=6) : input # blackman6 is a tiny bit better than lanczos4 ringing wise, blackman5 would be akin spline64
     pre  = preblur=="OFF" ? tmp
     \    : preblur=="ON"  ? tmp.ex_minblur(SS || isHD ? 2 : 1, sharp=true)
     \    : Eval("tmp."+preblur)
@@ -820,15 +824,15 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### OUTPUT
-    out = sisupscale ?  PP2.blackmanresize(dest_x, dest_y) : \
-                  SS ?  PP2.spline16resize(dest_x, dest_y) : PP2
+    out = sisupscale ?  PP2.blackmanresize(dest_x, dest_y,taps=6)   : \
+                  SS ?  PP2.bicubicresize(dest_x, dest_y,-0.5,0.25) : PP2
 
     ### CONTRA
     if (sode) {
 
-        in  = sisupscale ?     input.blackmanresize(dest_x, dest_y) : input
-        no  =              normsharp.spline16resize(dest_x, dest_y)
-        src = sisupscale ?    source.blackmanresize(dest_x, dest_y) : source
+        in  = sisupscale ?     input.blackmanresize(dest_x, dest_y,taps=6) : input
+        no  =              normsharp.bicubicresize (dest_x, dest_y,-0.5,0.25)
+        src = sisupscale ?    source.blackmanresize(dest_x, dest_y,taps=6) : source
 
         srcD   = ex_makediff(in, src, UV=1, fulls=!tv)
         shrpD  = ex_makediff(in, no,  UV=1, fulls=!tv)
@@ -838,7 +842,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
         out    = ex_lutxyz(in,shrpL,shrpD, "y "+bi32m+" X@ abs z "+bi32m+" Y@ abs < X Y ? x swap -", UV=1, fulls=!tv)
     }
 
-    output = edgemode!=-1 ? out : !sisupscale ? edge.spline16resize(dest_x,dest_y) : edge.blackmanresize(dest_x,dest_y).greyscale()
+    output = edgemode!=-1 ? out : !sisupscale ? edge.bicubicresize(dest_x,dest_y,-0.5,0.25) : edge.blackmanresize(dest_x,dest_y,taps=6).greyscale()
 
 
     ### SHOW
