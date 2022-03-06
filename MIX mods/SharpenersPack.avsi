@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.0  (05-03-2022)                             ###
+###        Sharpeners Pack v4.1  (06-03-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -617,7 +617,7 @@ function ex_unsharp(clip a, float "str", float "strv", float "Fc", float "th", i
     UV == 1 ? Expr(last, a, ystrh, ""                                                                 ) : \
               Expr(last, a, ystrh, ex_UVexpr(strhf, UV, bi, rgb, !(UV!=3 && !fs)), scale_inputs="none")
 
-    Fc < 2.0 ? spline16resize(w,h) : last }
+    Fc < 2.0 ? bicubicresize(w,h,-0.5,0.25) : last }
 
 
 
@@ -1031,8 +1031,8 @@ function SeeSaw( clip  input, clip "denoised",
     head   = tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, 4, fs)
     head   = head.mt_merge(tame, tame.mt_edge("prewitt", 0, 255, 0, 0, U=1, V=1).mt_expand().removegrain(20, -1))
 
-    (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1)                                                                                          : \
-                             repair(tame.blackmanresize(xss, yss, taps=6).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, -0.2, 0.6), 1, -1).spline16resize(ox, oy)
+    (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1)                                                                                                    : \
+                             repair(tame.blackmanresize(xss, yss, taps=6).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, -0.2, 0.6), 1, -1).bicubicresize(ox, oy,-0.5,0.25)
 
     soothe = ex_SootheSS2(last, tame, sootheT, sootheS, false, fs)
 
@@ -1102,8 +1102,8 @@ function SeeSaw2( clip  input, clip "denoised",
     head   = tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, 4, fs)
     head   = head.mt_merge(tame, tame.mt_edge("prewitt", 0, 255, 0, 0, U=1, V=1).mt_expand().removegrain(1, -1))
 
-    (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1)                                                                                          : \
-                             repair(tame.blackmanresize(xss, yss, taps=6).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, 0.75, 1.0), 1, -1).spline16resize(ox, oy)
+    (ssx==1.0 && ssy==1.0) ? repair(tame.ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head, 1, -1)                                                                                                   : \
+                             repair(tame.blackmanresize(xss, yss, taps=6).ex_sharpen22(Sstr, Spower, Szp, SdampLo, SdampHi, Smode, fs), head.bicubicresize(xss, yss, 0.75, 1.0), 1, -1).bicubicresize(ox, oy,-0.5,0.25)
 
     soothe = ex_SootheSS2(last, tame, sootheT, sootheS, true, fs)
 
@@ -1471,7 +1471,7 @@ function SlopeBend( clip a, int "str", int "rad", float "ss_x", float "ss_y", bo
     ex_merge(max_mapped, min_mapped, assign_dark, UV=1)
 
     #normsharp2
-    !ss ? last : spline16resize(ox,oy)
+    !ss ? last : bicubicresize(ox,oy,-0.5,0.25)
     isy ? last : CombinePlanes(last, a, planes="YUV", sample_clip=a)
     propCopy(a) }
 
@@ -1613,7 +1613,7 @@ function SSSharpFaster(clip c, float "str", int "hthr", int "hbias") {
     ex_lutxyza(s, Gblur, a, Hmask, Format("x dup y      - {str}     * + dup
                                            x dup z swap - {str} 3 / * + -
                                            a "+mx+" * -"), UV=1)
-    spline16resize(w,h) }
+    bicubicresize(w,h,-0.5,0.25) }
 
 
 
@@ -1733,7 +1733,7 @@ function SSW(clip c) {
     awarpsharp2(chroma=2, depth=1, blur=1, thresh=250)
     awarpsharp2(chroma=2, depth=1, blur=1, thresh=250)
 
-    spline16resize(w, h) }
+    bicubicresize(w, h,-0.5,0.25) }
 
 
 
@@ -2429,7 +2429,7 @@ function plum_Super(clip src, int "pel") {
     rgb ? RGB_to_OPP() : isy() ? last : ExtractY()
 
     PadBorders(64, 64, 64, 64, "Dilate")
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
 
     return last }
 
@@ -2483,8 +2483,8 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
         threads         = SI_LogicalCores()
         sharp           = Deconvolution(src, radius, wn, int(a / 2. + 0.5), scale)
 #        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=4,nsize=0,qual=2,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
+        ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
         sharp           = NLErrors(ref, a, h1, sharp).ConvertBits(32, fulls=fs)
         dif             = ex_makediff(sharp, ref, fulls=fs)
 #        dif             = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
@@ -2630,10 +2630,10 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         cores   = SI_PhysicalCores()
         threads = SI_LogicalCores()
 
-        u2x     =                   nnedi3_rpow2(src, rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        u2x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        u4x     =                   nnedi3_rpow2(src, rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        u4x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        u2x     =                   nnedi3_rpow2(src, rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
+        u2x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
+        u4x     =                   nnedi3_rpow2(src, rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
+        u4x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
         dif     = !src2d ? nop() : (pel==2 ? ex_makediff (u2x, u2x2, fulls=fs) : ex_makediff (u4x, u4x2, fulls=fs))
         clp     =  src2d ? dif   : (pel==2 ? u2x : u4x)
         return clp }
@@ -2969,7 +2969,7 @@ function pSharpen (clip clp, int "strength", int "threshold", float "ss_x", floa
     clp = ex_lutxyz(ss.ex_inpand(UV=2),nval,nmax,expr,UV=1,scale_inputs=fs?"allf":"all")
 
     # resizing the image to the output values
-    clp = ss_x!=1.0 || ss_y!=1.0 || dest_x!=ox || dest_y!=oy ? clp.spline16resize(dest_x,dest_y) : clp
+    clp = ss_x!=1.0 || ss_y!=1.0 || dest_x!=ox || dest_y!=oy ? clp.bicubicresize(dest_x,dest_y,-0.5,0.25) : clp
 
     return clp }
 
