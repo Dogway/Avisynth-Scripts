@@ -14,7 +14,7 @@
 ###             MVTools2
 ###             ExTools
 ###             ResizersPack
-###             LSFmod
+###             LSFplus
 ###             aWarpSharp
 ###
 ###
@@ -107,7 +107,7 @@ function MCaWarpSharp4(clip source, int "supsamp",int "post", float "PPstr", boo
     edgmsk = source.ex_edge("min/max",7,13).BicubicResize (nmod(w/2.,2), nmod(h/2.,2), 1, 0).TemporalSoften(5,30,0,15,2).BicubicResize(w, h, 1, 0)
     ntrl   = last
     blr    = ex_blur(str*0.5)
-    shrp   = LSFmod(source, preset=fast?"fast":"mid", strength=int(str*20), edgemode=post==4?2:0, soothe=true)
+    shrp   = LSFplus(source, preset=fast?"fast":"mid", strength=int(str*20), edgemode=post==4?2:0, soothe=true)
 
     post   = (post==1) ? ex_merge(source, ntrl, edgmsk, luma=true)
         \  : (post==2) ? ex_merge(source, blr,  edgmsk, luma=true)
