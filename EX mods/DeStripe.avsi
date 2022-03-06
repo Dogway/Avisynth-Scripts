@@ -11,9 +11,9 @@
 ## Function Definition:
 ##    (
 ##    clip,
-##    int rad=1 (1 to 4 by 1),
-##    int offset=1 (1 to 4 by 1),
-##    int thr=255 (1 to 255 by 1),
+##    int "rad"=1 (1 to 4 by 1),
+##    int "offset"=1 (1 to 4 by 1),
+##    int "thr"=255 (1 to 255 by 1),
 ##    )
 ##
 
@@ -56,7 +56,7 @@ function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV") {
                             offset == 2 ? ex_luts(Diff, mode="med", pixels = "0 -4 0 -3          0 0         0 3 0 4", expr = expr, UV=uv, fulls=fs) : \
                                           ex_luts(Diff, mode="med", pixels = "0 -4               0 0             0 4", expr = expr, UV=uv, fulls=fs) : MedianDiff
 
-    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv) }
+    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv).propCopy(C) }
 
 
 
@@ -99,4 +99,4 @@ function DeStripeV(Clip C, int "rad", int "offset", int "thr", int "UV") {
                             offset == 2 ? ex_luts(Diff, mode="med", pixels = "-4 0 -3 0          0 0         3 0 4 0", expr = expr, UV=uv, fulls=fs) : \
                                           ex_luts(Diff, mode="med", pixels = "-4 0               0 0             4 0", expr = expr, UV=uv, fulls=fs) : MedianDiff
 
-    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv) }
+    ex_makeadddiff(Diff, MedianDiff, Blurred, UV=uv).propCopy(C) }
