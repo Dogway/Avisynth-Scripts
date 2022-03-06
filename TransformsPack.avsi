@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC40  (20-02-2022)           ##
+###    Transforms Pack v1.0 RC41  (06-03-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -27,30 +27,30 @@
 ### For a "no-fuss" high quality resizer you can use deep_resize() from ResizersPack.
 ###
 ###
-### Dependencies: AviSynth+ 3.7.1+
+### Dependencies: AviSynth+ 3.7.2+
 ###
 ####################################
 
 
-function Display_Referred (clip clp, string "source", string "disp_ref", string "kernel", bool "gamut", bool "gamma", string "LUT", bool "tv_range", float "b", float "c", float "p") {
+function Display_Referred (clip clp, string "source", string "disp_ref", string "kernel", bool "gamut", bool "gamma", string "profile", bool "tv_range", float "b", float "c", float "p") {
 
     rgb        = isRGB(clp)
     bi         = BitsPerComponent(clp)
     propIDs    = color_propGet(clp)
     fs         = !propIDs[6]
 
-    gamut      = Default (gamut, true)        # convert gamut
-    gamma      = Default (gamma, true)        # convert gamma
-    source     = Default (source, propIDs[2]) # Source Color Space
-    disp_ref   = Default (disp_ref,   "sRGB") # Display Referred Color Space
+    gamut      = Default (gamut, true)          # convert gamut
+    gamma      = Default (gamma, true)          # convert gamma
+    source     = Default (source, propIDs[2])   # Source Color Space
+    disp_ref   = Default (disp_ref,   "sRGB")   # Display Referred Color Space
     kernel     = Default (kernel,  "Bicubic")
-    LUT        = Default (LUT, Undefined())   # Display LUT (the path string of your monitor .cube 3D LUT, if calibrated)
+    LUT        = Default (profile, Undefined()) # Display profile LUT (the path string of your monitor .cube 3D LUT, if calibrated)
     tv         = Default (tv_range, !fs )
     b          = Default (b, 0.00)
-    c          = Default (c, 0.75)            # Precise Bicubic
+    c          = Default (c, 0.75)              # Precise Bicubic
     p          = Default (p, 0.25)
 
-    Assert(IsVersionOrGreater(3,7,1), "Display_Referred: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "Display_Referred: Update AviSynth+ version")
 
     bi < 32 ? clp.ConvertBits(16, fulls=fs) : clp
 
@@ -60,7 +60,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     t_gam = moncurve_coef (tgt[0])
     gamut = gamut && src[0] != tgt[0]
 
-    rgb ? ConvertToPlanarRGB(src[0])                                       : \
+    rgb ? ConvertToPlanarRGB(src[0])                                     : \
           YUV_to_RGB(src[0], tv_range_in=tv, kernel=kernel, b=b, c=c, p=p)
 
     moncurve_f(s_gam[0], s_gam[1],false,false)
@@ -88,7 +88,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
     fp     = Default (props,        true)
     mfc    = Default (length,      false) # Match also framecount
 
-    Assert(IsVersionOrGreater(3,7,1), "MatchClip: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "MatchClip: Update AviSynth+ version")
 
     YUY2   = b.IsYUY2()
     rgbb   = b.isRGB()             rgba    = a.isRGB()
@@ -162,10 +162,10 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
     # Frame Properties
     if (fst && fp) {
     ID = Color_Fuzzy_search(mat)
-                PropCopy(b)
-    fd !=  fs ? PropSet("_ColorRange", fd ? 1 : 0) : last # Overrides the Convertto props
-                PropSet("_Matrix",          ID[1])        # Overrides the Convertto props
-                PropSet("_Primaries",       ID[2]) } }    # Disable this line and above when convertto supports writing to RGB frameprops (currently RGB is hardcoded to _Matrix 0 and _Primaries 2 -undefined-)
+                propCopy(b,true,props=["_Matrix","_Primaries"],exclude=true)
+    fd !=  fs ? propSet("_ColorRange", fd ? 1 : 0) : last # Overrides the Convertto props
+                propSet("_Matrix",          ID[1])        # Overrides the Convertto props
+                propSet("_Primaries",       ID[2]) } }    # Disable this line and above when convertto supports writing to RGB frameprops (currently RGB is hardcoded to _Matrix 0 and _Primaries 2 -undefined-)
 
 
 
@@ -178,17 +178,18 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ### Similar to avsresize's z_ConvertFormat() but more flexible, more options and more features:
 ### More color models and color space conversions, chroma reconstruction, scale_space, noring, mod size, ratio resize, kernel/matrix aliases (supports any resizer), presets, show settings, etc
 ###
-### Dependencies: AviSynth+ 3.7.1 and over
+### Dependencies: AviSynth+ 3.7.2 and over
 ###               ExTools
-###               GradePack  (for show=true and 'sigmoid' scaling)
-###               MasksPack  (for show=true)
-###               KNLMeansCL (for UVRecon=true)
-###               nnedi3     (for UVRecon=true)
-###               SysInfo    (for UVRecon=true)
+###               GradePack    (for show=true and 'sigmoid' scaling)
+###               MasksPack    (for show=true)
+###               ResizersPack (for show=true)
+###               KNLMeansCL   (for UVRecon=true)
+###               nnedi3       (for UVRecon=true)
+###               SysInfo      (for UVRecon=true)
 ###               Optional resizer plugins (check links)
 ###
 ### Example 1 - Limited YUV to full RGB:
-###     ConvertBits(10,fulls=true)     # RGB conversion from YUV requires at least 10-bit precision
+###     ConvertBits(10,fulls=false)     # RGB conversion from YUV requires at least 10-bit precision
 ###     ConvertFormat(1,1,"YUV","RGB")
 ###
 ### Example 2 - Downscale HD Rec.709 YUV to SD Rec.601 YUV:
@@ -197,13 +198,13 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     ConvertFormat(preset="DVD-NTSC") # Work-in-Progress
 ###
 ### Example 3 - YUV420 to YUV444 and scale up by 2 in sigmoid space with chroma reconstruction and noring (cs_out to "" or "none" to skip color space autoconversion):
-###     ConvertFormat(2,fmt_out="44",cs_out="",kernel="FSRCC",scale_space="sigmoid,noring=true,UVRecon=true,cplace_in="MPEG2")
+###     ConvertFormat(2,fmt_out="44",cs_out="",kernel="FSRCC",scale_space="sigmoid",noring=true,UVRecon=true,cplace_in="MPEG2")
 ###
 ### Example 4 - Scale down by 2 with no moirée in linear light space (typically pre-blurring -for nomoiree- is done in linear light):
 ###     ConvertFormat(0.5,kernel="RobiSharp",scale_space="linear",nomoiree=true)
 ###
-### Example 5 - Scale width to 1280 and height to half:
-###     ConvertFormat(1280,0.5)
+### Example 5 - Scale width to 1280 and height to half with different kernels and taps for Luma/Chroma planes:
+###     ConvertFormat(1280,0.5,kernel="EWA6",kernel_c="Blackman8")
 ###
 ### Example 6 - Convert from YUV444 to YUV422 and TV range to PC range:
 ###     ConvertFormat(1,1,fmt_out="422",tv_range_out=false,cplace_out="MPEG2")
@@ -235,11 +236,11 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     string "EOTF"="" ("" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "log100" / "log316" / "xvYCC" / "1361" / "sRGB" / "2020NCL" / "2020CL" / "PQ" / "DCIXYZ" / "HLG" / "NHK HLG" / "AdobeRGB" / "ACESCCt"),
 ###     string "D_in"="" ("" / "D50" / "D55" / "D60" / "DCI" / "D65" / "C" / "D75" / "D93"),
 ###     string "D_out"="" ("" / "D50" / "D55" / "D60" / "DCI" / "D65" / "C" / "D75" / "D93"),
-###     bool "tv_in"=true,
+###     [bool "tv_in"=true],
 ###     bool "tv_out"=true,
 ###     string "scale_space"="gamma" ("gamma" / "linear" / "sigmoid" / "log"),
 ###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###     string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     [string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch")],
 ###     bool "nomoiree"=false,
 ###     bool "noring"=false,
 ###     bool "UVrecon"=false,
@@ -381,9 +382,9 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # -Sphinx           Continuation of Sinc and Jinc, interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
 # -ICBI             (Iterative Curve Based Interpolation) is a single image superresolution technique described in Fast artifact-free image interpolation by Andrea Giachetti and Nicola Asuni, presented at BMVC 2008
 
-function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in", string  "fmt_out", string   "cs_in", string   "cs_out", string      "OETF", string   "EOTF", string "D_in", string "D_out", bool "tv_in", bool "tv_out", string "cplace_in", string "cplace_out", \
-                         string "scale_space", string "kernel", string "kernel_c", float  "src_left", float  "src_top", float "src_width", float "src_height",                                                                                                                       \
-                                 float "taps", int       "mod", bool   "nomoiree", bool     "noring", bool   "UVrecon", bool     "show") {
+function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in", string       "fmt_out", string        "cs_in", string         "cs_out", string            "OETF", string   "EOTF", string "D_in", string "D_out", bool "tv_in", bool "tv_out", string "cplace_in", string "cplace_out", \
+                         string "scale_space", string "kernel", string "kernel_c", float_array "src_left", float_array "src_top", float_array "src_width", float_array "src_height",                                                                                                                       \
+                           float_array "taps", int       "mod", bool   "nomoiree", bool          "noring", bool        "UVrecon", bool             "show") {
     clp
     wu         = !Defined(width)
     hu         = !Defined(height)
@@ -393,8 +394,6 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     isy        = isy()
     p_type     = PixelType()
     bi         = BitsPerComponent()
-    lut1       = bi == 32 ? 0 : 1
-    lut2       = bi  < 16 ? 2 : 0
     propIDs    = color_propGet()
 
 
@@ -404,6 +403,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     o_fmt      = Format_fuzzy_search (Default (fmt_out, p_type), bi)
     isRGBi     = i_fmt[0]=="RGB"
     isRGBo     = o_fmt[0]=="RGB"
+    lut1       = bi == 32 ? 0 : 1
+    lut2       = bi  > 12 || isRunTime(clp,isRGBi) ? 0 : 2
 
     isRGBi ? ConvertToPlanarRGB() : last
 
@@ -443,7 +444,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     tv_out     = Default (tv_out, tv_in_d ? tv_in : !(isRGBo || cs_outF=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") )
     kernel     = Default (kernel,   (w>nw||h>nh)?"Didee":"Precise")
     kernel_c   = Default (kernel_c, kernel)
-    space      = Default (scale_space, "gamma")  # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasi-log. Assumes gamma encoded input. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (http://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
+    space      = Default (scale_space, "gamma")  # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasi-log. Assumes gamma encoded input. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (https://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
     cplace_in  = Default (cplace_in,   "")       # Assumes default from format
     cplace_out = Default (cplace_out,  "")       # Assumes default from format
     D_in       = Default (Defined(D_in)  ? D_in  =="" ? Und  : D_in  : D_in , cs_in_d  ? cs_in ==""  ? propIDs[2] : cs_in : propIDs[2])
@@ -451,12 +452,11 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
         D_in   = Color_Fuzzy_search (D_in )[0]
         D_outA = Color_Fuzzy_search (D_out)
         D_out  = D_outA[0]
-    pd         = Defined (taps)
-    p          = Default (taps,       9)  # 'p' value for GaussianResize() or 'taps' for Lanczos, Blackman, Sinc, EWA, etc
-    src_left   = Default (src_left, 0.0)
-    src_top    = Default (src_top,  0.0)
-    src_width  = Default (src_width,  w)
-    src_height = Default (src_height, h)
+    pd         = Defined (taps) ? taps[0] > 0 : false
+    pdc        = Defined (taps) ? taps[1] > 0 : false
+    p          = Defined (taps) ? taps : [0,0]     # [Y,UV] 'p' value for GaussianResize() or 'taps' for Lanczos, Blackman, Sinc, EWA, etc '0' means undefined
+    src_left   = Default (src_left,  [0.0,0.0])    src_leftc = src_left[1]   src_left = src_left[0]
+    src_top    = Default (src_top,   [0.0,0.0])    src_topc  = src_top [1]    src_top = src_top [0]
     noring     = Default (noring,  false)
     nomoir     = Default (nomoiree,false)
     recon      = Default (UVrecon, false)
@@ -482,7 +482,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
     ############ Data extraction and normalization + Asserts ############
 
-                 Assert(IsVersionOrGreater(3,7,1), "ConvertFormat: Update AviSynth+ version")
+                 Assert(IsVersionOrGreater(3,7,2), "ConvertFormat: Update AviSynth+ version")
     !(space=="sigmoid" || space=="gamma" || space=="linear" || space=="log") ? \
                  Assert(false, "ConvertFormat: Invalid scale space type")    : nop()
 
@@ -491,6 +491,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     cs_out   = cs_outF
     space    = space  != "" && space  != "none" ? space : "gamma"
 
+    # Constants for logic flow
     isGamma  = OETF      !=  EOTF
     isSpace  = cs_in     !=  cs_out
     isFrmt   = i_fmt[0]  !=  o_fmt[0]
@@ -503,11 +504,6 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     coef_o   = isSpace ? Matrix_coef(cs_out) : coef_i
     s_gam    =           moncurve_coef (OETF)
     t_gam    = isGamma ? moncurve_coef (EOTF) : s_gam
-    kernel   = kernel == "Bilcubic" ? w*h < nw*nh ? "BilcubicU" : "BilcubicD" : kernel
-    bc       = bicubic_coeffs(kernel)
-    bc_b     = bc[1]>=0.?bc[0]:1/3.
-    bc_c     = bc[1]>=0.?bc[1]:1/3.
-    kernel   = bc[1]>=0. ? "Bicubic" : kernel
 
     i_type4  = i_fmt[1] == "444"         o_type4  = o_fmt[1] == "444"
     i_type2  = i_fmt[1] == "422"         o_type2  = o_fmt[1] == "422"
@@ -519,13 +515,47 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     cnw      = o_type4 ? nw : o_type1 || o_type10 ? round(nw/4.0) : round(nw/2.0)
     cnh      = o_type4 ||     o_type1 || o_type2  ?            nh : round(nh/2.0)
 
-     i_type1  || o_type1        ? Assert(bi == 8,    "ConvertFormat: Unsupported Pixel Type: HBD YUV411")          : nop()
-     i_type10 || o_type10       ? Assert(false,      "ConvertFormat: Unsupported Pixel Type: YUV410")              : nop()
-     i_type2||i_fmt[1]=="420"   ? Assert( w%2==0,    "ConvertFormat: Clip Width is not mod2" )                     : nop()
-     i_type1                    ? Assert( w%4==0,    "ConvertFormat: Clip Width is not mod4" )                     : nop()
-     o_type1                    ? Assert(nw%4==0,    "ConvertFormat: Target Width is not mod4" )                   : nop()
-    !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                  ? \
-                                  Assert(!recon,     "ConvertFormat: Invalid settings for chroma reconstruction")  : nop()
+    # Parsing bicubics coefficients
+    kernel   = kernel   == "Bilcubic" ?   w*h   <  nw*nh  ? "BilcubicU" : "BilcubicD" : kernel
+    kernel_c = kernel_c == "Bilcubic" ? cow*coh < cnw*cnh ? "BilcubicU" : "BilcubicD" : kernel_c
+    bc       = bicubic_coeffs(kernel)            bch      = bicubic_coeffs(kernel_c)
+    bc_b     = bc[1]>=0.?bc[0]:1/3.              bch_b    = bch[1]>=0.?bch[0]:1/3.
+    bc_c     = bc[1]>=0.?bc[1]:1/3.              bch_c    = bch[1]>=0.?bch[1]:1/3.
+    kernel   = bc[1]>=0.? "Bicubic" : kernel     kernel_c = bch[1]>=0.? "Bicubic" : kernel_c
+
+    src_width  = Default (src_width, [w,cow])  src_widthc  = src_width[1]   src_width  = src_width[0]
+    src_height = Default (src_height,[h,coh])  src_heightc = src_height[1]  src_height = src_height[0]
+
+    i_type1  || o_type1         ? Assert(bi == 8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")          : nop()
+    i_type10 || o_type10        ? Assert(false,   "ConvertFormat: Unsupported Pixel Type: YUV410")              : nop()
+    i_type2  || i_fmt[1]=="420" ? Assert( w%2==0, "ConvertFormat: Clip Width is not mod2" )                     : nop()
+    i_type1                     ? Assert( w%4==0, "ConvertFormat: Clip Width is not mod4" )                     : nop()
+    o_type1                     ? Assert(nw%4==0, "ConvertFormat: Target Width is not mod4" )                   : nop()
+    !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                ? \
+                                  Assert(!recon,  "ConvertFormat: Invalid settings for chroma reconstruction")  : nop()
+
+
+    # Overriding 'taps' arg by kernel name (ie. 'blackman8' means taps=8)
+
+    function StrNumber(string str) {
+        for (i = 1, 12, 1) {
+           num = str == string(i)
+             i = num ? 12 : i
+                 num} } # Checks if string is a number between 1 and 12
+
+    tapFinder1 = RightStr(kernel,1)  StrN1 = StrNumber(tapFinder1)
+    tapFinder2 = RightStr(kernel,2)  StrN2 = StrNumber(tapFinder2)
+    taps       = StrN2 ? Eval(tapFinder2) : StrN1 ? Eval(tapFinder1) : p[0]
+    kernel     = ReplaceStr(kernel , string(taps),  "")
+    pd         = StrN1 || StrN2 ? true : pd
+
+    tapFinder1 = RightStr(kernel_c,1)  StrN1 = StrNumber(tapFinder1)
+    tapFinder2 = RightStr(kernel_c,2)  StrN2 = StrNumber(tapFinder2)
+    tapsc      = StrN2 ? Eval(tapFinder2) : StrN1 ? Eval(tapFinder1) : p[1]
+    kernel_c   = ReplaceStr(kernel_c, string(tapsc), "")
+    pdc        = StrN1 || StrN2 ? true : pdc
+
+
 
     bessel3       = [1.5708,1.525858,1.39627,1.196854,0.94988,0.681773,0.419361,0.186267,0,-0.129804,-0.201802,-0.222051,-0.202077,-0.156337,-0.0995575,-0.044427,0,0.029012,0.0420623,0.041868,0.0330862,0.020877,0.00967627,0.002371]
     quadratic15   = [0.75,0.746094,0.734375,0.714844,0.6875,0.652344,0.609375,0.558594,0.5,0.439453,0.382813,0.330078,0.28125,0.236328,0.195313,0.158203,0.125,0.095703,0.070313,0.048828,0.03125,0.017578,0.007813,0.001953]
@@ -552,10 +582,12 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     parzen8       = [0.666667,0.648727,0.596804,0.51624,0.415088,0.303095,0.190509,0.086876,0,-0.064824,-0.105205,-0.121655,-0.117225,-0.096848,-0.0665116,-0.032382,0,0.026335,0.0439404,0.051856,0.0506892,0.042271,0.0291773,0.014224,0,-0.011489,-0.0190243,-0.022227,-0.0214634,-0.017647,-0.0119891,-0.005745,0,\
                      0.004475,0.00727292,0.008338,0.00789788,0.006366,0.00423604,0.001986,0,-0.001471,-0.00232189,-0.002577,-0.00235492,-0.001824,-0.00116114,-0.000518,0,0.000341,0.000502619,0.000515,0.000430408,0.000301,0.000169602,0.000066,0,-0.00003,-0.0000341078,-0.000025,-0.0000138158,-0.000005,-0.00000118185,0]
 
+    function KernStr(string kernel, int nw, int nh, float bc_b, float bc_c, float p, bool pd) {
+
     resampler = Format( kernel == "nnedi3"       ?    "deep_resize({nw},{nh}"                                : \
                         kernel == "Nearest" || kernel == "NearestNeighbour" || kernel == "NN"                ? \
                                                       "GaussResize({nw},{nh},p=100"                          : \
-                        kernel == "Gauss"        ?    "GaussResize({nw},{nh},p=pd?p:9"                       : \
+                        kernel == "Gauss"        ?    "GaussResize({nw},{nh},p={pd}?{p}:9"                   : \
                         kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" ? \
                                                      """fmtc_resample({nw},{nh},kernel="box"             """ : \
                         kernel == "Bilinear" || kernel == "Triangle" || kernel == "Bartlett"                 ? \
@@ -578,23 +610,23 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                         kernel == "Kaiser"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(kaiser8)       """ : \
                         kernel == "Bohman"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(bohman8)       """ : \
                         kernel == "Quadratic"    || kernel == "Quadric"                                      ? \
-                                                   """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=16,cnorm=true,center=true,impulse=ArraySym(quadratic15) """ : \
+                                                   """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=16,cnorm=true,center=true,impulse=ArraySym(quadratic15)  """ : \
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
                                                    """fmtc_resample({nw},{nh},kernel="blackmanminlobe"    """: \
                         kernel == "SincLin"      || kernel == "SincLin2ResizeMT"                             ? \
-                                                 "SincLin2ResizeMT({nw},{nh},taps=16"                        : \
+                                                 "SincLin2ResizeMT({nw},{nh},taps={pd}?int({p}):16"          : \
                         kernel == "SinPow"      || kernel == "SinPowResizeMT"                                ? \
                                                  "SinPowResizeMT({nw},{nh}"                                  : \
                         kernel == "SSIM"        || kernel == "ResizeShader"                                  ? \
                                                    """ResizeShader({nw},{nh},kernel="SSIM",b=0.1"""          : \
                         kernel == "SSIM2"                                                                    ? \
                                         """SSIM_downsample({nw},{nh},smooth=0.43,resample_args="-0.6,0.4" """: \
-                        kernel == "Sinc"         ?     "SincResize({nw},{nh},taps=pd?int(p):4"               : \
-                        kernel == "Blackman"     ?     "BlackmanResize({nw},{nh},taps=pd?int(p):5"           : \
-                        kernel == "Lanczos"      ?     "LanczosResize({nw},{nh},taps=pd?int(p):3"            : \
+                        kernel == "Sinc"         ?     "SincResize({nw},{nh},taps={pd}?int({p}):4"           : \
+                        kernel == "Blackman"     ?     "BlackmanResize({nw},{nh},taps={pd}?int({p}):6"       : \
+                        kernel == "Lanczos"      ?     "LanczosResize({nw},{nh},taps={pd}?int({p}):4"        : \
                         kernel == "DPID"         ?     "DPID({nw},{nh},lambdaY=0.5"                          : \
                         kernel == "EWA"          || kernel == "Jinc"       || kernel == "ewa_lanczos"        ? \
-                                                       "JincResize({nw},{nh},tap=pd?int(p):3"                : \
+                                                       "JincResize({nw},{nh},tap={pd}?int({p}):3"            : \
                         kernel == "EWASharp2"    || kernel == "JincSharp2" || kernel == "ewa_lanczos2sharp"  ? \
                                                        "JincResize({nw},{nh},tap=2,blur=0.9549963639785485"  : \
                         kernel == "EWASharp"     || kernel == "JincSharp"  || kernel == "ewa_lanczossharp"   ? \
@@ -623,48 +655,55 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                         kernel +                           "Resize({nw},{nh}"                                 )
 
 
-    src_nul = kernel == "ResizeShader" || kernel == "SSIM" || kernel == "SSIM2" || kernel == "DPID" || kernel == "nnedi3" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
-    src_box = kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || \
-              kernel == "Wiener" || kernel == "Hann" || kernel == "Hamming" || kernel == "Black-Harris" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || \
-              kernel == "Nuttall" || kernel == "Welch" || kernel == "Cosine" || kernel == "Ginseng" || kernel == "Bessel" || kernel == "Quadratic" || kernel == "Parzen" || kernel == "Kaiser" || kernel == "Bohman"
-    src_wh  = src_box ? Format(",sw={src_width},sh={src_height}") : Format(",src_width={src_width},src_height={src_height}")
-    src_whc = src_box ? Format(",sw={cow},     sh={coh}")         : Format(",src_width={cow},      src_height={coh}")
+                        src_nul = kernel == "ResizeShader" || kernel == "SSIM" || kernel == "SSIM2" || kernel == "DPID" || kernel == "nnedi3" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
+                        src_box = kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || \
+                                  kernel == "Wiener" || kernel == "Hann" || kernel == "Hamming" || kernel == "Black-Harris" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || \
+                                  kernel == "Nuttall" || kernel == "Welch" || kernel == "Cosine" || kernel == "Ginseng" || kernel == "Bessel" || kernel == "Quadratic" || kernel == "Parzen" || kernel == "Kaiser" || kernel == "Bohman"
+
+                        [resampler, src_nul, src_box] }
+
+
+    krny = KernStr(kernel  ,  nw,  nh, bc_b,  bc_c,  taps,  pd)   resampler   = krny[0]  src_nuly = krny[1]  src_boxy = krny[2]
+    krnc = KernStr(kernel_c, cnw, cnh, bch_b, bch_c, tapsc, pdc)  resampler_c = krnc[0]  src_nulc = krnc[1]  src_boxc = krnc[2]
+
+    src_wh  = src_boxy ? Format(",sw={src_width},  sh={src_height}")  : Format(",src_width={src_width}, src_height={src_height}")
+    src_whc = src_boxc ? Format(",sw={src_widthc}, sh={src_heightc}") : Format(",src_width={src_widthc},src_height={src_heightc}")
     fmtcb   = Format(".ConvertBits({bi},fulls={fs})")
-    src_nr  = src_nul ? ")" : src_box ? "" : Format(",src_left={src_left},src_top={src_top}"+src_wh+")")     # take into account cplace
-    src_c   = src_nul ? ")" : src_box ?      Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr # take into account cplace
+    src_nr  = src_nuly ? ")" : src_boxy ? "" : Format(",src_left={src_left},src_top={src_top}"+src_wh+")")     # take into account cplace
+    src_c   = src_nuly ? ")" : src_boxy ?      Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr # take into account cplace
     Ynr     = Format(".Repair(BicubicResize(Y,{nw},{nh},0,0"+src_nr+",1)")  # noring uses Hermite kernel. Check here if I need -1 for chroma
 
     cplace  = chroma_placement(w, h, nw, nh, cs_in, cs_out, i_fmt[0], o_fmt[0], i_fmt[1], o_fmt[1], cplace_in, cplace_out )
 
 
-    cplaceY  = (src_nul || src_box ? "" : ",src_left=" +string(src_left)+",src_top="+string(src_top) + src_wh ) + ")" + fmtcb
-    point    = kernel=="Point" ? "+1.0" : ""
-    c_point  = kernel=="Point" ? i_type4 ?  1.0 : i_type1 || i_type10 ? round( 1*4.0) : round( 1*2.0) : 0
-    c_point  = c_point *(float(cow)/cnw)  # chroma scaled
-    src_left = i_type4 ?  src_left : i_type1 || i_type10 ? round( src_left*4.0) : round( src_left*2.0)
-    src_left = src_left*(float(cow)/cnw)  # chroma scaled
-    src_top  = i_type4 || i_type1 || i_type2  ? src_top  : round( src_top *2.0)
-    src_top  = src_top *(float(coh)/cnh)  # chroma scaled
+    cplaceY  = (src_nuly || src_boxy ? "" : ",src_left=" +string(src_left)+",src_top="+string(src_top) + src_wh ) + ")" + fmtcb
+    point    = kernel_c=="Point" ? "+1.0" : ""
+    c_point  = kernel_c=="Point" ? i_type4 ?  1.0 : i_type1 || i_type10 ? round( 1*4.0) : round( 1*2.0) : 0
+    c_point  = c_point  *(float(cow)/cnw)  # chroma scaled
+    src_leftc= i_type4 ?  src_leftc : i_type1 || i_type10 ? round( src_leftc*4.0) : round( src_leftc*2.0)
+    src_leftc= src_leftc*(float(cow)/cnw)  # chroma scaled
+    src_topc = i_type4 || i_type1 || i_type2  ? src_topc  : round( src_topc *2.0)
+    src_topc = src_topc *(float(coh)/cnh)  # chroma scaled
 
-    cplaceH  = (src_box ? ",sx=" : ",src_left=")+string(cplace[0]+src_left+c_point)
-    cplaceV  = (src_box ? ",sy=" :  ",src_top=")+string(cplace[1]+src_top)
-    cplaceC  = (src_nul ? ""     : (cplaceH + cplaceV + src_whc)) + ")" + fmtcb
+    cplaceH  = (src_boxc ? ",sx=" : ",src_left=")+string(cplace[0]+src_leftc+c_point)
+    cplaceV  = (src_boxc ? ",sy=" :  ",src_top=")+string(cplace[1]+src_topc)
+    cplaceC  = (src_nulc ? ""     : (cplaceH + cplaceV + src_whc)) + ")" + fmtcb
 
 
-    c_kernel = InternalFunctionExists(kernel+"resize") || FindStr(LCase(kernel), "nearest") > 0 ? kernel : "bicubic"
     c_recon  = """threads = SI_LogicalCores()
                   cores   = SI_PhysicalCores()
                   refs    = isRGBo || isSpace || isScale ? true : !tv_in
                   c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt[0], i_fmt[1], o_fmt[1], cplace_in, cplace_out )
                   ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
                   Luma    = ref.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=fs)
-                  Uu      =  Cb.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=kernel=="bicubic"?bc_b:p, ep1=bc_c, cshift=kernel+"resize", csresize=true, mpeg2=cplace_in=="MPEG2",range=fs?1:2).ConvertBits(bi,fulls=refs)
-                  Vu      =  Cr.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=kernel=="bicubic"?bc_b:p, ep1=bc_c, cshift=kernel+"resize", csresize=true, mpeg2=cplace_in=="MPEG2",range=fs?1:2).ConvertBits(bi,fulls=refs)
-                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
-                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top)
-                  Cb      = ex_LFR(Unew, Uu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top), LFR=fcnw/1.1)
-                  Cr      = ex_LFR(Vnew, Vu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_left, src_top=c_cplace[1]+src_top), LFR=fcnw/1.1)"""
-
+                  Uu      =  Cb.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2)
+                  Uu      =  Eval("Uu."+kernel_c+"resize(w*2,h*2,"+(kernel_c=="bicubic"?"b=bch_b,c=bch_c":"taps=tapsc")+")").ConvertBits(bi,fulls=refs)
+                  Vu      =  Cr.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2)
+                  Vu      =  Eval("Vu."+kernel_c+"resize(w*2,h*2,"+(kernel_c=="bicubic"?"b=bch_b,c=bch_c":"taps=tapsc")+")").ConvertBits(bi,fulls=refs)
+                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc)
+                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc)
+                  Cb      = ex_LFR(Unew, Uu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc), LFR=fcnw/1.1)
+                  Cr      = ex_LFR(Vnew, Vu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc), LFR=fcnw/1.1)"""
 
 
 
@@ -696,8 +735,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
             } else {
 
-                str  = ReplaceStr(ReplaceStr(resampler, "("+string(nw), "("+string(cnw)), ","+string(nh), ","+string(cnh))
-                str  = (cnw==cow && cnh==coh) ? Format("PointResize({cnw},{cnh}") : str # if chroma is not scaled (or scaled down to original) then use point as its faster and lossless
+                str  = (cnw==cow && cnh==coh) ? Format("PointResize({cnw},{cnh}") : resampler_c # if chroma is not scaled (or scaled down to original) then use point as its faster and lossless
                 Cb   = Eval("Cb." + str + cplaceC)
                 Cr   = Eval("Cr." + str + cplaceC)
             } }
@@ -746,7 +784,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
         } else {
 
-            str  = ReplaceStr(ReplaceStr(resampler, "("+string(nw), "("+string(fcnw)), ","+string(nh), ","+string(fcnh))
+            str  = ReplaceStr(ReplaceStr(resampler_c, "("+string(cnw), "("+string(fcnw)), ","+string(cnh), ","+string(fcnh))
             str  = (fcnw==cow && fcnh==coh) ? Format("PointResize({fcnw},{fcnh}") : str # if chroma is not scaled (or scaled down to original) then use point as its faster and lossless
             Cb   = Eval("Cb." + str + cplaceC)
             Cr   = Eval("Cr." + str + cplaceC)
@@ -931,8 +969,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                                         Y
             }
 
-        str  = ReplaceStr(ReplaceStr(resampler, "("+string(nw), "("+string(cnw)), ","+string(nh), ","+string(cnh))
-        str  = (cnw==cow && cnh==coh) ? Format("PointResize({cnw},{cnh}") : str # if chroma is not scaled (or scaled down to original) then use point as its faster and lossless
+        str  = (cnw==cow && cnh==coh) ? Format("PointResize({cnw},{cnh}") : resampler_c # if chroma is not scaled (or scaled down to original) then use point as its faster and lossless
         Cb   = Eval("Cb." + str + cplaceY)
         Cr   = Eval("Cr." + str + cplaceY)
 
@@ -953,12 +990,12 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
         # Frame Properties
 
-        isSpace || isFrmt ? PropSet("_Matrix", isRGBo?0:o_fmt[4]==-1?cs_outFA[1]:o_fmt[4])       : last # Yes, again, hardcoding matrix for RGB to 0
-        isSpace           ? PropSet("_Primaries",o_fmt[5]==0||o_fmt[5]==-1?cs_outFA[2]:o_fmt[5]) : last # Same here
-        isIllu            ? PropSet("_Illuminant",                        D_outA[3])             : last
-        isGamma           ? PropSet("_Transfer",        Color_Fuzzy_search(EOTF)[4])             : last
-        tv_in != tv_out   ? PropSet("_ColorRange",      tv_out?1:0)                              : last
-        isChP             ? PropSet("_ChromaLocation",  cplace[2])                               : last
+        isSpace || isFrmt ? propSet("_Matrix", isRGBo?0:o_fmt[4]==-1?cs_outFA[1]:o_fmt[4])       : last # Yes, again, hardcoding matrix for RGB to 0
+        isSpace           ? propSet("_Primaries",o_fmt[5]==0||o_fmt[5]==-1?cs_outFA[2]:o_fmt[5]) : last # Same here
+        isIllu            ? propSet("_Illuminant",                        D_outA[3])             : last
+        isGamma           ? propSet("_Transfer",        Color_Fuzzy_search(EOTF)[4])             : last
+        tv_in != tv_out   ? propSet("_ColorRange",      tv_out?1:0)                              : last
+        isChP             ? propSet("_ChromaLocation",  cplace[2])                               : last
 
         # Show panel
         if (dg) {
@@ -988,7 +1025,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC40",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC41",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1056,11 +1093,11 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     c          = Default (c, 0.75)               # Precise Bicubic
     p          = Default (p,    9)
 
-    Assert(IsVersionOrGreater(3,7,1), "YUV_to_RGB: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "YUV_to_RGB: Update AviSynth+ version")
     Assert(!isRGB(yuv),               "YUV_to_RGB: Only YUV format supported")
 
     bi       = BitsPerComponent(yuv)
-    lut      = bi < 16 ? 2 : 0
+    lut      = bi > 12 || isRunTime(yuv,false) ? 0 : 2
     p_type   = Format_fuzzy_search(yuv, PixelType(yuv), bi)
     matrix   = Color_Fuzzy_search (matrix)
     coef     = Matrix_coef(matrix[0])
@@ -1105,9 +1142,9 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
         threads = SI_LogicalCores()
 
         ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
-        Luma    = ref.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
-        Uu      = Uor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
-        Vu      = Vor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=8, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
+        Luma    = ref.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2, cshift="spline16resize").ConvertBits(bi,fulls=!tv_in)
+        Uu      = Uor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
+        Vu      = Vor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
         Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
         Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
         U       = ex_LFR(Unew, Uu.BicubicResize(w, h, b=0.0, c=0.5), LFR=w/1.1)
@@ -1166,7 +1203,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     c          = Default (c, 0.25)               # Didée's Bicubic
     p          = Default (p,    9)
 
-    Assert(IsVersionOrGreater(3,7,1),   "RGB_to_YUV: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2),   "RGB_to_YUV: Update AviSynth+ version")
     Assert(isRGB(rgb) && IsPlanar(rgb), "RGB_to_YUV: Only Planar RGB format supported")
 
     bi       = BitsPerComponent(rgb)
@@ -1251,7 +1288,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
 
     isy  = isy(RGB)
     bi   = BitsPerComponent(RGB)
-    lut  = bi < 16 ? 2 : 0
+    lut  = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     mat  = Default (matrix, "709")
     coef = Default (coef, Matrix_coef(mat))
     tvi  = Default (tv_in,  false)
@@ -1288,7 +1325,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
     Yc    = !tvo ?  Yx : moncurve_r(Y,  s_gam[0], s_gam[1], false, true, 1)
 
      isy ? [Yc, Cbc, Crc] : CombinePlanes(Yc, Cbc, Crc, planes="YUV")
-    !isy && mat[0] == "2020CL" ? PropSet("_Matrix", 10) : last }
+    !isy && mat[0] == "2020CL" ? propSet("_Matrix", 10) : last }
 
 
 # WIP. YcCbcCrc to RGB function (for Rec.2020CL)
@@ -1296,7 +1333,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", float
 
     isy  = isy(YUV)
     bi   = BitsPerComponent(YUV)
-    lut  = bi < 16 ? 2 : 0
+    lut  = bi > 12 || isRunTime(YUV,false) ? 0 : 2
     mat  = Default (matrix, "709")
     coef = Default (coef, Matrix_coef(mat))
     tvi  = Default (tv_in,  false)
@@ -1353,7 +1390,7 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     tvi = Default (tv_in,  false)
     tvo = Default (tv_out, false)
 
@@ -1383,7 +1420,7 @@ function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_ou
 
     isy = isy(YCC)
     bi  = BitsPerComponent(YCC)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(YCC,false) ? 0 : 2
     tvi = Default (tv_in,  false)
     tvo = Default (tv_out, false)
 
@@ -1414,7 +1451,7 @@ function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     tvi = Default (tv_in,  false)
     tvo = Default (tv_out, false)
 
@@ -1438,7 +1475,7 @@ function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_o
 
     isy = isy(YCC)
     bi  = BitsPerComponent(YCC)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(YCC,false) ? 0 : 2
     tvi = Default (tv_in,  false)
     tvo = Default (tv_out, false)
 
@@ -1469,7 +1506,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out")
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     tvi = Default (tv_in,  false)
     tvo = Default (tv_out, false)
 
@@ -1499,7 +1536,7 @@ function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out
 
     isy = isy(YUV)
     bi  = BitsPerComponent(YUV)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(YUV,false) ? 0 : 2
     tvi = Default (tv_in,  false)
     tvo = Default (tv_out, false)
 
@@ -1557,7 +1594,7 @@ function RGB_to_OPP (clip RGB, clip "G", clip "B", bool "fulls") {
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     fs  = Default (fulls, true)
 
     clp = !isy ? ExtractClip(RGB) : nop()
@@ -1586,7 +1623,7 @@ function OPP_to_RGB (clip OPP, clip "P1", clip "P2", bool "fulls") {
 
     isy = isy(OPP)
     bi  = BitsPerComponent(OPP)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(OPP,false) ? 0 : 2
     fs  = Default (fulls, true)
 
     clp = !isy ? ExtractClip(OPP) : nop()
@@ -1615,7 +1652,7 @@ function XYZ_to_YDzDx (clip XYZ, clip "Y", clip "Z", bool "tv_in", bool "tv_out"
 
     isy = isy(XYZ)
     bi  = BitsPerComponent(XYZ)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(XYZ,!isy) ? 0 : 2
     tvi = Default (tv_in,  false)
     tvo = Default (tv_out, false)
 
@@ -1646,7 +1683,7 @@ function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx", bool "tv_in", bool "tv_
 
     isy = isy(YDzDx)
     bi  = BitsPerComponent(YDzDx)
-    lut = bi < 16 ? 2 : 0
+    lut = bi > 12 || isRunTime(YDzDx,!isy) ? 0 : 2
     tvi = Default (tv_in,  false)
     tvo = Default (tv_out, false)
 
@@ -1677,8 +1714,9 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
 
     isy  = isy(XYZ)
     bi   = BitsPerComponent(XYZ)
-    lut1 = bi == 32 ? 0 : 1
-    lut2 = bi  < 16 ? 2 : 0
+    iRT  = isRunTime(XYZ,!isy)
+    lut1 = bi == 32 || iRT ? 0 : 1
+    lut2 = bi  > 12 || iRT ? 0 : 2
     cy   = Default (Jch,   false)
     fs   = Default (fulls,  true)
 
@@ -1701,14 +1739,14 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
     isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
 
 
-
 # WIP. CIE Lab to XYZ
 function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch", bool "fulls") {
 
     isy  = isy(Lab)
     bi   = BitsPerComponent(Lab)
-    lut1 = bi == 32 ? 0 : 1
-    lut2 = bi  < 16 ? 2 : 0
+    iRT  = isRunTime(Lab,!isy)
+    lut1 = bi == 32 || iRT ? 0 : 1
+    lut2 = bi  > 12 || iRT ? 0 : 2
     cy   = Default (Jch,    false)
     fs   = Default (fulls,   true)
 
@@ -1736,7 +1774,7 @@ function XYZ_to_Luv (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Duv", bool 
 
     isy = isy(XYZ)
     bi  = BitsPerComponent(XYZ)
-    lut = bi == 32 ? 0 : 1
+    lut = bi == 32 || isRunTime(XYZ,!isy) ? 0 : 1
     cy  = Default (Jch,    false)
     uv  = Default (Duv,    false)
     tvi = Default (tv_in,  false)
@@ -1772,7 +1810,7 @@ function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv", bool 
 
     isy = isy(Luv)
     bi  = BitsPerComponent(Luv)
-    lut = bi == 32 ? 0 : 1
+    lut = bi == 32 || isRunTime(Luv,!isy) ? 0 : 1
     cy  = Default (Jch,    false)
     uv  = Default (Duv,    false)
     tvi = Default (tv_in,  false)
@@ -1882,8 +1920,8 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
     bi  = BitsPerComponent(RGB)
 
     mat = Default (matrix, "709")
-    cy  = Default (Jch,      false)    # enable to convert to JCh (cylindrical IPT) in the range 0 to 1.
-    fs  = Default (fulls,     true)
+    cy  = Default (Jch,    false)    # enable to convert to JCh (cylindrical IPT) in the range 0 to 1.
+    fs  = Default (fulls,   true)
 
     mat = Color_Fuzzy_search(mat)
     clp = !isy ? ExtractClip(RGB) : nop()
@@ -2152,7 +2190,7 @@ function moncurve_f (clip c, float "gamma", float "alpha", bool "tv_range_in", b
     bi  = BitsPerComponent()
     fs  = propNumElements("_ColorRange")  > 0 ? \
           propGetInt     ("_ColorRange") == 0 : rgb
-    lut = bi == 32 ? 0 : 1
+    lut = bi == 32 || isRunTime(c,rgb) ? 0 : 1
 
     gamma  = Default(gamma, 1/0.45)       # gamma
     alpha  = Default(alpha,   0.0 )       # extension in x coords of the linear part
@@ -2184,7 +2222,7 @@ function moncurve_f (clip c, float "gamma", float "alpha", bool "tv_range_in", b
     isy          ? Expr(str                       , lut=lut) : \
     UV == 1      ? Expr(str, ""                   , lut=lut) : \
                    Expr(str, cstr, scale_inputs=si, lut=lut)
-    tv_in!=tv_out? PropSet("_ColorRange", tv_out?1:0)        : last }
+    tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0)        : last }
 
 
 # EOTF. Monitor Curve Functions: https://github.com/ampas/aces-dev
@@ -2196,7 +2234,7 @@ function moncurve_r (clip c, float "gamma", float "alpha", bool "tv_range_in", b
     bi  = BitsPerComponent()
     fs  = propNumElements("_ColorRange")  > 0 ? \
           propGetInt     ("_ColorRange") == 0 : rgb
-    lut = bi == 32 ? 0 : 1
+    lut = bi == 32 || isRunTime(c,rgb) ? 0 : 1
 
     gamma  = Default(gamma, 1/0.45)       # gamma
     alpha  = Default(alpha,   0.0 )       # extension in x coords of the linear part
@@ -2228,7 +2266,7 @@ function moncurve_r (clip c, float "gamma", float "alpha", bool "tv_range_in", b
     isy          ? Expr(str                       , lut=lut) : \
     UV == 1      ? Expr(str, ""                   , lut=lut) : \
                    Expr(str, cstr, scale_inputs=si, lut=lut)
-    tv_in!=tv_out? PropSet("_ColorRange", tv_out?1:0)        : last }
+    tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0)        : last }
 
 
 # Linear to ACEScct: https://github.com/ampas/aces-dev
@@ -2240,7 +2278,7 @@ function ACEScct_f (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     bi  = BitsPerComponent()
     fs  = propNumElements("_ColorRange")  > 0 ? \
           propGetInt     ("_ColorRange") == 0 : rgb
-    lut = bi == 32 ? 0 : 1
+    lut = bi == 32 || isRunTime(c,rgb) ? 0 : 1
 
     tv_in  = Default(tv_range_in,     !fs)
     tv_out = Default(tv_range_out,  tv_in)
@@ -2269,7 +2307,7 @@ function ACEScct_f (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     isy     ?      Expr(str                       , lut=lut) : \
     UV == 1 ?      Expr(str, ""                   , lut=lut) : \
                    Expr(str, cstr, scale_inputs=si, lut=lut)
-    tv_in!=tv_out? PropSet("_ColorRange", tv_out?1:0)        : last }
+    tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0)        : last }
 
 
 # ACEScct to Linear: https://github.com/ampas/aces-dev
@@ -2281,7 +2319,7 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     bi  = BitsPerComponent()
     fs  = propNumElements("_ColorRange")  > 0 ? \
           propGetInt     ("_ColorRange") == 0 : rgb
-    lut = bi == 32 ? 0 : 1
+    lut = bi == 32 || isRunTime(c,rgb) ? 0 : 1
 
     tv_in  = Default(tv_range_in,    !fs)
     tv_out = Default(tv_range_out, tv_in)
@@ -2308,12 +2346,12 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     isy     ?      Expr(str                       , lut=lut) : \
     UV == 1 ?      Expr(str, ""                   , lut=lut) : \
                    Expr(str, cstr, scale_inputs=si, lut=lut)
-    tv_in!=tv_out? PropSet("_ColorRange", tv_out?1:0)        : last }
+    tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0)        : last }
 
 
-# Other names:  Broadcast Safe, Studio Swing, Limited/Narrow/Video/Head/TV range.
+# Other names:  Broadcast Safe, Studio Swing, Limited/Legal/SMPTE/Standard/Narrow/Video/Head/TV range.
 # For opposite: Full Swing, Full/Data/CG/RGB/PC range.
-# Other:        SMPTE+, Extended Range (Ocassional case in HLG for 10-bit [64-1020] narrow blacks + super-whites)
+# Other:        SMPTE+, Camera Range or Extended Range (Ocassional case in HLG for 10-bit [64-1020] narrow blacks + super-whites)
 function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", bool "fulld") {
 
     rgb = isRGB(a)
@@ -2322,7 +2360,7 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
-    lut = bi == 32 ? 0 : 1
+    lut = bi == 32 || isRunTime(a,rgb) ? 0 : 1
 
     fw  = Default(forward,  fs)     # forward converts to SMPTE legal, otherwise converts to Full Range.
     Y   = Default(Y,            3 )
@@ -2347,7 +2385,7 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
         isy     ? Expr(a, str                       , lut=lut) : \
         UV == 1 ? Expr(a, str, ""                   , lut=lut) : \
                   Expr(a, str, cstr, scale_inputs=si, lut=lut)
-                  PropSet("_ColorRange", fw?1:0)
+                  propSet("_ColorRange", fw?1:0)
     } else {
         ConvertBits(a, bi, fulls=fw, fulld=!fw)
         Y == 3 && UV != 3 && yuv ? mergechroma(a) : \
@@ -2364,7 +2402,7 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV") {
     fsd = propNumElements (a,"_ColorRange")  > 0
     fs  = fsd                                    ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
-    lut = bi == 32 ? 0 : 1
+    lut = bi == 32 || isRunTime(a,rgb) ? 0 : 1
 
     fw  = Default(forward,     !fs) # forward converts to full scale, otherwise converts to bitshift scale
     Y   = Default(Y,            3 )
@@ -2381,7 +2419,7 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV") {
     isy            ? Expr(a, str                       , lut=lut) : \
     UV == 1        ? Expr(a, str, ""                   , lut=lut) : \
                      Expr(a, str, cstr, scale_inputs=si, lut=lut)
-    !fsd           ? PropSet("_ColorRange", !fw?1:0)              : last }
+    !fsd           ? propSet("_ColorRange", !fw?1:0)              : last }
 
 
 # SoftLimiter (11-01-2022)
@@ -2394,11 +2432,13 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV") {
 # Disclaimer2: For static mode, first find the under and overshoot values by inspecting the clip with show=true
 #
 # Dependencies: ExTools
+#               RgTools      (for dyn>0)
 #               ResizersPack (for show)
 #
 # Examples:
-#   SoftLimiter(16,235)        # no rolloff (straight clamp), assumes input IS legal (within 16,235)
-#   SoftLimiter(12,240,12,245) # Bring specified values to legal range with rolloff
+#   SoftLimiter(16,235)              # no rolloff (straight clamp), assumes input IS legal (within 16,235)
+#   SoftLimiter(12,240,12,245)       # Bring specified values to legal range with rolloff
+#   SoftLimiter(dyn=2)               # Bring           values to legal range with rolloff (values defined by dynamic stats)
 #
 # modes:
 # dyn = 0  -> static mode, set values after manual inspection (Default)
@@ -2406,7 +2446,19 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV") {
 # dyn = 2  ->              loose  dynamic mode. Medium,         will bring some values into range (recommended)
 # dyn = 3  ->              strict dynamic mode. Very sensitive, will bring many values into range
 #
-function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c", int "tolerance", int "dyn", bool "show", int "UV") {
+# Function Definition:
+#    (
+#    clip,
+#    float lo=16.0 (0.0 to 16.0 by 0.1),
+#    float hi=235.0 (235.0 to 255.0 by 0.1),
+#    float lo_c=16.0 (0.0 to 16.0 by 0.1),
+#    float hi_c=240.0 (235.0 to 255.0 by 0.1),
+#    float "tolerance"=0.0 (0.0 to 35.0 by 0.5),
+#    int "dyn"=0 (0 to 3 by 1),
+#    bool "show"=false,
+#    )
+#
+function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c", float "tolerance", int "dyn", bool "show", int "UV") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -2415,13 +2467,13 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
-    lut = bi == 32 ? 0 : 1
+    lut = isRunTime(a,rgb) || bi == 32 ? 0 : 1
 
     lo  = Default(lo,      16)   # Low  limit
     hi  = Default(hi,     235)   # High limit
     loc = Default(lo_c,    lo)   # Low  limit (Chroma)
     hic = Default(hi_c,   240)   # High limit (Chroma)
-    tol = Default(tolerance,0)   # 0-100 Percentage of allowed under/overshoot
+    tol = Default(tolerance,0)   # 0-100 Percentage of allowed under/overshoots (~12.5% is an accepted range -14-238-, range 238-242 is for superwhites)
     dyn = Default(dyn,      0)   # 0: static  1: accumulated loose (min/max 0.454% ignored)  2: medium (min/max 0.2% ignored)  3: strict (min/max 0.1% ignored)
     sh  = Default(show, false)
     UV  = Default(UV, isy ? 1 : 3 )
@@ -2440,9 +2492,9 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     hi  = min(255,max(235, hi))   hic  = min(255,max(240, hic))
 
     if (tol > 0) {
-    pc  = tol/100.
-    lo  = lo + ((16-lo)  * pc)    loc  = loc + ((16-loc)  * pc)
-    hi  = hi - ((hi-235) * pc)    hic  = hic - ((hic-240) * pc)
+    pc  = tol/100. * 16
+    lo  = lo + pc    loc  = loc + pc
+    hi  = hi - pc    hic  = hic - pc
     }
 
     lo0 = lo == 16                loc0 = loc == 16
@@ -2495,7 +2547,7 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
             Eval(PS)
             fl = "%0.2f"  gp="     "
             SoftLimiter(             Y1,Y2,(U1+V1)/2.,(U2+V2)/2., tol, 0, false, uv)
-            PropSet("_MinMaxStats", [Y1,Y2,(U1+V1)/2.,(U2+V2)/2.])
+            propSet("_MinMaxStats", [Y1,Y2,(U1+V1)/2.,(U2+V2)/2.])
             Subtitle("YMin: "+string(Y1, fl)+gp+"YMax: "+string(Y2, fl)+gp+"UVMin: "+string((U1+V1)/2., fl)+gp+"UVMax: "+string((U2+V2)/2., fl), align=1) }, after_frame=true )
         } else {
             ScriptClip( function [ab,bi,fs,th,tol,uv,PS] () {
@@ -2741,22 +2793,22 @@ function Color_Fuzzy_search (string matrix) {
     str }
 
 
-
-# Has prevalence over string based Color_fuzzy_search() and Format_fuzzy_search() when input input arg is undefined (ie. for Defaults() )
+# Get frame properties or infere them from clip format. Useful to get initial Defaults.
+# When input input arg is undefined color_propGet() has prevalence over Color_fuzzy_search() and Format_fuzzy_search()
 function color_propGet (clip a) {
 
     w        = width (a)
     h        = height(a)
     bi       = BitsPerComponent(a)
-    isHD     = (w  > 1099 ||  h  >  599)
-    isUHD    = (w  > 2599 ||  h  > 1499)
+    isHD     = (w > 1099 || h >  599)
+    isUHD    = (w > 2599 || h > 1499)
 
     fmt      = Format_fuzzy_search(a, PixelType(a), bi)
-    cm_i     = a.propNumElements("_Model")      > 0 ? PropGetInt(a, "_Model")       : -1
-    prim_i   = a.propNumElements("_Primaries")  > 0 ? PropGetInt(a, "_Primaries")   : 2
-    illu_i   = a.propNumElements("_Illuminant") > 0 ? PropGetInt(a, "_Illuminant")  : -1
-    mat_i    = a.propNumElements("_Matrix")     > 0 ? PropGetInt(a, "_Matrix")      : 2
-    t_i      = a.propNumElements("_Transfer")   > 0 ? PropGetInt(a, "_Transfer")    : 2
+    cm_i     = a.propNumElements("_Model")      > 0 ? propGetInt(a, "_Model")       : -1
+    prim_i   = a.propNumElements("_Primaries")  > 0 ? propGetInt(a, "_Primaries")   : 2
+    illu_i   = a.propNumElements("_Illuminant") > 0 ? propGetInt(a, "_Illuminant")  : -1
+    mat_i    = a.propNumElements("_Matrix")     > 0 ? propGetInt(a, "_Matrix")      : 2
+    t_i      = a.propNumElements("_Transfer")   > 0 ? propGetInt(a, "_Transfer")    : 2
 
     # Input Defaults
     cm_i     = cm_i   != -1 ? cm_i   : fmt[4]
@@ -2818,7 +2870,7 @@ function color_propGet (clip a) {
 # * YDbDr is for PAL-N and SECAM
 # * xvYCC is defined in IEC61966-2-4
 
-    range    = propNumElements(a,"_ColorRange") > 0 ? PropGetInt(a, "_ColorRange") == 1 : cm_id[1] == "YCbCr"
+    range    = propNumElements(a,"_ColorRange") > 0 ? propGetInt(a, "_ColorRange") == 1 : cm_id[1] == "YCbCr"
 
     # ID for _Primaries frame properties (BT.2380-2. Table 2.6)
     prim_i =
@@ -3024,12 +3076,13 @@ function Format_fuzzy_search (clip c, string format, int bits) {
 
 
 
-# Bicubic kernels are very performant but tends to 'blocking' in upscales compared to more advanced kernels
+# Bicubic kernels are very performant but tends to create 'blocking' in upscales compared to more advanced kernels
 function bicubic_coeffs (string kernel) {
 
     # info: Keys Cubics family of filters are BC-splines that exactly reproduce affine gradients, those that satisfy 2C+B = 1 (along the dotted line in the Cubic filters diagram)
     # Examples are Mitchell-Netravali, Robidoux (and its flavours), Catmull-Rom, Cub-grange and Spline.
-    # For downscaling you can follow a different formula: B+2C = 0, although I find the next better/sharper: 3B+2C = -1 , but neither will produce affine gradients.
+    # For downscaling you can follow a different formula: B+2C = 0 (Didée,Zopti)...
+    # Although the next is sharper albeit more haloing (Zopti2): 3B+2C = -1 , but neither will produce affine gradients.
 
     rb  = 12. /(19.  +9.*sqrt(2))    # 0.378216
     rc  = 113./(58.+216.*sqrt(2))    # 0.310892
@@ -3051,12 +3104,14 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "Mitchell-Netravali"? [1/3.,1/3.] : c # Canonical Bicubic (roughly equivalent to EWA Robidoux)
     c = kernel == "Robidoux Sharp"    ? [rsb,rsc]   : c
     c = kernel == "SoftCubic50"       ? [0.5,0.5]   : c
+    c = kernel == "Catmule-Dog"       ? [0.1750,0.4125] : c # Sharp while orthogonally furthest key cubic coefficients from Blocking and Ringing zones in Cubics diagram (between CatRom and RobiSharp) (by Dogway)
     c = kernel == "Cub-grange"        ? [0.0308,0.4846] : c # dw but also up. Bicubic approximation to Lagrange scaling (a bit sharper than it)
-    c = kernel == "Catmull-Rom"       ? [0.0,0.5]   : c # Canonical sharp Bicubic (roughly equivalent to EWA RobidouxSharp)
-    c = kernel == "Didee"             ? [-0.5,0.25] : c # dw Didée's downscaling sharp coefficients
-    c = kernel == "Zopti"             ? [-0.6,0.4]  : c # dw Zopti calculated best from UHD to 720p (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218#post1865218
+    c = kernel == "Catmull-Rom"       ? [0.0,0.5]   : c # Canonical sharp Bicubic (roughly equivalent to spline16resize() and EWA RobidouxSharp)
+    c = kernel == "Didee"             ? [-0.5,0.25] : c # dw Didée's downscaling sharp coefficients. More neutral in medium to low frequencies than Zopti
+    c = kernel == "Zopti"             ? [-0.6,0.3]  : c # dw Like Zopti2 but more neutral (better over/undershoot normalization)
+    c = kernel == "Zopti2"            ? [-0.6,0.4]  : c # dw Zopti calculated best from UHD to 720p (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218#post1865218
     c = kernel == "Precise Bicubic"   ? [0.0,0.75]  : c
-    c = kernel == "Sharp"             ? [0.0,1.0]   : c
+    c = kernel == "Sharp"             ? [0.0,1.0]   : c # dw,up Good alternative to Zopti for dw. Less aliasing and sharper edges but softer textures
     c = kernel == "Hatch"             ? [0.0,-5.0]  : c
 
     # Aliases
@@ -3086,98 +3141,114 @@ function bicubic_coeffs (string kernel) {
     c }
 
 
+# chroma_placement() - helper function to output chroma location coefficient values. If you want to retrieve them use ConvertFormat(show=true)
+#
+# UHD standard chroma placement is top_left
+# 422 standard chroma placement is left
+# JPG standard chroma placement is center
+# 444 and RGB chroma placement is obviously center (cosited)
+#
 # JPEGs uses Rec.601 primaries, PC Levels, MPEG1 chroma placement, and can be many formats; from RGB to 420, 422 being to spec, but also 440*, 444, 411, etc
 #*YUV440 or YUVJ440 are for rotated versions of 422 (rotated JPEG)
 # Photoshop saves as 420 up to level 6, 422 for above
 
 function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string matrix_o, string format_i, string format_o, string jab_i, string jab_o, string "cplace_in", string "cplace_out") {
 
-    ryw = w  / float(nw)       # source/target Y  dimensions
-    ryh = h  / float(nh)
-
     # Input Jab to chroma units
-    eps= 0.001
-    a  = Eval(MidStr(jab_i, 2, 1))
-    b  = Eval(MidStr(jab_i, 3, 1))
-    iu =                       a  / 8.         # chroma units/pixels for U dimension in respect to luma units
-    iv = (round((b/(b+eps))) + 1) / 4.         # chroma units/pixels for V dimension in respect to luma units
+    a1 = Eval(MidStr(jab_i, 2, 1))
+    b1 = Eval(MidStr(jab_i, 3, 1))
+    iu = 1 - (a1 / 4.)                # source chroma units/pixels for U dimension in respect to luma units
+    iv = max(iu,ceil(b1 / 4.))        # source chroma units/pixels for V dimension in respect to luma units
 
     # Output Jab to chroma units
-    a  = Eval(MidStr(jab_o, 2, 1))
-    b  = Eval(MidStr(jab_o, 3, 1))
-    ou =                       a  / 8.         # chroma units/pixels for U dimension in respect to luma units
-    ov = (round((b/(b+eps))) + 1) / 4.         # chroma units/pixels for V dimension in respect to luma units
+    a2 = Eval(MidStr(jab_o, 2, 1))
+    b2 = Eval(MidStr(jab_o, 3, 1))
+    ou = 1 - (a2 / 4.)               # target chroma units/pixels for U dimension in respect to luma units
+    ov = max(ou,ceil(b2 / 4.))       # target chroma units/pixels for V dimension in respect to luma units
 
-                         # source chroma placement defaults
-                         # top_left is always on 4:2:0 by spec
-    dplacei= FindStr(format_i,"RGB")>0      ? "center"   : \
-             format_i == "YUV444"           ? "center"   : \
-             FindStr(matrix_i,"2020")>0     ? "top_left" : \
-             FindStr(matrix_i,"2100")>0     ? "top_left" : \
-             FindStr(format_i,"YcCbcCrc")>0 ? "top_left" : \
-             FindStr(format_i,"ICtCp")>0    ? "top_left" : \
-             format_i == "YUV420"           ? "MPEG2"    : \
-             format_i == "YUV422"           ? "MPEG2"    : \
-             format_i == "YUV411"           ? "MPEG1"    : \
-             format_i == "YUV410"           ? "DV"       : "MPEG2"
 
-                         # out chroma placement defaults
-    dplaceo= FindStr(format_o,"RGB")>0      ? "center"   : \
-             format_o == "YUV444"           ? "center"   : \
-             FindStr(matrix_o,"2020")>0     ? "top_left" : \
-             FindStr(matrix_o,"2100")>0     ? "top_left" : \
-             FindStr(format_o,"YcCbcCrc")>0 ? "top_left" : \
-             FindStr(format_o,"ICtCp")>0    ? "top_left" : \
-             format_o == "YUV420"           ? "MPEG2"    : \
-             format_o == "YUV422"           ? "MPEG2"    : \
-             format_o == "YUV411"           ? "MPEG1"    : \
-             format_o == "YUV410"           ? "DV"       : "MPEG2"
+    ryw =  w  / float(nw)            # source/target Y dimensions
+    ryh =  h  / float(nh)
+    rcw = (a1 / float(a2)) * ryw     # source/target U dimensions
+    rch = (iv / float(ov)) * ryh     # source/target V dimensions
+
+    tli = FindStr(matrix_i,    "2020")>0 || FindStr(matrix_i,   "2100")>0 || \
+          FindStr(cplace_in,   "2020")>0 || FindStr(cplace_in,  "2100")>0 || \
+          FindStr(format_i,"YcCbcCrc")>0 || FindStr(format_i,  "ICtCp")>0
+
+    tlo = FindStr(matrix_o,    "2020")>0 || FindStr(matrix_o,   "2100")>0 || \
+          FindStr(cplace_out,  "2020")>0 || FindStr(cplace_out, "2100")>0 || \
+          FindStr(format_o,"YcCbcCrc")>0 || FindStr(format_o,  "ICtCp")>0
+
+    fulli = FindStr(format_i,"RGB")>0 || jab_i == "444"
+    fullo = FindStr(format_o,"RGB")>0 || jab_o == "444"
+
+
+                  # source chroma placement defaults
+    dplacei = tli                    ? "top_left"    : \
+              jab_i == "420"         ? "left"        : \
+              jab_i == "422"         ? "left"        : \
+              jab_i == "411"         ? "center"      : \
+              jab_i == "410"         ? "top_left"    : "left"
+
+                  # out chroma placement defaults
+    dplaceo = tlo                    ? "top_left"    : \
+              jab_o == "420"         ? "left"        : \
+              jab_o == "422"         ? "left"        : \
+              jab_o == "411"         ? "center"      : \
+              jab_o == "410"         ? "top_left"    : "left"
 
     cplacei = cplace_in =="" ? dplacei : Default (cplace_in,  dplacei)
     cplaceo = cplace_out=="" ? dplaceo : Default (cplace_out, dplaceo)
 
-    cplacei = cplacei == "center"       ? "MPEG1"    : \
-              cplacei == "JPEG"         ? "MPEG1"    : \
-              cplacei == "JPG"          ? "MPEG1"    : \
+    # Extending with aliases (RGB or 44 hardcoded)
+    cplacei = fulli                     ? "center"   : \
+              tli                       ? "top_left" : \
               cplacei == "DV"           ? "top_left" : \
-              FindStr(cplacei,"2020")>0 ? "top_left" : \
-              FindStr(cplacei,"2100")>0 ? "top_left" : \
-              cplacei == "left"         ? "MPEG2"    : cplacei
+              cplacei == "MPEG2"        ? "left"     : \
+              cplacei == "MPEG1"        ? "center"   : \
+              cplacei == "JPEG"         ? "center"   : \
+              cplacei == "JPG"          ? "center"   : \
+              cplacei == "l"            ? "left"     : \
+              cplacei == "c"            ? "center"   : \
+              cplacei == "tl"           ? "top_left" : \
+              cplacei == "t"            ? "top"      : \
+              cplacei == "bl"           ? "bottom_left": \
+              cplacei == "b"            ? "bottom"   : cplacei
 
-    cplaceo = cplaceo == "center"       ? "MPEG1"    : \
-              cplaceo == "JPEG"         ? "MPEG1"    : \
-              cplaceo == "JPG"          ? "MPEG1"    : \
+    cplaceo = fullo                     ? "center"   : \
+              tlo                       ? "top_left" : \
               cplaceo == "DV"           ? "top_left" : \
-              FindStr(cplaceo,"2020")>0 ? "top_left" : \
-              FindStr(cplaceo,"2100")>0 ? "top_left" : \
-              cplaceo == "left"         ? "MPEG2"    : cplaceo
-
-    # Scale chroma units (MPEG1 aware)
-    scloc  = cplacei == "MPEG2"       ? [-iu,  0.0]  : \
-             cplacei == "MPEG1"       ? [ iu,   iv]  : \
-             cplacei == "top_left"    ? [ 0.0, 0.0]  : \
-             cplacei == "bottom_left" ? [ 0.0, iv*2] : \
-             Assert (false, "chroma_placement: Unsupported chroma placement mode.")
+              cplaceo == "MPEG2"        ? "left"     : \
+              cplaceo == "MPEG1"        ? "center"   : \
+              cplaceo == "JPEG"         ? "center"   : \
+              cplaceo == "JPG"          ? "center"   : \
+              cplaceo == "l"            ? "left"     : \
+              cplaceo == "c"            ? "center"   : \
+              cplaceo == "tl"           ? "top_left" : \
+              cplaceo == "t"            ? "top"      : \
+              cplaceo == "bl"           ? "bottom_left": \
+              cplaceo == "b"            ? "bottom"   : cplaceo
 
     # In chroma units
-    icloc  = cplacei == "MPEG2"       ? [-ou,  0.0]  : \
-             cplacei == "MPEG1"       ? [ ou,   ov]  : \
-             cplacei == "top_left"    ? [ 0.0, 0.0]  : \
-             cplacei == "top"         ? [ ou,  0.0]  : \
-             cplacei == "bottom_left" ? [ 0.0, ov*2] : \
-             cplacei == "bottom"      ? [ ou,  ov*2] : \
-             Assert (false, "chroma_placement: Unsupported chroma placement mode.")
+    icloc  =  cplacei == "left"        ? [-iu,  0.0] : \
+              cplacei == "center"      ? [ 0.0, 0.0] : \
+              cplacei == "top_left"    ? [-iu,  -iv] : \
+              cplacei == "top"         ? [ 0.0, -iv] : \
+              cplacei == "bottom_left" ? [-iu,   iv] : \
+              cplacei == "bottom"      ? [ 0.0,  iv] : \
+              Assert (false, "chroma_placement: Unsupported chroma placement mode.")
 
     # Out chroma units [third item is _ChromaLocation index for frameprops]
-    ocloc  = cplaceo == "MPEG2"       ? [-ou,  0.0,  0] : \
-             cplaceo == "MPEG1"       ? [ ou,   ov,  1] : \
-             cplaceo == "top_left"    ? [ 0.0, 0.0,  2] : \
-             cplaceo == "top"         ? [ ou,  0.0,  3] : \
-             cplaceo == "bottom_left" ? [ 0.0, ov*2, 4] : \
-             cplaceo == "bottom"      ? [ ou,  ov*2, 5] : \
-             Assert (false, "chroma_placement: Unsupported chroma placement mode.")
+    ocloc  =  cplaceo == "left"        ? [-ou,  0.0, 0] : \
+              cplaceo == "center"      ? [ 0.0, 0.0, 1] : \
+              cplaceo == "top_left"    ? [-ou,  -ov, 2] : \
+              cplaceo == "top"         ? [ 0.0, -ov, 3] : \
+              cplaceo == "bottom_left" ? [-ou,   ov, 4] : \
+              cplaceo == "bottom"      ? [ 0.0,  ov, 5] : \
+              Assert (false, "chroma_placement: Unsupported chroma placement mode.")
 
-    [-scloc[0]*(1-ryw)+(ocloc[0]-icloc[0]), -scloc[1]*(1-ryh)+(ocloc[1]-icloc[1]), ocloc[2]] }
+    [ocloc[0]*rcw-icloc[0],(icloc[1]-ocloc[1])-(icloc[1]-ocloc[1])*rch, cplaceo] }
 
 
 
@@ -3610,7 +3681,7 @@ function Cross (float_array vec1, \
 
     [cr1, cr2, cr3] }
 
-
+# Inner Product (uT · v)
 function Dot (float_array vec1, \
               float_array vec2) {
     # 1x3 · 1x3
@@ -3652,19 +3723,19 @@ function ArrayOp (  val arr1, \
 
 
 # Reverses the array
-function ArrayInv ( val arr1 ) {
+function ArrayInv( val arr1 ) {
 
-    asize = ArraySize(arr1)
-    str = ""
+    bs = ArraySize(arr1)-1
+    arr = []
+    for (i = bs, 0, -1) {
+        arr = ArrayAdd(arr,arr1[i])
+      }
 
-    for (i=asize-1, 0, -1) {
-        cm  = i == 0 ? "" : ","
-        str = str + string(arr1[i]) + cm
-       }
-    return Eval("["+str+"]") }
+    return arr }
 
-# Casts the array to a string for debug purposes (print with subtitle())
-function ArrayPrint ( val arr1 ) {
+
+# Casts the array to a string and prints it (for debug purposes)
+function ArrayPrint (clip a, val arr1 ) {
 
     asize = ArraySize(arr1)
     str = ""
@@ -3672,37 +3743,29 @@ function ArrayPrint ( val arr1 ) {
         cm  = asize == i+1 ? "" : ","
         str = str + string(arr1[i]) + cm
        }
-    return "["+str+"]" }
+    return subtitle(a, "["+str+"]") }
 
 
 # Symmetrizes the array to the left, optionally removing the middle dup
 function ArraySym ( val arr1, bool "center" ) {
 
     cn = Default(center, false) # Include (true) or exclude (false) center duplicate
-    cn = cn ? 0 : 1
 
     asize = ArraySize(arr1)
-    str = ""
+    inv   = ArrayInv(arr1)
+    inv   = cn ? inv : ArrayDel(inv,asize-1)
 
-    for (i=asize-1, cn, -1) {
-        cm  = i == cn ? "" : ","
-        str = str + string(arr1[i]) + cm
-       }
-    return ArrayAppend(Eval("["+str+"]"),arr1) }
+    return ArrayAppend(inv,arr1) }
+
 
 
 # Appends 'arr2' array to 'arr1' array
 function ArrayAppend( val arr1, val arr2) {
 
-    as = ArraySize(arr1)-1
     bs = ArraySize(arr2)-1
-    na = ""
-    for (i = 0, as+bs+1, 1) {
-
-        o  = i  - as  - 1
-        cm = i != as+bs+1 ? "," : ""
-        na = na + ( i > as ? String(Eval(Format("arr2[{o}]"))) : \
-                             String(Eval(Format("arr1[{i}]")))) + cm
+    arr = arr1
+    for (i = 0, bs, 1) {
+        arr = ArrayAdd(arr,arr2[i])
       }
+    return arr }
 
-    return Eval("["+na+"]") }
