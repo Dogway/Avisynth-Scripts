@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v1.9  (19-02-2022)                                ###
+###        Deblock Pack v2.0  (08-03-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -39,7 +39,7 @@
 ###
 ### https://avisynth.nl/index.php/Deblock_QED
 ### https://web.archive.org/web/20060509152326/http://home.arcor.de/dhanselmann/_stuff/Deblock_QED.avs
-### http://videoprocessing.forumer.com/viewtopic.php?p=413
+### https://videoprocessing.forumer.com/viewtopic.php?p=413
 ### https://forum.doom9.org/showthread.php?p=751174#post751174
 ###
 ### Dependencies:
@@ -264,7 +264,7 @@ function oyster_Super(clip src, int "pel") {
 #    PadBorders(128, 128, 128, 128, "Dilate")
     PadBorders(64, 64, 64, 64, "Dilate")
 #    nnedi3_rpow2(rfactor=pel,nns=4,nsize=0,qual=2,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
 
     return last }
 
@@ -612,7 +612,7 @@ function NLMeans(clip src, int d, int a, int s, float h, clip rclip, bool color)
 #######################
 
 ## MSUDeCor 0.1 by redfordxx
-## MSU Smart Deblocking corrector
+## MSU Smart Deblocking corrector (VDub plugin, only available in x86 architecture)
 ## LoadVirtualDubPlugin("C:\Program Files\Multimedia\Video\VirtualDub-MPEG2\plugins\MSU_Smart_Deblocking.vdf","MSU_Smart_Deblocking", 0)
 
 function MSUDeCor(clip a, int "UV") {
@@ -621,7 +621,7 @@ function MSUDeCor(clip a, int "UV") {
     mat = color_propGet(a)
 
     #d=t.ConvertToRGB32(matrix="rec709").MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).ConvertBackToYUY2(matrix="rec709").ConvertToYV12() #use if MPEG2
-    d  = a.ConvertToPlanarRGB(matrix=propIDs[2]).MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).MatchClip(a)
+    d  = a.ConvertToPlanarRGB(matrix=mat[4]).MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).MatchClip(a)
 
     s1 = ex_makediff(d, a, UV=uv).ex_boxblur(1, mode="mean", UV=uv)
 
@@ -823,11 +823,10 @@ function SmoothDeblock4(clip orig, int "passes", int "density", int "inclOrig", 
 #  https://avisynth.nl/index.php/SmoothD2
 #
 #  Dependencies
-#    SmoothD2       https://avisynth.nl/index.php/SmoothD2
-#    aWarpSharp2    https://avisynth.nl/index.php/AWarpSharp2
-#    MaskTools2     https://avisynth.nl/index.php/MaskTools2
 #    ExTools
 #    ResizersPack
+#    SmoothD2       https://avisynth.nl/index.php/SmoothD2
+#    aWarpSharp2    https://avisynth.nl/index.php/AWarpSharp2
 #
 ###
 #  RESTRICTIONS
@@ -882,43 +881,41 @@ function SmoothDeblock4(clip orig, int "passes", int "density", int "inclOrig", 
 ###
 # This routine takes a clip that has already had the luma deblocked and uses SmoothD2 to deblock the chroma.
 # Defaults SmoothD2c(quant=3, num_shift=3, Matrix=3, Qtype=1, ZW=1, Cpr=0, cWarpToLuma=0, downSize=1, ncpu=1)
-Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qtype", int "ZW", int "Cpr", int "cWarpToLuma", int "downSize", int "ncpu") {
+function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qtype", int "ZW", int "Cpr", int "cWarpToLuma", int "downSize", int "ncpu") {
 
+    ow = width(clp)
+    oh = height(clp)
     px = PixelType(clp)
-    fs = propNumElements (clp,"_ColorRange")  > 0 ? \
-         propGetInt      (clp,"_ColorRange") == 0 : false
-
+    fs = propNumElements(clp,"_ColorRange")  > 0 ? \
+         propGetInt     (clp,"_ColorRange") == 0 : false
 
     quant       = Default( quant,          3 )
     num_shift   = Default( num_shift,      3 )
-    Matrix      = Default( Matrix,         3 )
-    Qtype       = Default( Qtype,          1 )
+    Matrix      = Default( Matrix,         3 )  # By default matrix 3 produces only vertical smoothing (bug?)
+    Qtype       = Default( Qtype,          2 )
     ZW          = Default( ZW,             1 )
     Cpr         = Default( Cpr,            0 )  # Chroma Protection Strength aka Chroma Vampire Be Gone
     cWarpToLuma = Default( cWarpToLuma,    0 )
     downSize    = Default( downSize,       1 )
-    ncpu        = Default( ncpu,           1 )
+    ncpu        = Default( ncpu,           4 )
 
-    ow  = clp.width()
-    oh  = clp.height()
-
-    Assert( ( quant       >= 1  &&  quant       <=  31 ), chr(10) + "SmoothD2c: 'quant' wrong value! [1-31]"           + chr(10))
-    Assert( ( num_shift   >= 1  &&  num_shift   <=   4 ), chr(10) + "SmoothD2c: 'num_shift' wrong value! [1-4]"        + chr(10))
-    Assert( ( Matrix      >= 1  &&  Matrix      <= 110 ), chr(10) + "SmoothD2c: 'Matrix' wrong value! [1-110]"         + chr(10))
-    Assert( ( Qtype       >= 0  &&  Qtype       <=   4 ), chr(10) + "SmoothD2c: 'Qtype' wrong value! [0-4]"            + chr(10))
-    Assert( ( ZW          >= 0  &&  ZW          <=  16 ), chr(10) + "SmoothD2c: 'ZW' wrong value! [1-16]"              + chr(10))
-    Assert( ( Cpr         >= 0  &&  Cpr         <=   6 ), chr(10) + "SmoothD2c: 'Cpr' wrong value! [0-6]"              + chr(10))
-    Assert( ( cWarpToLuma >= 0  &&  cWarpToLuma <=   8 ), chr(10) + "SmoothD2c: 'cWarpToLuma' wrong value! [0-8]"      + chr(10))
-    Assert( ( downSize    >= 1  &&  downSize    <=   4 ), chr(10) + "SmoothD2c: 'downSize' wrong value! [1-4]"         + chr(10))
-    Assert( ( ncpu        >= 1  &&  ncpu        <=   4 ), chr(10) + "SmoothD2c: 'ncpu' wrong value! [1-4]"             + chr(10))
-    Assert( ( ow          ==        nmod(ow,4)         ), chr(10) + "SmoothD2c: 'clip width'  must be a multiple of 4" + chr(10))
-    Assert( ( oh          ==        nmod(oh,4)         ), chr(10) + "SmoothD2c: 'clip height' must be a multiple of 4" + chr(10))
+    Assert( quant       >= 1  &&  quant       <=  31, chr(10) + "SmoothD2c: 'quant' wrong value! [1-31]"           + chr(10))
+    Assert( num_shift   >= 1  &&  num_shift   <=   4, chr(10) + "SmoothD2c: 'num_shift' wrong value! [1-4]"        + chr(10))
+    Assert( Matrix      >= 1  &&  Matrix      <= 110, chr(10) + "SmoothD2c: 'Matrix' wrong value! [1-110]"         + chr(10))
+    Assert( Qtype       >= 0  &&  Qtype       <=   4, chr(10) + "SmoothD2c: 'Qtype' wrong value! [0-4]"            + chr(10))
+    Assert( ZW          >= 0  &&  ZW          <=  16, chr(10) + "SmoothD2c: 'ZW' wrong value! [1-16]"              + chr(10))
+    Assert( Cpr         >= 0  &&  Cpr         <=   6, chr(10) + "SmoothD2c: 'Cpr' wrong value! [0-6]"              + chr(10))
+    Assert( cWarpToLuma >= 0  &&  cWarpToLuma <=   8, chr(10) + "SmoothD2c: 'cWarpToLuma' wrong value! [0-8]"      + chr(10))
+    Assert( downSize    >= 1  &&  downSize    <=   4, chr(10) + "SmoothD2c: 'downSize' wrong value! [1-4]"         + chr(10))
+    Assert( ncpu        >= 1  &&  ncpu        <=   4, chr(10) + "SmoothD2c: 'ncpu' wrong value! [1-4]"             + chr(10))
+    Assert( ow          ==        nmod(ow,4)        , chr(10) + "SmoothD2c: 'clip width'  must be a multiple of 4" + chr(10))
+    Assert( oh          ==        nmod(oh,4)        , chr(10) + "SmoothD2c: 'clip height' must be a multiple of 4" + chr(10))
 
 
    sd1 = clp
 
-   sd1 = (downSize    > 1) ? sd1.Lanczos4Resize(nmod(ow/float(downSize),32,64), nmod(oh/float(downSize),32,64)) : sd1
-   sd1 = (cWarpToLuma > 0) ? sd1.colorWarpToLuma(strength=cWarpToLuma)                                          : sd1
+   sd1 = (downSize    > 1) ? sd1.BicubicResize(nmod(ow/float(downSize),32,64), nmod(oh/float(downSize),32,64),-0.5,0.25) : sd1
+   sd1 = (cWarpToLuma > 0) ? sd1.colorWarpToLuma(strength=cWarpToLuma)                                                   : sd1
 
    zw1 = (Cpr == 0)  ?  sd1.ex_Ylevels( 0, 1.0, 255, 0, 0, fs)  :  sd1.buildZmask(cpr=cpr)
 
@@ -929,16 +926,13 @@ Function SmoothD2c(clip clp, int "quant", int "num_shift", int "Matrix", int "Qt
    cw  = u2.width()
    ch  = u2.height()
 
-   zwuv = zw1.Lanczos4Resize(cw, ch)
+   zwuv = zw1.BicubicResize(cw, ch,-0.5,0.25)
 
    u2  = u2.SmoothD2(quant=quant, num_shift=num_shift, Matrix=Matrix, Qtype=Qtype, ZW=ZW, ZWmask=zwuv, ncpu=ncpu)
    v2  = v2.SmoothD2(quant=quant, num_shift=num_shift, Matrix=Matrix, Qtype=Qtype, ZW=ZW, ZWmask=zwuv, ncpu=ncpu)
 
-   u2 = (downSize > 1) ? u2.Lanczos4Resize(nmod(ow/2), nmod(oh/2)) : u2
-   v2 = (downSize > 1) ? v2.Lanczos4Resize(nmod(ow/2), nmod(oh/2)) : v2
-
-#   u2 = (downSize > 1) ? u2.bicubicResize(nmod(ow/2), nmod(oh/2)) : u2
-#   v2 = (downSize > 1) ? v2.bicubicResize(nmod(ow/2), nmod(oh/2)) : v2
+   u2 = (downSize > 1) ? u2.BicubicResize(nmod(ow/2), nmod(oh/2),-0.5,0.25) : u2
+   v2 = (downSize > 1) ? v2.BicubicResize(nmod(ow/2), nmod(oh/2),-0.5,0.25) : v2
 
    sd1 = YToUV(u2, v2).MergeLuma(clp)
 
