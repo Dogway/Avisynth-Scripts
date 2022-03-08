@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC41  (06-03-2022)           ##
+###    Transforms Pack v1.0 RC42  (08-03-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -207,7 +207,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     ConvertFormat(1280,0.5,kernel="EWA6",kernel_c="Blackman8")
 ###
 ### Example 6 - Convert from YUV444 to YUV422 and TV range to PC range:
-###     ConvertFormat(1,1,fmt_out="422",tv_range_out=false,cplace_out="MPEG2")
+###     ConvertFormat(1,1,fmt_out="422",tv_out=false,cplace_out="MPEG2")
 ###
 ### Example 7: High quality JPEG decoding and conversion to RGB
 ###   MP_Pipeline("""
@@ -230,17 +230,19 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     float height=1.0 (0.1 to 1080.0 by 0.1),
 ###     string "fmt_in"="" ("" / "YUV411" / "YUV420" / "YUV422" / "YUV444" / "RGB"),
 ###     string "fmt_out"="" ("" / "YUV411" / "YUV420" / "YUV422" / "YUV444" / "RGB"),
+###     string preset="none" ("none" / "DoVi/DVp5/DVp7" / "PQ10/UHD" / "HLG10" / "HD" / "DVD-NTSC" / "DVD-PAL" / "DV" / "CRT-NTSC" / "CRT-PAL" / "Master" / "Archival" / "Grade" / "Theater" / "JPEG2000" / "JPG_old" / "JPG"),
 ###     string "cs_in"="" ("" / "709" / "470M" / "470BG" / "170M" / "240M" / "2020NCL" / "2020CL" / "XYZ" / "DCI-P3" / "Display-P3" / "ACEScg" / "ACES2065" / "ACESCCt" / "AdobeRGB" / "AWG"),
 ###     string "cs_out"="" ("" / "709" / "470M" / "470BG" / "170M" / "240M" / "2020NCL" / "2020CL" / "XYZ" / "DCI-P3" / "Display-P3" / "ACEScg" / "ACES2065" / "ACESCCt" / "AdobeRGB" / "AWG"),
 ###     string "OETF"="" ("" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "log100" / "log316" / "xvYCC" / "1361" / "sRGB" / "2020NCL" / "2020CL" / "PQ" / "DCIXYZ" / "HLG" / "NHK HLG" / "AdobeRGB" / "ACESCCt"),
 ###     string "EOTF"="" ("" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "log100" / "log316" / "xvYCC" / "1361" / "sRGB" / "2020NCL" / "2020CL" / "PQ" / "DCIXYZ" / "HLG" / "NHK HLG" / "AdobeRGB" / "ACESCCt"),
-###     string "D_in"="" ("" / "D50" / "D55" / "D60" / "DCI" / "D65" / "C" / "D75" / "D93"),
-###     string "D_out"="" ("" / "D50" / "D55" / "D60" / "DCI" / "D65" / "C" / "D75" / "D93"),
+###     string "D_in"="" ("" / "D50" / "E" / "D55" / "D60" / "DCI" / "D65" / "C" / "D75" / "D93"),
+###     string "D_out"="" ("" / "D50" / "E" / "D55" / "D60" / "DCI" / "D65" / "C" / "D75" / "D93"),
 ###     [bool "tv_in"=true],
 ###     bool "tv_out"=true,
 ###     string "scale_space"="gamma" ("gamma" / "linear" / "sigmoid" / "log"),
-###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###     [string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "EWA" / "EWASharp" / "EWASharp2" / "EWASharper" / "EWASharpest" / "EWASoft" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Precise Bicubic" / "Sharp" / "Hatch")],
+###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     [string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch")],
+###     int "taps"=[0,0] ([0,0] to [12,12] by [1,1]),
 ###     bool "nomoiree"=false,
 ###     bool "noring"=false,
 ###     bool "UVrecon"=false,
@@ -382,9 +384,9 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # -Sphinx           Continuation of Sinc and Jinc, interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
 # -ICBI             (Iterative Curve Based Interpolation) is a single image superresolution technique described in Fast artifact-free image interpolation by Andrea Giachetti and Nicola Asuni, presented at BMVC 2008
 
-function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in", string       "fmt_out", string        "cs_in", string         "cs_out", string            "OETF", string   "EOTF", string "D_in", string "D_out", bool "tv_in", bool "tv_out", string "cplace_in", string "cplace_out", \
-                         string "scale_space", string "kernel", string "kernel_c", float_array "src_left", float_array "src_top", float_array "src_width", float_array "src_height",                                                                                                                       \
-                           float_array "taps", int       "mod", bool   "nomoiree", bool          "noring", bool        "UVrecon", bool             "show") {
+function ConvertFormat (clip clp, val "width", val       "height", string   "fmt_in", string       "fmt_out", string        "cs_in", string         "cs_out", string            "OETF", string   "EOTF", string "D_in", string "D_out", bool "tv_in", bool "tv_out", string "cplace_in", string "cplace_out", \
+                         string "scale_space", string    "kernel", string "kernel_c", float_array "src_left", float_array "src_top", float_array "src_width", float_array "src_height",                                                                                                                       \
+                           string    "preset", float_array "taps", int         "mod", bool        "nomoiree", bool         "noring", bool          "UVrecon", bool             "show") {
     clp
     wu         = !Defined(width)
     hu         = !Defined(height)
@@ -452,9 +454,9 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
         D_in   = Color_Fuzzy_search (D_in )[0]
         D_outA = Color_Fuzzy_search (D_out)
         D_out  = D_outA[0]
-    pd         = Defined (taps) ? taps[0] > 0 : false
-    pdc        = Defined (taps) ? taps[1] > 0 : false
-    p          = Defined (taps) ? taps : [0,0]     # [Y,UV] 'p' value for GaussianResize() or 'taps' for Lanczos, Blackman, Sinc, EWA, etc '0' means undefined
+    p          = Defined (taps) ? IsArray(taps) ? ArraySize(taps) > 1 ? taps : ArrayAdd(taps,0) : [taps,0] : [0,0]
+    pd         = p[0] > 0
+    pdc        = p[1] > 0
     src_left   = Default (src_left,  [0.0,0.0])    src_leftc = src_left[1]   src_left = src_left[0]
     src_top    = Default (src_top,   [0.0,0.0])    src_topc  = src_top [1]    src_top = src_top [0]
     noring     = Default (noring,  false)
@@ -463,20 +465,46 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     fs         = !tv_in
     dg         = Default (show,    false)
 
+    # PRESETS (maps outputs format)
+    preset     = Default(preset, "none")
+    num        = preset == ""           ? 0  : \
+                 preset == "none"       ? 0  : \
+                 preset == "DoVi"       ? 1  : \
+                 preset == "DVp5"       ? 1  : \
+                 preset == "DVp7"       ? 1  : \
+                 preset == "DoVi/DVp5/DVp7"?1: \
+                 preset == "PQ10"       ? 2  : \
+                 preset == "UHD"        ? 2  : \
+                 preset == "PQ10/UHD"   ? 2  : \
+                 preset == "HLG10"      ? 3  : \
+                 preset == "HD"         ? 4  : \
+                 preset == "DVD"        ? 5  : \
+                 preset == "DVD-NTSC"   ? 5  : \
+                 preset == "DVD-PAL"    ? 6  : \
+                 preset == "DV"         ? 7  : \
+                 preset == "CRT"        ? 8  : \
+                 preset == "CRT-NTSC"   ? 8  : \
+                 preset == "CRT-PAL"    ? 9  : \
+                 preset == "Master"     ? 10 : \
+                 preset == "Archival"   ? 11 : \
+                 preset == "Grade"      ? 12 : \
+                 preset == "Theater"    ? 13 : \
+                 preset == "JPEG2000"   ? 14 : \
+                 preset == "JPG_old"    ? 15 : \
+                 preset == "JPG"        ? 16 : 0
 
-#    PRESETS
-#                                DoVi/DVp5/DVp7     PQ10/UHD       HLG10         HD    DVD-NTSC    DVD-PAL        DV    CRT-NTSC    CRT-PAL     Master     Archival      Grade     Theater    JPEG2000    JPG_old      JPG
-#    fmt_out       = Select (num,     "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",   "YCbCr",  "YCbCr",     "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",     "YUVr",  "YCbCr",   "sYCC") # sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
-#    prims         = Select (num,        "2020",      "2020",     "2020",     "709",     "170M",   "470BG",        4,    "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",   "170M",   "sRGB") # JPG_old uses sRGB primaries but with 170M (470M derived) matrix, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
-#    Jab           = Select (num,         "420",       "420",      "420",     "420",      "420",     "420",    "410",     "411",     "411",     "444",       "444",      "444",      "444",      "444",    "420",    "422")
-#    tv_out        = Select (num,         false,        true,       true,      true,       true,      true,    false,      true,      true,     false,       false,      false,      false,      false,    false,    false)
-#    cplace_out    = Select (num,    "top_left",  "top_left", "top_left",   "MPEG2",    "MPEG2",   "MPEG2",     "DV",   "MPEG1",   "MPEG1",        "",          "",         "",         "",         "",  "MPEG1",  "MPEG1")
-#    D_out         = Select (num,         "D65",       "D65",      "D65",     "D65",      "D65",     "D65",        4,     "601",     "601",       "E",       "D60",      "D60",        "E",      "D65",    "D65",    "D65")
-#    EOTF          = Select (num,          "PQ",        "PQ",      "HLG",    "1886",     "170M",     "470",        4,    "170M",    "170M",     "DCI",    "linear",  "ACESCCt",      "DCI",     "sRGB",   "170M",   "sRGB")
-#    PAR           = Select (num,             1,           1,          1,         1,      "601",     "470",        4,     "601",     "601",         1,           1,          1,          1,          1,        1,        1)
-#    cdc           = Select (num,        "H265",      "H265",     "H265",    "H264",     "H262",    "H262",   "H261",        "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000", "JPEG2000",    "JPG",    "JPG")
-#    cont          = Select (num,          "TS",        "TS",       "TS",      "TS",      "VOB",     "VOB",  "MPEG2",        "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jp2",    "JPG",    "JPG")
-#    bit           = Select (num,            12,          10,         10,         8,          8,         8,        8,        "",        "",        16,          16,         32,         12,          8,        8,        8)
+    #                                   Default  DoVi/DVp5/DVp7    PQ10/UHD       HLG10         HD    DVD-NTSC    DVD-PAL        DV    CRT-NTSC    CRT-PAL     Master     Archival      Grade     Theater    JPEG2000    JPG_old      JPG
+    o_fmt0        = Select (num,      o_fmt[0],      "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",   "YCbCr",  "YCbCr",     "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
+    cs_outFA      = Select (num,      cs_outFA,         "2020",      "2020",     "2020",     "709",     "170M",   "470BG",        4,    "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old uses sRGB primaries but with 170M (470M derived) matrix, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
+    o_fmt1        = Select (num,      o_fmt[1],          "420",       "420",      "420",     "420",      "420",     "420",    "410",     "411",     "411",     "444",       "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
+    tv_out        = Select (num,        tv_out,          false,        true,       true,      true,       true,      true,    false,      true,      true,     false,       false,      false,      false,      false,    false,    false)
+    cplace_out    = Select (num,    cplace_out,     "top_left",  "top_left", "top_left",   "MPEG2",    "MPEG2",   "MPEG2",     "DV",   "MPEG1",   "MPEG1",        "",          "",         "",         "",         "",  "MPEG1",  "MPEG1")
+    D_out         = Select (num,         D_out,          "D65",       "D65",      "D65",     "D65",      "D65",     "D65",        4,     "601",     "601",       "E",       "D60",      "D60",        "E",      "D65",    "D65",    "D65")
+    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "170M",     "470",        4,    "170M",    "170M",     "DCI",    "linear",  "ACESCCt",      "DCI",     "sRGB",   "170M",   "sRGB")
+    PAR           = Select (num,             1,              1,           1,          1,         1,      "601",     "470",        4,     "601",     "601",         1,           1,          1,          1,          1,        1,        1)
+    cdc           = Select (num,        "H265",         "H265",      "H265",     "H265",    "H264",     "H262",    "H262",   "H261",        "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000", "JPEG2000",    "JPG",    "JPG")
+    cont          = Select (num,          "TS",           "TS",        "TS",       "TS",      "TS",      "VOB",     "VOB",  "MPEG2",        "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jp2",    "JPG",    "JPG")
+    bit           = Select (num,            12,             12,          10,         10,         8,          8,         8,        8,         0,         0,        16,          16,         32,         12,          8,        8,        8)
 
 
 
@@ -494,10 +522,10 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     # Constants for logic flow
     isGamma  = OETF      !=  EOTF
     isSpace  = cs_in     !=  cs_out
-    isFrmt   = i_fmt[0]  !=  o_fmt[0]
+    isFrmt   = i_fmt[0]  !=  o_fmt0
     isIllu   = D_in      !=  D_out
     isScale  = nw!=w     ||  nh!=h
-    isJab    = i_fmt[1]  !=  o_fmt[1]
+    isJab    = i_fmt[1]  !=  o_fmt1
     isChP    = cplace_in != cplace_out
 
     coef_i   =           Matrix_coef(cs_in)
@@ -505,10 +533,10 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     s_gam    =           moncurve_coef (OETF)
     t_gam    = isGamma ? moncurve_coef (EOTF) : s_gam
 
-    i_type4  = i_fmt[1] == "444"         o_type4  = o_fmt[1] == "444"
-    i_type2  = i_fmt[1] == "422"         o_type2  = o_fmt[1] == "422"
-    i_type1  = i_fmt[1] == "411"         o_type1  = o_fmt[1] == "411"
-    i_type10 = i_fmt[1] == "410"         o_type10 = o_fmt[1] == "410"
+    i_type4  = i_fmt[1] == "444"         o_type4  = o_fmt1 == "444"
+    i_type2  = i_fmt[1] == "422"         o_type2  = o_fmt1 == "422"
+    i_type1  = i_fmt[1] == "411"         o_type1  = o_fmt1 == "411"
+    i_type10 = i_fmt[1] == "410"         o_type10 = o_fmt1 == "410"
 
     cow      = i_type4 ?  w : i_type1 || i_type10 ? round( w/4.0) : round( w/2.0)
     coh      = i_type4 ||     i_type1 || i_type2  ?             h : round( h/2.0)
@@ -538,21 +566,29 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     # Overriding 'taps' arg by kernel name (ie. 'blackman8' means taps=8)
 
     function StrNumber(string str) {
-        for (i = 1, 12, 1) {
+        for (i = 12, 0, -1) {
            num = str == string(i)
-             i = num ? 12 : i
+             i = num ? 0 : i
                  num} } # Checks if string is a number between 1 and 12
 
-    tapFinder1 = RightStr(kernel,1)  StrN1 = StrNumber(tapFinder1)
-    tapFinder2 = RightStr(kernel,2)  StrN2 = StrNumber(tapFinder2)
+    Lkrn = LCase(kernel)    Lkrnc = LCase(kernel_c)
+    nope = (FindStr(Lkrn,  "spline1") > 0 || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline256") && Lkrn  !="spline"           || \
+           (kernel   == "jinc16" || kernel   == "jinc100" || kernel   == "jinc144" || kernel   == "jinc196" || kernel   == "jinc256") && Lkrn  !="jinc" || \
+            FindStr(Lkrn, "ewasharp") > 0 || FindStr(Lkrn, "nnedi3") > 0
+    nopc = (FindStr(Lkrnc, "spline1") > 0 || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline256") && Lkrnc !="spline"           || \
+           (kernel_c == "jinc16" || kernel_c == "jinc100" || kernel_c == "jinc144" || kernel_c == "jinc196" || kernel_c == "jinc256") && Lkrnc !="jinc" || \
+            FindStr(Lkrnc,"ewasharp") > 0 || FindStr(Lkrnc,"nnedi3") > 0
+
+    tapFinder1 = RightStr(kernel,1)  StrN1 = StrNumber(tapFinder1) && !nope
+    tapFinder2 = RightStr(kernel,2)  StrN2 = StrNumber(tapFinder2) && !nope
     taps       = StrN2 ? Eval(tapFinder2) : StrN1 ? Eval(tapFinder1) : p[0]
-    kernel     = ReplaceStr(kernel , string(taps),  "")
+    kernel     = !nope ? ReplaceStr(kernel , string(taps), "") : kernel
     pd         = StrN1 || StrN2 ? true : pd
 
-    tapFinder1 = RightStr(kernel_c,1)  StrN1 = StrNumber(tapFinder1)
-    tapFinder2 = RightStr(kernel_c,2)  StrN2 = StrNumber(tapFinder2)
+    tapFinder1 = RightStr(kernel_c,1)  StrN1 = StrNumber(tapFinder1) && !nopc
+    tapFinder2 = RightStr(kernel_c,2)  StrN2 = StrNumber(tapFinder2) && !nopc
     tapsc      = StrN2 ? Eval(tapFinder2) : StrN1 ? Eval(tapFinder1) : p[1]
-    kernel_c   = ReplaceStr(kernel_c, string(tapsc), "")
+    kernel_c   = !nopc ? ReplaceStr(kernel_c , string(tapsc), "") : kernel_c
     pdc        = StrN1 || StrN2 ? true : pdc
 
 
@@ -584,17 +620,20 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
     function KernStr(string kernel, int nw, int nh, float bc_b, float bc_c, float p, bool pd) {
 
-    resampler = Format( kernel == "nnedi3"       ?    "deep_resize({nw},{nh}"                                : \
-                        kernel == "Nearest" || kernel == "NearestNeighbour" || kernel == "NN"                ? \
+    resampler = Format( kernel == "nnedi3"       ?    "nnedi3resize({nw},{nh}"                               : \
+                        kernel == "Nearest"  || kernel == "NearestNeighbour" || kernel == "NN"               ? \
                                                       "GaussResize({nw},{nh},p=100"                          : \
                         kernel == "Gauss"        ?    "GaussResize({nw},{nh},p={pd}?{p}:9"                   : \
-                        kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" ? \
+                        kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" || kernel == "Simple" ? \
                                                      """fmtc_resample({nw},{nh},kernel="box"             """ : \
                         kernel == "Bilinear" || kernel == "Triangle" || kernel == "Bartlett"                 ? \
                                                    "BilinearResize({nw},{nh}"                                : \
                         kernel == "Bicubic"      ? "BicubicResize ({nw},{nh},b={bc_b},c={bc_c}"              : \
+                        kernel == "Spline"       ? """fmtc_resample({nw},{nh},kernel="Spline",taps={pd}?int({p}):4""": \
                         kernel == "Spline100"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=5"""      : \
                         kernel == "Spline144"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=6"""      : \
+                        kernel == "Spline196"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=7"""      : \
+                        kernel == "Spline256"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=8"""      : \
                         kernel == "Wiener"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Wiener3)       """ : \
                         kernel == "Hann"         ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Hann4)         """ : \
                         kernel == "Hamming"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Hamming4)      """ : \
@@ -625,18 +664,21 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                         kernel == "Blackman"     ?     "BlackmanResize({nw},{nh},taps={pd}?int({p}):6"       : \
                         kernel == "Lanczos"      ?     "LanczosResize({nw},{nh},taps={pd}?int({p}):4"        : \
                         kernel == "DPID"         ?     "DPID({nw},{nh},lambdaY=0.5"                          : \
+                        kernel == "Jinc16"       ?     "JincResize({nw},{nh},tap=2"                          : \
+                        kernel == "Jinc100"      ?     "JincResize({nw},{nh},tap=5"                          : \
+                        kernel == "Jinc196"      ?     "JincResize({nw},{nh},tap=7"                          : \
                         kernel == "EWA"          || kernel == "Jinc"       || kernel == "ewa_lanczos"        ? \
                                                        "JincResize({nw},{nh},tap={pd}?int({p}):3"            : \
-                        kernel == "EWASharp2"    || kernel == "JincSharp2" || kernel == "ewa_lanczos2sharp"  ? \
-                                                       "JincResize({nw},{nh},tap=2,blur=0.9549963639785485"  : \
                         kernel == "EWASharp"     || kernel == "JincSharp"  || kernel == "ewa_lanczossharp"   ? \
                                                        "JincResize({nw},{nh},tap=3,blur=0.9812505644269356"  : \
+                        kernel == "EWASharp2"    || kernel == "JincSharp2" || kernel == "ewa_lanczos2sharp"  ? \
+                                                       "JincResize({nw},{nh},tap=2,blur=0.9549963639785485"  : \
                         kernel == "EWASharp4"    || kernel == "JincSharp4" || kernel == "ewa_lanczos4sharp"  ? \
                                                        "JincResize({nw},{nh},tap=4,blur=0.9885973386557245"  : \
-                        kernel == "EWASharper2"  || kernel == "JincSharper2"||kernel =="ewa_lanczosradius2"  ? \
-                                                       "JincResize({nw},{nh},tap=2,blur=0.895603689740279282": \
                         kernel == "EWASharper"   || kernel == "JincSharper"|| kernel =="ewa_lanczosradius3" || kernel =="Ginseng" ? \
                                                        "JincResize({nw},{nh},tap=3,blur=0.9264075766146068"  : \
+                        kernel == "EWASharper2"  || kernel == "JincSharper2"||kernel =="ewa_lanczosradius2"  ? \
+                                                       "JincResize({nw},{nh},tap=2,blur=0.895603689740279282": \
                         kernel == "EWASharper4"  || kernel == "JincSharper4"||kernel =="ewa_lanczosradius4"  ? \
                                                        "JincResize({nw},{nh},tap=4,blur=0.943159799432847707": \
                         kernel == "EWASharpest"  || kernel == "JincSharpest"|| kernel =="ewa_lanczossharpest"? \
@@ -655,12 +697,28 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                         kernel +                           "Resize({nw},{nh}"                                 )
 
 
-                        src_nul = kernel == "ResizeShader" || kernel == "SSIM" || kernel == "SSIM2" || kernel == "DPID" || kernel == "nnedi3" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
-                        src_box = kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || \
-                                  kernel == "Wiener" || kernel == "Hann" || kernel == "Hamming" || kernel == "Black-Harris" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || \
-                                  kernel == "Nuttall" || kernel == "Welch" || kernel == "Cosine" || kernel == "Ginseng" || kernel == "Bessel" || kernel == "Quadratic" || kernel == "Parzen" || kernel == "Kaiser" || kernel == "Bohman"
+                        src_nul = kernel == "ResizeShader"    || kernel == "SSIM"   || kernel == "SSIM2"   || kernel == "DPID" || kernel == "nnedi3" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
+                        src_box = kernel == "Dirichlet"       || kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || kernel == "Spline" || \
+                                  kernel == "Black-Harris"    || kernel == "Wiener" || kernel == "Hann"    || kernel == "Hamming" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || kernel == "Spline196" || kernel == "Spline256" || \
+                                  kernel == "BlackmanMinLobe" || kernel == "Nuttall"|| kernel == "Welch"   || kernel == "Cosine" || kernel == "Ginseng" || kernel == "Quadratic" || kernel=="Quadric" || kernel == "Bessel" || kernel == "Parzen" || kernel == "Kaiser" || kernel == "Bohman"
 
-                        [resampler, src_nul, src_box] }
+                        # Retrieving taps
+                        resampler = TrimAll(resampler)
+                        taps = FindStr(resampler, "impulse") > 0 ? MidStr(resampler,StrLen(resampler)-1,1)                                            : \
+                               FindStr(resampler, "tap")     > 0 ? FindStr(resampler, "Jinc") > 0 ? \
+                                                                   kernel == "Jinc"               ? MidStr(resampler,FindStr(resampler, "tap=") +4)   : \
+                                                                                                    MidStr(resampler,FindStr(resampler, "tap=") +4,1) : \
+                                                                                                    MidStr(resampler,FindStr(resampler, "taps=")+5)   : "0"
+                        taps = kernel == "Jinc16"    || kernel == "spline16"  ? "2"   : \
+                               kernel == "Jinc36"    || kernel == "spline36"  ? "3"   : \
+                               kernel == "Jinc64"    || kernel == "spline64"  ? "4"   : \
+                               kernel == "Jinc100"   || kernel == "spline100" ? "5"   : \
+                               kernel == "Jinc144"   || kernel == "spline144" ? "6"   : \
+                               kernel == "Jinc196"   || kernel == "spline196" ? "7"   : \
+                               kernel == "Jinc256"   || kernel == "spline256" ? "8"   : \
+                               kernel == "Quadratic" || kernel == "Quadric"   ? "1.5" : taps
+
+                        [resampler, src_nul, src_box, Eval(taps)] }
 
 
     krny = KernStr(kernel  ,  nw,  nh, bc_b,  bc_c,  taps,  pd)   resampler   = krny[0]  src_nuly = krny[1]  src_boxy = krny[2]
@@ -673,7 +731,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     src_c   = src_nuly ? ")" : src_boxy ?      Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr # take into account cplace
     Ynr     = Format(".Repair(BicubicResize(Y,{nw},{nh},0,0"+src_nr+",1)")  # noring uses Hermite kernel. Check here if I need -1 for chroma
 
-    cplace  = chroma_placement(w, h, nw, nh, cs_in, cs_out, i_fmt[0], o_fmt[0], i_fmt[1], o_fmt[1], cplace_in, cplace_out )
+    cplace  = chroma_placement(w, h, nw, nh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
 
 
     cplaceY  = (src_nuly || src_boxy ? "" : ",src_left=" +string(src_left)+",src_top="+string(src_top) + src_wh ) + ")" + fmtcb
@@ -693,7 +751,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
     c_recon  = """threads = SI_LogicalCores()
                   cores   = SI_PhysicalCores()
                   refs    = isRGBo || isSpace || isScale ? true : !tv_in
-                  c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt[0], i_fmt[1], o_fmt[1], cplace_in, cplace_out )
+                  c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
                   ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
                   Luma    = ref.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=fs)
                   Uu      =  Cb.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2)
@@ -804,7 +862,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
         if (!isRGBo && !isSpace && !isIllu) {
 
-            CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+o_fmt[1]+o_fmt[2])
+            CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+o_fmt1+o_fmt[2])
             tv_in != tv_out ? space == "gamma" ? SMPTE_legal(tv_out,3,  3) : \
                               isScale          ? SMPTE_legal(tv_out,1,  3) : \
                              !isScale          ? SMPTE_legal(tv_out,UVr,3) : last : last
@@ -919,27 +977,27 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
         G = isSpace || isIllu || isGamma ? G.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : G
         B = isSpace || isIllu || isGamma ? B.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : B
 
-        if (o_fmt[0]=="YcCbcCrc" || cs_out == "2020CL") {
+        if (o_fmt0=="YcCbcCrc" || cs_out == "2020CL") {
 
             YCbCr = RGB_to_YcCbcCrc( R, G, B, cs_out, coef_o, !(isSpace || isIllu || !tv_in), tv_out)
 
             Y  = YCbCr[0]  Cb = YCbCr[1]  Cr = YCbCr[2]
 
-            } else if (o_fmt[0]=="YCoCg") {
+            } else if (o_fmt0=="YCoCg") {
 
-            } else if (o_fmt[0]=="YCoCgR") {
+            } else if (o_fmt0=="YCoCgR") {
 
-            } else if (o_fmt[0]=="YUVr") {
+            } else if (o_fmt0=="YUVr") {
 
-            } else if (o_fmt[0]=="OkLab") {
+            } else if (o_fmt0=="OkLab") {
 
-            } else if (o_fmt[0]=="HSV") {
+            } else if (o_fmt0=="HSV") {
 
-            } else if (o_fmt[0]=="OPP") {
+            } else if (o_fmt0=="OPP") {
 
-            } else if (o_fmt[0]=="ICtCp") {
+            } else if (o_fmt0=="ICtCp") {
 
-            } else if (o_fmt[0]=="YCbCr") {
+            } else if (o_fmt0=="YCbCr") {
 
             scale_y   = !(isSpace || isIllu || !tv_in) && (isScale || !tv_out) ? ( 255 / 219.) : (isSpace || isIllu || !tv_in) && !(isScale || !tv_out) ? ( 219 / 255.) : 1.0
             scale_uv  = !(isSpace || isIllu || !tv_in) && (isScale || !tv_out) ? ( 255 / 112.) : (isSpace || isIllu || !tv_in) && !(isScale || !tv_out) ? ( 112 / 255.) : 0.5
@@ -984,7 +1042,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                                         Y
             }
 
-        CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+o_fmt[1]+o_fmt[2])
+        CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+o_fmt1+o_fmt[2])
 
         } }
 
@@ -1000,6 +1058,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
         # Show panel
         if (dg) {
 
+            # EOTF curve
             w2   = width()
             h2   = height()
             sw  = nmod(w2/5.)   sh = sw
@@ -1014,10 +1073,14 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
 
             i_jab  = i_fmt[1]
             i_fmt  = i_fmt[0]
-            o_jab  = o_fmt[1]
-            o_fmt  = o_fmt[0]
+            o_jab  = o_fmt1
+            o_fmt  = o_fmt0
             c_col  = cplace[0]
             c_cot  = cplace[1]
+            kernel = UCase(LeftStr(kernel,  1))+MidStr(kernel,  2) # Sentence case
+            kernelc= UCase(LeftStr(kernel_c,1))+MidStr(kernel_c,2) # Sentence case
+            y_cof  = (kernel   == "bicubic" ? string(bc_b, "%1.2f")+","+string(bc_c, "%1.2f") : krny[3] > 0 ? string(krny[3]) : "")  y_cof = y_cof == "" ? "" : (kernel   == "bicubic" ? "" : "     ")+"["+y_cof+"]"
+            u_cof  = (kernel_c == "bicubic" ? string(bch_b,"%1.2f")+","+string(bch_c,"%1.2f") : krnc[3] > 0 ? string(krnc[3]) : "")  u_cof = u_cof == "" ? "" : (kernel_c == "bicubic" ? "" : "     ")+"["+u_cof+"]"
             tv_i   = tv_in  ? "Lim" : "Full"
             tv_o   = tv_out ? "Lim" : "Full"
             msize  = min(nw,nh)
@@ -1025,7 +1088,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC41",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC42",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1038,7 +1101,8 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                            +"range:\n "         \
                            +"cplacement:\n "    \
                            +"clocation:\n "     \
-                           +"kernel:\n "        \
+                           +"kernelY:\n "       \
+                           +"kernelUV:\n "      \
                            +"noring:\n "        \
                            +"nomoiree:\n "      \
                            +"UVrecon:"),                        size=msize/25,lsp=4)
@@ -1054,6 +1118,7 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                            +"{cplace_in} \n "   \
                            +string(c_col,"%1.3f")+" \n "\
                            +"{kernel} \n "      \
+                           +"{kernelc} \n "     \
                            +"{noring} \n "      \
                            +"{nomoir} \n "      \
                            +"{recon}"),            x=msize/4,   size=msize/25,lsp=4)
@@ -1067,7 +1132,9 @@ function ConvertFormat (clip clp, val "width", val    "height", string   "fmt_in
                            +"{o_jab} \n "       \
                            +"{tv_o} \n "        \
                            +"{cplace_out} \n "  \
-                           +string(c_cot,"%1.3f")),x=msize/2.25,size=msize/25,lsp=4)
+                           +string(c_cot,"%1.3f")+" \n "\
+                           +y_cof+" \n "        \
+                           +u_cof+" \n "),         x=msize/2.25,size=msize/25,lsp=4)
     } }
 
 
@@ -1737,6 +1804,7 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
                                       y "+string(rW[2])+" / Z@ {ep} > Z 0.333333333 ^ Z {coefr} * 16 116 / + ? - 200 * "+" 12.3  /"), bi, fs), optSingleMode=true,  lut=lut2)
 
     isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
+
 
 
 # WIP. CIE Lab to XYZ
@@ -2717,7 +2785,10 @@ function Color_Fuzzy_search (string matrix) {
 \   : (matrix == "D75"           ) ? "D75"
 \   : (matrix == "C"             ) ? "C"
 \   : (matrix == "93"            ) ? "D93"
-\   : (matrix == "D93"           ) ? "D93" : matrixn
+\   : (matrix == "D93"           ) ? "D93"
+\   : (matrix == "E"             ) ? "E"
+\   : (matrix == "Neutral"       ) ? "E"
+\   : (matrix == "null"          ) ? "E" : matrixn
 
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
@@ -2756,7 +2827,8 @@ function Color_Fuzzy_search (string matrix) {
 \   : (illuminant == "D65"         ) ? 4
 \   : (illuminant == "C"           ) ? 5
 \   : (illuminant == "D75"         ) ? 6
-\   : (illuminant == "D93"         ) ? 7 : -1
+\   : (illuminant == "D93"         ) ? 7
+\   : (illuminant == "E"           ) ? 8 : -1
 
     # ID for _Transfer frame properties (BT.2380-2. Table 2.7)
     idt =
@@ -2916,6 +2988,7 @@ function color_propGet (clip a) {
 \   : (illu_i == 5    ) ? "C"
 \   : (illu_i == 6    ) ? "D75"
 \   : (illu_i == 7    ) ? "D93"
+\   : (illu_i == 8    ) ? "E"
 \   : Assert (false, "color_propGet: Unknown _Illuminant ID.")
 
     # ID for _Transfer frame properties (BT.2380-2. Table 2.7)
@@ -3093,7 +3166,7 @@ function bicubic_coeffs (string kernel) {
 
     # From smoother to sharper
     c = [-1,-1]
-    c = kernel == "SoftCubic100"      ? [1.0,0.0]   : c # same as GaussResize(p=21)
+    c = kernel == "SoftCubic100"      ? [1.0,0.0]   : c # Also called Spline (same as GaussResize(p=21))
     c = kernel == "Robidoux Soft"     ? [rbb,rbc]   : c
     c = kernel == "SoftCubic75"       ? [0.75,0.25] : c
     c = kernel == "BilcubicD"         ? [1/3.,0.0]  : c # dw Bicubic practical match to Bilinear
@@ -3115,7 +3188,7 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "Hatch"             ? [0.0,-5.0]  : c
 
     # Aliases
-    c = kernel == "Spline"            ? [1.0,0.0]   : c
+  # c = kernel == "Spline"            ? [1.0,0.0]   : c # Commented as to not conflict with SplinexxResize kernel
     c = kernel == "SoftCubic"         ? [0.75,0.25] : c
     c = kernel == "Precise"           ? [0.0,0.75]  : c
     c = kernel == "catrom"            ? [0.0,0.5]   : c
@@ -3295,13 +3368,14 @@ function Matrix_coef (string matrix, string "illuminant") {
     # The coordinates and CCT's are from CIE 1931 2 degree standard observer
     mat_wp =
 \     (illuminant == "D50"        ) ? 2
-\   : (illuminant == "D55"        ) ? 5
+\   : (illuminant == "D55"        ) ? 6
 \   : (illuminant == "D60"        ) ? 4
 \   : (illuminant == "DCI"        ) ? 3
 \   : (illuminant == "D65"        ) ? 1
 \   : (illuminant == "C"          ) ? 0
-\   : (illuminant == "D75"        ) ? 6
-\   : (illuminant == "D93"        ) ? 7 : mat_wp
+\   : (illuminant == "E"          ) ? 5
+\   : (illuminant == "D75"        ) ? 7
+\   : (illuminant == "D93"        ) ? 8 : mat_wp
 # * D93 is not a D standard illuminant. Here it is defined for CCT (correlated) to consumer's TV standard "9300K+27 MPCD". "9300K+8 MPCD" for master CRT corresponds to 0.2838, 0.2984
 
     # Hardcode constants for the Kr, Kg, Kb derivations
@@ -3311,14 +3385,14 @@ function Matrix_coef (string matrix, string "illuminant") {
 \   : (matrix == "AWG"            ) ? 2 : mat_wp
 
 
-    #                     NTSC 1953/YCbCr   ITU-R BT.709-6/sRGB ITU-R BT.601     Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Adobe Wide Gamut   Display-P3/D65P3  DCI-P3            AP1                AP0                D55                D75                D93
-    #                     BT-470M/FCC       IEC 61966-2-1       SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg/ACEScct     SMPTE ST 2065-1    D55                D75                9300K+27 MPCD   Sunlight        Overcast
+    #                     NTSC 1953/YCbCr   ITU-R BT.709-6/sRGB ITU-R BT.601     Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100   Adobe RGB (1998)  Adobe Wide Gamut   Display-P3/D65P3  DCI-P3            AP1                AP0                E (Neutral)    D55                D75                D93
+    #                     BT-470M/FCC       IEC 61966-2-1       SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100   Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg/ACEScct     SMPTE ST 2065-1    XYZ            D55                D75                9300K+27 MPCD   Sunlight        Overcast
     pr  = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],    [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.708,  0.292],  [0.640,  0.330],  [0.73469,0.26531], [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653])
     pg  = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],    [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.170,  0.797],  [0.210,  0.710],  [0.11416,0.82621], [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000])
     pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.131,  0.046],  [0.150,  0.060],  [0.15664,0.01770], [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770])
-    pw  = Select (mat_w,  [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311],[0.3362,0.3502],[0.3134,0.3275])
-    wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311],[0.3362,0.3502],[0.3134,0.3275])
-    Kv  = Select (mat_wp,  6774.202        , 6504.13            ,                                                                                         5001.668        ,                    6304.573      ,   6000.211                           ,  5502.33          , 7506.16          , 8941.864     , 5347.894     ,  6477.94     )
+    pw  = Select (mat_w,  [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3]   ,[0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311],[0.3362,0.3502],[0.3134,0.3275])
+    wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                        [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3]   ,[0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311],[0.3362,0.3502],[0.3134,0.3275])
+    Kv  = Select (mat_wp,  6774.202        , 6504.13            ,                                                                                         5001.668        ,                    6304.573      ,   6000.211                           ,  5455.792     , 5502.33          , 7506.16          , 8941.864     , 5347.894     ,  6477.94     )
 
     pr = [pr[0], pr[1], 1 - pr[0] - pr[1]]
     pb = [pb[0], pb[1], 1 - pb[0] - pb[1]]
@@ -3527,7 +3601,7 @@ function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
 #
 # von Kries Chromatic Adaptation
 # source and/or target can be a Primaries Color Space (ie. sRGB) or an illuminant (ie: D65)
-function c_adaptation (clip c, string "source", string "target", bool "tv_range", bool "list", bool "fulls") {
+function c_adaptation (clip c, string "source", string "target", bool "tv_range", bool "list") {
 
     rgb     = IsRGB(c)
     propIDs = color_propGet(c)
@@ -3536,7 +3610,6 @@ function c_adaptation (clip c, string "source", string "target", bool "tv_range"
     tgt    = Default (target,        "D65")
     tv     = Default (tv_range, propIDs[6])
     list   = Default (list,          false)
-
 
     src    = list ? [src] : Color_Fuzzy_search (src)
     tgt    = list ? [tgt] : Color_Fuzzy_search (tgt)
