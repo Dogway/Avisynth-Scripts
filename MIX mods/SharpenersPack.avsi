@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.1  (06-03-2022)                             ###
+###        Sharpeners Pack v4.1  (09-03-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -2895,7 +2895,7 @@ function MultiSharpen2(clip C, int multi, float "sharpen", float "blur") {
 
     C
     for (i=multi, 1, -1) {
-        Sharpen(shrp).vsTCanny(blr*1.6,blr*1.6,sigma_vU=blr*1.6,mode=-1,y=3,u=3,v=3)
+        Sharpen(shrp).vsTCanny(blr*1.6,blr*1.6,mode=-1,y=3,u=3,v=3)
     }
 
     return last }
