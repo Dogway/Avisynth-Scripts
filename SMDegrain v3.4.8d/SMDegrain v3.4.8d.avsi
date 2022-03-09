@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.4.7d      by Dogway    - 15 Feb  2022                           ###
+###                       v3.4.8d      by Dogway    - 09 Mar  2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -30,7 +30,7 @@
 ### Dependencies:
 ###              MVTools2
 ###              ExTools
-###              LSFmod/SharpenersPack  (for Contrasharp or LFR)
+###              LSFplus/SharpenersPack (for Contrasharp or LFR)
 ###                 ResizersPack        (for Contrasharp
 ###                                      or  Str=0.1 to 1.0 ~ex_retinex()~)
 ###              GradePack              (for Str=0.1 to 1.0 ~ex_retinex()~)
@@ -59,10 +59,10 @@
 ###   bool "ContraSharp"=false,
 ###   bool "RefineMotion"=false,
 ###   float "Str"=5.0 (0.0 to 6.0 by 0.1),
-###   float "Amp"=0.0312 (0.0 to 1.0 by 0.01),
+###   float "Amp"=0.03 (0.0 to 1.0 by 0.01),
 ###   int "plane"=4 (1 to 4 by 1),
 ###   bool "chroma"=true,
-###   int "LFR"=300 (50 to 1920 by 1),
+###   int "LFR"=0 (0 to 1920 by 1),
 ###   bool "DCTFlicker"=false,
 ###   bool "TrueMotion"=false,
 ###   bool "show"=false,
@@ -193,7 +193,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
     # Error Report
-                           Assert(IsVersionOrGreater(3,7,1),    "SMDegrain: Update AviSynth+ version")
+                           Assert(IsVersionOrGreater(3,7,2),    "SMDegrain: Update AviSynth+ version")
                            Assert(blksize==4 || blksize==8 || blksize==16 || blksize==24 || blksize==32 || blksize==48 || blksize==64,"SMDegrain: MAnalyse: Block's size must be 4x4, 8x8, 16x16, 24x24, 32x32, 48x48 or 64x64")
                            Assert(overlap <= blk2,              "SMDegrain: Overlap must be at least half blksize or less")
                            Assert(overlap == overlap-overlap%2, "SMDegrain: MAnalyse: overlap must be an even figure")
@@ -268,7 +268,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         pclip   = pelclip                ? subpixel==4 && prefilter==-1 ? pref8.  nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=tv?2:1) :  \
                                                                           Undefined()                                                                                                  : nop() # Wiener filter is good enough for MAnalyse
         pclip2  = pelclip && !GlobalR    ? subpixel==4 ?                  inputP8.nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=tv?2:1).ConvertBits(bi, fulls=!tv, fulld=!tv) : \
-                                                                          inputP .blackmanresize(w*pel,h*pel, taps=8, src_left=0.25, src_top=0.25)                                     : nop() # from the docs "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed)
+                                                                          inputP .blackmanresize(w*pel,h*pel, taps=6, src_left=0.25, src_top=0.25)                                     : nop() # from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed). nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
 
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
@@ -506,9 +506,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
 
-        output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, overshoot=TS?100:0)                                                             : \
-                                      SLimit ? LSFmod(output,source=CClip,preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=0,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : \
-                                               LSFmod(output,             preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=6,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : output
+        output = !GlobalO && isShrp ? isCntr ? ex_ContraSharpening(output, CClip, MC=!SLimit, HD=isHD, overshoot=TS?100:0)                                                              : \
+                                      SLimit ? LSFplus(output,source=CClip,preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=0,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : \
+                                               LSFplus(output,             preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=6,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : output
 
                  !GlobalO ? (isInter ? output.weave() : output) : input
 
@@ -596,7 +596,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.4.7",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.4.8",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -779,8 +779,8 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 
     Y     = Default(Y,       3)
     UV    = Default(UV,      3)
-    s0    = Default(s0,    3.0)
-    c     = Default(c,  1.0/16)
+    s0    = Default(s0,    5.0)
+    c     = Default(c,  1.0/32)
     tv    = Default(tv_range, !fs)
     sh    = Default(show,   false)
     bi32  = bi == 32
@@ -799,7 +799,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     ec = tv ? "x cmin - range_max cmax cmin - / *" : ""
 
     ex_lut(src, e, rgb ? e : ec, Y=y, UV=uv, fulls=!tv, scale_inputs=si, clamp_float=bi32)
-    !tv && S0 <= 1.0 ? src : PropSet("_ColorRange", 0)
+    !tv && S0 <= 1.0 ? src : propSet("_ColorRange", 0)
 
     if (sh) {
 
@@ -918,8 +918,9 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
         } )
     }
 
-    UV == 3 ? CombinePlanes(last, clp, planes=rgb?"RGB":"YUV", pixel_type=PixelType(clp)).propCopy(clp) : last
-              PropSet("_ColorRange", 0) }
+    UV == 3 ? CombinePlanes(last, clp, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(clp)).\
+              propCopy(clp,true,props="_ChromaLocation")  : last
+              propSet("_ColorRange", 0)                   }
 
 
 
@@ -1057,7 +1058,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
     blc  = Default(blendc,      0)
     srch = Default(searchw,  min(9,max(5,round(w/1.51>h?0.375*w+1.8:0.667*h+1.8))))
     LFR  = Default(LFR,         0)
-    DCT  = Default(DCT,     false)
+    DCT  = Default(DCT,      true)
     UV   = Default(UV,          1)
     strc = UV==3 ? strc : 0
     tv   = pID[6]
@@ -1091,7 +1092,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
 ##    bool "chroma"=true,
 ##    )
 ##
-function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode", clip "rclip", float "LFR", bool "chroma", string "device_type", int "device_id", float "wref", string "knlm_params") {
+function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode", clip "rclip", float "LFR", bool "DCT", bool "chroma", string "device_type", int "device_id", float "wref", string "knlm_params") {
 
 
     w2           = c.width()
@@ -1106,6 +1107,7 @@ function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode
     deviceid     = Default( device_id, 0)
     chroma       = Default( chroma, true)
     LFR          = Default( LFR, wmode < 1 || d > 0 ? min(2,d+1)*300*(w2/1920.) : 0) # Restore low frequency details, specially on wmode=0, and more specially with d > 0 (motion estimation is very bad in KNLMeansCL). Set to 0 to disable.
+    DCT          = Default( DCT,    true)
     knlm_params  = Defined( knlm_params) ? ","+knlm_params : ""
 
     isy     = c.isy()
@@ -1132,10 +1134,10 @@ function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode
                                      StackHorizontal(Uwclip, Vwclip)) : nop()
 
         nlc     =          StackHorizontal(ExtractY(c),    UVstack )
-        nlrc    = dwclip ? StackHorizontal(ExtractY(wclip),UVwstack) : Undefined()
+        nlrc    = dwclip ? StackHorizontal(ExtractY(wclip),UVwstack)  : Undefined()
 
         nlckl   = Eval("  nlc.KNLMeansCL(D=d, A=a, h=h, s=s, device_type=device_type, device_id=deviceid, rclip=nlrc,  wmode=wmode, wref=wref, channels=UV" + knlm_params + ")")
-        nlc     = LFR > 50 ? ex_LFR(nlckl,nlc,LFR,false,UV=UVb) : nlckl
+        nlc     = LFR > 50 ? ex_LFR(nlckl,nlc,LFR,DCT,UV=UVb) : nlckl
 
         uvw     = Uclip.width ()
         uvh     = Uclip.height()
@@ -1152,7 +1154,8 @@ function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode
         } else {
 
                 out = Eval("c.KNLMeansCL(D=d, A=a, h=h, s=s, device_type=device_type, device_id=deviceid, rclip=wclip, wmode=wmode, wref=wref, channels=UV" + knlm_params + ")")
-                out = LFR > 50 ? ex_LFR(out,c,LFR,false,UV=UVb) : out
+                out = LFR > 50 ? ex_LFR(out,c,LFR,DCT,UV=UVb) : out
                 out
 
-        } }
+        }
+                propCopy(c,true,props="_ChromaLocation") }
