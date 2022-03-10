@@ -19,6 +19,7 @@
 # v1.60 updated in 2020-07-19 (Dogway) MT version for resizers
 # v1.70 updated in 2021-12-18 (Dogway) Revert MT version for resizers. Optimized edge mask. Sanitized
 # v1.80 updated in 2021-12-23 (Dogway) Replace SangNom with SangNom2, and nnedi2 with nnedi3. Some cosmetics and better U/V plane handling
+# v1.81 updated in 2022-03-05 (Dogway) Rebase with latest LSFplus
 #
 #
 # Requirements (Plugins):
@@ -27,12 +28,12 @@
 #
 # Requirements (Scripts):
 #    ExTools
-#    LSFmod
+#    LSFplus
 #    FastLineDarkenMOD
 #    Santiag (Optional for 'aatype')
 #
 # Optional (Plugins):
-#    RgTools (for LSFmod MIX mod, or required by 'aatype' or standalone AA function)
+#    RgTools (for LSFplus MIX mod, or required by 'aatype' or standalone AA function)
 #    SangNom2
 #    awarpsharp2
 #    EEDI2
@@ -112,10 +113,10 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
 
     m = ex_edge(a,"sobel5",0,255,UV=2).ex_lut("x range_half / 0.86 ^ range_max *", fulls=false)
 
-    preaa = (ShPre==0 && StrDrk==0) ? a                                                          : \
-                         (ShPre==0) ? a.FastLineDarkenMOD(thinning=0, strength=StrDrk,prot=prot) : \
-                        (StrDrk==0) ? a.LSFmod(preset="slow",preblur="ON",strength=float(ShPre)) : \
-                                      a.FastLineDarkenMOD(thinning=0, strength=StrDrk,prot=prot).LSFmod(preset="slow",preblur="ON",strength=float(ShPre))
+    preaa = (ShPre==0 && StrDrk==0) ? a                                                           : \
+                         (ShPre==0) ? a.FastLineDarkenMOD(thinning=0, strength=StrDrk,prot=prot)  : \
+                        (StrDrk==0) ? a.LSFplus(preset="slow",preblur="ON",strength=float(ShPre)) : \
+                                      a.FastLineDarkenMOD(thinning=0, strength=StrDrk,prot=prot).LSFplus(preset="slow",preblur="ON",strength=float(ShPre))
 
     ant=(aatype=="EEDI2")        ? preaa.TurnLeft().EEDI2(       ).TurnRight().EEDI2(       ).Spline36Resize(w,h,0.5,-0.5,2*w+.001,2*h+.001)
     \ : (aatype=="EEDI3")        ? preaa.TurnLeft().EEDI3(U=f,V=f).TurnRight().EEDI3(U=f,V=f).Spline36Resize(w,h)
@@ -144,7 +145,7 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
     \ : (aatype=="antialiasing") ? preaa.antialiasing()
     \ : Assert(false, "LSharpAAF: "+aatype+", unsupported 'aatype' mode")
 
-    postsh   = (ShPost==0 && SmPost==0) ? ant : ant.LSFmod(edgemode=1,strength=float(ShPost),overshoot=1.0,soft=SmPost)
+    postsh   = (ShPost==0 && SmPost==0) ? ant : ant.LSFplus(edgemode=1,strength=float(ShPost),overshoot=1.0,soft=SmPost)
 
 
     merged   = mt_merge(a,postsh,m,Y=3,U=2,V=2)
