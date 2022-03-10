@@ -121,7 +121,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
     h2     = nmod(Default(height, h),rgb||is4?1:2)
     rw     = w2/float(w)
     rh     = h2/float(h)
-    factor = max(rw,rh) < 3 ? 2 : 4
+    factor =     max(rw,rh) < 3 ? 2 : 4
     rat    = abs(max(rw,rh)-1)+1
 
     rth   = Default(th_rat, 1.25)                                                     # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
@@ -206,7 +206,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
 # nnedi3resize()
 # Simple upscaler that uses nnedi3 at its core
-# It accepts any dimension values, not only limited by powers of 2
+# It accepts arbitrary dimension values, not only limited to powers of 2
 #
 # Dependencies:
 #       ExTools
@@ -214,37 +214,40 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 #
 function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn") {
 
-    w   = width (a)
-    h   = height(a)
-    rgb = isRGB (a)
-    is4 = is444 (a)
-    bi  = BitsPerComponent(a)
-    fs  = propNumElements (a,"_ColorRange")     > 0 ? \
-          propGetInt      (a,"_ColorRange")    == 0 : rgb
-    cpl = propNumElements (a,"_ChromaLocation") > 0 ? \
-          propGetInt      (a,"_ChromaLocation")     : 0
+    w       = width (a)
+    h       = height(a)
+    rgb     = isRGB (a)
+    is4     = is444 (a)
+    bi      = BitsPerComponent(a)
+    fs      = propNumElements (a,"_ColorRange")     > 0 ? \
+              propGetInt      (a,"_ColorRange")    == 0 : rgb
+    cpl     = propNumElements (a,"_ChromaLocation") > 0 ? \
+              propGetInt      (a,"_ChromaLocation")     : 0
 
-    w2     = nmod(Default(width,  w),rgb||is4?1:2)
-    h2     = nmod(Default(height, h),rgb||is4?1:2)
+    w2      = nmod(Default(width,  w),rgb||is4?1:2)
+    h2      = nmod(Default(height, h),rgb||is4?1:2)
 
-    hs     = h == h2
-    ws     = w == w2
-    oned   = hs || ws
-    HBD    = Default(HBD,    false)  # Force HBD. Much slower since nnedi3 is not optimized for HBD
-    qual   = Default(qual,       1)
-    nns    = Default(nns,   oned ? 1 : 3)
-    nsize  = Default(nsize, oned ? 6 : 0)
-    etype  = Default(etype,      0)
-    pscrn  = Default(pscrn,      2)
-
-    rw     = w2/float(w)
-    rh     = h2/float(h)
-    factor = max(rw,rh) < 3 ? 2 : 4
-
-    cores  = SI_PhysicalCores()
-    threads= SI_LogicalCores()
+    hs      = h == h2
+    ws      = w == w2
+    oned    = hs || ws
+    HBD     = Default(HBD,    false)  # Force HBD. Much slower since nnedi3 is not optimized for HBD
+    qual    = Default(qual,       1)
+    nns     = Default(nns,   oned ? 1 : 3)
+    nsize   = Default(nsize, oned ? 6 : 0)
+    etype   = Default(etype,      0)
+    pscrn   = Default(pscrn,      2)
 
     Assert(IsVersionOrGreater(3,7,2), "nnedi3resize: Update AviSynth+ version")
+
+    rw      = w2/float(w)
+    rh      = h2/float(h)
+    factor  = max(rw,rh) < 3 ? 2 : 4
+    rfactor = rw<factor && rh<factor
+    krnn    = (rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final resize: 'Didée' for down 'Blackman' for up
+    ep0     =  rfactor ?      -0.5 : 6
+
+    cores   = SI_PhysicalCores()
+    threads = SI_LogicalCores()
 
     # 8-bit for nnedi3
     a8  = !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
@@ -254,14 +257,14 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
     if (oned) {
                       nnedi3(a8L,field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2)
         factor == 4 ? nnedi3(    field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2) : last
-    } else {
-                      nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,cshift="blackmanresize",fwidth=w2,fheight=h2,ep0=6,range=fs?1:2,mpeg2=cpl!=1)
+    }   else  {
+                      nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25,range=fs?1:2,mpeg2=cpl!=1,threads=cores,prefetch=(threads+cores)/2)
     }
 
     # nnedi3 one dimensional resize case, luma shift (no 'cshift' arg in nnedi3() )
     hs   ? TurnLeft() : last
     cs = cpl!=1 ? -0.5 * (factor-1) : 0
-    oned ? Eval("blackmanresize(w2,h2,taps=6"+(hs ? ",src_left=cs)" : ",src_top=cs)")) : last
+    oned ? Eval(krnn+"(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ",src_top=cs)")) : last
 
     !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last }
 
