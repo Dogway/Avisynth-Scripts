@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 5.3 By Dogway  (05-02-2022)            ##
+###           MasksPack 5.4 By Dogway  (10-03-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -39,7 +39,7 @@
 ###    bool "invert"=false,
 ###    bool "show"=false,
 ###    bool "tv_out"=false,
-###    bool "UV"=3 (1 to 128 by 1),
+###    int "UV"=3 (1 to 128 by 1),
 ###    )
 ###
 ###########################
@@ -60,7 +60,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
     show    = Default(show,   false)
     UV      = Default(UV,3)
 
-           Assert(IsVersionOrGreater(3,7,1), "BoxMask: Update AviSynth+ version")
+           Assert(IsVersionOrGreater(3,7,2), "BoxMask: Update AviSynth+ version")
     show ? Assert(UV!=1,                     "BoxMask: 'show' requires UV=2 or 3") : nop()
 
     x1      =     min(max(x1,0),w)
@@ -83,6 +83,10 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 
     ex_lutspa(mode="absolute", expr=Luma, cexpr=Chrm, UV=UV, fulld=!tv)
 
+    prop = ["_Matrix","_Primaries","_Transfer","_PictType"]
+    propCopy(clp, props=UV<4?prop:ArrayAdd(prop,"_ChromaLocation"), exclude=true)
+    propSet("_ColorRange", tv?1:0)
+
     !show ? last : ex_blend(clp,last,"softlight",0.5,tv_range=tv) }
 
 
@@ -92,7 +96,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ### FlatMask() (23-12-2021)
 ###
 ###
-### This is a dual purpose filter for 2D cartoons to create either high quality edge/ridge masks or flat masks.
+### This is a dual purpose filter for 2D cartoons to create either flat masks or high-quality single line edge masks.
 ### One is the opposite of the other so you only have to tune the radius and scale settings to define
 ### to what extent the edge mask is applied.
 ### If 'filt' clip argument is not defined by default the output is the edge mask.
@@ -100,9 +104,9 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ### Dependencies:
 ###     ExTools
 ###     ResizersPack
+###     GradePack
 ###     vsTCanny
 ###     SMDegrain (for ex_retinex)
-###         GradePack
 ###
 ### Example:
 ###     filt = YourFilter()
@@ -143,12 +147,14 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     in    = Default(invert, false)
     fil   = Defined(filt)
 
+    Assert(IsVersionOrGreater(3,7,2), "FlatMask: Update AviSynth+ version")
+
     !isy() ? ExtractY() : last
     ConvertBits(8,dither=-1,fulls=fs)
     # 3x3 is too broad for SD so upscale
-    !isHD  ? BlackmanResize(w*2,h*2)                         : last
+    !isHD  ? BlackmanResize(w*2,h*2,taps=6)              : last
     # UHD size is too big for good performance
-     isUHD ? BicubicResize(nmod(w/2,2),nmod(h/2,2),-0.6,0.4) : last
+     isUHD ? BicubicResize(nmod(w/2),nmod(h/2),-0.6,0.4) : last
 
     ex_retinex(lvl=1,lo=lvl,tv_range=!fs)  # some issues here on flat areas (quantization)
     MSR=ex_median("IQM")                   # pre for full 'qprewitt'
@@ -156,7 +162,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     # Prefilter (scale space)
     vsTCanny(sqrt(rd)/2.*sqrt(2),mode=-1,u=2,v=2)
 
-    # Pseudo Ridge Filter
+    # Second Derivatives Edge Mask
     xx1=    ex_lut(Format("x[-1,-1] x[1,1]  -"))
     xx1=xx1.ex_lut(Format("x[-1,-1] x[1,1]  -"))
     yy1=    ex_lut(Format("x[-1,1]  x[1,-1] -"))
@@ -183,15 +189,16 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     ex_luts(mode="avg", pixels=ex_shape(ceil(rd/2.), mode="ring"), exprf="dup dup x > swap 128 > & swap 1.15 * x ?"+(in ? " range_max swap -" : ""))
 
     rd  = round(rd)
-    rd == 1 ? yy2                               : \
-    rd == 0 ? ex_edge(MSR,"qprewitt",invert=in) : last                           # Maybe add back qprewitt on top for rd==1 ?
+    rd == 1 ? yy2                                  : \
+    rd == 0 ? ex_edge(MSR,"qprewitt",invert=in)    : last                              # Maybe add back qprewitt on top for rd==1 ?
 
-    !isHD   ? BicubicResize(w,h,-0.5,0.25) : ex_smooth(2, mode="SG", sharp=true) # Clean up result. No need when resizing down
-     isUHD  ? BicubicResize(w,h,1/3.,1/3.) : last
+    !isHD   ? BicubicResize(w,h,0.0,0.5)           : ex_smooth(2,mode="SG",sharp=true) # Clean up result. No need when resizing down
+     isUHD  ? BicubicResize(w,h,0.679623,0.160189) : last
 
     msk8 = last
 
     ConvertBits(bi,fulls=true)
+    propDelete(["_Matrix","_Primaries","_Transfer","_PictType","_ChromaLocation"])
 
     if (fil) {
         # Merge with filtered through the edge mask
@@ -209,7 +216,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 
 #####################################################################
 ###                                                                 #
-### LumaMask() (22-12-2021)                                         #
+### LumaMask() (05-03-2022)                                         #
 ###                                                                 #
 ### Two point remap of luma plane range for using as mask.
 ### Basically a lerp (linear interpolation) between 'b' (black point)
@@ -246,24 +253,32 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
     LO     = Default(lo, 24)
     HI     = Default(hi, 48)
     inv    = Default(invert, false)
-    UV     = Default(UV,  !isy ? 128 : 2)
+    UV     = Default(UV,  !isy ? 128 : 2) # Use 3 to copy luma mask to chroma planes
+    UV2    = UV == 3 ? 1 : UV
 
-    Assert(IsVersionOrGreater(3,7,1), "LumaMask: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "LumaMask: Update AviSynth+ version")
 
     bi32   = bi == 32 ? "0 1 clip" : ""
-    LO     = ex_bs(LO, 8, bi, fulls=fs)
-    HI     = ex_bs(HI, 8, bi, fulls=fs)
+    LO     = ex_bs(LO,  8, bi, fulls=true)
+    HI     = ex_bs(HI,  8, bi, fulls=true)
+    MX     = ex_bs(255, 8, bi, fulls=true, flt=true)
+    LIM    = MX / (inv ? HI - LO : LO - HI)
 
-    code   = inv ? Format("range_max range_max {HI} {LO} - / x {LO} - * - "+bi32) : \
-                   Format("0         range_max {LO} {HI} - / x {LO} - * - "+bi32)
+    code   = inv ? Format("range_max x {LO} - {LIM} * -   "+bi32) : \
+                   Format("          x {LO} - {LIM} * neg "+bi32)
 
     str    = ex_dlut(code, bi, true)
-    cstr   = ex_UVexpr("", max(7,UV), bi, rgb, true)
+    cstr   = ex_UVexpr("", UV2, bi, rgb, true)
 
-    isy     ?  Expr(a, str,       lut=lut) : \
-    UV == 1 ?  Expr(a, str, "",   lut=lut) : \
+    isy      ? Expr(a, str,       lut=lut) : \
+    UV2 == 1 ? Expr(a, str, "",   lut=lut) : \
                Expr(a, str, cstr, lut=lut)
-               PropSet("_ColorRange", 0)   }
+
+    UV  == 3 ? mskY_to_YYY(a, last, true, rgb, UV, bi) : last
+
+               prop = ["_Matrix","_Primaries","_Transfer","_PictType"]
+               propDelete(UV2<4?prop:ArrayAdd(prop,"_ChromaLocation"))
+               propSet("_ColorRange", 0)  }
 
 
 
@@ -295,22 +310,25 @@ function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast",
     thrc   = Default(thrc,                  thr)  # 0-255 (normally up to 10)
     sm     = Default(smooth,               true)
     elast  = Default(elast, sm ? 3.0 : 255./thr) # 1-255 (normally up to 10)
-    elast  = max(elast, 1.0)
+    elast  = max(elast, 1.001)
     bthr   = Default(brighten_thr,          thr)  # 0-255 (normally up to 10)
     Y      = Default( Y,       3 )
     UV     = Default( UV,      3 )
 
     sm     = elast==1.0 ? False : sm
 
-    thrc   = ex_bs(  thrc,     8, bi, true, flt=true)
+    thrc   = ex_bs(  thrc, 8, bi, true, flt=true)
     celast = elast * thrc
-    thr    = ex_bs(  thr,      8, bi, true, flt=true)
+    thr    = ex_bs(  thr,  8, bi, true, flt=true)
     telast = elast * thr
-    bthr   = ex_bs( bthr,      8, bi, true, flt=true)
+    bthr   = ex_bs( bthr,  8, bi, true, flt=true)
+    thelas = 1. / (telast - thr)
+    thcela = 1. / (celast - thrc)
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_limitdif: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "ex_limitdif: Update AviSynth+ version")
 
-    # from HQDeringmod_limit_dif()
+    # LOGIC (from HQDeringmod_limit_dif()):
+    #
     # diff   = filtered - original
     # alpha  = 1 / (thr * (elast - 1))
     # beta   = elast * thr
@@ -325,12 +343,12 @@ function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast",
     #                         original + thr * (diff / abs(diff))
 
     exprYref = bthr != thr ? Format("x z - abs DA@ x y - D2@    0 > {bthr} {thr} ? THR@ <= x DA THR {elast} * THRE@ >= y dup D2 THRE DA - * THRE THR - / + ? ?") : \
-                             Format("x z - abs DA@     {thr} <= x DA {telast} >= y dup x y - {telast} DA - * {telast} {thr} - / + ? ?")
+                             Format("x z - abs DA@     {thr} <= x DA {telast} >= y dup x y - {telast} DA - * {thelas} * + ? ?")
     exprY    = bthr != thr ? Format("x y - D1@ dup abs DA@ swap 0 > {bthr} {thr} ? THR@ <= x DA THR {elast} * THRE@ >= y dup D1 THRE DA - * THRE THR - / + ? ?") : \
-                             Format("x y - D1@ abs DA@ {thr} <= x DA {telast} >= y dup D1    {telast} DA - * {telast} {thr} - / + ? ?")
+                             Format("x y - D1@ abs DA@ {thr} <= x DA {telast} >= y dup D1    {telast} DA - * {thelas} * + ? ?")
 
-    dref ? ex_lutxyz(flt,src,ref, exprYref, Format("x z -     abs D@  {thrc} <= x D  {celast} >= y dup x y - {celast} D  - * {celast} {thrc} - / + ? ?"), Y=Y,UV=UV) : \
-           ex_lutxy (flt,src,     exprY,    Format("x y - D1@ abs DA@ {thrc} <= x DA {celast} >= y dup D1    {celast} DA - * {celast} {thrc} - / + ? ?"), Y=Y,UV=UV) }
+    dref ? ex_lutxyz(flt,src,ref, exprYref, Format("x z -     abs D@  {thrc} <= x D  {celast} >= y dup x y - {celast} D  - * {thcela} * + ? ?"), Y=Y,UV=UV) : \
+           ex_lutxy (flt,src,     exprY,    Format("x y - D1@ abs DA@ {thrc} <= x DA {celast} >= y dup D1    {celast} DA - * {thcela} * + ? ?"), Y=Y,UV=UV) }
 
 
 
@@ -353,7 +371,7 @@ function ex_limitchange(clip flt, clip src, float "limit", float "bias", float "
     Y       = Default( Y,       3 )
     UV      = Default( UV,      rgb?3:2 )
 
-    Assert(IsVersionOrGreater(3,7,1), "ex_limitchange: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "ex_limitchange: Update AviSynth+ version")
 
     LIM1  = ex_bs(limit >0 ? round(limit *(100.0/bias) -1.0) : round(100.0/bias),  8, bi, fulls=fs)
     LIM1c = ex_bs(limitC>0 ? round(limitC*(100.0/biasC)-1.0) : round(100.0/biasC), 8, bi, fulls=fs)
