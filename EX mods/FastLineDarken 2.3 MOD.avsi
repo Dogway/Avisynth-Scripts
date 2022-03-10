@@ -1,5 +1,5 @@
 ##############################
-# FastLineDarken 2.2 MOD ex  #
+# FastLineDarken 2.3 MOD ex  #
 ##############################
 #
 # Written by Vectrangle    (https://forum.doom9.org/showthread.php?t=82125)
@@ -8,6 +8,7 @@
 # Dogway - 2.0ex Updated to internal Expr(). 27-May-2021
 # Dogway - 2.1ex Updated to ExTools.         09-Sep-2021
 # Dogway - 2.2ex Updated to ExTools.         11-Dec-2021
+# Dogway - 2.3ex Updated to ExTools.         05-Mar-2022
 #
 #  * requires ExTools
 #  * requires yv12 input
@@ -38,6 +39,7 @@
 #                        inherently darken the remaining pixels in each line a little. Default 0.
 #
 # Changelog:
+#  2.3  - Minor expr optimizations
 #  2.2  - Updated to latest ExTools v6.9
 #  2.1  - Updated to latest ExTools v5.5
 #  2.0  - Converted all MaskTools2 calls to internal Expr(). Supports HBD.
@@ -65,17 +67,17 @@ function FastLineDarkenMOD( clip c, int "strength", int "prot", int "luma_cap", 
     thr        = Default(threshold,  4)
     thinning   = Default(thinning,   0)
 
-    Assert(IsVersionOrGreater(3,7,1), "FastLineDarkenMOD: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,2), "FastLineDarkenMOD: Update AviSynth+ version")
 
     thr = ex_bs(thr, 8, bi, fulls=fs)
     lum = ex_bs(lum, 8, bi, fulls=fs)
     thn = thinning / 16.
 
     ## filtering ##
-    exin    = c.ex_expand(thres=255/(protection+1)).ex_inpand()
-    diff    = ex_lutxy(c, exin,           Format("y {lum} min A@ x {thr} + > x A - 0 ? range_half +"), UV=1, fulls=fs)
-    linemask= ex_lut(diff.ex_inpand(),    Format("x range_half - {thn} * range_max +"),                UV=1, fulls=fs).ex_boxblur(1,mode="mean",UV=1)
-    thick   = ex_lutxy(c, exin,           Format("y {lum} min A@ x {thr} + > x A - 0 ? {str} * x +"),  UV=1, fulls=fs)
-    thin    = ex_lutxy(c.ex_expand(),diff,Format("x y range_half - {str} 1 + * +"),                    UV=1, fulls=fs)
+    close   = c.ex_expand(thres=255/(protection+1)).ex_inpand()
+    diff    = ex_lutxy(c, close,          Format("y {lum} min A@ x {thr} + > x A - range_half + range_half ?"), UV=1, fulls=fs)
+    linemask= ex_lut(diff.ex_inpand(),    Format("x range_half - {thn} * range_max +"),                         UV=1, fulls=fs).ex_boxblur(1,mode="mean",UV=1)
+    thick   = ex_lutxy(c, close,          Format("y {lum} min A@ x {thr} + > x A - {str} * x + x ?"),           UV=1, fulls=fs)
+    thin    = ex_lutxy(c.ex_expand(),diff,Format("y range_half - {str} 1 + * x +"),                             UV=1, fulls=fs)
 
     (thinning == 0) ? thick : ex_merge(thin,thick,linemask,UV=2) }
