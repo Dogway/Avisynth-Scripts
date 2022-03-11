@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC42  (08-03-2022)           ##
+###    Transforms Pack v1.0 RC43  (11-03-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -410,7 +410,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     isRGBi ? ConvertToPlanarRGB() : last
 
-    mod        = Default (mod, isRGBo ? 1 : 2) # mod size for resizing. ie: 1, 2, 4, 8, 16...
+    mod        = Default (mod, isy||isRGBo||o_fmt[1]=="444" ? 1 : 2) # mod size for resizing. ie: 1, 2, 4, 8, 16...
 
     Assert(isFloat(nw) || isFloat(nh), "ConvertFormat: Width/Height type not supported.") # isFloat(int) also returns true, so good for 'number' type evaluation
     nw         = isInt(nw) && nw<=10 ? float(nw) : isFloat(nw) && nw>10. ? int(nw) : nw
@@ -571,6 +571,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
              i = num ? 0 : i
                  num} } # Checks if string is a number between 1 and 12
 
+    # Exclusion list
     Lkrn = LCase(kernel)    Lkrnc = LCase(kernel_c)
     nope = (FindStr(Lkrn,  "spline1") > 0 || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline256") && Lkrn  !="spline"           || \
            (kernel   == "jinc16" || kernel   == "jinc100" || kernel   == "jinc144" || kernel   == "jinc196" || kernel   == "jinc256") && Lkrn  !="jinc" || \
@@ -618,7 +619,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     parzen8       = [0.666667,0.648727,0.596804,0.51624,0.415088,0.303095,0.190509,0.086876,0,-0.064824,-0.105205,-0.121655,-0.117225,-0.096848,-0.0665116,-0.032382,0,0.026335,0.0439404,0.051856,0.0506892,0.042271,0.0291773,0.014224,0,-0.011489,-0.0190243,-0.022227,-0.0214634,-0.017647,-0.0119891,-0.005745,0,\
                      0.004475,0.00727292,0.008338,0.00789788,0.006366,0.00423604,0.001986,0,-0.001471,-0.00232189,-0.002577,-0.00235492,-0.001824,-0.00116114,-0.000518,0,0.000341,0.000502619,0.000515,0.000430408,0.000301,0.000169602,0.000066,0,-0.00003,-0.0000341078,-0.000025,-0.0000138158,-0.000005,-0.00000118185,0]
 
-    function KernStr(string kernel, int nw, int nh, float bc_b, float bc_c, float p, bool pd) {
+    function KernStr(string kernel, int nw, int nh, float bc_b, float bc_c, float p, bool pd, bool show) {
 
     resampler = Format( kernel == "nnedi3"       ?    "nnedi3resize({nw},{nh}"                               : \
                         kernel == "Nearest"  || kernel == "NearestNeighbour" || kernel == "NN"               ? \
@@ -696,33 +697,36 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                                                    +"BicubicResize({nw},{nh},b=0.378216,c=0.310892"          : \
                         kernel +                           "Resize({nw},{nh}"                                 )
 
-
+                        # Exclusion of additional resize arguments
                         src_nul = kernel == "ResizeShader"    || kernel == "SSIM"   || kernel == "SSIM2"   || kernel == "DPID" || kernel == "nnedi3" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
                         src_box = kernel == "Dirichlet"       || kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || kernel == "Spline" || \
                                   kernel == "Black-Harris"    || kernel == "Wiener" || kernel == "Hann"    || kernel == "Hamming" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || kernel == "Spline196" || kernel == "Spline256" || \
                                   kernel == "BlackmanMinLobe" || kernel == "Nuttall"|| kernel == "Welch"   || kernel == "Cosine" || kernel == "Ginseng" || kernel == "Quadratic" || kernel=="Quadric" || kernel == "Bessel" || kernel == "Parzen" || kernel == "Kaiser" || kernel == "Bohman"
 
-                        # Retrieving taps
-                        resampler = TrimAll(resampler)
-                        taps = FindStr(resampler, "impulse") > 0 ? MidStr(resampler,StrLen(resampler)-1,1)                                            : \
-                               FindStr(resampler, "tap")     > 0 ? FindStr(resampler, "Jinc") > 0 ? \
-                                                                   kernel == "Jinc"               ? MidStr(resampler,FindStr(resampler, "tap=") +4)   : \
-                                                                                                    MidStr(resampler,FindStr(resampler, "tap=") +4,1) : \
-                                                                                                    MidStr(resampler,FindStr(resampler, "taps=")+5)   : "0"
-                        taps = kernel == "Jinc16"    || kernel == "spline16"  ? "2"   : \
-                               kernel == "Jinc36"    || kernel == "spline36"  ? "3"   : \
-                               kernel == "Jinc64"    || kernel == "spline64"  ? "4"   : \
-                               kernel == "Jinc100"   || kernel == "spline100" ? "5"   : \
-                               kernel == "Jinc144"   || kernel == "spline144" ? "6"   : \
-                               kernel == "Jinc196"   || kernel == "spline196" ? "7"   : \
-                               kernel == "Jinc256"   || kernel == "spline256" ? "8"   : \
-                               kernel == "Quadratic" || kernel == "Quadric"   ? "1.5" : taps
+                        # Retrieving taps for 'show'
+                        if (show) {
+                            resampler = TrimAll(resampler)
+                            taps = FindStr(resampler, "impulse") > 0 ? MidStr(resampler,StrLen(resampler)-1,1)                                            : \
+                                   FindStr(resampler, "tap")     > 0 ? FindStr(resampler, "Jinc") > 0 ? \
+                                                                       kernel == "Jinc"               ? MidStr(resampler,FindStr(resampler, "tap=") +4)   : \
+                                                                                                        MidStr(resampler,FindStr(resampler, "tap=") +4,1) : \
+                                                                                                        MidStr(resampler,FindStr(resampler, "taps=")+5)   : "0"
+                            taps = kernel == "Jinc16"    || kernel == "spline16"  ? "2"   : \
+                                   kernel == "Jinc36"    || kernel == "spline36"  ? "3"   : \
+                                   kernel == "Jinc64"    || kernel == "spline64"  ? "4"   : \
+                                   kernel == "Jinc100"   || kernel == "spline100" ? "5"   : \
+                                   kernel == "Jinc144"   || kernel == "spline144" ? "6"   : \
+                                   kernel == "Jinc196"   || kernel == "spline196" ? "7"   : \
+                                   kernel == "Jinc256"   || kernel == "spline256" ? "8"   : \
+                                   kernel == "Quadratic" || kernel == "Quadric"   ? "1.5" : taps
+
+                        } else { taps = "0" }
 
                         [resampler, src_nul, src_box, Eval(taps)] }
 
 
-    krny = KernStr(kernel  ,  nw,  nh, bc_b,  bc_c,  taps,  pd)   resampler   = krny[0]  src_nuly = krny[1]  src_boxy = krny[2]
-    krnc = KernStr(kernel_c, cnw, cnh, bch_b, bch_c, tapsc, pdc)  resampler_c = krnc[0]  src_nulc = krnc[1]  src_boxc = krnc[2]
+    krny = KernStr(kernel  ,  nw,  nh, bc_b,  bc_c,  taps,  pd,  dg)  resampler   = krny[0]  src_nuly = krny[1]  src_boxy = krny[2]
+    krnc = KernStr(kernel_c, cnw, cnh, bch_b, bch_c, tapsc, pdc, dg)  resampler_c = krnc[0]  src_nulc = krnc[1]  src_boxc = krnc[2]
 
     src_wh  = src_boxy ? Format(",sw={src_width},  sh={src_height}")  : Format(",src_width={src_width}, src_height={src_height}")
     src_whc = src_boxc ? Format(",sw={src_widthc}, sh={src_heightc}") : Format(",src_width={src_widthc},src_height={src_heightc}")
@@ -758,10 +762,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                   Uu      =  Eval("Uu."+kernel_c+"resize(w*2,h*2,"+(kernel_c=="bicubic"?"b=bch_b,c=bch_c":"taps=tapsc")+")").ConvertBits(bi,fulls=refs)
                   Vu      =  Cr.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2)
                   Vu      =  Eval("Vu."+kernel_c+"resize(w*2,h*2,"+(kernel_c=="bicubic"?"b=bch_b,c=bch_c":"taps=tapsc")+")").ConvertBits(bi,fulls=refs)
-                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc)
-                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc)
-                  Cb      = ex_LFR(Unew, Uu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc), LFR=fcnw/1.1)
-                  Cr      = ex_LFR(Vnew, Vu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc), LFR=fcnw/1.1)"""
+                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5) # -0.5 to recenter image center shift from nnedi3()
+                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5)
+                  Cb      = ex_LFR(Unew, Uu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5), LFR=fcnw/1.1)
+                  Cr      = ex_LFR(Vnew, Vu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5), LFR=fcnw/1.1)"""
 
 
 
@@ -1088,7 +1092,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC42",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC43",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1804,6 +1808,7 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
                                       y "+string(rW[2])+" / Z@ {ep} > Z 0.333333333 ^ Z {coefr} * 16 116 / + ? - 200 * "+" 12.3  /"), bi, fs), optSingleMode=true,  lut=lut2)
 
     isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
+
 
 
 
