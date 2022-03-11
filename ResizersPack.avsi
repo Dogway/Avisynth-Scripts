@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 8.1    (10-03-2022)   ##
+###   Resizers Functions Pack 8.2    (11-03-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -27,7 +27,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (06-03-2022)
+### deep_resize() - by Dogway (11-03-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -110,6 +110,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
     h   = height(a)
     rgb = isRGB (a)
     is4 = is444 (a)
+    isy = isy   (a)
     FC  = FrameCount(a)>1
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")     > 0 ? \
@@ -117,8 +118,8 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
     cpl = propNumElements (a,"_ChromaLocation") > 0 ? \
           propGetInt      (a,"_ChromaLocation")     : 0
 
-    w2     = nmod(Default(width,  w),rgb||is4?1:2)
-    h2     = nmod(Default(height, h),rgb||is4?1:2)
+    w2     = nmod(Default(width,  w),isy||rgb||is4?1:2)
+    h2     = nmod(Default(height, h),isy||rgb||is4?1:2)
     rw     = w2/float(w)
     rh     = h2/float(h)
     factor =     max(rw,rh) < 3 ? 2 : 4
@@ -162,45 +163,51 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
         if (krn1 == "nnedi3") {
 
-            rfactor =  rw<factor || rh<factor
-            krnn    =  ( rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'Didée' for down 'Blackman' for up
-            ep0     =    rfactor ?      -0.5 : 6
+            rfactor = rw<factor || rh<factor
+            krnn    = ( rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'Didée' for down 'Blackman' for up
+            ep0     =   rfactor ?      -0.5 : 6
 
-            cores   = krn1 == "nnedi3" ? SI_PhysicalCores() : nop()
-            threads = krn1 == "nnedi3" ? SI_LogicalCores()  : nop()
+            cores   = SI_PhysicalCores()
+            threads = SI_LogicalCores()
         }
 
         # Y8 for nnedi3
-        an      = !isy(a) ? a.ExtractY() : a
+        an      = !isy ? a.ExtractY() : a
         a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
         # nnedi3 one dimensional resize case
         oned    = h == h2 || w == w2
         a8L     = h == h2 ? TurnRight(a8)   : a8
         edge1   = krn1 == "nnedi3" ? oned ? Eval("""a8L
-                                              for (i = factor/2, 2, 1) {
+                                              for (i = 1, factor/2, 1) {
                                               nnedi3(field=1,dh=True,        nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2) }""") : \
                                               nnedi3_rpow2(a8,rfactor=factor,nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,cshift=krnn,fwidth=w2,fheight=h2,ep0=ep0,ep1=0.25,range=fs?1:2) : \
                                               ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,kernel_c=krn1c,taps=etp)
 
+        if (rat <= rth) {
+
+            edge1 # upscaling below ratio threshold
+
+        } else {
         # nnedi3 one dimensional resize case, luma shift (no 'cshift' arg in nnedi3() )
         edge1   = h == h2 ? TurnLeft(edge1) : edge1
-        edge1   = krn1 == "nnedi3" && oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=etp")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
+        edge1   =             krn1 == "nnedi3" && oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=etp")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
 
-        # don't sharpen when nnedi3 one dimensional resize case
-        edge    = krn1 == "nnedi3" ? oned ?   ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
-                                              LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0).ConvertBits(bi, fulls=fs, fulld=fs) : edge1
+        # don't sharpen nnedi3 when one dimensional resize case
+        edge    =             krn1 == "nnedi3"  ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
+                                                         LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0).ConvertBits(bi, fulls=fs, fulld=fs)      : edge1
 
         # resizing flat area
-        flat    =                             ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn2,kernel_c=krn1c,taps=ftp,src_left=[0.0,0.0])
+        flat    =                                        ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn2,kernel_c=krn1c,taps=ftp,src_left=[0.0,0.0])
 
         # edge/flat limiting
-        rat <= rth ? edge : ex_limitdif(krn1 == "nnedi3" ? flat.ExtractY()  :  flat, edge, thr=thr, elast=ela, UV=1)
+        ex_limitdif(          krn1 == "nnedi3" && !isy ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
 
         # deconvolution from 'sinc' upscaling. Special case to tone down leaked 'sinc' halos
-        rat <= rth ? last : krn2!="sinc" ? last : ex_LFR   (krn1!="nnedi3" ? edge1 : edge1.ConvertBits(bi, fulls=fs, fulld=fs), LFR=max(w,h)/(rat*2), UV=3)
-                                        krn1 == "nnedi3" ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
+        krn2=="sinc" ? ex_LFR(krn1 != "nnedi3" ? edge1 : edge1.ConvertBits(bi, fulls=fs, fulld=fs), LFR=max(w,h)/(rat*2), UV=3)                : last
+                              krn1 == "nnedi3" && !isy ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
         # deconvolution from source downscaling
-        rat <= rth ? last : dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) } }
+        dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) } } }
+
 
 
 
@@ -209,6 +216,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 # It accepts arbitrary dimension values, not only limited to powers of 2
 #
 # Dependencies:
+#       nnedi3
 #       ExTools
 #       SysInfo
 #
@@ -218,14 +226,15 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
     h       = height(a)
     rgb     = isRGB (a)
     is4     = is444 (a)
+    isy     = isy   (a)
     bi      = BitsPerComponent(a)
     fs      = propNumElements (a,"_ColorRange")     > 0 ? \
               propGetInt      (a,"_ColorRange")    == 0 : rgb
     cpl     = propNumElements (a,"_ChromaLocation") > 0 ? \
               propGetInt      (a,"_ChromaLocation")     : 0
 
-    w2      = nmod(Default(width,  w),rgb||is4?1:2)
-    h2      = nmod(Default(height, h),rgb||is4?1:2)
+    w2      = nmod(Default(width,  w),isy||rgb||is4?1:2)
+    h2      = nmod(Default(height, h),isy||rgb||is4?1:2)
 
     hs      = h == h2
     ws      = w == w2
