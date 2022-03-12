@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 8.2    (11-03-2022)   ##
+###   Resizers Functions Pack 8.3    (12-03-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -27,7 +27,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (11-03-2022)
+### deep_resize() - by Dogway (12-03-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -94,7 +94,8 @@
 ###    float width=1920.0 (0.0 to 3840.0 by 1.0),
 ###    float height=1080.0 (0.0 to 2160.0 by 1.0),
 ###    string "edge"="nnedi3" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###    string "flat"="sinc" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###    string "flat"="sinc4" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###    string "chroma"="Blackman6" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
 ###    int "e_taps"=6 (2 to 10 by 1),
 ###    int "f_taps"=8 (2 to 10 by 1),
 ###    int "deconv"=0 (-10 to 15 by 1),
@@ -104,7 +105,7 @@
 ###    int "qual"=1 (1 to 2 by 1),
 ###    )
 ###
-function deep_resize(clip a, float "width", float "height", string "edge", string "flat", int "e_taps", int "f_taps", int "deconv", float "th_rat", float "th", float "elast", int "qual") {
+function deep_resize(clip a, float "width", float "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "deconv", float "th_rat", float "th", float "elast", int "qual") {
 
     w   = width (a)
     h   = height(a)
@@ -132,8 +133,8 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
                                                                                       # By default, for big   upscales   -> "nnedi3"
                                                                                       # By default, for small downscales -> "Didée"
                                                                                       # By default, for big   downscales -> "DPID"
-    krn1c = rat<=rth*0.95 ? "Zopti2" : "Blackman8"                                    # Chroma resizing (no edge/flat discretion)
-    krn2  = Default(flat, "sinc")                                                     # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (max taps=8).
+    krn1c = Default(chroma,rat<=rth*0.95 ? "Zopti2" : "Blackman6")                    # Chroma resizing kernel (no edge/flat discretion)
+    krn2  = Default(flat, "Blackman8")                                                # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here like SincLin, Blackman, Lanczos... (max taps=8).
     etp   = Default(e_taps,    6)                                                     # taps for edge kernel
     ftp   = Default(f_taps,    8)                                                     # taps for flat kernel
     thr   = Default(th,      1.0)                                                     # 0-255 (normally up to 10)
@@ -179,13 +180,13 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
         a8L     = h == h2 ? TurnRight(a8)   : a8
         edge1   = krn1 == "nnedi3" ? oned ? Eval("""a8L
                                               for (i = 1, factor/2, 1) {
-                                              nnedi3(field=1,dh=True,        nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2) }""") : \
-                                              nnedi3_rpow2(a8,rfactor=factor,nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,cshift=krnn,fwidth=w2,fheight=h2,ep0=ep0,ep1=0.25,range=fs?1:2) : \
+                                              nnedi3(field=1,dh=True,        nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2) }""") : \
+                                              nnedi3_rpow2(a8,rfactor=factor,nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25) : \
                                               ConvertFormat(a,w2,h2,cs_out="",EOTF="",scale_space="gamma",kernel=krn1,kernel_c=krn1c,taps=etp)
 
         if (rat <= rth) {
 
-            krn1 == "nnedi3" ? oned ? nnedi3resize(a,w2,h2) : edge1.propCopy(a) : edge1  # upscaling below ratio threshold
+            krn1 == "nnedi3" ? oned ? nnedi3resize(a,w2,h2,qual=qual) : edge1.propCopy(a) : edge1  # upscaling below ratio threshold
 
         } else {
         # nnedi3 one dimensional resize case, luma shift (no 'cshift' arg in nnedi3() )
@@ -212,7 +213,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
 
 # nnedi3resize()
-# Simple upscaler that uses nnedi3 at its core
+# Simple upscaler that uses nnedi3 at its core, recommended for graphics or textureless images.
 # It accepts arbitrary dimension values, not only limited to powers of 2
 #
 # Dependencies:
@@ -260,20 +261,18 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
 
     # 8-bit for nnedi3
     a8  = !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
-    # nnedi3 one dimensional resize case
-    a8L = hs ? TurnRight(a8) : a8
-
-    if (oned) {
-                      nnedi3(a8L,field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2)
-        factor == 4 ? nnedi3(    field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2) : last
-    }   else  {
-                      nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25,range=fs?1:2,mpeg2=cpl!=1,threads=cores,prefetch=(threads+cores)/2)
-    }
 
     # nnedi3 one dimensional resize case, luma shift (no 'cshift' arg in nnedi3() )
-    hs   ? TurnLeft() : last
-    cs = cpl!=1 ? -0.5 * (factor-1) : 0
-    oned ? Eval(krnn+"(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ",src_top=cs)")) : last
+    if (oned) {
+        a8L    = hs ? TurnRight(a8) : a8
+                      nnedi3(a8L,field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        factor == 4 ? nnedi3(    field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2) : last
+        hs          ? TurnLeft() : last
+        cs = cpl!=1 ? -0.5 * (factor-1) : 0
+                      Eval(krnn+"(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ",src_top=cs)"))
+    }   else  {
+                      nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25)
+    }
 
     !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last
     propCopy(a) }
