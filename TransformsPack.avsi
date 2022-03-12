@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC43  (11-03-2022)           ##
+###    Transforms Pack v1.0 RC44  (12-03-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -200,7 +200,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ### Example 3 - YUV420 to YUV444 and scale up by 2 in sigmoid space with chroma reconstruction and noring (cs_out to "" or "none" to skip color space autoconversion):
 ###     ConvertFormat(2,fmt_out="44",cs_out="",kernel="FSRCC",scale_space="sigmoid",noring=true,UVRecon=true,cplace_in="MPEG2")
 ###
-### Example 4 - Scale down by 2 with no moirée in linear light space (typically pre-blurring -for nomoiree- is done in linear light):
+### Example 4 - Scale down by 2 with no moirée in linear light space (typically downscaling as well as pre-blurring -for nomoiree- are done in linear light):
 ###     ConvertFormat(0.5,kernel="RobiSharp",scale_space="linear",nomoiree=true)
 ###
 ### Example 5 - Scale width to 1280 and height to half with different kernels and taps for Luma/Chroma planes:
@@ -240,8 +240,8 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     [bool "tv_in"=true],
 ###     bool "tv_out"=true,
 ###     string "scale_space"="gamma" ("gamma" / "linear" / "sigmoid" / "log"),
-###     string "kernel"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###     [string "kernel_c"="spline36" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch")],
+###     string "kernel"="spline36" ("nnedi3" / "deep" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###     [string "kernel_c"="spline36" ("nnedi3" / "deep" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch")],
 ###     int "taps"=[0,0] ([0,0] to [12,12] by [1,1]),
 ###     bool "nomoiree"=false,
 ###     bool "noring"=false,
@@ -328,15 +328,21 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # SSIM                                        (dw) https://github.com/mysteryx93/AviSynthShader/releases
 # SSIM_downsample                             (dw) https://github.com/Dogway/Avisynth-Scripts/blob/master/EX%20mods/SimilarityMetrics.avsi ( HQ settings: SSIM_downsample(w,h,smooth=0.43,resample_args="-0.6,0.4") )
 # DPID                                        (dw) https://github.com/Asd-g/AviSynth-DPID       (Best downscaler followed by SSIM_downsample > SSIM >>> SincLin > Zopti)
-# SincLin2ResizeMT                         (up,dw) https://github.com/jpsdr/ResampleMT/releases (like a sharper lanczos)
 # Spline100/Spline144                         (up) https://github.com/EleonoreMizo/fmtconv
-# Wiener                                      (up) https://github.com/EleonoreMizo/fmtconv
-# SinPowResizeMT                              (dw) https://github.com/jpsdr/ResampleMT/releases
+# Wiener                                      (up) https://github.com/EleonoreMizo/fmtconv      (Sharp as Blackman6 but much more aliasing, and a bit more ringing)
+# SincLin2ResizeMT                         (up,dw) https://github.com/jpsdr/ResampleMT/releases (like a sharper lanczos) (Doom9 thread: https://forum.doom9.org/showthread.php?p=1919769#post1919769)
+# SinPowResizeMT                              (dw) https://github.com/jpsdr/ResampleMT/releases (Doom9 thread: https://forum.doom9.org/showthread.php?p=1918124)
 # Jinc (EWA Lanczos)                          (up) https://github.com/Asd-g/AviSynth-JincResize/releases
 # FCBI (Fast Curve Based Interp) (8-bit)      (up) https://github.com/chikuzen/FCBI/releases
 # SuperResXBR                                 (up) https://github.com/mysteryx93/AviSynthShader/releases
 # AiUpscale/FSRCNN (FastSuperResolutionConvo) (up) https://github.com/Alexkral/AviSynthAiUpscale/tree/master/Shaders (lineart / photo folders)
 # KrigBilateral                               (up) https://github.com/Alexkral/AviSynthAiUpscale/tree/master/Shaders/KrigBilateral
+# NoHalo                                           https://github.com/libvips/libvips/blob/master/libvips/resample/nohalo.cpp (NicolasRobidoux special up/downscalers)
+# LoHalo                                           https://legacy.imagemagick.org/discourse-server/viewtopic.php?p=90433&sid=9b1885ea67cf86554709da0282c14796#p90433
+# EWA QuadraticJinc 3-taps
+# EWA RobidouxSharp
+# EWA CatRom
+# EASU - Edge Adaptive Spatial Upscaling (AMD's FSR) (up) (Uses a custom (McLaurin approx) of a 2-tap Lanczos in a single pass (EWA?), and clamped to nearest neighbour upscale to eliminate ringing)
 
 # Internal:
 # Point / Nearest       (actually slower than bicubic!)
@@ -354,17 +360,17 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 #              ref: https://legacy.imagemagick.org/discourse-server/viewtopic.php?f=22&t=20942
 # -- untapered decay
 # Welch/Welsh       is a Welch-windowed    sinc filter (parabolic window, 3 lobes)
-# Cosine            is a Cosine-windowed   sinc filter (3 lobes)
+# Cosine            is a Cosine-windowed   sinc filter (3 lobes) (Good for downscaling but also upscaling. Same as Wiener but without aliasing. Therefore very similar to Blackman6 but with a bit of ringing)
 # Bessel            is a unnormalized      sinc filter (3 lobes)
 # -- tapered decay (in order)
 # Bartlett          is a Bartlett-windowed sinc filter (4 lobes) (actually the same mathematical function used for a 'Triangle' filter, as well as the 'Bilinear' interpolation filter)
 # Sinc              is a Sinc-windowed     sinc filter (4 lobes)
 # Hamming           is a Hamming-windowed  sinc filter (4 lobes) (has a gradient discontinuity so not recommended)
-# Hann(ing)         is a Hanning-windowed  sinc filter (4 lobes) (2-lobes can be used for upscaling sharp images)
+# Hann(ing)         is a Hanning-windowed  sinc filter (4 lobes) (2-lobes can be used for upscaling sharp images) (Just like Blackman6 bit a tiny bit softer)
 # Kaiser            is a Kaiser-windowed   sinc filter (4 lobes) (also a small gradient discontinuity so not recommended)
-# Bohman            is a Bohman-windowed   sinc filter (5 lobes) (Blackman would fall between Kaiser and Bohman)
-# Parzen            is a Parzen-windowed   sinc filter (6 lobes)
-# Ginseng           is a Jinc-windowed     sinc filter (3 lobes). Better for HBD than ewa_lanczos3.
+# Bohman            is a Bohman-windowed   sinc filter (6 lobes) (Blackman would fall between Kaiser and Bohman)
+# Parzen            is a Parzen-windowed   sinc filter (8 lobes) (Very similar to Blackman6)
+# Ginseng           is a Jinc-windowed     sinc filter (3 lobes). Better for HBD than ewa_lanczos3. Very similar to spline36 aliasing wise, but sharper. Also adds some bloating.
 # -Lagrange         is a Lagrange cubic polynomial filter that approximates a windowed filter https://legacy.imagemagick.org/Usage/filter/#lagrange
 # -Jinc/Bessel      is a Box-windowed      jinc filter (3.2383154841662362 lobes). Jinc filters are not separable so they're usually slower than sinc, cubic, etc but more pleasant artifacts. See here: https://legacy.imagemagick.org/Usage/filter/#cylindrical
 # -ewa_hanning      is a Hanning-windowed  jinc filter (3.238 lobes).
@@ -573,12 +579,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     # Exclusion list
     Lkrn = LCase(kernel)    Lkrnc = LCase(kernel_c)
-    nope = (FindStr(Lkrn,  "spline1") > 0 || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline256") && Lkrn  !="spline"           || \
-           (kernel   == "jinc16" || kernel   == "jinc100" || kernel   == "jinc144" || kernel   == "jinc196" || kernel   == "jinc256") && Lkrn  !="jinc" || \
-            FindStr(Lkrn, "ewasharp") > 0 || FindStr(Lkrn, "nnedi3") > 0
-    nopc = (FindStr(Lkrnc, "spline1") > 0 || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline256") && Lkrnc !="spline"           || \
-           (kernel_c == "jinc16" || kernel_c == "jinc100" || kernel_c == "jinc144" || kernel_c == "jinc196" || kernel_c == "jinc256") && Lkrnc !="jinc" || \
-            FindStr(Lkrnc,"ewasharp") > 0 || FindStr(Lkrnc,"nnedi3") > 0
+    nope = (FindStr(Lkrn,  "spline1") > 0 || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline256") && Lkrn  !="spline" || \
+            FindStr(Lkrn, "jinc") > 0   && Lkrn  !="jinc" || FindStr(Lkrn, "ewasharp") > 0 || FindStr(Lkrn, "nnedi3") > 0
+    nopc = (FindStr(Lkrnc, "spline1") > 0 || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline256") && Lkrnc !="spline" || \
+            FindStr(Lkrnc, "jinc") > 0  && Lkrnc !="jinc" || FindStr(Lkrnc,"ewasharp") > 0 || FindStr(Lkrnc,"nnedi3") > 0
 
     tapFinder1 = RightStr(kernel,1)  StrN1 = StrNumber(tapFinder1) && !nope
     tapFinder2 = RightStr(kernel,2)  StrN2 = StrNumber(tapFinder2) && !nope
@@ -625,6 +629,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         kernel == "Nearest"  || kernel == "NearestNeighbour" || kernel == "NN"               ? \
                                                       "GaussResize({nw},{nh},p=100"                          : \
                         kernel == "Gauss"        ?    "GaussResize({nw},{nh},p={pd}?{p}:9"                   : \
+                        kernel == "deep"         ?    "deep_resize({nw},{nh}"                                : \
                         kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" || kernel == "Simple" ? \
                                                      """fmtc_resample({nw},{nh},kernel="box"             """ : \
                         kernel == "Bilinear" || kernel == "Triangle" || kernel == "Bartlett"                 ? \
@@ -654,9 +659,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
                                                    """fmtc_resample({nw},{nh},kernel="blackmanminlobe"    """: \
                         kernel == "SincLin"      || kernel == "SincLin2ResizeMT"                             ? \
-                                                 "SincLin2ResizeMT({nw},{nh},taps={pd}?int({p}):16"          : \
+                                                 "SincLin2ResizeMT({nw},{nh},range=1,taps={pd}?int({p}):15"  : \
                         kernel == "SinPow"      || kernel == "SinPowResizeMT"                                ? \
-                                                 "SinPowResizeMT({nw},{nh}"                                  : \
+                                                 "SinPowResizeMT({nw},{nh},range=1,p={pd}?{p}:2.5"           : \
                         kernel == "SSIM"        || kernel == "ResizeShader"                                  ? \
                                                    """ResizeShader({nw},{nh},kernel="SSIM",b=0.1"""          : \
                         kernel == "SSIM2"                                                                    ? \
@@ -668,15 +673,15 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         kernel == "Jinc16"       ?     "JincResize({nw},{nh},tap=2"                          : \
                         kernel == "Jinc100"      ?     "JincResize({nw},{nh},tap=5"                          : \
                         kernel == "Jinc196"      ?     "JincResize({nw},{nh},tap=7"                          : \
-                        kernel == "EWA"          || kernel == "Jinc"       || kernel == "ewa_lanczos"        ? \
+                        kernel == "EWA"          || kernel == "Jinc"       || kernel == "ewa_lanczos"      || kernel == "LoBlur"  ? \
                                                        "JincResize({nw},{nh},tap={pd}?int({p}):3"            : \
-                        kernel == "EWASharp"     || kernel == "JincSharp"  || kernel == "ewa_lanczossharp"   ? \
+                        kernel == "EWASharp"     || kernel == "JincSharp"  || kernel == "ewa_lanczossharp" || kernel == "LoJaggy" ? \
                                                        "JincResize({nw},{nh},tap=3,blur=0.9812505644269356"  : \
                         kernel == "EWASharp2"    || kernel == "JincSharp2" || kernel == "ewa_lanczos2sharp"  ? \
                                                        "JincResize({nw},{nh},tap=2,blur=0.9549963639785485"  : \
                         kernel == "EWASharp4"    || kernel == "JincSharp4" || kernel == "ewa_lanczos4sharp"  ? \
                                                        "JincResize({nw},{nh},tap=4,blur=0.9885973386557245"  : \
-                        kernel == "EWASharper"   || kernel == "JincSharper"|| kernel =="ewa_lanczosradius3" || kernel =="Ginseng" ? \
+                        kernel == "EWASharper"   || kernel == "JincSharper"|| kernel =="ewa_lanczosradius3"  ? \
                                                        "JincResize({nw},{nh},tap=3,blur=0.9264075766146068"  : \
                         kernel == "EWASharper2"  || kernel == "JincSharper2"||kernel =="ewa_lanczosradius2"  ? \
                                                        "JincResize({nw},{nh},tap=2,blur=0.895603689740279282": \
@@ -698,15 +703,16 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         kernel +                           "Resize({nw},{nh}"                                 )
 
                         # Exclusion of additional resize arguments
-                        src_nul = kernel == "ResizeShader"    || kernel == "SSIM"   || kernel == "SSIM2"   || kernel == "DPID" || kernel == "nnedi3" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
-                        src_box = kernel == "Dirichlet"       || kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || kernel == "Spline" || \
-                                  kernel == "Black-Harris"    || kernel == "Wiener" || kernel == "Hann"    || kernel == "Hamming" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || kernel == "Spline196" || kernel == "Spline256" || \
+                        src_nul = kernel == "ResizeShader"    || kernel == "SSIM"   || kernel == "SSIM2"   || kernel == "DPID" || kernel == "nnedi3" || kernel == "deep" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR"
+                        src_box = kernel == "Dirichlet"       || kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || kernel == "Spline" || kernel == "Spline196" || kernel == "Spline256" || \
+                                  kernel == "Black-Harris"    || kernel == "Wiener" || kernel == "Hann"    || kernel == "Hamming" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || \
                                   kernel == "BlackmanMinLobe" || kernel == "Nuttall"|| kernel == "Welch"   || kernel == "Cosine" || kernel == "Ginseng" || kernel == "Quadratic" || kernel=="Quadric" || kernel == "Bessel" || kernel == "Parzen" || kernel == "Kaiser" || kernel == "Bohman"
 
                         # Retrieving taps for 'show'
                         if (show) {
                             resampler = TrimAll(resampler)
-                            taps = FindStr(resampler, "impulse") > 0 ? MidStr(resampler,StrLen(resampler)-1,1)                                            : \
+                            taps = FindStr(resampler, "SinPow")  > 0 ? MidStr(resampler,FindStr(resampler, "p=")+2)                                       : \
+                                   FindStr(resampler, "impulse") > 0 ? MidStr(resampler,StrLen(resampler)-1,1)                                            : \
                                    FindStr(resampler, "tap")     > 0 ? FindStr(resampler, "Jinc") > 0 ? \
                                                                        kernel == "Jinc"               ? MidStr(resampler,FindStr(resampler, "tap=") +4)   : \
                                                                                                         MidStr(resampler,FindStr(resampler, "tap=") +4,1) : \
@@ -1092,7 +1098,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC43",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC44",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1808,7 +1814,6 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
                                       y "+string(rW[2])+" / Z@ {ep} > Z 0.333333333 ^ Z {coefr} * 16 116 / + ? - 200 * "+" 12.3  /"), bi, fs), optSingleMode=true,  lut=lut2)
 
     isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
-
 
 
 
@@ -3188,7 +3193,7 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "Didee"             ? [-0.5,0.25] : c # dw Didée's downscaling sharp coefficients. More neutral in medium to low frequencies than Zopti
     c = kernel == "Zopti"             ? [-0.6,0.3]  : c # dw Like Zopti2 but more neutral (better over/undershoot normalization)
     c = kernel == "Zopti2"            ? [-0.6,0.4]  : c # dw Zopti calculated best from UHD to 720p (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218#post1865218
-    c = kernel == "Precise Bicubic"   ? [0.0,0.75]  : c
+    c = kernel == "Precise Bicubic"   ? [0.0,0.75]  : c # up Almost identical to spline36 but a bit more halo. Very good cheap upscaler
     c = kernel == "Sharp"             ? [0.0,1.0]   : c # dw,up Good alternative to Zopti for dw. Less aliasing and sharper edges but softer textures
     c = kernel == "Hatch"             ? [0.0,-5.0]  : c
 
