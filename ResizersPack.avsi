@@ -172,7 +172,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
         }
 
         # Y8 for nnedi3
-        an      = !isy ? a.ExtractY() : a
+        an      = !isy && !(rat <= rth) ? a.ExtractY() : a
         a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
         # nnedi3 one dimensional resize case
         oned    = h == h2 || w == w2
@@ -185,7 +185,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
         if (rat <= rth) {
 
-            edge1 # upscaling below ratio threshold
+            krn1 == "nnedi3" ? oned ? nnedi3resize(a,w2,h2) : edge1.propCopy(a) : edge1  # upscaling below ratio threshold
 
         } else {
         # nnedi3 one dimensional resize case, luma shift (no 'cshift' arg in nnedi3() )
@@ -275,7 +275,8 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
     cs = cpl!=1 ? -0.5 * (factor-1) : 0
     oned ? Eval(krnn+"(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ",src_top=cs)")) : last
 
-    !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last }
+    !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last
+    propCopy(a) }
 
 
 
