@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.1  (09-03-2022)                             ###
+###        Sharpeners Pack v4.2  (15-03-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -22,7 +22,7 @@
 ###       SlopeBend                                                       ###
 ###       DetailSharpen                                                   ###
 ###       MedianSharp                                                     ###
-###       LSFplus -mod of LaTo's mod of Didée's LSF- (EX/MIX mods folders)###
+###       LSFplus -mod of LaTo's mod of Didée's LSF- (separate .avsi)     ###
 ###   *.mp4 guy:                                                          ###
 ###       SSSharpFaster                                                   ###
 ###       SSSharp                                                         ###
@@ -480,7 +480,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 
 ######################################################
 ###
-###  ex_unsharp()    by Dogway (26-10-2021)
+###  ex_unsharp()    by Dogway (15-03-2022)
 ###
 ### Replacement and practical match to variableblur's unsharp()...
 ### ...but with 20% of sharpness weight from a discreet lower frequency cutoff for structural support.
@@ -509,11 +509,12 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 ###    clip,
 ###    float str=1.0 (-1.0 to 2.0 by 0.1),
 ###    [float strv=1.0 (-1.0 to 2.0 by 0.1)],
-###    float "Fc"=1920.0 (0.0 to 1920.0 by 1.0),
+###    float "Fc"=1920.0 (0.0 to 3840.0 by 1.0),
 ###    float "th"=0.0 (0.0 to 255.0 by 1.0),
+###    bool "safe"=false,
 ###    )
 ###
-function ex_unsharp(clip a, float "str", float "strv", float "Fc", float "th", int "Y", int "UV") {
+function ex_unsharp(clip a, float "str", float "strv", float "Fc", float "th", bool "safe", int "Y", int "UV") {
 
     rgb   = isRGB(a)
     isy   = isy(a)
@@ -528,13 +529,16 @@ function ex_unsharp(clip a, float "str", float "strv", float "Fc", float "th", i
     strh  = Default(str,     1)        # Use negative values for frequency based blurring (deconvolution), works up to a certain extent (up to -0.5)
     strv  = Default(strv, strh)
     Fc    = Default(Fc,  Fs/2.)        # Frequency cutoff in Hz for sharpening, by default same to sample rate (ie 1920Hz for 1080p, or 1 pixel accuracy)
+    th    = Default(th,      0)        # Soft threshold. Good values are between str*10 and str*20
+    sf    = Default(safe,false)        # Enable for halo protection (idea from CTools' CSharpen)
+    Y     = Default( Y,      3)
+    UV    = Default(UV,rgb ? 3 : 1)
 
     Fc    = (Fs/Fc)
     rad   = ceil(Fc)-1
 
-    th    = Default(th,           0)   # Soft threshold. Good values are between str*10 and str*20
-    Y     = Default( Y,           3)
-    UV    = Default(UV,    rgb  ? 3 : 1)
+    strv  = sf ? strv*0.5 + strv : strv
+    strh  = sf ? strh*0.5 + strh : strh
     dcnv1 = strv < 0
     dcnv2 = strh < 0
     strv  = abs(strv)
@@ -582,22 +586,28 @@ function ex_unsharp(clip a, float "str", float "strv", float "Fc", float "th", i
     mx   = ex_bs( 255,                    8, bi, fulls=true)
     thrd = mx / (thr1 - thr2)
     mx   = bi > 14 ? "range_max /" : string(1. / Eval(ex_dlut("range_max", bi, true))) + " *"
-    thsv = Format(" {strv} * dup x + swap abs {thr1} - {thrd} * neg range_max min range_max swap - "+mx+" swap dup x - swap swap2 * - ") # x msk y
-    thsh = Format(" {strh} * dup x + swap abs {thr1} - {thrd} * neg range_max min range_max swap - "+mx+" swap dup x - swap swap2 * - ")
+    thsv = Format("dup x + swap abs {thr1} - {thrd} * neg range_max min range_max swap - "+mx+" swap dup x - swap swap2 * - ")
+    thsh = Format("dup x + swap abs {thr1} - {thrd} * neg range_max min range_max swap - "+mx+" swap dup x - swap swap2 * - ")
 
+    # Safe
+    scl   = BitSal(1,bi-8)
+    sclf  = bi == 8 ? "" : (bi == 32 ? "0.003921568" : string(     scl)) + " * "
+    sclr  = bi == 8 ? "" : (bi == 32 ? "255"         : string(1. / scl)) + " * "
+    sfs   = !sf   ? "" : sclr + " dup abs dup "+atanT()+" swap sqrt * swap sgn * " + sclf
+    # Deconvolution
     dcnv1 = dcnv1 ? "" : "swap"
     dcnv2 = dcnv2 ? "" : "swap"
     strd  = strh != strv
-    th1   = !strd ? "" : "x "+dcnv1+" - " + (th > 0 ?            thsv                : Format("{strv} * x +"))
-    th2   = !strd ?      "y "+dcnv2+" - " + (th > 0 ? ReplaceStr(thsh, " x ", " y ") : Format("{strh} * y +")) : \
-                         "x "+dcnv2+" - " + (th > 0 ?            thsh                : Format("{strh} * x +"))
+    th1   = !strd ? "" : "x "+dcnv1+" - {strv} * " + sfs + (th > 0 ?            thsv                : " x +")
+    th2   = !strd ?      "y "+dcnv2+" - {strh} * " + sfs + (th > 0 ? ReplaceStr(thsh, " x ", " y ") : " y +") : \
+                         "x "+dcnv2+" - {strh} * " + sfs + (th > 0 ?            thsh                : " x +")
     strv1 = krnv  + plsv  + " Z@ "  + string((1./divy) *0.8) + " * "
     strh1 = krnh  + plsh  + " Z@ "  + string((1./divx) *0.8) + " * "
     strv2 = krnv2 + " Z + " + plsv2 + string((1./divy2)*0.2) + " * + "
     strh2 = krnh2 + " Z + " + plsh2 + string((1./divx2)*0.2) + " * + "
 
-    strvf = strv1 + strv2 + th1
-    strhf = strh1 + strh2 + th2
+    strvf = strv1 + strv2 + Format(th1)
+    strhf = strh1 + strh2 + Format(th2)
 
     a     = Fc < 2.0 ? a.blackmanresize(nmod(w*(2./Fc),2),nmod(h*(2./Fc),2),taps=6) : a # replace with butterworth fractional rad (n=300 or so) for subpixel sharpening
 
@@ -2429,7 +2439,7 @@ function plum_Super(clip src, int "pel") {
     rgb ? RGB_to_OPP() : isy() ? last : ExtractY()
 
     PadBorders(64, 64, 64, 64, "Dilate")
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
+    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
 
     return last }
 
@@ -2440,7 +2450,7 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     a          = Default(a,         32)
     h1         = Default(h1,       6.4)
     h2         = Default(h2,      64.0)
-    radius     = Default(radius,     1)
+    radius     = Default(radius,     1) # 1 requires YUV444
     wn         = Default(wn,      0.48)
     scale      = Default(scale,   0.28)
     cutoff     = Default(cutoff,    24)
@@ -2483,12 +2493,11 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
         threads         = SI_LogicalCores()
         sharp           = Deconvolution(src, radius, wn, int(a / 2. + 0.5), scale)
 #        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=4,nsize=0,qual=2,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
-        ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
+        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
         sharp           = NLErrors(ref, a, h1, sharp).ConvertBits(32, fulls=fs)
         dif             = ex_makediff(sharp, ref, fulls=fs)
-#        dif             = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but with centered chroma
-        dif             = GaussResize(dif, src.width(), src.height(), p=100) # like PointResize but with centered chroma
+        dif             = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but keeping image center. -0.5 to correct image center from nnedi3()
         sharp           = ex_adddiff(src, dif, fulls=fs).ConvertBits(32, fulls=fs)
         src32           = src.ConvertBits(32, fulls=fs)
         sharp           = CutOff(src32, sharp, cutoff_1, 0)
@@ -2630,10 +2639,10 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         cores   = SI_PhysicalCores()
         threads = SI_LogicalCores()
 
-        u2x     =                   nnedi3_rpow2(src, rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
-        u2x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
-        u4x     =                   nnedi3_rpow2(src, rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
-        u4x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
+        u2x     =                   nnedi3_rpow2(src, rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        u2x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        u4x     =                   nnedi3_rpow2(src, rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        u4x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
         dif     = !src2d ? nop() : (pel==2 ? ex_makediff (u2x, u2x2, fulls=fs) : ex_makediff (u4x, u4x2, fulls=fs))
         clp     =  src2d ? dif   : (pel==2 ? u2x : u4x)
         return clp }
