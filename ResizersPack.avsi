@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 8.3    (12-03-2022)   ##
+###   Resizers Functions Pack 8.4    (15-03-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -27,7 +27,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (12-03-2022)
+### deep_resize() - by Dogway (15-03-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -98,6 +98,7 @@
 ###    string "chroma"="Blackman6" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
 ###    int "e_taps"=6 (2 to 20 by 1),
 ###    int "f_taps"=8 (2 to 20 by 1),
+###    int "c_taps"=6 (2 to 20 by 1),
 ###    int "deconv"=0 (-10 to 15 by 1),
 ###    float "th_rat"=1.25 (1.0 to 2.0 by 0.05),
 ###    float "th"=1.0 (0.0 to 5.0 by 0.1),
@@ -105,7 +106,7 @@
 ###    int "qual"=1 (1 to 2 by 1),
 ###    )
 ###
-function deep_resize(clip a, float "width", float "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "deconv", float "th_rat", float "th", float "elast", int "qual") {
+function deep_resize(clip a, float "width", float "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "th_rat", float "th", float "elast", int "qual") {
 
     w   = width (a)
     h   = height(a)
@@ -133,10 +134,11 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
                                                                                       # By default, for big   upscales   -> "nnedi3"
                                                                                       # By default, for small downscales -> "Didée"
                                                                                       # By default, for big   downscales -> "DPID"
-    krn1c = Default(chroma,rat<=rth*0.95 ? "Zopti2" : "Blackman6")                    # Chroma resizing kernel (no edge/flat discretion)
+    krn1c = Default(chroma,rat<=rth*0.95 ? "Zopti2" : "Blackman")                     # Chroma resizing kernel (no edge/flat discretion)
     krn2  = Default(flat, "Blackman8")                                                # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos...
-    etp   = Default(e_taps,    6)                                                     # taps for edge kernel
-    ftp   = Default(f_taps,    8)                                                     # taps for flat kernel
+    etp   = Default(e_taps,    6)                                                     # taps for edge   kernel
+    ftp   = Default(f_taps,    8)                                                     # taps for flat   kernel
+    ctp   = Default(c_taps,    6)                                                     # taps for chroma kernel
     thr   = Default(th,      1.0)                                                     # 0-255 (normally up to 10)
     ela   = Default(elast,   4.0)                                                     # 1-255 (normally up to 10)
     qual  = Default(qual,      1)
@@ -158,7 +160,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
     } else if (rw<1 && rh<1) {
 
-        ConvertFormat(a, w2,h2,cs_out="",EOTF="",kernel=krn1,kernel_c=krn1c,taps=etp,src_left=[0.0,0.0],src_top=[0.0,0.0])
+        ConvertFormat(a, w2,h2,cs_out="",EOTF="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],src_left=[0.0,0.0],src_top=[0.0,0.0])
 
     } else {
 
@@ -170,15 +172,15 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
             cores   = SI_PhysicalCores()
             threads = SI_LogicalCores()
+
+            # Y8 for nnedi3
+            an      = !isy && !(rat <= rth) ? a.ExtractY() : a
+            a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
+
+            # nnedi3 one dimensional resize case
+            oned    = h == h2 || w == w2
+            a8L     = h == h2 ? TurnRight(a8) : a8
         }
-
-        # Y8 for nnedi3
-        an      = !isy && !(rat <= rth) ? a.ExtractY() : a
-        a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
-
-        # nnedi3 one dimensional resize case
-        oned    = h == h2 || w == w2
-        a8L     = h == h2 ? TurnRight(a8) : a8
 
         edge1   =       krn1 == "nnedi3"  ? oned ? Eval("""a8L
                                               for (i = 1, factor/2, 1) {
@@ -191,8 +193,8 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
                         krn1 == "nnedi3"  ? oned ? nnedi3resize(a,w2,h2,qual=qual) : edge1.propCopy(a) : edge1  # upscaling below ratio threshold
 
         } else {
-            # nnedi3 one dimensional resize case, luma shift (no 'cshift' arg in nnedi3() )
-            edge1   = h == h2 ? TurnLeft(edge1) : edge1
+            # nnedi3 one dimensional resize case; luma shift (no 'cshift' arg in nnedi3() )
+            edge1   =   krn1 == "nnedi3" && h == h2 ? TurnLeft(edge1) : edge1
             edge1   =   krn1 == "nnedi3" && oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=etp")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
 
             # don't sharpen nnedi3 when one dimensional resize case
@@ -200,12 +202,12 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
                                                    LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0).ConvertBits(bi, fulls=fs, fulld=fs)      : edge1
 
             # resizing flat area
-            flat    =                              ConvertFormat(a,w2,h2,cs_out="",EOTF="",kernel=krn2,kernel_c=krn1c,taps=ftp,src_left=[0.0,0.0],src_top=[0.0,0.0])
+            flat    =                              ConvertFormat(a,w2,h2,cs_out="",EOTF="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],src_left=[0.0,0.0],src_top=[0.0,0.0])
 
             # edge/flat limiting
             ex_limitdif(krn1 == "nnedi3" && !isy ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
 
-            # deconvolution from 'sinc' upscaling. Special case to tone down leaked 'sinc' halos
+            # combine planes when nnedi3 case
                         krn1 == "nnedi3" && !isy ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
             # deconvolution from source downscaling
             dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) } } }
@@ -263,16 +265,22 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
     # 8-bit for nnedi3
     a8  = !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
 
-    # nnedi3 one dimensional resize case, luma shift (no 'cshift' arg in nnedi3() )
+    # nnedi3 one dimensional resize case + luma shift (no 'cshift' arg in nnedi3() )
     if (oned) {
-        a8L    = hs ? TurnRight(a8) : a8
-                      nnedi3(a8L,field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        factor == 4 ? nnedi3(    field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2) : last
+
+        hs ? TurnRight(a8) : a8
+
+        for (i = 1, factor/2, 1) {
+
+            nnedi3(field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        }
+
         hs          ? TurnLeft() : last
         cs = cpl!=1 ? -0.5 * (factor-1) : 0
-                      Eval(krnn+"(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ",src_top=cs)"))
+        Eval(krnn+"(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ",src_top=cs)"))
+
     }   else  {
-                      nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25)
+        nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25)
     }
 
     !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last
