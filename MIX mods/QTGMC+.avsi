@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.81 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.82 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -20,10 +20,13 @@
 #     - Increased performance for HBD (+70%)
 #     - PC range aware
 #     - Pruned noop or redundant arguments
-#     - Adapted code and expressions to align to AVS+ features
+#     - Sanitized and adapted code and expressions to align to AVS+ features
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.82p
+# - Update with latest Asd-g's vinverse plugin
 #
 # v3.81p
 # - Update calls for latest vsTCanny
@@ -387,7 +390,7 @@
 #   RgTools    (1.2 or above)
 #   vsTCanny   (1.1.7 for gaussian blur)
 #   SysInfo    (0.1.2.9)
-#   Vinverse
+#   Vinverse   (0.9.1)
 #
 # Core scripts:
 #   ExTools      (8.1   or above)
@@ -777,7 +780,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     bobbed = (InputType == 0) ? UseEdiExt > 0 ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true) : EdiExt : planarClip.ex_Bob( 0,0.5 ) : \
              (InputType == 1) ? planarClip                                                                                        : \
                                 planarClip.ex_boxblur( 0, 1, "weighted", UV=CMmt)
-    bobbed = (InputType == 0) && UseEdiExt > 1 ? bi8 ? bobbed.vinverse(uv=CMmt) : bobbed.ex_vinverse(uv=CMmt,fulls=!tv) : bobbed
+    bobbed = (InputType == 0) && UseEdiExt > 1 ? bobbed.vinverse(uv=CMmt) : bobbed
 
     # If required, get any existing global clips with a matching "GlobalNames" setting. Unmatched values get NOP (= 0)
     srchClip  = QTGMCp_GetUserGlobal( GlobalNames, "srchClip",  ReuseGlobals )
@@ -802,11 +805,10 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
       domtr02 = TR0 == -2 && !(InputType == 0 && UseEdiExt > 1)
       domtr01 = TR0 == -1 && !(InputType == 0 && UseEdiExt > 1)
     binomial0 = srchcheck        ? nop() : \
-      domtr02 && Defined(EdiExt) ? isyuy2(EdiExt) ? bi8 ? EdiExt.nonyuy2clipin(true).vinverse(uv=CMmt) : EdiExt.nonyuy2clipin(true).ex_vinverse(uv=CMmt,fulls=!tv)                      : \
-                                                    bi8 ?                     EdiExt.vinverse(uv=CMmt) :                     EdiExt.ex_vinverse(uv=CMmt,fulls=!tv) : TR0 == -2 ? bobbed : \
-      domtr01 && Defined(EdiExt) ? isyuy2(EdiExt) ?       EdiExt.nonyuy2clipin(true)                   : EdiExt                                                    : TR0 == -1 ? bobbed : \
-                (TR0 == 0)       ? bobbed                                                                                                                                               : \
-                (TR0 == 1)       ? (ChromaMotion ? ts1.Merge( bobbed, 0.25 ) : ts1.MergeLuma( bobbed, 0.25 ))                                                                           : \
+      domtr02 && Defined(EdiExt) ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true).vinverse(uv=CMmt)  : EdiExt.vinverse(uv=CMmt) : TR0 == -2 ? bobbed : \
+      domtr01 && Defined(EdiExt) ? isyuy2(EdiExt) ? EdiExt.nonyuy2clipin(true)                    : EdiExt                   : TR0 == -1 ? bobbed : \
+                (TR0 == 0)       ? bobbed                                                                                                         : \
+                (TR0 == 1)       ? (ChromaMotion ? ts1.Merge( bobbed, 0.25 ) : ts1.MergeLuma( bobbed, 0.25 ))                                     : \
                                                    ex_lutxyz(ts1,ts2,bobbed,"x 0.562625 * y 0.312375 * z 0.125 * + +", UV=CMmt)
 
     # Remove areas of difference between temporal blurred motion search clip and bob that are not due to bob-shimmer - removes general motion blur
