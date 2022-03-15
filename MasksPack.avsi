@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 5.4 By Dogway  (10-03-2022)            ##
+###           MasksPack 6.0 By Dogway  (15-03-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -10,9 +10,10 @@
 ###      BoxMask                                               ##
 ###      FlatMask                                              ##
 ###      LumaMask                                              ##
+###      MotionMask                                            ##
 ###      ex_limitdif                                           ##
 ###      ex_limitchange                                        ##
-###                                                            ##
+###      Soothe                                                ##
 ###                                                            ##
 #################################################################
 
@@ -282,6 +283,54 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
 
 
 
+# Motion (occlusion) mask with selective direction; previous, next, or both (default) with radius of 1 or 2.
+# Own algorithm. Requires ExTools and ResizersPack.
+#
+# Similar to MVTools' MMask() but much faster.
+#
+function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", int "dir", int "UV") {
+
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    w    = width(a)
+    h    = height(a)
+    bi   = BitsPerComponent(a)
+
+    lo   = Default(lo,       30)
+    hi   = Default(hi,      255)
+    sh   = Default(sharpness, 0)
+    sc   = Default(scale,     2)
+    dr   = Default(dir,      20) # Direction of the motion mask, -2 for previous+before, -1 for previous, 0 for both, 1 for next, 2 for next+following, 20 for both radius=2
+    UV   = Default(UV,  rgb ? 3 : 2)
+
+    ad   = abs(dr)
+    sc   = sc / (ad==1 ? 2. : ad==20 ? 5. : 4.)
+    lob  =     ex_bs(lo, 8, bi, fulls=true)
+    hib  = max(ex_bs(hi, 8, bi, fulls=true) / sc, lob)
+    th   = (lo == 0) && (hi == 255) ? sc == 2 ? ""    : Format(" {sc} *") : \
+           (lo == 0) ? Format(" range_max {hib} / *") : Format(" {lob} - range_max {hib} {lob} - / *")
+
+    UV = UV!=3 ? 1 : UV
+    UV==3 || isy ? a : a.ExtractY()
+    # 20x20 macroblocks (at 1080p)
+    RatioResize(96,"adjust2w",kernel="bicubic",b=-0.6,c=0.4)
+    # Temporal Stabilization
+    ex_FluxSmoothT(2,5,UV=uv)
+    # Directional Derivative
+    ad==1 ? ex_lutxy (selectevery(1,dr),                         "x y - abs               dup * "+th, UV=uv) : \
+    ad==2 ? ex_lutxyz(selectevery(1,dr),selectevery(1,sign(dr)), "x y - abs x z - abs max dup * "+th, UV=uv) : \
+    ad==0 ? ex_lutxyz(selectevery(1,-1),selectevery(1,       1), "x y - abs x z - abs max dup * "+th, UV=uv) : \
+            Expr(last,selectevery(1,-1),selectevery(1,       1),                                               \
+                      selectevery(1,-2),selectevery(1,       2), "x a - abs x b - abs max x y - abs max x z - abs max dup * "+th)
+    # Mask Dilate
+    ex_expand(1, "plus", UV=uv)
+    # Blur
+    GaussResize(w,h,p=round(w/213.33)+sh)
+    propDelete(["_Matrix","_Primaries","_Transfer","_PictType"])
+    propSet("_ColorRange", 0) }
+
+
+
 
 ### ex_limitdif() by Dogway (03-02-2022)
 ### Ported from slimit_dif() and HQDeringmod_limit_dif(). Description from Dither_limit_dif16
@@ -390,3 +439,103 @@ function ex_limitchange(clip flt, clip src, float "limit", float "bias", float "
 
 
     ex_lutxy( flt, src, expr, exprC, Y=y, UV=uv, fulls=fs) }
+
+
+
+
+### Soothe()   by Didée (6th Sept 2005)
+### Small helper function to temporal stabilize sharpening for less temporal jitter
+### https://forum.doom9.org/showthread.php?t=99679
+###
+### MCSoothe() by Didée (14th July 2007)
+### https://forum.doom9.org/showthread.php?p=1367334#post1367334
+###
+### mod by Dogway (15-03-2022) - Merged Soothe(), SoothCL() and MCSoothe() plus optimizations.
+###
+###
+### "This is a small postprocessor function for sharpening filters. The goal is temporal stabilization of clips that have been sharpened before. It is reasonably fast (contains 3 different lutxy operations and one TemporalSoften - that's about the cheapest possibility for what is done. Plugin coders are welcome ), and seems to work pretty well.
+###
+### The introduction of jitter on the temporal axis is a general problem of sharpening operations, since sharpening (usually) considers spatial aspects only. Therefore, Soothe() does a very simple job: get the difference between [source] and [sharpened source], apply a TemporalSoften on this difference BUT allow only changes towards 128 ("neutral"), and then apply this temporally calmed difference back to the original clip.
+### Effectively, this will reduce the overall effect of sharpening - less in static areas, and more in moving areas.
+###
+### median=true uses a temporal median ( previously Clense() ) instead of temporal blur (TemporalSoften())"
+###
+### Advantages:
+### - more steady appearance (less "nervous")
+### - less bitrate required
+### - somewhat positive effect on detail that is, due to the sharpening, prone to aliasing
+### - smoother motion compared to plain-sharpening, since motion-blurred edges will be less sharpened
+### - less artefacts in moving areas
+### - LimitedSharpen can run faster, since one can get away with less supersampling
+### - should only help, never harm
+###
+### Disadvantages:
+### - overall sharpening effect is reduced, but this can be compensated by a little more initial sharpening
+###
+### Dependencies:
+###         ExTools
+###         MVTools
+###         MaskTools
+###         SMDegrain (for MC=true)
+###
+### Example:
+###     Soothe(orig,blurry,keep=0) # You can also use it to recover sharpness from a blurry filter
+###
+function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int "UV", bool "tv_range") {
+
+    rgb  = sharp.isRGB()
+    w    = sharp.width()
+    h    = sharp.height()
+    isHD = (w > 1099 || h >  599)
+    isUHD= (w > 2599 || h > 1499)
+    bi   = BitsPerComponent(sharp)
+    fs   = propNumElements (sharp,"_ColorRange")  > 0 ? \
+           propGetInt      (sharp,"_ColorRange") == 0 : false
+
+    med  = Default(median,false)
+    MC   = Default(MC,    false)
+    keep = Default(keep,   MC ? 48 : 24)  # 0-100
+    UV   = Default(UV,        1)
+    tv   = Default(tv_range, !fs)
+    KP   = max(0,min(100,keep)) / 100.
+
+    Assert(IsVersionOrGreater(3,7,2),               "Soothe: Update AviSynth+ version")
+    Assert(w == orig.width() && h == orig.height(), "Soothe: clip dimensions must match!")
+
+    if (MC) {
+
+        isc = VarExist("b1c") && VarExist("f1c")
+        isv = VarExist("cb1") && VarExist("cf1")
+
+        if (!isc) {
+
+            blksize   = isUHD ? 32 : isHD ? 16 : 8
+
+            pre       = orig.ex_minblur(isHD ? 2 : 1, sharp=false, UV=uv)
+            DB        = ex_lutxyz(sharp,orig,pre,"x z - X@ y z - 1.49 * Y@ * 0 < z X abs Y abs < x Y z + ? ?",UV=uv,fulls=!tv)
+            pre       = pre.ConvertBits(8, dither=-1, fulls=!tv)
+            superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=UV==3, mt=true)
+            super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=UV==3, mt=true, levels=1)
+
+            cb  = superfilt.MAnalyse(isb = false,    chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, temporal=true)
+            cf  = superfilt.MAnalyse(isb = true,     chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, temporal=true )
+            cb1 = isv ? cb1 : super.Mrecalculate(cb, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=110, truemotion=true, mt=true)
+            cf1 = isv ? cf1 : super.Mrecalculate(cf, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=110, truemotion=true, mt=true)
+        }
+
+        cb1   = repair(isc ? b1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cb1, thSCD1=255,thSCD2=255, mt=true), orig, 3, -1)
+        cf1   = repair(isc ? f1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cf1, thSCD1=255,thSCD2=255, mt=true), orig, 3, -1)
+
+        diff  = interleave(cb1,DB,cf1)
+
+        diff2 = med ? diff.ex_median("medianT",UV=uv) : diff.temporalsoften(1,255,uv==3?255:0,32,2)
+        diff2 = diff2.selectevery(3,1)
+        ex_lutxyz(sharp,DB,diff2,Format("z y - X@ x y - Y@ * 0 < Y {KP} * y + X abs Y abs < x z - {KP} * z + x ? ?"),UV=uv,fulls=!tv)
+
+
+    } else {
+
+        diff  = ex_makediff(orig,  sharp, UV=uv, fulls=!tv)
+        diff2 = med ? diff.ex_median("medianT",UV=uv) : diff.temporalsoften(1,255,uv==3?255:0,32,2)
+        ex_lutxyz(orig,diff,diff2,Format("y range_half - Y@ z range_half - Z@ * 0 < Y {KP} * range_half + Y abs Z abs > y z - {KP} * z + y ? ? x swap - range_half +"),UV=uv,fulls=!tv).propCopy(a)
+    } }
