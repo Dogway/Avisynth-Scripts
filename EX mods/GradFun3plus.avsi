@@ -1,6 +1,6 @@
 #############################################################
 ###                                                       ###
-###  GradFun3plus EX mod by Dogway    (05-03-2022)        ###
+###  GradFun3plus EX mod by Dogway (15-03-2022)           ###
 ###                                                       ###
 ###                                                       ###
 ###  A simple port of:                                    ###
@@ -26,7 +26,7 @@
 ###
 ###     100.0% 58.3 fps
 ###     Convertbits(16)
-###     ex_GradFun3()
+###     GradFun3plus()
 ###     Convertbits(8,dither=1)
 ###
 ###     67.6% 39.4 fps
@@ -147,7 +147,7 @@ function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "
 
 
 
-### SmoothGrad() by Dogway (04-02-2022)
+### SmoothGrad+ by Dogway (15-03-2022)
 ###     Port from cretindesalpes' Dither Tools plugin to AviSynth+ wrapper
 ###     https://avisynth.nl/index.php/Dither_tools#SmoothGrad
 ###
@@ -164,7 +164,7 @@ function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "
 ###
 ###     100.0% 196 fps
 ###     Convertbits(16)
-###     ex_SmoothGrad()
+###     SmoothGradPlus()
 ###     Convertbits(8,dither=1)
 ###
 ###     93.9% 184 fps
@@ -190,7 +190,7 @@ function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "
 ### When undefined, the input clip is taken as reference.
 ###
 ###
-function ex_SmoothGrad(clip a, int "radius", float "thr", float "elast", clip "ref", int "Y", int "UV") {
+function SmoothGradPlus(clip a, int "radius", float "thr", float "elast", clip "ref", int "Y", int "UV") {
 
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
@@ -203,8 +203,8 @@ function ex_SmoothGrad(clip a, int "radius", float "thr", float "elast", clip "r
     Y   = Default(Y,       3)
     UV  = Default(UV,      3)
 
-    Assert(IsVersionOrGreater(3,7,2), "ex_SmoothGrad: Update AviSynth+ version")
-    Assert(rad <=  156,               "ex_SmoothGrad: max "+chr(34)+"radius" +chr(34)+" value is 156.")
+    Assert(IsVersionOrGreater(3,7,2), "SmoothGradPlus: Update AviSynth+ version")
+    Assert(rad <=  156,               "SmoothGradPlus: max "+chr(34)+"radius" +chr(34)+" value is 156.")
 
     rad   = max(rad, 2)
     th2   = min(max(thr,    0.1 ), 10.0)
@@ -264,9 +264,9 @@ function gf3_smoothgrad_multi (clip src, clip ref, int radius, float thr, float 
     r4    = radius * 4 / 3
 
     src
-    (r2 >= 1) ? ex_SmoothGrad (radius=r2, thr=thr,      elast=elast, ref=ref, y=y, uv=uv) : last
-    (r3 >= 1) ? ex_SmoothGrad (radius=r3, thr=thr*0.7,  elast=ela_2, ref=ref, y=y, uv=uv) : last
-    (r4 >= 1) ? ex_SmoothGrad (radius=r4, thr=thr*0.46, elast=ela_3, ref=ref, y=y, uv=uv) : last }
+    (r2 >= 1) ? SmoothGradPlus (radius=r2, thr=thr,      elast=elast, ref=ref, y=y, uv=uv) : last
+    (r3 >= 1) ? SmoothGradPlus (radius=r3, thr=thr*0.7,  elast=ela_2, ref=ref, y=y, uv=uv) : last
+    (r4 >= 1) ? SmoothGradPlus (radius=r4, thr=thr*0.46, elast=ela_3, ref=ref, y=y, uv=uv) : last }
 
 
 
