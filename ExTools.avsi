@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v8.0   (06-03-2022)                ##
+###           ExTools v8.1   (08-03-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -916,7 +916,7 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "Y"
 
 
 # ex_motion() replaces mt_motion(). A very basic motion mask filter.
-# A better alternative to study in the future is to include a Kalman filter or check ex_occlusion() below.
+# A better alternative to study in the future is to include a Kalman filter or use MotionMask() in MasksPack.
 #
 function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
 
@@ -948,51 +948,6 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
                propSet("_ColorRange", 0)                            }
 
 
-# Better motion (occlusion) mask with selective direction; previous, next, or both (default) with radius of 1 or 2.
-# Own algorithm.
-#
-# Quality is similar (or better) than MMask() of MVTools but much faster.
-#
-function ex_occlusion(clip a, int "lo", int "hi", float "scale", int "sharpness", int "dir", int "UV") {
-
-    rgb  = isRGB(a)
-    isy  = isy(a)
-    w    = width(a)
-    h    = height(a)
-    bi   = BitsPerComponent(a)
-
-    lo   = Default(lo,       30)
-    hi   = Default(hi,      255)
-    sh   = Default(sharpness, 0)
-    sc   = Default(scale,     2)
-    dr   = Default(dir,      20) # Direction of the motion mask, -2 for previous+before, -1 for previous, 0 for both, 1 for next, 2 for next+following, 20 for both radius=2
-    UV   = Default(UV,  rgb ? 3 : 2)
-
-    ad   = abs(dr)
-    sc   = sc / (ad==1 ? 2. : ad==20 ? 5. : 4.)
-    lob  =     ex_bs(lo, 8, bi, fulls=true)
-    hib  = max(ex_bs(hi, 8, bi, fulls=true) / sc, lob)
-    th   = (lo == 0) && (hi == 255) ? sc == 2 ? ""    : Format(" {sc} *") : \
-           (lo == 0) ? Format(" range_max {hib} / *") : Format(" {lob} - range_max {hib} {lob} - / *")
-
-    UV = UV!=3 ? 1 : UV
-    UV==3 || isy ? a : a.ExtractY()
-    # 20x20 macroblocks (at 1080p)
-    RatioResize(96,"adjust2w",kernel="spline16")
-    # Temporal Stabilization
-    ex_FluxSmoothT(2,5,UV=uv)
-    # Directional Derivative
-    ad==1 ? ex_lutxy (selectevery(1,dr),                         "x y - abs               dup * "+th, UV=uv) : \
-    ad==2 ? ex_lutxyz(selectevery(1,dr),selectevery(1,sign(dr)), "x y - abs x z - abs max dup * "+th, UV=uv) : \
-    ad==0 ? ex_lutxyz(selectevery(1,-1),selectevery(1,       1), "x y - abs x z - abs max dup * "+th, UV=uv) : \
-            Expr(last,selectevery(1,-1),selectevery(1,       1),\
-                      selectevery(1,-2),selectevery(1,       2), "x a - abs x b - abs max x y - abs max x z - abs max dup * "+th)
-    # Mask Dilate
-    ex_expand(1, "plus", UV=uv)
-    # Blur
-    GaussResize(w,h,p=round(w/213.33)+sh)
-    propDelete(["_Matrix","_Primaries","_Transfer","_PictType"])
-    propSet("_ColorRange", 0) }
 
 
 
@@ -1215,7 +1170,7 @@ function binom_coeffs(n, k) {
 #
 # Benchmark (binomial fitted):
 # 100% removegrain(12,-1) (486fps)                  # technically a binomial weighted mean of [1 2 1]
-#  97% GBlur2(sqrt(1)/2.*sqrt(2),chroma=2)          #         only in 8-bit. weighted mean of [1 2 1]
+#  97% GBlur2(sqrt(1)/2.*sqrt(2),chroma=2)          # only in 8-bit.         weighted mean of [1 2 1]
 #  90% ex_boxblur(1,mode="weighted",UV=1)           # binomial weighted mean
 #  88% ablur(1, 1, chroma=1)                        # against ex_boxblur(2,mode="weighted",UV=1)
 #  85% BinomialBlur(sqrt(1)/2.*sqrt(2),U=1,V=1)     # only in 8-bit
@@ -1245,12 +1200,12 @@ function binom_coeffs(n, k) {
 # Function Definition:
 #    (
 #    clip,
-#    int radius=1 (0 to 43 by 1),
-#    [int radiusV=1 (0 to 43 by 1)],
+#    float radius=1.0 (0.0 to 43.0 by 0.1),
+#    [float radiusV=1.0 (0.0 to 43.0 by 0.1)],
 #    int "n"=6 (0 to 300 by 1),
 #    string "mode"="binomial" ("gaussian" / "binomial" / "butterworth"),
 #    string "gamma"="none" ("none" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "xvYCC" / "1361" / "sRGB" / "Rec2020" / "AdobeRGB / "ACESCCt"),
-#    int "UV"=2 (2 to 3 by 1),
+#    int "UV"=3 (2 to 3 by 1),
 #    )
 #
 function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode", string "gamma", int "Y", int "UV", bool "fulls") {
@@ -1273,8 +1228,8 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     # Binomial Fit
     rm = max(rm,0)
     rv = max(rv,0)
-    sm = md == "binomial" ? (sqrt(rm) / 2.) * sqrt(2) : rm
-    sv = md == "binomial" ? (sqrt(rv) / 2.) * sqrt(2) : rv
+    sm = md == "binomial" ? (sqrt(rm) / 2) * sqrt(2) : float(rm)
+    sv = md == "binomial" ? (sqrt(rv) / 2) * sqrt(2) : float(rv)
 
     # LUMA
     strv = md == "butterworth" ? butt_constructor(sv,n,true)  : gauss_constructor(sv,true)
@@ -1284,7 +1239,7 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     p_4 = is444(a) || rgb  p_1 = isYV411(a)
     p_2 = is422(a)         p_0 = is420(a)
 
-    sv = sv/(!p_0 ? 1 : 2)
+    sv = sv/(!p_0 ? 1 :           2)
     sm = sm/( p_4 ? 1 : p_1 ? 4 : 2)
 
     cstrv = md == "butterworth" ? butt_constructor(sv,n,true)  : gauss_constructor(sv,true)
@@ -1425,8 +1380,8 @@ function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    int radius=1 (0 to 3 by 1),
-#    [int radiusV=1 (0 to 3 by 1)],
+#    float radius=1.0 (0.0 to 3.0 by 0.1),
+#    [float radiusV=1.0 (0.0 to 3.0 by 0.1)],
 #    float "ithres"=4.0 (0.0 to 10.0 by 0.1),
 #    float "sthres"=4.0 (0.0 to 10.0 by 0.1),
 #    bool "dejaggie"=true,
@@ -1656,7 +1611,7 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limi
 # Benchmark (max blur):
 # 100% ex_gaussianblur(156,UV=2)  (302fps)
 #  37% ex_kawase(9,"trib" ,UV=2)  (111fps)
-# 1.3% vsTCanny(sigmaY=156, mode=-1,u=2,v=2)
+# 1.3% vsTCanny(156, mode=-1,u=2,v=2)
 #
 # modes:
 # lin  - linear     multipass: 1,2,3,4,5...
@@ -1723,8 +1678,8 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ## Function Definition:
 ##    (
 ##    clip,
-##    float sigma=10.00 (0.00 to 150.00 by 0.05),
-##    [float sigmaV=10.00 (0.00 to 150.00 by 0.05)],
+##    float sigma=1.0 (0.0 to 150.0 by 0.1),
+##    [float sigmaV=1.0 (0.0 to 150.0 by 0.1)],
 ##    bool "pad"=true,
 ##    bool "mblur"=false,
 ##    int "UV"=1 (1 to 3 by 1),
@@ -1787,9 +1742,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
 
     if (!full && sm && UV==3 || np || (!pad && w0 <= 1099 && (w1 < 24 || h1 < 24))) {
 
-        rdu = a.is422() || a.is420() ? rd/2. : a.isYV411() ? rd/4. : rd
-        rdv = a.is420()              ? rv/2. :                       rv
-        np  ? a : vsTCanny(a,rd,rdu,mode=-1,y=y,u=uv,v=uv)
+        np  ? a : vsTCanny(a,rd,sigma_vY=rv,mode=-1,y=y,u=uv,v=uv)
 
     } else if (rd < 2.00 && rv < 2.00 && mb) {
 
@@ -1891,13 +1844,19 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
 #  -------         -------                                           -------
 #
 # Example:
-#     ex_MFR(a,b,1700,700) # Replace mid frequencies from 700 to 1700 of 'a' clip from 'b'
+#     ex_MFR(a,b,700,1700) # Replace mid frequencies from 700 to 1700 of 'a' clip from 'b'
 #
 #
-function ex_MFR (clip c, clip ref, float "hi", float "lo", int "UV") {
+# Function Definition:
+#    (
+#    clip,
+#    float "lo"=900.0 (100.0 to 1900.0 by 0.1),
+#    float "hi"=1800.0 (100.0 to 1900.0 by 0.1),
+#    )
+#
+function ex_MFR (clip c, clip ref, float "lo", float "hi", int "UV") {
 
     rgb  = isRGB (c)
-    is42 = is420 (c)
     w    = width (c)
     h    = height(c)
     bi   = BitsPerComponent(c)
@@ -1925,15 +1884,10 @@ function ex_MFR (clip c, clip ref, float "hi", float "lo", int "UV") {
   # mpc   =   c.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
   # mpr   = ref.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
 
-    LOUV = c.is422() || is42 ? LO/2. : c.isYV411() ? LO/4. : LO
-    LOUVv= is42              ? LO/2. :                       LO
-    HIUV = c.is422() || is42 ? HI/2. : c.isYV411() ? HI/4. : HI
-    HIUVv= is42              ? HI/2. :                       HI
-
-    mpc   =   c.vsTCanny(HI, HIUV, HIUVv, mode=-1, u=UV2, v=UV2)
-    mpc2  =   c.vsTCanny(LO, LOUV, LOUVv, mode=-1, u=UV2, v=UV2)
-    mpr   = ref.vsTCanny(HI, HIUV, HIUVv, mode=-1, u=UV2, v=UV2)
-    mpr2  = ref.vsTCanny(LO, LOUV, LOUVv, mode=-1, u=UV2, v=UV2)
+    mpc   =   c.vsTCanny(HI, mode=-1, u=UV2, v=UV2)
+    mpc2  =   c.vsTCanny(LO, mode=-1, u=UV2, v=UV2)
+    mpr   = ref.vsTCanny(HI, mode=-1, u=UV2, v=UV2)
+    mpr2  = ref.vsTCanny(LO, mode=-1, u=UV2, v=UV2)
 
     Expr(c, mpc, mpc2, mpr, mpr2, "x y - z + a b - +", isy(c) ? Undefined() : ex_UVexpr("x y - z + a b - +", UV2, bi, rgb, fulls, "none") ) }
 
@@ -6671,7 +6625,7 @@ function ex_corner(clip a, float "th", float "sigma", bool "show") {
     or = last
     ex_median("medianT5")
     # Fix for Motion
-    mm = ex_occlusion(a,lo=30,hi=255,dir=20,scale=2) # for anime, dir=20 (radius 2) is a must
+    mm = MotionMask(a,lo=30,hi=255,dir=20,scale=2) # for anime, dir=20 (radius 2) is a must
     ex_merge(or,mm,UV=1)
     # Smooth PP
     ex_deflate(UV=128)
@@ -7198,8 +7152,8 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],    [3840.,3855.],    [15360.,15420.],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
     range_max   = Select (bitd,  [255.,255.],    [1023.,1023.],    [4095.,4095.],    [16383.,16383.],    [65535.,65535.],    [16776960.,16776960.],    [       1.,       1.])
     range_size  = Select (bitd,  [256.,256.],    [1024.,1024.],    [4096.,4096.],    [16384.,16384.],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
-#   data_max    = Select (bitd,  [255.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [       1.,       1.]) # Legal upper bound for video signal (luma and chroma) in legal range
-#   data_min    = Select (bitd,  [  0.,  0.],    [   4.,   0.],    [ 16.,    0.],    [   64.,    0.],    [  256.,    0.],    [   65536.,       0.],    [       0.,       0.]) # Legal lower bound for video signal (luma and chroma) in legal range
+#   data_max    = Select (bitd,  [254.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [ 240/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in legal range
+#   data_min    = Select (bitd,  [  1.,  0.],    [   4.,   0.],    [ 16.,    0.],    [   64.,    0.],    [  256.,    0.],    [   65536.,       0.],    [   1/255.,       0.]) # Legal lower bound for video signal (luma and chroma) in legal range
 
     fs  = fs ? 1 : 0
     str = ReplaceStr(str, "ymax ymin - range_max /", string(yrange[fs]/range_max[fs]))
