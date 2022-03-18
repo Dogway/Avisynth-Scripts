@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v2.0  (08-03-2022)                                ###
+###        Deblock Pack v2.1  (15-03-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -178,14 +178,21 @@ function DeblockFFT3D(clip a, int "UV", bool "fulls") {
 function MCDeblockFFT3D(clip a, int "UV", bool "fulls") {
 
     rgb     = isRGB(a)
+    bi    = BitsPerComponent(a)
 
     UV      = Default(UV,      3)
     fs      = Default(fulls, rgb)
 
-    sup     = a.MSuper(pel=1, hpad = 0, vpad = 0, chroma=UV==3, mt=true)
+    pre     = UV<3 && !isy(a) ? a.ExtractY() : a
+    pre     = pre.ConvertBits(8, dither=-1, fulls=fs)
+
+    sup     = pre.MSuper(pel=1, hpad = 0, vpad = 0, chroma=UV==3, mt=true)
     vectors = sup.MAnalyse(isb = false, lambda = 1000,truemotion=false,chroma=UV==3,mt=true)
-    compensation = a.MCompensate(sup,vectors)
-    compensation.DeblockFFT3D(UV=uv,fulls=fs) }
+    compensation = pre.MCompensate(sup,vectors).ConvertBits(bi, fulls=fs)
+
+    compensation.DeblockFFT3D(UV=uv,fulls=fs)
+    UV<3 && !isy(a) ? CombinePlanes(last,a,planes="YUV",Pixel_Type=PixelType(a)) : last
+    }
 
 
 
@@ -264,7 +271,7 @@ function oyster_Super(clip src, int "pel") {
 #    PadBorders(128, 128, 128, 128, "Dilate")
     PadBorders(64, 64, 64, 64, "Dilate")
 #    nnedi3_rpow2(rfactor=pel,nns=4,nsize=0,qual=2,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,cshift="spline16resize")
+    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
 
     return last }
 
