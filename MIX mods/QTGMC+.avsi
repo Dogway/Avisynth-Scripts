@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.82 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.83 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -20,13 +20,13 @@
 #     - Increased performance for HBD (+70%)
 #     - PC range aware
 #     - Pruned noop or redundant arguments
-#     - Sanitized and adapted code and expressions to align to AVS+ features
+#     - Sanitized + adapted code and expressions to align to AVS+ features
 #
 #
 # --- LATEST CHANGES ---
 #
-# v3.82p
-# - Update with latest Asd-g's vinverse plugin
+# v3.83p
+# - Update with latest Asd-g's vinverse plugin, deprecates ex_vinverse() -now legacy- (v3.82 & v3.83)
 #
 # v3.81p
 # - Update calls for latest vsTCanny
@@ -390,11 +390,11 @@
 #   RgTools    (1.2 or above)
 #   vsTCanny   (1.1.7 for gaussian blur)
 #   SysInfo    (0.1.2.9)
-#   Vinverse   (0.9.1)
+#   Vinverse   (0.9.2)
 #
 # Core scripts:
 #   ExTools      (8.1   or above)
-#   SMDegrain    (3.4.7 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   SMDegrain    (3.4.8 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.157 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
@@ -1161,7 +1161,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
                                            Default( Fallback, Input.ex_Bob( 0,0.5 ) )
 
     interp = (EdiMode == "BWDIF+NNEDI3") || \
-             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.ex_vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2,fulls=fulls).nonyuy2clipout(true) : interp.ex_vinverse(clip2=NNEDI3clp,UV=CEed?3:2,fulls=fulls) : interp
+             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2).nonyuy2clipout(true) : interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                                 : \
                (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=cores, prefetch=(threads+cores)/2, Y=false, range=fulls?1:2 ) : \
@@ -1401,7 +1401,7 @@ function QTGMCp_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
 
 
 
-# Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
+# (LEGACY: since vinverse v0.9.2) Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
 # https://forum.doom9.org/showthread.php?p=891788#post891788
 # Optimization and port to EX mod from real.finder's HBD mod. by Dogway (15-09-2021)
 
@@ -1413,7 +1413,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 
     sstr = Default(sstr, 2.7)       # strength of contra sharpening
     amnt = Default(amnt, 255)       # change no pixel by more than this (Default=255: unrestricted)
-    dcus = Defined(clip2)
+    dcus = Defined(clip2)           # clip for the contrasharpening
     UV   = Default(UV,    rgb ? 3 : 1)
     fs   = Default(fulls, rgb)
 
