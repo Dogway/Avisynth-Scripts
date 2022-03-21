@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 6.0 By Dogway  (15-03-2022)            ##
+###           MasksPack 6.1 By Dogway  (21-03-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -10,6 +10,7 @@
 ###      BoxMask                                               ##
 ###      FlatMask                                              ##
 ###      LumaMask                                              ##
+###      CornerMask                                            ##
 ###      MotionMask                                            ##
 ###      ex_limitdif                                           ##
 ###      ex_limitchange                                        ##
@@ -282,6 +283,65 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
                propSet("_ColorRange", 0)  }
 
 
+# CornerMask()
+# Pseudo-Harris corner detection
+#
+# Dependencies:
+#               vsTCanny
+#               GradePack (for show=true)
+#
+#
+# Function Definition:
+#    (
+#    clip,
+#    float "th"=0.2 (0.1 to 0.9 by 0.1),
+#    float "sigma"=1.0 (0.5 to 3.0 by 0.1),
+#    bool "show"=false,
+#    )
+#
+function CornerMask(clip a, float "th", float "sigma", bool "show") {
+
+    w    = width (a)
+    h    = height(a)
+    isHD = (w > 1099 || h > 599)
+
+    th   = Default(th,    0.2) # From 0.2 to 0.5 for sigma=1
+    rd   = Default(sigma, 1.0)
+    sh   = Default(show,  false)
+    th   = th / 100
+
+    # Prefiltering
+    vsTCanny(a,rd,mode=-1,y=3,u=1,v=1)
+
+    # First derivatives
+    x1 = ex_edge("x[0,-1] x[0,1] -")
+    y1 = ex_edge("x[-1,0] x[1,0] -")
+    x2 = ex_edge("x[0,-1] x[0,1] swap -")
+    y2 = ex_edge("x[-1,0] x[1,0] swap -")
+
+    # Second derivatives + Minor|Major Eigenvalues (from Covariance Matrix) + R
+    ex_lutxyza(x1,x2,y1,y2,Format( \
+               "f32 x[0,-1] x[0,1] - y[0,1] y[0,-1] - + X@
+                    z[-1,0] z[1,0] - a[1,0] a[-1,0] - + Y@
+                dup1 dup1 + S@ swap2 - 0.5 * dup * X dup * Y dup * + G@ + sqrt + 0.5 *
+                X Y * G - S /
+                dup1 dup1 * swap2 + dup * 0.05 * - {th} > range_max 0 ?"), scale_inputs="intf") # (major Eigenvalue = Ridge Filter)
+
+    # Corner augment
+    ex_expand(round(w/480.), mode="disk")
+    # Temporal Stabilization
+    or = last
+    ex_median("medianT5")
+    # Fix for Motion
+    mm = MotionMask(a,lo=30,hi=255,dir=20,scale=2) # for anime, dir=20 (radius 2) is a must
+    ex_merge(or,mm,UV=1)
+    # Smooth PP
+    ex_deflate(UV=128)
+
+    # Show
+    sh ? ex_blend(a,last, "linearadd", 0.4, 1.0) : last }
+
+
 
 # Motion (occlusion) mask with selective direction; previous, next, or both (default) with radius of 1 or 2.
 # Own algorithm. Requires ExTools and ResizersPack.
@@ -358,7 +418,7 @@ function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast",
     thr    = Default(thr,                  0.25)
     thrc   = Default(thrc,                  thr)  # 0-255 (normally up to 10)
     sm     = Default(smooth,               true)
-    elast  = Default(elast, sm ? 3.0 : 255./thr) # 1-255 (normally up to 10)
+    elast  = Default(elast, sm ? 3.0 : 255./thr)  # 1-255 (normally up to 10)
     elast  = max(elast, 1.001)
     bthr   = Default(brighten_thr,          thr)  # 0-255 (normally up to 10)
     Y      = Default( Y,       3 )
