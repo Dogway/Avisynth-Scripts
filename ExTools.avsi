@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v8.1   (08-03-2022)                ##
+###           ExTools v8.2   (21-03-2022)                ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
 ###      https://forum.doom9.org/showthread.php?t=182881 ##
@@ -322,7 +322,6 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
             } else if (mcfa) {
 
                 y  = propCopy(last,y,true,props=["_PlaneSSIM","_PlaneBSSIM","_PlaneGMSD","_PlaneMDSI"])
-                y  = sh < 2 && !fs ? y.propSet("_ColorRange", 1) : y
 
             } else {
 
@@ -399,7 +398,9 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                          + String(propGetFloat(y,"_PlaneGMSD" ))  +"   (Gradient Magnitude Similarity Deviation)\n"        \
                          + String(propGetFloat(y,"_PlaneBUTT" ))  +"   (Butteraugli)\n"                                    \
                          + String(propGetFloat(y,"_PlaneMDSI" ))  +"   (Mean Deviation Similarity Index)",       x=pd,lsp=4)
-    } } ) } }
+    } } )
+    sh < 2 && !fs && mcfa ? propSet("_ColorRange", 1) : last
+    } }
 
 
 
@@ -6575,63 +6576,6 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 
 
 
-# ex_corner()
-# Pseudo-Harris corner detection
-#
-# Dependencies:
-#               vsTCanny
-#               GradePack (for show=true)
-#
-#
-# Function Definition:
-#    (
-#    clip,
-#    float "th"=0.2 (0.01 to 0.9 by 0.01),
-#    float "sigma"=1.0 (0.5 to 3.0 by 0.1),
-#    bool "show"=false,
-#    )
-#
-function ex_corner(clip a, float "th", float "sigma", bool "show") {
-
-    w    = width (a)
-    h    = height(a)
-    isHD = (w > 1099 || h > 599)
-
-    th   = Default(th,    0.2) # From 0.2 to 0.5 for sigma=1
-    rd   = Default(sigma, 1.0)
-    sh   = Default(show,  false)
-    th   = th / 100
-
-    # Prefiltering
-    vsTCanny(a,rd,mode=-1,y=3,u=1,v=1)
-
-    # First derivatives
-    x1 = ex_edge("x[0,-1] x[0,1] -")
-    y1 = ex_edge("x[-1,0] x[1,0] -")
-    x2 = ex_edge("x[0,-1] x[0,1] swap -")
-    y2 = ex_edge("x[-1,0] x[1,0] swap -")
-
-    # Second derivatives + Minor|Major Eigenvalues (from Covariance Matrix) + R
-    ex_lutxyza(x1,x2,y1,y2,Format( \
-               "f32 x[0,-1] x[0,1] - y[0,1] y[0,-1] - + X@
-                    z[-1,0] z[1,0] - a[1,0] a[-1,0] - + Y@
-                dup1 dup1 + S@ swap2 - 0.5 * dup * X dup * Y dup * + G@ + sqrt + 0.5 *
-                X Y * G - S /
-                dup1 dup1 * swap2 + dup * 0.05 * - {th} > range_max 0 ?"), scale_inputs="intf") # (major Eigenvalue = Ridge Filter)
-
-    # Corner augment
-    ex_expand(round(w/480.), mode="disk")
-    # Temporal Stabilization
-    or = last
-    ex_median("medianT5")
-    # Fix for Motion
-    mm = MotionMask(a,lo=30,hi=255,dir=20,scale=2) # for anime, dir=20 (radius 2) is a must
-    ex_merge(or,mm,UV=1)
-    # Smooth PP
-    ex_deflate(UV=128)
-
-    # Show
-    sh ? ex_blend(a,last, "linearadd", 0.4, 1.0) : last }
 
 
 
@@ -7152,7 +7096,7 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],    [3840.,3855.],    [15360.,15420.],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
     range_max   = Select (bitd,  [255.,255.],    [1023.,1023.],    [4095.,4095.],    [16383.,16383.],    [65535.,65535.],    [16776960.,16776960.],    [       1.,       1.])
     range_size  = Select (bitd,  [256.,256.],    [1024.,1024.],    [4096.,4096.],    [16384.,16384.],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
-#   data_max    = Select (bitd,  [254.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [ 240/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in legal range
+#   data_max    = Select (bitd,  [254.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [ 254/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in legal range
 #   data_min    = Select (bitd,  [  1.,  0.],    [   4.,   0.],    [ 16.,    0.],    [   64.,    0.],    [  256.,    0.],    [   65536.,       0.],    [   1/255.,       0.]) # Legal lower bound for video signal (luma and chroma) in legal range
 
     fs  = fs ? 1 : 0
@@ -7223,6 +7167,94 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     msk     = isy(a) ? mskYr : CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
 
     return luma && UV==3 && !(i44 || rgb) ? msk.propSet("_ChromaLocation",cp) : msk }
+
+
+
+
+
+######### ARRAY HELPER FUNCTIONS #########
+
+
+# Does an index wise operation on flat (int or float) arrays
+# If either is a scalar, it operates on all array indexes
+function ArrayOp (  val arr1, \
+                    val arr2, string "Op") {
+
+    Op = Default(Op, "+")
+
+    isa1 = IsArray(arr1)
+    isa2 = IsArray(arr2) # At least one operand must be an array
+
+    arr1 = isa1 ? arr1 : [arr1]
+    arr2 = isa2 ? arr2 : [arr2]
+
+    a1size = ArraySize(arr1)
+    a2size = ArraySize(arr2)
+
+    asize = max(a1size,a2size)
+    str = ""
+    for (i=0, asize, 1) {
+
+        mx1 = !(!isa1 || a1size > i)
+        mx2 = !(!isa2 || a2size > i)
+
+        a1  = asize == i+1
+        cm  = a1 ? "" : ","
+        str = str + (  mx1 ? "" : string(arr1[min(a1size-1,i)])) + " "+(mx1||mx2 ? "" : op)+" "+( mx2 ? "" : string(arr2[min(a2size-1,i)])) + cm
+        i   = a1 ? asize : i
+        }
+
+    return Eval("["+str+"]") }
+
+
+# Reverses the array
+function ArrayInv( val arr1 ) {
+
+    bs = ArraySize(arr1)-1
+    arr = []
+    for (i = bs, 0, -1) {
+        arr = ArrayAdd(arr,arr1[i])
+      }
+
+    return arr }
+
+
+# Symmetrizes the array to the left, optionally removing the middle dup
+function ArraySym ( val arr1, bool "center" ) {
+
+    cn = Default(center, false) # Include (true) or exclude (false) center duplicate
+
+    asize = ArraySize(arr1)
+    inv   = ArrayInv(arr1)
+    inv   = cn ? inv : ArrayDel(inv,asize-1)
+
+    return ArrayAppend(inv,arr1) }
+
+
+# Appends 'arr2' array to 'arr1' array
+function ArrayAppend( val arr1, val arr2) {
+
+    bs = ArraySize(arr2)-1
+    arr = arr1
+    for (i = 0, bs, 1) {
+        arr = ArrayAdd(arr,arr2[i])
+      }
+    return arr }
+
+
+# Casts the array to a string and prints it (for debug purposes)
+function ArrayPrint (clip a, val arr1, bool "string" ) {
+
+    st = Default(string, false) # output a string instead of subtitled clip
+
+    asize = ArraySize(arr1)
+    str = ""
+    for (i=0, ArraySize(arr1)-1, 1) {
+        cm  = asize == i+1 ? "" : ", "
+        str = str + string(arr1[i]) + cm
+       }
+    return st ? str : subtitle(a, "["+str+"]") }
+
 
 
 
