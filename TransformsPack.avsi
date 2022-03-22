@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC44  (12-03-2022)           ##
+###    Transforms Pack v1.0 RC45  (22-03-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -330,7 +330,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # DPID                                        (dw) https://github.com/Asd-g/AviSynth-DPID       (Best downscaler followed by SSIM_downsample > SSIM >>> SincLin > Zopti)
 # Spline100/Spline144                         (up) https://github.com/EleonoreMizo/fmtconv
 # Wiener                                      (up) https://github.com/EleonoreMizo/fmtconv      (Sharp as Blackman6 but much more aliasing, and a bit more ringing)
-# SincLin2ResizeMT                         (up,dw) https://github.com/jpsdr/ResampleMT/releases (like a sharper lanczos) (Doom9 thread: https://forum.doom9.org/showthread.php?p=1919769#post1919769)
+# SincLin2ResizeMT                         (up,dw) https://github.com/jpsdr/ResampleMT/releases (like a sharper lanczos or a -moderate- ring suppresed Sinc) (Doom9 thread: https://forum.doom9.org/showthread.php?p=1919769#post1919769)
 # SinPowResizeMT                              (dw) https://github.com/jpsdr/ResampleMT/releases (Doom9 thread: https://forum.doom9.org/showthread.php?p=1918124)
 # Jinc (EWA Lanczos)                          (up) https://github.com/Asd-g/AviSynth-JincResize/releases
 # FCBI (Fast Curve Based Interp) (8-bit)      (up) https://github.com/chikuzen/FCBI/releases
@@ -473,45 +473,54 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     # PRESETS (maps outputs format)
     preset     = Default(preset, "none")
-    num        = preset == ""           ? 0  : \
-                 preset == "none"       ? 0  : \
-                 preset == "DoVi"       ? 1  : \
-                 preset == "DVp5"       ? 1  : \
-                 preset == "DVp7"       ? 1  : \
-                 preset == "DoVi/DVp5/DVp7"?1: \
-                 preset == "PQ10"       ? 2  : \
-                 preset == "UHD"        ? 2  : \
-                 preset == "PQ10/UHD"   ? 2  : \
-                 preset == "HLG10"      ? 3  : \
-                 preset == "HD"         ? 4  : \
-                 preset == "DVD"        ? 5  : \
-                 preset == "DVD-NTSC"   ? 5  : \
-                 preset == "DVD-PAL"    ? 6  : \
-                 preset == "DV"         ? 7  : \
-                 preset == "CRT"        ? 8  : \
-                 preset == "CRT-NTSC"   ? 8  : \
-                 preset == "CRT-PAL"    ? 9  : \
-                 preset == "Master"     ? 10 : \
-                 preset == "Archival"   ? 11 : \
-                 preset == "Grade"      ? 12 : \
-                 preset == "Theater"    ? 13 : \
-                 preset == "JPEG2000"   ? 14 : \
-                 preset == "JPG_old"    ? 15 : \
-                 preset == "JPG"        ? 16 : 0
+    num        = preset == ""             ? 0  : \
+                 preset == "none"         ? 0  : \
+                 preset == "DoVi"         ? 1  : \
+                 preset == "DVp5"         ? 1  : \
+                 preset == "DVp7"         ? 1  : \
+                 preset == "DoVi/DVp5/DVp7"?1  : \
+                 preset == "PQ10"         ? 2  : \
+                 preset == "UHD"          ? 2  : \
+                 FindStr(preset,"2100")>0 ? 2  : \
+                 preset == "PQ10/UHD"     ? 2  : \
+                 preset == "HLG10"        ? 3  : \
+                 preset == "HD"           ? 4  : \
+                 FindStr(preset,"1886")>0 ? 4  : \
+                 preset == "DVD"          ? 5  : \
+                 preset == "DVD-NTSC"     ? 5  : \
+                 preset == "DVD-PAL"      ? 6  : \
+                 preset == "DV"           ? 7  : \
+                 preset == "CRT"          ? 8  : \
+                 preset == "601"          ? 8  : \
+                 preset == "NTSC"         ? 8  : \
+                 preset == "525"          ? 8  : \
+                 preset == "CRT-NTSC"     ? 8  : \
+                 preset == "PAL"          ? 9  : \
+                 preset == "470"          ? 9  : \
+                 preset == "625"          ? 9  : \
+                 preset == "CRT-PAL"      ? 9  : \
+                 preset == "Master"       ? 10 : \
+                 preset == "Archival"     ? 11 : \
+                 preset == "Grade"        ? 12 : \
+                 preset == "Theater"      ? 13 : \
+                 preset == "JPEG2000"     ? 14 : \
+                 preset == "JPG_old"      ? 15 : \
+                 preset == "JPG"          ? 16 : 0
 
-    #                                   Default  DoVi/DVp5/DVp7    PQ10/UHD       HLG10         HD    DVD-NTSC    DVD-PAL        DV    CRT-NTSC    CRT-PAL     Master     Archival      Grade     Theater    JPEG2000    JPG_old      JPG
-    o_fmt0        = Select (num,      o_fmt[0],      "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",   "YCbCr",  "YCbCr",     "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
-    cs_outFA      = Select (num,      cs_outFA,         "2020",      "2020",     "2020",     "709",     "170M",   "470BG",        4,    "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old uses sRGB primaries but with 170M (470M derived) matrix, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
-    o_fmt1        = Select (num,      o_fmt[1],          "420",       "420",      "420",     "420",      "420",     "420",    "410",     "411",     "411",     "444",       "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
-    tv_out        = Select (num,        tv_out,          false,        true,       true,      true,       true,      true,    false,      true,      true,     false,       false,      false,      false,      false,    false,    false)
-    cplace_out    = Select (num,    cplace_out,     "top_left",  "top_left", "top_left",   "MPEG2",    "MPEG2",   "MPEG2",     "DV",   "MPEG1",   "MPEG1",        "",          "",         "",         "",         "",  "MPEG1",  "MPEG1")
-    D_out         = Select (num,         D_out,          "D65",       "D65",      "D65",     "D65",      "D65",     "D65",        4,     "601",     "601",       "E",       "D60",      "D60",        "E",      "D65",    "D65",    "D65")
-    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "170M",     "470",        4,    "170M",    "170M",     "DCI",    "linear",  "ACESCCt",      "DCI",     "sRGB",   "170M",   "sRGB")
-    PAR           = Select (num,             1,              1,           1,          1,         1,      "601",     "470",        4,     "601",     "601",         1,           1,          1,          1,          1,        1,        1)
-    cdc           = Select (num,        "H265",         "H265",      "H265",     "H265",    "H264",     "H262",    "H262",   "H261",        "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000", "JPEG2000",    "JPG",    "JPG")
-    cont          = Select (num,          "TS",           "TS",        "TS",       "TS",      "TS",      "VOB",     "VOB",  "MPEG2",        "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jp2",    "JPG",    "JPG")
-    bit           = Select (num,            12,             12,          10,         10,         8,          8,         8,        8,         0,         0,        16,          16,         32,         12,          8,        8,        8)
+    #                                   Default  DoVi/DVp5/DVp7  PQ10/UHD/2100   HLG10    HD/1886  DVD-NTSC/601  DVD-PAL/470BG  DV-NTSC     CRT-NTSC     CRT-PAL     Master  GAM*/Archival    Grade     Theater    JPEG2000    JPG_old      JPG
+    o_fmt0        = Select (num,      o_fmt[0],      "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",     "YCbCr",    "YCbCr",       "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
+    cs_outFA      = Select (num,      cs_outFA,         "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",      "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old uses sRGB primaries but with 170M (470M derived) matrix, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
+    o_fmt1        = Select (num,      o_fmt[1],          "420",       "420",      "420",     "420",      "420",       "420",      "410",       "411",     "411",     "444",       "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
+    tv_out        = Select (num,        tv_out,          false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,    false,    false)
+    cplace_out    = Select (num,    cplace_out,     "top_left",  "top_left", "top_left",   "MPEG2",    "MPEG2",     "MPEG2",       "DV",     "MPEG1",   "MPEG1",        "",          "",         "",         "",         "",  "MPEG1",  "MPEG1")
+    D_out         = Select (num,         D_out,          "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",       "D60",      "D60",        "E",      "D65",    "D65",    "D65")
+    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "170M",       "470",     "170M",      "170M",    "170M",     "DCI",    "linear",  "ACESCCt",      "DCI",     "sRGB",   "170M",   "sRGB")
+    PAR           = Select (num,             1,              1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,        1,        1)
+    cdc           = Select (num,            "",         "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000", "JPEG2000",    "JPG",    "JPG")
+    cont          = Select (num,            "",           "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",          "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jp2",    "JPG",    "JPG")
+    bit           = Select (num,            bi,             12,          10,         10,         8,          8,           8,          8,           0,         0,        16,          16,         32,         12,          8,        8,        8)
 
+  # * GAM (Graded Archival Master)
 
 
     ############ Data extraction and normalization + Asserts ############
@@ -572,16 +581,16 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     # Overriding 'taps' arg by kernel name (ie. 'blackman8' means taps=8)
 
     function StrNumber(string str) {
-        for (i = 12, 0, -1) {
+        for (i = 15, 0, -1) {
            num = str == string(i)
              i = num ? 0 : i
                  num} } # Checks if string is a number between 1 and 12
 
     # Exclusion list
     Lkrn = LCase(kernel)    Lkrnc = LCase(kernel_c)
-    nope = (FindStr(Lkrn,  "spline1") > 0 || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline256") && Lkrn  !="spline" || \
+    nope = (FindStr(Lkrn,  "spline1") > 0 || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline100" || kernel   == "spline144" || kernel   == "spline256") && Lkrn  !="spline" || \
             FindStr(Lkrn, "jinc") > 0   && Lkrn  !="jinc" || FindStr(Lkrn, "ewasharp") > 0 || FindStr(Lkrn, "nnedi3") > 0
-    nopc = (FindStr(Lkrnc, "spline1") > 0 || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline256") && Lkrnc !="spline" || \
+    nopc = (FindStr(Lkrnc, "spline1") > 0 || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline100" || kernel_c == "spline144" || kernel_c == "spline256") && Lkrnc !="spline" || \
             FindStr(Lkrnc, "jinc") > 0  && Lkrnc !="jinc" || FindStr(Lkrnc,"ewasharp") > 0 || FindStr(Lkrnc,"nnedi3") > 0
 
     tapFinder1 = RightStr(kernel,1)  StrN1 = StrNumber(tapFinder1) && !nope
@@ -1098,7 +1107,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC44",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC45",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -2429,7 +2438,9 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 
 # Other names:  Broadcast Safe, Studio Swing, Limited/Legal/SMPTE/Standard/Narrow/Video/Head/TV range.
 # For opposite: Full Swing, Full/Data/CG/RGB/PC range.
-# Other:        SMPTE+, Camera Range or Extended Range (Ocassional case in HLG for 10-bit [64-1020] narrow blacks + super-whites)
+# Other:        SMPTE+, Camera Range or Extended Range (Ocassional case in broadcast, camera recordings or in HLG for 10-bit [64-1019] narrow blacks + super-whites)
+#
+# Arguably (at least in broadcast with SDI interfaces) Full Range also needs to abide to Video Data range, that is 1-254 for 8-bits, 4-1019 for 10-bits and so on.
 function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", bool "fulld") {
 
     rgb = isRGB(a)
@@ -2611,7 +2622,7 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
     if (dyn > 0) {
         a
-        ab = removegrain(12,UV==3?12:-1)
+        ab = removegrain(12,UV==3?12:-1) # clearing over/undershoots
         th = dyn > 2 ? 0.1 : dyn > 1 ? 0.2 : 0.454
         PS = "Y  = PlaneMinMaxStats(ab, th, 0, 0, false)
               U  = PlaneMinMaxStats(ab, th, 0, 1, false)
@@ -2634,7 +2645,6 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         }
 
     } else {
-
 
         lol  = ex_bs(16,  8, bi, fs)
         hil  = ex_bs(235, 8, bi, fs)
@@ -3769,86 +3779,4 @@ function Dot (float_array vec1, \
               float_array vec2) {
     # 1x3 · 1x3
     (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]) }
-
-
-
-# Does an index wise operation on flat (int or float) arrays
-# If either is a scalar, it operates on all array indexes
-function ArrayOp (  val arr1, \
-                    val arr2, string "Op") {
-
-    Op = Default(Op, "+")
-
-    isa1 = IsArray(arr1)
-    isa2 = IsArray(arr2)
-
-    Assert(isa1 || isa2, "ArrayOp: At least one operand must be an array")
-
-    arr1 = isa1 ? arr1 : [arr1]
-    arr2 = isa2 ? arr2 : [arr2]
-
-    a1size = ArraySize(arr1)
-    a2size = ArraySize(arr2)
-
-    asize = max(a1size,a2size)
-    str = ""
-    for (i=0, asize, 1) {
-
-        mx1 = !isa1 ? false : a1size <= i
-        mx2 = !isa2 ? false : a2size <= i
-
-        cm  = asize == i+1 ? "" : ","
-        str = str + (  mx1 ? "" : string(arr1[min(a1size-1,i)])) + " "+(mx1||mx2 ? "" : op)+" "+( mx2 ? "" : string(arr2[min(a2size-1,i)])) + cm
-        i   = asize == i+1 ? asize : i
-        }
-
-    return Eval("["+str+"]") }
-
-
-# Reverses the array
-function ArrayInv( val arr1 ) {
-
-    bs = ArraySize(arr1)-1
-    arr = []
-    for (i = bs, 0, -1) {
-        arr = ArrayAdd(arr,arr1[i])
-      }
-
-    return arr }
-
-
-# Casts the array to a string and prints it (for debug purposes)
-function ArrayPrint (clip a, val arr1 ) {
-
-    asize = ArraySize(arr1)
-    str = ""
-    for (i=0, ArraySize(arr1)-1, 1) {
-        cm  = asize == i+1 ? "" : ","
-        str = str + string(arr1[i]) + cm
-       }
-    return subtitle(a, "["+str+"]") }
-
-
-# Symmetrizes the array to the left, optionally removing the middle dup
-function ArraySym ( val arr1, bool "center" ) {
-
-    cn = Default(center, false) # Include (true) or exclude (false) center duplicate
-
-    asize = ArraySize(arr1)
-    inv   = ArrayInv(arr1)
-    inv   = cn ? inv : ArrayDel(inv,asize-1)
-
-    return ArrayAppend(inv,arr1) }
-
-
-
-# Appends 'arr2' array to 'arr1' array
-function ArrayAppend( val arr1, val arr2) {
-
-    bs = ArraySize(arr2)-1
-    arr = arr1
-    for (i = 0, bs, 1) {
-        arr = ArrayAdd(arr,arr2[i])
-      }
-    return arr }
 
