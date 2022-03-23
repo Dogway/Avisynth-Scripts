@@ -570,9 +570,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     bc_c     = bc[1]>=0.?bc[1]:1/3.              bch_c    = bch[1]>=0.?bch[1]:1/3.
     kernel   = bc[1]>=0.? "Bicubic" : kernel     kernel_c = bch[1]>=0.? "Bicubic" : kernel_c
 
-    src_width  = Defined (src_width)  ? IsArray(src_width)  ? ArraySize(src_width)  > 1 ? src_width  : ArrayAdd(src_width, cow) : [src_width, cow] : [w,cow]
+    src_width  = Defined (src_width)  ? IsArray(src_width)  ? ArraySize(src_width)  > 1 ? src_width  : ArrayAdd(src_width, 0.0) : [src_width, 0.0] : [0.0,0.0]
     src_widthc = src_width[1]      src_width  = src_width[0]
-    src_height = Defined (src_height) ? IsArray(src_height) ? ArraySize(src_height) > 1 ? src_height : ArrayAdd(src_height,coh) : [src_height,coh] : [h,coh]
+    src_height = Defined (src_height) ? IsArray(src_height) ? ArraySize(src_height) > 1 ? src_height : ArrayAdd(src_height,0.0) : [src_height,0.0] : [0.0,0.0]
     src_heightc= src_height[1]     src_height = src_height[0]
 
     i_type1  || o_type1         ? Assert(bi == 8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")          : nop()
