@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###    Transforms Pack v1.0 RC45  (22-03-2022)           ##
+###    Transforms Pack v1.0 RC46  (23-03-2022)           ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -463,8 +463,12 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     p          = Defined (taps) ? IsArray(taps) ? ArraySize(taps) > 1 ? taps : ArrayAdd(taps,0) : [taps,0] : [0,0]
     pd         = p[0] > 0
     pdc        = p[1] > 0
-    src_left   = Default (src_left,  [0.0,0.0])    src_leftc = src_left[1]   src_left = src_left[0]
-    src_top    = Default (src_top,   [0.0,0.0])    src_topc  = src_top [1]    src_top = src_top [0]
+
+    src_left   = Defined (src_left) ? IsArray(src_left) ? ArraySize(src_left) > 1 ? src_left : ArrayAdd(src_left,0.0) : [src_left,0.0] : [0.0,0.0]
+    src_leftc  = src_left[1]       src_left = src_left[0]
+    src_top    = Defined (src_top)  ? IsArray(src_top)   ? ArraySize(src_top)  > 1 ? src_top  : ArrayAdd(src_top, 0.0) : [src_top, 0.0] : [0.0,0.0]
+    src_topc   = src_top [1]       src_top  = src_top [0]
+
     noring     = Default (noring,  false)
     nomoir     = Default (nomoiree,false)
     recon      = Default (UVrecon, false)
@@ -566,8 +570,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     bc_c     = bc[1]>=0.?bc[1]:1/3.              bch_c    = bch[1]>=0.?bch[1]:1/3.
     kernel   = bc[1]>=0.? "Bicubic" : kernel     kernel_c = bch[1]>=0.? "Bicubic" : kernel_c
 
-    src_width  = Default (src_width, [w,cow])  src_widthc  = src_width[1]   src_width  = src_width[0]
-    src_height = Default (src_height,[h,coh])  src_heightc = src_height[1]  src_height = src_height[0]
+    src_width  = Defined (src_width)  ? IsArray(src_width)  ? ArraySize(src_width)  > 1 ? src_width  : ArrayAdd(src_width, cow) : [src_width, cow] : [w,cow]
+    src_widthc = src_width[1]      src_width  = src_width[0]
+    src_height = Defined (src_height) ? IsArray(src_height) ? ArraySize(src_height) > 1 ? src_height : ArrayAdd(src_height,coh) : [src_height,coh] : [h,coh]
+    src_heightc= src_height[1]     src_height = src_height[0]
 
     i_type1  || o_type1         ? Assert(bi == 8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")          : nop()
     i_type10 || o_type10        ? Assert(false,   "ConvertFormat: Unsupported Pixel Type: YUV410")              : nop()
@@ -581,16 +587,16 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     # Overriding 'taps' arg by kernel name (ie. 'blackman8' means taps=8)
 
     function StrNumber(string str) {
-        for (i = 15, 0, -1) {
+        for (i = 16, 0, -1) {
            num = str == string(i)
              i = num ? 0 : i
-                 num} } # Checks if string is a number between 1 and 12
+                 num} } # Checks if string is a number between 1 and 16
 
     # Exclusion list
     Lkrn = LCase(kernel)    Lkrnc = LCase(kernel_c)
-    nope = (FindStr(Lkrn,  "spline1") > 0 || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline100" || kernel   == "spline144" || kernel   == "spline256") && Lkrn  !="spline" || \
+    nope = (kernel   == "spline16" || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline100" || kernel   == "spline144" || kernel   == "spline196" || kernel   == "spline256") && Lkrn  !="spline" || \
             FindStr(Lkrn, "jinc") > 0   && Lkrn  !="jinc" || FindStr(Lkrn, "ewasharp") > 0 || FindStr(Lkrn, "nnedi3") > 0
-    nopc = (FindStr(Lkrnc, "spline1") > 0 || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline100" || kernel_c == "spline144" || kernel_c == "spline256") && Lkrnc !="spline" || \
+    nopc = (kernel_c == "spline16" || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline100" || kernel_c == "spline144" || kernel_c == "spline196" || kernel_c == "spline256") && Lkrnc !="spline" || \
             FindStr(Lkrnc, "jinc") > 0  && Lkrnc !="jinc" || FindStr(Lkrnc,"ewasharp") > 0 || FindStr(Lkrnc,"nnedi3") > 0
 
     tapFinder1 = RightStr(kernel,1)  StrN1 = StrNumber(tapFinder1) && !nope
@@ -1107,7 +1113,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.6),0,round(msize/1.3),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC45",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC46",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1162,7 +1168,12 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
 
 
-####### FORMAT CONVERSION FUNCTIONS #######
+
+##########################################
+###                                     ##
+###     MODEL CONVERSION FUNCTIONS      ##
+###                                     ##
+##########################################
 
 
 
@@ -2265,7 +2276,12 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 
 
 
-####### FUNCTION TRANSFORMS #######
+
+##########################################
+###                                     ##
+###         TRANSFER FUNCTIONS          ##
+###                                     ##
+##########################################
 
 
 # OETF. Monitor Curve Functions: https://github.com/ampas/aces-dev
@@ -2704,8 +2720,11 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
 
 
-####### DATA RETRIEVAL FUNCTIONS #######
-
+##########################################
+###                                     ##
+###      DATA RETRIEVAL FUNCTIONS       ##
+###                                     ##
+##########################################
 
 
 # Matrix, Primaries, Illuminant and Transfer fuzzy search. Input: string, Output: [string, ID]
@@ -3449,10 +3468,10 @@ function moncurve_coef (string transfer) {
 \   : (transfer == "DCIXYZ"       ) ? 6
 \   : (transfer == "linear"       ) ? 7
 \   : (transfer == "470M"         ) ? 8
-\   : (transfer == "1886a"        ) ? 9
-\   : (transfer == "xvYCC"        ) ? -1
-\   : (transfer == "PQ"           ) ? -1
-\   : (transfer == "HLG"          ) ? -1 : 4
+\   : (transfer == "1886a"        ) ? 9 : 4
+#\   : (transfer == "xvYCC"        ) ? -1
+#\   : (transfer == "PQ"           ) ? -1
+#\   : (transfer == "HLG"          ) ? -1 : 4
 
 
        /* Coeff Derivations:
@@ -3677,7 +3696,12 @@ function c_adaptation (clip c, string "source", string "target", bool "tv_range"
 
 
 
-####### ARRAY FUNCTIONS #######
+
+##########################################
+###                                     ##
+###      LINEAR ALGEBRA FUNCTIONS       ##
+###                                     ##
+##########################################
 
 function ExtractClip ( clip clp) {
 
