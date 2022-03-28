@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Scenes Pack v1.1   (27-03-2022)               ##
+###   Scenes Pack v1.2   (28-03-2022)               ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -15,7 +15,7 @@
 ######################################################
 ###
 ###
-### SceneStats() by Dogway (27-03-2022)
+### SceneStats() by Dogway (28-03-2022)
 ###
 ### Writes scene pixel statistics into frame properties (or offloads to a file), to choose from:
 ###    "_SceneRange": [SceneStart, SceneEnd]
@@ -118,14 +118,14 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                 pDf0  = dClip.YDifferenceFromPrevious()
                 nDf0  = dClip.YDifferenceToNext()
 
-                nDf   = mo ? nDf + dClip.YDifferenceToNext() : nop()
                 Ifr   = ib || st && stp==0 ? dClip.propGetString("_PictType",offset=1)=="I" : false
                 nTh   = ib ? Ifr ? pDf0*iFactor+MinDif : pDf0*dfactor+MinDif : pDf0*dfactor+MinDif
                 SE    = n+f
                 SC    = nDf0>nTh
+                nDf   = mo ? !SC ? nDf + nDf0 : nDf : nop()
+                divm  = f
 
             # SCENE STATS
-
                 if (st) {
 
                     fe1   = f==1
@@ -146,8 +146,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 
                     } }
 
-                divm = f
-                f    = SC ? lookahead : f # stopper
+                f     = SC ? lookahead : f
 
             }
 
@@ -163,7 +162,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                        propSet("_SceneRange" , [0,SE])
             st ? std ? propSet("_SceneStats" , [stats[0]/div,stats[1]/div,stats[2]/div,stats[3]/div,avg/div,stats[4]/div,div]) : \
                        propSet("_SceneStats" , [stats[0]/div,stats[1]/div,stats[2]/div,stats[3]/div,avg/div,stats[4]/div])     : last
-            mo ?       propSet("_SceneMotion", (nDf/divm)/255) : last # Motion in a scale of 0.0 - 1.0 (0.15 is considered very high motion)
+            mo ?       propSet("_SceneMotion", (nDf/max(1,divm-1))/255) : last # Motion in a scale of 0.0 - 1.0 (0.15 is considered very high motion)
         }
     } )
 
@@ -173,25 +172,22 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     sh = sh ? width()/10 : 0
     sh != 0 ? AddBorders(0,0,sh,0, color_yuv = $108080) : last
 
-    ScriptClip( function[th,mo,st,std,sh] () {
-
-        n   = current_frame
-        np  = n+1
+    ScriptClip( function[th,mo,la,st,std,sh] () {
 
         SD  = propGetAsArray("_SceneRange",offset=-1)
         SD1 = SD[1]
 
-        for (lb=n, 1, -1) {
-            PR = propGetAsArray("_SceneRange",offset=-(np-lb))
+        for (lb=-2, -la, -1) {
+            PR = propGetAsArray("_SceneRange",offset=lb)
             PE = PR[1]
             of = lb
-            lb = PE != SD1 ? 1 : lb }
+            lb = PE != SD1 ? -la : lb }
 
-        of  = -(n-of)+1
-        SA  = propGetAsArray("_SceneRange" ,offset=-(np-PE))
-        SS  = (n+1 > SD1 ? PE : SA[1]) + 1
+        SA  = propGetAsArray("_SceneRange" ,offset=of)
+        SS  = (current_frame+1 > SD1 ? PE : SA[1]) + 1
               propSet("_SceneRange" , [SS, SD1])
 
+        of  = of+2
         if (mo) {
         PM  = propGetFloat  ("_SceneMotion",offset=of)
               propSet("_SceneMotion", PM) }
@@ -216,7 +212,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                                       sqrt(pow(avg   -PS4,2)/div)/sdiv, \
                                       sqrt(pow(fst[4]-PS5,2)/div)/sdiv]) }
 
-        sh!=0 ? AddBorders(crop(0,0,-sh,0),0,0,sh,0, color_yuv = n==SS ? $EB8080 : $108080) : last
+        sh!=0 ? AddBorders(crop(0,0,-sh,0),0,0,sh,0, color_yuv = current_frame==SS ? $EB8080 : $108080) : last
     } )
 
 
