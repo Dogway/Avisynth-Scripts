@@ -1,10 +1,11 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           ExTools v8.2   (21-03-2022)                ##
+###        ExTools v8.3   (30-03-2022)                   ##
 ###                                                      ##
-###                             by Dogway (Jose Linares) ##
-###      https://forum.doom9.org/showthread.php?t=182881 ##
+###                          by Dogway (Jose Linares)    ##
+###                                                      ##
+###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
 ###########################################################
 ###
@@ -1203,10 +1204,10 @@ function binom_coeffs(n, k) {
 #    clip,
 #    float radius=1.0 (0.0 to 43.0 by 0.1),
 #    [float radiusV=1.0 (0.0 to 43.0 by 0.1)],
-#    int "n"=6 (0 to 300 by 1),
-#    string "mode"="binomial" ("gaussian" / "binomial" / "butterworth"),
-#    string "gamma"="none" ("none" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "xvYCC" / "1361" / "sRGB" / "Rec2020" / "AdobeRGB / "ACESCCt"),
-#    int "UV"=3 (2 to 3 by 1),
+#    [int "n"=6 (0 to 300 by 1)],
+#    [string "mode"="binomial" ("gaussian" / "binomial" / "butterworth")],
+#    [string "gamma"="none" ("none" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "xvYCC" / "1361" / "sRGB" / "Rec2020" / "AdobeRGB / "ACESCCt")],
+#    [int "UV"=3 (2 to 3 by 1)],
 #    )
 #
 function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode", string "gamma", int "Y", int "UV", bool "fulls") {
@@ -1662,7 +1663,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ##
 ## Dependencies:
 ##     ResizersPack
-##     vsTCanny  (for small sources)
+##     vsTCanny  (for small radii or small sources)
 ##
 ## It was profiled against ex_blur(mode="gaussian") so ex_blur(10,mode="gaussian") ~> ex_GaussianBlur(10)
 ##
@@ -1681,9 +1682,9 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ##    clip,
 ##    float sigma=1.0 (0.0 to 150.0 by 0.1),
 ##    [float sigmaV=1.0 (0.0 to 150.0 by 0.1)],
-##    bool "pad"=true,
-##    bool "mblur"=false,
-##    int "UV"=1 (1 to 3 by 1),
+##    [bool "pad"=true],
+##    [bool "mblur"=true],
+##    [int "UV"=1 (1 to 3 by 1)],
 ##    )
 ##
 ## Benchmarks:
@@ -1702,7 +1703,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     rd   = Default(sigma,    10)
     rv   = Default(sigmaV,   rd)
     pad  = Default(pad,    true)
-    mb   = Default(mblur,  true)              # minimum blur. Default true to swap to ex_blur() for low sigmas (more accuracy)
+    mb   = Default(mblur,  true)              # minimum blur. Default true to swap to vsTcanny() for low sigmas (more accuracy)
     Y    = Default(Y,         3)
     UV   = Default(UV,  rgb ? 3 : 2)
 
@@ -1738,16 +1739,14 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     w2  = smc ? au.Width () : w0
     h2  = smc ? au.Height() : h0
 
-    np = (rad<0.01 && radv<0.01)
 
+    if (rad<0.01 && radv<0.01) {
 
-    if (!full && sm && UV==3 || np || (!pad && w0 <= 1099 && (w1 < 24 || h1 < 24))) {
+        a
 
-        np  ? a : vsTCanny(a,rd,sigma_vY=rv,mode=-1,y=y,u=uv,v=uv)
+    } else if (!full && sm && UV==3 || (rd < 2.00 && rv < 2.00 && mb) || (!pad && w0 <= 1099 && (w1 < 24 || h1 < 24))) {
 
-    } else if (rd < 2.00 && rv < 2.00 && mb) {
-
-        a.ex_blur(rd,rv,0,"gaussian",Undefined(),Y,UV,!rgb)
+        vsTCanny(a,rd,sigma_vY=rv,mode=-1,y=y,u=uv,v=uv)
 
     } else if (full && UV==3 || isy) {
 
@@ -1885,6 +1884,7 @@ function ex_MFR (clip c, clip ref, float "lo", float "hi", int "UV") {
   # mpc   =   c.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
   # mpr   = ref.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
 
+    # vsTCanny() shows slight better performance than ex_gaussianblur() when called multiple times (@ mid sigmas only)
     mpc   =   c.vsTCanny(HI, mode=-1, u=UV2, v=UV2)
     mpc2  =   c.vsTCanny(LO, mode=-1, u=UV2, v=UV2)
     mpr   = ref.vsTCanny(HI, mode=-1, u=UV2, v=UV2)
@@ -7096,8 +7096,8 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],    [3840.,3855.],    [15360.,15420.],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
     range_max   = Select (bitd,  [255.,255.],    [1023.,1023.],    [4095.,4095.],    [16383.,16383.],    [65535.,65535.],    [16776960.,16776960.],    [       1.,       1.])
     range_size  = Select (bitd,  [256.,256.],    [1024.,1024.],    [4096.,4096.],    [16384.,16384.],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
-#   data_max    = Select (bitd,  [254.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [ 254/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in legal range
-#   data_min    = Select (bitd,  [  1.,  0.],    [   4.,   0.],    [ 16.,    0.],    [   64.,    0.],    [  256.,    0.],    [   65536.,       0.],    [   1/255.,       0.]) # Legal lower bound for video signal (luma and chroma) in legal range
+#   data_max    = Select (bitd,  [254.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [ 254/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in [legal range, full range]
+#   data_min    = Select (bitd,  [  1.,  0.],    [   4.,   0.],    [ 16.,    0.],    [   64.,    0.],    [  256.,    0.],    [   65536.,       0.],    [   1/255.,       0.]) # Legal lower bound for video signal (luma and chroma) in [legal range, full range]
 
     fs  = fs ? 1 : 0
     str = ReplaceStr(str, "ymax ymin - range_max /", string(yrange[fs]/range_max[fs]))
@@ -7177,10 +7177,20 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 
 # Does an index wise operation on flat (int or float) arrays
 # If either is a scalar, it operates on all array indexes
+#
+# Examples:
+#     ArrayOp([2,4],1,"-")            # output: [1,3]
+#     ArrayOp([2.,4.],[3,5,2],"/")    # output: [0.66,0.8,2]
+#     ArrayOp([5,4],[2,7],"pow(y,x)") # output: [32,2401]
+#     ArrayOp([5,4],[2,7],"exp(y)")   # output: [7.39,1096.6]
+#
 function ArrayOp (  val arr1, \
                     val arr2, string "Op") {
 
     Op = Default(Op, "+")
+
+    isUn = OP=="+" || OP=="-" || OP=="*" || OP=="/"
+    Op   = isUn ? Op : ReplaceStr(Op, "max", "ma|").ReplaceStr("exp", "e|p")
 
     isa1 = IsArray(arr1)
     isa2 = IsArray(arr2) # At least one operand must be an array
@@ -7198,13 +7208,19 @@ function ArrayOp (  val arr1, \
         mx1 = !(!isa1 || a1size > i)
         mx2 = !(!isa2 || a2size > i)
 
+        X1 = mx1 ? "" : string(arr1[min(a1size-1,i)])
+        X  = ReplaceStr(op, "x", X1)
+        Y1 = mx2 ? "" : string(arr2[min(a2size-1,i)])
+        Y  = ReplaceStr(X,  "y", Y1).ReplaceStr("ma|", "max").ReplaceStr("e|p", "exp")
+
         a1  = asize == i+1
         cm  = a1 ? "" : ","
-        str = str + (  mx1 ? "" : string(arr1[min(a1size-1,i)])) + " "+(mx1||mx2 ? "" : op)+" "+( mx2 ? "" : string(arr2[min(a2size-1,i)])) + cm
+        str = !isUn ? str + Y + cm : str + X1 + " "+(mx1||mx2 ? "" : op)+" "+ Y1 + cm
         i   = a1 ? asize : i
         }
 
     return Eval("["+str+"]") }
+
 
 
 # Reverses the array
@@ -7254,6 +7270,18 @@ function ArrayPrint (clip a, val arr1, bool "string" ) {
         str = str + string(arr1[i]) + cm
        }
     return st ? str : subtitle(a, "["+str+"]") }
+
+
+# Opposite of ArrayPrint, converts a 'separator' delimited string into an array
+function ArrayEval (string arr1, bool "brackets", string "separator") {
+
+    br   = Default(brackets, true)
+    sp   = Default(separator, ",")
+
+    arr1 = !br ? "["+arr1+"]" : arr1
+    arr1 = ReplaceStr(arr1,sp,",")
+
+    return Eval(arr1) }
 
 
 
