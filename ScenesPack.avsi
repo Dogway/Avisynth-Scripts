@@ -107,7 +107,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     uClip =  UV ? dClip.ExtractU().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : Undefined()
     vClip =  UV ? dClip.ExtractV().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : Undefined()
     dClip = !UV ? dClip.ExtractY().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : dClip.ConvertBits(8, dither=-1, fulls=fs, fulld=fs)
-    sClip =  UV && !Y ? Undefined()        : dClip.RatioResize(0.5,"%"        ,2,"bicubic",b=-0.5,c=0.3)
+    sClip =!Y && UV  ?       uClip     :     dClip.RatioResize(0.5,"%"        ,2,"bicubic",b=-0.5,c=0.3)
     dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(720.,"adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : Undefined()
     uClip = Y && UV ? sClip.ExtractU() : uClip
     vClip = Y && UV ? sClip.ExtractV() : vClip
@@ -234,7 +234,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                     of = lb
                     lb = PE != SD1 ? -la : lb }
 
-            SA  = propGetAsArray("_SceneRange" ,offset=of)
+            SA  = propGetAsArray("_SceneRange",offset=of)
             SS  = n+of < 1 ? 0 : (n+1 > SD1 ? PE : SA[1]) + 1
                   propSet("_SceneRange" , [SS, SD1])
 
@@ -254,8 +254,8 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
         if (st)  {
 
             if (UV) {
-            PSU = propGetAsArray("_SceneStatsU" ,offset=of)
-            PSV = propGetAsArray("_SceneStatsV" ,offset=of)
+            PSU = propGetAsArray("_SceneStatsU",offset=of)
+            PSV = propGetAsArray("_SceneStatsV",offset=of)
 
             for (i=0, 5, 1) {
                   Eval(Format("PSU{i} = nmod(ex_bs(PSU[{i}], 8, {bi}, true, flt=true),dec=3)"))
