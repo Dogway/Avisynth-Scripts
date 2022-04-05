@@ -9,7 +9,7 @@
     <img src="https://img.shields.io/github/issues/Dogway/Avisynth-Scripts?style=flat&color=9cf" alt="GitHub issues">
   </a>
 
-  <a href="https://github.com/Dogway/Avisynth-Scripts/LICENSE" target="_blank">
+  <a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/LICENSE" target="_blank">
     <img alt="LICENSE" src="https://img.shields.io/github/license/Dogway/Avisynth-Scripts?style=flat&color=red">
   <a/>
 
