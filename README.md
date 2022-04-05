@@ -1,5 +1,21 @@
 # AviSynth+ Scripts
 
+<p align="left">
+  <a href="https://github.com/Dogway/Avisynth-Scripts/commits/master" target="_blank">
+    <img src="https://img.shields.io/github/last-commit/Dogway/Avisynth-Scripts?style=flat&color=9cf" alt="GitHub last commit">
+  </a>
+
+  <a href="https://github.com/Dogway/Avisynth-Scripts/issues" target="_blank">
+    <img src="https://img.shields.io/github/issues/Dogway/Avisynth-Scripts?style=flat&color=9cf" alt="GitHub issues">
+  </a>
+
+  <a href="https://github.com/Dogway/Avisynth-Scripts/LICENSE" target="_blank">
+    <img alt="LICENSE" src="https://img.shields.io/github/license/Dogway/Avisynth-Scripts?style=flat&color=red">
+  <a/>
+
+</p>
+<hr>
+
 Collection of filters for AviSynth+ 3.7.2 and above. Improved modern syntax allows much greater performance and HBD support (high bit depths).
 
 For a full description of each check the main forum thread in [Doom9](https://forum.doom9.org/showthread.php?t=182881).
