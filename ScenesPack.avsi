@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Scenes Pack v2.1   (09-04-2022)               ##
+###   Scenes Pack v3.0   (13-04-2022)               ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -15,7 +15,7 @@
 ######################################################
 ###
 ###
-### SceneStats() by Dogway (09-04-2022)
+### SceneStats() by Dogway (13-04-2022)
 ###
 ### SceneStats allows to work/filter in a per-scene ("per-shot" in film terms) basis,
 ### therefore making better decisions than going per-frame or constant through the clip.
@@ -25,6 +25,14 @@
 ###    "_SceneStats": [min, max, th_min, th_max, average, median, (Pearson's Skewness)]
 ###    "_SceneStatsStdErr": [min, max, th_min, th_max, average, median, StDev]
 ###    "_SceneMotion": float
+###
+### Pearson's Skewness: Pearson's nonparametric skew of the scene's histogram distribution: (3*(average - median))/stdev = 0 (uniform distribution), +n (gamma distribution -> tilted to dark), -n (beta distribution -> tilted to bright)
+### Tip1: To find if a scene is dark, neutral or bright you need to account for average, median and Pearson's Skewness.
+### Tip2: A big difference between average and median depicts an asymmetric contrasty scene (bright frames + dark frames) or set of asymmetric contrasty frames (bright pixels + dark pixels)
+###
+###
+### Dependencies: ExTools
+###               ResizersPack
 ###
 ###
 ### Stats arguments:
@@ -36,16 +44,13 @@
 ### dFactor:   Detection factor, a multiplier applied to frame difference metrics to decide if a scene changes.
 ### Mindif:    Supply MinDif as if in 8 bit range, 0.0 -> 255.0). An additional component part (a bias) of scene change detection.
 ### iFactor:   If true (Default) it will give half weights to dFactor for 'I' type frames. This increases succesful detection rates for scene changes.
-### lookahead: Lookahead search for the scene-end frame. Defaulted to 60 seconds to make processing manageable.
+### lookahead: Lookahead search for the scene-end frame. Defaulted to 900 seconds (15mins).
 ###
 ### Other:
 ### path:      Define a path (anything other than "") to write stats to a file.
 ### dClip:     You can supply an external clip to compute scene change and stats from. For SC the clip should be grain free, if not supply a 'dClip' prefiltered with ex_minblur() or some kind of median.
 ### show:      Enable to output frame properties, Prev frame diff factor, next frame diff factor and a scene change vertical bar.
 ###
-###
-### Dependencies: ExTools
-###               ResizersPack
 ###
 ### Function Definition:
 ###    (
@@ -56,15 +61,28 @@
 ###    float "dfactor"=3.7 (2.5 to 4.0 by 0.1),
 ###    float "MinDif"=1.0 (0.5 to 4.0 by 0.1),
 ###    [bool "iFactor"=true],
-###    int "lookahead"=60 (10 to 120 by 1),
+###    [int "lookahead"=900 (10 to 900 by 1)],
 ###    [bool "Y"=true],
 ###    [bool "UV"=false],
 ###    [bool "show"=false],
 ###    )
 ###
-### Pearson's Skewness: Pearson's nonparametric skew of the scene's histogram distribution: (3*(average - median))/stdev = 0 (uniform distribution), +n (gamma distribution -> tilted to dark), -n (beta distribution -> tilted to bright)
-### Tip1: To find if a scene is dark, neutral or bright you need to account for average, median and Pearson's Skewness.
-### Tip2: A big difference between average and median depicts an asymmetric contrasty scene (bright frames + dark frames) or set of asymmetric contrasty frames (bright pixels + dark pixels)
+###
+### Example online filtering:
+###     setmemorymax(2048)
+###     ffvideoSource("source.mkv")
+###     SceneStats(mode="Range+Stats",Y=true,UV=false)
+###     prefetch(n)
+###
+### Example file output:
+###     setmemorymax(2048*3) # I wouldn't go any lower than 3 (6Gb)
+###     ffvideoSource("source.mkv")
+###     SceneStats("Range+Stats+Motion",path="E:\source_stats.log")
+###     prefetch(1)          # linear access
+###
+###     ### and load the stats ###
+###
+###     ReadStats("E:\source_stats.log")
 ###
 function SceneStats(clip a, string "mode", float "interval", float "th", float "dfactor", float "MinDif", bool "iFactor", int "lookahead", clip "dClip", string "path", bool "Y", bool "UV", bool "show") {
 
@@ -83,7 +101,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     dfactor = Float(Default(dfactor,3.7))  # Range 2.5~4.0 ::: Change default to 4.0 to emulate ScSelect
     Mindif  = Float(Default(MinDif ,1.0))  # Range 0.5~4.0 ::: Change default to 0.0 to emulate ScSelect (disabled for 'I' frames when iFactor=true)
     md      = Default(mode,"Range+Stats")  # Stats to write to frame properties: "ALL", "none", "Range", "", "Stats", "Motion", "Stats+StdErr"
-    lh      = Default(lookahead, 60)       # Max Scene Change lookahead in seconds
+    lh      = Default(lookahead, 900)      # Max Scene Change lookahead in seconds
     wr      = Default(path,      "")       # Set a file path to offload SceneStats' stats to a file. Doesn't pair well with multithreading, so wisely use RequestLinear() and Prefetch(1)
     sh      = Default(show,   false)
     Y       = Default(Y,       true)       # Enable to output Luma   plane stats
@@ -116,22 +134,34 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     uClip =  UV ? dClip.ExtractU().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : nop()
     vClip =  UV ? dClip.ExtractV().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : nop()
     dClip = !UV ? dClip.ExtractY().ConvertBits(8, dither=-1, fulls=fs, fulld=st ? fs : true) : dClip.ConvertBits(8, dither=-1, fulls=fs, fulld=fs)
-    sClip =!Y && UV  ?       uClip     :     dClip.RatioResize(0.5,       "%"       ,2,"bicubic",b=-0.5,c=0.3)
-    dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(-3*lh+900.,"adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : nop()
+    sClip =!Y && UV  ?       uClip     :     dClip.RatioResize(0.5,                "%"       ,2,"bicubic",b=-0.5,c=0.3)
+    dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(max(540,-3*lh+900.),"adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : nop()
     uClip = Y && UV ? sClip.ExtractU() : uClip
     vClip = Y && UV ? sClip.ExtractV() : vClip
+    oClip = dClip.SelectEvery(1,-1)
+    dClip = dClip.SelectEvery(1, 1)
 
-
-    ScriptClip(a, function [dClip,sClip,Y,UV,uClip,vClip,dfactor,iFactor,MinDif,FC,sh,la,stp,stp0,th,mo,rn,st,std,ib,sr] () {
-
-        if (sr) {
-            srn = propGetAsArray("_SceneRange")
-            sr1 = srn[1]
-        }
+    ScriptClip(a, function [oClip,dClip,sClip,Y,UV,uClip,vClip,dfactor,iFactor,MinDif,FC,sh,la,stp,stp0,th,mo,rn,st,std,ib,sr] () {
 
         n     = current_frame
-        clp   = sh ? dClip : nop()
-        pDfp  = rn || mo ? dClip.SelectEvery(1,1).YDifferenceFromPrevious() : 0
+
+        # Evaluate Scene Start
+        if (!sr || sh && rn) {
+            pDf0  = oClip.YDifferenceFromPrevious()
+            nDf0  = oClip.YDifferenceToNext()
+
+            nTh   = ib ? oClip.propGetString("_PictType",offset=1)=="I" ? pDf0*iFactor : pDf0*dfactor+MinDif : pDf0*dfactor+MinDif
+            SC    = n!=1 && (nDf0>nTh || n==0)
+            sh ? Subtitle(Format("Prev: {nTh}  Next: {nDf0}"), align=9) : nop()
+        } else {
+            srn1  = propGetAsArray("_SceneRange")
+            sr1   = srn1[1]
+            SC    = propGetInt("_SceneChangePrev")==1
+        }
+
+        # Evaluate Scene End only when Scene Start
+        if (SC) {
+        pDfp  = rn || mo ? dClip.YDifferenceFromPrevious() : 0
 
         nDf0  = 0    nTh  = 0      nDf  = 0        avga  = []   sum = 0
         avg   = 0    SE   = FC     div  = 0.000001 divm  = div
@@ -189,19 +219,13 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                     UV ? Eval(blku) : last
                 } }
 
+            if (mo) {
             divm  = f
+            nDf   =!SC ? nDf + nDf0 : nDf
+            }
+
             SE    = n+f
-            nDf   = mo ? !SC ? nDf + nDf0 : nDf : nop()
             f     = SC ? lookahead : f
-        }
-
-        if (sh && rn) {
-
-            pDf0  = clp.YDifferenceFromPrevious()
-            nDf0  = clp.YDifferenceToNext()
-
-            nTh   = ib ? clp.propGetString("_PictType",offset=1)=="I" ? pDf0*iFactor : pDf0*dfactor+MinDif : pDf0*dfactor+MinDif
-            Subtitle(Format("Prev: {nTh}  Next: {nDf0}"), align=9)
         }
 
         # Scene's avg standard deviation
@@ -212,7 +236,8 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
             stdev = sqrt(sum/div)
         }
 
-        rn ?       propSet("_SceneRange" , [0,SE]) : last
+        rn ?       propSet("_SceneChangePrev",   1 ) : last
+        rn ?       propSet("_SceneRange" , [n,SE+1]) : last
         mo ?       propSet("_SceneMotion", (nDf/max(1,divm-1))/32.0) : last # Motion in a scale of 0.0 - 1.0 (0-0.2 calm, 0.2-0.4 busy, >0.4 high motion)
         if (st) {
         Y  ? std ? propSet("_SceneStats" , [stats[0] /div, stats[1] /div, stats[2] /div, stats[3] /div, avgi,     stats[4] /div,stdev,div]) : \
@@ -220,13 +245,19 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
         UV ?       propSet("_SceneStatsU", [statsu[0]/divu,statsu[1]/divu,statsu[2]/divu,statsu[3]/divu,avgu/divu,statsu[4]/divu])          : last
         UV ?       propSet("_SceneStatsV", [statsv[0]/divu,statsv[1]/divu,statsv[2]/divu,statsv[3]/divu,avgv/divu,statsv[4]/divu])          : last }
 
-    } )
+    } else {rn ?   propSet("_SceneRange" ,  [-1,-1]) : last
+            rn ?   propSet("_SceneChangePrev",   0 ) : last
+            mo ?   propSet("_SceneMotion",     0.0 ) : last
+        if (st) {
+      Y  ? std ?   propSet("_SceneStats",  [0.0,0.0,0.0,0.0,0.0,0.0] ) : \
+                   propSet("_SceneStats",  [0.0,0.0,0.0,0.0,0.0] )     : last
+            UV ?   propSet("_SceneStatsU", [0.0,0.0,0.0,0.0,0.0] )     : last
+            UV ?   propSet("_SceneStatsV", [0.0,0.0,0.0,0.0,0.0] )     : last } } } )
 
-    # Sets Start (and fixes End)
-    # Also sets every "frame property" to "scene property" by lookback and adds per-frame Standard Error
+    # Propagates Scene Stats to each scene's frame (by means of lookback)
 
-    sh = sh ? width()/10 : 0
-    sh != 0 ? AddBorders(0,0,sh,0, color_yuv = $108080) : last
+    sh  = sh ? width()/10 : 0
+    sh != 0  ? AddBorders(0,0,sh,0, color_yuv = $108080) : last
 
     ScriptClip( function[th,bi,mo,la,st,std,sh,sr,Y,UV] () {
 
@@ -234,20 +265,12 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 
         if (!sr) {
 
-            SD1 = propGetAsArray("_SceneRange",offset=-1)
-            SD1 = SD1[1]
+            for (lb=0, -la, -1) {
+                PR = propGetAsArray("_SceneRange",offset=lb)
+                of = lb
+                lb = PR[1] != -1 ? -la : lb }
 
-                for (lb=-2, -la, -1) {
-                    PR = propGetAsArray("_SceneRange",offset=lb)
-                    PE = PR[1]
-                    of = lb
-                    lb = PE != SD1 ? -la : lb }
-
-            SA  = propGetAsArray("_SceneRange",offset=of)
-            SS  = n+of < 1 ? 0 : (n+1 > SD1 ? PE : SA[1]) + 1
-                  propSet("_SceneRange" , [SS, SD1])
-
-            of  = of+2
+             propSet("_SceneRange" , propGetAsArray("_SceneRange",offset=of))
 
         } else {
 
@@ -256,9 +279,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
             of  = SS-n
         }
 
-        if (mo) {
-        PM  = propGetFloat("_SceneMotion", offset=of)
-              propSet     ("_SceneMotion", PM) }
+        mo ? propSet("_SceneMotion", propGetFloat("_SceneMotion", offset=of)) : last
 
         if (st)  {
 
@@ -270,9 +291,10 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                 Y ? Eval(Format("PS{i}  = nmod(ex_bs(PS[{i}],  8, {bi}, true, flt=true),dec=3)")) : nop()
                 if (UV) {
                     Eval(Format("PSU{i} = nmod(ex_bs(PSU[{i}], 8, {bi}, true, flt=true),dec=3)"))
-                    Eval(Format("PSV{i} = nmod(ex_bs(PSV[{i}], 8, {bi}, true, flt=true),dec=3)"))
+                    Eval(Format("PSV{i} = nmod(ex_bs(PSV[{i}], 8, {bi}, true, flt=true),dec=3)")) } }
+                if (UV) {
                     propSet("_SceneStatsU", [PSU0,PSU1,PSU2,PSU3,PSU4,PSU5])
-                    propSet("_SceneStatsV", [PSV0,PSV1,PSV2,PSV3,PSV4,PSV5]) } }
+                    propSet("_SceneStatsV", [PSV0,PSV1,PSV2,PSV3,PSV4,PSV5]) }
 
             if (Y) {
 
@@ -294,13 +316,13 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                                           sqrt(pow(avg   -PS4,2)/div)/sdiv, \
                                           sqrt(pow(fst[4]-PS5,2)/div)/sdiv,stdev]) } } }
 
-        sh!=0 ? AddBorders(crop(0,0,-sh,0),0,0,sh,0, color_yuv = n==SS ? $EB8080 : $108080) : last
+         sh!=0  ? Crop(0,0,-sh,0).AddBorders(0,0,sh,0, color_yuv = propGetInt("_SceneChangePrev")==1 ? $EB8080 : $108080) : last
     } )
 
 
-    wr != "" ? WriteFile(wr, function[mo,st,Y,UV] () {
-    motion = mo ? " Motion: " + string(    propGetFloat  ("_SceneMotion"))      : ""
+    wr    != "" ? WriteFile(wr, function[mo,st,Y,UV] () {
     range  =      " Range: "  + ArrayPrint(propGetAsArray("_SceneRange" ),true)
+    motion = mo ? " Motion: " + string(    propGetFloat  ("_SceneMotion"))      : ""
     if (st) {
     stats  = y  ? " Stats: "  + ArrayPrint(propGetAsArray("_SceneStats" ),true) : ""
     statsu = uv ? " StatsU: " + ArrayPrint(propGetAsArray("_SceneStatsU"),true) : ""
@@ -318,7 +340,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 
 
 ###
-### ReadStats() by Dogway (01-04-2022)
+### ReadStats() by Dogway (13-04-2022)
 ###
 ### Reads scene statistics from a file created by SceneStats() and writes them into frame properties:
 ###    "_SceneRange": [SceneStart, SceneEnd]
@@ -339,16 +361,19 @@ function ReadStats(clip a, string "path") {
         sts   = FindStr(text, "stat"   )
 
         range = MidStr(text, rn +7, (mo>0?mo:sts>0?sts:StrLen(text))-(rn+7))
-        motio = MidStr(text, mo +8, 8)
+        motio = MidStr(text, mo +8,  8)
         stats = MidStr(text, st +7, 76)
         statu = MidStr(text, stu+8, 69)
         statv = MidStr(text, stv+8, 69)
 
-                  propSet("_SceneRange" , ArrayEval(range,false))
+        rng   = ArrayEval(range,false)
+                  propSet("_SceneRange" , rng)
+                  propSet("_SceneChangePrev", current_frame==rng[0]?1:0)
         st  > 0 ? propSet("_SceneStats" , ArrayEval(stats,false)) : last
         stu > 0 ? propSet("_SceneStatsU", ArrayEval(statu,false)) : last
         stv > 0 ? propSet("_SceneStatsV", ArrayEval(statv,false)) : last
         mo  > 0 ? propSet("_SceneMotion", Eval(motio))            : last
+
     } )
 
     ConditionalReader(path, "text", false)
