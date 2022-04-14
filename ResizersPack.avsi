@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 8.5    (22-03-2022)   ##
+###   Resizers Functions Pack 8.6    (14-04-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -27,12 +27,12 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (22-03-2022)
+### deep_resize() - by Dogway (14-04-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
 ### If you want more control (ColorSpaces, UVRecon, nomoiree, etc) use directly ConvertFormat().
-### Supports all YUV formats in any given bitdepth.
+### Supports all YUV formats in any given bitdepth (not RGB).
 ###
 ### deconv: An option to undo the oversharpening or blur of the original downscaling kernel.
 ###         Following suggested values for deconv:
@@ -179,7 +179,6 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
     } else {
 
-            an      = !isy && rat>rth && rw>1 && rh>1 ? a.ExtractY() : a
 
         if (krn1 == "nnedi3") {
 
@@ -189,16 +188,17 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
             cores   = SI_PhysicalCores()
             threads = SI_LogicalCores()
+        }
 
             # Y8 for nnedi3
+            an      = !isy && rat>rth && rw>1 && rh>1 ? a.ExtractY() : a
             a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
 
             # nnedi3 one dimensional resize case
-            oned    = h == h2 || w == w2
-            a8L     = h == h2 ? TurnRight(a8) : a8
-        }
+            oned    = (h == h2 || w == w2) && krn1 == "nnedi3"
+            a8L     =  h == h2 ? TurnRight(a8) : a8
 
-        edge1   =       krn1 == "nnedi3"  ? oned ? Eval("""a8L
+            edge1   =   krn1 == "nnedi3"  ? oned ? Eval("""a8L
                                               for (i = 1, factor/2, 1) {
                                               nnedi3(field=1,dh=True,        nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2) }""") : \
                                               nnedi3_rpow2(a8,rfactor=factor,nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25) : \
@@ -211,7 +211,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
         } else {
             # nnedi3 one dimensional resize case; luma shift (no 'cshift' arg in nnedi3() )
             edge1   =   krn1 == "nnedi3" && h == h2 ? TurnLeft(edge1) : edge1
-            edge1   =   krn1 == "nnedi3" && oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=etp")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
+            edge1   =   oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=etp")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
 
             # don't sharpen nnedi3 when one dimensional resize case
             edge    =   krn1 == "nnedi3"  ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
@@ -358,7 +358,7 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
 ###               to your video, image is geometry correct. Useful for anamorphic encodes.
 ### "%"           I added a percentage mode too, for example use 0.5 to resize to half.
 ###               You actually can read it as "how many times the original size"
-### "PAR"         In the last update I added PAR. Find out what PAR your source is and input it here.
+### "PAR"         Find out what PAR your source is and input here.
 ###               If you are thinking in crop + resize (anamorphic) and want to know what your PAR
 ###               changed to, then apply the formula below* and input it along your target dimensions (PreW,PreH)
 ### "adjust2w"    This new mode resizes height according to input width. So you input your target width size
