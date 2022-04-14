@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Scenes Pack v3.1   (14-04-2022)               ##
+###   Scenes Pack v3.2   (14-04-2022)               ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -28,9 +28,9 @@
 ###    "_SceneExposure": int
 ###    "_SceneChangePrev": int
 ###
+### _SceneExposure: 0: Very Dark, 1: Dark, 2: Balanced, 3: Bright, 4: Very Bright
 ### Pearson's Skewness: Pearson's nonparametric skew of the scene's histogram distribution: (3*(average - median))/stdev = 0 (uniform distribution), +n (gamma distribution -> tilted to dark), -n (beta distribution -> tilted to bright)
-### Tip1: To find if a scene is dark, neutral or bright you need to account for average, median and Pearson's Skewness.
-### Tip2: A big difference between average and median depicts an asymmetric contrasty scene (bright frames + dark frames) or set of asymmetric contrasty frames (bright pixels + dark pixels)
+### Tip1: A big difference between average and median depicts an asymmetric contrasty scene (bright frames + dark frames) or set of asymmetric contrasty frames (bright pixels + dark pixels)
 ###
 ###
 ### Dependencies: ExTools
@@ -132,7 +132,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 
           Assert(IsVersionOrGreater(3,7,2), "SceneStats: Update AviSynth+ version")
     !rn ? Assert(sr,                        "SceneStats: '_SceneRange' frameprops required when 'Range' mode is not enabled") : nop()
-     EV ? Assert(st,                        "SceneStats: 'Stats' mode required for 'EV' mode")                                : nop()
+     EV ? Assert(st && Y,                   "SceneStats: 'Stats' mode required for 'EV' mode")                                : nop()
           Assert(!rgb,                      "SceneStats: Only YUV formats supported")
           Assert(dFactor >= 1.0,            "SceneStats: dFactor should be 1.0 or above")
           Assert(Mindif  >= 0.0,            "SceneStats: MinDif should be 0.0 or above")
@@ -172,13 +172,13 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
         pDfp  = rn || mo ? dClip.YDifferenceFromPrevious() : 0
 
         nDf0  = 0    nTh  = 0      nDf  = 0        avga  = []   sum = 0
-        avg   = 0    SE   = FC     div  = 0.000001 divm  = div
+        avg   = 0    SE   = FC     divy = 0.000001 divm  = divy
         pDf1  = n > 2 ? pDfp : 255
         stats = [0.0,0.0,0.0,0.0,0.0]
         EVsts = stats
 
         if (UV) {
-        statsu = stats  statsv = stats  divu = div
+        statsu = stats  statsv = stats  divu = divy
         avgu   = 0      avgv   = 0    }
 
 
@@ -208,7 +208,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                          EVsts  = EV ? ArrayOp(EVsts  ,PlaneMinMaxStats(sClip,  1, f1, 0, false),"+") : EVsts
                          avg    = avg + sClip.AverageLuma(f1)
                          avga   = std ? ArrayAdd(avga,avg) : []
-                         div    = div + 1"""
+                         divy   = divy + 1"""
                 # if computing all 3 planes, switch to "f1, plane#" (when pinterf adds avg to PlaneMinMaxStats)
                 blku= """statsu = ArrayOp(statsu, PlaneMinMaxStats(uClip, th, f1, 0, false),"+")
                          avgu   = avgu + uClip.AverageLuma(f1)
@@ -238,33 +238,37 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
             f     = SC ? lookahead : f
         }
 
+        if (st) {
+        div  = Y  ? 1. / divy : 0.000001
+        divu = UV ? 1. / divu : 0.000001
+
         # Scene's avg standard deviation
         if (std && Y) {
-            avgi  = avg/div
+            avgi  = avg*div
             for (i=0, ArraySize(avga)-1, 1)     {
                 sum = sum + pow(avga[i]-avgi,2) }
-            stdev = sqrt(sum/div)
-        }
+            stdev = sqrt(sum*div)
+        } }
 
         rn ?       propSet("_SceneChangePrev",   1 ) : last
         rn ?       propSet("_SceneRange" , [n,SE+1]) : last
         mo ?       propSet("_SceneMotion", (nDf/max(1,divm-1))/32.0) : last # Motion in a scale of 0.0 - 1.0 (0-0.2 calm, 0.2-0.4 busy, >0.4 high motion)
         if (st) {
-        ev ?       propSet("_SceneExposure", min(4, round((stats[4] /div - PSA) * ZN + ( EVsts[3] /div - EVsts[2]/div) * ZN - 2)))            : last
-        Y  ? std ? propSet("_SceneStats" , [stats[0] /div, stats[1] /div, stats[2] /div, stats[3] /div, avgi,     stats[4] /div, stdev, div]) : \
-                   propSet("_SceneStats" , [stats[0] /div, stats[1] /div, stats[2] /div, stats[3] /div, avg /div, stats[4] /div])             : last
-        UV ?       propSet("_SceneStatsU", [statsu[0]/divu,statsu[1]/divu,statsu[2]/divu,statsu[3]/divu,avgu/divu,statsu[4]/divu])            : last
-        UV ?       propSet("_SceneStatsV", [statsv[0]/divu,statsv[1]/divu,statsv[2]/divu,statsv[3]/divu,avgv/divu,statsv[4]/divu])            : last }
+        ev ?       propSet("_SceneExposure", min(4, round( max(0,        (stats[4] *div - PSA) * ZN - 1) + max(0,(EVsts[3] *div - EVsts[2] *div) * ZN - 2)))) : last
+        Y  ? std ? propSet("_SceneStats" , [stats[0] *div, stats[1] *div, stats[2] *div, stats[3] *div, avgi,     stats[4] *div, stdev, divy])  : \
+                   propSet("_SceneStats" , [stats[0] *div, stats[1] *div, stats[2] *div, stats[3] *div, avg *div, stats[4] *div])               : last
+        UV ?       propSet("_SceneStatsU", [statsu[0]*divu,statsu[1]*divu,statsu[2]*divu,statsu[3]*divu,avgu*divu,statsu[4]*divu])              : last
+        UV ?       propSet("_SceneStatsV", [statsv[0]*divu,statsv[1]*divu,statsv[2]*divu,statsv[3]*divu,avgv*divu,statsv[4]*divu])              : last }
 
     } else {rn ?   propSet("_SceneRange" ,  [-1,-1]) : last
             rn ?   propSet("_SceneChangePrev",   0 ) : last
             mo ?   propSet("_SceneMotion",     0.0 ) : last
         if (st) {
             ev ?   propSet("_SceneExposure",     0 ) : last
-      Y  ? std ?   propSet("_SceneStats",   [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0] ) : \
-                   propSet("_SceneStats",   [0.0,0.0,0.0,0.0,0.0,0.0] )         : last
-            UV ?   propSet("_SceneStatsU",  [0.0,0.0,0.0,0.0,0.0] )             : last
-            UV ?   propSet("_SceneStatsV",  [0.0,0.0,0.0,0.0,0.0] )             : last } } } )
+      Y  ? std ?   propSet("_SceneStats" ,  [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.000001] ) : \
+                   propSet("_SceneStats" ,  [0.0,0.0,0.0,0.0,0.0,0.0] )              : last
+            UV ?   propSet("_SceneStatsU",  [0.0,0.0,0.0,0.0,0.0] )                  : last
+            UV ?   propSet("_SceneStatsV",  [0.0,0.0,0.0,0.0,0.0] )                  : last } } } )
 
     # Propagates Scene Stats to each scene's frame (by means of lookback)
     sClip  = std && Y ? sClip : nop()
@@ -314,7 +318,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
             if (Y) {
 
             if (std) {
-                    stdev = PS[6]  div = PS[7]  sdiv = sqrt(div)
+                    stdev = PS[6]  divy = PS[7]  sdiv = 1./sqrt(divy)  div = 1./divy
                     propSet("_SceneStats" , [PS0,PS1,PS2,PS3,PS4,PS5,3*(PS4-PS5)/stdev])
             } else {
                     propSet("_SceneStats" , [PS0,PS1,PS2,PS3,PS4,PS5]) }
@@ -326,12 +330,12 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
             avg   =  nmod( ex_bs( AverageLuma(sClip),      8,  bi,  true, flt=true),dec=3)
 
             # Standard Error of the Mean; 0~1 Accurate, 1~2 Good, 2~3 Bad, 3~4 Very Bad
-            propSet("_SceneStatsStdErr", [sqrt(pow(fst[0]-PS0,2)/div)/sdiv, \
-                                          sqrt(pow(fst[1]-PS1,2)/div)/sdiv, \
-                                          sqrt(pow(fst[2]-PS2,2)/div)/sdiv, \
-                                          sqrt(pow(fst[3]-PS3,2)/div)/sdiv, \
-                                          sqrt(pow(avg   -PS4,2)/div)/sdiv, \
-                                          sqrt(pow(fst[4]-PS5,2)/div)/sdiv,stdev]) } } }
+            propSet("_SceneStatsStdErr", [sqrt(pow(fst[0]-PS0,2)*div)*sdiv, \
+                                          sqrt(pow(fst[1]-PS1,2)*div)*sdiv, \
+                                          sqrt(pow(fst[2]-PS2,2)*div)*sdiv, \
+                                          sqrt(pow(fst[3]-PS3,2)*div)*sdiv, \
+                                          sqrt(pow(avg   -PS4,2)*div)*sdiv, \
+                                          sqrt(pow(fst[4]-PS5,2)*div)*sdiv,stdev]) } } }
 
         sh ? propGetInt("_SceneChangePrev")==1 ? Crop(0,0,-256,0).AddBorders(0,0,256,0, color_yuv = $EB8080) : last : last
     } )
