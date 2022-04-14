@@ -143,7 +143,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     vClip =  UV ? dClip.ExtractV().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : nop()
     dClip = !UV ? dClip.ExtractY().ConvertBits(8, dither=-1, fulls=fs, fulld=st ? fs : true) : dClip.ConvertBits(8, dither=-1, fulls=fs, fulld=fs)
     sClip =!Y && UV  ?       uClip     :     dClip.RatioResize(0.5,                "%"       ,2,"bicubic",b=-0.5,c=0.3)
-    dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(max(540,-3*lh+900.),"adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : nop()
+    dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(max(480,-3*lh+900.),"adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : nop()
     uClip = Y && UV ? sClip.ExtractU() : uClip
     vClip = Y && UV ? sClip.ExtractV() : vClip
     oClip = dClip.SelectEvery(1,-1)
@@ -254,7 +254,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
         rn ?       propSet("_SceneRange" , [n,SE+1]) : last
         mo ?       propSet("_SceneMotion", (nDf/max(1,divm-1))/32.0) : last # Motion in a scale of 0.0 - 1.0 (0-0.2 calm, 0.2-0.4 busy, >0.4 high motion)
         if (st) {
-        ev ?       propSet("_SceneExposure", min(4, round( max(0,        (stats[4] *div - PSA) * ZN - 1) + max(0,(EVsts[3] *div - EVsts[2] *div) * ZN - 2)))) : last
+        ev ?       propSet("_SceneExposure", min(4, round( max(0,        (stats[4] *div - PSA) * ZN - 1) + max(0,(EVsts[3] - EVsts[2] ) * div * ZN - 2)))) : last
         Y  ? std ? propSet("_SceneStats" , [stats[0] *div, stats[1] *div, stats[2] *div, stats[3] *div, avgi,     stats[4] *div, stdev, divy])  : \
                    propSet("_SceneStats" , [stats[0] *div, stats[1] *div, stats[2] *div, stats[3] *div, avg *div, stats[4] *div])               : last
         UV ?       propSet("_SceneStatsU", [statsu[0]*divu,statsu[1]*divu,statsu[2]*divu,statsu[3]*divu,avgu*divu,statsu[4]*divu])              : last
