@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 6.1 By Dogway  (21-03-2022)            ##
+###           MasksPack 6.2 By Dogway  (06-04-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -38,10 +38,10 @@
 ###    int x2=0 (0 to 1920 by 1),
 ###    int y1=0 (0 to 1080 by 1),
 ###    int y2=0 (0 to 1080 by 1),
-###    bool "invert"=false,
-###    bool "show"=false,
-###    bool "tv_out"=false,
-###    int "UV"=3 (1 to 128 by 1),
+###    [bool "invert"=false],
+###    [bool "show"=false],
+###    [bool "tv_out"=false],
+###    [int "UV"=3 (1 to 128 by 1)],
 ###    )
 ###
 ###########################
@@ -119,11 +119,11 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ###    (
 ###    clip,
 ###    float rad=3.0 (1.0 to 4.0 by 0.5),
-###    float "scale"=5.0 (1.0 to 10.0 by 0.5),
-###    int "lo"=4 (0 to 32 by 1),
-###    int "MSR"=40 (0 to 128 by 1),
-###    bool "invert"=false,
-###    bool "show"=false,
+###    [float "scale"=5.0 (1.0 to 10.0 by 0.5)],
+###    [int "lo"=4 (0 to 32 by 1)],
+###    [int "MSR"=40 (0 to 128 by 1)],
+###    [bool "invert"=false],
+###    [bool "show"=false],
 ###    )
 ###
 ###########################
@@ -158,7 +158,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     # UHD size is too big for good performance
      isUHD ? BicubicResize(nmod(w/2),nmod(h/2),-0.6,0.4) : last
 
-    ex_retinex(lvl=1,lo=lvl,tv_range=!fs)  # some issues here on flat areas (quantization)
+    ex_retinex(lvl=1,lo=lvl,tv_in=!fs)     # some issues here on flat areas (quantization)
     MSR=ex_median("IQM")                   # pre for full 'qprewitt'
 
     # Prefilter (scale space)
@@ -238,7 +238,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 ###    clip,
 ###    int "lo"=24 (0 to 255 by 1),
 ###    int "hi"=48 (0 to 255 by 1),
-###    bool "invert"=false,
+###    [bool "invert"=false],
 ###    )
 ###
 ##############################################################
@@ -286,8 +286,7 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
 # CornerMask()
 # Pseudo-Harris corner detection
 #
-# Dependencies:
-#               vsTCanny
+# Dependencies: vsTCanny
 #               GradePack (for show=true)
 #
 #
@@ -296,7 +295,7 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
 #    clip,
 #    float "th"=0.2 (0.1 to 0.9 by 0.1),
 #    float "sigma"=1.0 (0.5 to 3.0 by 0.1),
-#    bool "show"=false,
+#    [bool "show"=false],
 #    )
 #
 function CornerMask(clip a, float "th", float "sigma", bool "show") {
@@ -574,13 +573,13 @@ function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int
             pre       = orig.ex_minblur(isHD ? 2 : 1, sharp=false, UV=uv)
             DB        = ex_lutxyz(sharp,orig,pre,"x z - X@ y z - 1.49 * Y@ * 0 < z X abs Y abs < x Y z + ? ?",UV=uv,fulls=!tv)
             pre       = pre.ConvertBits(8, dither=-1, fulls=!tv)
-            superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=UV==3, mt=true)
-            super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, chroma=UV==3, mt=true, levels=1)
+            superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=UV==3, mt=true)
+            super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=UV==3, mt=true, levels=1)
 
-            cb  = superfilt.MAnalyse(isb = false,    chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, temporal=true)
-            cf  = superfilt.MAnalyse(isb = true,     chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, temporal=true )
-            cb1 = isv ? cb1 : super.Mrecalculate(cb, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=110, truemotion=true, mt=true)
-            cf1 = isv ? cf1 : super.Mrecalculate(cf, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=110, truemotion=true, mt=true)
+            cb  = superfilt.MAnalyse(isb = false,    chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0, search=4, pglobal=13, temporal=true, global=true, plevel=0)
+            cf  = superfilt.MAnalyse(isb = true,     chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0  search=4, pglobal=13, temporal=true, global=true, plevel=0)
+            cb1 = isv ? cb1 : super.Mrecalculate(cb, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
+            cf1 = isv ? cf1 : super.Mrecalculate(cf, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
         }
 
         cb1   = repair(isc ? b1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cb1, thSCD1=255,thSCD2=255, mt=true), orig, 3, -1)
