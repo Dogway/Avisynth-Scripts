@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.83 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.84 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -24,6 +24,10 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.84p
+# - Update with latest ex_luma_rebuild() version
+# - Update function definition
 #
 # v3.83p
 # - Update with latest Asd-g's vinverse plugin, deprecates ex_vinverse() -now legacy- (v3.82 & v3.83)
@@ -388,13 +392,13 @@
 #   MaskTools2 (2.2.30 or above)
 #   NNEDI3     (0.9.4.60 or above)
 #   RgTools    (1.2 or above)
-#   vsTCanny   (1.1.7 for gaussian blur)
+#   vsTCanny   (1.1.8 for gaussian blur)
 #   SysInfo    (0.1.2.9)
-#   Vinverse   (0.9.2)
+#   Vinverse   (0.9.3)
 #
 # Core scripts:
-#   ExTools      (8.1   or above)
-#   SMDegrain    (3.4.8 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   ExTools      (8.4   or above)
+#   SMDegrain    (3.5.0 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.157 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
@@ -447,13 +451,13 @@
 #     [int "TR2"=1 (0 to 4 by 1)],
 #     [float "Sharpness"=1.0 (0.0 to 1.0 by 0.1)],
 #     [float "SVThin"=0.0 (0.0 to 0.5 by 0.05)],
-#     [int "ThSAD1"=640 (100 to 1000 by 1)],
-#     [int "ThSAD2"=256 (100 to 1000 by 1)],
+#     int "thSAD1"=640 (100 to 1000 by 1),
+#     int "thSAD2"=256 (100 to 1000 by 1),
 #     int "SourceMatch"=0 (0 to 3 by 1),
 #     string "MatchPreset"="Very Slow" ("Placebo" / "Very Slow" / "Slower" / "Slow" / "Medium" / "Fast" / "Faster" / "Very Fast" / "Super Fast" / "Ultra Fast" / "Draft"),
 #     string "MatchPreset2"="Very Slow" ("Placebo" / "Very Slow" / "Slower" / "Slow" / "Medium" / "Fast" / "Faster" / "Very Fast" / "Super Fast" / "Ultra Fast" / "Draft"),
 #     [int "MatchTR2"=1 (0 to 2 by 1)],
-#     [float "MatchEnhance"=0.0 (0.0 to 1.0 by 0.05)],
+#     float "MatchEnhance"=0.5 (0.0 to 1.0 by 0.05),
 #     int "Lossless"=0 (0 to 2 by 1),
 #     float "EZDenoise"=0.0 (0.0 to 3.0 by 0.1),
 #     float "EZKeepGrain"=1.0 (0.0 to 1.0 by 0.1),
@@ -464,10 +468,12 @@
 #     [bool "Precise"=false],
 #     [string "Tuning"="None" ("None" / "DV-SD" / "DV-HD")],
 #     bool "show"=false,
-#     bool "tv_range"=true,
+#     [bool "tv_range"=true],
 #     int "threads"=4 (2 to 16 by 2),
 #     )
 #
+# Preset call:
+# QTGMCp(thSAD1=640, thSAD2=256, Preset="very slow", SourceMatch=0, MatchPreset="very slow", MatchPreset2="very slow", MatchEnhance=0.5, Lossless=0, EZDenoise=0.0, EZKeepGrain=1.0, NoisePreset="Faster", show=false, threads=4)
 #
 function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
                     int "NNSize", int "NNeurons", int "EdiQual", int "EdiMaxD", string "ChromaEdi", clip "EdiExt", float "Sharpness", \
@@ -707,11 +713,11 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     LSAD         = Default( LSAD,    (TrueMotion) ? 1200 : 400 )
     PNew         = Default( PNew,    (TrueMotion) ? 50   : 25  )
     PLevel       = Default( PLevel,  (TrueMotion) ? 1    : 0   )
-    DCT          = Default( DCT,     0          )
-    ThSAD1       = Default( ThSAD1,  10 * 8*8   )
-    ThSAD2       = Default( ThSAD2,   4 * 8*8   )
-    ThSCD1       = Default( ThSCD1,  180        )
-    ThSCD2       = Default( ThSCD2,  98         )
+    DCT          = Default( DCT,                           0   )
+    ThSAD1       = Default( ThSAD1,                 10 * 8*8   )
+    ThSAD2       = Default( ThSAD2,                  4 * 8*8   )
+    ThSCD1       = Default( ThSCD1,        round(  2.8 * 8*8)  )
+    ThSCD2       = Default( ThSCD2,        round( 1.53 * 8*8)  )
 
     # Motion blur settings
     FPSDivisor      = Default( FPSDivisor,  1 )
@@ -827,7 +833,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                   (SrchClipPP == 0) ? repair0             : \
                   (SrchClipPP  < 3) ? spatialBlur         : \
                   (SrchClipPP  > 1) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - Y x - 0.49 * x + ? ?", UV=CMmt, fulls=!tv ) : nop()
-    srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_range=tv).ConvertBits(8,dither=-1,fulls=true) : srchClip.ConvertBits(8,dither=-1)
+    srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_in=tv, tv_out=false, bits=8) : srchClip.ConvertBits(8,dither=-1)
 
     # Calculate forward and backward motion vectors from motion search clip
     srchSuper = IsClip(srchSuper) ? srchSuper                                                                                             : \
@@ -1503,8 +1509,8 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
 # ReduceFlicker performs controlled averaging of a frame with its two adjacent temporal neighbors.
 # Controlled means that averaging only takes place in the presence of oscillations. Without such a restraint the filter would create massive ghosts.
 #
-# ReduceFlicker is purely a temporal filter that can be used for all kinds of material, but it is are particularly useful for interlaced footage or
-# progressive videos from digicams like my Canon Powershot S1 IS. It should be applied before deinterlacing.
+# ReduceFlicker is purely a temporal filter that can be used for all kinds of material, but it is particularly useful for interlaced footage or
+# progressive videos from digicams like my 'Canon Powershot S1 IS'. It should be applied before deinterlacing.
 # If done so, the motion detection of the deinterlacer is fooled less by flicker, whence more detail is preserved.
 #
 # The type of flicker, which can be removed or at least reduced with ReduceFlicker, is more prevalent in camcorder material and the chroma of analog clips,
