@@ -552,7 +552,7 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
     fs  = propNumElements (c,"_ColorRange")  > 0 ? \
           propGetInt      (c,"_ColorRange") == 0 : rgb
 
-    smooth  = Default(smooth, 1.5)
+    smooth  = Default(smooth, 1.5)              # Can be a float or a string for a blurring function (ie. "ex_blur(1)")
     kernel  = Default(kernel, "BicubicResize")
     epsilon = Default(epsilon, 0.000001)
     dither  = Default(dither,  true)
