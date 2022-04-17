@@ -145,7 +145,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     vClip =  UV ? dClip.ExtractV().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : nop()
     dClip = !UV ? dClip.ExtractY().ConvertBits(8, dither=-1, fulls=fs, fulld=st ? fs : true) : dClip.ConvertBits(8, dither=-1, fulls=fs, fulld=fs)
     sClip =!Y && UV  ?       uClip     :     dClip.RatioResize(0.5, "%"       ,2,"bicubic",b=-0.5,c=0.3)
-    dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(480, "adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : nop()
+    dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(480, "adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : dClip
     uClip = Y && UV ? sClip.ExtractU() : uClip
     vClip = Y && UV ? sClip.ExtractV() : vClip
     dClip = an ? dClip.Limiter(0,100)  : dClip  # AntiFlash & Anti-BiModal
