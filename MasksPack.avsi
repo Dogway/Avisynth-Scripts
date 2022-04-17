@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 6.2 By Dogway  (06-04-2022)            ##
+###           MasksPack 6.3 By Dogway  (17-04-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -556,6 +556,7 @@ function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int
     keep = Default(keep,   MC ? 48 : 24)  # 0-100
     UV   = Default(UV,        1)
     tv   = Default(tv_range, !fs)
+    UV3  = UV==3
     KP   = max(0,min(100,keep)) / 100.
 
     Assert(IsVersionOrGreater(3,7,2),               "Soothe: Update AviSynth+ version")
@@ -573,21 +574,21 @@ function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int
             pre       = orig.ex_minblur(isHD ? 2 : 1, sharp=false, UV=uv)
             DB        = ex_lutxyz(sharp,orig,pre,"x z - X@ y z - 1.49 * Y@ * 0 < z X abs Y abs < x Y z + ? ?",UV=uv,fulls=!tv)
             pre       = pre.ConvertBits(8, dither=-1, fulls=!tv)
-            superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=UV==3, mt=true)
-            super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=UV==3, mt=true, levels=1)
+            superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=UV3, mt=true)
+            super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=UV3, mt=true, levels=1)
 
-            cb  = superfilt.MAnalyse(isb = false,    chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0, search=4, pglobal=13, temporal=true, global=true, plevel=0)
-            cf  = superfilt.MAnalyse(isb = true,     chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0  search=4, pglobal=13, temporal=true, global=true, plevel=0)
-            cb1 = isv ? cb1 : super.Mrecalculate(cb, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
-            cf1 = isv ? cf1 : super.Mrecalculate(cf, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
+            cb  = superfilt.MAnalyse(isb = false,    chroma=UV3, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0, search=4, pglobal=13, temporal=true, global=true, plevel=0)
+            cf  = superfilt.MAnalyse(isb = true,     chroma=UV3, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0, search=4, pglobal=13, temporal=true, global=true, plevel=0)
+            cb1 = isv ? cb1 : super.Mrecalculate(cb, chroma=UV3, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
+            cf1 = isv ? cf1 : super.Mrecalculate(cf, chroma=UV3, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
         }
 
-        cb1   = repair(isc ? b1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cb1, thSCD1=255,thSCD2=255, mt=true), orig, 3, -1)
-        cf1   = repair(isc ? f1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cf1, thSCD1=255,thSCD2=255, mt=true), orig, 3, -1)
+        cb1   = repair(isc ? b1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cb1, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), orig, 3, -1)
+        cf1   = repair(isc ? f1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cf1, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), orig, 3, -1)
 
         diff  = interleave(cb1,DB,cf1)
 
-        diff2 = med ? diff.ex_median("medianT",UV=uv) : diff.temporalsoften(1,255,uv==3?255:0,32,2)
+        diff2 = med ? diff.ex_median("medianT",UV=uv) : diff.temporalsoften(1,255,UV3?255:0,32,2)
         diff2 = diff2.selectevery(3,1)
         ex_lutxyz(sharp,DB,diff2,Format("z y - X@ x y - Y@ * 0 < Y {KP} * y + X abs Y abs < x z - {KP} * z + x ? ?"),UV=uv,fulls=!tv)
 
@@ -595,6 +596,6 @@ function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int
     } else {
 
         diff  = ex_makediff(orig,  sharp, UV=uv, fulls=!tv)
-        diff2 = med ? diff.ex_median("medianT",UV=uv) : diff.temporalsoften(1,255,uv==3?255:0,32,2)
+        diff2 = med ? diff.ex_median("medianT",UV=uv) : diff.temporalsoften(1,255,UV3?255:0,32,2)
         ex_lutxyz(orig,diff,diff2,Format("y range_half - Y@ z range_half - Z@ * 0 < Y {KP} * range_half + Y abs Z abs > y z - {KP} * z + y ? ? x swap - range_half +"),UV=uv,fulls=!tv).propCopy(a)
     } }
