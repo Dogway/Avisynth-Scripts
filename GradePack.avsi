@@ -1136,7 +1136,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ###
 ### Version 1.2 implements 'isoparam' mode, similar to "rainbow" but more granular and in black/white.
 ### This mode is good to increase detail in shaded area so it's picked up in motion estimation.
-### I recommend to use ex_luma_rebuild() prior to this mode.
+### I recommend using ex_luma_rebuild() prior to this mode.
 ###
 ###
 ### Dependencies: > ExTools
