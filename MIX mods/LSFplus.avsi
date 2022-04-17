@@ -757,14 +757,13 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
     ### Temporal limiting
     if (Lmode==6) {
 
-        isg = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
-
-        super   = VarExist("super") ? isy(super) ? super : super.ExtractY() : nop()
-        pre     = pre.ConvertBits(8, dither=-1, fulls=!tv)
+        isg   = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
+        super = isg && VarExist("super") ? isy(super) ? super : super.ExtractY() : nop()
 
         if (!isg || SS) {
-	
-	    blksize = (ox > 2599 || oy > 1499) ? 32 : isHD ? 16 : 8
+
+            blksize   = (ox > 2599 || oy > 1499) ? 32 : isHD ? 16 : 8
+            pre       = pre.ConvertBits(8, dither=-1, fulls=!tv)
 
             superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=false, mt=true)
             super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=false, mt=true, levels=1)
