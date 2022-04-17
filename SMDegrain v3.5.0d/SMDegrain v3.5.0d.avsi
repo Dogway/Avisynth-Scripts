@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.4.9d      by Dogway    - 01 Apr  2022                           ###
+###                       v3.5.0d      by Dogway    - 17 Apr  2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -34,7 +34,7 @@
 ###                 ResizersPack        (for Contrasharp
 ###                                      or  Str=0.1 to 1.0 ~ex_retinex()~ or show)
 ###              GradePack              (for Str=0.1 to 1.0 ~ex_retinex()~ or show)
-###              ScenesPack             (for Str=0.1 to 1.0 ~ex_retinex()~ if '_SceneRange' frameprops exists)
+###              ScenesPack             (for Str=0.1 to 1.0 ~ex_retinex()~ if '_SceneRange' frameprops exist)
 ###              MasksPack              (for show)
 ###              RgTools                (for Contrasharp
 ###                                      or  prefilter=0~3)
@@ -132,7 +132,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     isCClip      = Defined( CClip )
     Contrasharp  = Default( Contrasharp, !GlobalO && isCClip)
-    SLimit       = Default( limitS,      true )                # Limit type for the contrasharpening   True: Spatial  False: Temporal
+    SLimit       = Default( limitS,      true )                # Limit type for the contrasharpening   True: Spatial  False: Temporal (ignores CClip)
     isCntr       = IsBool (   Contrasharp )
     isShrp       = !isCntr ? (Contrasharp > 0.0) : Contrasharp
     isInter      = Default( Interlaced,  false)
@@ -163,7 +163,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         blk2     = blksize / 2
         ovl2     = max(2,blk2 / 2)
     overlap      = Default( overlap, blk2 )
-    search       = Default( search,     4 )
+    search       = Default( search, RefineMotion ? 4 : 2 )
     searchr      = 0
     pglobal      = 11
     truemotion   = Default( truemotion, TS || T7 || !isHD)
@@ -172,8 +172,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     pelsearch    = Default( pelsearch, max(0,searchparam*2-2)) # searchRange at finest level. Higher has a high performance hit
     DCT          = Default( DCT,   0 )                         # Change to 5 (slower) if you get artifacts due to luminosity changes (fades, flashes, etc)
     DCTR         = 5
-    thSCD1       = Default( thSCD1,  round(pow((blksize*2.5),2)))
-    thSCD2       = Default( thSCD2,  130 )
+    thSCD1       = Default( thSCD1,  round(0.35*thSAD+260))    # Typically between 330 and 400
+    thSCD2       = Default( thSCD2,  130 )                     # 130 or 51% of SAD change by default
 
     plane        = Default( plane,    isy ? 0 : 4 )
     plane0       = plane!=0
@@ -215,7 +215,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
 
-    # RefineMotion Variables
+    # RefineMotion + MDegrainN variables
 
     halfblksize  = blk2     # MRecalculate works with half block size
     halfoverlap  = ovl2     # Halve the overlap to suit the halved block size
@@ -264,9 +264,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     # Default Auto-Prefilter - Luma expansion TV->PC (up to 16% more values for motion estimation)
 
-    pref8  = Str > 1.0 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,                UV=Chr,tv_range=!fsp).ConvertBits(8, dither=-1, fulls=true) : \
-             Str > 0.0 ? pref.ex_retinex(lo=Str==1?40:(Str)*100,lvl=sr?3:1,UV=Chr,tv_in   =!fsp).ConvertBits(8, dither=-1, fulls=true) : \
-                  !fsp ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) :          pref.ConvertBits(8, dither=-1, fulls=true)
+    pref8  = Str > 1.0 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,                UV=Chr,tv_in=!fsp, tv_out=false, bits=8)                 : \
+             Str > 0.0 ? pref.ex_retinex(lo=Str==1?40:(Str)*100,lvl=sr?3:1,UV=Chr,tv_in=!fsp).ConvertBits(8, dither=-1, fulls=true) : \
+                  !fsp ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) :       pref.ConvertBits(8, dither=-1, fulls=true)
 
     pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., Fc=w/8., th=0.0) : pref8 # Low Frequency expansion (higher SAD -> more protection)
 
@@ -559,7 +559,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
             sw  = nmod(w2/5.)   sh = sw
             plt = pref8.GradientLinear(zoom=1, positive=true, smooth=true, tv_range=!fsp)
-            plt = plt.ex_Luma_Rebuild(S0=Str,c=Amp,tv_range=!fsp)
+            plt = plt.ex_Luma_Rebuild(S0=Str,c=Amp,tv_in=!fsp)
             plt = plt.HistoCurve(size=1,gradient=false)
             plt = plt.BicubicResize(sw,sh,-0.5,0.25)
             plt = PadBorders(plt,w-sw,0,0,hi-sh)
@@ -607,7 +607,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.4.9",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.5.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -777,11 +777,12 @@ function ex_sbr(clip c, int "r", int "Y", int "UV") {
 ##    (
 ##    clip,
 ##    float S0=5.0 (1.0 to 9.0 by 0.1),
-##    float c=0.03 (0.0 to 1.0 by 0.01),
+##    float c=0.03 (0.00 to 1.00 by 0.01),
+##    [bool "tv_out"=false],
 ##    [bool "show"=false],
 ##    )
 ##
-function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bool "tv_range", bool "show") {
+function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bool "tv_in", bool "tv_out", int "bits", bool "show") {
 
     rgb   = isrgb(src)
     bi    = BitsPerComponent(src)
@@ -792,34 +793,38 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     UV    = Default(UV,      3)
     s0    = Default(s0,    5.0)
     c     = Default(c,  1.0/32)
-    tv    = Default(tv_range, !fs)
+    bit   = Default(bits,   bi)
+    tv    = Default(tv_in, !fs)
+    tvo   = Default(tv_out, false)
     sh    = Default(show,   false)
     bi32  = bi == 32
-    si    = tv ? bi32 && UV==3 ? "floatUV" : "none" : "intf"
+    si    = bi32 && UV==3 ? "floatUV" : tv ? "none" : "intf"
 
-    s0= max(s0,1.0)
-    k = (s0 - 1) * c
-    l = 1 - k
-    d = 1 + c
-    f = d * c
-    t = tv ? "ymin - 0 max ymax ymin - /" : ""
-    e = S0 > 1.0 ? Format("f32 {k} {d} {f} x "+t+" A@ {c} + / - * A {l} * +") + (tv && !bi32 ? " range_max *" : "") : \
-        tv       ?        "x ymin - 0 max range_max ymax ymin - / * "                                               : \
-                          ""
+    k  = (s0 - 1) * c
+    l  = 1 - k
+    d  = 1 + c
+    f  = d * c
+    t  = tv  ? "ymin - 0 max ymax ymin - /" : ""
+    o  = tvo ? " ymax ymin - * ymin +"      : ""
+    e  = Format("f32 {k} {d} {f} x "+t+" A@ {c} + / - * A {l} * +") + (!tvo && !bi32 ? " range_max *" : tvo ? o : "")
+    ec = tv==tvo ? "" : !tvo ? "x cmin - range_max cmax cmin - / *" : "x cmax cmin - range_max / * cmin +"
 
-    ec = tv ? "x cmin - range_max cmax cmin - / *" : ""
-
-    ex_lut(src, e, rgb ? e : ec, Y=y, UV=uv, fulls=!tv, scale_inputs=si, clamp_float=bi32)
-    !tv && S0 <= 1.0 ? src : propSet("_ColorRange", 0)
+    if (S0 > 1.0) {
+        ex_lut(src, e, rgb ? e : ec, Y=y, UV=uv, fulls=!tv, scale_inputs=si, clamp_float=bi32)
+        ConvertBits(bit, dither=-1, fulls=!tvo)
+        tv!=tvo ? propSet("_ColorRange", !tvo ? 0 : 1) : last
+    } else {
+        ConvertBits(src, bit, dither=-1, fulls=!tv, fulld=!tvo)  # dither=-1 because ex_Luma_Rebuild() typically used for prefiltering
+    }
 
     if (sh) {
 
-        bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
+        bit > 8 ? ConvertBits(8,dither=1,fulls=!tvo) : last
         w   = src.width()
         h   = src.height()
         sw  = nmod(w/5.)   sh = sw
         plt = GradientLinear(last, zoom=1, positive=true, smooth=true, tv_range=tv)
-        plt = ex_Luma_Rebuild(plt,s0,c,tv_range=tv)
+        plt = ex_Luma_Rebuild(plt,s0,c,tv_in=tv,tv_out=tvo)
         plt = HistoCurve(plt,size=1,gradient=false).BicubicResize(sw,sh,-0.5,0.25)
         plt = PadBorders(plt,w-sw,0,0,h-sh)
         plt = Merge(last,rgb ? plt.ConverttoPlanarRGB() : plt)
@@ -834,7 +839,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
 ## Output is PC range.  Performance is by default 50% of ex_Luma_Rebuild() although still fast and quality isn't comparable.
 ## lvl=2 uses auto-levels so performance drops to 25% of ex_Luma_Rebuild(), and prone to some smooth flicker.
-## lvl=3 uses SceneStats so there's no smooth flicker but performance drops further.
+## lvl=3 uses SceneStats so there's no smooth flicker, but performance drops further.
 ## Gamma aware + PC levels blurring didn't yield better results, actually worse. RGB isn't supported yet despite code reference.
 ##
 ## "Contrast enhancement is a classic image restoration technique that traditionally has been performed using forms of histogram equalization.
@@ -850,13 +855,14 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ##               ExTools
 ##               GradePack
 ##               ResizersPack
+##               ScenesPack (for lvl=3)
 ##               TransformsPack (for RGB)
 ##
 ##
 ## Function Definition:
 ##    (
 ##    clip,
-##    int "lvl"=1 (0 to 2 by 1),
+##    int "lvl"=1 (0 to 3 by 1),
 ##    [float "lo"=40.0 (0.0 to 128.0 by 1.0)],
 ##    [float "hi"=242.0 (128.0 to 255.0 by 1.0)],
 ##    [float "sigma"=1.0 (1.0 to 5.0 by 0.1)],
@@ -941,7 +947,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
             sts  = propGetAsArray("_SceneStats")
             pmin = sts[2]
-            pmax = sts[3]
+            pmax = sts[1]
 
             pmin > 0 || pmax < 255 ? ex_levels(max(0,pmin-mn),1.0,min(255,pmax+mx),0,255,false,rgb?3:1) : last
         } )
