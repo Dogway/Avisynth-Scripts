@@ -10,10 +10,10 @@
   </a>
 
   <a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/LICENSE" target="_blank">
-    <img alt="LICENSE" src="https://img.shields.io/github/license/Dogway/Avisynth-Scripts?style=flat&color=red">
+    <img src="https://img.shields.io/github/license/Dogway/Avisynth-Scripts?style=flat&color=red" alt="LICENSE">
   <a/>
 
-    <img src="https://img.shields.io/badge/platform-win | linux | osx?style=flat&color=lightgrey" alt="Platform">
+    <img src="https://img.shields.io/badge/platform-win | linux | osx-lightgrey" alt="Platform">
 
 </p>
 <hr>
@@ -21,7 +21,7 @@
 Collection of filters for AviSynth+ 3.7.2 and above. Improved modern syntax allows much greater performance and HBD support (high bit depths).
 
 Since all filters are mostly self-contained script-based you get the benefit of cross compatibility with other OSes like Linux or MacOS, specially with EX mods versions for minimal plugin dependencies. If you need an EX mod port open a ticket in the issue tracker.
-The only non-replaceable plugins required are nnedi3+SysInfo and MVTools, so check beforhand those are compiled for your OS.
+The only non-replaceable plugins required are nnedi3+SysInfo and MVTools, so check beforehand those are compiled for your OS.
 
 For a full description of each check the main forum thread in [Doom9](https://forum.doom9.org/showthread.php?t=182881).
 
