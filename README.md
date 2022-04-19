@@ -13,8 +13,8 @@
     <img src="https://img.shields.io/github/license/Dogway/Avisynth-Scripts?style=flat&color=red" alt="LICENSE">
   <a/>
 
-  <a href="" target="_blank">
-    <img src="https://img.shields.io/badge/platform-win | linux | osx" alt="Platform">
+  <a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">
+    <img src="https://img.shields.io/badge/platform-win | linux | osx-lightgrey" alt="Platform">
   <a/>
 
 </p>
