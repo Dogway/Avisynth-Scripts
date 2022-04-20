@@ -35,8 +35,9 @@
 ### Tip1: A big difference between average and median depicts an asymmetric contrasty scene (bright frames + dark frames) or set of asymmetric contrasty frames (bright pixels + dark pixels)
 ###
 ###
-### Dependencies: ExTools
-###               ResizersPack
+### Dependencies: > AviSynth v3.7.3
+###                 ExTools
+###                 ResizersPack
 ###
 ###
 ### Stats arguments:
@@ -50,11 +51,11 @@
 ### dFactor:   Detection factor, a multiplier applied to frame difference metrics to decide if a scene changes.
 ### Mindif:    Supply MinDif as if in 8 bit range (0.0 - 255.0). An additional component part (a bias) of scene change detection. Not very important when iFactor=true
 ### iFactor:   If true (Default) it will give half weights to dFactor for 'I' type frames. This increases succesful detection rates for scene changes.
-### Anime:     Scene Change Detection for anime should be handled differently, therefore this bool arg. Hard-codes 'iFactor=true' internally
+### Anime:     Scene Change Detection for anime should be handled differently, therefore this bool arg. Hard-codes 'iFactor=true' internally.
 ###
 ### Other:
 ### path:      Define a path (anything other than "") to write stats to a file.
-### dClip:     You can supply an external clip to compute scene change and stats from. For SC the clip should be grain free, if not supply a 'dClip' prefiltered with ex_minblur() or some kind of median.
+### dClip:     You can supply an external clip to compute scene change and stats from. For SC the clip should be grain free, if not supply a 'dClip' prefiltered with ex_minblur() or some kind of median or temporal denoiser.
 ### show:      Enable to output frame properties, Prev frame diff factor, next frame diff factor and a scene change vertical bar.
 ###
 ###
@@ -156,7 +157,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     dClip =       dClip.SelectEvery(1, 1)
     tClip =  dt ? sClip.ex_edge("tritical",0) : nop()
 
-    ScriptClip(a, function [oClip,dClip,sClip,tClip,Y,UV,uClip,vClip,dfactor,iFactor,MinDif,FC,sh,la,dt,stp,stp0,th,an,mo,ev,rn,st,std,ib,sr,ZN,PSA] () {
+    ScriptClip(a, function [oClip,dClip,sClip,tClip,uClip,vClip,Y,UV,stp,stp0,la,th,dfactor,ib,iFactor,MinDif,FC,an,rn,mo,ev,dt,st,std,sr,ZN,PSA,sh] () {
 
         n     = current_frame
 
@@ -211,10 +212,10 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                     min(27.3375,nDf0)>-0.461*(nDf0-nTh)+27.3375 || f>=lookahead
 
         # SCENE STATS
-            DI = """divy = divy + 1"""
             ED = """EVr  = EV ? EVr  + YPlaneMinMaxDifference(sClip, 1) : EVr
                     EVm  = EV ? EVm  + YPlaneMedian(sClip)              : EVm
                     avgt = DT ? avgt + tClip.AverageLuma(f1)            : avgt"""
+            DI = """divy = divy + 1"""
 
             if (!st && Y && (EV || DT)) {
                 fe1 = f==1
@@ -274,11 +275,11 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
             stdev = sqrt(sum*div)
         }
 
-        rn ?       propSet("_SceneChangePrev",   1 )                  : last
-        rn ?       propSet("_SceneRange" , [n,SE+1])                  : last
-        mo ?       propSet("_SceneMotion", (nDf/max(1,divm-1))/32.0)  : last  # Motion in a scale of 0.0 - 1.0 (0-0.2 calm, 0.2-0.4 busy, >0.4 high motion)
-        dt && Y ?  propSet("_SceneDetail",   min(100,avgt*div/1.275)) : last  # Detail in a scale of 0.0 - 100.0
-        ev && Y ?  propSet("_SceneExposure", min(4, round( max(0, (EVm *div - PSA) * ZN - 1) + max(0, EVr *div * ZN - 2))))                    : last
+        rn ?       propSet("_SceneChangePrev",   1 )                          : last
+        rn ?       propSet("_SceneRange" , [n,SE+1])                          : last
+        mo ?       propSet("_SceneMotion", (nDf/max(1,divm-1)) *0.03125)      : last  # Motion in a scale of 0.0 - 1.0 (0-0.2 calm, 0.2-0.4 busy, >0.4 high motion)
+        dt && Y ?  propSet("_SceneDetail",   min(100,(avgt*div)*0.784313725)) : last  # Detail in a scale of 0.0 - 100.0
+        ev && Y ?  propSet("_SceneExposure", min(4, round( max(0, (EVm * div - PSA) * ZN - 1) + max(0, EVr * div * ZN - 2))))                  : last
         if (st) {
         Y  ? std ? propSet("_SceneStats" , [stats[0] *div, stats[1] *div, stats[2] *div, stats[3] *div, avgi,     stats[4] *div, stdev, divy]) : \
                    propSet("_SceneStats" , [stats[0] *div, stats[1] *div, stats[2] *div, stats[3] *div, stats[5]  *div, stats[4] *div])        : last
