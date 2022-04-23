@@ -1,7 +1,7 @@
 ###
 ### Logo v14.0  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (25-02-2022) By Dogway
+###  (25-02-2022) by Dogway
 ###
 ### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
 ### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465#post525465)
