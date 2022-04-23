@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.0  (05-03-2022)                     ###
+###        Similarity Metrics Pack v3.1  (23-04-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -196,19 +196,20 @@ Ref:
 
 function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_map", int "show", bool "fulls") {
 
-    rgb = isRGB (dist)
-    w   = width (dist)
-    h   = height(dist)
-    isHD= (w > 1099 || h > 599)
-    bi  = BitsPerComponent(dist)
-    fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
-          propGetInt      (dist,"_ColorRange") == 0 : rgb
+    rgb      = isRGB (dist)
+    w        = width (dist)
+    h        = height(dist)
+    isHD     = (w > 1099 || h > 599)
+    isUHD    = (w > 2599 || h > 1499)
+    bi       = BitsPerComponent(dist)
+    fs       = propNumElements (dist,"_ColorRange")  > 0 ? \
+               propGetInt      (dist,"_ColorRange") == 0 : rgb
 
-    downscl    = Default(downsample,  isHD)
-    alpha      = Default(alpha,        0.6)
-    show_map   = Default(show_map,   false)
-    show       = Default(show,           0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
-    fs         = Default(fulls,         fs)
+    downscl  = Default(downsample,  isHD)
+    alpha    = Default(alpha,        0.6)
+    show_map = Default(show_map,   false)
+    show     = Default(show,           0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
+    fs       = Default(fulls,         fs)
 
     clip1 = dist
     clip2 = ref
@@ -227,9 +228,9 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
     down1 = down1.ConvertBits(bi, fulls=!downscl ? fs : true, fulld=true).ExtractClip()
     down2 = down2.ConvertBits(bi, fulls=!downscl ? fs : true, fulld=true).ExtractClip()
 
-    l1   = DotClipA(down1,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
-    l2   = DotClipA(down2,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
-    l1l2 = Merge(l1, l2)
+    l1    = isUHD ? DotClipA(down1,[0.262404,0.678455,0.059141]) : isHD ? DotClipA(down1,[0.212649,0.715169,0.072182]) : DotClipA(down1,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
+    l2    = isUHD ? DotClipA(down2,[0.262404,0.678455,0.059141]) : isHD ? DotClipA(down2,[0.212649,0.715169,0.072182]) : DotClipA(down2,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
+    l1l2  = Merge(l1, l2)
 
     # HVS (Human Visual System) based Gradient Similarity (GS)
     gs_hvs = ex_lutxyz(l1, l2, l1l2,Format("f32 z[-1,-1] A@ z[-1,0] z[-1,1] F@ + + z[1,-1] C@ - z[1,0] - z[1,1] H@ - dup *
