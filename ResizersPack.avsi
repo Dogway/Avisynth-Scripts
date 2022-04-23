@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 8.6    (14-04-2022)   ##
+###   Resizers Functions Pack 9.0    (23-04-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -27,7 +27,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (14-04-2022)
+### deep_resize() - by Dogway (23-04-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -69,6 +69,8 @@
 ###   MasksPack
 ###   TransformsPack
 ###   GrainFactory3mod (for grain > 0)
+###   SimilarityMetrics(for default SSIM2 downscaling)
+###       vsTCanny
 ###   GradePack        (for show=true)
 ###   Resizer of choice
 ###       LSFplus        (for default "nnedi3") (and its dependencies)
@@ -110,22 +112,34 @@
 ###    [bool "show"=false],
 ###    )
 ###
-function deep_resize(clip a, float "width", float "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "grain", float "th_rat", float "th", float "elast", int "qual", bool "show") {
+function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "grain", float "th_rat", float "th", float "elast", int "qual", bool "show") {
 
+    wu  = !Defined(width)
+    hu  = !Defined(height)
     w   = width (a)
     h   = height(a)
     rgb = isRGB (a)
     is4 = is444 (a)
     isy = isy   (a)
+    mod = rgb || is4 || isy ? 1 : 2
     FC  = FrameCount(a)>1
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")     > 0 ? \
           propGetInt      (a,"_ColorRange")    == 0 : rgb
     cpl = propNumElements (a,"_ChromaLocation") > 0 ? \
-          propGetInt      (a,"_ChromaLocation")     : 0
+          propGetInt      (a,"_ChromaLocation") : 0
 
-    w2     = nmod(Default(width,  w),isy||rgb||is4?1:2)
-    h2     = nmod(Default(height, h),isy||rgb||is4?1:2)
+    w2     = Default(width,  w)
+    h2     = Default(height, h)
+
+    Assert(isFloat(w2) || isFloat(h2), "deep_resize: Width/Height type not supported")
+
+    w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
+    h2     = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
+    w2     =  w2<=10. ? w*w2 : w2        w2 = round(w2/mod)*mod
+    h2     =  h2<=10. ? h*h2 : h2        h2 = round(h2/mod)*mod
+    w2     =  w2 == 0 || wu  ? round((w*(h2/float(h)))/mod)*mod : w2
+    h2     =  h2 == 0 || hu  ? round((h*(w2/float(w)))/mod)*mod : h2
 
     isHD   = (w  > 1099 || h  >  599)
     isHD2  = (w2 > 1099 || h2 >  599)
@@ -136,35 +150,34 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
     factor =     max(rw,rh) < 3 ? 2 : 4
     rat    = abs(max(rw,rh)-1)+1
 
-    rth   = Default(th_rat, 1.25)                                                     # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
-    krn1  = Default(edge, rat<=rth*0.95 ? "Didée" : \
-                           rw<1 && rh<1 ? "DPID"  : rat<=rth ? "Blackman" : "nnedi3") # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti
-                                                                                      # By default, for small upscales   -> "blackman" (define small with 'th_rat' value)
-                                                                                      # By default, for big   upscales   -> "nnedi3"
-                                                                                      # By default, for small downscales -> "Didée"
-                                                                                      # By default, for big   downscales -> "DPID" (ok for down to 720p, might want to change to 'SSIM2' for SD to minimixe local contrast)
-    krn1c = Default(chroma,rat<=rth*0.95 ? "Zopti2" : "Blackman")                     # Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
-    krn2  = Default(flat, isHD && isUHD2 ? "sinc"   : "Lanczos" )                     # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
-    etp   = Default(e_taps, krn1 =="Blackman" ? 6   : krn1 =="Lanczos" ? 4 : 0)       # taps for edge   kernel (0 for undefined)
-    ftp   = Default(f_taps, krn2 =="Blackman" ? 16  : krn2 =="Lanczos" ? 8 : 0)       # taps for flat   kernel (0 for undefined)
-    ctp   = Default(c_taps, krn1c=="Blackman" ? 6   : krn1c=="Lanczos" ? 4 : 0)       # taps for chroma kernel (0 for undefined)
-    thr   = Default(th,      1.0)                                                     # 0-255 (normally up to 10)
-    ela   = Default(elast,   4.0)                                                     # 1-255 (normally up to 10)
-    qual  = Default(qual,      1)
-    sh    = Default(show, false)
-    ddec  = Defined(deconv)
-    dec   = Default(deconv,    0)                                                     # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
-    gr    = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                        # >0 Add grain to big upscales as a mean of cheap hallucination
-    decs  = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
-    dec   = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                # higher deconvolution the higher the upscale
-    dec   = dec == 0.095 ? 0 : dec
-    nns   = 3
-    nns3  = 1 # for nnedi3()
-    nsize = 0
-    nsize3= 6 # for nnedi3()
-    etype = 0
-    pscrn = 2
-    und   = Undefined()
+    rth    = Default(th_rat, 1.25)                                                          # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
+    krn1   = Default(edge, rat<=rth*0.95 ? "Didée" :                                     /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti */
+           \                rw<1 && rh<1 ? "SSIM2" : rat<=rth ? "Blackman" : "nnedi3")      # By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value)
+                                                                                            # By default, for big   upscales   -> "nnedi3"
+                                                                                            # By default, for small downscales -> "Didée"
+                                                                                            # By default, for big   downscales -> "SSIM2" (DPID also fine for down to 720p)
+    krn1c  = Default(chroma,rw<1 && rh<1 ? "Zopti2" : "Blackman")                           # Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
+    krn2   = Default(flat,  rw<1 && rh<1 ? krn1     : isHD && isUHD2 ? "sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
+    etp    = Default(e_taps, krn1 =="Blackman" ? 6  : krn1 =="Lanczos" ? 4 : 0)             # taps for edge   kernel (0 for undefined)
+    ftp    = Default(f_taps, krn2 =="Blackman" ? 16 : krn2 =="Lanczos" ? 8 : 0)             # taps for flat   kernel (0 for undefined)
+    ctp    = Default(c_taps, krn1c=="Blackman" ? 6  : krn1c=="Lanczos" ? 4 : 0)             # taps for chroma kernel (0 for undefined)
+    thr    = Default(th,      1.0)                                                          # 0-255 (normally up to 10)
+    ela    = Default(elast,   4.0)                                                          # 1-255 (normally up to 10)
+    qual   = Default(qual,      1)
+    sh     = Default(show, false)
+    ddec   = Defined(deconv)
+    dec    = Default(deconv,    0)                                                          # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
+    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # >0 Add grain to big upscales as a mean of cheap hallucination
+    decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
+    dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                     # higher deconvolution the higher the upscale
+    dec    = dec == 0.095 ? 0 : dec
+    nns    = 3
+    nns3   = 1 # for nnedi3()
+    nsize  = 0
+    nsize3 = 6 # for nnedi3()
+    etype  = 0
+    pscrn  = 2
+    und    = Undefined()
 
     Assert(IsVersionOrGreater(3,7,2), "deep_resize: Update AviSynth+ version")
 
@@ -172,7 +185,7 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
 
         a
 
-    } else if (rw<1 && rh<1 || krn1 == krn2 && etp == ftp) {
+    } else if (krn1 == krn2 && etp == ftp) {
 
         # Downscale or upscale with same edge/flat kernel
         ConvertFormat(a, w2,h2,cs_out="",EOTF="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
@@ -191,40 +204,40 @@ function deep_resize(clip a, float "width", float "height", string "edge", strin
         }
 
             # Y8 for nnedi3
-            an      = !isy && rat>rth && rw>1 && rh>1 ? a.ExtractY() : a
+            oned    = krn1 == "nnedi3" && (h == h2 || w == w2)
+            an      = oned && !isy ? a.ExtractY() : a
             a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
 
             # nnedi3 one dimensional resize case
-            oned    = (h == h2 || w == w2) && krn1 == "nnedi3"
-            a8L     =  h == h2 ? TurnRight(a8) : a8
+            a8L     = h == h2 ? TurnRight(a8) : a8
 
-            edge1   =   krn1 == "nnedi3"  ? oned ? Eval("""a8L
-                                              for (i = 1, factor/2, 1) {
-                                              nnedi3(field=1,dh=True,        nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2) }""") : \
-                                              nnedi3_rpow2(a8,rfactor=factor,nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25) : \
-                                              ConvertFormat(an,w2,h2,cs_out="",EOTF="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+            edge1   = krn1 == "nnedi3"  ? oned ? Eval("""a8L
+                                          for (i = 1, factor/2, 1) {
+                                          nnedi3(field=1,dh=True,        nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2) }""") : \
+                                          nnedi3_rpow2(a8,rfactor=factor,nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25) : \
+                                          ConvertFormat(an,w2,h2,cs_out="",EOTF="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
         if (rat <= rth) {
 
-                        krn1 == "nnedi3"  ? oned ? nnedi3resize(a,w2,h2,qual=qual) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
+                      krn1 == "nnedi3"  ? oned ? nnedi3resize(a,w2,h2,qual=qual) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
 
         } else {
             # nnedi3 one dimensional resize case; luma shift (no 'cshift' arg in nnedi3() )
-            edge1   =   krn1 == "nnedi3" && h == h2 ? TurnLeft(edge1) : edge1
-            edge1   =   oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=etp")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
+            edge1   = krn1 == "nnedi3" && h == h2 ? TurnLeft(edge1) : edge1
+            edge1   = oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=etp")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
 
             # don't sharpen nnedi3 when one dimensional resize case
-            edge    =   krn1 == "nnedi3"  ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
-                                                   LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).ConvertBits(bi, fulls=fs, fulld=fs)      : edge1
+            edge    = krn1 == "nnedi3"  ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
+                                                 LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).ConvertBits(bi, fulls=fs, fulld=fs)      : edge1
 
             # resizing flat area
-            flat    =                              ConvertFormat(a,w2,h2,cs_out="",EOTF="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+            flat    =                            ConvertFormat(a,w2,h2,cs_out="",EOTF="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
             # edge/flat limiting
-            ex_limitdif(           !oned && !isy ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
+            ex_limitdif(          oned && !isy ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
 
             # combine planes when nnedi3 case
-                                            !isy ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
+                                  oned && !isy ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
             # deconvolution from source downscaling
             dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) } }
 
@@ -312,7 +325,7 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
     rh      = h2/float(h)
     factor  = max(rw,rh) < 3 ? 2 : 4
     rfactor = rw<factor && rh<factor
-    krnn    = (rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final resize: 'Didée' for down 'Blackman' for up
+    krnn    = (rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final resize: 'Didée' for down 'Blackman6' for up
     ep0     =  rfactor ?      -0.5 : 6
 
     cores   = SI_PhysicalCores()
@@ -322,9 +335,13 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
     a8  = !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
 
     # nnedi3 one dimensional resize case + luma shift (no 'cshift' arg in nnedi3() )
-    if (oned) {
+    if (!oned) {
 
-        hs ? TurnRight(a8) : a8
+        nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25)
+
+    } else {
+
+        hs          ? TurnRight(a8) : a8
 
         for (i = 1, factor/2, 1) {
 
@@ -334,9 +351,6 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
         hs          ? TurnLeft() : last
         cs = cpl!=1 ? -0.5 * (factor-1) : 0
         Eval(krnn+"(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ",src_top=cs)"))
-
-    }   else  {
-        nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25)
     }
 
     !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last
