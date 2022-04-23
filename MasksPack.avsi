@@ -179,12 +179,12 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     # Pre for 'Fill holes'
     ex_contrast(scl>9?yy2.ex_median("median"):yy2,1,pivot=80,tv_range=false)
     # Fill holes
-    ex_expand(1, mode="disk")
+    ex_expand(1, mode="disk") # Basically a 'plus'
     ex_inpand(1, mode="disk")
     # Expand
     rd > 2                             ? \
     ex_expand(round(rd-2),mode="disk") : last
-    # Merge with basic qprewitt for robustness and faint lines
+    # Merge 'last' with basic qprewitt (over 'MSR') for robustness and faint lines
     ex_lutxy(MSR,last,Format("x[-1,-1] A@ x[-1,0] x[-1,1] F@ + + x[1,-1] C@ - x[1,0] - x[1,1] H@ - dup *
                               A C x[0,-1] + + F - H - x[0,1] - dup * + sqrt {lo} 2.5 * - {rd} 3 / 1 + * y max" ))
     # Close gaps
