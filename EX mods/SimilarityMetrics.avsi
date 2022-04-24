@@ -418,7 +418,7 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
 # Dependencies:
 #     ExTools
 #     vsTCanny
-#     fmtconv
+#     fmtconv  (for HD or downsample=true)
 
 function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls") {
 
