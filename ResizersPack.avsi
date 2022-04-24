@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.0    (23-04-2022)   ##
+###   Resizers Functions Pack 9.1    (24-04-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -27,7 +27,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (23-04-2022)
+### deep_resize() - by Dogway (24-04-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -69,13 +69,14 @@
 ###   MasksPack
 ###   TransformsPack
 ###   GrainFactory3mod (for grain > 0)
-###   SimilarityMetrics(for default SSIM2 downscaling)
+###   SimilarityMetrics(for default 'SSIM2' downscaling)
 ###       vsTCanny
+###       fmtconv
 ###   GradePack        (for show=true)
 ###   Resizer of choice
-###       LSFplus        (for default "nnedi3") (and its dependencies)
-###       SharpenersPack (for default "nnedi3")
-###       SysInfo        (for default "nnedi3")
+###       LSFplus        (for default "nnedi3" upscale) (and its dependencies)
+###       SharpenersPack (for default "nnedi3" upscale)
+###       SysInfo        (for default "nnedi3" upscale)
 ###
 ###
 ### Benchmark (1080p to 2160p):
@@ -86,7 +87,7 @@
 ### -Avoid bicubics for highly compressed images as it will amplify DCT blocks
 ### -For downscaling use a 2-lobes sinc function (aka not bicubics)
 ### -For downscaling while preventing moiree use a 4-lobes sinc filter (ie. Lanczos4)
-### -For sharp images use 3-lobes, for blurry ones 4 or more
+### -For sharp images (upscaling), use 3-lobes, for blurry ones 4 or more
 ### -More tappered (rolled-off) kernel bell shapes require higher taps (4 or above; Hann, Bohman, Blackman, Parzen, etc)
 ### -Use even number of taps (taps=lobes in AviSynth) to avoid a final positive lobe ("ringing") before cutoff of the window support. Negative lobes "ringing" are rarely created in gamma light resizing.
 ###
@@ -97,9 +98,9 @@
 ###    clip,
 ###    float width=1920.0 (0.0 to 3840.0 by 1.0),
 ###    float height=1080.0 (0.0 to 2160.0 by 1.0),
-###    string "edge"="nnedi3" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###    string "flat"="Lanczos" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###    string "chroma"="Blackman" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didée" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###    string "edge"="nnedi3" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###    string "flat"="Lanczos" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###    string "chroma"="Blackman" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
 ###    int "e_taps"=6 (2 to 20 by 1),
 ###    int "f_taps"=8 (2 to 20 by 1),
 ###    int "c_taps"=6 (2 to 20 by 1),
@@ -151,13 +152,13 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     rat    = abs(max(rw,rh)-1)+1
 
     rth    = Default(th_rat, 1.25)                                                          # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
-    krn1   = Default(edge, rat<=rth*0.95 ? "Didée" :                                     /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti */
+    krn1   = Default(edge, rat<=rth*0.95 ? "Didee" :                                     /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti */
            \                rw<1 && rh<1 ? "SSIM2" : rat<=rth ? "Blackman" : "nnedi3")      # By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value)
                                                                                             # By default, for big   upscales   -> "nnedi3"
                                                                                             # By default, for small downscales -> "Didée"
                                                                                             # By default, for big   downscales -> "SSIM2" (DPID also fine for down to 720p)
     krn1c  = Default(chroma,rw<1 && rh<1 ? "Zopti2" : "Blackman")                           # Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
-    krn2   = Default(flat,  rw<1 && rh<1 ? krn1     : isHD && isUHD2 ? "sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
+    krn2   = Default(flat,  rw<1 && rh<1 ? krn1     : isHD && isUHD2 ? "Sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
     etp    = Default(e_taps, krn1 =="Blackman" ? 6  : krn1 =="Lanczos" ? 4 : 0)             # taps for edge   kernel (0 for undefined)
     ftp    = Default(f_taps, krn2 =="Blackman" ? 16 : krn2 =="Lanczos" ? 8 : 0)             # taps for flat   kernel (0 for undefined)
     ctp    = Default(c_taps, krn1c=="Blackman" ? 6  : krn1c=="Lanczos" ? 4 : 0)             # taps for chroma kernel (0 for undefined)
@@ -250,6 +251,12 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             etp = etp == 0 ? "" : Eval(taps)                            ? Format("[{etp}]") : ""
             ftp = ftp == 0 ? "" : Eval(ReplaceStr(taps,"krn1","krn2" )) ? Format("[{ftp}]") : ""
             ctp = ctp == 0 ? "" : Eval(ReplaceStr(taps,"krn1","krn1c")) ? Format("[{ctp}]") : ""
+            ecb = bicubic_coeffs(krn1)
+            fcb = bicubic_coeffs(krn2)
+            ccb = bicubic_coeffs(krn1c)
+            ecb = ArrayPrint(ecb,true) != "-1, -1" ? "["+string(ecb[0],"%1.2f")+","+string(ecb[1],"%1.2f")+"]" : ""
+            fcb = ArrayPrint(fcb,true) != "-1, -1" ? "["+string(fcb[0],"%1.2f")+","+string(fcb[1],"%1.2f")+"]" : ""
+            ccb = ArrayPrint(ccb,true) != "-1, -1" ? "["+string(ccb[0],"%1.2f")+","+string(ccb[1],"%1.2f")+"]" : ""
 
             msize  = min(w2,h2)
             bg     = BoxMask(0,round(msize/1.65),0,round(msize/1.65), invert=true, tv_out=!fs)
@@ -271,9 +278,9 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             Subtitle(Format("\n\n\n\n "         \
                            +"{w}x{h} \n "       \
                            +"{w2}x{h2} \n "     \
-                           +"{krn1} "   + etp + " \n " \
-                           +"{krn2} "   + ftp + " \n " \
-                           +"{krn1c} "  + ctp + " \n " \
+                           +"{krn1} "   + etp + ecb + " \n " \
+                           +"{krn2} "   + ftp + fcb + " \n " \
+                           +"{krn1c} "  + ctp + ccb + " \n " \
                            +string(dec,"%1.3f")+" \n " \
                            +string(gr, "%1.3f")+" \n " \
                            +string(rth,"%1.3f")+" \n " \
