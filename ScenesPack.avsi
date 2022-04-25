@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Scenes Pack v4.0   (20-04-2022)               ##
+###   Scenes Pack v4.1   (25-04-2022)               ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -11,11 +11,12 @@
 ###  Functions:                                     ##
 ###       SceneStats                                ##
 ###       ReadStats                                 ##
+###       ClipStats                                 ##
 ###                                                 ##
 ######################################################
 ###
 ###
-### SceneStats() by Dogway (20-04-2022)
+### SceneStats() by Dogway (25-04-2022)
 ###
 ### SceneStats does a robust Scene Change Detection and calculates scene's statistics.
 ### Therefore it allows to work or apply filters on a per-scene ("per-shot" in film terms) basis,
@@ -64,7 +65,7 @@
 ###    clip,
 ###    string "mode"="ALL" ("ALL" / "none" / "Range" / "Stats" / "Motion" / "Detail" / "EV" / "Stats+StdErr" / "Range+Stats" / "Range+Stats+Motion" / "Range+Stats+Motion+Detail" / "Range+Stats+Motion+Detail+EV"),
 ###    float "interval"=0.5 (0.0 to 2.0 by 0.1),
-###    float "th"=0.1 (0.0 to 5.0 by 0.1),
+###    float "th"=0.5 (0.0 to 5.0 by 0.1),
 ###    float "dFactor"=3.7 (2.5 to 4.0 by 0.1),
 ###    [float "MinDif"=1.0 (0.5 to 4.0 by 0.1)],
 ###    [bool "iFactor"=true],
@@ -104,7 +105,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
           propGetInt      (a,"_ColorRange") == 0 : rgb
 
     in      = Default(interval, 0.5)       # Interval in seconds for fetching frames
-    th      = Default(th,       0.1)       # 1/1000 threshold (0.1% or 1‰ -one per-mille-)
+    th      = Default(th,       0.454)     # Pixel ignore % threshold
     dFactor = Float(Default(dFactor,3.7))  # Range 2.5~4.0 ::: Change default to 4.0 to emulate SCSelect. Raise for noisy sources
     Mindif  = Float(Default(MinDif ,1.0))  # Range 0.5~4.0 ::: Change default to 0.0 to emulate SCSelect (disabled for 'I' frames when iFactor=true)
     md      = Default(mode,"Range+Stats")  # Stats to write to frame properties: "ALL", "none", "Range", "", "Stats", "Motion", "Detail", "EV" or "Exposure", "Stats+StdErr"
@@ -138,11 +139,11 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     sr  = sr && !rn
 
           ver = VersionString()
-          Assert(MidStr(ver,FindStr(ver,"(r")+2,4)=="3667", "SceneStats: Update AviSynth+ version")
-    !rn ? Assert(sr,                                        "SceneStats: '_SceneRange' frameprops required when 'Range' mode is not enabled") : nop()
-          Assert(!rgb,                                      "SceneStats: Only YUV formats supported")
-          Assert(dFactor >= 1.0,                            "SceneStats: dFactor should be 1.0 or above")
-          Assert(Mindif  >= 0.0,                            "SceneStats: MinDif should be 0.0 or above")
+          Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3667"),"SceneStats: Update AviSynth+ version")
+    !rn ? Assert(sr,                                                   "SceneStats: '_SceneRange' frameprops required when 'Range' mode is not enabled") : nop()
+          Assert(!rgb,                                                 "SceneStats: Only YUV formats supported")
+          Assert(dFactor >= 1.0,                                       "SceneStats: dFactor should be 1.0 or above")
+          Assert(Mindif  >= 0.0,                                       "SceneStats: MinDif should be 0.0 or above")
 
     dClip = Defined(dClip) ? dClip : a
     uClip =  UV ? dClip.ExtractU().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : nop()
@@ -396,7 +397,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 
 
 ###
-### ReadStats() by Dogway (20-04-2022)
+### ReadStats() by Dogway (25-04-2022)
 ###
 ### Reads scene statistics from a file created by SceneStats() and writes them into frame properties:
 ###    "_SceneRange":       [SceneStart, SceneEnd]
@@ -408,37 +409,116 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 ###
 function ReadStats(clip a, string "path") {
 
+    Assert(Exist(path), "ReadStats: Defined file path doesn't exist.")
+
     ScriptClip(a, function [] () {
 
         text  = LCase  (text)
         rn    = FindStr(text, "range"   )
-        mo    = FindStr(text, "motion"  )
-        dt    = FindStr(text, "detail"  )
-        ev    = FindStr(text, "exposure")
-        st    = FindStr(text, "stats:"  )
-        stu   = FindStr(text, "statsu"  )
-        stv   = FindStr(text, "statsv"  )
+        mo    = FindStr(text, "motion"  )  mo0 = mo  > 0
+        dt    = FindStr(text, "detail"  )  dt0 = dt  > 0
+        ev    = FindStr(text, "exposure")  ev0 = ev  > 0
+        st    = FindStr(text, "stats:"  )  st0 = st  > 0
+        stu   = FindStr(text, "statsu"  )  stu0= stu > 0
+        stv   = FindStr(text, "statsv"  )  stv0= stv > 0
         sts   = FindStr(text, "stat"    )
+        rn7   = rn+7
 
-        range = MidStr(text, rn +7, (mo>0?mo:sts>0?sts:StrLen(text))-(rn+7))
+        range = MidStr(text, rn7, (mo0?mo:dt0?dt:ev0?ev:sts>0?sts:StrLen(text))-(rn7))
         motio = MidStr(text, mo +8,  8)
-        detai = MidStr(text, dt +8,  8)
+        detai = MidStr(text, dt +8,  9)
         expos = MidStr(text, ev +10, 2)
         stats = MidStr(text, st +7, 76)
         statu = MidStr(text, stu+8, 69)
         statv = MidStr(text, stv+8, 69)
 
         rng   = ArrayEval(range,false)
-                  propSet("_SceneRange" , rng)
-                  propSet("_SceneChangePrev", current_frame==rng[0]?1:0)
-        st  > 0 ? propSet("_SceneStats" , ArrayEval(stats,false)) : last
-        stu > 0 ? propSet("_SceneStatsU", ArrayEval(statu,false)) : last
-        stv > 0 ? propSet("_SceneStatsV", ArrayEval(statv,false)) : last
-        mo  > 0 ? propSet("_SceneMotion",   Eval(motio))          : last
-        dt  > 0 ? propSet("_SceneDetail",   Eval(detai))          : last
-        ev  > 0 ? propSet("_SceneExposure", Eval(expos))          : last
+                propSet("_SceneRange" , rng)
+                propSet("_SceneChangePrev", current_frame==rng[0]?1:0)
+        stu0  ? propSet("_SceneStatsU", ArrayEval(statu,false)) : last
+        stv0  ? propSet("_SceneStatsV", ArrayEval(statv,false)) : last
+        st0   ? propSet("_SceneStats" , ArrayEval(stats,false)) : last
+        mo0   ? propSet("_SceneMotion",   Eval(motio))          : last
+        dt0   ? propSet("_SceneDetail",   Eval(detai))          : last
+        ev0   ? propSet("_SceneExposure", Eval(expos))          : last
 
     } )
 
     ConditionalReader(path, "text", false)
+ }
+
+
+
+### ClipStats() by Dogway (25-04-2022)
+###
+### Dependencies:
+###              ExTools
+###              RT_Stats
+###
+### Returns Global clip stats. Good for infering better global settings for clip-wide filtering.
+### Simply point to the SceneStats output log and frame properties will be written for the whole clip.
+###
+
+function ClipStats(clip a, string "path") {
+
+    Assert(Exist(path), "ClipStats: Defined file path doesn't exist.")
+    a
+    text  = LCase(RT_ReadTxtFromFile(path))
+    count = min(  RT_TxtQueryLines (text), FrameCount())-1
+
+    ScriptClip(function [text,count] () {
+
+        motio = 0.0
+        detai = 0.0
+        expos = 0
+        stats = [0.0,0.0,0.0,0.0,0.0,0.0]
+        statu = [0.0,0.0,0.0,0.0,0.0]
+        statv = [0.0,0.0,0.0,0.0,0.0]
+
+    if (current_frame==0) {
+
+        for (i = 1, count, 1) {
+
+            line  = RT_TxtGetLine(text,i)
+            rn    = FindStr(line, "range"   )
+            mo    = FindStr(line, "motion"  )  mo0 = mo  > 0
+            dt    = FindStr(line, "detail"  )  dt0 = dt  > 0
+            ev    = FindStr(line, "exposure")  ev0 = ev  > 0
+            st    = FindStr(line, "stats:"  )  st0 = st  > 0
+            stu   = FindStr(line, "statsu"  )  stu0= stu > 0
+            stv   = FindStr(line, "statsv"  )  stv0= stv > 0
+            sts   = FindStr(line, "stat"    )
+            rn7   = rn+7
+
+            range = ArrayEval(MidStr(line, rn7, (mo0?mo:dt0?dt:ev0?ev:sts>0?sts:StrLen(line))-(rn7)),false)
+            rn0   = range[0]
+            sc    = i==rn0+1
+
+            if (sc) {
+                rng   = range[1]-rn0+1
+                motio = mo0  ? motio  +                       Eval(MidStr(line, mo +8,  8))*rng             : motio
+                detai = dt0  ? detai  +                       Eval(MidStr(line, dt +8,  9))*rng             : detai
+                expos = ev0  ? expos  +                       Eval(MidStr(line, ev +10, 2))*rng             : expos
+                stats = st0  ? ArrayOp(stats,ArrayOp(rng,ArrayEval(MidStr(line, st +7, 76),false),"*"),"+") : stats
+                statu = stu0 ? ArrayOp(statu,ArrayOp(rng,ArrayEval(MidStr(line, stu+8, 69),false),"*"),"+") : statu
+                statv = stv0 ? ArrayOp(statv,ArrayOp(rng,ArrayEval(MidStr(line, stv+8, 69),false),"*"),"+") : statv
+            }
+
+    }
+            count = float(count)
+            stu0 ? propSet("_SceneStatsU",  ArrayOp(statsu,count,"/")) : last
+            stv0 ? propSet("_SceneStatsV",  ArrayOp(statsv,count,"/")) : last
+            st0  ? propSet("_SceneStats" ,  ArrayOp(stats, count,"/")) : last
+            mo0  ? propSet("_SceneMotion",           motio/count)      : last
+            dt0  ? propSet("_SceneDetail",           detai/count)      : last
+            ev0  ? propSet("_SceneExposure",   round(expos/count))     : last
+    } } )
+
+    # Copying frame#0 properties to index#0 (clip wide) properties
+    propNumElements("_SceneStats")    > 0 ? propSet("_SceneStats"   ,propGetAsArray("_SceneStats"   ,0)) : nop()
+    propNumElements("_SceneStatsU")   > 0 ? propSet("_SceneStatsU"  ,propGetAsArray("_SceneStatsU"  ,0)) : nop()
+    propNumElements("_SceneStatsV")   > 0 ? propSet("_SceneStatsV"  ,propGetAsArray("_SceneStatsV"  ,0)) : nop()
+    propNumElements("_SceneMotion")   > 0 ? propSet("_SceneMotion"  ,propGetFloat  ("_SceneMotion"  ,0)) : nop()
+    propNumElements("_SceneDetail")   > 0 ? propSet("_SceneDetail"  ,propGetFloat  ("_SceneDetail"  ,0)) : nop()
+    propNumElements("_SceneExposure") > 0 ? propSet("_SceneExposure",propGetInt    ("_SceneExposure",0)) : nop()
  }
