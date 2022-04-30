@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v2.1  (15-03-2022)                                ###
+###        Deblock Pack v2.2  (30-04-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -8,6 +8,7 @@
 ###        Included:                                                      ###
 ###            Deblock_QED     (+Deblock plugin)                          ###
 ###            DeblockFFT3D    (+FFT3D plugin)                            ###
+###            CCD             (Script)                                   ###
 ###            MCDeblockFFT3D  (+FFT3D plugin)                            ###
 ###            SmoothD2c       (+SmoothD2 plugin)                         ###
 ###            MSUDeCor        (+MSU_Smart_Deblocking plugin)             ###
@@ -193,6 +194,103 @@ function MCDeblockFFT3D(clip a, int "UV", bool "fulls") {
     compensation.DeblockFFT3D(UV=uv,fulls=fs)
     UV<3 && !isy(a) ? CombinePlanes(last,a,planes="YUV",Pixel_Type=PixelType(a)) : last
     }
+
+
+
+
+
+###
+### CCD() - by Sergey Stolyarevsky (18-11-2007)
+### CCD - Camcorder Color Denoise, port by Dogway (30-04-2022)
+###
+### AviSynth+ port of Julek's VapourSynth port of "Camcorder Color Denoise" VirtualDub plugin by Sergey Stolyarevsky.
+### This is a chroma denoiser, characterized to easily present blocking in digital video recordings,
+### specially with codecs preceding H.264, like camcorders or VHS captures.
+### The author designed it against video from a Canon MD160 camera (320x240 12.5fps interlaced).
+###
+### https://github.com/dnjulek/jvsfunc/blob/main/jvsfunc/expr.py
+### http://acobw.narod.ru/
+###
+function CCD (clip a, float "thres", bool "HD", bool "interlaced") {
+
+    rgb  = isRGB(a)
+    is4  = is444(a)
+    isy  = isy(a)
+    w    = width(a)
+    h    = height(a)
+    isHD = (w > 1099 || h > 599 )
+    isUHD= (w > 2599 || h > 1499)
+
+    bi   = BitsPerComponent(a)
+    pr   = propNumElements (a,"_Primaries" )  > 0 ? \
+           propGetInt      (a,"_Primaries" )  :-1
+    fbn  = propNumElements (a,"_FieldBased")  > 0
+    fb   = fbn                                    ? \
+           propGetInt      (a,"_FieldBased")  : GetParity(a) ? 2 : 1
+    fs   = propNumElements (a,"_ColorRange")  > 0 ? \
+           propGetInt      (a,"_ColorRange") == 0 : false
+
+    th   = Default(thres,  4)  # 0 - 100 (good values span 4-30)
+    hd   = Default(HD,  isHD)  # Overrides original kernel size to scale to HD sources
+    inter= Default(interlaced, fbn && fb!=0)
+
+    in   = hd ? round(w/160.)      : 4
+    ou   = hd ? round(w/53.333333) : 12
+    ih   = fbn && fb!=0 && Defined(interlaced) ? round(w/320.)       : in
+    oh   = fbn && fb!=0 && Defined(interlaced) ? round(w/106.666666) : ou
+
+    Assert(IsVersionOrGreater(3,7,2), "CCD: Update AviSynth+ version")
+    Assert(!rgb && !isy,              "CCD: Only YUV formats are supported")
+
+    if (inter) {
+
+        fb==1 ? fbn ? AssumeBFF(a) : AssumeBFF(a).propSet("_FieldBased",1) : \
+                fbn ? AssumeTFF(a) : AssumeTFF(a).propSet("_FieldBased",2)
+        E = SeparateFields().SelectEven().CCD(th,HD,false)
+        O = SeparateFields().SelectOdd ().CCD(th,HD,false)
+        Interleave(E,O).Weave()
+
+    } else {
+
+        th  = pow(th,2)/195075.0
+        pr  = pr > 0 && pr != 2 ? pr==1 ? "709" : pr==4 ? "bt470m" : pr==5 ? "470bg" : pr==6 ? "170m" : pr==6 ? "240m" : pr==9 ? "2020" : "709" : isUHD ? "2020" : isHD ? "709" : "170m"
+
+        y   = ExtractY(a)
+        a4  = CombinePlanes(y.BicubicResize(w/2, h/2, -0.5, 0.25), a, planes="YUV", pixel_type="YUV444P"+string(bi==32 ? "S" : bi))
+        rgb = ConvertToPlanarRGB(is4 ? a : a4, matrix=fs?pr+":f":pr+":l")
+
+        r   = CombinePlanes(rgb, planes="RGB", source_planes="RRR")
+        g   = CombinePlanes(rgb, planes="RGB", source_planes="GGG")
+        b   = CombinePlanes(rgb, planes="RGB", source_planes="BBB")
+
+        Expr(a4, r, g, b, "", Format("f32
+             y[-{ou},-{oh}] y - 2 ^ z[-{ou},-{oh}] z - 2 ^ a[-{ou},-{oh}] a - 2 ^ + + {th} < A@ 1 0 ?
+             y[-{in},-{oh}] y - 2 ^ z[-{in},-{oh}] z - 2 ^ a[-{in},-{oh}] a - 2 ^ + + {th} < B@ 1 0 ? +
+             y[{in},-{oh}]  y - 2 ^ z[{in},-{oh}]  z - 2 ^ a[{in},-{oh}]  a - 2 ^ + + {th} < C@ 1 0 ? +
+             y[{ou},-{oh}]  y - 2 ^ z[{ou},-{oh}]  z - 2 ^ a[{ou},-{oh}]  a - 2 ^ + + {th} < D@ 1 0 ? +
+             y[-{ou},-{ih}] y - 2 ^ z[-{ou},-{ih}] z - 2 ^ a[-{ou},-{ih}] a - 2 ^ + + {th} < E@ 1 0 ? +
+             y[-{in},-{ih}] y - 2 ^ z[-{in},-{ih}] z - 2 ^ a[-{in},-{ih}] a - 2 ^ + + {th} < F@ 1 0 ? +
+             y[{in},-{ih}]  y - 2 ^ z[{in},-{ih}]  z - 2 ^ a[{in},-{ih}]  a - 2 ^ + + {th} < G@ 1 0 ? +
+             y[{ou},-{ih}]  y - 2 ^ z[{ou},-{ih}]  z - 2 ^ a[{ou},-{ih}]  a - 2 ^ + + {th} < H@ 1 0 ? +
+             y[-{ou},{ih}]  y - 2 ^ z[-{ou},{ih}]  z - 2 ^ a[-{ou},{ih}]  a - 2 ^ + + {th} < I@ 1 0 ? +
+             y[-{in},{ih}]  y - 2 ^ z[-{in},{ih}]  z - 2 ^ a[-{in},{ih}]  a - 2 ^ + + {th} < J@ 1 0 ? +
+             y[{in},{ih}]   y - 2 ^ z[{in},{ih}]   z - 2 ^ a[{in},{ih}]   a - 2 ^ + + {th} < K@ 1 0 ? +
+             y[{ou},{ih}]   y - 2 ^ z[{ou},{ih}]   z - 2 ^ a[{ou},{ih}]   a - 2 ^ + + {th} < L@ 1 0 ? +
+             y[-{ou},{oh}]  y - 2 ^ z[-{ou},{oh}]  z - 2 ^ a[-{ou},{oh}]  a - 2 ^ + + {th} < M@ 1 0 ? +
+             y[-{in},{oh}]  y - 2 ^ z[-{in},{oh}]  z - 2 ^ a[-{in},{oh}]  a - 2 ^ + + {th} < N@ 1 0 ? +
+             y[{in},{oh}]   y - 2 ^ z[{in},{oh}]   z - 2 ^ a[{in},{oh}]   a - 2 ^ + + {th} < O@ 1 0 ? +
+             y[{ou},{oh}]   y - 2 ^ z[{ou},{oh}]   z - 2 ^ a[{ou},{oh}]   a - 2 ^ + + {th} < P@ 1 0 ? 1 + + Q^
+             A x[-{ou},-{oh}] 0 ?   B x[-{in},-{oh}] 0 ? +
+             C x[{in},-{oh}]  0 ? + D x[{ou},-{oh}]  0 ? +
+             E x[-{ou},-{ih}] 0 ? + F x[-{in},-{ih}] 0 ? +
+             G x[{in},-{ih}]  0 ? + H x[{ou},-{ih}]  0 ? +
+             I x[-{ou},{ih}]  0 ? + J x[-{in},{ih}]  0 ? +
+             K x[{in},{ih}]   0 ? + L x[{ou},{ih}]   0 ? +
+             M x[-{ou},{oh}]  0 ? + N x[-{in},{oh}]  0 ? +
+             O x[{in},{oh}]   0 ? + P x[{ou},{oh}]   0 ? x + + Q /"), scale_inputs="intf")
+
+            CombinePlanes(a, last, planes="YUV") } }
+
 
 
 
