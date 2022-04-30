@@ -269,8 +269,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         a1   = mcfa && sh < 2 ? a.propClearAll() :a
         a1   = mcfa || mcf == "CAMBI" || mVMAF ? mcfa && isHD ? _IQA_downsample(a1, fulls=fs, fulld=true).ConvertBits(10,dither=-1,fulls=true) : a1.ConvertBits(10,dither=-1,fulls=fs,fulld=true) : a1.ConvertBits(32,fulls=fs,fulld=true)  # _IQA_downsample() is not much better than bicubic(b=-0.5,c=0.3), but better in any case.
         b1   = mcfa || mcf == "CAMBI" || mVMAF ? mcfa && isHD ? _IQA_downsample(b,  fulls=fs, fulld=true).ConvertBits(10,dither=-1,fulls=true) : b. ConvertBits(10,dither=-1,fulls=fs,fulld=true) : b. ConvertBits(32,fulls=fs,fulld=true)
-        a1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(a1, planes="YVU", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(a1)==32?"PS":"P10")) : a1 : a1
-        b1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(b1, planes="YVU", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(b1)==32?"PS":"P10")) : b1 : b1
+        a1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(a1, planes="YUV", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(a1)==32?"PS":"P10")) : a1 : a1
+        b1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(b1, planes="YUV", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(b1)==32?"PS":"P10")) : b1 : b1
 
       # y    = mcfa || mcf == "VMAF"  ? VMAF  (a1, b1,"",log_format=2,model=0)                        : a1 # VMAF is not supported as it requires writing to disk
         y    = mcfa || mVMAF          ? VMAF2 (a1, b1, feature=mcfa?isy?[3]:[3,4]:mcf=="MS_SSIM"?3:4) : a1 # Requires 8-10-bit input, 3 planes (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
