@@ -1318,9 +1318,6 @@ function FindTemp (clip c, string "matrix", bool "tv_range", bool "show") {
         U  = bi32 ? st ? U : UPlaneMedian() : ex_bs(st ? U : UPlaneMedian(),  bi, 32, true, flt=true)-0.5
         V  = bi32 ? st ? V : VPlaneMedian() : ex_bs(st ? V : VPlaneMedian(),  bi, 32, true, flt=true)-0.5
 
-        U  = tv ? U*1.138392857 : U   # to PC levels
-        V  = tv ? V*1.138392857 : V   # to PC levels
-
         RGB = MatrixDot([1./3,U,V], RGB)
         RGB = ArrayOp(RGB,2.222,"pow(x,y)")  # linearize (assumes 2.40 gamma)
         XYZ = MatrixDot(RGB,toXYZ)
