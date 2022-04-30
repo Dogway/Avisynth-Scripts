@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v8.3   (30-03-2022)                   ##
+###        ExTools v8.4   (30-04-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -84,7 +84,7 @@ function ex_lutxy(clip a, clip b, string str, string "cstr", int "Y", int "UV", 
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
 
     px   = FindStr(str, "[") > 0 || (isc ? FindStr(cstr, "[") > 0 : false)
-    lut  = px || bi > 12 || isRunTime(a,rgb) ? 0 : 2  # Technically 14-bit supports LUT calcs but in practice depends on cache size which most not-too-recent CPUs lack
+    lut  = px || bi > 12 || isRunTime(a,rgb) ? 0 : 2  # Technically 14-bit supports LUT calcs but in practice depends on cache size which most not-too-recent (pre-2021) CPUs lack
 
     cstr = !isc && Y!=3 ? str : isc && UV==3 ? cstr : str
     ystr =                              ex_Yexpr ( str,  Y, bi, rgb, fs, si)
@@ -155,15 +155,16 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 # Use 'show' to choose output; 0: clip 'a'  1: clip 'b'  2: diff  3: diff subtitled (no frameprops)
 #
 # Dependencies:
-#           TransformsPack    (for some metrics)
-#           Butteraugli       (for said metric)
-#           SimilarityMetrics (for some metrics)
+#           SimilarityMetrics (for HD inputs and metric: SSIM, BSSIM, GMSD or MDSI)
 #               fmtconv
+#           TransformsPack    (for metric: RedMean or OkMSE)
+#           VMAF              (for metric: MS-SSIM, CAMBI or CIEDE2000)
+#           Butteraugli       (for metric: Butteraugli)
 #
 # Function Definition:
 #    (
 #    clip,
-#    string "metric"="none" ("none" / "ALL" / "--" / "ME" / "MAE" / "SMAE" / "MAD" / "MAD2" / "MSE" / "MSLE" / "RMSE" / "CHAR" / "--" / "OkMSE" / "RedMe" / "R2" / "ZTest" / "--" / "PSNR" / "SSIM" / "BSSIM" / "GMSD" / "MDSI" / "BUTT"),
+#    string "metric"="none" ("none" / "ALL" / "--" / "ME" / "MAE" / "SMAE" / "MAD" / "MAD2" / "MSE" / "MSLE" / "RMSE" / "CHAR" / "--" / "OkMSE" / "RedMe" / "CIEDE2000" / "R2" / "ZTest" / "CAMBI" / "--" / "PSNR" / "SSIM" / "MS_SSIM" / "BSSIM" / "GMSD" / "MDSI" / "BUTT"),
 #    bool "aug"=false,
 #    bool "dif"=false,
 #    int "show"=2 (0 to 3 by 1),
@@ -187,10 +188,13 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 # R2      - Coefficient of determination. Measure of the ratio of variability between the distorted and the reference
 # ZTest   - Two Sample Z-Test / Z-Score -Difference of Means of Distributions-
 # SSIM    - Structural SIMilarity
+# MS-SSIM - Structural SIMilarity for Multi-Scale
 # BSSIM   - Structural SIMilarity for Blurred
 # GMSD    - Gradient Magnitude Similarity Deviation
-# BUTT    - Butteraugli
+# BUTT    - Butteraugli psychovisual similarity index for DCT compression
 # MDSI    - Mean Deviation Similarity Index. IQA model that utilizes gradient similarity (GS), chromaticity similarity (CS), and deviation pooling (DP)
+# CAMBI   - Contrast-Aware Multiscale Banding Index
+# CIEDE2000-CIE Delta-E 2000
 
 function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", string "metric", int "show", int "Y", int "UV", bool "fulls", bool "clamp_float", string "scale_inputs") {
 
@@ -208,7 +212,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     fs   = Default(fulls,          fs)   # Only used for 'metric' to properly convert to PC range
     cf   = Default(clamp_float, false)
     mcf  = Default(metric,        met)   # "ALL", "none" or "metric_name".
-    mcf  = mcf=="--" ? "none" : mcf
+    mcf  = mcf=="--" || mcf=="" ? "none" : mcf
     sh   = Default(show,            2)   # Output clip to return when 'metric' is defined. 0: clip 'a'  1: clip 'b'  2: diff  3: diff subtitled (no frameprops)
     aug  = Daug ? Baug ? aug ? 50 : -1 : aug == -1 ? 50 : aug : mcf == "none" ? 0 : 50
     Y    = Default(Y,               3)
@@ -233,6 +237,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
               propDelete(UV<5?prop:ArrayAdd(prop,"_ChromaLocation"))
               propSet("_ColorRange", 0)     }
 
+
     # Cost Functions for Similarity Index Metric Distances (Residuals)
     if (mcf != "none") {
 
@@ -246,7 +251,11 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
               mcf == "OkLab"       ? "OkMSE": UCase(mcf)
 
         mcfa  =  mcf == "ALL"
-        mPLUG = (mcf == "SSIM" || mcf == "GMSD" || mcf == "MDSI" || mcf == "BSSIM")
+        mPLUG = (mcf == "BSSIM"   || mcf == "GMSD" || mcf == "MDSI" || mcf == "SSIM")
+        mVMAF =  mcf == "MS_SSIM" || mcf == "CIEDE2000"
+        RGBm  =  mcf == "OkMSE"   || mcf == "CIEDE2000" || mcf == "rMEA" || mcf == "MDSI" || mcf == "BUTT"
+
+        isy && !mcfa ? Assert(!RGBm, "ex_makediff: Unsupported mode for greyscale clips") : nop()
 
         w  = a.width()
         h  = a.height()
@@ -255,35 +264,45 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         isUHD = (w > 2599 || h > 1499)
         isHD  = (w > 1099 || h >  599)
 
-        matA = isUHD ? "PC.2020" : isHD ? "PC.709" : "PC.601"
+        matA = isUHD ? "2020:f" : isHD ? "709:f" : "170m:f"
 
-        a1   = mcfa && sh < 2 ? a.propClearAll().ConvertBits(32,fulls=fs,fulld=true) : a.ConvertBits(32,fulls=fs,fulld=true)
-        b1   =                                                                         b.ConvertBits(32,fulls=fs,fulld=true)
+        a1   = mcfa && sh < 2 ? a.propClearAll() :a
+        a1   = mcfa || mcf == "CAMBI" || mVMAF ? mcfa && isHD ? _IQA_downsample(a1, fulls=fs, fulld=true).ConvertBits(10,dither=-1,fulls=true) : a1.ConvertBits(10,dither=-1,fulls=fs,fulld=true) : a1.ConvertBits(32,fulls=fs,fulld=true)  # _IQA_downsample() is not much better than bicubic(b=-0.5,c=0.3), but better in any case.
+        b1   = mcfa || mcf == "CAMBI" || mVMAF ? mcfa && isHD ? _IQA_downsample(b,  fulls=fs, fulld=true).ConvertBits(10,dither=-1,fulls=true) : b. ConvertBits(10,dither=-1,fulls=fs,fulld=true) : b. ConvertBits(32,fulls=fs,fulld=true)
+        a1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(a1, planes="YVU", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(a1)==32?"PS":"P10")) : a1 : a1
+        b1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(b1, planes="YVU", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(b1)==32?"PS":"P10")) : b1 : b1
+
+      # y    = mcfa || mcf == "VMAF"  ? VMAF  (a1, b1,"",log_format=2,model=0)                        : a1 # VMAF is not supported as it requires writing to disk
+        y    = mcfa || mVMAF          ? VMAF2 (a1, b1, feature=mcfa?isy?[3]:[3,4]:mcf=="MS_SSIM"?3:4) : a1 # Requires 8-10-bit input, 3 planes (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
+        y    = mcfa || mcf == "CAMBI" ? VMAF2 (y,  b1, feature=5, cambi_opt=Format("enc_width={w} enc_height={h}")) : y
+        y    = mcfa || mcf == "CAMBI" || mVMAF ?   y.ConvertBits(32,fulls=true)          : y
+        a1   = mcfa && sh < 2 ? y.propClearAll() : isHD ? a1.ConvertBits(32,fulls=true) : a.ConvertBits(32,fulls=fs,fulld=true)
+        b1   = mcfa || mcf == "CAMBI" || mVMAF ?   isHD ? b1.ConvertBits(32,fulls=true) : b.ConvertBits(32,fulls=fs,fulld=true) : b1
         b2   = b1.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
-      # y    = mcfa || mcf == "VMAF"  ? VMAF  (y, b1,show=false,model=0,log_path="") : a1 # Requires 16-bit input and write to disk = PASS (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
+
         y    = mcfa || mcf == "SSIM" || mcf == "BSSIM" ? \
-                                        vsSSIM(b1,a1, show=1, fulls=true) : a1
+                                        vsSSIM(b1, y, show=1, fulls=true) : y
         y    = mcfa || mcf == "BSSIM" ? BSSIM (b1, y, show=1, fulls=true) : y
         y    = mcfa                   ? GMSD  (b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : \
                        mcf == "GMSD"  ? GMSD  (b1, y, show=1, fulls=true) : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : y
-        y    = mcfa || mcf == "MDSI"  ? MDSI  (b2, y, show=1, fulls=true) : y
-        b3   = mcfa || mcf == "BUTT"  ? Butteraugli(y, b2)                : y   # Very slow filter ~3fps
+        y    = mcfa || mcf == "MDSI"  ? !isy ? MDSI  (b2, y, show=1, fulls=true) : y : y
+        b3   = mcfa || mcf == "BUTT"  ? !isy ? Butteraugli(y, b2)                : y : y  # Very slow filter ~3fps
 
         z1   = mcfa || mcf == "ME"  || mcf == "MAE"  || mcf == "SMAE"                  ? ex_lutxy(a1,b1,"x y -",                      UV=1,fulls=true) : nop()
         z2   = mcfa || mcf == "MSE" || mcf == "CHAR" || mcf == "RMSE" || mcf == "PSNR" ? ex_lutxy(a1,b1,"x y - dup *",                UV=1,fulls=true) : nop()
         z3   = mcfa || mcf == "MSLE"                                                   ? ex_lutxy(a1,b1,"x 1 + log y 1 + log - dup *",UV=1,fulls=true) : nop()
 
         # RedMean
-        yA   = mcfa || mcf == "rMEA"  ?  y.ExtractClip() : nop()
-        bA   = mcfa || mcf == "rMEA"  ? b2.ExtractClip() : nop()
-        z4   = mcfa || mcf == "rMEA"  ? Expr(yA[0],yA[1],yA[2],bA[0],bA[1],bA[2],"x a + 0.5 * R@ 0.00390625 * 2 + x a - dup * *   y b - dup * 4 * +   255 R - 0.00390625 * 2 + z c - dup * * + sqrt") : nop()
+        yA   = mcfa || mcf == "rMEA"  ? !isy ?  y.ExtractClip() : nop() : nop()
+        bA   = mcfa || mcf == "rMEA"  ? !isy ? b2.ExtractClip() : nop() : nop()
+        z4   = mcfa || mcf == "rMEA"  ? !isy ? Expr(yA[0],yA[1],yA[2],bA[0],bA[1],bA[2],"x a + 0.5 * R@ 0.00390625 * 2 + x a - dup * *   y b - dup * 4 * +   255 R - 0.00390625 * 2 + z c - dup * * + sqrt") : nop() : nop()
 
         # OkLab
-        oky  = mcfa || mcf == "OkMSE" ?  y.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() # Assumes sRGB gamma input
-        okb  = mcfa || mcf == "OkMSE" ? b2.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop()
-        OkD  = mcfa || mcf == "OkMSE" ? Expr(oky[0],oky[1],oky[2],okb[0],okb[1],okb[2],"x a - dup * y b - dup * z c - dup * + + sqrt") : nop() # RMSE (Euclidean Distance) over OkLab
+        oky  = mcfa || mcf == "OkMSE" ? !isy ?  y.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() : nop() # Assumes sRGB gamma input
+        okb  = mcfa || mcf == "OkMSE" ? !isy ? b2.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() : nop()
+        OkD  = mcfa || mcf == "OkMSE" ? !isy ? Expr(oky[0],oky[1],oky[2],okb[0],okb[1],okb[2],"x a - dup * y b - dup * z c - dup * + + sqrt") : nop() : nop() # RMSE (Euclidean Distance) over OkLab
 
-        ScriptClip  (sh>1?last:sh==1?b:a, function [y,a,b,z1,z2,z3,z4,a1,b1,b3,OkD,pd,mcf,mcfa,mPLUG,sh,fs] () {
+        ScriptClip  (sh>1?last:sh==1?b:a, function [y,a,b,z1,z2,z3,z4,a1,b1,b3,OkD,pd,mcf,mcfa,mPLUG,isy,sh,fs] () {
 
             Ava  = AverageLuma (a1)
             Avb  = AverageLuma (b1)
@@ -306,14 +325,17 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                            mcf == "PSNR"  ? AverageLuma(z2)          : nop()
             MSLE = mcfa || mcf == "CHI"   ? AverageLuma(z3)          : nop()
             MSLE = mcfa || mcf == "MSLE"  ? AverageLuma(z3)          : nop()
-            RedMean=mcfa|| mcf == "rMEA"  ? AverageLuma(z4)          : nop()
+            RedMean=mcfa|| mcf == "rMEA"  ? !isy ? AverageLuma(z4)   : nop() : nop()
             CHAR = mcfa || mcf == "CHAR"  ? sqrt(MSE+pow(0.001,2))   : nop()
             RMSE = mcfa || mcf == "RMSE"  || \
-                           mcf == "PSNR"  ? sqrt(MSE) : nop()  # Technically should be first sqrt(loss) and then Mean but in practice a close match
+                           mcf == "PSNR"  ? sqrt(MSE) : nop()                # Technically should be first sqrt(loss) and then Mean but in practice a close match
             PSNR = mcfa || mcf == "PSNR"  ? 20*log10(1./RMSE)        : nop() # 20*log10() to convert to dB
             R2   = mcfa || mcf == "R2"    ? AverageLuma(ex_lutxy(a1,b1,Format("{Ava} dup x - swap dup * swap y - swap dup * swap / 1 swap -"),UV=1,fulls=true)) : nop()
-            OkMSE= mcfa || mcf == "OkMSE" ? AverageLuma(OkD)         : nop()
-            BUTT = mcfa || mcf == "BUTT"  ? propGetFloat(b3,"_FrameButteraugli") : nop()
+            OkMSE= mcfa || mcf == "OkMSE" ?  !isy ? AverageLuma(OkD)                      : nop() : nop()
+            BUTT = mcfa || mcf == "BUTT"  ?  !isy ?  propGetFloat(b3,"_FrameButteraugli") : nop() : nop()
+            CAMBI= mcfa || mcf == "CAMBI" ?          propGetFloat(y,"cambi")              : nop()
+            MS_SSIM= mcfa||mcf == "MS_SSIM"?         propGetFloat(y,"float_ms_ssim")      : nop()
+            CIEDe2000=mcfa||mcf=="CIEDE2000"?!isy ?  propGetFloat(y,"ciede2000")          : nop() : nop()
 
 
             if (!mcfa && mPLUG) {
@@ -348,6 +370,9 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                 y   = propSet(y,"_PlaneZTest",    ZTest, 0)
                 y   = propSet(y,"_PlaneBUTT",      BUTT, 0)
                 y   = propSet(y,"_PlanePSNR",      PSNR, 0)
+                y   = propSet(y,"_PlaneMS_SSIM",MS_SSIM, 0)
+                y   = propSet(y,"_PlaneCIEDE2000",CIEDe2000,0)
+                y   = propSet(y,"_PlaneCAMBI",    CAMBI, 0)
 
             } else {
 
@@ -359,7 +384,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
 
 
             if (sh != 3) { y } else if (!mcfa) { last } else {
-
+                NaN = "NaN        "
                 Subtitle(last,\
                           "PlaneME:\n"     \
                          +"PlaneMAE:\n"    \
@@ -379,26 +404,32 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                          +"PlaneBSSIM:\n"  \
                          +"PlaneGMSD:\n"   \
                          +"PlaneBUTT:\n"   \
-                         +"PlaneMDSI:\n",lsp=4)
-                Subtitle(  String(propGetFloat(y,"_PlaneME"   ))  +"   (Mean Error or Bias)\n"                             \
-                         + String(propGetFloat(y,"_PlaneMAE"  ))  +"   (Mean Absolute Error -Manhattan or L1 norm-)\n"     \
-                         + String(propGetFloat(y,"_PlaneSMAE" ))  +"   (Smooth Mean Absolute Error -Huber Loss-)\n"        \
-                         + String(propGetFloat(y,"_PlaneMAD"  ))  +"   (Mean Absolute Deviation)\n"                        \
-                         + String(propGetFloat(y,"_PlaneMAD2" ))  +"   (Median Absolute Deviation)\n"                      \
-                         + String(propGetFloat(y,"_PlaneMSE"  ))  +"   (Mean Square Error / SSR)\n"                        \
-                         + String(propGetFloat(y,"_PlaneMSLE" ))  +"   (Mean Square Log Error)\n"                          \
-                         + String(propGetFloat(y,"_PlaneRMSE" ))  +"   (Root Mean Squared Error / Standard Error / SRSS -Euclidean or L2 norm-)\n"\
-                         + String(propGetFloat(y,"_PlanePSNR" ),"%3.5f")+"   (Peak Signal-to-Noise Ratio)\n"               \
-                         + String(propGetFloat(y,"_PlaneCHAR" ))  +"   (Charbonnier -L1-L2 loss-)\n"                       \
-                         + String(propGetFloat(y,"_PlaneOkMSE"))  +"   (Euclidean Distance -RMSE- in OkLab)\n"             \
-                         + String(propGetFloat(y,"_PlaneRedMean"))+"   (RedMean -sRGB fast metric-)\n"                     \
-                         + String(propGetFloat(y,"_PlaneR2"   ))  +"   (Coefficient of determination)\n"                   \
-                         + String(propGetFloat(y,"_PlaneZTest"))  +"   (Two Sample Z-Test / Z-Score -Difference of Means of Distributions-)\n"    \
-                         + String(propGetFloat(y,"_PlaneSSIM" ))  +"   (Structural SIMilarity)\n"                          \
-                         + String(propGetFloat(y,"_PlaneBSSIM"))  +"   (Structural SIMilarity for Blurred)\n"              \
-                         + String(propGetFloat(y,"_PlaneGMSD" ))  +"   (Gradient Magnitude Similarity Deviation)\n"        \
-                         + String(propGetFloat(y,"_PlaneBUTT" ))  +"   (Butteraugli)\n"                                    \
-                         + String(propGetFloat(y,"_PlaneMDSI" ))  +"   (Mean Deviation Similarity Index)",       x=pd,lsp=4)
+                         +"PlaneMDSI:\n"   \
+                         +"PlaneMS_SSIM:\n"\
+                         +"PlaneCIEDE2000:\n"\
+                         +"PlaneCAMBI:\n",lsp=4)
+                Subtitle(  String(        propGetFloat(y,"_PlaneME"   ))  +"   (Mean Error or Bias)\n"                             \
+                         + String(        propGetFloat(y,"_PlaneMAE"  ))  +"   (Mean Absolute Error -Manhattan or L1 norm-)\n"     \
+                         + String(        propGetFloat(y,"_PlaneSMAE" ))  +"   (Smooth Mean Absolute Error -Huber Loss-)\n"        \
+                         + String(        propGetFloat(y,"_PlaneMAD"  ))  +"   (Mean Absolute Deviation)\n"                        \
+                         + String(        propGetFloat(y,"_PlaneMAD2" ))  +"   (Median Absolute Deviation)\n"                      \
+                         + String(        propGetFloat(y,"_PlaneMSE"  ))  +"   (Mean Square Error / SSR)\n"                        \
+                         + String(        propGetFloat(y,"_PlaneMSLE" ))  +"   (Mean Square Log Error)\n"                          \
+                         + String(        propGetFloat(y,"_PlaneRMSE" ))  +"   (Root Mean Squared Error / Standard Error / SRSS -Euclidean or L2 norm-)\n"\
+                         + String(        propGetFloat(y,"_PlanePSNR" ),"%3.5f")+"   (Peak Signal-to-Noise Ratio)\n"               \
+                         + String(        propGetFloat(y,"_PlaneCHAR" ))  +"   (Charbonnier -L1-L2 loss-)\n"                       \
+                         + String(isy?NaN:propGetFloat(y,"_PlaneOkMSE"))  +"   (Euclidean Distance -RMSE- in OkLab)\n"             \
+                         + String(isy?NaN:propGetFloat(y,"_PlaneRedMean"))+"   (RedMean -sRGB fast metric-)\n"                     \
+                         + String(        propGetFloat(y,"_PlaneR2"   ))  +"   (Coefficient of determination)\n"                   \
+                         + String(        propGetFloat(y,"_PlaneZTest"))  +"   (Two Sample Z-Test / Z-Score -Difference of Means of Distributions-)\n"\
+                         + String(        propGetFloat(y,"_PlaneSSIM" ))  +"   (Structural SIMilarity)\n"                          \
+                         + String(        propGetFloat(y,"_PlaneBSSIM"))  +"   (Structural SIMilarity for Blurred)\n"              \
+                         + String(        propGetFloat(y,"_PlaneGMSD" ))  +"   (Gradient Magnitude Similarity Deviation)\n"        \
+                         + String(isy?NaN:propGetFloat(y,"_PlaneBUTT" ))+"   (Butteraugli psychovisual similarity index for DCT compression)\n"\
+                         + String(isy?NaN:propGetFloat(y,"_PlaneMDSI" ))  +"   (Mean Deviation Similarity Index)\n"                \
+                         + String(        propGetFloat(y,"_PlaneMS_SSIM"))+"   (Multi-Scale SSIM)\n"                               \
+                         + String(isy?NaN:propGetFloat(y,"_PlaneCIEDE2000"),"%3.5f")+"   (CIE Delta-E 2000)\n"                     \
+                         + String(        propGetFloat(y,"_PlaneCAMBI"))  +"   (Contrast-Aware Multiscale Banding Index)",x=pd,lsp=4)
     } } )
     sh < 2 && !fs && mcfa ? propSet("_ColorRange", 1) : last
     } }
@@ -605,29 +636,34 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
 #
 function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string "mode", int "lo", int "hi", int "UV", bool "fulls") {
 
-    rgb = isRGB(a)
-    isy = isy(a)
-    bi  = BitsPerComponent(a)
-    fs  = propNumElements (a,"_ColorRange")  > 0 ? \
-          propGetInt      (a,"_ColorRange") == 0 : rgb
-    lut = isRunTime       (a,rgb) || bi==32  ? 0 : 1
+    w    = width (a)
+    h    = height(a)
+    rgb  = isRGB (a)
+    isy  = isy(a)
+    bi   = BitsPerComponent(a)
+    fs   = propNumElements (a,"_ColorRange")  > 0 ? \
+           propGetInt      (a,"_ColorRange") == 0 : rgb
+    lut  = isRunTime       (a,rgb) || bi==32  ? 0 : 1
+    isHD = (w > 1099 || h > 599 ) && !isy
+    isUHD= (w > 2599 || h > 1499) && !isy
 
-    th  = Default(thres, 115)
-    lo  = Default(lo,      0)          # Value for under threshold
-    hi  = Default(hi,    255)          # Value for above threshold
-    in  = Default(invert, false)       # Use this for invert instead of lo=255 and hi=0
-    sm  = Default(smooth, false)
-    md  = Default(mode, "simple")      # 'simple', 'dynamic' or 'otsu'
-    UV  = Default(UV,        128)      # Currently this is noop as chroma thresholding makes no sense
-    fs  = Default(fulls,  fs)
-    si  = ex_UVf(rgb, bi)
+    th   = Default(thres, 115)
+    lo   = Default(lo,      0)          # Value for under threshold
+    hi   = Default(hi,    255)          # Value for above threshold
+    in   = Default(invert, false)       # Use this for invert instead of lo=255 and hi=0
+    sm   = Default(smooth, false)
+    md   = Default(mode, "simple")      # 'simple', 'dynamic' or 'otsu'
+    UV   = Default(UV,        128)      # Currently this is noop as chroma thresholding makes no sense
+    fs   = Default(fulls,  fs)
+    si   = ex_UVf(rgb, bi)
 
     th  = ex_bs(th,  8, bi, fulls=fs, flt=true)
     lox = lo < 0   hix = hi < 0
     lox && hix ? Assert (false, "ex_binarize: 'lo' or 'hi': At least one bound should be binarized.") : nop()
 
-    bs  = rgb ?  a.ConvertBits(8,dither=-1,fulls=fs).DotClip([0.298903,0.586620,0.114477]) : a.ConvertBits(8,dither=-1,fulls=fs) # Assumes RGB is Rec709
-    a   = rgb ? bs.ConvertBits(bi,fulls=fs) : a
+    bs  = a.ConvertBits(8,dither=-1,fulls=fs) # Matrix assumed by dimensions
+    bs  = isUHD ? bs.DotClip([0.262404,0.678455,0.059141]) : isHD ? bs.DotClip([0.212649,0.715169,0.072182]) : bs.DotClip([0.298903,0.586620,0.114477])
+    a   = rgb   ? bs.ConvertBits(bi,fulls=fs) : a
     br  = bs.width() > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
     isy = rgb || isy
 
@@ -636,35 +672,36 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
         # Assumes TV range for YUV
         bnth = (fs ? 255 : 219) / 10.
         off  =  fs ?   0 :  16
+        rnm  =  1. / 255
 
-        ScriptClip(a, function [br,bnth,off,in,sm,lo,hi,UV,fs] () {
+        ScriptClip(a, function [br,bnth,off,rnm,in,sm,lo,hi,UV,fs] () {
 
             thr1 =br.ex_binarize(bnth+off,true,UV=UV,fulls=fs)
             bin1 =thr1.AverageLuma()
             thr2 =bnth * 2 + off
-            thr2 =ex_lutxy(thr1,br,Format("range_max x - y {thr2} < range_max 0 ? * range_max /"), UV=1, fulls=true)
+            thr2 =ex_lutxy(thr1,br,Format("range_max x - y {thr2} < range_max 0 ? {rnm} * *"), UV=1, fulls=true)
             bin2 =thr2.AverageLuma()
             thr3 =bnth * 3 + off
-            thr3 =ex_lutxy(thr2,br,Format("range_max x - y {thr3} < range_max 0 ? * range_max /"), UV=1, fulls=true)
+            thr3 =ex_lutxy(thr2,br,Format("range_max x - y {thr3} < range_max 0 ? {rnm} * *"), UV=1, fulls=true)
             bin3 =thr3.AverageLuma()
             thr4 =bnth * 4 + off
-            thr4 =ex_lutxy(thr3,br,Format("range_max x - y {thr4} < range_max 0 ? * range_max /"), UV=1, fulls=true)
+            thr4 =ex_lutxy(thr3,br,Format("range_max x - y {thr4} < range_max 0 ? {rnm} * *"), UV=1, fulls=true)
             bin4 =thr4.AverageLuma()
             thr5 =bnth * 5 + off
-            thr5 =ex_lutxy(thr4,br,Format("range_max x - y {thr5} < range_max 0 ? * range_max /"), UV=1, fulls=true)
+            thr5 =ex_lutxy(thr4,br,Format("range_max x - y {thr5} < range_max 0 ? {rnm} * *"), UV=1, fulls=true)
             bin5 =thr5.AverageLuma()
             thr6 =bnth * 6 + off
-            thr6 =ex_lutxy(thr5,br,Format("range_max x - y {thr6} < range_max 0 ? * range_max /"), UV=1, fulls=true)
+            thr6 =ex_lutxy(thr5,br,Format("range_max x - y {thr6} < range_max 0 ? {rnm} * *"), UV=1, fulls=true)
             bin6 =thr6.AverageLuma()
             thr7 =bnth * 7 + off
-            thr7 =ex_lutxy(thr6,br,Format("range_max x - y {thr7} < range_max 0 ? * range_max /"), UV=1, fulls=true)
+            thr7 =ex_lutxy(thr6,br,Format("range_max x - y {thr7} < range_max 0 ? {rnm} * *"), UV=1, fulls=true)
             bin7 =thr7.AverageLuma()
             thr8 =bnth * 8 + off
-            thr8 =ex_lutxy(thr7,br,Format("range_max x - y {thr8} < range_max 0 ? * range_max /"), UV=1, fulls=true)
+            thr8 =ex_lutxy(thr7,br,Format("range_max x - y {thr8} < range_max 0 ? {rnm} * *"), UV=1, fulls=true)
             bin8 =thr8.AverageLuma()
             thr9 =bnth * 9 + off
-            thr10=br.ex_lut(Format("x {thr9} > range_max 0 ?"),                    UV=1, fulls=true)
-            thr9 =ex_lutxy(thr8,thr10,"range_max x - range_max y - * range_max /", UV=1, fulls=true)
+            thr10=br.ex_lut(Format("x {thr9} > range_max 0 ?"),                                UV=1, fulls=true)
+            thr9 =ex_lutxy(thr8,thr10,Format("range_max x - range_max y - *       {rnm} *"),   UV=1, fulls=true)
             bin9 =thr9.AverageLuma()
             bin10=thr10.AverageLuma()
 
@@ -694,7 +731,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
 
             th = max(max(max(max(max(max(max(max(max(th0,th1),th2),th3),th4),th5),th6),th7),th8),th9)
             th = th == th0 ? 1 : th == th1 ? 2 : th == th2 ? 3 : th == th3 ? 4 : th == th4 ? 5 : th == th5 ? 6 : th == th6 ? 7 : th == th7 ? 8 : th == th8 ? 9 : 10
-            th = (th*bnth+off)-bnth/2
+            th = (th*bnth+off)-bnth*0.5
 
             ex_binarize(th,in,sm,"simple",lo,hi,UV,fs)
 
@@ -761,7 +798,7 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
                propDelete(UV<4?prop:ArrayAdd(prop,"_ChromaLocation"))
                propSet("_ColorRange", 0)                     }
 
-    sm      ?  ex_boxblur(0.3, mode="weighted", UV=1) : last } }
+    sm      ?  ex_boxblur(0.5, mode="weighted", UV=1) : last } }
 
 
 
@@ -887,7 +924,7 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "Y"
     cstr = Default(cexpr, str)
     Lcst = LCase(" "+cstr)
     mix  = FindStr(Lstr, " sx") > 0 || FindStr(Lstr, " sy") > 0 || FindStr(Lcst, " sx") > 0 || FindStr(Lcst, " sy") > 0
-    mode = Default(mode, mix ? "mix" : "absolute")
+    md   = Default(mode, mix ? "mix" : "absolute")
     Y    = Default(Y,          3)
     UV   = Default(UV,   rgb ? 3 : 128)
     cf   = Default(clamp_float, false)
@@ -896,14 +933,14 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "Y"
 
     tem  = FindStr(Lstr, " frameno")  > 0 || FindStr(Lstr, " time") > 0 || FindStr(Lcst, " frameno")  > 0 || FindStr(Lcst, " time") > 0
 
-    str  = mode=="absolute" ? ReplaceStr(ReplaceStr(" "+str+" " ," y "," sy " ), " x ", " sx " )  : \
-           mode=="relative" ? ReplaceStr(ReplaceStr(" "+str+" " ," y "," syr "), " x ", " sxr ")  : \
-           mode=="mix"      ?                           str                                       : \
-                              Assert (false, "ex_lutspa: Unsupported mode.")
-    cstr = mode=="absolute" ? ReplaceStr(ReplaceStr(" "+cstr+" "," y "," sy " ), " x ", " sx " )  : \
-           mode=="relative" ? ReplaceStr(ReplaceStr(" "+cstr+" "," y "," syr "), " x ", " sxr ")  : \
-           mode=="mix"      ?                           cstr                                      : \
-                              Assert (false, "ex_lutspa: Unsupported mode.")
+    str  = md=="absolute" ? ReplaceStr(ReplaceStr(" "+str+" " ," y "," sy " ), " x ", " sx " )  : \
+           md=="relative" ? ReplaceStr(ReplaceStr(" "+str+" " ," y "," syr "), " x ", " sxr ")  : \
+           md=="mix"      ?                           str                                       : \
+                            Assert (false, "ex_lutspa: Unsupported mode.")
+    cstr = md=="absolute" ? ReplaceStr(ReplaceStr(" "+cstr+" "," y "," sy " ), " x ", " sx " )  : \
+           md=="relative" ? ReplaceStr(ReplaceStr(" "+cstr+" "," y "," syr "), " x ", " sxr ")  : \
+           md=="mix"      ?                           cstr                                      : \
+                            Assert (false, "ex_lutspa: Unsupported mode.")
 
     cstr = ex_UVexpr(cstr, UV, bi, rgb, fd, si, isc)
     str  = ex_Yexpr(  str,  Y, bi, rgb, fd, si)
@@ -913,7 +950,7 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "Y"
                Expr(a, str, cstr, scale_inputs=si, clamp_float=cf )
     UV < 3 || \
     Y  < 3 ||  tem ? last : trim(last,0,-1).Loop(FrameCount(a))
-               propSet("_ColorRange", fd?0:1)                     }
+    md=="mix"      ? last : propSet("_ColorRange", fd?0:1)    }
 
 
 
@@ -964,7 +1001,7 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
 
 # Convolutions in AviSynth+ perform better with Prefetch(min(physical cores,8)) than with threads. Also for RgTools and other plugins.
 
-# EQUIVALENCES (ex_blur with default mode="binomial"):
+# EQUIVALENCES (ex_blur() with default mode="binomial"):
 # blur(0.5)                                       ~> ex_boxblur(0.5,mode="weighted") ~> ex_blur(0.63)
 # removegrain(12) / blur(1.0)                     -> ex_boxblur(1,mode="weighted") (also called half-band lowpass)
 # removegrain(20) / blur(1.58)                    -> ex_boxblur(1,mode="mean")       -> ex_blur(1.5,n=300,mode="butterworth")
@@ -1910,7 +1947,7 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
           propGetInt      (a,"_ColorRange") == 0 : rgb
 
     rd  = Default(rad,  1)                                     # radius can be 1, 2 or 3 (original FluxSMoothT only does rad=1)
-    th  = Default(th,   1)                                     # Soft threshold (Default: 1 to respond similar to original "Default=7")
+    th  = Default(th,   1)                                     # Soft threshold 0-255 (Default: 1 to respond similar to original "Default=7")
     UV  = Default(UV, rgb ? 3 : 1)
     si  = ex_UVf(rgb, bi)
 
@@ -5016,7 +5053,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 
                           dup1 dup1 min swap2 max swap1 X max min"+ths                                                                                              : \
                                                                                                                                                                       \
-        mode == "ML3Dex"? "x[1,1]   x[-1,-1]    dup1 dup1 min swap2 max
+        mode == "ML3Dex"?"x[1,1]    x[-1,-1]    dup1 dup1 min swap2 max
                           x[-1,1]   x[1,-1]     dup1 dup1 min swap2 max
                           x[0,0] X@ y[0,0] Y@   dup1 dup1 min swap2 max
                           swap5  swap1  swap3   dup1 dup1 min swap2 max
@@ -6141,9 +6178,9 @@ function ex_inflate(clip a, int "radius", int "UV") {
               Expr(a, str, ex_UVexpr(str, UV, bi, rgb, un), scale_inputs="none") }
 
 
+
 # Hit-or-Miss morphological transform (HMT)
 #                  to use with binary masks
-#
 #
 # modes:
 # thin         - Like erode (inpand) but one pixel at a time without complete removal (leads to 'skeleton')
@@ -6371,7 +6408,7 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 # The typical computation for the output after the (partial) first order derivatives is to calculate the Euclidean distance sqrt(Dx^2 + Dy^2),
 # but also a simply sum of absolutes is possible |Dx| + |Dy|, or even: max(|Dx|,|Dy|)
 #
-# Recommended: hotdog, qprewitt, kroon, frei-chen, and FDoG (slow)
+# Recommended: tritical/hotdog, qprewitt, kroon, frei-chen, and FDoG (slow)
 #
 # 31 modes:
 # tritical  - (2d) Plain and simple orthogonal first order derivative
@@ -6409,7 +6446,7 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    string "mode"="qprewitt" ("prewitt" / "hprewitt" / "qprewitt" / "tritical" / "hotdog" / "kayyali" / "mt_sobel" / "sobel" / "sobel5" / "scharr" / "pscharr" / "kroon" / "farid" / "farid5" / "frei-chen / "roberts" / "robinson" / "FDoG" / "DoG" / "DoB" / "LoG" / "SGDD" / "SGDD7" / "Std" / "laplace" / "cartoon" / "TEdge" / "min/max" / "max" / "SG" / "kirsch"),
+#    string "mode"="kroon" ("prewitt" / "hprewitt" / "qprewitt" / "tritical" / "hotdog" / "kayyali" / "mt_sobel" / "sobel" / "sobel5" / "scharr" / "pscharr" / "kroon" / "farid" / "farid5" / "frei-chen / "roberts" / "robinson" / "FDoG" / "DoG" / "DoB" / "LoG" / "SGDD" / "SGDD7" / "Std" / "laplace" / "cartoon" / "TEdge" / "min/max" / "max" / "SG" / "kirsch"),
 #    [int "lo"=10 (0 to 30 by 1)],
 #    [int "hi"=150 (100 to 255 by 1)],
 #    float "scale"=1.0 (0.0 to 25.0 by 0.1),
@@ -6422,7 +6459,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
     isy  = isy(a)
     bi   = BitsPerComponent(a)
 
-    mode = Default(mode, "mt_sobel")
+    mode = Default(mode, "kroon")
     in   = Default(invert,    false)
     UV   = Default(UV,    rgb ? 3 : 128)
     un   = Undefined()
@@ -7081,7 +7118,7 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 \   : (bits == 16         ) ? 4
 \   : (bits == 24         ) ? 5
 \   : (bits == 32         ) ? 6
-\   :  Assert (false, "ex_dlut: "+string(bits)+": Unsupported bit depth.")
+\   :  Assert (false, "ex_dlut: '"+string(bits)+"', unsupported bit depth.")
 
 
     #                            8-bit UINT      10-bit UINT       12-bit UINT       14-bit UINT         16-bit UINT         24-bit UINT               32-bit Ufloat (by default AVS+ constants are signed)
@@ -7158,7 +7195,7 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     w       = (i44 || rgb) ? w : i11        ? round(w/4.0) : round(w/2.0)
     h       = (i44 || rgb) ? h : i11 || i22 ?            h : round(h/2.0)
 
-    mskC    = (i44 || rgb)     ? mskYr                           : \
+    mskC    = (i44 || rgb)     ? mskYr                                  : \
                                  mskYt.BicubicResize(w,h,0.0,0.5,cpw,cph) # no mod2 needed for chroma
 
     mskC    = luma && UV==3    ? mskC.ConvertBits(bits,fulls=true)                         : \
@@ -7175,7 +7212,7 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 ######### ARRAY HELPER FUNCTIONS #########
 
 
-# Does an index wise operation on flat (int or float) arrays
+# Does a component-wise operation on flat/1D int or float arrays
 # If either is a scalar, it operates on all array indexes
 #
 # Examples:
@@ -7184,8 +7221,8 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 #     ArrayOp([5,4],[2,7],"pow(y,x)") # output: [32,2401]
 #     ArrayOp([5,4],[2,7],"exp(y)")   # output: [7.39,1096.6]
 #
-function ArrayOp (  val arr1, \
-                    val arr2, string "Op") {
+function ArrayOp ( val arr1, \
+                   val arr2, string "Op") {
 
     Op = Default(Op, "+")
 
@@ -7275,7 +7312,7 @@ function ArrayPrint (clip a, val arr1, bool "string" ) {
 # Opposite of ArrayPrint, converts a 'separator' delimited string into an array
 function ArrayEval (string arr1, bool "brackets", string "separator") {
 
-    br   = Default(brackets, true)
+    br   = Default(brackets, true)  # Does array string contain brackets "[n]" ?
     sp   = Default(separator, ",")
 
     arr1 = !br ? "["+arr1+"]" : arr1
