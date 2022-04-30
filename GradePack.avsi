@@ -1288,13 +1288,12 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 ###
 ####################################
 
-function FindTemp (clip c, string "matrix", bool "tv_range", bool "show") {
+function FindTemp (clip c, string "matrix", bool "show") {
 
     ID   = color_propGet  (c)
     st   = propNumElements(c,"_SceneStatsU") > 0
 
     mat  = Default(matrix,   ID[2] )
-    tv   = Default(tv_range, ID[6] )
     sh   = Default(show,      true )
     bi   = ID[7]   bi32 = bi==32
 
@@ -1311,7 +1310,7 @@ function FindTemp (clip c, string "matrix", bool "tv_range", bool "show") {
               1.0000000, 2 * Kb,                         0.00000000000000000000 ]
 
 
-    ScriptClip(c,function[bi,bi32,tv,RGB,toXYZ,st,sh] () {
+    ScriptClip(c,function[bi,bi32,RGB,toXYZ,st,sh] () {
 
         U  = st   ? propGetFloat("_SceneStatsU")[5] : nop()
         V  = st   ? propGetFloat("_SceneStatsV")[5] : nop()
