@@ -155,7 +155,7 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 # Use 'show' to choose output; 0: clip 'a'  1: clip 'b'  2: diff  3: diff subtitled (no frameprops)
 #
 # Dependencies:
-#           SimilarityMetrics (for HD inputs and metric: SSIM, BSSIM, GMSD or MDSI)
+#           SimilarityMetrics (for HD inputs when metric: ALL or simply metric: SSIM, BSSIM, GMSD or MDSI)
 #               fmtconv
 #           TransformsPack    (for metric: RedMean or OkMSE)
 #           VMAF              (for metric: MS-SSIM, CAMBI or CIEDE2000)
@@ -1680,9 +1680,9 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
         krn =                         Format("x[-{px},{px}] x[{px},{px}] x[-{px},-{px}] x[{px},-{px}]         x[0,0] + + + + 0.2 *")
         pxc = max(0, px - 1)
         krc = is444(a) || rgb ? krn : Format("x[-{pxc},{pxc}] x[{pxc},{pxc}] x[-{pxc},-{pxc}] x[{pxc},-{pxc}] x[0,0] + + + + 0.2 *")
-        str = str + Format(isy     ?   "Expr(  "+c+"     "+Chr(34)+krn+Chr(34)+"                                                                                        )"   : \
-                           UV == 1 ?   "Expr(  "+c+"     "+Chr(34)+krn+Chr(34)+",               "+Chr(34)+" "+Chr(34)+"                                                 )"   : \
-                                     """Expr("""+c+""" """+Chr(34)+krn+Chr(34)+""", ex_UVexpr("""+Chr(34)+krc+Chr(34)+""", {UV}, {bi}, {rgb}, {un}), scale_inputs="none")""")+dot
+        str = str + Format(isy     ?   "Expr(  "+c+"     "+Chr(34)+krn+Chr(34)+"                                                                                )"   : \
+                           UV == 1 ?   "Expr(  "+c+"     "+Chr(34)+krn+Chr(34)+",               "+Chr(34)+" "+Chr(34)+"                                         )"   : \
+                                     """Expr("""+c+""" """+Chr(34)+krn+Chr(34)+""", ex_UVexpr("""+Chr(34)+krc+Chr(34)+""", UV, bi, rgb, un), scale_inputs="none")""")+dot
            }
 
     rd != 0 ? Eval(str) : a }
