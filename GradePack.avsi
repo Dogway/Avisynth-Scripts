@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.0 (17-04-2022)               ##
+###           Grade Pack v7.1 (29-04-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -22,6 +22,7 @@
 ###     PseudoColor                                      ##
 ###     Vignette                                         ##
 ###     greyscale_rgb                                    ##
+###     FindTemp                                         ##
 ###     GreyWorld                                        ##
 ###     WhitePoint                                       ##
 ###     Curve Fitting Evaluator                          ##
@@ -376,7 +377,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ###
 ### ex_autolevels()
 ###
-### Wrapper for SceneStats() and ex_levels().
+### Wrapper for ex_levels() with SceneStats().
 ### Performs auto-levels on a per-frame or per-scene basis.
 ###
 function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
@@ -1022,7 +1023,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 ### Function Definition:
 ###    (
 ###    clip,
-###    string "matrix"="Rec709" ("470M" / "470BG" / "Rec601" / "Rec709" / "Rec2020CL" / "Rec2020NCL" / "Display-P3" / "ACEScg"),
+###    string "matrix"="Rec709" ("470M" / "470BG" / "170M" / "Rec709" / "Rec2020CL" / "Rec2020NCL" / "Display-P3" / "ACEScg"),
 ###    [bool "tv_range"=true],
 ###    bool "EBUR103"=false,
 ###    int "show"=0 (0 to 2 by 1),
@@ -1136,10 +1137,20 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ###
 ### Version 1.2 implements 'isoparam' mode, similar to "rainbow" but more granular and in black/white.
 ### This mode is good to increase detail in shaded area so it's picked up in motion estimation.
+### Somewhat similar to Histogram("luma") but not as extreme.
 ### I recommend using ex_luma_rebuild() prior to this mode.
 ###
 ###
 ### Dependencies: > ExTools
+###
+###
+### Function Definition:
+###     (
+###     clip,
+###     string ""mode"="Rainbow" ("Rainbow" / "Isoparam"),
+###     float "iso"=1.0 (0.0 to 5.0 by 0.1),
+###     [bool "tv_range"=true],
+###     )
 ###
 ###
 ### Benchmark:
@@ -1224,6 +1235,7 @@ function Vignette (clip c, float "Vignette", bool "show", bool "tv_range") {
 
 
 
+
 ###
 ###
 ### greyscale_rgb()
@@ -1258,6 +1270,79 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
     DotClip(last, [coeffs[1],coeffs[4],coeffs[7]])
 
     moncurve_r(s_gam[0], s_gam[1], false, false) }
+
+
+
+###
+###
+### FindTemp() - v1.0 (29-04-2022)
+###
+###
+### Find the correlated color temperature (CCT) in Kelvins of your source clip.
+### It won't work for graded pictures but for natural acquired images.
+###
+### If '_SceneStatsU' frameprops is present it will use that for calculating temperature in a scene basis.
+###
+### Dependencies: > ExTools
+###                 TransformsPack
+###
+####################################
+
+function FindTemp (clip c, string "matrix", bool "tv_range", bool "show") {
+
+    ID   = color_propGet  (c)
+    st   = propNumElements(c,"_SceneStatsU") > 0
+
+    mat  = Default(matrix,   ID[2] )
+    tv   = Default(tv_range, ID[6] )
+    sh   = Default(show,      true )
+    bi   = ID[7]   bi32 = bi==32
+
+    Assert(IsVersionOrGreater(3,7,2), "FindTemp: Update AviSynth+ version")
+
+    matrix = color_Fuzzy_Search (mat)[0]
+    coef   = Matrix_coef(matrix)
+    toXYZ  = MatrixTranspose(RGB_to_XYZ(c,string(matrix), list=true))
+    Kr     = 1. - coef[0]
+    Kb     = 1. - coef[2]
+
+    RGB    = [1.0000000, 0.00000000000000000000,         2 *    Kr,                      \
+              1.0000000, 2 * ( -Kb * coef[2] / coef[1]), 2 * ( -Kr * coef[0] / coef[1]), \
+              1.0000000, 2 * Kb,                         0.00000000000000000000 ]
+
+
+    ScriptClip(c,function[bi,bi32,tv,RGB,toXYZ,st,sh] () {
+
+        U  = st   ? propGetFloat("_SceneStatsU")[5] : nop()
+        V  = st   ? propGetFloat("_SceneStatsV")[5] : nop()
+        U  = bi32 ? st ? U : UPlaneMedian() : ex_bs(st ? U : UPlaneMedian(),  bi, 32, true, flt=true)-0.5
+        V  = bi32 ? st ? V : VPlaneMedian() : ex_bs(st ? V : VPlaneMedian(),  bi, 32, true, flt=true)-0.5
+
+        U  = tv ? U*1.138392857 : U   # to PC levels
+        V  = tv ? V*1.138392857 : V   # to PC levels
+
+        RGB = MatrixDot([1./3,U,V], RGB)
+        RGB = ArrayOp(RGB,2.222,"pow(x,y)")  # linearize (assumes 2.40 gamma)
+        XYZ = MatrixDot(RGB,toXYZ)
+
+        CAT02  = [0.7328,  0.4296, -0.1624, \
+                 -0.7036,  1.6975,  0.0061, \
+                  0.0030, -0.0136,  0.9834]
+
+        XYZ = MatrixDot([XYZ[0]/XYZ[1],1.,XYZ[2]/XYZ[1]], CAT02)
+        XYZ = ArrayOp(XYZ,0.333333,"*")
+
+        xe  = 0.3366
+        ye  = 0.1735
+        n   = (XYZ[0] - xe)/(XYZ[1] - ye)
+
+        CCT = -949.86315 + 6253.80338 * exp(-n/0.92159) + 28.70599 * exp(-n/0.20039) + 0.00004 * exp(-n/0.07125)
+
+        CCT = 1.1105*pow(CCT,0.989339)-70.9976 # CCT fix
+
+        sh ? Subtitle(string(round(CCT))) : round(CCT) } ) }
+
+
 
 
 
@@ -1303,7 +1388,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 
     HUE = fast ? a : HSVxHSV(a.ConvertBits(8,dither=bi32?-1:1,fulls=fs, fulld=true), 1.0, "HUE", "SAT", 180.0, 1.00, 1.0, show=3).removegrain(12)
 
-    UV = sts ? SceneStats(a,"Stats",Y=false,UV=true) : Undefined()
+    UV  = sts  ? SceneStats(a,"Stats",Y=false,UV=true) : Undefined()
 
     ScriptClip(a,function[bi,bi32,px,HUE,fast,sts,UV] () {
 
@@ -1344,6 +1429,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 
 
 
+
 ###
 ###
 ### WhitePoint()
@@ -1358,7 +1444,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ###    (
 ###    clip,
 ###    int temperature=6504 (4008 to 12024 by 24),
-###    string "matrix"="Rec709" ("470M" / "470BG" / "Rec601" / "Rec709" / "Rec2020CL" / "Rec2020NCL" / "Display-P3" / "ACEScg"),
+###    string "matrix"="Rec709" ("470M" / "470BG" / "170M" / "Rec709" / "Rec2020CL" / "Rec2020NCL" / "Display-P3" / "ACEScg"),
 ###    )
 ###
 ####################################
@@ -1481,17 +1567,17 @@ function HistoCurve(clip a, float "size", bool "gradient") {
          ex_lut(a,Format("x {of}  + {zm} / {yo} -"),"")
 
     TurnRight()
-    Histogram(mode="classic")
+    Histogram(mode="classic",keepsource=gr)
     TurnLeft()
-    zm = zm * (ps ? 1. : 2.)
-    clean = crop(0,0,0,-256)
+    zm    = zm * (ps ? 1. : 2.)
+    clean = gr ? crop(0,0,0,-256) : last
     grid  =            clean.ex_lutspa(mode="mix",expr=Format("sx {xo} neg 256 * + round X@ 256 {zm} 2 * / round % 0 ==
                                                                sy {yo} neg 256 * + round Y@ 256 {zm} 2 * / round % 0 == or
                                                                X 4 % 0 != Y 0 != Y 4 % 0 != and or 0.25 0 ? x 0.5 < 0 x ? B@ max B ?"), UV=128)
     axis  = ps ? grid : grid.ex_lutspa(mode="mix",expr=Format("sx 128 {xo} 256 * + round abs ==
                                                        sy 0 != sy 128 {yo} 256 * + round abs == and or 0.35 x max sy 255 == 0 x ? ?"),  UV=128)
-    grad = crop(0,256,0,0)
-    gr ? StackHorizontal(grad,axis) : axis
+    grad  = gr ? crop(0,256,0,0) : last
+            gr ? StackHorizontal(grad,axis) : axis
 
     RatioResize(sz,"%",kernel="Point")
     ConvertBits(bt>0?bt:8,dither=bt>0?bt==32?-1:1:-1,fulls=true) }
