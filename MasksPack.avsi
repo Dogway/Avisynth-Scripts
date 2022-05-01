@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 6.3 by Dogway  (17-04-2022)            ##
+###           MasksPack 6.4 by Dogway  (01-05-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -154,9 +154,9 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     !isy() ? ExtractY() : last
     ConvertBits(8,dither=-1,fulls=fs)
     # 3x3 is too broad for SD so upscale
-    !isHD  ? BlackmanResize(w*2,h*2,taps=6)              : last
+    !isHD  ? BlackmanResize(w*2,h*2,taps=6)                : last
     # UHD size is too big for good performance
-     isUHD ? BicubicResize(nmod(w/2),nmod(h/2),-0.6,0.4) : last
+     isUHD ? BicubicResize(nmod(w/2),nmod(h/2),-0.99,0.06) : last
 
     ex_retinex(lvl=1,lo=lvl,tv_in=!fs)     # some issues here on flat areas (quantization)
     MSR=ex_median("IQM")                   # pre for full 'qprewitt'
@@ -534,7 +534,6 @@ function ex_limitchange(clip flt, clip src, float "limit", float "bias", float "
 ### Dependencies:
 ###         ExTools
 ###         MVTools
-###         MaskTools
 ###         SMDegrain (for MC=true)
 ###
 ### Example:
@@ -583,8 +582,8 @@ function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int
             cf1 = isv ? cf1 : super.Mrecalculate(cf, chroma=UV3, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
         }
 
-        cb1   = repair(isc ? b1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cb1, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), orig, 3, -1)
-        cf1   = repair(isc ? f1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cf1, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), orig, 3, -1)
+        cb1   = ex_repair(isc ? b1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cb1, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), orig, "undot3", UV=1)
+        cf1   = ex_repair(isc ? f1c : sharp.MCompensate(super.ConvertBits(bi, fulls=!tv), cf1, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), orig, "undot3", UV=1)
 
         diff  = interleave(cb1,DB,cf1)
 
@@ -597,5 +596,5 @@ function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int
 
         diff  = ex_makediff(orig,  sharp, UV=uv, fulls=!tv)
         diff2 = med ? diff.ex_median("medianT",UV=uv) : diff.temporalsoften(1,255,UV3?255:0,32,2)
-        ex_lutxyz(orig,diff,diff2,Format("y range_half - Y@ z range_half - Z@ * 0 < Y {KP} * range_half + Y abs Z abs > y z - {KP} * z + y ? ? x swap - range_half +"),UV=uv,fulls=!tv).propCopy(a)
+        ex_lutxyz(orig,diff,diff2,Format("y range_half - Y@ z range_half - Z@ * 0 < Y {KP} * range_half + Y abs Z abs > y z - {KP} * z + y ? ? x swap - range_half +"),UV=uv,fulls=!tv).propCopy(sharp)
     } }
