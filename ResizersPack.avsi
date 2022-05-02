@@ -27,7 +27,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (24-04-2022)
+### deep_resize() - by Dogway (02-05-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -278,13 +278,13 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             ctp = ctp == 0 ? "" : Eval(ReplaceStr(taps,"krn1","krn1c")) ? Format("[{ctp}]") : ""
             ecb = bicubic_coeffs(krn1)
             fcb = bicubic_coeffs(krn2)
-            ccb = bicubic_coeffs(krn1c)
-            ecb = ArrayPrint(ecb,true) != "-1, -1" ? "["+string(ecb[0],"%1.2f")+","+string(ecb[1],"%1.2f")+"]" : ""
-            fcb = ArrayPrint(fcb,true) != "-1, -1" ? "["+string(fcb[0],"%1.2f")+","+string(fcb[1],"%1.2f")+"]" : ""
-            ccb = ArrayPrint(ccb,true) != "-1, -1" ? "["+string(ccb[0],"%1.2f")+","+string(ccb[1],"%1.2f")+"]" : ""
+            ccb = bicubic_coeffs(krn1c)   nul = "-2.000000, -2.000000"
+            ecb = ArrayPrint(ecb,true) != nul ? "["+string(ecb[0],"%1.2f")+","+string(ecb[1],"%1.2f")+"]" : ""
+            fcb = ArrayPrint(fcb,true) != nul ? "["+string(fcb[0],"%1.2f")+","+string(fcb[1],"%1.2f")+"]" : ""
+            ccb = ArrayPrint(ccb,true) != nul ? "["+string(ccb[0],"%1.2f")+","+string(ccb[1],"%1.2f")+"]" : ""
 
             msize  = min(w2,h2)
-            bg     = BoxMask(0,round(msize/1.65),0,round(msize/1.65), invert=true, tv_out=!fs)
+            bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.65), invert=true, tv_out=!fs)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=!fs)
 
             Subtitle(" deep_resize()",                       size=msize/16,lsp=4,text_color=$ff5050,font="Segoe UI")
