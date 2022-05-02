@@ -1,9 +1,9 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.2    (02-05-2022)   ##
+###   Resizers Functions Pack 9.2 (02-05-2022)      ##
 ###                                                 ##
-###                      by Dogway (Jose Linares)   ##
+###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
 ### https://forum.doom9.org/showthread.php?t=182881 ##
 ###                                                 ##
@@ -176,14 +176,13 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     rat    = abs(max(rw,rh)-1)+1
 
     rth    = Default(th_rat, 1.25)                                                          # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
-    krn1   = Default(edge, rat<=rth*0.95 ? "Didee" :                                     /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti */
-           \                rw<1 && rh<1 ? isUHD ? "Zopti1080" : "SSIM2" :               /* By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value) */
-           \               rat<=rth      ?         "Blackman"  : "nnedi3")               /* By default, for big   upscales   -> "nnedi3"
-                                                                                            By default, for small downscales -> "Didée"
-                                                                                            By default, for big   downscales -> "Zopti1080"
-                                                                                            By default, for mid   downscales -> "SSIM2" (DPID also fine for down to 720p) (Beware!! for UHD to HD against all logic I recommend going with Zopti1080 (b=-0.99,c=0.06) )  */
-
-    krn1c  = Default(chroma,rw<1 && rh<1 ? "Zopti2" : "Blackman")                           # Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
+    krn1   = Default(edge, rat<=rth*0.95 ?                       "Didee" :               /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti */
+           \                rw<1 && rh<1 ? isUHD ? "Zopti1080" : "SSIM2" :               /* # By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value) */
+           \               rat<=rth      ?         "Blackman"  : "nnedi3")               /* # By default, for big   upscales   -> "nnedi3"
+                                                                                            # By default, for small downscales -> "Didée"
+                                                                                            # By default, for big   downscales -> "Zopti1080"
+                                                                                            # By default, for mid   downscales -> "SSIM2" (DPID also fine for down to 720p) (Beware!! for UHD to HD against all logic I recommend going with Zopti1080 (b=-0.99,c=0.06) )  */
+    krn1c  = Default(chroma,rw<1 && rh<1 ? "Zopti"  : "Blackman")                           # Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
     krn2   = Default(flat,  rw<1 && rh<1 ? krn1     : isHD && isUHD2 ? "Sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
     etp    = Default(e_taps, krn1 =="Blackman" ? 6  : krn1 =="Lanczos" ? 4 : 0)             # taps for edge   kernel (0 for undefined)
     ftp    = Default(f_taps, krn2 =="Blackman" ? 16 : krn2 =="Lanczos" ? 8 : 0)             # taps for flat   kernel (0 for undefined)
@@ -195,7 +194,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     ddec   = Defined(deconv)
     dec    = Default(deconv,    0)                                                          # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
     gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # >0 Add grain to big upscales as a mean of cheap hallucination
-    decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
+    decs   = FindStr(LCase(krn2),"Sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
     dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                     # higher deconvolution the higher the upscale
     dec    = dec == 0.095 ? 0 : dec
     nns    = 3
