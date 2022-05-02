@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.1    (24-04-2022)   ##
+###   Resizers Functions Pack 9.2    (02-05-2022)   ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -35,7 +35,7 @@
 ### Supports all YUV formats in any given bitdepth (not RGB).
 ###
 ### deconv: An option to undo the oversharpening or blur of the original downscaling kernel.
-###         Following suggested values for deconv:
+###         Following suggested values for 'deconv':
 ###
 ###         -10 "SoftCubic100"
 ###         -7  "Robidoux Soft"
@@ -68,11 +68,11 @@
 ###   ExTools
 ###   MasksPack
 ###   TransformsPack
-###   GrainFactory3mod (for grain > 0)
-###   SimilarityMetrics(for default 'SSIM2' downscaling)
+###   GrainFactory3mod   (for grain > 0)
+###   SimilarityMetrics  (for default 'SSIM2' downscaling)
 ###       vsTCanny
 ###       fmtconv
-###   GradePack        (for show=true)
+###   GradePack          (for show=true)
 ###   Resizer of choice
 ###       LSFplus        (for default "nnedi3" upscale) (and its dependencies)
 ###       SharpenersPack (for default "nnedi3" upscale)
@@ -87,7 +87,7 @@
 ### -Avoid bicubics for highly compressed images as it will amplify DCT blocks
 ### -For downscaling use a 2-lobes sinc function (aka not bicubics)
 ### -For downscaling while preventing moiree use a 4-lobes sinc filter (ie. Lanczos4)
-### -For sharp images (upscaling), use 3-lobes, for blurry ones 4 or more
+### -For sharp images (upscaling) use 3-lobes, for blurry ones 4 or more
 ### -More tappered (rolled-off) kernel bell shapes require higher taps (4 or above; Hann, Bohman, Blackman, Parzen, etc)
 ### -Use even number of taps (taps=lobes in AviSynth) to avoid a final positive lobe ("ringing") before cutoff of the window support. Negative lobes "ringing" are rarely created in gamma light resizing.
 ###
@@ -98,9 +98,9 @@
 ###    clip,
 ###    float width=1920.0 (0.0 to 3840.0 by 1.0),
 ###    float height=1080.0 (0.0 to 2160.0 by 1.0),
-###    string "edge"="nnedi3" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###    string "flat"="Lanczos" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
-###    string "chroma"="Blackman" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "Zopti2" / "Precise Bicubic" / "Sharp" / "Hatch"),
+###    string "edge"="nnedi3" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "ZoptiN" / "ZoptiH" / "Zopti720" / "Zopti720U" / "Zopti1080" / "Precise" / "Sharp" / "Hatch"),
+###    string "flat"="Lanczos" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "ZoptiN" / "ZoptiH" / "Zopti720" / "Zopti720U" / "Zopti1080" / "Precise" / "Sharp" / "Hatch"),
+###    string "chroma"="Blackman" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "ZoptiN" / "ZoptiH" / "Zopti720" / "Zopti720U" / "Zopti1080" / "Precise" / "Sharp" / "Hatch"),
 ###    int "e_taps"=6 (2 to 20 by 1),
 ###    int "f_taps"=8 (2 to 20 by 1),
 ###    int "c_taps"=6 (2 to 20 by 1),
@@ -112,6 +112,28 @@
 ###    int "qual"=1 (1 to 2 by 1),
 ###    [bool "show"=false],
 ###    )
+###
+###
+### Examples:
+###     # 720p to 1080p (for anime)
+###     deep_resize(1920,flat="nnedi3",grain=0,qual=2)
+###
+###     # 720p to 1080p
+###     deep_resize(1920) or deep_resize(1920,grain=0) for no grain
+###
+###     # 1080p to 2160p
+###     deep_resize(3840) or deep_resize(3840,grain=0) for no grain
+###
+###     # 2160p to 1080p
+###     deep_resize(1920,edge="Zopti1080") # for UHD sources "Zopti1080" is the default so can be omitted
+###
+###     # 1080p to 720p
+###     deep_resize(1280,edge="SSIM2") # SSIM2 is the default so can be omitted
+###
+###     # 2160p to 720p
+###     deep_resize(1920,edge="Zopti1080",flat="Zopti1080") # for dw flat=edge so flat="Zopti1080" can be omitted
+###     deep_resize(1280)
+###
 ###
 function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "grain", float "th_rat", float "th", float "elast", int "qual", bool "show") {
 
@@ -133,6 +155,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     w2     = Default(width,  w)
     h2     = Default(height, h)
 
+    Assert(IsVersionOrGreater(3,7,2),  "deep_resize: Update AviSynth+ version")
     Assert(isFloat(w2) || isFloat(h2), "deep_resize: Width/Height type not supported")
 
     w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
@@ -144,6 +167,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
     isHD   = (w  > 1099 || h  >  599)
     isHD2  = (w2 > 1099 || h2 >  599)
+    isUHD  = (w  > 2599 || h  > 1499)
     isUHD2 = (w2 > 2599 || h2 > 1499)
 
     rw     = w2/float(w)
@@ -153,10 +177,12 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
     rth    = Default(th_rat, 1.25)                                                          # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
     krn1   = Default(edge, rat<=rth*0.95 ? "Didee" :                                     /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti */
-           \                rw<1 && rh<1 ? "SSIM2" : rat<=rth ? "Blackman" : "nnedi3")      # By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value)
-                                                                                            # By default, for big   upscales   -> "nnedi3"
-                                                                                            # By default, for small downscales -> "Didée"
-                                                                                            # By default, for big   downscales -> "SSIM2" (DPID also fine for down to 720p)
+           \                rw<1 && rh<1 ? isUHD ? "Zopti1080" : "SSIM2" :               /* By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value) */
+           \               rat<=rth      ?         "Blackman"  : "nnedi3")               /* By default, for big   upscales   -> "nnedi3"
+                                                                                            By default, for small downscales -> "Didée"
+                                                                                            By default, for big   downscales -> "Zopti1080"
+                                                                                            By default, for mid   downscales -> "SSIM2" (DPID also fine for down to 720p) (Beware!! for UHD to HD against all logic I recommend going with Zopti1080 (b=-0.99,c=0.06) )  */
+
     krn1c  = Default(chroma,rw<1 && rh<1 ? "Zopti2" : "Blackman")                           # Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
     krn2   = Default(flat,  rw<1 && rh<1 ? krn1     : isHD && isUHD2 ? "Sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
     etp    = Default(e_taps, krn1 =="Blackman" ? 6  : krn1 =="Lanczos" ? 4 : 0)             # taps for edge   kernel (0 for undefined)
@@ -291,7 +317,9 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
 
 
+#
 # nnedi3resize()
+#
 # Simple upscaler that uses nnedi3 at its core, recommended for graphics or textureless images.
 # It accepts arbitrary dimension values, not only limited to powers of 2
 #
@@ -300,21 +328,34 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 #       ExTools
 #       SysInfo
 #
-function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn") {
+function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn") {
 
+    wu      = !Defined(width)
+    hu      = !Defined(height)
     w       = width (a)
     h       = height(a)
     rgb     = isRGB (a)
     is4     = is444 (a)
     isy     = isy   (a)
+    mod     = rgb || is4 || isy ? 1 : 2
     bi      = BitsPerComponent(a)
     fs      = propNumElements (a,"_ColorRange")     > 0 ? \
               propGetInt      (a,"_ColorRange")    == 0 : rgb
     cpl     = propNumElements (a,"_ChromaLocation") > 0 ? \
               propGetInt      (a,"_ChromaLocation")     : 0
 
-    w2      = nmod(Default(width,  w),isy||rgb||is4?1:2)
-    h2      = nmod(Default(height, h),isy||rgb||is4?1:2)
+    w2     = Default(width,  w)
+    h2     = Default(height, h)
+
+    Assert(IsVersionOrGreater(3,7,2),  "nnedi3resize: Update AviSynth+ version")
+    Assert(isFloat(w2) || isFloat(h2), "nnedi3resize: Width/Height type not supported")
+
+    w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
+    h2     = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
+    w2     =  w2<=10. ? w*w2 : w2        w2 = round(w2/mod)*mod
+    h2     =  h2<=10. ? h*h2 : h2        h2 = round(h2/mod)*mod
+    w2     =  w2 == 0 || wu  ? round((w*(h2/float(h)))/mod)*mod : w2
+    h2     =  h2 == 0 || hu  ? round((h*(w2/float(w)))/mod)*mod : h2
 
     hs      = h == h2
     ws      = w == w2
@@ -382,9 +423,9 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
 ### "PAR"         Find out what PAR your source is and input here.
 ###               If you are thinking in crop + resize (anamorphic) and want to know what your PAR
 ###               changed to, then apply the formula below* and input it along your target dimensions (PreW,PreH)
-### "adjust2w"    This new mode resizes height according to input width. So you input your target width size
+### "adjust2w"    Or "w" for short. This new mode resizes height according to input width. So you input your target width size
 ###               as the ratio value, and target height will resize automatically according keeping image proportions.
-### "adjust2h"    Same as above, but here you constrain to the target height instead.
+### "adjust2h"    Or "h" for short. Same as above, but here you constrain to the target height instead.
 ###
 ### PreW,PreH  Substitutes resizing previously.
 ###
@@ -412,7 +453,7 @@ function nnedi3resize(clip a, int width, int height, bool "HBD", int "qual", int
 ###    float ratio=1.0 (0.0 to 2.0 by 0.1),
 ###    string mode="%" ("adjust2w" / "adjust2h" / "DAR" / "DARconform" / "PAR" / "%"),
 ###    int mod=2 (1 to 16 by 1),
-###    string kernel="spline36" ("spline16" / "spline36" / "spline64" / "lanczos" / "lanczos4" / "blackman" / "Sinc" / "Point" / "bilinear" / "bicubic" / "nnedi3"),
+###    string kernel="bicubic" ("spline16" / "spline36" / "spline64" / "lanczos" / "lanczos4" / "blackman" / "Sinc" / "Point" / "bilinear" / "bicubic" / "nnedi3"),
 ###    float b=0.0 (0.0 to 1.0 by 0.01),
 ###    float c=0.5 (0.0 to 1.0 by 0.01),
 ###    )
@@ -424,7 +465,7 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
 
     rgb   = isrgb(s)
     r     = Default(ratio,      0.5)
-    mode  = Default(mode,       "%")
+    md    = Default(mode,       "%")
     mod   = Default(mod, rgb ? 1 : 2)
     w     = Default(PreW,  s.width ())
     h     = Default(PreH,  s.height())
@@ -432,31 +473,31 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
     c     = Default(c,       0.5)
     src_l = Default(src_left,  0)
     src_t = Default(src_top,   0)
-    kernel= Default(kernel,"spline36")
+    kernel= Default(kernel,"bicubic")
 
     r  = float(r)
 
-    v  = (mode=="adjust2w")   ? h/(w/r)
-    \  : (mode=="adjust2h")   ? w/(h/r)
-    \  : (mode=="DAR")        ? w/(w/(h*r))
-    \  : (mode=="DARconform") ? w*(w/(h*r))
-    \  : (mode=="PAR"         \
-       || mode=="%")          ? w*r : nop()
-    h1 = (mode=="%")          ? h*r : nop()
+    v  = md=="adjust2w" || md=="w" ? h/(w/r)
+    \  : md=="adjust2h" || md=="h" ? w/(h/r)
+    \  : md=="DAR"                 ? w/(w/(h*r))
+    \  : md=="DARconform"          ? w*(w/(h*r))
+    \  : md=="PAR"                 \
+      || md=="%"                   ? w*r : nop()
+    h1 = md=="%"                   ? h*r : nop()
 
     Vmod= nmod(v,mod)
     rmod= nmod(r,mod)
 
-    op = (mode=="DAR")
-    \ || (mode=="DARconform")
-    \ || (mode=="PAR")        ? "Vmod,h"
-    \  : (mode=="%")          ? "Vmod,nmod(h1,mod)"
-    \  : (mode=="adjust2w")   ? "rmod,Vmod"
-    \  : (mode=="adjust2h")   ? "Vmod,rmod"
+    op = md=="DAR"
+    \ || md=="DARconform"
+    \ || md=="PAR"                 ? "Vmod,h"
+    \  : md=="%"                   ? "Vmod,nmod(h1,mod)"
+    \  : md=="adjust2w" || md=="w" ? "rmod,Vmod"
+    \  : md=="adjust2h" || md=="h" ? "Vmod,rmod"
     \  :  Assert(false, "RatioResize: Wrong Ratio mode")
 
 
-    kernel == "nnedi3" ? Eval(    "deep_resize(s," + String(op) + ")"                                 ) : \
+    kernel == "deep"   ? Eval(    "deep_resize(s," + String(op) + ")"                                 ) : \
     kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p,src_left=src_l,src_top=src_t)") : \
     kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c,src_left=src_l,src_top=src_t)") : \
                          Eval(kernel + "Resize(s," + String(op) + ",    src_left=src_l,src_top=src_t)") }
@@ -878,7 +919,7 @@ function MatteCrop(clip s, int "width", int "height", float "thr", bool "CropMor
 
     mode == 0 ? PadResize(nw,nh) : \
     mode == 1 ? PadResize(nw,nh) : \
-                kernel == "nnedi3" ? Eval( "nnedi3_resize16(" + String(nw) + "," + String(nh) + ")")     : \
+                kernel == "deep"   ? Eval(     "deep_resize(" + String(nw) + "," + String(nh) + ")")     : \
                 kernel == "gauss"  ? Eval(     "GaussResize(" + String(nw) + "," + String(nh) + ",p=p)") : \
                 kernel == "bicubic"? Eval(   "BicubicResize(" + String(nw) + "," + String(nh) + ",b,c)") : \
                                      Eval( kernel + "Resize(" + String(nw) + "," + String(nh) + ")")
