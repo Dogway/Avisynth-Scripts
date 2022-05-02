@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v2.2  (30-04-2022)                                ###
+###        Deblock Pack v2.3  (01-05-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -211,11 +211,11 @@ function MCDeblockFFT3D(clip a, int "UV", bool "fulls") {
 ### https://github.com/dnjulek/jvsfunc/blob/main/jvsfunc/expr.py
 ### http://acobw.narod.ru/
 ###
-function CCD (clip a, float "thres", bool "HD", bool "interlaced") {
+function CCD (clip a, float "thres", bool "interlaced", int "U", int "V") {
 
     rgb  = isRGB(a)
     is4  = is444(a)
-    isy  = isy(a)
+    isy  = isy  (a)
     w    = width(a)
     h    = height(a)
     isHD = (w > 1099 || h > 599 )
@@ -231,13 +231,13 @@ function CCD (clip a, float "thres", bool "HD", bool "interlaced") {
            propGetInt      (a,"_ColorRange") == 0 : false
 
     th   = Default(thres,  4)  # 0 - 100 (good values span 4-30)
-    hd   = Default(HD,  isHD)  # Overrides original kernel size to scale to HD sources
     inter= Default(interlaced, fbn && fb!=0)
-
-    in   = hd ? round(w/160.)      : 4
-    ou   = hd ? round(w/53.333333) : 12
-    ih   = fbn && fb!=0 && Defined(interlaced) ? round(w/320.)       : in
-    oh   = fbn && fb!=0 && Defined(interlaced) ? round(w/106.666666) : ou
+    U    = Default(U,      3)
+    V    = Default(V,      3)
+    in   = is4 ? round(w/80.)       : round(w/160.)
+    ou   = is4 ? round(w/26.666666) : round(w/53.333333)
+    ih   = fbn && fb!=0 && Defined(interlaced) ? round(in * 0.5) : in
+    oh   = fbn && fb!=0 && Defined(interlaced) ? round(ou * 0.5) : ou
 
     Assert(IsVersionOrGreater(3,7,2), "CCD: Update AviSynth+ version")
     Assert(!rgb && !isy,              "CCD: Only YUV formats are supported")
@@ -246,24 +246,29 @@ function CCD (clip a, float "thres", bool "HD", bool "interlaced") {
 
         fb==1 ? fbn ? AssumeBFF(a) : AssumeBFF(a).propSet("_FieldBased",1) : \
                 fbn ? AssumeTFF(a) : AssumeTFF(a).propSet("_FieldBased",2)
-        E = SeparateFields().SelectEven().CCD(th,HD,false)
-        O = SeparateFields().SelectOdd ().CCD(th,HD,false)
+        E = SeparateFields().SelectEven().CCD(th,false,U,V)
+        O = SeparateFields().SelectOdd ().CCD(th,false,U,V)
         Interleave(E,O).Weave()
 
     } else {
 
         th  = pow(th,2)/195075.0
-        pr  = pr > 0 && pr != 2 ? pr==1 ? "709" : pr==4 ? "bt470m" : pr==5 ? "470bg" : pr==6 ? "170m" : pr==6 ? "240m" : pr==9 ? "2020" : "709" : isUHD ? "2020" : isHD ? "709" : "170m"
+        pr  = pr > 0 && pr != 2 ? pr==1 ? "709"    : \
+                                  pr==4 ? "bt470m" : \
+                                  pr==5 ? "470bg"  : \
+                                  pr==6 ? "170m"   : \
+                                  pr==6 ? "240m"   : \
+                                  pr==9 ? "2020"   : "709" : isUHD ? "2020" : isHD ? "709" : "170m"
 
         y   = ExtractY(a)
-        a4  = CombinePlanes(y.BicubicResize(w/2, h/2, -0.5, 0.25), a, planes="YUV", pixel_type="YUV444P"+string(bi==32 ? "S" : bi))
+        a4  = CombinePlanes(y.BicubicResize(w/2, h/2, -0.5, 0.3), a, planes="YUV", pixel_type="YUV444P"+string(bi==32 ? "S" : bi))
         rgb = ConvertToPlanarRGB(is4 ? a : a4, matrix=fs?pr+":f":pr+":l")
 
         r   = CombinePlanes(rgb, planes="RGB", source_planes="RRR")
         g   = CombinePlanes(rgb, planes="RGB", source_planes="GGG")
         b   = CombinePlanes(rgb, planes="RGB", source_planes="BBB")
 
-        Expr(a4, r, g, b, "", Format("f32
+        ex  = Format("f32
              y[-{ou},-{oh}] y - 2 ^ z[-{ou},-{oh}] z - 2 ^ a[-{ou},-{oh}] a - 2 ^ + + {th} < A@ 1 0 ?
              y[-{in},-{oh}] y - 2 ^ z[-{in},-{oh}] z - 2 ^ a[-{in},-{oh}] a - 2 ^ + + {th} < B@ 1 0 ? +
              y[{in},-{oh}]  y - 2 ^ z[{in},-{oh}]  z - 2 ^ a[{in},-{oh}]  a - 2 ^ + + {th} < C@ 1 0 ? +
@@ -287,9 +292,11 @@ function CCD (clip a, float "thres", bool "HD", bool "interlaced") {
              I x[-{ou},{ih}]  0 ? + J x[-{in},{ih}]  0 ? +
              K x[{in},{ih}]   0 ? + L x[{ou},{ih}]   0 ? +
              M x[-{ou},{oh}]  0 ? + N x[-{in},{oh}]  0 ? +
-             O x[{in},{oh}]   0 ? + P x[{ou},{oh}]   0 ? x + + Q /"), scale_inputs="intf")
+             O x[{in},{oh}]   0 ? + P x[{ou},{oh}]   0 ? x + + Q /")
 
-            CombinePlanes(a, last, planes="YUV") } }
+        Expr(a4, r, g, b, "", U==3 ? ex : "", V==3 ? ex : "", scale_inputs="intf")
+
+        CombinePlanes(a, last, planes="YUV")                                   } }
 
 
 
