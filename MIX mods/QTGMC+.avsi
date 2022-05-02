@@ -394,7 +394,7 @@
 #   RgTools    (1.2 or above)
 #   vsTCanny   (1.1.8 for gaussian blur)
 #   SysInfo    (0.1.2.9)
-#   Vinverse   (0.9.3)
+#   Vinverse   (0.9.4)
 #
 # Core scripts:
 #   ExTools      (8.4   or above)
@@ -1407,7 +1407,7 @@ function QTGMCp_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
 
 
 
-# (LEGACY: since vinverse v0.9.2) Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
+# (LEGACY for 8-16-bit since vinverse v0.9.2) Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
 # https://forum.doom9.org/showthread.php?p=891788#post891788
 # Optimization and port to EX mod from real.finder's HBD mod. by Dogway (15-09-2021)
 
@@ -1524,7 +1524,7 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
 function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 
     str = max(1,Default(strength, 2))
-    agg = Default(aggressive,   false) # Avoid with strength=3
+    agg = Default(aggressive, false) # Avoid with strength=3
     UV  = Default(UV,             3)
     UV2 = !isy(a) && UV==3 ? Undefined() : ""
 
@@ -1539,6 +1539,6 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
     str == 1 ? ex_lutxyza(a,   b2,b,f,   "z a dup1 dup1 max swap2 min x y - abs D@                             - x max swap D + x min z a x 2 * + + 0.25 * swap2 clip",                               UV=uv) : \
     str == 2 ? Expr      (a,   b2,b,f,f2,"z a dup1 dup1 max swap2 min x y - abs x b - abs min D@               - x max swap D + x min z a x 2 * + + 0.25 * swap2 clip",                               UV2)   : \
                Expr      (a,b3,b2,b,f,f3,"a b dup1 dup1 max swap2 min x z - abs x y - abs min x c - abs min D@ - x max swap D + x min a b x 2 * + + 0.25 * swap2 clip",                               UV2)   : \
-    str == 1 ? ex_lutxyza(a,   b2,b,f,   "z a dup1 dup1 max swap2 min y x - 0 max                              - x max swap x y - 0 max + x min z a x 2 * + + 0.25 * swap2 clip",                     UV=uv) : \
-    str == 2 ? Expr      (a,   b2,b,f,f2,"z a dup1 dup1 max swap2 min y x - b x - min 0 max                    - x max swap x y - x b - min 0 max + x min z a x 2 * + + 0.25 * swap2 clip",           UV2)   : \
+    str == 1 ? ex_lutxyza(a,   b2,b,f,   "z a dup1 dup1 max swap2 min y x -                     0 max          - x max swap x y -                     0 max + x min z a x 2 * + + 0.25 * swap2 clip", UV=uv) : \
+    str == 2 ? Expr      (a,   b2,b,f,f2,"z a dup1 dup1 max swap2 min y x - b x - min           0 max          - x max swap x y - x b - min           0 max + x min z a x 2 * + + 0.25 * swap2 clip", UV2)   : \
                Expr      (a,b3,b2,b,f,f3,"a b dup1 dup1 max swap2 min z x - y x - min c x - min 0 max          - x max swap x z - x y - min x c - min 0 max + x min a b x 2 * + + 0.25 * swap2 clip", UV2)   }
