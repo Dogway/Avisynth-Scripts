@@ -10,7 +10,7 @@
 #
 # Dependencies:
 #   MaskTools2
-#   ex_FrameRateConverter
+#   FrameRateConverterMIX
 #     MVTools
 #     RgTools / ExTools
 #   TIVTC
@@ -31,8 +31,8 @@
 
 function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle", bool "Show", bool "debug") {
 
-    fs  = propNumElements (source,"_ColorRange")  > 0 ? \
-          propGetInt      (source,"_ColorRange") == 0 : isRGB(source)
+    fs  = propNumElements(source,"_ColorRange")  > 0 ? \
+          propGetInt     (source,"_ColorRange") == 0 : isRGB(source)
 
     JumpThresh = Default(JumpThresh,0.8)   # Threshold for detecting jumps. Increase to catch more jumps. Should always be less than 1.0
     Fast       = Default(Fast,    false)   # true for fast mode
@@ -42,7 +42,7 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
 
     source
 
-    double = ex_FrameRateConverter(showdot ? Subtitle("***") : last, preset=Fast ? "fast" : "slow", FrameDouble=true)
+    double = FrameRateConverterMIX(showdot ? Subtitle("***") : last, preset=Fast ? "fast" : "slow", FrameDouble=true)
 
     #Remove comment from ShowMetrics, and change "return final" to "return test" to look at metrics in order to determine proper JumpThresh
     src8   = ConvertBits(source, 8, dither=-1, fulls=fs)
