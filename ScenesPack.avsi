@@ -407,6 +407,8 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 ###    "_SceneExposure":    int
 ###    "_SceneChangePrev":  int
 ###
+### BEWARE!! For some reason in the exported log the first scene has repeated stats so manually remove those lines before loading the file.
+###
 function ReadStats(clip a, string "path") {
 
     Assert(Exist(path), "ReadStats: Defined file path doesn't exist.")
@@ -448,7 +450,7 @@ function ReadStats(clip a, string "path") {
  }
 
 
-
+###
 ### ClipStats() by Dogway (25-04-2022)
 ###
 ### Dependencies:
@@ -458,7 +460,6 @@ function ReadStats(clip a, string "path") {
 ### Returns Global clip stats. Good for infering better global settings for clip-wide filtering.
 ### Simply point to the SceneStats output log and frame properties will be written for the whole clip.
 ###
-
 function ClipStats(clip a, string "path") {
 
     Assert(Exist(path), "ClipStats: Defined file path doesn't exist.")
