@@ -4544,10 +4544,10 @@ bool "show"=false
 
 ex_DGDenoise(
 clip,
-float str=0.15 (0.0 to 1.0),
-[float strc=0.15 (0.0 to 1.0)],
-float "bl"=0.0 (0.0 to 1.0),
-[float "blc"=0.0 (0.0 to 1.0)],
+float str=0.15 (0.00 to 1.00),
+[float strc=0.15 (0.00 to 1.00)],
+float "bl"=0.00 (0.00 to 1.00),
+[float "blc"=0.00 (0.00 to 1.00)],
 int "searchw"=9 (5 to 9 by 2),
 int "UV"=3 (1 to 3)
 )
@@ -5365,7 +5365,7 @@ int "biasH"=0 (-1080 to 1080)
 
 PseudoColor(
 clip yuv,
-string ""mode"="Rainbow" ("Rainbow"/ "Isoparam"),
+string "mode"="Rainbow" ("Rainbow"/ "Isoparam"),
 float "iso"=1.0 (0.0 to 5.0),
 [bool "tv_range"=true]
 )
@@ -5513,7 +5513,7 @@ clip,
 float ratio=1.0 (0.0 to 2.0),
 string mode="%" ("adjust2w"/ "adjust2h"/ "DAR"/ "DARconform"/ "PAR"/ "%"),
 int mod=2 (1 to 16),
-string kernel="bicubic" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "Point"/ "bilinear"/ "bicubic"/ "deep" / "nnedi3"),
+string kernel="bicubic" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "Point"/ "bilinear"/ "bicubic"/ "deep"/ "nnedi3"),
 float b=0.00 (-1.00 to 1.00),
 float c=0.50 (0.00 to 1.00)
 )
