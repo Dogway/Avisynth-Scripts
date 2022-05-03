@@ -163,11 +163,12 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 #
 # Function Definition:
 #    (
-#    clip,
-#    string "metric"="none" ("none" / "ALL" / "--" / "ME" / "MAE" / "SMAE" / "MAD" / "MAD2" / "MSE" / "MSLE" / "RMSE" / "CHAR" / "--" / "OkMSE" / "RedMe" / "CIEDE2000" / "R2" / "ZTest" / "CAMBI" / "--" / "PSNR" / "SSIM" / "MS_SSIM" / "BSSIM" / "GMSD" / "MDSI" / "BUTT"),
+#    clip a,
+#    clip b,
+#    string "metric"="none" ("none"/ "ALL"/ "--"/ "ME"/ "MAE"/ "SMAE"/ "MAD"/ "MAD2"/ "MSE"/ "MSLE"/ "RMSE"/ "CHAR"/ "--"/ "OkMSE"/ "RedMe"/ "CIEDE2000"/ "R2"/ "ZTest"/ "CAMBI"/ "--"/ "PSNR"/ "SSIM"/ "MS_SSIM"/ "BSSIM"/ "GMSD"/ "MDSI"/ "BUTT"),
 #    bool "aug"=false,
 #    bool "dif"=false,
-#    int "show"=2 (0 to 3 by 1),
+#    int "show"=2 (0 to 3)
 #    )
 #
 # modes:
@@ -498,8 +499,9 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "sca
 #
 # Function Definition:
 #    (
-#    clip,
-#    string "mode"="and" ("and" / "andn" / "or" / "xor" / "min" / "max"),
+#    clip a,
+#    clip b,
+#    string "mode"="and" ("and"/ "andn"/ "or"/ "xor"/ "min"/ "max")
 #    )
 #
 function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV") {
@@ -628,10 +630,10 @@ function ex_clamp(clip a, clip hi, clip lo, int "overshoot", int "undershoot", i
 # Function Definition:
 #    (
 #    clip,
-#    float thres=115.0 (0.0 to 255.0 by 1.0),
-#    string "mode"="simple" ("simple" / "dynamic" / "otsu"),
+#    float thres=115.0 (0.0 to 255.0 by 1),
+#    string "mode"="simple" ("simple"/ "dynamic"/ "otsu"),
 #    bool "smooth"=false,
-#    bool "invert"=false,
+#    bool "invert"=false
 #    )
 #
 function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string "mode", int "lo", int "hi", int "UV", bool "fulls") {
@@ -1045,9 +1047,9 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    int radius=1 (0 to 14 by 1),
-#    [int radiusV=1 (0 to 14 by 1)],
-#    string "mode"="mean" ("mean" / "weighted" / "rg19" / "trimmed" / "bokeh"),
+#    int radius=1 (0 to 14),
+#    [int radiusV=1 (0 to 14)],
+#    string "mode"="mean" ("mean"/ "weighted"/ "rg19"/ "trimmed"/ "bokeh")
 #    )
 #
 function ex_boxblur(clip a, float "radius", float "radiusV", string "mode", int "Y", int "UV") {
@@ -1239,12 +1241,12 @@ function binom_coeffs(n, k) {
 # Function Definition:
 #    (
 #    clip,
-#    float radius=1.0 (0.0 to 43.0 by 0.1),
-#    [float radiusV=1.0 (0.0 to 43.0 by 0.1)],
-#    [int "n"=6 (0 to 300 by 1)],
-#    [string "mode"="binomial" ("gaussian" / "binomial" / "butterworth")],
-#    [string "gamma"="none" ("none" / "1886a" / "1886" / "470M" / "470BG" / "170M" / "240M" / "linear" / "xvYCC" / "1361" / "sRGB" / "Rec2020" / "AdobeRGB / "ACESCCt")],
-#    [int "UV"=3 (2 to 3 by 1)],
+#    float radius=1.0 (0.0 to 43.0),
+#    [float radiusV=1.0 (0.0 to 43.0)],
+#    [int "n"=6 (0 to 300)],
+#    [string "mode"="binomial" ("gaussian"/ "binomial"/ "butterworth")],
+#    [string "gamma"="none" ("none"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "xvYCC"/ "1361"/ "sRGB"/ "Rec2020"/ "AdobeRGB / "ACESCCt")],
+#    [int "UV"=3 (2 to 3)]
 #    )
 #
 function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode", string "gamma", int "Y", int "UV", bool "fulls") {
@@ -1365,10 +1367,10 @@ function butt_constructor(float rad, int n, bool vert) {
 # Function Definition:
 #    (
 #    clip,
-#    int x=1 (0 to 14 by 1),
-#    int y=1 (0 to 14 by 1),
-#    int z=1 (0 to 7 by 1),
-#    string "mode"="mean" ("mean" / "weighted"),
+#    int x=1 (0 to 14),
+#    int y=1 (0 to 14),
+#    int z=1 (0 to 7),
+#    string "mode"="mean" ("mean"/ "weighted")
 #    )
 #
 function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV") {
@@ -1419,11 +1421,11 @@ function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    float radius=1.0 (0.0 to 3.0 by 0.1),
-#    [float radiusV=1.0 (0.0 to 3.0 by 0.1)],
-#    float "ithres"=4.0 (0.0 to 10.0 by 0.1),
-#    float "sthres"=4.0 (0.0 to 10.0 by 0.1),
-#    bool "dejaggie"=true,
+#    float radius=1.0 (0.0 to 3.0),
+#    [float radiusV=1.0 (0.0 to 3.0)],
+#    float "ithres"=4.0 (0.0 to 10.0),
+#    float "sthres"=4.0 (0.0 to 10.0),
+#    bool "dejaggie"=true
 #    )
 #
 function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", float "sthres", bool "dejaggie", int "UV") {
@@ -1571,11 +1573,11 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
 # Function Definition:
 #    (
 #    clip,
-#    int radius=1 (0 to 3 by 1),
-#    [int radiusV=1 (0 to 3 by 1)],
-#    string "mode"="SG" ("SG" / "SNN"),
+#    int radius=1 (0 to 3),
+#    [int radiusV=1 (0 to 3)],
+#    string "mode"="SG" ("SG"/ "SNN"),
 #    bool "limit"=false,
-#    bool "sharp"=false,
+#    bool "sharp"=false
 #    )
 #
 function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limit", string "mode", int "UV") {
@@ -1717,11 +1719,11 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ## Function Definition:
 ##    (
 ##    clip,
-##    float sigma=1.0 (0.0 to 150.0 by 0.1),
-##    [float sigmaV=1.0 (0.0 to 150.0 by 0.1)],
+##    float sigma=1.0 (0.0 to 150.0),
+##    [float sigmaV=1.0 (0.0 to 150.0)],
 ##    [bool "pad"=true],
 ##    [bool "mblur"=true],
-##    [int "UV"=1 (1 to 3 by 1)],
+##    [int "UV"=3 (1 / 2 / 3)]
 ##    )
 ##
 ## Benchmarks:
@@ -1818,6 +1820,7 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
         propCopy(a,true,props="_ChromaLocation") } }
 
 
+
 # Replace Low Frequency of first clip from the second clip
 # In other words, add the lowpass of the second clip into the highpass of the first
 #
@@ -1886,9 +1889,10 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
 #
 # Function Definition:
 #    (
-#    clip,
-#    float "lo"=900.0 (100.0 to 1900.0 by 0.1),
-#    float "hi"=1800.0 (100.0 to 1900.0 by 0.1),
+#    clip a,
+#    clip b,
+#    float "lo"=900.0 (100.0 to 1900.0),
+#    float "hi"=1800.0 (100.0 to 1900.0)
 #    )
 #
 function ex_MFR (clip c, clip ref, float "lo", float "hi", int "UV") {
@@ -2025,11 +2029,11 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    int rad=1 (0 to 3 by 1),
-#    int radT=1 (0 to 3 by 1),
-#    int "th"=7 (0 to 255 by 1),
-#    int "Tth"=0 (0 to 255 by 1),
-#    bool "sharp"=true,
+#    int rad=1 (0 to 3),
+#    int radT=1 (0 to 3),
+#    int "th"=7 (0 to 255),
+#    int "Tth"=0 (0 to 255),
+#    bool "sharp"=true
 #    )
 #
 function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", bool "sharp", int "UV") {
@@ -2061,11 +2065,11 @@ function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", boo
 # Function Definition:
 #    (
 #    clip,
-#    int "sw"=24 (0 to 100 by 1),
-#    int "tw"=49 (0 to 100 by 1),
-#    int "aw"=1 (0 to 100 by 1),
-#    int "sthres"=5 (0 to 255 by 1),
-#    int "tthres"=5 (0 to 255 by 1),
+#    int "sw"=24 (0 to 100),
+#    int "tw"=49 (0 to 100),
+#    int "aw"=1 (0 to 100),
+#    int "sthres"=5 (0 to 255),
+#    int "tthres"=5 (0 to 255 by 1)
 #    )
 #
 function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres", int "UV") {
@@ -2297,9 +2301,9 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 # Function Definition:
 #    (
 #    clip,
-#    string "mode"="median" ("undot" / "undot2" / "undot3" / "undot4" / "undot6" / "unblob3" / "unblob3D" / "--" / "median" / "median5" / "median7" / "median7o" / "--" / "smart" / "smart2" / "smart3" / "--" / "midsum" / "Winsor" / "Winsor5" / "Trimean" / "Trimean5" / "IQM" / "IQM5" / "--" / "EMF" / "CWM" / "CWM2" / "WMF" / "AWM" / "PWM" / "RMF" / "AMF" / "CAM" / "SNN" / "kuwahara" / "--" / "edgeW" / "edgeS" / "edgeC" / "edgeCL" / "cartoon" / "--" / "vertical" / "verticalS" / "horizontal" / "horizontalS" / "--" / "GaussT5" / "GaussST5" / "IQMT" / "medianT" / "medianT5" / "medianST" / "medianSTS" / "SixNN" / "STWM" / "PML" / "TL3D" / "ML3D" / "ML3Dex" / "Hybrid" / "BDM" / "MMF" / "--" / "DGM0" / "DGM1" / "DGM2" / "DGM3" / "DGM4" / "DGM5"),
-#    float "thres"=255.0 (0.0 to 255.0 by 1.0),
-#    bool "recursion"=false,
+#    string "mode"="median" ("undot"/ "undot2"/ "undot3"/ "undot4"/ "undot6"/ "unblob3"/ "unblob3D"/ "--"/ "median"/ "median5"/ "median7"/ "median7o"/ "--"/ "smart"/ "smart2"/ "smart3"/ "--"/ "midsum"/ "Winsor"/ "Winsor5"/ "Trimean"/ "Trimean5"/ "IQM"/ "IQM5"/ "--"/ "EMF"/ "CWM"/ "CWM2"/ "WMF"/ "AWM"/ "PWM"/ "RMF"/ "AMF"/ "CAM"/ "SNN"/ "kuwahara"/ "--"/ "edgeW"/ "edgeS"/ "edgeC"/ "edgeCL"/ "cartoon"/ "--"/ "vertical"/ "verticalS"/ "horizontal"/ "horizontalS"/ "--"/ "GaussT5"/ "GaussST5"/ "IQMT"/ "medianT"/ "medianT5"/ "medianST"/ "medianSTS"/ "SixNN"/ "STWM"/ "PML"/ "TL3D"/ "ML3D"/ "ML3Dex"/ "Hybrid"/ "BDM"/ "MMF"/ "--"/ "DGM0"/ "DGM1"/ "DGM2"/ "DGM3"/ "DGM4"/ "DGM5"),
+#    float "thres"=255.0 (0.0 to 255.0 by 1),
+#    bool "recursion"=false
 #    )
 
 function ex_median(clip a, string "mode", float "thres", bool "recursion", int "Y", int "UV") {
@@ -5539,8 +5543,9 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 ##
 ## Function Definition:
 ##    (
-##    clip,
-##    string "mode"="undot2" ("median" / "medianc" / "undot" / "undot2" / "undot3" / "edgeSP" / "edgeS" / "edgeW" / "cartoon" / "cartoonc" / "temp0" / "temp1" / "temp2" / "temp3" / "temp4"),
+##    clip a,
+##    clip b,
+##    string "mode"="undot2" ("median"/ "medianc"/ "undot"/ "undot2"/ "undot3"/ "edgeSP"/ "edgeS"/ "edgeW"/ "cartoon"/ "cartoonc"/ "temp0"/ "temp1"/ "temp2"/ "temp3"/ "temp4")
 ##    )
 
 function ex_repair(clip a, clip b, string "mode", int "UV") {
@@ -6207,8 +6212,8 @@ function ex_inflate(clip a, int "radius", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    int iter=1 (1 to 50 by 1),
-#    string "mode"="thin" ("thin" / "thicken" / "--" / "prune" / "pruneS" / "undot" / "4x4" / "--" / "inline" / "outline" / "boundary" / "--" / "convexhull" / "convexhull45" / "--" / "end" / "corner" / "cornerS" / "junction" / "4-connected" / "8-connected"),
+#    int iter=1 (1 to 50),
+#    string "mode"="thin" ("thin"/ "thicken"/ "--"/ "prune"/ "pruneS"/ "undot"/ "4x4"/ "--"/ "inline"/ "outline"/ "boundary"/ "--"/ "convexhull"/ "convexhull45"/ "--"/ "end"/ "corner"/ "cornerS"/ "junction"/ "4-connected"/ "8-connected")
 #    )
 #
 function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
@@ -6446,11 +6451,11 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    string "mode"="kroon" ("prewitt" / "hprewitt" / "qprewitt" / "tritical" / "hotdog" / "kayyali" / "mt_sobel" / "sobel" / "sobel5" / "scharr" / "pscharr" / "kroon" / "farid" / "farid5" / "frei-chen / "roberts" / "robinson" / "FDoG" / "DoG" / "DoB" / "LoG" / "SGDD" / "SGDD7" / "Std" / "laplace" / "cartoon" / "TEdge" / "min/max" / "max" / "SG" / "kirsch"),
-#    [int "lo"=10 (0 to 30 by 1)],
-#    [int "hi"=150 (100 to 255 by 1)],
-#    float "scale"=1.0 (0.0 to 25.0 by 0.1),
-#    float "invert"=false,
+#    string "mode"="kroon" ("prewitt"/ "hprewitt"/ "qprewitt"/ "tritical"/ "hotdog"/ "kayyali"/ "mt_sobel"/ "sobel"/ "sobel5"/ "scharr"/ "pscharr"/ "kroon"/ "farid"/ "farid5"/ "frei-chen / "roberts"/ "robinson"/ "FDoG"/ "DoG"/ "DoB"/ "LoG"/ "SGDD"/ "SGDD7"/ "Std"/ "laplace"/ "cartoon"/ "TEdge"/ "min/max"/ "max"/ "SG"/ "kirsch"),
+#    [int "lo"=10 (0 to 30)],
+#    [int "hi"=150 (100 to 255)],
+#    float "scale"=1.0 (0.0 to 25.0),
+#    float "invert"=false
 #    )
 
 function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool "invert", int "UV") {
@@ -6638,9 +6643,10 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 ###
 ### Function Definition:
 ###    (
-###    clip,
-###    string "mode"="avg" ("average" / "median" / "--" / "min" / "max" / "minmax" / "--" / "boundary" / "inline" / "outline" / "--" / "clamp" / "stdev"),
-###    [string "pixels"="-1 -1 0 -1 1 -1 -1 0 0 0 1 0 -1 1 0 1 1 1"],
+###    clip a,
+###    clip b,
+###    string "mode"="avg" ("average"/ "median"/ "--"/ "min"/ "max"/ "minmax"/ "--"/ "boundary"/ "inline"/ "outline"/ "--"/ "clamp"/ "stdev"),
+###    [string "pixels"="-1 -1 0 -1 1 -1 -1 0 0 0 1 0 -1 1 0 1 1 1"]
 ###    )
 ###
 ### Preset:
@@ -6787,10 +6793,10 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
 ### Function Definition:
 ###    (
 ###    clip,
-###    int rad=1 (0 to 8 by 1),
-###    [int radV=1 (0 to 8 by 1)],
-###    string "mode"="square" ("square" / "diamond" / "circle" / "disk" / "ring" / "cross" / "plus" / "horizontal" / "vertical"),
-###    bool "center"=true,
+###    int rad=1 (0 to 8),
+###    [int radV=1 (0 to 8)],
+###    string "mode"="square" ("square"/ "diamond"/ "circle"/ "disk"/ "ring"/ "cross"/ "plus"/ "horizontal"/ "vertical"),
+###    bool "center"=true
 ###    )
 ###
 function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop") {
