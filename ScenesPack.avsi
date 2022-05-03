@@ -63,15 +63,15 @@
 ### Function Definition:
 ###    (
 ###    clip,
-###    string "mode"="ALL" ("ALL" / "none" / "Range" / "Stats" / "Motion" / "Detail" / "EV" / "Stats+StdErr" / "Range+Stats" / "Range+Stats+Motion" / "Range+Stats+Motion+Detail" / "Range+Stats+Motion+Detail+EV"),
-###    float "interval"=0.5 (0.0 to 2.0 by 0.1),
-###    float "th"=0.5 (0.0 to 5.0 by 0.1),
-###    float "dFactor"=3.7 (2.5 to 4.0 by 0.1),
-###    [float "MinDif"=1.0 (0.5 to 4.0 by 0.1)],
+###    string "mode"="ALL" ("ALL"/ "none"/ "Range"/ "Stats"/ "Motion"/ "Detail"/ "EV"/ "Stats+StdErr"/ "Range+Stats"/ "Range+Stats+Motion"/ "Range+Stats+Motion+Detail"/ "Range+Stats+Motion+Detail+EV"),
+###    float "interval"=0.5 (0.0 to 2.0),
+###    float "th"=0.5 (0.0 to 5.0),
+###    float "dFactor"=3.7 (2.5 to 4.0),
+###    [float "MinDif"=1.0 (0.5 to 4.0)],
 ###    [bool "iFactor"=true],
 ###    [bool "Y"=true],
 ###    [bool "UV"=false],
-###    [bool "show"=false],
+###    bool "show"=false
 ###    )
 ###
 ###
