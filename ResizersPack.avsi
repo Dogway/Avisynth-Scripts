@@ -96,21 +96,21 @@
 ### Function Definition:
 ###    (
 ###    clip,
-###    float width=1920.0 (0.0 to 3840.0 by 1.0),
-###    float height=1080.0 (0.0 to 2160.0 by 1.0),
-###    string "edge"="nnedi3" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "ZoptiN" / "ZoptiH" / "Zopti720" / "Zopti720U" / "Zopti1080" / "Precise" / "Sharp" / "Hatch"),
-###    string "flat"="Lanczos" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "ZoptiN" / "ZoptiH" / "Zopti720" / "Zopti720U" / "Zopti1080" / "Precise" / "Sharp" / "Hatch"),
-###    string "chroma"="Blackman" ("nnedi3" / "FCBI" / "SuperResXBR" / "Krig" / "FSRCC" / "DPID" / "SSIM" / "SSIM2" / "--" / "Nearest" / "Box" / "Bilinear" / "Bicubic" / "Quadratic" / "Gauss" / "--" / "Wiener" / "Spline" / "Spline16" / "Spline36" / "Spline64" / "Spline100" / "Spline144" / "Spline196" / "Spline256" / "--" / "Jinc" / "Jinc16" / "Jinc36" / "Jinc64" / "Jinc100" / "Jinc144" / "Jinc196" / "Jinc256" / "EWASharp" / "EWASharp2" / "EWASharp4" / "EWASharper" / "EWASharper2" / "EWASharper4" / "EWASharpest" / "EWASoft" / "--" / "Sinc" / "SincLin" / "SinPow" / "--" / "Welch" / "Cosine" / "Bessel" / "Wiener" / "Hamming" / "Hann" / "Kaiser" / "Blackman" / "Black-Harris" / "Black-Nuttall" / "Nuttall" / "Bohman" / "Parzen" / "Lanczos" / "Ginseng" / "Flat-Top" / "MinSide" / "--" / "SoftCubic100" / "Robidoux Soft" / "SoftCubic75" / "BilcubicD" / "BilcubicU" / "Hermite" / "Robidoux" / "Centroid" / "Mitchell-Netravali" / "Robidoux Sharp" / "SoftCubic50" / "CatMule-Dog" / "Cub-grange" / "Catmull-Rom" / "Didee" / "Zopti" / "ZoptiN" / "ZoptiH" / "Zopti720" / "Zopti720U" / "Zopti1080" / "Precise" / "Sharp" / "Hatch"),
-###    int "e_taps"=6 (2 to 20 by 1),
-###    int "f_taps"=8 (2 to 20 by 1),
-###    int "c_taps"=6 (2 to 20 by 1),
-###    int "deconv"=0 (-10 to 15 by 1),
-###    [float "grain"=0.0 (0.0 to 2.0 by 0.1)],
-###    float "th_rat"=1.25 (1.0 to 2.0 by 0.05),
-###    float "th"=1.0 (0.0 to 5.0 by 0.1),
-###    float "elast"=4.0 (1.0 to 10.0 by 0.1),
-###    int "qual"=1 (1 to 2 by 1),
-###    [bool "show"=false],
+###    float width=1920.00 (0.00 to 3840.00),
+###    float height=1080.00 (0.00 to 2160.00),
+###    string "edge"="nnedi3" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    string "flat"="Lanczos" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    string "chroma"="Blackman" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    int "e_taps"=6 (2 to 20),
+###    int "f_taps"=8 (2 to 20),
+###    int "c_taps"=6 (2 to 20),
+###    int "deconv"=0 (-10 to 15),
+###    [float "grain"=0.0 (0.0 to 2.0)],
+###    float "th_rat"=1.25 (1.00 to 2.00 by 0.05),
+###    float "th"=1.0 (0.0 to 5.0),
+###    float "elast"=4.0 (1.0 to 10.0),
+###    int "qual"=1 (1 to 2),
+###    [bool "show"=false]
 ###    )
 ###
 ###
@@ -449,12 +449,12 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
 ### Function Definition:
 ###    (
 ###    clip,
-###    float ratio=1.0 (0.0 to 2.0 by 0.1),
-###    string mode="%" ("adjust2w" / "adjust2h" / "DAR" / "DARconform" / "PAR" / "%"),
-###    int mod=2 (1 to 16 by 1),
-###    string kernel="bicubic" ("spline16" / "spline36" / "spline64" / "lanczos" / "lanczos4" / "blackman" / "Sinc" / "Point" / "bilinear" / "bicubic" / "nnedi3"),
-###    float b=0.0 (0.0 to 1.0 by 0.01),
-###    float c=0.5 (0.0 to 1.0 by 0.01),
+###    float ratio=1.0 (0.0 to 2.0),
+###    string mode="%" ("adjust2w"/ "adjust2h"/ "DAR"/ "DARconform"/ "PAR"/ "%"),
+###    int mod=2 (1 to 16),
+###    string kernel="bicubic" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "Point"/ "bilinear"/ "bicubic"/ "deep"/ "nnedi3"),
+###    float b=0.00 (-1.00 to 1.00),
+###    float c=0.50 (0.00 to 1.00)
 ###    )
 ###
 ###############################################################################
@@ -518,12 +518,12 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
 ### Function Definition:
 ###    (
 ###    clip,
-###    int width=1920 (0 to 3840 by 1),
-###    int height=1080 (0 to 2160 by 1),
-###    int "mod"=2 (1 to 16 by 1),
-###    string "mode"="$108080" ("Dilate" / "Mirror" / "[16,128,128]" / "[0,128,128]"),
-###    int "biasW"=0 (-1920 to 1920 by 1),
-###    int "biasH"=0 (-1080 to 1080 by 1),
+###    int width=1920 (0 to 3840),
+###    int height=1080 (0 to 2160),
+###    int "mod"=2 (1 to 16),
+###    string "mode"="$108080" ("Dilate"/ "Mirror"/ "[16,128,128]"/ "[0,128,128]"),
+###    int "biasW"=0 (-1920 to 1920),
+###    int "biasH"=0 (-1080 to 1080)
 ###    )
 ###
 function PadResize(clip c, int "width", int "height", int "mod", string "mode", int "biasW", int "biasH") {
@@ -598,7 +598,7 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###    int top=0 (-1000 to 1000 by 2),
 ###    int right=0 (-1000 to 1000 by 2),
 ###    int bottom=0 (-1000 to 1000 by 2),
-###    string "mode"="$108080" ("Dilate" / "Mirror" / "[16,128,128]" / "[0,128,128]"),
+###    string "mode"="$108080" ("Dilate"/ "Mirror"/ "[16,128,128]"/ "[0,128,128]")
 ###    )
 ###
 function PadBorders(clip src, int "left", int "top", int "right", int "bottom", string "mode") {
