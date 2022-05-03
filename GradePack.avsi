@@ -75,11 +75,12 @@
 ###
 ### Function Definition:
 ###    (
-###    clip,
-###    float sat=1.0 (0.0 to 2.0 by 0.01),
-###    string mode="Vibrance" ("Vibrance" / "Dullness" / "Saturation" / "Recover"),
-###    float bias=5.0 (0.0 to 10.0 by 0.5),
-###    int "show"=0 (0 to 2 by 1),
+###    clip yuv,
+###    float sat=1.00 (0.00 to 2.00),
+###    string "mode"="Vibrance" ("Vibrance"/ "Dullness"/ "Saturation"/ "Recover"),
+###    [clip "Rc"],
+###    float "bias"=5.0 (0.0 to 10.0 by 0.5),
+###    int "show"=0 (0 to 2)
 ###    )
 ###
 ###########################
@@ -189,10 +190,11 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 ### Function Definition:
 ###    (
 ###    clip,
-###    float cont=0.0 (-1.0 to 1.0 by 0.1),
-###    float sat=1.0 (0.0 to 3.0 by 0.01),
+###    float cont=0.00 (-1.00 to 1.00),
+###    float "sat"=1.00 (0.00 to 3.00),
 ###    float "pivot"=125.5 (64.0 to 192.0 by 0.5),
-###    bool "show"=false,
+###    [int "UV"=3 (1 / 2 / 3)],
+###    bool "show"=false
 ###    )
 ###
 ####################################
@@ -283,14 +285,14 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ### Function Definition:
 ###    (
 ###    clip,
-###    float input_low=0.0 (0.0 to 255.0 by 1.0),
-###    float gamma=1.0 (0.0 to 3.0 by 0.01),
-###    float input_high=255.0 (0.0 to 255.0 by 1.0),
-###    float output_low=0.0 (0.0 to 255.0 by 1.0),
-###    float output_high=255.0 (0.0 to 255.0 by 1.0),
-###    [bool "show"=false],
+###    float input_low=0.0 (0.0 to 255.0 by 1),
+###    float gamma=1.00 (0.00 to 3.00),
+###    float input_high=255.0 (0.0 to 255.0 by 1),
+###    float output_low=0.0 (0.0 to 255.0 by 1),
+###    float output_high=255.0 (0.0 to 255.0 by 1),
+###    int "UV"=3 (1 / 2 / 3),
+###    [bool "show"=false]
 ###    )
-###
 ###
 ### Benchmark:
 ### 100.0% Levels       (10*256, 1.40, 245*256, 10*256, 255*256, false, false) (495fps)
@@ -425,10 +427,12 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
 ###
 ### Function Definition:
 ###    (
-###    clip,
-###    string "mode"="multiply" ("normal" / "blend" / "interpolation" / "harmonic" / "geometric" / "watermark" / "--" / "darker" / "darken" / "multiply" / "multiply128" / "softburn" / "colorburn" / "linearburn" / "--" / "lighter" / "lighten" / "screen" / "softdodge" / "colordodge" / "lineardodge" / "linearadd" / "--" / "overlay" / "softoverlay" / "hardoverlay" / "softlight" / "hardlight" / "vividlight" / "linearlight" / "stamp" / "pinlight" / "hardmix" / "reflect" / "glow" / "freeze" / "heat" / "--" / "grainextract" / "grainmerge" / "--" / "difference" / "softdifference" / "negation" / "exclusion" / "subtract" / "linearsubtract" / "from" / "divide" / "andn" / "bleach" / "extremity" / "stain" / "phoenix" / "--" / "hue" / "saturation" / "color" / "luminosity"),
-###    float "opacity"=1.0 (0.0 to 1.0 by 0.1),
-###    [float "watermark"=1.0 (0.0 to 2.0 by 0.1)],
+###    clip a,
+###    clip b,
+###    string "mode"="multiply" ("normal"/ "blend"/ "interpolation"/ "harmonic"/ "geometric"/ "watermark"/ "--"/ "darker"/ "darken"/ "multiply"/ "multiply128"/ "softburn"/ "colorburn"/ "linearburn"/ "--"/ "lighter"/ "lighten"/ "screen"/ "softdodge"/ "colordodge"/ "lineardodge"/ "linearadd"/ "--"/ "overlay"/ "softoverlay"/ "hardoverlay"/ "softlight"/ "hardlight"/ "vividlight"/ "linearlight"/ "stamp"/ "pinlight"/ "hardmix"/ "reflect"/ "glow"/ "freeze"/ "heat"/ "--"/ "grainextract"/ "grainmerge"/ "--"/ "difference"/ "softdifference"/ "negation"/ "exclusion"/ "subtract"/ "linearsubtract"/ "from"/ "divide"/ "andn"/ "bleach"/ "extremity"/ "stain"/ "phoenix"/ "--"/ "hue"/ "saturation"/ "color"/ "luminosity"),
+###    float "opacity"=1.00 (0.00 to 1.00),
+###    [float "watermark"=1.0 (0.0 to 2.0)],
+###    [int "UV"=3 (1 / 2 / 3)]
 ###    )
 ###
 ####################################
@@ -715,8 +719,9 @@ function ex_glow(clip a, int "radius", int "thres", float "opacity", bool "tv_ra
 ### Function Definition:
 ###    (
 ###    clip,
-###    int bits=3 (0 to 7 by 1),
-###    int mode=-1 (-1 to 7 by 1), ;-1: round  0: Bayer OD  1: Floyd-Steinberg ED  2: Sierra-2-4A ED  3: Stucki ED  4: Atkinson ED  5: Ostromoukhov ED  6: Void & Cluster OD  7: Quasirandom OD
+###    int "bits"=3 (0 to 7),
+###    int "mode"=-1 (-1 to 7)
+###    #hint Note: -1: round  0: Bayer OD  1: Floyd-Steinberg ED  2: Sierra-2-4A ED  3: Stucki ED  4: Atkinson ED  5: Ostromoukhov ED  6: Void & Cluster OD  7: Quasirandom OD
 ###    )
 ###
 function ex_posterize (clip c, int "bits", int "mode", int "UV") {
@@ -761,11 +766,11 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str=0.8 (0.1 to 2.0 by 0.01),
-###    float "Delta"=43.0 (0.0 to 360.0 by 1.0),
-###    float "Q"=0.7 (0.0 to 1.0 by 0.01),
+###    float str=0.80 (0.10 to 2.00),
+###    float "Delta"=43.0 (0.0 to 360.0 by 1),
+###    float "Q"=0.70 (0.00 to 1.00),
 ###    float "blur"=3.0 (0.0 to 6.0 by 0.5),
-###    bool "invert"=false,
+###    bool "invert"=false
 ###    )
 ###
 function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "blur", bool "invert") {
@@ -837,14 +842,14 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 ### Note:
 ###     Include the following function definition in AvsPmod to enable sliders.
 ###     (
-###     clip,
-###     float str=1.0 (0.0 to 360.0 by 0.1),
-###     string modeA="HUE" ("HUE"/ "SAT"/ "LUM"),
-###     string modeB="SAT" ("HUE"/ "SAT"/ "LUM"),
-###     float "Delta"=180.0 (0.0 to 360.0 by 1.0),
-###     float "Q"=0.20 (0.01 to 1.00 by 0.01),
-###     float "Opacity"=1.0 (0.0 to 1.0 by 0.1),
-###     int "show"=1 (0 to 2 by 1),
+###     clip yuv,
+###     float str=1.0 (0.0 to 360.0),
+###     string "modeA"="HUE" ("HUE"/ "SAT"/ "LUM"),
+###     string "modeB"="SAT" ("HUE"/ "SAT"/ "LUM"),
+###     float "Delta"=180.0 (0.0 to 360.0 by 1),
+###     float "Q"=0.20 (0.01 to 1.00),
+###     float "Opacity"=1.0 (0.0 to 1.0),
+###     int "show"=1 (0 to 2)
 ###     )
 ###
 function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "Delta", float "Q", float "Opacity", bool "tv_range", int "show") {
@@ -1022,11 +1027,11 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 ###
 ### Function Definition:
 ###    (
-###    clip,
-###    string "matrix"="Rec709" ("470M" / "470BG" / "170M" / "Rec709" / "Rec2020CL" / "Rec2020NCL" / "Display-P3" / "ACEScg"),
+###    clip yuv,
+###    string "matrix"="Rec709" ("470M"/ "470BG"/ "170M"/ "Rec709"/ "Rec2020CL"/ "Rec2020NCL"/ "Display-P3"/ "ACEScg"),
 ###    [bool "tv_range"=true],
 ###    bool "EBUR103"=false,
-###    int "show"=0 (0 to 2 by 1),
+###    int "show"=0 (0 to 2)
 ###    )
 ###
 ####################################
@@ -1146,10 +1151,10 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ###
 ### Function Definition:
 ###     (
-###     clip,
-###     string ""mode"="Rainbow" ("Rainbow" / "Isoparam"),
-###     float "iso"=1.0 (0.0 to 5.0 by 0.1),
-###     [bool "tv_range"=true],
+###     clip yuv,
+###     string "mode"="Rainbow" ("Rainbow"/ "Isoparam"),
+###     float "iso"=1.0 (0.0 to 5.0),
+###     [bool "tv_range"=true]
 ###     )
 ###
 ###
@@ -1440,7 +1445,8 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ###    (
 ###    clip,
 ###    int temperature=6504 (4008 to 12024 by 24),
-###    string "matrix"="Rec709" ("470M" / "470BG" / "170M" / "Rec709" / "Rec2020CL" / "Rec2020NCL" / "Display-P3" / "ACEScg"),
+###    string "matrix"="Rec709" ("470M"/ "470BG"/ "170M"/ "Rec709"/ "Rec2020CL"/ "Rec2020NCL"/ "Display-P3"/ "ACEScg"),
+###    bool "tv_range"=true
 ###    )
 ###
 ####################################
@@ -1516,11 +1522,11 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 ### Function Definition:
 ###    (
 ###    clip,
-###    int "zoom"=1 (1 to 6 by 1),
-###    int "x"=0 (-50 to 50 by 1),
-###    int "y"=0 (-50 to 50 by 1),
+###    int "zoom"=1 (1 to 6),
+###    int "x"=0 (-50 to 50),
+###    int "y"=0 (-50 to 50),
 ###    bool "positive"=false,
-###    bool "smooth"=true,
+###    bool "smooth"=true
 ###    )
 ###
 ######################
