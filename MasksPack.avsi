@@ -34,14 +34,14 @@
 ### Function Definition:
 ###    (
 ###    clip,
-###    int x1=0 (0 to 1920 by 1),
-###    int x2=0 (0 to 1920 by 1),
-###    int y1=0 (0 to 1080 by 1),
-###    int y2=0 (0 to 1080 by 1),
+###    int x1=0 (0 to 1920),
+###    int x2=100 (0 to 1920),
+###    int y1=0 (0 to 1080),
+###    int y2=100 (0 to 1080),
 ###    [bool "invert"=false],
 ###    [bool "show"=false],
 ###    [bool "tv_out"=false],
-###    [int "UV"=3 (1 to 128 by 1)],
+###    [int "UV"=3 (1 to 128)]
 ###    )
 ###
 ###########################
@@ -120,10 +120,10 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ###    clip,
 ###    float rad=3.0 (1.0 to 4.0 by 0.5),
 ###    [float "scale"=5.0 (1.0 to 10.0 by 0.5)],
-###    [int "lo"=4 (0 to 32 by 1)],
-###    [int "MSR"=40 (0 to 128 by 1)],
+###    [int "lo"=4 (0 to 32)],
+###    [int "MSR"=40 (0 to 128)],
 ###    [bool "invert"=false],
-###    [bool "show"=false],
+###    [bool "show"=false]
 ###    )
 ###
 ###########################
@@ -236,9 +236,9 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 ### Function Definition:
 ###    (
 ###    clip,
-###    int "lo"=24 (0 to 255 by 1),
-###    int "hi"=48 (0 to 255 by 1),
-###    [bool "invert"=false],
+###    int "lo"=24 (0 to 255),
+###    int "hi"=48 (0 to 255),
+###    [bool "invert"=false]
 ###    )
 ###
 ##############################################################
@@ -293,9 +293,9 @@ function LumaMask(clip a, int "lo", int "hi", bool "invert", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    float "th"=0.2 (0.1 to 0.9 by 0.1),
-#    float "sigma"=1.0 (0.5 to 3.0 by 0.1),
-#    [bool "show"=false],
+#    float "th"=0.2 (0.1 to 0.9),
+#    float "sigma"=1.0 (0.5 to 3.0),
+#    [bool "show"=false]
 #    )
 #
 function CornerMask(clip a, float "th", float "sigma", bool "show") {
@@ -347,6 +347,16 @@ function CornerMask(clip a, float "th", float "sigma", bool "show") {
 #
 # Similar to MVTools' MMask() but much faster.
 #
+# Function Definition:
+#    (
+#    clip,
+#    int "lo"=24 (0 to 255),
+#    int "hi"=48 (0 to 255),
+#    int "dir"=20 (-2 / -1 / 0 / 1 / 2 / 20),
+#    [float "scale"=2.0 (1.0 to 10.0)],
+#    [int "sharpness"=0 (0 to 10)]
+#    )
+#
 function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", int "dir", int "UV") {
 
     rgb  = isRGB(a)
@@ -362,6 +372,8 @@ function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", 
     dr   = Default(dir,      20) # Direction of the motion mask, -2 for previous+before, -1 for previous, 0 for both, 1 for next, 2 for next+following, 20 for both radius=2
     UV   = Default(UV,  rgb ? 3 : 2)
 
+    dr   = dr>2?20:dr
+    sc   = max(1,sc)
     ad   = abs(dr)
     sc   = sc / (ad==1 ? 2. : ad==20 ? 5. : 4.)
     lob  =     ex_bs(lo, 8, bi, fulls=true)
@@ -535,6 +547,16 @@ function ex_limitchange(clip flt, clip src, float "limit", float "bias", float "
 ###         ExTools
 ###         MVTools
 ###         SMDegrain (for MC=true)
+###
+###
+### Function Definition:
+###     (
+###     clip sharp,
+###     clip orig,
+###     int "keep"=24 (0 to 100)
+###     [bool "median"=false],
+###     [bool "MC"=false]
+###     )
 ###
 ### Example:
 ###     Soothe(orig,blurry,keep=0) # You can also use it to recover sharpness from a blurry filter
