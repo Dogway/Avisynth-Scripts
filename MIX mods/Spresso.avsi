@@ -24,11 +24,11 @@
 #    clip,
 #    float "limit"=2.0 (0.0 to 100.0 by 0.5),
 #    float "bias"=25.0 (0.0 to 200.0 by 0.5),
-#    int "RGmode"=4 (1 to 27 by 1),
+#    int "RGmode"=4 (1 to 27),
 #    [float "limitC"=4.0 (0.0 to 100.0 by 0.5)],
 #    [float "biasC"=50.0 (0.0 to 200.0 by 0.5)],
-#    [int "RGmodeC"=-1 (-1 to 27 by 1)],
-#    [int "radius"=4 (1 to 9 by 1)],
+#    [int "RGmodeC"=-1 (-1 to 27)],
+#    [int "radius"=4 (1 to 9)]
 #    )
 #
 function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "limitC", float "biasC", int "RGmodeC", int "radius") {

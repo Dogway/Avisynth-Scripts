@@ -444,32 +444,32 @@
 #
 # Function Definition:
 #     (
-#     clip,
-#     string "Preset"="Very Slow" ("Placebo" / "Very Slow" / "Slower" / "Slow" / "Medium" / "Fast" / "Faster" / "Very Fast" / "Super Fast" / "Ultra Fast" / "Draft"),
-#     [int "TR0"=2 (0 to 4 by 1)],
-#     [int "TR1"=2 (0 to 4 by 1)],
-#     [int "TR2"=1 (0 to 4 by 1)],
-#     [float "Sharpness"=1.0 (0.0 to 1.0 by 0.1)],
+#     clip yuv,
+#     string "Preset"="Very Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+#     [int "TR0"=2 (0 to 4)],
+#     [int "TR1"=2 (0 to 4)],
+#     [int "TR2"=1 (0 to 4)],
+#     [float "Sharpness"=1.0 (0.0 to 1.0)],
 #     [float "SVThin"=0.0 (0.0 to 0.5 by 0.05)],
-#     int "thSAD1"=640 (100 to 1000 by 1),
-#     int "thSAD2"=256 (100 to 1000 by 1),
-#     int "SourceMatch"=0 (0 to 3 by 1),
-#     string "MatchPreset"="Very Slow" ("Placebo" / "Very Slow" / "Slower" / "Slow" / "Medium" / "Fast" / "Faster" / "Very Fast" / "Super Fast" / "Ultra Fast" / "Draft"),
-#     string "MatchPreset2"="Very Slow" ("Placebo" / "Very Slow" / "Slower" / "Slow" / "Medium" / "Fast" / "Faster" / "Very Fast" / "Super Fast" / "Ultra Fast" / "Draft"),
-#     [int "MatchTR2"=1 (0 to 2 by 1)],
+#     int "thSAD1"=640 (100 to 1000),
+#     int "thSAD2"=256 (100 to 1000),
+#     int "SourceMatch"=0 (0 to 3),
+#     string "MatchPreset"="Very Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+#     string "MatchPreset2"="Very Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+#     [int "MatchTR2"=1 (0 to 2)],
 #     float "MatchEnhance"=0.5 (0.0 to 1.0 by 0.05),
-#     int "Lossless"=0 (0 to 2 by 1),
-#     float "EZDenoise"=0.0 (0.0 to 3.0 by 0.1),
-#     float "EZKeepGrain"=1.0 (0.0 to 1.0 by 0.1),
-#     string "NoisePreset"="Faster" ("Slower" / "Slow" / "Medium" / "Fast" / "Faster"),
-#     [int "InputType"=0 (0 to 3 by 1)],
-#     [int "ShutterBlur"=0 (0 to 3 by 1)],
-#     [int "FPSDivisor"=1 (1 to 2 by 1)],
+#     int "Lossless"=0 (0 to 2),
+#     float "EZDenoise"=0.0 (0.0 to 3.0),
+#     float "EZKeepGrain"=1.0 (0.0 to 1.0),
+#     string "NoisePreset"="Faster" ("Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"),
+#     [int "InputType"=0 (0 to 3)],
+#     [int "ShutterBlur"=0 (0 to 3)],
+#     [int "FPSDivisor"=1 (1 to 2)],
 #     [bool "Precise"=false],
-#     [string "Tuning"="None" ("None" / "DV-SD" / "DV-HD")],
+#     [string "Tuning"="None" ("None"/ "DV-SD"/ "DV-HD")],
 #     bool "show"=false,
 #     [bool "tv_range"=true],
-#     int "threads"=4 (2 to 16 by 2),
+#     int "threads"=4 (2 to 16 by 2)
 #     )
 #
 # Preset call:
@@ -1448,6 +1448,16 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 # Core plugins:
 #   nnedi3     (for nnedi3=true)
 #   SysInfo    (for nnedi3=true)
+#
+#
+# Function Definition:
+#     (
+#     clip clp,
+#     float "b"=0.0 (-1.0 to 1.0),
+#     float "c"=0.0 (0.0 to 1.0),
+#     [int "height"=1 (360 to 2160)],
+#     bool "nnedi3"=false
+#     )
 #
 function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
 

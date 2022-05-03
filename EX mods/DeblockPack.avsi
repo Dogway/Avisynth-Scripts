@@ -94,6 +94,19 @@
 ### - Optimized expressions (29% speed increase)
 ### - Replaced PointResize with PadBorders (2021-10-18)
 ###
+###
+### Function Definition:
+###     (
+###     clip,
+###     int "quant1"=24 (0 to 60),
+###     int "quant2"=26 (0 to 60),
+###     int "aOff1"=1 (1 to 50),
+###     int "bOff1"=2 (1 to 50),
+###     int "aOff2"=1 (1 to 50),
+###     int "bOff2"=2 (1 to 50),
+###     int "UV"=3 (1 / 2 / 3)
+###     )
+###
 
 function Deblock_QED ( clip clp, int "quant1", int "quant2", int "aOff1", int "bOff1", int "aOff2", int "bOff2", string "exdeblock1", string "exdeblock2", int "UV"  ) {
 

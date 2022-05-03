@@ -105,21 +105,21 @@
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str=1.0 (0.3 to 2.0 by 0.1),
-###    float slope=0.5 (0.0 to 2.0 by 0.01),
-###    float H_over=0.765 (0.01 to 255.0 by 0.1),
-###    float L_over=2.295 (0.01 to 255.0 by 0.1),
-###    float H_compr_lo=0.167 (0.0 to 1.0 by 0.01),
-###    float H_compr_hi=0.334 (0.0 to 1.0 by 0.01),
-###    float L_compr_lo=0.250 (0.0 to 1.0 by 0.01),
-###    float L_compr_hi=0.500 (0.0 to 1.0 by 0.01),
-###    float scale_lim=0.1 (0.0 to 1.0 by 0.1),
-###    float scale_cs=0.056 (0.0 to 1.0 by 0.01),
-###    float dW_lothr=76.5 (0.0 to 255.0 by 0.5),
-###    float dW_hithr=204.0 (0.0 to 255.0 by 0.5),
-###    float lowthr_mxw=0.1 (0.0 to 255.0 by 0.1),
-###    float pm_p=0.7 (0.0 to 1.0 by 0.1),
-###    float a_offset=2.0 (0.0 to 255.0 by 0.5),
+###    float "str"=1.0 (0.3 to 2.0),
+###    float "slope"=0.50 (0.00 to 2.00),
+###    [float "H_over"=0.765 (0.01 to 255.0)],
+###    [float "L_over"=2.295 (0.01 to 255.0)],
+###    [float "H_compr_lo"=0.17 (0.00 to 1.00)],
+###    [float "H_compr_hi"=0.33 (0.00 to 1.00)],
+###    [float "L_compr_lo"=0.25 (0.00 to 1.00)],
+###    [float "L_compr_hi"=0.50 (0.00 to 1.00)],
+###    [float "scale_lim"=0.1 (0.0 to 1.0)],
+###    [float "scale_cs"=0.06 (0.00 to 1.00)],
+###    [float "dW_lothr"=76.5 (0.0 to 255.0 by 0.5)],
+###    [float "dW_hithr"=204.0 (0.0 to 255.0 by 0.5)],
+###    [float "lowthr_mxw"=0.1 (0.0 to 255.0)],
+###    [float "pm_p"=0.7 (0.0 to 1.0)],
+###    [float "a_offset"=2.0 (0.0 to 255.0 by 0.5)]
 ###    )
 ###
 ####################################
@@ -507,11 +507,11 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str=1.0 (-1.0 to 2.0 by 0.1),
-###    [float strv=1.0 (-1.0 to 2.0 by 0.1)],
-###    float "Fc"=1920.0 (0.0 to 3840.0 by 1.0),
-###    float "th"=0.0 (0.0 to 255.0 by 1.0),
-###    bool "safe"=false,
+###    float str=1.0 (-1.0 to 2.0),
+###    [float strv=1.0 (-1.0 to 2.0)],
+###    float "Fc"=1920.0 (0.0 to 3840.0 by 1),
+###    float "th"=0.0 (0.0 to 255.0 by 1),
+###    bool "safe"=false
 ###    )
 ###
 function ex_unsharp(clip a, float "str", float "strv", float "Fc", float "th", bool "safe", int "Y", int "UV") {
@@ -1255,14 +1255,14 @@ function SeeSawMulti(clip  c, int "Times", val "IG",
 ### Function Definition:
 ###    (
 ###    clip,
-###    float sstr=1.0 (0.0 to 5.0 by 0.1),
-###    string mode=1 (0 to 3 by 1),
-###    [float cstr=1.0 (0.5 to 1.25 by 0.1)],
-###    float "xstr"=0.19 (0.0 to 0.250 by 0.01),
-###    float "lstr"=1.49 (0.0 to 2.0 by 0.01),
-###    float "pstr"=1.272 (0.0 to 2.0 by 0.01),
-###    float "ldmp"=1.1 (0.0 to 8.0 by 0.01),
-###    float "hdmp"=0.01 (0.0 to 8.0 by 0.01),
+###    float sstr=1.0 (0.0 to 5.0),
+###    string mode=1 (-3 / -2 / -1 / 0 / 1 / 2 / 3),
+###    [float cstr=1.00 (0.50 to 1.25)],
+###    float "xstr"=0.19 (0.00 to 0.25),
+###    [float "lstr"=1.49 (0.00 to 2.00)],
+###    [float "pstr"=1.272 (0.00 to 2.00)],
+###    [float "ldmp"=1.10 (0.00 to 8.00)],
+###    [float "hdmp"=0.01 (0.00 to 8.00)]
 ###    )
 ###
 function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xstr", float "lstr", float "pstr", float "ldmp", float "hdmp") {
@@ -1363,11 +1363,11 @@ function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xs
 ## Function Definition:
 ##    (
 ##    clip,
-##    float str=0.7 (0.0 to 20.0 by 0.1),
-##    float pow=1.6 (0.0 to 5.0 by 0.1),
-##    float z=6.0 (0.0 to 20.0 by 0.1),
-##    float rad=9.0 (0.0 to 60.0 by 0.1),
-##    float ldmp=0.001 (0.0 to 0.5 by 0.001),
+##    float str=0.7 (0.0 to 20.0),
+##    float pow=1.6 (0.0 to 5.0),
+##    float z=6.0 (0.0 to 20.0),
+##    float rad=9.0 (0.0 to 60.0),
+##    float ldmp=0.001 (0.000 to 0.500)
 ##    )
 ##
 function NonlinUSM(clip o, float "str", float "pow", float "z", float "rad", float "ldmp", int "UV") {
@@ -1428,11 +1428,11 @@ function NonlinUSM(clip o, float "str", float "pow", float "z", float "rad", flo
 # Function Definition:
 #    (
 #    clip,
-#    int str=75 (0 to 150 by 1),
-#    int rad=1 (1 to 5 by 1),
-#    float ss_x=1.0 (0.0 to 2.0 by 0.1),
-#    float ss_y=1.0 (0.0 to 2.0 by 0.1),
-#    bool "soft"=false,
+#    int str=75 (0 to 150),
+#    int "rad"=1 (1 to 5),
+#    float "ss_x"=1.0 (0.0 to 2.0),
+#    float "ss_y"=1.0 (0.0 to 2.0),
+#    bool "soft"=false
 #    )
 #
 function SlopeBend( clip a, int "str", int "rad", float "ss_x", float "ss_y", bool "soft") {
@@ -1551,12 +1551,12 @@ function MedianSharp (clip a, int "str", float "pow", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    float str=1.5 (0.0 to 3.0 by 0.1),
-#    int pow=4 (0 to 8 by 1),
-#    int z=4 (0 to 20.0 by 1),
-#    int ldmp=1 (0 to 5 by 1),
-#    int mode=1 (0 to 1 by 1),
-#    bool med=false,
+#    float "str"=1.5 (0.0 to 3.0),
+#    int "pow"=4 (0 to 8),
+#    int "z"=4 (0 to 20),
+#    int "ldmp"=1 (0 to 5),
+#    int "mode"=1 (0 to 1),
+#    bool "med"=false
 #    )
 #
 function DetailSharpen(clip c, float "str", int "pow", int "z", int "ldmp", int "mode", bool "med") {
@@ -1766,12 +1766,12 @@ function SSW(clip c) {
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str=7.0 (0.0 to 20.0 by 0.1),
-###    [float strV=7.0 (0.0 to 20.0 by 0.1)],
-###    float "rad"=1.0 (0.0 to 20.0 by 0.1),
-###    [float "radV"=1.0 (0.0 to 20.0 by 0.1)],
-###    int "lmode"=1 (0 to 4 by 1),
-###    int "thresh"=720 (0 to 1000 by 1),
+###    float str=7.0 (0.0 to 20.0),
+###    [float strV=7.0 (0.0 to 20.0)],
+###    float "rad"=1.0 (0.0 to 20.0),
+###    [float "radV"=1.0 (0.0 to 20.0)],
+###    int "lmode"=1 (0 to 4),
+###    int "thresh"=720 (0 to 1000)
 ###    )
 ###
 function ReCon(clip C, float "str", float "strv", float "rad", float "radv", int "lmode", int "thresh") {
@@ -1867,14 +1867,14 @@ function ReCon(clip C, float "str", float "strv", float "rad", float "radv", int
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str=4 (0 to 20 by 1),
-###    [float strV=4 (0 to 20 by 1)],
-###    float "de"=0.2 (0.0 to 1.0 by 0.1),
-###    [float "deV"=0.2 (0.0 to 1.0 by 0.1)],
-###    float "re"=0.1 (0.0 to 1.0 by 0.1),
-###    [float "reV"=0.1 (0.0 to 1.0 by 0.1)],
-###    float "cstr"=0.5 (0.0 to 1.0 by 0.1),
-###    [float "cstrV"=0.5 (0.0 to 1.0 by 0.1)],
+###    float str=4 (0 to 20),
+###    [float strV=4 (0 to 20)],
+###    float "de"=0.2 (0.0 to 1.0),
+###    [float "deV"=0.2 (0.0 to 1.0)],
+###    float "re"=0.1 (0.0 to 1.0),
+###    [float "reV"=0.1 (0.0 to 1.0)],
+###    float "cstr"=0.5 (0.0 to 1.0),
+###    [float "cstrV"=0.5 (0.0 to 1.0)]
 ###    )
 ###
 function blah(Clip c, int "str", int "strv", float "de", float "dev", float "re", float "rev",  float "cstr", float "cstrv") {
@@ -1967,14 +1967,14 @@ function blah(Clip c, int "str", int "strv", float "de", float "dev", float "re"
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str=1.0 (0.0 to 2.0 by 0.1),
-###    int rad=1 (0 to 8 by 1),
-###    int "thresh"=255 (0 to 255 by 1),
-###    int "mode"=1 (0 to 1 by 1),
-###    int "kernel"=2 (1 to 2 by 1),
+###    float str=1.0 (0.0 to 2.0 ),
+###    int rad=1 (0 to 8),
+###    int "thresh"=255 (0 to 255),
+###    int "mode"=1 (0 to 1),
+###    int "kernel"=2 (1 to 2),
 ###    bool "lp"=false,
 ###    bool "hp"=false,
-###    bool "nr"=false,
+###    bool "nr"=false
 ###    )
 ###
 function MedSharp(Clip C, float "str", int "rad", int "thresh", int "mode", bool "lp", bool "hp", bool "nr", int "kernel") {
@@ -2854,12 +2854,12 @@ function DGSharpen2(clip a, float "str") {
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str0=2.0 (0.0 to 4.0 by 0.1),
-###    float str1=1.125 (0.0 to 4.0 by 0.1),
-###    float k0=0.5 (0.0 to 4.0 by 0.1),
-###    int k1=1 (0 to 4 by 1),
-###    float "edgethr"=0.2 (0.0 to 1.0 by 0.1),
-###    bool "debug"=false,
+###    float "str0"=2.0 (0.0 to 4.0),
+###    float "str1"=1.125 (0.0 to 4.0),
+###    float "k0"=0.5 (0.0 to 4.0),
+###    int "k1"=1 (0 to 4),
+###    float "edgethr"=0.2 (0.0 to 1.0),
+###    bool "debug"=false
 ###    )
 ###
 function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "k1", float "edgethr", bool "debug") {
@@ -2929,12 +2929,12 @@ function MultiSharpen2(clip C, int multi, float "sharpen", float "blur") {
 ## Function Definition:
 ##    (
 ##    clip,
-##    int strength=25 (0 to 100 by 1),
-##    int threshold=75 (0 to 100 by 1),
-##    float ss_x=1.0 (0.0 to 2.0 by 0.1),
-##    float ss_y=1.0 (0.0 to 2.0 by 0.1),
-##    float dest_x=1.0 (0.0 to 2.0 by 0.1),
-##    float dest_y=1.0 (0.0 to 2.0 by 0.1),
+##    int "strength"=25 (0 to 100),
+##    int "threshold"=75 (0 to 100),
+##    float "ss_x"=1.0 (0.0 to 2.0),
+##    float "ss_y"=1.0 (0.0 to 2.0),
+##    float "dest_x"=1.0 (0.0 to 2.0),
+##    float "dest_y"=1.0 (0.0 to 2.0)
 ##    )
 ##
 function pSharpen (clip clp, int "strength", int "threshold", float "ss_x", float "ss_y", int "dest_x", int "dest_y") {

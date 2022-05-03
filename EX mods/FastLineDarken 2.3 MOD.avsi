@@ -52,6 +52,15 @@
 #  1.1  - added luma_cap option
 #  1.0  - initial release
 #
+# Function Definition:
+#     (
+#     clip c,
+#     int "strength"=48 (0 to 255),
+#     int "prot"=5 (0 to 20),
+#     int "luma_cap"=191 (0 to 255),
+#     int "threshold"=4 (0 to 128),
+#     int "thinning"=24 (0 to 128)
+#     )
 
 function FastLineDarkenMOD( clip c, int "strength", int "prot", int "luma_cap", int "threshold", int "thinning") {
 

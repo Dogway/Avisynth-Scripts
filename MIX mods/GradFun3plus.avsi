@@ -76,6 +76,25 @@
 ### ref must have the same format as the input clip. When not specified, the reference clip is the input.
 ###
 ###
+### Function Definition:
+###     (
+###     clip,
+###     float "thr"=0.35 (0.10 to 2.00),
+###     int "radius"=17 (1 to 128),
+###     [float "elast"=3.00 (1.00 to 6.00)],
+###     int "mask"=2 (0 to 4),
+###     int "smode"=0 (0 / 1 / 2 / 3),
+###     [float "thr_det"=2.00 (0.00 to 10.00)],
+###     [int "show"=0 (0 to 1)],
+###     [float "thrc"=0.35 (0.10 to 2.00)],
+###     [int "radiusc"=8 (1 to 128)],
+###     [float "elastc"=3.00 (1.00 to 6.00)],
+###     [int "Y"=3 (1 / 2 / 3)],
+###     [int "UV"=3 (1 / 2 / 3)]
+###     [clip "ref"]
+###     )
+###
+###
 function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "mask", int "smode", float "thr_det", int "show", float "thrc", int "radiusc", float "elastc", int "Y", int "UV", clip "ref") {
 
     w     = src.width ()
