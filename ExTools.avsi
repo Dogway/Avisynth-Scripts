@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v8.4   (30-04-2022)                   ##
+###        ExTools v8.5   (06-05-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -1702,7 +1702,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ##
 ## Dependencies:
 ##     ResizersPack
-##     vsTCanny  (for small radii or small sources)
+##     vsTCanny  (for small radii or small sources - h <= 480)
 ##
 ## It was profiled against ex_blur(mode="gaussian") so ex_blur(10,mode="gaussian") ~> ex_GaussianBlur(10)
 ##
@@ -1783,7 +1783,10 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
 
         a
 
-    } else if (!full && sm && UV==3 || (rd < 2.00 && rv < 2.00 && mb) || (!pad && w0 <= 1099 && (w1 < 24 || h1 < 24))) {
+    } else if (!full && sm && UV==3                         || \
+               ( rd < 2.00 && rv < 2.00 && mb)              || \
+               (!pad && w0 <= 1099 && (w1 < 24 || h1 < 24)) || \
+                 pad && (w0 <= 480 || h0 <= 480) ) {
 
         vsTCanny(a,rd,sigma_vY=rv,mode=-1,y=y,u=uv,v=uv)
 
@@ -6228,8 +6231,28 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
     un = Undefined()
 
     Assert(IsVersionOrGreater(3,7,2), "ex_hitormiss: Update AviSynth+ version")
+
+    md == "thin"           || \
+    md == "thicken"        || \
+    md == "undot"          || \
+    md == "prune"          || \
+    md == "pruneS"         || \
+    md == "inline"         || \
+    md == "outline"        || \
+    md == "boundary"       || \
+    md == "convexhull"     || \
+    md == "convexhull45"   || \
+    md == "junction"       || \
+    md == "4-connected"    || \
+    md == "8-connected"    || \
+    md == "4x4"            || \
+    md == "end"            || \
+    md == "corner"         || \
+    md == "cornerS" ? nop() : \
+    Assert(false, "ex_hitormiss: Unsupported mode")
+
     !(md == "thin" || md == "thicken" || md == "prune" || md == "pruneS" || md == "convexhull" || md == "convexhull45" || md == "4x4") ? \
-    Assert(rd == 1, "ex_hitormiss: "+md+" mode only supports radius=1") : nop()
+    Assert(rd == 1, "ex_hitormiss: "+md+" mode only supports iter=1") : nop()
 
     if (rd > 1) {
 
