@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v5.3 mix - 17 April 2022                                  ###
+###                                v5.4 mix - 07 May 2022                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -33,6 +33,10 @@
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v5.4mx : - Typo in Secure expression
+###          - Fix 'super' clip in Lmode=6 for single plane sources
+###          - Convert 'pre' to 8-bit in Lmode=6 for optimization
 ###
 ### v5.3mx : - Update Temporal Limiting settings
 ###          - Fix 'super' in Lmode=6 format when reading from Globals
@@ -210,8 +214,8 @@
 ###
 ### -> MaskTools2     (v2.2.30 or up)
 ### -> RgTools        (v1.2 or up)
-### -> ExTools        (v8.4 or up)
-### -> ResizersPack   (v8.6 or up)
+### -> ExTools        (v8.5 or up)
+### -> ResizersPack   (v9.2 or up)
 ### -> SMDegrain      (v3.5.0 or up)   [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v4.2 or up)     [for Smode=1, Smode=2 and Smode=3]
@@ -598,7 +602,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v5.3mix"
+    version = "v5.4mix"
 
     rgb    = isRGB(inclip)
     ox     = inclip.width()
@@ -724,7 +728,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
     \      :                             method
     method = Smode>3 || preblur=="OFF" ? method : tmp.ex_lutxyz(pre,method,"x y z - "+bi32p+" - "+bi32p, UV=1, fulls=!tv)
 
-    secur  = secure ? Format("y dup z == swap dup y z - sgn 0.51 * + ?") : "y"
+    secur  = secure ? Format("y dup z == swap dup z y - sgn 0.51 * + ?") : "y"
     prebl  = preblur=="ON" ? "x z "+secur+" - - " : secur
 
 
