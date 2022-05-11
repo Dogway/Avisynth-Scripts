@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.2 (02-05-2022)      ##
+###   Resizers Functions Pack 9.3 (11-05-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -534,43 +534,30 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
     h   = height()
     fch = isy() || rgb || is444()
 
-    wd     = Default(width,  w)
-    hd     = Default(height, h)
+    wt     = Default(width,  w)
+    ht     = Default(height, h)
     mod    = Default(mod,    fch ? 1 : 2)
     bw     = Default(biasW,  0)
     bh     = Default(biasH,  0)
     # mode: 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
-    wm = nmod(wd,mod)
-    hm = nmod(hd,mod)
+    wn  = nmod(wt,mod)  wa = wn-w
+    hn  = nmod(ht,mod)  ha = hn-h
 
-    # Crop or Pad
-    wc = wm > w
-    hc = hm > h
+    wh  = abs(wa)/2.
+    hh  = abs(ha)/2.
+    wf  = floor(wh)      wd = Frac (wh)
+    hf  = floor(hh)      hd = Frac (hh)
+    w1  = ceil (wd)+wf   w2 = floor(wd)+wf
+    h1  = ceil (hd)+hf   h2 = floor(hd)+hf
 
-    # Rounding
-    wp = abs(w - wm)/2.  wi = round(wp)%2
-    hp = abs(h - hm)/2.  hi = round(hp)%2
-    wh = ceil (Frac(wp))+floor(wp)
-    hh = ceil (Frac(hp))+floor(hp)
-    wl = floor(Frac(wp))+floor(wp)
-    hl = floor(Frac(hp))+floor(hp)
+    bw1 = fch ? bw : bw+bw%2
+    bh1 = fch ? bh : bh+bh%2
+    sgw = sign(wa)
+    sgh = sign(ha)
 
-    # Zeroing null transforms
-    wc1 = !wc ?  wh+wi : 0    wa1 =  wc ? wh+wi : 0
-    wc2 = !wc ? -wl+wi : 0    wa2 =  wc ? wl-wi : 0
-    hc1 = !hc ?  hh+hi : 0    ha1 =  hc ? hh+hi : 0
-    hc2 = !hc ? -hl+hi : 0    ha2 =  hc ? hl-hi : 0
-
-    bwa = abs (bw)
-    bha = abs (bh)
-    bw1 = sign(bw)<0 ? 0 : fch ? bwa : bwa+bwa%2
-    bw2 = sign(bw)>0 ? 0 : fch ? bwa : bwa-bwa%2
-    bh1 = sign(bh)<0 ? 0 : fch ? bha : bha+bha%2
-    bh2 = sign(bh)>0 ? 0 : fch ? bha : bha-bha%2
-
-    PadBorders(wa1+bw1,ha1+bh1,wa2+bw2,ha2+bh2,mode)
-    Crop      (wc1+bw2,hc1+bh2,wc2-bw1,hc2-bh1,true) }
+    PadBorders(sgw*w1+bw1,sgh*h1+bh1,\
+               sgw*w2-bw1,sgh*h2-bh1,mode) }
 
 
 
@@ -642,7 +629,7 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 
     } else if (md=="dilate") {
 
-        PointResize(w+l+r+lc+rc, h+t+b+tc+bc, -l-lc, -t-tc, w+l+r+lc+rc, h+t+b+tc+bc+0.0001)
+        PointResize(w+l+r+lc+rc, h+t+b+tc+bc, -l-lc, -t-tc, w+l+r+lc+rc, h+t+b+tc+bc)
 
     } else if (LeftStr(md,1)=="$") {
 
@@ -717,6 +704,7 @@ function nmod(val n, int "mod", val "min", int "dec", bool "bankers") {
 ###     "auto" - will crop or pad depending on minimal transform (Default)
 ###     "crop" - will force cropping to mod
 ###     "pad"  - will force padding  to mod
+###
 function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
 
     c
@@ -728,29 +716,37 @@ function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
     md  = Default(mode, "auto")
     # borders: 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
-    wm  = nmod(w,mdh)
-    hm  = nmod(h,mdv)
+    # Ground truth for 'auto'
+    wn  = nmod(w,mdh)  wa = abs(wn-w)
+    hn  = nmod(h,mdv)  ha = abs(hn-h)
+
+    # Ground truth for 'crop'
+    wc  = w%mdh
+    hc  = h%mdv
+
+    # Ground truth for 'pad'
+    wp  = wc != 0 ? abs(wc-mdh) : 0
+    hp  = hc != 0 ? abs(hc-mdv) : 0
 
     # Crop or Pad
-    wc  = md=="auto" ? wm < w : md=="crop"
-    hc  = md=="auto" ? hm < h : md=="crop"
+    wc  = md=="crop" ? wc : md=="pad" ? wp : wa
+    hc  = md=="crop" ? hc : md=="pad" ? hp : ha
 
     # Rounding
-    wp  = abs(w - wm)/2.  wi = round(wp)%2
-    hp  = abs(h - hm)/2.  hi = round(hp)%2
-    wh  = ceil (Frac(wp))+floor(wp)
-    hh  = ceil (Frac(hp))+floor(hp)
-    wl  = floor(Frac(wp))+floor(wp)
-    hl  = floor(Frac(hp))+floor(hp)
+    wh  = wc/2.
+    hh  = hc/2.
+    wf  = floor(wh)    wd = Frac (wh)
+    hf  = floor(hh)    hd = Frac (hh)
+    w1  = ceil (wd)+wf w2 = floor(wd)+wf
+    h1  = ceil (hd)+hf h2 = floor(hd)+hf
 
-    # Zeroing null transforms
-    wc1 = wc ?  wh+wi : 0    wa1 = !wc ? wh+wi : 0
-    wc2 = wc ? -wl+wi : 0    wa2 = !wc ? wl-wi : 0
-    hc1 = hc ?  hh+hi : 0    ha1 = !hc ? hh+hi : 0
-    hc2 = hc ? -hl+hi : 0    ha2 = !hc ? hl-hi : 0
+    # Assignment
+    wc1 = md=="auto" ? wn >= w ? w1 : -w1 : md=="crop" ?  -w1 : w1
+    wc2 = md=="auto" ? wn >= w ? w2 : -w2 : md=="crop" ?  -w2 : w2
+    hc1 = md=="auto" ? hn >= h ? h1 : -h1 : md=="crop" ?  -h1 : h1
+    hc2 = md=="auto" ? hn >= h ? h2 : -h2 : md=="crop" ?  -h2 : h2
 
-    PadBorders(wa1,ha1,wa2,ha2,borders)
-    Crop      (wc1,hc1,wc2,hc2,   true) }
+    PadBorders(wc1,hc1,wc2,hc2,borders) }
 
 
 
