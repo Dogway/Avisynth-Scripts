@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v5.4 mix - 07 May 2022                                    ###
+###                                v5.5 mix - 14 May 2022                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -33,6 +33,8 @@
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v5.5mx : - No changes (sync with EX mod)
 ###
 ### v5.4mx : - Typo in Secure expression
 ###          - Fix 'super' clip in Lmode=6 for single plane sources
@@ -215,7 +217,7 @@
 ### -> MaskTools2     (v2.2.30 or up)
 ### -> RgTools        (v1.2 or up)
 ### -> ExTools        (v8.5 or up)
-### -> ResizersPack   (v9.2 or up)
+### -> ResizersPack   (v9.3 or up)
 ### -> SMDegrain      (v3.5.0 or up)   [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v4.2 or up)     [for Smode=1, Smode=2 and Smode=3]
@@ -249,8 +251,8 @@
 ### Smode [int: 1,2,3,4,5,6]
 ### ----------------------
 ### Sharpen mode:
-###    =1 : Unsharp masking (from warpsharp)     (now ex_unsharp())
-###    =2 : Unsharp masking (from variableblur)  (now ex_unsharp())
+###    =1 : Unsharp masking (from warpsharp)     (now parametrized ex_unsharp())
+###    =2 : Unsharp masking (from variableblur)  (now parametrized ex_unsharp())
 ###    =3 : Unsharp masking (from ex_unsharp())
 ###    =4 : Range sharpening
 ###    =5 : Nonlinear sharpening (corrected version)
@@ -602,7 +604,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v5.4mix"
+    version = "v5.5mix"
 
     rgb    = isRGB(inclip)
     ox     = inclip.width()

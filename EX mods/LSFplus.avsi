@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v5.4 ex - 07 May 2022                                     ###
+###                                v5.5 ex - 14 May 2022                                     ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -33,6 +33,8 @@
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v5.5ex : - Some cleanup in repair modes
 ###
 ### v5.4ex : - Typo in Secure expression
 ###          - Fix 'super' clip in Lmode=6 for single plane sources
@@ -219,7 +221,7 @@
 ### +--------------+
 ###
 ### -> ExTools        (v8.5 or up)
-### -> ResizersPack   (v9.2 or up)
+### -> ResizersPack   (v9.3 or up)
 ### -> SMDegrain      (v3.5.0 or up)   [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v4.2 or up)     [for Smode=1, Smode=2, Smode=3 and Smode=6]
@@ -253,8 +255,8 @@
 ### Smode [int: 1,2,3,4,5,6]
 ### ----------------------
 ### Sharpen mode:
-###    =1 : Unsharp masking (from warpsharp)     (now ex_unsharp())
-###    =2 : Unsharp masking (from variableblur)  (now ex_unsharp())
+###    =1 : Unsharp masking (from warpsharp)     (now parametrized ex_unsharp())
+###    =2 : Unsharp masking (from variableblur)  (now parametrized ex_unsharp())
 ###    =3 : Unsharp masking (from ex_unsharp())
 ###    =4 : Range sharpening
 ###    =5 : Nonlinear sharpening (corrected version)
@@ -606,7 +608,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v5.4ex"
+    version = "v5.5ex"
 
     rgb    = isRGB(inclip)
     ox     = inclip.width()
@@ -800,7 +802,8 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
     normal2 = os10 ? zero2 : ex_clamp(normsharp, bright_limit2, dark_limit2, round(overshoot),  round(undershoot),  UV=1)
 
 
-    Lm     = string(abs(Lmode))
+    Lm     = max(1,abs(Lmode))
+    Lm     = string(4 < Lm < 16 ? 4 : 19 < Lm < 22 ? 19 : Lm )
     limit1 = Lmode <0 ? normsharp.ex_repair(Smethod > 3 ? normsharp.ex_repair(tmp,"undot"+Lm, UV=1) : tmp, "undot"+Lm, UV=1)
     \      : Lmode==0 ? normsharp
     \      : Lmode==1 ?                                             Smethod < 4 ? normal : normal2
