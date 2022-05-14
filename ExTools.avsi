@@ -5557,16 +5557,24 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    mode = Default(mode,  "undot2")
-    mode = ReplaceStr(LCase(mode)," ","")
-    UV   = Default(UV,    rgb ? 3 : 1)
-    un   = Undefined()
+    md  = Default(mode,  "undot2")
+    md  = ReplaceStr(LCase(mode)," ","")
+    UV  = Default(UV,    rgb ? 3 : 1)
+    un  = Undefined()
+
+    md = md == "undot0"    ? "undot"        : \
+         md == "undot14"   ? "medianc"      : \
+         md == "undot16"   ? "edgeSP"       : \
+         md == "undot17"   ? "edgeS"        : \
+         md == "undot18"   ? "edgeW"        : \
+         md == "undot19"   ? "cartoonc"     : \
+         md == "undot22"   ? "cartoon"      : md
 
     Assert(IsVersionOrGreater(3,7,2), "ex_repair: Update AviSynth+ version")
 
     str =                                                                                                                                                            \
                                                                                                                                                                      \
-        mode == "median5"? "y[-2,-2] y[-2,-1]     dup1 dup1 min W^ max Y^
+          md == "median5"? "y[-2,-2] y[-2,-1]     dup1 dup1 min W^ max Y^
                             y[-2,0]  y[-2,1]      dup1 dup1 min Q^ max X^
                             y[-2,2]  y[-1,-2]     dup1 dup1 min G^ max V^
                             y[-1,-1] y[-1,0]      dup1 dup1 min H^ max U^
@@ -5673,11 +5681,11 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             L M                   dup1 dup1 max swap2 min
                             x swap2 clip"                                                                                                                          : \
                                                                                                                                                                      \
-        mode == "undot"  ||                                                                                                                                          \
-        mode == "undot1" ?  "y[-1,1] A@ y[0,1] B@ max y[1,1] C@ y[-1,0] D@ max max y[1,0] F@ y[-1,-1] G@ max y[0,-1] H@ y[1,-1] I@ max max max
+          md == "undot"  ||                                                                                                                                          \
+          md == "undot1" ?  "y[-1,1] A@ y[0,1] B@ max y[1,1] C@ y[-1,0] D@ max max y[1,0] F@ y[-1,-1] G@ max y[0,-1] H@ y[1,-1] I@ max max max
                             A B min C D min min F G min H I min min min x swap2 clip"                                                                              : \
                                                                                                                                                                      \
-        mode == "undot2" ? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
+          md == "undot2" ? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
                             y[1,1]  y[-1,0]       dup1 dup1 min swap2 max
                             y[1,0]  y[-1,-1]      dup1 dup1 min swap2 max
                             y[0,-1] y[1,-1]       dup1 dup1 min swap2 max
@@ -5701,7 +5709,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             swap2                           min
                             x swap2 clip"                                                                                                                          : \
                                                                                                                                                                      \
-        mode == "undot3" ? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
+          md == "undot3" ? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
                             y[1,1]  y[-1,0]       dup1 dup1 min swap2 max
                             y[1,0]  y[-1,-1]      dup1 dup1 min swap2 max
                             y[0,-1] y[1,-1]       dup1 dup1 min swap2 max
@@ -5727,8 +5735,8 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             swap2                                     max
                             x swap2 swap1 clip"                                                                                                                    : \
                                                                                                                                                                      \
-        mode == "undot4" ||                                                                                                                                          \
-        mode == "median" ? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
+          md == "undot4" ||                                                                                                                                          \
+          md == "median" ? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
                             y[1,1]  y[-1,0]       dup1 dup1 min swap2 max
                             y[1,0]  y[-1,-1]      dup1 dup1 min swap2 max
                             y[0,-1] y[1,-1]       dup1 dup1 min swap2 max
@@ -5753,8 +5761,8 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             swap2                           min
                             x swap2 swap1 clip"                                                                                                                    : \
                                                                                                                                                                      \
-        mode == "undot4c" ||                                                                                                                                         \
-        mode == "medianc"? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
+          md == "undot4c" ||                                                                                                                                         \
+          md == "medianc"? "y[-1,1] y[0,1]        dup1 dup1 min swap2 max
                             y[1,1]  y[-1,0]       dup1 dup1 min swap2 max
                             y[1,0]  y[-1,-1]      dup1 dup1 min swap2 max
                             y[0,-1] y[1,-1]       dup1 dup1 min swap2 max
@@ -5775,7 +5783,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             y max swap y min
                             x swap2 clip"                                                                                                                           : \
                                                                                                                                                                       \
-        mode=="edgeSP"   ? "y[1,-1] y[-1,1]  dup1 dup1 min A^ max B^
+          md=="edgeSP"   ? "y[1,-1] y[-1,1]  dup1 dup1 min A^ max B^
                             y[1,1]  y[-1,-1] dup1 dup1 min C^ max D^
                             y[0,1]  y[0,-1]  dup1 dup1 min E^ max F^
                             y[1,0]  y[-1,0]  dup1 dup1 min G^ max H^
@@ -5790,7 +5798,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             BB AB == x y E min y F max clip
                                      x y A min y B max clip ? ? ?"                                                                                                  : \
                                                                                                                                                                       \
-        mode == "edgeS"  ? "y[-1,0] y[1,0]   dup1 dup1 min swap2 max
+          md == "edgeS"  ? "y[-1,0] y[1,0]   dup1 dup1 min swap2 max
                             y[1,1]  y[-1,-1] dup1 dup1 min swap2 max
                             y[0,1]  y[0,-1]  dup1 dup1 min swap2 max
                             y[-1,1] y[1,-1]  dup1 dup1 min swap2 max
@@ -5801,21 +5809,21 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             y max swap y min
                             x swap2 clip"                                                                                                                          : \
                                                                                                                                                                      \
-        mode == "edgeW"  ? "                                              y[0,0] I@ y[0,1]  B@ - abs I y[0,-1] G@ - abs max BB@
+          md == "edgeW"  ? "                                              y[0,0] I@ y[0,1]  B@ - abs I y[0,-1] G@ - abs max BB@
                             I y[1,1]  C@ - abs I y[-1,-1] F@ - abs max CC@ min   I  y[-1,0] D@ - abs I y[1,0]  E@ - abs max DD@ min
                             I y[-1,1] A@ - abs I y[1,-1] H@ - abs max      min
                             S@ DD == x D E dup1 dup1 min I min swap2 max I max clip  S BB == x B G dup1 dup1 min I min swap2 max I max clip
                             S  CC == x C F dup1 dup1 min I min swap2 max I max clip          x A H dup1 dup1 min I min swap2 max I max clip ? ? ?"                 : \
                                                                                                                                                                      \
-        mode == "cartoonc"? "y[0,0] Y@ y[1,1] - abs Y y[1,0] - abs min Y y[1,-1] - abs min Y y[-1,1] - abs min Y y[-1,0] - abs min Y y[-1,-1] - abs min Y y[0,1] - abs min Y y[0,-1] - abs min
+          md == "cartoonc"? "y[0,0] Y@ y[1,1] - abs Y y[1,0] - abs min Y y[1,-1] - abs min Y y[-1,1] - abs min Y y[-1,0] - abs min Y y[-1,-1] - abs min Y y[0,1] - abs min Y y[0,-1] - abs min
                              DI@ Y + range_max min Y DI - 0 max x swap2 clip"                                                                                      : \
                                                                                                                                                                      \
-        mode == "cartoon" ? "x[0,0] X@ y[1,1] - abs X y[1,0] - abs min X y[1,-1] - abs min X y[-1,1] - abs min X y[-1,0] - abs min X y[-1,-1] - abs min X y[0,1] - abs min X y[0,-1] - abs min
+          md == "cartoon" ? "x[0,0] X@ y[1,1] - abs X y[1,0] - abs min X y[1,-1] - abs min X y[-1,1] - abs min X y[-1,0] - abs min X y[-1,-1] - abs min X y[0,1] - abs min X y[0,-1] - abs min
                              DI@ X + range_max min X DI - 0 max y swap2 clip"                                                                                      : \
                                                                                                                                                                      \
-        mode == "temp0"  ? "y z max a max y z min a min x swap2 clip"                                                                                              : \
+          md == "temp0"  ? "y z max a max y z min a min x swap2 clip"                                                                                              : \
                                                                                                                                                                      \
-        mode == "temp1"  ? "y[-1,-1] z[-1,-1]      dup1 dup1 min swap2 max
+          md == "temp1"  ? "y[-1,-1] z[-1,-1]      dup1 dup1 min swap2 max
                             x[-1,-1] dup swap3 - swap2 -
                             y[-1,0]  z[-1,0]       dup1 dup1 min swap2 max
                             x[-1,0] dup swap3 - swap2 -
@@ -5843,7 +5851,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             swap x[0,0] swap - Y min Z min
                             a swap2 clip"                                                                                                                          : \
                                                                                                                                                                      \
-        mode == "temp2"  ? "y[-1,-1] z[-1,-1]      dup1 dup1 min swap2 max
+          md == "temp2"  ? "y[-1,-1] z[-1,-1]      dup1 dup1 min swap2 max
                             x[-1,-1] dup swap3 - swap2 -
                             y[-1,0]  z[-1,0]       dup1 dup1 min swap2 max
                             x[-1,0] dup swap3 - swap2 -
@@ -5871,7 +5879,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             swap3 max swap2 max max
                             dup X + swap X swap - a swap2 clip"                                                                                                    : \
                                                                                                                                                                      \
-        mode == "temp3"  ? "x[-1,-1] A@   y[-1,-1] - abs
+          md == "temp3"  ? "x[-1,-1] A@   y[-1,-1] - abs
                             x[-1,0]  B@   y[-1,0]  - abs max
                             A             z[-1,-1] - abs
                             B             z[-1,0]  - abs max
@@ -5898,17 +5906,17 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             swap3 max swap2 max min
                             dup X + swap X swap - a swap2 clip"                                                                                                    : \
                                                                                                                                                                      \
-        mode == "temp4"  ? "a y z min N@ - 0 max dup + N + y z max M@ min O^
+          md == "temp4"  ? "a y z min N@ - 0 max dup + N + y z max M@ min O^
                             M dup a - 0 max dup + - N max P@
                               M == N O == or a x P O clip ?"                                                                                                       : \
                                                                                                                                                                      \
-                            Assert (false, "ex_repair: "+mode+": Unsupported repair mode.")
+                            Assert (false, "ex_repair: "+  md+": Unsupported repair mode.")
 
 
     cstr = ex_UVexpr(str, UV, bi, rgb, un)
     str  = ex_dlut  (str, bi, un)
 
-    if (FindStr(mode, "emp")>0) {
+    if (FindStr(  md, "emp")>0) {
 
         c  = a.selectevery(1,-1)
         d  = a.selectevery(1,+1)
