@@ -28,7 +28,8 @@ function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV") {
     offset = Default(offset,  0)
     UV     = Default(UV,    rgb ? 3 : 1)
     thr_   = Default(thr,   255)
-    thr    = ex_bs(thr_, 8, bi, fulls=fs)
+    thr    = ex_bs(     thr_,  8, bi, fulls=fs, flt=true)
+    sthr   = ex_bs(sqrt(thr_), 8, bi, fulls=fs, flt=true)
 
 
     Blurred = Rad == 1 ?               C.ex_boxblur(0,1,"mean",UV=uv)                                               : C
@@ -43,7 +44,7 @@ function DeStripeH(Clip C, int "rad", int "offset", int "thr", int "UV") {
                                        C.ex_luts(mode="avg",pixels="0 -4               0 0             0 4", UV=uv) : Blurred
 
     Diff = ex_makediff(C, Blurred, UV=uv, fulls=fs)
-    expr = Format(" x y - dup dup abs 1 + dup swap2 * swap {thr} 1 >= {thr} sqrt {thr} ? + / - range_half +")
+    expr = Format(" x y - dup dup abs 1 + dup swap2 * swap {thr} 1 >= {sthr} {thr} ? + / - range_half +")
 
     MedianDiff = Rad == 1 ?               ex_luts(Diff, mode="med", pixels = ex_shape(1, mode="vertical"),             expr = expr, UV=uv, fulls=fs) : Diff
     MedianDiff = Rad == 2 ? offset == 0 ? ex_luts(Diff, mode="med", pixels = ex_shape(2, mode="vertical"),             expr = expr, UV=uv, fulls=fs) : \
@@ -71,7 +72,8 @@ function DeStripeV(Clip C, int "rad", int "offset", int "thr", int "UV") {
     offset = Default(offset,  0)
     UV     = Default(UV,    rgb ? 3 : 1)
     thr_   = Default(thr,   255)
-    thr    = ex_bs(thr_, 8, bi, fulls=fs)
+    thr    = ex_bs(     thr_,  8, bi, fulls=fs, flt=true)
+    sthr   = ex_bs(sqrt(thr_), 8, bi, fulls=fs, flt=true)
 
 
     Blurred = Rad == 1 ?               C.ex_boxblur(1,0,"mean",UV=uv)                                               : C
@@ -86,7 +88,7 @@ function DeStripeV(Clip C, int "rad", int "offset", int "thr", int "UV") {
                                        C.ex_luts(mode="avg",pixels="-4 0               0 0             4 0", UV=uv) : Blurred
 
     Diff = ex_makediff(C, Blurred, UV=uv, fulls=fs)
-    expr = Format(" x y - dup dup abs 1 + dup swap2 * swap {thr} 1 >= {thr} sqrt {thr} ? + / - range_half +")
+    expr = Format(" x y - dup dup abs 1 + dup swap2 * swap {thr} 1 >= {sthr} {thr} ? + / - range_half +")
 
     MedianDiff = Rad == 1 ?               ex_luts(Diff, mode="med", pixels = ex_shape(1, mode="horizontal"),           expr = expr, UV=uv, fulls=fs) : Diff
     MedianDiff = Rad == 2 ? offset == 0 ? ex_luts(Diff, mode="med", pixels = ex_shape(2, mode="horizontal"),           expr = expr, UV=uv, fulls=fs) : \
