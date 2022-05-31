@@ -10,18 +10,20 @@
 # v3.2 Rebasing (some copy-pasta bugfixes)
 # v3.3 Rename gauss() function to avoid name conflict. Some tweaks to kernel settings
 # v3.4 Reenable mode=1 for horizontally stretched chroma. "_faster", add center shift to nnedi3 and tweak taps
+# v3.5 Pass 'gpuid' argument
 #
 # Example:
 #
 # ConvertToYUV444()
 # ChromaReconstructor()
 #
-function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", int "mode", bool "wild") {
+function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", int "mode", bool "wild", int "gpuid") {
 
         radius   = Default(radius, 32)
-        str      = Default(str, 6.4)
-        hipass   = Default(hipass, 6)
-        mode     = Default(mode,   0)   # set to mode=1 for only horizontally stretched chroma
+        str      = Default(str,   6.4)
+        gpuid    = Default(gpuid,   0)
+        hipass   = Default(hipass,  6)
+        mode     = Default(mode,    0)   # set to mode=1 for only horizontally stretched chroma
         wild     = Default(wild, True)
 
         cores    = SI_PhysicalCores()
@@ -31,7 +33,7 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
         bdpth    = string(src.BitsPerComponent())
         p_type   = PixelType(src)
 
-        ref      = wild ? src.ExtractY() : src.ExtractY().KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
+        ref      = wild ? src.ExtractY() : src.ExtractY().KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), "gpu", device_id=gpuid, dwref=1)
         srcU     = src.ExtractU()
         srcV     = src.ExtractV()
         src8     = CombinePlanes(ref, srcU, srcV, planes="YUV", pixel_type=p_type)
@@ -40,13 +42,13 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
         Luma     = up4x.ExtractY()
         U        = up4x.ExtractU()
         V        = up4x.ExtractV()
-        Unew     = wild ? KNLMeansCL(U, 0, radius, 0, str, "auto", wref=0, rclip=Luma) : interpolation(Luma, U, 2, str)
+        Unew     = wild ? KNLMeansCL(U, 0, radius, 0, str, "gpu", wref=0, rclip=Luma, device_id=gpuid) : interpolation(Luma, U, 2, str)
         Unew     = wild ? Unew : interpolation(Luma, Unew,  4, str)
         Unew     = wild ? Unew : interpolation(Luma, Unew,  8, str)
         Unew     = wild ? Unew : interpolation(Luma, Unew, 16, str)
         Unew     = wild ? Unew : interpolation(Luma, Unew, 32, str)
         Unew     = Unew.Spline64Resize(w, h, src_left=-1.25, src_top=-1.25)
-        Vnew     = wild ? KNLMeansCL(V, 0, radius, 0, str, "auto", wref=0, rclip=Luma) : interpolation(Luma, V, 2, str)
+        Vnew     = wild ? KNLMeansCL(V, 0, radius, 0, str, "gpu", wref=0, rclip=Luma, device_id=gpuid) : interpolation(Luma, V, 2, str)
         Vnew     = wild ? Vnew : interpolation(Luma, Vnew,  4, str)
         Vnew     = wild ? Vnew : interpolation(Luma, Vnew,  8, str)
         Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 16, str)
@@ -94,7 +96,7 @@ function gauss_h(clip src, int "p")
 #    420_Source
 #    ChromaReconstructor_faster() # 444_Output
 #
-function ChromaReconstructor_faster(clip src, int "radius", float "str", int "threads") {
+function ChromaReconstructor_faster(clip src, int "radius", float "str", int "threads", int "gpuid") {
 
         w       = src.width()
         h       = src.height()
@@ -105,6 +107,7 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
         radius  = Default(radius, 16)
         str     = Default(str,   6.4)
         threads = Default(threads, 4)
+        gpuid   = Default(gpuid,   0)
 
         cores   = SI_PhysicalCores()
         threads = SI_LogicalCores()
@@ -113,12 +116,12 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
         Uor = ExtractU(src)
         Vor = ExtractV(src)
 
-        ref     =   Y.KNLMeansCL (0, radius, 0, pow(1.464968620512209618455732713658, str), "auto", wref=1)
+        ref     =   Y.KNLMeansCL (0, radius, 0, pow(1.464968620512209618455732713658, str), "gpu", wref=1, device_id=gpuid)
         Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, range=fs?1:2, cshift="spline16resize").ConvertBits(bi,fulls=fs)
         Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
         Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
-        Unew    = Uu.KNLMeansCL  (0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
-        Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
+        Unew    = Uu.KNLMeansCL  (0, radius, 0, str, "gpu", wref=0, rclip=Luma, device_id=gpuid).BicubicResize(w, h, b=0.0, c=0.5)
+        Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, "gpu", wref=0, rclip=Luma, device_id=gpuid).BicubicResize(w, h, b=0.0, c=0.5)
         U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
         V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 20), Vu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
         return CombinePlanes(Y, U, V, planes="YUV")
