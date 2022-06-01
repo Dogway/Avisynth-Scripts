@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.5.1d      by Dogway    - 31 May  2022                           ###
+###                       v3.5.1d      by Dogway    - 01 June 2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -197,6 +197,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     limit        = Default( limit, md!="MDegrain" ? 255 : isUHD ? 2 : 255 )  # auto-scaled
     limitc       = Default( limitc,limit)
 
+    gpuid        = Default ( gpuid,  0)                        # Set to -1 for "cpu" mode (currently -2022- not implemented)
     sShow        = IsString( Show)
     Show         = Default ( Show,  false)
 
@@ -258,8 +259,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                   (prefilter== 3) ?  pref.ex_FluxSmoothST(2,2,255,0,false,UV=Chr)                                                                                                                 : \
                                   (prefilter== 4) ?  ex_merge(dfttest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1,sbsize=12,sosize=6,swin=2),pref,                        \
                                                      pref.ex_lut(Format("range_max range_max {Lthres} ymin - / x ymin - * -"),UV=1,clamp_float=true), luma=chroma, UV=Chr)                                        : \
-                                  (prefilter== 5) ?  pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=1,chroma=chroma,device_type="GPU",gpuid=gpuid,LFR=600*(w/1920.)).ex_boxblur(0.5, mode="weighted", UV=Chr)         : \
-                                  (prefilter== 6) ?  pref.ex_BM3D(sigma=10,radius=1,CUDA=true,UV=Chr,gpuid=gpuid,tv_range=!fsp)                                                                                   : \
+                                  (prefilter== 5) ?  pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=1,chroma=chroma,gpuid=gpuid,LFR=600*(w/1920.)).ex_boxblur(0.5, mode="weighted", UV=Chr)                           : \
+                                  (prefilter== 6) ?  pref.ex_BM3D(sigma=10,radius=1,UV=Chr,gpuid=gpuid,tv_range=!fsp)                                                                                             : \
                                   (prefilter== 7) ?  pref.ex_DGDenoise(str=0.10,LFR=w/2.,UV=Chr).ex_boxblur(0.5, mode="weighted", UV=Chr)                                                                         : \
                                                      Assert(false, "SMDegrain: Prefilter must be between -1~7: "+string(prefilter))                                                                               : \
                                    pref
@@ -651,9 +652,10 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
 
+
 ########################################################
 #                                                      #
-#       HELPER FUNCTIONS: Prefilters                   #
+#                     PREFILTERS                       #
 #                                                      #
 ########################################################
 
@@ -894,7 +896,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
     w    = max(w,h)
 
-    a    = !rgb ? clp.ExtractY() : isy ? clp : isUHD ? clp.DotClip([0.262404,0.678455,0.059141]) : isHD ? clp.DotClip([0.212649,0.715169,0.072182]) : clp.DotClip([0.298903,0.586620,0.114477])
+    a    = isy(clp) ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262404,0.678455,0.059141]) : isHD ? clp.DotClip([0.212649,0.715169,0.072182]) : clp.DotClip([0.298903,0.586620,0.114477])
     y    = a.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)
     b    = y.ex_GaussianBlur(w*0.015 * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
     c    = y.ex_GaussianBlur(w*0.05  * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
@@ -970,8 +972,8 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 # Requires TransformsPack for OPP=true, RGB clips or processing chroma
 #
 # Disclaimer: ffvideosource() causes issues with BM3D for UV=1 or r>3
-#             BM3D() causes issues when CUDA=true and you crop with DGSource()
-#             BM3D() causes issues when CUDA=true and a high combination of radius + sigma unless you fine tune 'block_step' argument
+#             BM3D() causes issues when gpuid >= 0 (CUDA) and you crop with DGSource()
+#             BM3D() causes issues when gpuid >= 0 (CUDA) and a high combination of radius + sigma unless you fine tune 'block_step' argument
 #
 #   # Some of the following arguments aren't available on the BM3D AVS+ port but included here for reference (namely group_size, block_size, bm_step and ps_step)
 #
@@ -1009,11 +1011,11 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 #    float sigma=3.0 (1.0 to 10.0 by 0.5),
 #    [int "radius"=1 (1 to 5)],
 #    [string "preset"="Low" ("Fast"/ "Low"/ "Normal"/ "High"/ "Noisy")],
-#    [bool "CUDA"=true],
+#    [int "gpuid"=0 (-1 to 2)],
 #    [bool "OPP"=true]
 #    )
 #
-function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "CUDA", bool "OPP", int "UV", bool "tv_range", int "gpuid") {
+function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "OPP", int "UV", bool "tv_range", int "gpuid") {
 
     rgb = isRGB(a)
     isy = isy  (a)
@@ -1021,12 +1023,12 @@ function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "CUD
     pID = color_propGet   (a)
 
     s   = Default(sigma,    3)    # Denoising strength
-    cd  = Default(CUDA,    true)
     md  = Default(preset, "Low")  # Fast, Low, Normal, High, Noisy
     OPP = Default(OPP,   rgb)
     UV  = Default(UV,    rgb ? 3 : 1)
     tv  = Default(tv_range, pID[6])
     gid = Default(gpuid,    0)
+    cd  = gid > -1
     pri = pID[2]
     mat = (!tv?"PC":"Rec")+pri
 
@@ -1133,9 +1135,10 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
 ##    int wmode=0 (0 to 2),
 ##    [int "LFR"=0 (0 to 1920)],
 ##    bool "chroma"=true
+##    [int "gpuid"=0 (-1 to 2)]
 ##    )
 ##
-function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode", clip "rclip", float "LFR", bool "DCT", bool "chroma", string "device_type", int "gpuid", float "wref", string "knlm_params") {
+function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode", clip "rclip", float "LFR", bool "DCT", bool "chroma", int "gpuid", float "wref", string "knlm_params") {
 
     w2           = c.width()
     h2           = c.height()
@@ -1146,12 +1149,12 @@ function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode
     s            = min(Default( s, a*2),8)  # Spatial  radius of the similarity neighborhood
     wmode        = Default( wmode, 0)
     wref         = Default( wref, 1.0)
-    gpuid        = Default( gpuid,  0)
-    device_type  = Default( device_type, "gpu")
+    gpuid        = Default( gpuid,  0)      # Set to -1 for "cpu" mode (currently -2022- not implemented)
     chroma       = Default( chroma, true)
     LFR          = Default( LFR, wmode < 1 || d > 0 ? min(2,d+1)*300*(w2/1920.) : 0) # Restore low frequency details, specially on wmode=0, and more specially with d > 0 (motion estimation is very bad in KNLMeansCL). Set to 0 to disable.
     DCT          = Default( DCT,    true)
     knlm_params  = Defined( knlm_params) ? ","+knlm_params : ""
+    device_type  = gpuid < 0 ? "cpu" : "gpu"
 
     isy     = c.isy()
     rgb     = c.isrgb()
