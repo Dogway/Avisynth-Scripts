@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.3 (11-05-2022)      ##
+###   Resizers Functions Pack 9.3 (01-06-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -53,11 +53,11 @@
 ###         -0  "Catmull-Rom"
 ###         +1  "Didee"
 ###         +4  "Zopti"
-###         +4  "Zopti2"
+###         +4  "ZoptiN"
 ###         +2  "Precise Bicubic"
 ###         +2  "Sharp"
-###         +0  "spline16"
-###         +0  "spline36"
+###         +0  "Spline16"
+###         +0  "Spline36"
 ###         +2  "DPID"
 ###         +0  "SSIM2"
 ###         +0  "SincLin"
@@ -69,7 +69,7 @@
 ###   MasksPack
 ###   TransformsPack
 ###   GrainFactory3mod   (for grain > 0)
-###   SimilarityMetrics  (for default 'SSIM2' downscaling)
+###   SimilarityMetrics  (for 'SSIM2' downscaling)
 ###       vsTCanny
 ###       fmtconv
 ###   GradePack          (for show=true)
@@ -131,7 +131,7 @@
 ###     deep_resize(1280,edge="SSIM2") # SSIM2 is the default so can be omitted
 ###
 ###     # 2160p to 720p
-###     deep_resize(1920,edge="Zopti1080",flat="Zopti1080") # for dw flat=edge so flat="Zopti1080" can be omitted
+###     deep_resize(1920) or deep_resize(1920,edge="Zopti1080",flat="Zopti1080") # for dw flat=edge so flat="Zopti1080" can be omitted, dw to 1080p defaults to "Zopti1080" so can also be skipped
 ###     deep_resize(1280)
 ###
 ###
@@ -183,7 +183,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
                                                                                             # By default, for big   downscales -> "Zopti1080"
                                                                                             # By default, for mid   downscales -> "SSIM2" (DPID also fine for down to 720p) (Beware!! for UHD to HD against all logic I recommend going with Zopti1080 (b=-0.99,c=0.06) )  */
     krn1c  = Default(chroma,rw<1 && rh<1 ? "Zopti"  : "Blackman")                           # Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
-    krn2   = Default(flat,  rw<1 && rh<1 ? krn1     : isHD && isUHD2 ? "Sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
+    krn2   = Default(flat,  rw<1 && rh<1 ? krn1     : isHD && isUHD2 ? "Sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' low taps -ie. 4- is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
     etp    = Default(e_taps, krn1 =="Blackman" ? 6  : krn1 =="Lanczos" ? 4 : 0)             # taps for edge   kernel (0 for undefined)
     ftp    = Default(f_taps, krn2 =="Blackman" ? 16 : krn2 =="Lanczos" ? 8 : 0)             # taps for flat   kernel (0 for undefined)
     ctp    = Default(c_taps, krn1c=="Blackman" ? 6  : krn1c=="Lanczos" ? 4 : 0)             # taps for chroma kernel (0 for undefined)
@@ -194,7 +194,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     ddec   = Defined(deconv)
     dec    = Default(deconv,    0)                                                          # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
     gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # >0 Add grain to big upscales as a mean of cheap hallucination
-    decs   = FindStr(LCase(krn2),"Sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
+    decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
     dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                     # higher deconvolution the higher the upscale
     dec    = dec == 0.095 ? 0 : dec
     nns    = 3
@@ -462,7 +462,7 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
 
 function RatioResize(clip s, float "ratio", string "mode", int "mod", string "kernel", float "b", float "c", float "p", float "src_left", float "src_top", int "PreW", int "PreH") {
 
-    rgb   = isrgb(s)
+    rgb   = isRGB(s)
     r     = Default(ratio,      0.5)
     md    = Default(mode,       "%")
     mod   = Default(mod, rgb ? 1 : 2)
@@ -497,6 +497,7 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
 
 
     kernel == "deep"   ? Eval(    "deep_resize(s," + String(op) + ")"                                 ) : \
+    kernel == "nnedi3" ? Eval(   "nnedi3resize(s," + String(op) + ")"                                 ) : \
     kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p,src_left=src_l,src_top=src_t)") : \
     kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c,src_left=src_l,src_top=src_t)") : \
                          Eval(kernel + "Resize(s," + String(op) + ",    src_left=src_l,src_top=src_t)") }
