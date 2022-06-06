@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC50  (17-05-2022)   ##
+###   Transforms Pack - Models v1.0 RC51  (06-06-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -9,12 +9,13 @@
 ###                             by Dogway (Jose Linares) ##
 ###                                                      ##
 ### MODELS:                                              ##
-###     YUV_to_RGB      / RGB_to_YUV                     ##
+###     RGB_to_YUV      / YUV_to_RGB                     ##
 ###     RGB_to_YcCbcCrc / YcCbcCrc_to_RGB                ##
 ###     RGB_to_YCoCg    / YCoCg_to_RGB                   ##
 ###     RGB_to_YCoCgR   / YCoCgR_to_RGB                  ##
 ###     RGB_to_YUVr     / YUVr_to_RGB                    ##
 ###     RGB_to_OPP      / OPP_to_RGB                     ##
+###     XYZ_to_Yxy      / Yxy_to_XYZ                     ##
 ###     XYZ_to_YDzDx    / YDzDx_to_XYZ                   ##
 ###     XYZ_to_Lab      / Lab_to_XYZ                     ##
 ###     XYZ_to_Luv      / Luv_to_XYZ                     ##
@@ -22,7 +23,9 @@
 ###     RGB_to_IPT      / IPT_to_RGB                     ##
 ###     RGB_to_Oklab    / Oklab_to_RGB                   ##
 ###     RGB_to_XYZ      / XYZ_to_RGB                     ##
+###     XYZ_to_LMS      / LMS_to_XYZ                     ##
 ###     CAT                                              ##
+###     CMF                                              ##
 ###                                                      ##
 ###########################################################
 
@@ -38,7 +41,8 @@
 # List of Color Models:
 # Color Models -not to be confused with Color Spaces- describe the geometry coordinates of the color gamut container and hence its relation (or correlation) with the other channels. They are typically designed or tailored to certain Color Spaces, but not necesarily bound to them like RGB or YCbCr which support many different Color Spaces and thus are nicked Color Absolute Models
 #
-# With *: Color Appearance Models (CAM) (Perceptually Uniform to various degrees)
+# UCS: Uniform Color Space. Space in which equal distances on the coordinate diagram correspond to equal perceived color differences.
+# With *: Color Appearance Models (CAM) (Perceptually Uniform -UCS- to various degrees)
 # With +: HDR aware
 # With -: Implemented
 #
@@ -63,12 +67,13 @@
 # xvYCC        - Expanded Gamut YCbCr. For newer TV systems it was/is a model that allowed the color gamut (typically Rec709) to be stored in the full range while luma in the narrow range.
 #-YCoCg        - Better luma/chroma decorrelation and compression efficiency than YCbCr
 #-YCoCgR       - Same as YCoCg but losslessly reversible to RGB
-#-XYZ          -
+# XYB          - Used for JPEG XL, it's derived from LMS.
+#-XYZ          - CIE 1931 XYZ color model
 # LSY          - Reads lambda-SY. Spectral color space. Representation based on brightness, dominant wavelength and saturation attributes. LSY color coordinates are defined from xyY color coordinates.
 #-YDzDx+       - HDR version of XYZ. Requires at least 10-bit for no visible quantization.
 # YCxCz        - Color Space for image fidelity metrics. It's a first step space, you have to "filter" it and then convert to Lab to retrieve error delta.
 # DCI XYZ      - XYZ space in DCI illuminant. In effect it's just a container for DCI-P3 in XYZ coordinates for delivery to theaters.
-# Yxy/xyY      - Chroma normalized XYZ space which gives full luma/chroma decorrelation. Not apt for HDR, use YDzDx+ instead.
+#-Yxy/xyY      - Chroma normalized XYZ space which gives full luma/chroma decorrelation. Not apt for HDR, use YDzDx+ instead.
 #-HSV          - Cylindrical representation of RGB. Not recommended as it doesn't take into account human luminance perception
 #-Duv*         -
 # HunterLab*   - A more perceptually uniform version of CIELab
@@ -96,14 +101,14 @@
 # CIECAM02*    - Improves on CIECAM97s and can be made uniform with CAM02-UCS.
 # CIECAM02Jch* -
 # OSA*         -
-# CAM16*       - Not yet a CIE standard. Improves on CIECAM02 and can be made uniform with CAM16-UCS, which works "out-of-the-box" for Euclidean distance metrics.
+# CIECAM16*    - Improves on CIECAM02 and can be made uniform with CAM16-UCS, which works "out-of-the-box" for Euclidean distance metrics.
 # ZCAM*+       - A uniform (UCS) space for HDR color.
 #-Oklab*       - A uniform (UCS) space for SDR color. Simple to compute yet powerful. Takes CAM16 lightness and chroma, and IPT for hue.
 #-OkLch*       - The cylindrical form of Oklab
 # iCAM06       - An image (not only color) appearance metric model to not only compute perceived difference in lightness, hue or chroma, but also contrast, sharpness or graininess. Involves converting to IPT, low-pass filtering in linear space, convert to non-linearity, then to Jch model and QM if necessary for the metrics.
 
 
-# YCbCr to RGB standalone function
+# YCbCr to RGB' standalone function (recommended at least 10-bit precision)
 function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_range_out", string "kernel", float "b", float "c", float "p", string "cplace", bool "UVrecon") {
 
     matrix     = Default (matrix, "709")
@@ -213,7 +218,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
 
 
 
-# RGB to YCbCr standalone function
+# RGB' to YCbCr standalone function (recommended at least 10-bit precision)
 function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_range_out", string "pixel_type", string "kernel", float "b", float "c", float "p", string "cplace") {
 
     matrix     = Default (matrix, "sRGB")
@@ -306,7 +311,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+p_type[1]+p_type[2]) }
 
 
-# RGB to YcCbcCrc function (for Rec.2020CL)
+# RGB' to YcCbcCrc function (for Rec.2020CL)
 function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float_array "coef", bool "tv_in", bool "tv_out") {
 
     isy  = isy(RGB)
@@ -318,7 +323,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
     tvo  = Default (tv_out, false)
 
     mat       = color_Fuzzy_Search(mat)
-    s_gam     = moncurve_coef(mat[0]) # some values are getting crushed in the Rec709 transfer
+    s_gam     = moncurve_coef(mat[2]) # some values are getting crushed in the Rec709 transfer
     bi32      = bi == 32 ? "" : "range_half +"
     rangeC_PC = tvi      ? "range_half - range_max cmax cmin - / * range_half + " : ""
     rangeC_TV = tvo      ? "range_half + cmax cmin - range_max / * cmin + "       : bi32
@@ -351,7 +356,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
     !isy && mat[0] == "2020CL" ? propSet("_Matrix", 10) : last }
 
 
-# WIP. YcCbcCrc to RGB function (for Rec.2020CL)
+# WIP. YcCbcCrc to RGB' function (for Rec.2020CL)
 function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", float_array "coef", bool "tv_in", bool "tv_out") {
 
     isy  = isy(YUV)
@@ -372,7 +377,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", float
     bi32p     = bi == 32 ? "" : "range_half +"
     rangeC_PC = tvi ? ""+bi32m+" range_max cmax cmin - / *" : bi32m
 
-    s_gam = moncurve_coef(mat[0])
+    s_gam = moncurve_coef(mat[2])
     a = 1.0 + s_gam[1]
     b = 1.0 / s_gam[0]
 
@@ -408,7 +413,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", float
 # YCoCg, YCoCgR and YUVr compress better than plain YUV. YCoCg variants a tiny bit over YUVr, and YUVr and YCoCgR being losslessly reversible (RCT) with RGB
 # These formats are ColorSpace and Chroma Subsampling independent, as well as signal range (full or legal)
 
-# RGB to YCoCg function
+# RGB' to YCoCg function
 function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out") {
 
     isy = isy(RGB)
@@ -438,7 +443,7 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
                       ex_dlut("x z - 0.5  *            "+b32, bi, !tvi), format="YUV444"+fmt[2], optSingleMode=true) } }
 
 
-# YCoCg to RGB function
+# YCoCg to RGB' function
 function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_out") {
 
     isy = isy(YCC)
@@ -469,7 +474,7 @@ function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_ou
                         ex_dlut("x y "+b32+" - z "+b32+" - ", bi, !tvi), format="RGB"+fmt[2], optSingleMode=true) } }
 
 
-# RGB to YCoCg RCT function
+# RGB' to YCoCg RCT function
 function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out") {
 
     isy = isy(RGB)
@@ -493,7 +498,7 @@ function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out
     isy ? [Y, Cg, Co] : CombinePlanes(Y, Cg, Co, planes="YUV") }
 
 
-#  YCoCg RCT to RGB function
+#  YCoCg RCT to RGB' function
 function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_out") {
 
     isy = isy(YCC)
@@ -524,7 +529,7 @@ function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_o
                         ex_dlut("x y "+b32+" - z "+b32+" 0.5 * -",                       bi, !tvi), format="RGB"+fmt[2], optSingleMode=true) } }
 
 
-# RGB to YCbCr RCT function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
+# RGB' to YCbCr RCT function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
 function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out") {
 
     isy = isy(RGB)
@@ -554,7 +559,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out")
                       ex_dlut("x y - "+b32,               bi, !tvi), format="YUV444"+fmt[2], optSingleMode=true) } }
 
 
-# YCbCr RCT to RGB function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
+# YCbCr RCT to RGB' function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
 function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out") {
 
     isy = isy(YUV)
@@ -670,7 +675,7 @@ function OPP_to_RGB (clip OPP, clip "P1", clip "P2", bool "fulls") {
     } else { Expr(O, P1, P2, Rs, Gs, Bs, format="RGB"+format_Fuzzy_Search(OPP,"RGB",bi)[2], optSingleMode=true) } }
 
 
-# XYZ to YDzDx (applied on SMPTE ST 2084 gamma space)
+# XYZ to YDzDx (applied on XYZ in SMPTE ST 2084 gamma space)
 function XYZ_to_YDzDx (clip XYZ, clip "Y", clip "Z", bool "tv_in", bool "tv_out") {
 
     isy = isy(XYZ)
@@ -732,7 +737,7 @@ function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx", bool "tv_in", bool "tv_
                         ex_dlut(Format("z "+b32+" y {cf2} * + "), bi, !tvi), format=PixelType(YDzDx)) } }
 
 
-# WIP. XYZ to CIE Lab -D65 based- (process in linear space) Normalized to 0-1
+# XYZ to CIE Lab -D65 based- (process in linear space) Normalized to 0-1
 function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
 
     isy  = isy(XYZ)
@@ -748,22 +753,22 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
     Y    = !isy ? clp[1] :     Y
     Z    = !isy ? clp[2] :      Z
 
-    ep    = pow(24. / 116,  3)               # 0.00885645167903563081717167575546 (or 216 / 24389.)
-    coef  = pow(24. / 116,  2) * 3           # 0.12841854934601664684898929845422 (or 108 / 841)
-    coefr = pow(24. / 116, -2) * (1 / 3.)    # 7.78703703703703703703703703703703 (or 841 / 108)  reciprocal of above
-    rW    = [95.0449218275099, 100., 108.8916648430471] # Reference White: Normalization to Y=100 of reciprocal of illuminant
+    ep    = pow(6. / 29,  3)                        # 0.00885645167903563081717167575546 (or 216 / 24389.)
+    coef  = pow(6. / 29,  2) *    3                 # 0.12841854934601664684898929845422 (or 108 / 841)
+    coefr = pow(6. / 29, -2) * (1/3.)               # 7.78703703703703703703703703703703 (or 841 / 108)  reciprocal of above
+    rW    = [1.052134065421009,1,0.918343935177561] # Reference White: Normalization to Y=100 of illuminant -D65- (and divided by 100)
 
-    L = Expr(Y,               Format("x "+string(rW[1])+" / Y@ {ep} > Y 0.333333333 ^ Y {coefr} * 16 116 / + ? 116 * 16 - "+" 9 /"),           optSingleMode=false, lut=lut1)
-    a = Expr(X, Y,    ex_dlut(Format("x "+string(rW[0])+" / X@ {ep} > X 0.333333333 ^ X {coefr} * 16 116 / + ?
-                                      y "+string(rW[1])+" / Y@ {ep} > Y 0.333333333 ^ Y {coefr} * 16 116 / + ? - 500 * "+" 13.45 /"), bi, fs), optSingleMode=true,  lut=lut2)
-    b = Expr(   Y, Z, ex_dlut(Format("x "+string(rW[1])+" / Y@ {ep} > Y 0.333333333 ^ Y {coefr} * 16 116 / + ?
-                                      y "+string(rW[2])+" / Z@ {ep} > Z 0.333333333 ^ Z {coefr} * 16 116 / + ? - 200 * "+" 12.3  /"), bi, fs), optSingleMode=true,  lut=lut2)
+    L = Expr(Y,               Format("x                        {ep} > x 0.333333333 ^ x {coefr} * 4 29 / + ? 1.16 * 0.16 -"), optSingleMode=false, lut=lut1)
+    a = Expr(X, Y,    ex_dlut(Format("x "+string(rW[0])+" * X@ {ep} > X 0.333333333 ^ X {coefr} * 4 29 / + ?
+                                      y                        {ep} > y 0.333333333 ^ y {coefr} * 4 29 / + ? - 5 * "), bi, fs),   optSingleMode=true,  lut=lut2)
+    b = Expr(   Y, Z, ex_dlut(Format("x                        {ep} > x 0.333333333 ^ x {coefr} * 4 29 / + ?
+                                      y "+string(rW[2])+" * Z@ {ep} > Z 0.333333333 ^ Z {coefr} * 4 29 / + ? - 2 * "), bi, fs),   optSingleMode=true,  lut=lut2)
+
 
     isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
 
 
-
-# WIP. CIE Lab to XYZ
+# CIE Lab to XYZ -D65 based-
 function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch", bool "fulls") {
 
     isy  = isy(Lab)
@@ -779,17 +784,100 @@ function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch", bool "fulls") {
     a    = !isy ? clp[1] :     a
     b    = !isy ? clp[2] :      b
 
-    ep    = 24  / 116.          # 0.20689655172413793103448275862069
-    ep2   = pow(ep, 3)          # 0.00885645167903563081717167575546 (or 216 / 24389.)
-    coef  = pow(ep, 2) * 3      # 0.12841854934601664684898929845422 (or 108 / 841)
-    kappa = 24389 / 27.         # 903.296296296296296296296296296296
-    rW    = [95.0449218275099, 100., 108.8916648430471] # Reference White: Normalization to Y=100 of reciprocal of illuminant
+    ep    =     6  / 29.                            # 0.20689655172413793103448275862069
+    ep2   = pow(6  / 29., 3)                        # 0.00885645167903563081717167575546 (or 216 / 24389.)
+    coef  = pow(6  / 29., 2) * 3                    # 0.12841854934601664684898929845422 (or 108 / 841)
+    kappa = 24389 / 27.                             # 903.296296296296296296296296296296
+    rW    = [0.950449218275099,1,1.088916648430471] # Reference White: Normalization to Y=100 of reciprocal of illuminant (and divided by 100)
 
-    Y = Expr( L,    Format("x 100 * 16 + 116 / Y@                 {ep} > Y 3 ^ Y 16 116 / - {coef} * ?                          "), optSingleMode=false, lut=lut1)
-    X = Expr( L, a, Format("x 100 * 16 + 116 / y 100 * 500 / + X@ {ep} > X 3 ^ X 16 116 / - {coef} * ? "+string(rW[0])+" * 100 /"), optSingleMode=false, lut=lut2)
-    Z = Expr( L, b, Format("x 100 * 16 + 116 / y 100 * 200 / - Z@ {ep} > Z 3 ^ Z 16 116 / - {coef} * ? "+string(rW[2])+" * 100 /"), optSingleMode=false, lut=lut2)
+#    # De facto formula, for reference
+#    Y = Expr( L,    Format("x 100 * 16 + 116 / Y@                 {ep} > Y 3 ^ Y 16 116 / - {coef} * ?                    "))
+#    X = Expr( L, a, Format("x 100 * 16 + 116 / y 100 * 500 / + X@ {ep} > X 3 ^ X 16 116 / - {coef} * ? "+string(rW[0])+" *"))
+#    Z = Expr( L, b, Format("x 100 * 16 + 116 / y 100 * 200 / - Z@ {ep} > Z 3 ^ Z 16 116 / - {coef} * ? "+string(rW[2])+" *"))
+
+    Y = Expr( L,    Format("x 0.16 + 0.8620689656 *           Y@ {ep} > Y 3 ^ Y 4 29 / - {coef} * ?                    "), optSingleMode=false, lut=lut1)
+    X = Expr( L, a, Format("x 0.16 + 0.8620689656 * y 0.2 * + X@ {ep} > X 3 ^ X 4 29 / - {coef} * ? "+string(rW[0])+" *"), optSingleMode=false, lut=lut2)
+    Z = Expr( L, b, Format("x 0.16 + 0.8620689656 * y 0.5 * - Z@ {ep} > Z 3 ^ Z 4 29 / - {coef} * ? "+string(rW[2])+" *"), optSingleMode=false, lut=lut2)
 
     isy ? [X, Y, Z] : CombinePlanes(X, Y, Z, planes="RGB") }
+
+
+
+# Only works in 32-bit float (for the time being)
+function XYZ_to_Yxy (clip XYZ, clip "Y", clip "Z", bool "fulls") {
+
+    isy  = isy(XYZ)
+    bi   = BitsPerComponent(XYZ)
+    fs   = Default (fulls,  true)
+
+    clp  = !isy ? ExtractClip(XYZ) : nop()
+    X    = !isy ? clp[0] :    XYZ
+    Y    = !isy ? clp[1] :     Y
+    Z    = !isy ? clp[2] :      Z
+
+
+    if (isy) {
+
+        xl = Expr(X, Y, Z, "x dup y z + + /",  optSingleMode=false)
+        yl = Expr(X, Y, Z, "y dup x z + + /",  optSingleMode=false)
+        [Y, xl, yl]
+
+    } else {
+
+        Expr(X, Y, Z, "y", "x dup y z + + /",\
+                           "y dup x z + + /",  optSingleMode=true, format=PixelType(XYZ)) } }
+
+
+
+function Yxy_to_XYZ (clip Yxy, clip "x", clip "y", bool "fulls") {
+
+    isy  = isy(Yxy)
+    bi   = BitsPerComponent(Yxy)
+    fs   = Default (fulls,  true)
+
+    clp  = !isy ? ExtractClip(Yxy) : nop()
+    Yb   = !isy ? clp[0] :    Yxy
+    xl   = !isy ? clp[1] :     x
+    yl   = !isy ? clp[2] :      y
+
+    if (isy) {
+
+        X = Expr(Yb, xl, yl, "y z / x *",                optSingleMode=false)
+        Z = Expr(Yb, xl, yl, "y z / x * Y@ y / Y - x -", optSingleMode=false)
+        [X, Yb, Z]
+
+    } else {
+
+        Expr(Yb, xl, yl, "y z / x *                ",\
+                         "      x                  ",\
+                         "y z / x * Y@ y / Y - x - ",    optSingleMode=true, format=PixelType(Yxy)) } }
+
+
+
+# WIP. XYZ to Hunter Lab
+function XYZ_to_HLab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
+
+    isy  = isy(XYZ)
+    bi   = BitsPerComponent(XYZ)
+    iRT  = isRunTime(XYZ,!isy)
+    lut1 = bi == 32 || iRT ? 0 : 1
+    lut2 = bi  > 12 || iRT ? 0 : 2
+    cy   = Default (Jch,   false)
+    fs   = Default (fulls,  true)
+
+    clp  = !isy ? ExtractClip(XYZ) : nop()
+    X    = !isy ? clp[0] :    XYZ
+    Y    = !isy ? clp[1] :     Y
+    Z    = !isy ? clp[2] :      Z
+
+    rW    = [95.0449218275099, 100., 108.8916648430471] # Reference White: Normalization to Y=100 of reciprocal of illuminant
+
+    L = Expr(Y,               Format("x sqrt 10 *"),                            optSingleMode=false, lut=lut1)
+    a = Expr(X, Y,    ex_dlut(Format("x 1.02  * y - 17.5 * y sqrt /"), bi, fs), optSingleMode=true,  lut=lut2)
+    b = Expr(   Y, Z, ex_dlut(Format("y 0.847 * x -    7 * y sqrt /"), bi, fs), optSingleMode=true,  lut=lut2)
+
+    isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
+
 
 
 
@@ -865,7 +953,7 @@ function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv", bool 
     isy ? [X, Y, Z] : CombinePlanes(X, Y, Z, planes="RGB") }
 
 
-# RGB' (gamma encoded) to HSV
+# RGB' to HSV
 function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range") {
 
     isy = isy(RGB)
@@ -901,6 +989,7 @@ function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range") {
     } else { Expr(R, G, B, V, Hs, Ss, "a", format=PixelType(RGB), optSingleMode=true) } }
 
 
+# HSV to RGB'
 function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range") {
 
     isy = isy(HSV)
@@ -936,7 +1025,7 @@ function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range") {
 
 
 
-# RGB linear to IPT (original PT range scaled from -1 +1 to 0 +1)
+# RGB linear to IPT -requires D65- (original PT range scaled from -1 +1 to 0 +1)
 # Fix some NaN in black areas
 function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "fulls") {
 
@@ -953,16 +1042,13 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
     G   = !isy ? clp[1] :     G
     B   = !isy ? clp[2] :      B
 
-    LMS = [0.4002, 0.7075, -0.0807, \
-          -0.2280, 1.1500,  0.0612, \
-           0.0000, 0.0000,  0.9184]
+    LMS = XYZ_to_LMS(RGB,"Hunt-Pointer-Estevez",true,true)
 
     IPT = [0.4000,  4.4550,  0.8056, \
            0.4000, -4.8510,  0.3572, \
            0.2000,  0.3960, -1.1628]
 
     mata = RGB_to_XYZ (R, mat[0], list=true)
-    LMS  = MatrixTranspose(LMS)
     LMS  = MatrixDot(mata, LMS)
     b32m = bi == 32 ? "" : ex_dlut(" range_max *", bi, fs)
     b32d = bi == 32 ? "" : ex_dlut( "range_max /", bi, fs)
@@ -1023,9 +1109,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
             0.4000, -4.8510,  0.3572, \
             0.2000,  0.3960, -1.1628]
 
-    LMS  = [0.4002, 0.7075, -0.0807, \
-           -0.2280, 1.1500,  0.0612, \
-            0.0000, 0.0000,  0.9184]
+    LMS = LMS_to_XYZ(IPT,"Hunt-Pointer-Estevez",true,true)
 
     IPTc  = MatrixInvert(IPTm)
 
@@ -1046,8 +1130,6 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
         S = Expr(I, P, T, "x "+b32d+" "+string(IPTc[2])+" * z "+b32d+" pi 2 * * pi - H@ cos y "+b32d+" pi / Y@ * "+string(IPTc[5])+" * + H sin Y * "+string(IPTc[8])+" * + dup dup 0 >= swap 1 0.43 / ^ swap neg 1 0.43 / ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
     }
 
-    LMS  = MatrixTranspose(LMS)
-    LMS  = MatrixInvert(LMS)
     mata = XYZ_to_RGB (I, mat[0], list=true)
     RGB  = MatrixDot(LMS, mata)
 
@@ -1066,7 +1148,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
 
 
 
-# RGB linear to Oklab (original 'ab' range scaled from -1 +1 to 0 +1)
+# RGB linear to Oklab -requires D65- (original 'ab' range scaled from -1 +1 to 0 +1)
 # Fix some NaN in black areas
 function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "fulls") {
 
@@ -1088,6 +1170,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
           0.0329845436, 0.9293118715,  0.0361456387, \
           0.0482003018, 0.2643662691,  0.6338517070]
 
+    # From Oklab's LMS to Lab
     M2 = [0.2104542553,  0.7936177850, -0.0040720468, \
           1.9779984951, -2.4285922050,  0.4505937099, \
           0.0259040371,  0.7827717662, -0.8086757660]
@@ -1201,7 +1284,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 
 
 
-
+# RGB linear to XYZ
 function RGB_to_XYZ (clip rgb, string cspace, bool "list") {
 
     list = Default(list, false)
@@ -1255,7 +1338,7 @@ function RGB_to_XYZ (clip rgb, string cspace, bool "list") {
     list ? matrix : MatrixClip(rgb, matrix) }
 
 
-
+# XYZ to RGB linear
 function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
 
     list = Default(list, false)
@@ -1310,56 +1393,205 @@ function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
 
 
 
-# CAT (Chromatic Adaptation Transforms) types:
-# Bianco 2010
-# Bianco PC 2010
-# Bradford
-# CAT02
-# CAT02 Brill 2008
-# CMCCAT2000
-# CMCCAT97
-# Fairchild
-# Sharp
-# Spectral-sharpened Bradford
+# LMS space for Chromatic Adaptation Transforms. LMS stands for Long, Medium, Short cone rod responses.
+# XYZ Scaling
 # Von Kries (Hunt-Pointer-Estevez adjusted for D65)
 # Von Kries (Hunt-Pointer-Estevez for equal energy -E-)
-# XYZ Scaling
+# CAT97 (Bradford) (Spectral-sharpened)
+# Fairchild
+# CAT00
+# CAT02
+# CAT02 Brill 2008
+# CAT16
+# Bianco 2010
+# Bianco PC 2010
+# Sharp
+# Sharp Spherical
+# Sharp Spherical with HUE uniformity
+# CIE 2006 Stockman & Sharpe (2000) 2º and 10º Standard Observer
 #
-# von Kries Chromatic Adaptation
-# source and/or target can be a Primaries Color Space (ie. sRGB) or an illuminant (ie: D65)
-function CAT (clip c, string "source", string "target", bool "tv_range", bool "list") {
+# Recommended: CAT02B, SharpSphere, SharpSphereHUE and Stockman
+function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
+
+    md    = Default (mode, "CAT02")
+    list  = Default (list,      false)
+    trans = Default (transpose, false)
+
+    # XYZ Scaling (known as "wrong von Kries")
+    XYZ   = [1.000000, 0.000000,  0.000000, \
+             0.000000, 1.000000,  0.000000, \
+             0.000000, 0.000000,  1.000000]
+
+    # Hunt-Pointer-Estevez D65 cone response (also known as "von Kries" by association with the von Kries transform method)
+    HPE65 = [0.40024, 0.70760, -0.08081, \
+            -0.22630, 1.16532,  0.04570, \
+             0.00000, 0.00000,  0.91822]
+    # HPE with equal energy
+    HPEE  = [0.389709204, 0.688980877, -0.078686185, \
+            -0.229811028, 1.183407545,  0.046401147, \
+             0.000000000, 0.000000000,  1.000000000]
+
+    # CAT97/Bradford (also known as Spectral-sharpened Bradford or Linearized Bradford/CIECAM97) usually better than HPE
+    # Requires a non-linearity von Kries in the blue channel that is usually omitted (check page 52 of "Computing Chromatic Adaptation" by Süsstrunk)
+    Brad  = [0.8951,  0.2664, -0.1614, \
+            -0.7502,  1.7135,  0.0367, \
+             0.0389, -0.0685,  1.0296]
+
+    # Fairchild improvement over Bradford to make it reversible (better than CAT00)
+    Fair  = [0.8562,  0.3372, -0.1934, \
+            -0.8360,  1.8327,  0.0033, \
+             0.0357, -0.0469,  1.0112]
+
+    # CAT2000, revision of CAT97 by minimizing perceptual error over a different data set
+    CAT00 = [0.7982, 0.3389, -0.1371, \
+            -0.5918, 1.5512,  0.0406, \
+             0.0008, 0.0239,  0.9753]
+
+    # Improvement over Bradford and CAT00 by excluding the McCann haploscopic data set
+    CAT02 = [0.7328,  0.4296, -0.1624, \
+            -0.7036,  1.6975,  0.0061, \
+             0.0030,  0.0136,  0.9834]
+
+    # Brill and Süsstrunk (2008) corrected CAT02 chromatic adaptation transform
+    CAT02B= [0.7328,  0.4296, -0.1624, \
+            -0.7036,  1.6975,  0.0061, \
+             0.0000,  0.0000,  1.0000]
+
+    # Improvement over CAT02
+    CAT16 = [0.401288, 0.650173, -0.051461, \
+            -0.250268, 1.204414,  0.045854, \
+            -0.002079, 0.048952,  0.953127]
+
+    # Sharp Adaptation Transform (performs similar to CAT02)
+    Shp   = [1.2694, -0.0988, -0.1706, \
+            -0.8364,  1.8006,  0.0357, \
+             0.0297, -0.0315,  1.0018]
+
+    # Improvement over Sharp and CAT02 with spherical sampling optimization
+    Sph   = [1.1083,  0.0631, -0.1714, \
+            -0.8044,  1.7798,  0.0246, \
+             0.0000,  0.0151,  0.9849]
+
+    # Improvement over Sphere for HUE uniformity for surface/natural colors (ie. Photographs)
+    b20   = [1.6351, -0.4071, -0.2280, \
+            -0.8044,  1.7798,  0.0246, \
+             0.0000,  0.0152,  0.9848]
+
+    # CIE 170-2 or CIE 2006 Stockman & Sharpe (2000) physiological 2º Standard Observer
+    STK   = [0.210576, 0.855098, -0.0396983, \
+            -0.417076, 1.177260,  0.0786283, \
+             0.000000, 0.000000,  0.516835]
+
+    # CIE 170-2 or CIE 2006 Stockman & Sharpe (2000) physiological 10º Standard Observer
+    STK10 = [0.217011, 0.835734, -0.043511, \
+            -0.429979, 1.203890,  0.086211, \
+             0.000000, 0.000000,  0.465792]
+
+    # WIP. Modified (2012) CIE 2006 Stockman & Sharpe (2000) physiological-relevant 2º Standard Observer
+#    CAT12  = [0.000000, 0.000000,  0.000000, \
+#             0.000000, 0.000000,  0.000000, \
+#             0.000000, 0.000000,  0.000000]
+
+    # Bianco and Schettini (2010)
+    BIA   = [0.8752, 0.2787, -0.1539, \
+            -0.8904, 1.8709,  0.0195, \
+            -0.0061, 0.0162,  0.9899]
+
+    # Bianco and Schettini PC (2010)
+    BIAPC = [0.6489, 0.3915, -0.0404, \
+            -0.3775, 1.3055,  0.0720, \
+            -0.0271, 0.0888,  0.9383]
+
+    # This looks like a modified Stockman & Sharpe, from RGB to OPP papers.
+    OPP   = [0.2430, 0.8560, -0.0440, \
+            -0.3910, 1.1650,  0.0870, \
+             0.0100, -0.0080, 0.5630]
+
+    LMS = md == "XYZ"       ? XYZ           : \
+          md == "Scale"     ? XYZ           : \
+          md == "Scaling"   ? XYZ           : \
+          md == "von Kries" ? HPE65         : \
+          md == "vonKries" ? HPE65          : \
+          md == "HPE"       ? HPE65         : \
+          FindStr(LCase(md),"hunt")>0?HPE65 : \
+          md == "E"         ? HPEE          : \
+          md == "Bradford"  ? Brad          : \
+          md == "CAT97"     ? Brad          : \
+          md == "Fairchild" ? Fair          : \
+          md == "CAT00"     ? CAT00         : \
+          md == "CAT02"     ? CAT02         : \
+          md == "CAT02B"    ? CAT02B        : \
+          md == "CAT16"     ? CAT16         : \
+          md == "Sharp"     ? Shp           : \
+          md == "Sphere"    ? Sph           : \
+          md == "SharpSphere"?Sph           : \
+          md == "Sharp2"    ? Sph           : \
+          md == "Sphere2"   ? b20           : \
+          md == "Sharp3"    ? b20           : \
+          FindStr(LCase(md),"hue")>0?b20    : \
+          md == "OPP"       ? OPP           : \
+          md == "170-2"     ? STK           : \
+          FindStr(md,"2006")   >0 ? STK     : \
+          FindStr(md,"tockman")>0 ? STK     : \
+          FindStr(LCase(md),"bianco")>0?BIA : \
+          FindStr(md,"PC")>0? BIAPC         : \
+          Assert(false,"XYZ_to_LMS: Unsupported LMS mode.")
+
+    LMS = trans ? MatrixTranspose(LMS) : LMS
+    list  ? LMS : MatrixClip(xyz, LMS) }
+
+
+function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
+
+    md   = Default (mode, "CAT02")
+    tran = Default (transpose, false)
+    list = Default (list,      false)
+
+    XYZ  = MatrixInvert(XYZ_to_LMS(lms,md,true,tran))
+
+    list ? XYZ : MatrixClip(lms, XYZ) }
+
+
+
+# Linear CAT (Chromatic Adaptation Transform):
+#
+# Transformation Method:
+#   Strong von Kries (von Kries-Ives) (used in ICC)
+#   Weak von Kries (default in CAT() )
+#
+# 'source' and/or 'target' can be Primaries (Color Space ie. sRGB) or an Illuminant (ie: D65)
+function CAT (clip c, string "source", string "target", string "LMS", bool "tv_range", bool "list") {
 
     rgb     = IsRGB(c)
     propIDs = color_propGet(c)
 
     src    = Default (source,   propIDs[3])
     tgt    = Default (target,        "D65")
+    LMS    = Default (LMS,   "SharpSphere")
     tv     = Default (tv_range, propIDs[6])
     list   = Default (list,          false)
 
-    src    = list ? [src] : color_Fuzzy_Search (src)
-    tgt    = list ? [tgt] : color_Fuzzy_Search (tgt)
-    wps    = Matrix_coef(src[0])
-    wpt    = Matrix_coef(tgt[0])
+    src    = list ? [src,src] : color_Fuzzy_Search (src)
+    tgt    = list ? [tgt,tgt] : color_Fuzzy_Search (tgt)
+    wps    = Matrix_coef(src[1])
+    wpt    = Matrix_coef(tgt[1])
     same   = wps[3] == wpt[3]
 
-    CAT02  = [0.7328,  0.4296, -0.1624, \
-             -0.7036,  1.6975,  0.0061, \
-              0.0030, -0.0136,  0.9834]
+    LMS    = XYZ_to_LMS(c, LMS, true)
 
-    wpsn   = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], CAT02)
-    wptn   = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], CAT02)
+    wpsn   = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], LMS)
+    wptn   = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], LMS)
     trans  = ArrayOp(wptn,wpsn,"/")
-    vk     = [same?1.:trans[0],   0.0000,        0.0000,  \
-              0.0000,   same?1.:trans[1],        0.0000,  \
-              0.0000,            0.0000,same?1.:trans[2]]
+    vk     = [same?1.:trans[0],   0.0000,        0.0000, \
+              0.0000,   same?1.:trans[1],        0.0000, \
+              0.0000,             0.0000,same?1.:trans[2]]
 
-    CAM    = !same ? MatrixDot(CAT02, MatrixDot(vk, MatrixInvert(CAT02))) : vk
+    CAM    = !same ? MatrixDot(LMS, MatrixDot(vk, MatrixInvert(LMS))) : vk
 
     if (!list) {
 
         c
-        s_gam  = moncurve_coef(src[0])
+        s_gam  = moncurve_coef(src[2])
 
         RGBpln = rgb ? IsPlanar() : false
 
@@ -1381,4 +1613,24 @@ function CAT (clip c, string "source", string "target", bool "tv_range", bool "l
     } else { CAM } }
 
 
+# CIE XYZ Color Matching Functions
+# Maps spectral observer sensitivity data into linear CIE tristimulus values X, Y and Z.
+#
+# CIE 1931 2º Standard Observer (ideal for LED)
+# CIE 1931 Judd (1951) and Vos (1978) modification
+# CIE 1964 10º Supplementary Standard Observer
+# CIE 170-2 or CIE 2006 Stockman & Sharpe (2000) physiological 2º Standard Observer
+# CIE 170-2 or CIE 2006 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL)
+# CIE 170-2 Schanda-Csuti (2008) modified 2º Standard Observer (ideal for Plasma)
+# CIE 170-2 TUI (TU Ilmenau, 2008) modified 2º Standard Observer (ideal for OLED)
+# CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
+# Abhijit Sarkar (2011) - ODCI (Observer Dependent Color Imaging) (8 Observer Tables presented as Excel spreadsheet)
+# Modified (2012) CIE 2006 Stockman & Sharpe (2000) physiological-relevant 2º Standard Observer (http://cvrl.ioo.ucl.ac.uk/ciexyzpr.htm)
+# Modified (2012) CIE 2006 Stockman & Sharpe (2000) physiological-relevant 10º Supplementary Standard Observer (ideal for CCFL)
+#
+# * 10º Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets). Movies in a SmartTV might range between 20º and 30º from the observer, but the individual color patches not.
+function CMF (clip c, string "source", string "target", bool "tv_range", bool "list") {
 
+    # Multi-Lobe, Piecewise Gaussian Fit for CIE 1931 2º Standard Observer
+
+}
