@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.1 (29-04-2022)               ##
+###           Grade Pack v7.2 (06-06-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -354,7 +354,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     oho  = oho / (crg + ep)
     iho  = crg / (iho + ep)
     rt   = oho * iho
-    cstr = ex_UVexpr(Format(rangePCc + " {rt} * " + rangeTVc), UV, bi, rgb, !tv, si)
+    cstr = rgb ? str : ex_UVexpr(Format(rangePCc + " {rt} * " + rangeTVc), UV, bi, rgb, !tv, si)
 
     isy     ? Expr(c, str      ,                  lut=lut, clamp_float=bi32) : \
     UV == 1 ? Expr(c, str, ""  ,                  lut=lut, clamp_float=bi32) : \
@@ -792,7 +792,7 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
     LO  = 1-bw
     HI  = 1-bw/(3.01-min(str,1))
     mat = Color_fuzzy_search(ID[2])
-    gm  = moncurve_coef(mat[0])
+    gm  = moncurve_coef(mat[2])
 
     rgb ? IsPlanar(c) ? c : ConvertToPlanarRGB(c) : c
 
@@ -1042,7 +1042,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     both the following conditions are met:
 
     •LUMINANCE:   The luminance signal should lie inside the range -1% to 103% (ie. 14-242 for 8-bit legal, not implemented, use SoftLimiter() instead)
-    •CHROMINANCE: When matrixed to RGB, all of the R, G or B signals should lie inside the range -5% and 105% (ie. -12.75-267.75 when converted to 8-bit full range RGB - 5-246 for Studio RGB)
+    •CHROMINANCE: When matrixed to RGB, all of the R, G or B signals should lie inside the range -5% and 105% -EBU103 v1.1- (ie. -12.75-267.75 when converted to 8-bit full range RGB - 5-246 for Studio RGB)
     •Measuring equipment should indicate an “Out-of-Gamut” occurrence only after the error exceeds 1% of the image histogram for either luminance or chrominance within the preferred ranges described above
 
 # Horizontal Signal Filtering
@@ -1265,7 +1265,7 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 
     rgb
     matrix = Color_fuzzy_search(matrix)
-    s_gam  = moncurve_coef(matrix[0])
+    s_gam  = moncurve_coef(matrix[2])
     coeffs = RGB_to_XYZ   (matrix[0], list=true)
 
     ConvertToPlanarRGB()
@@ -1326,11 +1326,9 @@ function FindTemp (clip c, string "matrix", bool "show") {
         RGB = ArrayOp(RGB,2.222,"pow(x,y)")  # linearize (assumes 2.40 gamma)
         XYZ = MatrixDot(RGB,toXYZ)
 
-        CAT02  = [0.7328,  0.4296, -0.1624, \
-                 -0.7036,  1.6975,  0.0061, \
-                  0.0030, -0.0136,  0.9834]
+        LMS = XYZ_to_LMS("CAT02",true)
 
-        XYZ = MatrixDot([XYZ[0]/XYZ[1],1.,XYZ[2]/XYZ[1]], CAT02)
+        XYZ = MatrixDot([XYZ[0]/XYZ[1],1.,XYZ[2]/XYZ[1]], LMS)
         XYZ = ArrayOp(XYZ,0.333333,"*")
 
         xe  = 0.3366
@@ -1464,7 +1462,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     Assert(IsVersionOrGreater(3,7,2), "WhitePoint: Update AviSynth+ version")
 
     mat   = Color_fuzzy_search(mat)
-    s_gam = moncurve_coef(mat[0])
+    s_gam = moncurve_coef(mat[2])
 
     rgb ? rgbp ? c : ConvertToPlanarRGB(c) : \
     YUV_to_RGB(c, mat[0], tv_range_in=tv, tv_range_out=false, kernel="Point", cplace="")
@@ -1479,19 +1477,17 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     wpy = -3. * pow(wpx,2.) + 2.870 * wpx - 0.275
     wpz =  1. - wpx - wpy
 
-    CAT02 = [0.7328,  0.4296, -0.1624, \
-            -0.7036,  1.6975,  0.0061, \
-             0.0030, -0.0136,  0.9834]
+    LMS = XYZ_to_LMS("CAT02",true)
 
-    fw1      = MatrixDot([0.950450,1.,1.088917],CAT02)
-    fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,CAT02)
+    fw1      = MatrixDot([0.950450,1.,1.088917],LMS)
+    fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,LMS)
     trans    = ArrayOp(fw2,fw1,"/")
 
     vonkries = [trans[0], 0.0000,  0.0000,  \
                 0.0000, trans[1],  0.0000,  \
                 0.0000,   0.0000, trans[2]]
 
-    CAM      = MatrixDot(CAT02, MatrixDot(vonkries, MatrixInvert(CAT02)))
+    CAM      = MatrixDot(LMS, MatrixDot(vonkries, MatrixInvert(LMS)))
 
     moncurve_f(s_gam[0], s_gam[1], false, false, 1)
 
