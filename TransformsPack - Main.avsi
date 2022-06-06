@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC50  (17-05-2022)     ##
+###   Transforms Pack - Main v1.0 RC51  (06-06-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -82,8 +82,8 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     src   = color_Fuzzy_Search (source)
     tgt   = color_Fuzzy_Search (disp_ref)
-    s_gam = moncurve_coef (src[0]) # Primaries derived gamma
-    t_gam = moncurve_coef (tgt[0])
+    s_gam = moncurve_coef (src[2]) # Primaries derived gamma
+    t_gam = moncurve_coef (tgt[2])
     gamut = gamut && src[0] != tgt[0]
 
     rgb ? ConvertToPlanarRGB(src[0])                                     : \
@@ -93,7 +93,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     if (gamut) {
     mata = RGB_to_XYZ  (src[0],         list=true)
-    matw = CAT         (src[0], tgt[0], list=true)
+    matw = CAT         (src[1], tgt[1], list=true, LMS="SharpSphere")
     matb = XYZ_to_RGB  (tgt[0],         list=true)
     MatrixClip( MatrixDot(MatrixDot(mata, matw), matb) ) }
 
@@ -187,15 +187,15 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
      mfc   ? fca > fc  ? Trim(last, fc-1) : last+BlankClip(b,fc-1,color_yuv=clr) : last
 
     # Planar to Interleaved
-    YUY2 && !rgba  ? ConvertToYUY2()               : last
+    YUY2 && !rgba      ? ConvertToYUY2()           : last
 
     # Frame Properties
     if (fst && fp) {
     ID = color_Fuzzy_Search(mat)
                 propCopy(b,true,props=["_Matrix","_Primaries"],exclude=true)
     fd !=  fs ? propSet("_ColorRange", fd ? 1 : 0) : last # Overrides the Convertto props
-                propSet("_Matrix",          ID[1])        # Overrides the Convertto props
-                propSet("_Primaries",       ID[2]) } }    # Disable this line and above when convertto supports writing to RGB frameprops (currently RGB is hardcoded to _Matrix 0 and _Primaries 2 -undefined-)
+                propSet("_Matrix",          ID[3])        # Overrides the Convertto props
+                propSet("_Primaries",       ID[4]) } }    # Disable this line and above when convertto supports writing to RGB frameprops (currently RGB is hardcoded to _Matrix 0 and _Primaries 2 -undefined-)
 
 
 
@@ -258,21 +258,23 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     clip,
 ###     float width=1.0 (0.1 to 1920.0),
 ###     float height=1.0 (0.1 to 1080.0),
-###     string "fmt_in"="" (""/ "YUV411"/ "YUV420"/ "YUV422"/ "YUV444"/ "RGB"),
-###     string "fmt_out"="" (""/ "YUV411"/ "YUV420"/ "YUV422"/ "YUV444"/ "RGB"),
-###     string preset="none" ("none"/ "DoVi/DVp5/DVp7"/ "PQ10/UHD"/ "HLG10"/ "HD"/ "DVD-NTSC"/ "DVD-PAL"/ "DV"/ "CRT-NTSC"/ "CRT-PAL"/ "Master"/ "Archival"/ "Grade"/ "Theater"/ "JPEG2000"/ "JPG_old"/ "JPG"),
-###     string "cs_in"="" (""/ "709"/ "470M"/ "470BG"/ "170M"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG"),
-###     string "cs_out"="" (""/ "709"/ "470M"/ "470BG"/ "170M"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG"),
-###     string "OETF"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "NHK HLG"/ "AdobeRGB"/ "ACESCCt"),
-###     string "EOTF"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "NHK HLG"/ "AdobeRGB"/ "ACESCCt"),
-###     string "D_in"="" (""/ "D50"/ "E"/ "D55"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93"),
-###     string "D_out"="" (""/ "D50"/ "E"/ "D55"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93"),
+###     [string "fmt_in"=""  (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab")],
+###     [string "fmt_out"="" (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab")],
+###     [string preset="none" ("none"/ "DoVi/DVp5/DVp7"/ "PQ10/UHD"/ "HLG10"/ "HD"/ "DVD-NTSC"/ "DVD-PAL"/ "DV"/ "CRT-NTSC"/ "CRT-PAL"/ "Master"/ "Archival"/ "Grade"/ "Theater"/ "JPEGXL"/ "JPEG2000"/ "JPG_old"/ "JPG")],
+###     [string "cs_in"=""  (""/ "709"/ "470M"/ "470BG"/ "170M"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG")],
+###     [string "cs_out"="" (""/ "709"/ "470M"/ "470BG"/ "170M"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG")],
+###     [string "OETF"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "NHK HLG"/ "AdobeRGB"/ "ACESCCt")],
+###     [string "EOTF"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "NHK HLG"/ "AdobeRGB"/ "ACESCCt")],
+###     [string "D_in"=""  (""/ "D50"/ "E"/ "D55"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93")],
+###     [string "D_out"="" (""/ "D50"/ "E"/ "D55"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93")],
+###     [string "cplace_in"=""  (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
+###     [string "cplace_out"="" (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
 ###     [bool "tv_in"=true],
-###     bool "tv_out"=true,
-###     string "scale_space"="gamma" ("gamma"/ "linear"/ "sigmoid"/ "log"),
-###     string "kernel"="spline36" ("nnedi3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###     [bool "tv_out"=true],
+###     [string "scale_space"="gamma" ("gamma"/ "linear"/ "sigmoid"/ "log")],
+###     [string "kernel"="spline36"   ("nnedi3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
 ###     [string "kernel_c"="spline36" ("nnedi3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
-###     int "taps"=[0,0] ([0,0] to [12,12] by [1,1]),
+###     [int "taps"=[0,0] ([0,0] to [12,12] by [1,1])],
 ###     [bool "nomoiree"=false],
 ###     [bool "noring"=false],
 ###     [bool "UVrecon"=false],
@@ -296,7 +298,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 # SincLin2ResizeMT                         (up,dw) https://github.com/jpsdr/ResampleMT/releases (like a sharper lanczos or a -moderate- ring suppresed Sinc) (Doom9 thread: https://forum.doom9.org/showthread.php?p=1919769#post1919769)
 # SinPowResizeMT                              (dw) https://github.com/jpsdr/ResampleMT/releases (Doom9 thread: https://forum.doom9.org/showthread.php?p=1918124)
 # Jinc (EWA Lanczos)                          (up) https://github.com/Asd-g/AviSynth-JincResize/releases
-# FCBI (Fast Curve Based Interp) (8-bit)      (up) https://github.com/chikuzen/FCBI/releases
+# FCBI (Fast Curve Based Interp)              (up) https://github.com/Asd-g/AviSynth-FCBI
 # SuperResXBR                                 (up) https://github.com/mysteryx93/AviSynthShader/releases
 # AiUpscale/FSRCNN (FastSuperResolutionConvo) (up) https://github.com/Alexkral/AviSynthAiUpscale/tree/master/Shaders (lineart / photo folders)
 # KrigBilateral                               (up) https://github.com/Alexkral/AviSynthAiUpscale/tree/master/Shaders/KrigBilateral
@@ -374,8 +376,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     o_fmt      = format_Fuzzy_Search (Default (fmt_out, p_type), bi)
     isRGBi     = i_fmt[0]=="RGB"
     isRGBo     = o_fmt[0]=="RGB"
-    lut1       = bi == 32 ? 0 : 1
-    lut2       = bi  > 12 || isRunTime(clp,isRGBi) ? 0 : 2
+    RT         = isRunTime(clp,isRGBi)
+    lut1       = bi == 32 || RT ? 0 : 1
+    lut2       = bi  > 12 || RT ? 0 : 2
 
     isRGBi ? ConvertToPlanarRGB() : last
 
@@ -406,23 +409,26 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     cs_out     = Default (cs_out_d ? cs_out =="" ? cs_in : cs_out : cs_out, cs_in_d ? cs_in : (cs_in == "jpeg" || cs_in == "jpg" || cs_inF == "sRGB") && isRGBo ? "sRGB" : isnUHD ? "2020" : isnHD ? "709" : "170m")
       cs_outFA = color_Fuzzy_Search (cs_out)
       cs_outF  = cs_outFA[0]
-    OETF       = Default (Defined(OETF) ? OETF =="" ? Und  : OETF : OETF,  cs_in_d  ? cs_in ==""  ? propIDs[5] : cs_in : propIDs[5])
-    EOTF       = Default (Defined(EOTF) ? EOTF =="" ? OETF : EOTF : EOTF,  cs_out) # By default derived from space
-          OETF = color_Fuzzy_Search (OETF)[0]
-          EOTF = color_Fuzzy_Search (EOTF)[0]
+    OETF       = Defined(OETF) ? OETF =="" ? Und  : OETF : cs_in_d  ? cs_in ==""  ? propIDs[5] : cs_in : propIDs[5]
+    EOTF       = Defined(EOTF) ? EOTF =="" ? OETF : EOTF : cs_outF # By default derived from space
+        OETF_i = color_Fuzzy_Search (OETF)
+          OETF = OETF_i[2]
+        EOTF_i = color_Fuzzy_Search (EOTF)
+          EOTF = EOTF_i[2]
        tv_in_d = Defined (tv_in)
     tv_in      = Default (tv_in,                    !(isRGBi || cs_inF =="sRGB" || cs_in =="jpeg" || cs_in =="jpg") && propIDs[6] )
     tv_out     = Default (tv_out, tv_in_d ? tv_in : !(isRGBo || cs_outF=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") )
     kernel     = Default (kernel,   (w>nw||h>nh)?"Didee":"Precise")
     kernel_c   = Default (kernel_c, kernel)
-    space      = Default (scale_space, "gamma")  # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasi-log. Assumes gamma encoded input. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (https://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
-    cplace_in  = Default (cplace_in,   "")       # Assumes default from format
-    cplace_out = Default (cplace_out,  "")       # Assumes default from format
-    D_in       = Default (Defined(D_in)  ? D_in  =="" ? Und  : D_in  : D_in , cs_in_d  ? cs_in ==""  ? propIDs[2] : cs_in : propIDs[2])
-    D_out      = Default (Defined(D_out) ? D_out =="" ? D_in : D_out : D_out, D_in) # By default same as input, change based on space?
-        D_in   = color_Fuzzy_Search (D_in )[0]
+    space      = Default (scale_space,    "gamma"      ) # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasi-log. Assumes gamma encoded input. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (https://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
+    cplace_in  = Default (cplace_in, fc ? "center" : "") # Assumes default from format
+    cplace_out = Default (cplace_out,  cplace_in)        # Assumes default from format
+    D_in       = Defined(D_in)  ? D_in  =="" ? Und  : D_in  : cs_in_d  ? cs_in ==""  ? propIDs[2] : cs_in : propIDs[2]
+    D_out      = Defined(D_out) ? D_out =="" ? D_in : D_out : D_in # By default same as input, change based on space?
+        D_inA  = color_Fuzzy_Search (D_in )
+        D_in   = D_inA[1]
         D_outA = color_Fuzzy_Search (D_out)
-        D_out  = D_outA[0]
+        D_out  = D_outA[1]
     p          = Defined (taps)     ? IsArray(taps)      ? ArraySize(taps)     > 1 ? taps     : ArrayAdd(taps,0)       : [taps,0]       : [0,0]
     pd         = p[0] > 0
     pdc        = p[1] > 0
@@ -468,24 +474,26 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                  preset == "CRT-PAL"      ? 9  : \
                  preset == "Master"       ? 10 : \
                  preset == "Archival"     ? 11 : \
+                 preset == "GAM"          ? 11 : \
                  preset == "Grade"        ? 12 : \
                  preset == "Theater"      ? 13 : \
-                 preset == "JPEG2000"     ? 14 : \
-                 preset == "JPG_old"      ? 15 : \
-                 preset == "JPG"          ? 16 : 0
+                 preset == "JPEGXL"       ? 14 : \
+                 preset == "JPEG2000"     ? 15 : \
+                 preset == "JPG_old"      ? 16 : \
+                 preset == "JPG"          ? 17 : 0
 
-    #                                   Default  DoVi/DVp5/DVp7  PQ10/UHD/2100   HLG10    HD/1886  DVD-NTSC/601  DVD-PAL/470BG  DV-NTSC     CRT-NTSC     CRT-PAL     Master  GAM*/Archival    Grade     Theater    JPEG2000    JPG_old  JPG/sRGB
-    o_fmt0        = Select (num,      o_fmt[0],      "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",     "YCbCr",    "YCbCr",       "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
-    cs_outFA      = Select (num,      cs_outFA,         "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",      "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old uses sRGB primaries but with 170M (470M derived) matrix, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
-    o_fmt1        = Select (num,      o_fmt[1],          "420",       "420",      "420",     "420",      "420",       "420",      "410",       "411",     "411",     "444",       "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
-    tv_out        = Select (num,        tv_out,          false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,    false,    false)
-    cplace_out    = Select (num,    cplace_out,     "top_left",  "top_left", "top_left",   "MPEG2",    "MPEG2",     "MPEG2",       "DV",     "MPEG1",   "MPEG1",        "",          "",         "",         "",         "",  "MPEG1",  "MPEG1")
-    D_out         = Select (num,         D_out,          "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",       "D60",      "D60",        "E",      "D65",    "D65",    "D65")
-    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "170M",       "470",     "170M",      "170M",    "170M",     "DCI",    "linear",  "ACESCCt",      "DCI",     "sRGB",   "170M",   "sRGB")
-    PAR           = Select (num,             1,              1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,        1,        1)
-    cdc           = Select (num,            "",         "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000", "JPEG2000",    "JPG",    "JPG")
-    cont          = Select (num,            "",           "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",          "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jp2",    "JPG",    "JPG")
-    bit           = Select (num,            bi,             12,          10,         10,         8,          8,           8,          8,           0,         0,        16,          16,         32,         12,          8,        8,        8)
+    #                                   Default  DoVi/DVp5/DVp7  PQ10/UHD/2100   HLG10    HD/1886  DVD-NTSC/601  DVD-PAL/470BG  DV-NTSC     CRT-NTSC     CRT-PAL     Master  GAM*/Archival    Grade     Theater      JPEGXL    JPEG2000    JPG_old  JPG/sRGB
+    o_fmt0        = Select (num,      o_fmt[0],      "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",     "YCbCr",    "YCbCr",       "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",      "XYB",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
+    cs_outFA      = Select (num,      cs_outFA,         "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",      "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old standardized decoding (PS, mozjpeg, cjxl, etc) is always treated as encoded with 170M (470M derived) matrix, regardless of image/profile primaries, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
+    o_fmt1        = Select (num,      o_fmt[1],          "420",       "420",      "420",     "420",      "420",       "420",      "410",       "411",     "411",     "444",       "444",      "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
+    tv_out        = Select (num,        tv_out,          false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,      false,    false,    false)
+    cplace_out    = Select (num,    cplace_out,     "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",    "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
+    D_out         = Select (num,         D_out,          "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",       "D60",      "D60",        "E",      "D65",      "D65",    "D65",    "D65")
+    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "170M",       "470",     "170M",      "170M",    "170M",     "DCI",    "linear",  "ACESCCt",      "DCI",     "sRGB",     "sRGB",   "170M",   "sRGB")
+    PAR           = Select (num,             1,              1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,          1,        1,        1)
+    cdc           = Select (num,            "",         "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000",   "JPEGXL", "JPEG2000",    "JPG",    "JPG")
+    cont          = Select (num,            "",           "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",          "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jxl",      "jp2",    "jpg",    "jpg")
+    bit           = Select (num,            bi,             12,          10,         10,         8,          8,           8,          8,           0,         0,        16,          16,         32,         12,          8,          8,        8,        8)
 
   # * GAM (Graded Archival Master)
 
@@ -538,13 +546,13 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     src_height = Defined (src_height) ? IsArray(src_height) ? ArraySize(src_height) > 1 ? src_height : ArrayAdd(src_height,0.0) : [src_height,0.0] : [0.0,0.0]
     src_heightc= src_height[1]     src_height = src_height[0]
 
-    i_type1  || o_type1         ? Assert(bi == 8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")          : nop()
-    i_type10 || o_type10        ? Assert(false,   "ConvertFormat: Unsupported Pixel Type: YUV410")              : nop()
-    i_type2  || i_fmt[1]=="420" ? Assert( w%2==0, "ConvertFormat: Clip Width is not mod2" )                     : nop()
-    i_type1                     ? Assert( w%4==0, "ConvertFormat: Clip Width is not mod4" )                     : nop()
-    o_type1                     ? Assert(nw%4==0, "ConvertFormat: Target Width is not mod4" )                   : nop()
-    !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                ? \
-                                  Assert(!recon,  "ConvertFormat: Invalid settings for chroma reconstruction")  : nop()
+    i_type1  || o_type1                  ? Assert(bi == 8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")         : nop()
+    i_type10 || o_type10                 ? Assert(false,   "ConvertFormat: Unsupported Pixel Type: YUV410")             : nop()
+    !fc && (i_type2  || i_fmt[1]=="420") ? Assert( w%2==0, "ConvertFormat: Clip Width is not mod2" )                    : nop()
+    !fc &&  i_type1                      ? Assert( w%4==0, "ConvertFormat: Clip Width is not mod4" )                    : nop()
+    o_type1                              ? Assert(nw%4==0, "ConvertFormat: Target Width is not mod4" )                  : nop()
+    !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                       ? \
+                                           Assert(!recon,  "ConvertFormat: Invalid settings for chroma reconstruction") : nop()
 
 
     # Overriding 'taps' arg by kernel name (ie. 'blackman8' means taps=8)
@@ -922,9 +930,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     if (isSpace || isIllu || isGamma && isRGBi) {
 
-        mata = RGB_to_XYZ  (cs_in,         list=true)
-        matw = CAT         (D_in, D_out,   list=true)
-        matb = XYZ_to_RGB  (cs_out,        list=true)
+        mata = RGB_to_XYZ  (cs_in,       list=true)
+        matw = CAT         (D_in, D_out, list=true, LMS="SharpSphere" )
+        matb = XYZ_to_RGB  (cs_out,      list=true)
         mat  = MatrixDot(MatrixDot(mata, matw), matb)
 
         Ro = "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +"
@@ -1039,12 +1047,17 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
         # Frame Properties
 
-        isSpace || isFrmt ? propSet("_Matrix", isRGBo?0:o_fmt[4]==-1?cs_outFA[1]:o_fmt[4])       : last # Yes, again, hardcoding matrix for RGB to 0
-        isSpace           ? propSet("_Primaries",o_fmt[5]==0||o_fmt[5]==-1?cs_outFA[2]:o_fmt[5]) : last # Same here
-        isIllu            ? propSet("_Illuminant",                        D_outA[3])             : last
-        isGamma           ? propSet("_Transfer",        color_Fuzzy_Search(EOTF)[4])             : last
-        tv_in != tv_out   ? propSet("_ColorRange",      tv_out?1:0)                              : last
-        isChP             ? propSet("_ChromaLocation",  cplace[2])                               : last
+        mat_i  = isRGBo ? 0 : o_fmt[4]==-1?cs_outFA[3]:o_fmt[4]
+        prim_i = o_fmt[5]==0||o_fmt[5]==-1?cs_outFA[4]:o_fmt[5]
+        illu_i = D_outA[5]
+        t_i    = EOTF_i[4]
+
+        isSpace || isFrmt ? propSet("_Matrix",      mat_i)         : last # Yes, again, hardcoding matrix for RGB to 0
+        isSpace           ? propSet("_Primaries",  prim_i)         : last # Same here
+        isIllu            ? propSet("_Illuminant", illu_i)         : last
+        isGamma           ? propSet("_Transfer",      t_i)         : last
+        tv_in != tv_out   ? propSet("_ColorRange",     tv_out?1:0) : last
+        isChP             ? propSet("_ChromaLocation", cplace[4])  : last
 
         # Show panel
         if (dg) {
@@ -1066,20 +1079,28 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             i_fmt  = i_fmt[0]
             o_jab  = o_fmt1
             o_fmt  = o_fmt0
-            c_col  = cplace[0]
-            c_cot  = cplace[1]
+            c_col  = cplace[0]   c_in = cplace[2]
+            c_cot  = cplace[1]   c_ou = cplace[3]
             kernel = UCase(LeftStr(kernel,  1))+MidStr(kernel,  2) # Sentence Case
             kernelc= UCase(LeftStr(kernel_c,1))+MidStr(kernel_c,2) # Sentence Case
             y_cof  = (kernel   == "bicubic" ? string(bc_b, "%1.2f")+","+string(bc_c, "%1.2f") : krny[3] > 0 ? string(krny[3]) : "")  y_cof = y_cof == "" ? "" : (kernel   == "bicubic" ? "" : "     ")+"["+y_cof+"]"
             u_cof  = (kernel_c == "bicubic" ? string(bch_b,"%1.2f")+","+string(bch_c,"%1.2f") : krnc[3] > 0 ? string(krnc[3]) : "")  u_cof = u_cof == "" ? "" : (kernel_c == "bicubic" ? "" : "     ")+"["+u_cof+"]"
             tv_i   = tv_in  ? "Lim" : "Full"
             tv_o   = tv_out ? "Lim" : "Full"
+            prp    = color_propGet (cs_inFA[4], D_inA[5], mat_i, OETF_i[4])
+            cs_in  = prp[2]
+            D_in   = prp[3]
+            OETF   = prp[5]
+            prp    = color_propGet (prim_i, illu_i, mat_i, t_i)
+            cs_out = prp[2]
+            D_out  = prp[3]
+            EOTF   = prp[5]
             msize  = min(nw,nh)
 
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.2),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC50",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC51",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1106,7 +1127,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                            +"{D_in} \n "        \
                            +"{i_jab} \n "       \
                            +"{tv_i} \n "        \
-                           +"{cplace_in} \n "   \
+                           +"{c_in} \n "        \
                            +string(c_col,"%1.3f")+" \n "\
                            +"{kernel} \n "      \
                            +"{kernelc} \n "     \
@@ -1122,7 +1143,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                            +"{D_out} \n "       \
                            +"{o_jab} \n "       \
                            +"{tv_o} \n "        \
-                           +"{cplace_out} \n "  \
+                           +"{c_ou} \n "        \
                            +string(c_cot,"%1.3f")+" \n "\
                            +y_cof+" \n "        \
                            +u_cof+" \n "),         x=msize/2.25,size=msize/25,lsp=4)
@@ -1318,16 +1339,12 @@ function color_Fuzzy_Search (string matrix) {
 \   : (transfer == "ACESCCt"       ) ? 21 : -1
 # * DCIXYZ is defined in smpte428-1. It's XYZ space with DCI white point for cinema distribution in DCDM format
 
-    str = illuminant != "" ? [illuminant,idm,ids,idi,idt] : \
-          transfer   != "" ? [transfer,  idm,ids,idi,idt] : \
-          matrixn    != "" ? [matrixn,   idm,ids,idi,idt] : ["",-1,-1,-1,-1]
-
-    str }
+    [matrixn,illuminant,transfer,idm,ids,idi,idt] }
 
 
 # Get frame properties or infer them from clip format. Useful to get initial Defaults.
 # When input args in functions are undefined color_propGet() has prevalence over Color_fuzzy_search() and format_Fuzzy_Search()
-function color_propGet (clip a) {
+function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_i") {
 
     w        = width (a)
     h        = height(a)
@@ -1338,10 +1355,10 @@ function color_propGet (clip a) {
 
     fmt      = format_Fuzzy_Search(a, PixelType(a), bi)
     cm_i     = a.propNumElements("_Model")      > 0 ? propGetInt(a, "_Model")       : -1
-    prim_i   = a.propNumElements("_Primaries")  > 0 ? propGetInt(a, "_Primaries")   : 2
-    illu_i   = a.propNumElements("_Illuminant") > 0 ? propGetInt(a, "_Illuminant")  : -1
-    mat_i    = a.propNumElements("_Matrix")     > 0 ? propGetInt(a, "_Matrix")      : 2
-    t_i      = a.propNumElements("_Transfer")   > 0 ? propGetInt(a, "_Transfer")    : 2
+    prim_i   = Defined(prim_i) ? prim_i : a.propNumElements("_Primaries")  > 0 ? propGetInt(a, "_Primaries")   :  2
+    illu_i   = Defined(illu_i) ? illu_i : a.propNumElements("_Illuminant") > 0 ? propGetInt(a, "_Illuminant")  : -1
+    mat_i    = Defined(mat_i)  ? mat_i  : a.propNumElements("_Matrix")     > 0 ? propGetInt(a, "_Matrix")      :  2
+    t_i      = Defined(t_i)    ? t_i    : a.propNumElements("_Transfer")   > 0 ? propGetInt(a, "_Transfer")    :  2
 
     # Input Defaults
     cm_i     = cm_i   != -1 ? cm_i   : fmt[4]
@@ -1687,9 +1704,10 @@ function bicubic_coeffs (string kernel) {
 # JPG standard chroma placement is center
 # 444 and RGB chroma placement is obviously center (cosited)
 #
-# JPEGs uses Rec.601 primaries, PC Levels, MPEG1 chroma placement, and can be many formats; from RGB to 420, 422 being to spec, but also 440*, 444, 411, etc
+# JPEGs uses Rec.601 primaries*, PC Levels, MPEG1 chroma placement, and can be many formats; from RGB to 420, 422 being to spec, but also 440*, 444, 411, etc
 #*YUV440 or YUVJ440 are for rotated versions of 422 (rotated JPEG)
-# Photoshop saves as 420 up to level 6, 422 for above
+#*Photoshop saves as 420 up to level 6, 422 for above
+#*Photoshop automatically decodes JPEG as Rec.601 for JPEGs without an embedded profile at least up to version "Photoshop CC 2019"
 
 function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string matrix_o, string format_i, string format_o, string jab_i, string jab_o, string "cplace_in", string "cplace_out") {
 
@@ -1711,6 +1729,7 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
     rcw = (a1 / float(a2)) * ryw     # source/target U dimensions
     rch = (iv / float(ov)) * ryh     # source/target V dimensions
 
+
     tli = FindStr(matrix_i,    "2020")>0 || FindStr(matrix_i,   "2100")>0 || \
           FindStr(cplace_in,   "2020")>0 || FindStr(cplace_in,  "2100")>0 || \
           FindStr(format_i,"YcCbcCrc")>0 || FindStr(format_i,  "ICtCp")>0
@@ -1718,10 +1737,6 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
     tlo = FindStr(matrix_o,    "2020")>0 || FindStr(matrix_o,   "2100")>0 || \
           FindStr(cplace_out,  "2020")>0 || FindStr(cplace_out, "2100")>0 || \
           FindStr(format_o,"YcCbcCrc")>0 || FindStr(format_o,  "ICtCp")>0
-
-    fulli = FindStr(format_i,"RGB")>0 || jab_i == "444"
-    fullo = FindStr(format_o,"RGB")>0 || jab_o == "444"
-
 
                   # source chroma placement defaults
     dplacei = tli                    ? "top_left"    : \
@@ -1740,7 +1755,11 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
     cplacei = cplace_in =="" ? dplacei : Default (cplace_in,  dplacei)
     cplaceo = cplace_out=="" ? dplaceo : Default (cplace_out, dplaceo)
 
+
     # Extending with aliases (RGB or 44 hardcoded)
+    fulli = FindStr(format_i,"RGB")>0 || jab_i == "444"
+    fullo = FindStr(format_o,"RGB")>0 || jab_o == "444"
+
     cplacei = fulli                     ? "center"   : \
               tli                       ? "top_left" : \
               cplacei == "DV"           ? "top_left" : \
@@ -1776,7 +1795,7 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
               cplacei == "top"         ? [ 0.0, -iv] : \
               cplacei == "bottom_left" ? [-iu,   iv] : \
               cplacei == "bottom"      ? [ 0.0,  iv] : \
-              Assert (false, "chroma_placement: Unsupported chroma placement mode.")
+              Assert (false, "chroma_placement: Unsupported input chroma placement mode.")
 
     # Out chroma units [third item is _ChromaLocation index for frameprops]
     ocloc  =  cplaceo == "left"        ? [-ou,  0.0, 0] : \
@@ -1785,9 +1804,9 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
               cplaceo == "top"         ? [ 0.0, -ov, 3] : \
               cplaceo == "bottom_left" ? [-ou,   ov, 4] : \
               cplaceo == "bottom"      ? [ 0.0,  ov, 5] : \
-              Assert (false, "chroma_placement: Unsupported chroma placement mode.")
+              Assert (false, "chroma_placement: Unsupported output chroma placement mode.")
 
-    [ocloc[0]*rcw-icloc[0],(icloc[1]-ocloc[1])-(icloc[1]-ocloc[1])*rch, cplaceo] }
+    [ocloc[0]*rcw-icloc[0],ocloc[1]*rch-icloc[1], cplacei, cplaceo, ocloc[2]] }
 
 
 
@@ -1859,6 +1878,7 @@ function Matrix_coef (string matrix, string "illuminant") {
     pw  = Select (mat_w,  [0.31006,0.31616],[0.312713, 0.329016],                                                                                           [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3]   ,[0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311],[0.3362,0.3502],[0.3134,0.3275])
     wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                           [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3]   ,[0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311],[0.3362,0.3502],[0.3134,0.3275])
     Kv  = Select (mat_wp,  6774.153        , 6503.519           ,                                                                                            5001.828        ,                    6302.797      ,   6000.07                            ,  5455.486     , 5502.815         , 7506.288         , 8945.623     , 5348.372      , 6477.494      )
+  # Kv (Kelvin) are Correlated Color Temperatures derived from 'CIE 1931 2º Degree Standard Observer' CMF with 'native' isotherms
 
     pr = [pr[0], pr[1], 1 - pr[0] - pr[1]]    pw = [pw[0], pw[1], 1 - pw[0] - pw[1]]
     pb = [pb[0], pb[1], 1 - pb[0] - pb[1]]    wp = [wp[0], wp[1], 1 - wp[0] - wp[1]]
@@ -1872,9 +1892,9 @@ function Matrix_coef (string matrix, string "illuminant") {
     [kr, kg, kb, wp[0], wp[1], wp[2]] }
 
 
-# Should pass through color_Fuzzy_Search() for string normalizing
 function moncurve_coef (string transfer) {
 
+    # Normalized strings
     t_num =
 \     (transfer == "sRGB"         ) ? 0
 \   : (transfer == "Display-P3"   ) ? 0
@@ -1937,6 +1957,8 @@ function moncurve_coef (string transfer) {
     t_phi   = Select(t_num, 12.92321018078786109464, 4.5                          , 4.0                   , 13.43031761206876179575      , 4.5    , 0       , 0          , 0        , 0            ,      pow(0.35, 3.0-2.6) )
 
     [t_gamma, t_alpha] }
+
+
 
 
 
@@ -2038,6 +2060,13 @@ function MatrixTranspose (float_array mat) {
    mat[2],mat[5],mat[8]] }
 
 
+# Inner Product (uT · v)
+function Dot (float_array vec1, \
+              float_array vec2) {
+    # 1x3 · 1x3
+    (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]) }
+
+
 function Cross (float_array vec1, \
                 float_array vec2) {
     # 1x3 X 1x3
@@ -2046,11 +2075,3 @@ function Cross (float_array vec1, \
     cr3 = vec1[0] * vec2[1] - vec1[1] * vec2[0]
 
     [cr1, cr2, cr3] }
-
-
-# Inner Product (uT · v)
-function Dot (float_array vec1, \
-              float_array vec2) {
-    # 1x3 · 1x3
-    (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]) }
-
