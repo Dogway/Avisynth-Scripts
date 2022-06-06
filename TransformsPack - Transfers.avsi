@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC50 (17-05-2022) ##
+###   Transforms Pack - Transfers v1.0 RC51 (06-06-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -198,8 +198,8 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 # For opposite: Full Swing, Full/Data/CG/RGB/PC range.
 # Other:        SMPTE+, Camera Range or Extended Range (Ocassional case in broadcast, camera recordings or in HLG for 10-bit [64-1019] narrow blacks + super-whites)
 #
-# Arguably (at least in broadcast with SDI interfaces) Full Range also needs to abide to Video Data range...
-# that is 1-254 for 8-bits, 4-1019 for 10-bits and so on... For these cases set broadcast=true
+# Full Range also needs to abide to Video Data range but only for broadcast with SDI interfaces,
+# that is 1-254 for 8-bits, 4-1019 for 10-bits and so on... For these cases set broadcast=true (see "EBU R 103 v3.0" page 7 for details)
 
 function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", bool "fulld", bool "broadcast") {
 
@@ -282,7 +282,7 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV", bool "broadcast"
     !fsd           ? propSet("_ColorRange", !fw?1:0)              : last }
 
 
-# SoftLimiter (23-04-2022)
+# SoftLimiter (25-05-2022)
 #
 # SoftLimiter is an inclusive limiter, it brings clips with under or overshoot values to in-range legal broadcast values
 # It does so in a gentle manner by rolling off the values into range without altering the clip's levels, then clipping leftovers.
@@ -297,7 +297,7 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV", bool "broadcast"
 #               ResizersPack (for show)
 #
 # Examples:
-#   SoftLimiter(16,235)              # no rolloff (straight clamp), assumes input IS legal (within 16,235)
+#   SoftLimiter(16,235)              # no rolloff (straight clamp), assumes input IS legal (within 16,235, actually 14-238 with default EBU R 103 'tolerance=1.25')
 #   SoftLimiter(12,240,12,245)       # Bring specified values to legal range with rolloff
 #   SoftLimiter(dyn=2)               # Bring           values to legal range with rolloff (values defined by dynamic stats)
 #   SoftLimiter(dyn=1)               # Bring           values to legal range with rolloff (values defined by scene   stats)
@@ -308,6 +308,14 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV", bool "broadcast"
 # dyn = 2  ->              loose  dynamic mode. Medium,         will bring some values into range (recommended)
 # dyn = 3  ->              strict dynamic mode. Very sensitive, will bring many values into range
 #
+#
+# * Tolerance: Tolerance defines the legal range target, by default 1.25% for an EBU R 103 (v1.1) compliant range of 14-238.
+#              This contrasts with the lo/hi limit arguments, which directly defines the strength of the rolloff to the aforementioned target.
+#              EBU R 103 (v3.0) accepts a tolerance of 5% (5-246) but that certainly looks a bit of a stretch for a legal range, specially on averaged stats.
+# Example:
+#   SoftLimiter(10,245,tol=1.25)     # Bring values of 10 and 245 to 14 and 238 respectively
+#
+#
 # Function Definition:
 #    (
 #    clip,
@@ -315,7 +323,7 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV", bool "broadcast"
 #    float hi=235.0 (235.0 to 255.0),
 #    [float "lo_c"=16.0 (0.0 to 16.0)],
 #    [float "hi_c"=240.0 (235.0 to 255.0)],
-#    [float "tolerance"=0.0 (0.0 to 35.0 by 0.5)],
+#    [float "tolerance"=1.25 (0.00 to 35.00 by 0.05)],
 #    [int "dyn"=0 (0 to 3)],
 #    [bool "show"=false]
 #    )
@@ -336,11 +344,25 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     hi  = Default(hi,     235)   # High limit
     loc = Default(lo_c,    lo)   # Low  limit (Chroma)
     hic = Default(hi_c,  hi+5)   # High limit (Chroma)
-    tol = Default(tolerance,0)   # 0-100 Percentage of allowed under/overshoots (~12.5% is an accepted range -14-238-, range 238-242 is for superwhites)
+    tol = Default(tolerance,1.25)# 0-100 Percentage of allowed under/overshoots (~1.25% is an accepted range -14-238-, range 238-242 is for superwhites)
     dyn = Default(dyn,      0)   # 0: static  1: per-scene accumulated loose (min/max 0.454% ignored)  2: medium (min/max 0.2% ignored)  3: strict (min/max 0.1% ignored)
     sh  = Default(show, false)
     UV  = Default(UV, isy ? 1 : 3 )
     si  = ex_UVf(rgb, bi)
+
+    lo  = min(16, max(0,   lo))   loc  = min(16, max(0,   loc))
+    hi  = min(255,max(235, hi))   hic  = min(255,max(240, hic))
+
+   # WIP
+   # if (tol > 0) {
+   # tol = tol/100.
+   # lu  = 220. * tol
+   # ch  = 225. * tol
+   # lo  = lo + lu    loc  = loc + ch
+   # hi  = hi - lu    hic  = hic - ch
+   # lo  = max(0,   lo)   loc  = max(0,   loc)
+   # hi  = min(255, hi)   hic  = min(255, hic)
+   # }
 
     # Store for 'show' when dyn=0
     if (sh && dyn==0) {
@@ -351,14 +373,6 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         sdyn = dyn
     }
 
-    lo  = min(16, max(0,   lo))   loc  = min(16, max(0,   loc))
-    hi  = min(255,max(235, hi))   hic  = min(255,max(240, hic))
-
-    if (tol > 0) {
-    pc  = tol/100. * 16
-    lo  = lo + pc    loc  = loc + pc
-    hi  = hi - pc    hic  = hic - pc
-    }
 
     lo0 = lo == 16                loc0 = loc == 16
     hi0 = hi == 235               hic0 = hic == 240
@@ -418,7 +432,7 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
     } else if (dyn > 1) {
         a
-        ab = removegrain(12,UV==3?12:-1) # clearing over/undershoots
+        ab = removegrain(12,UV==3?12:-1) # clearing over/undershoots (EBU recommends ex_boxblur(5,1,mode="weighted"))
         th = dyn > 2 ? 0.1 : 0.2
         PS = "Y  = PlaneMinMaxStats(ab, th, 0, 0, false)
               U  = PlaneMinMaxStats(ab, th, 0, 1, false)
@@ -438,13 +452,13 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
 
     } else {
 
-        lol  = ex_bs(16,  8, bi, fs)
-        hil  = ex_bs(235, 8, bi, fs)
-        hicl = ex_bs(240, 8, bi, fs)
+        lol  = ex_bs(lo,  8, bi, fs, flt=true)
+        hil  = ex_bs(hi,  8, bi, fs, flt=true)
+        hicl = ex_bs(hic, 8, bi, fs, flt=true)
 
     if (lo0 && loc0 && hi0 && hic0 && !(w == h == 256)) {
 
-        limiter(a, lol,hil,bi>16?lol-0.5:lol,bi>16?hicl-0.5:hicl)
+        limiter(a, round(lol),round(hil),round(bi>16?lol-0.5:lol),round(bi>16?hicl-0.5:hicl))
 
     } else {
 
