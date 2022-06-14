@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 6.4 by Dogway  (01-05-2022)            ##
+###           MasksPack 6.4 by Dogway  (14-06-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -65,10 +65,10 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
            Assert(IsVersionOrGreater(3,7,2), "BoxMask: Update AviSynth+ version")
     show ? Assert(UV!=1,                     "BoxMask: 'show' requires UV=2 or 3") : nop()
 
-    x1      =     min(max(x1,0),w)
-    x2      = max(min(max(x2,0),w),x1)
-    y1      =     min(max(y1,0),h)
-    y2      = max(min(max(y2,0),h),y1)
+    x1      =     clamp(x1,0,w)
+    x2      = max(clamp(x2,0,w),x1)
+    y1      =     clamp(y1,0,h)
+    y2      = max(clamp(y2,0,h),y1)
 
     UV = UV!=3 && !rgb ? 128 : UV
 
@@ -578,7 +578,7 @@ function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int
     UV   = Default(UV,        1)
     tv   = Default(tv_range, !fs)
     UV3  = UV==3
-    KP   = max(0,min(100,keep)) / 100.
+    KP   = clamp(keep,0,100) / 100.
 
     Assert(IsVersionOrGreater(3,7,2),               "Soothe: Update AviSynth+ version")
     Assert(w == orig.width() && h == orig.height(), "Soothe: clip dimensions must match!")
