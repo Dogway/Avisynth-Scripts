@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v8.5   (06-05-2022)                   ##
+###        ExTools v8.6   (14-06-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -175,6 +175,7 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 # error = e = (predicted - observed) or (distorted - reference) = x - y
 # ME      - Mean Error or Bias. M(e). Measures additive bias in the error
 # MAE     - Mean Absolute Error -Manhattan or L1 norm-. M(|e|). Measures additive bias in the error but in a magnitude scale without sign
+# PAE     - Percentage of Absolute Error (not implemented)
 # SMAE    - Smooth Mean Absolute Error or Huber Loss. Same as MAE but less sensitive to outliers. It performs like MAE with low error and like MSE with high error
 # MAD     - Mean Absolute Deviation
 # MAD2    - Median Absolute Deviation. median(|e-median(|e|)|). Similar to a standard deviation but more robust to outliers by replacing the means of squares with median of absolutes
@@ -279,13 +280,13 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         y    = mcfa || mcf == "CAMBI" || mVMAF ?   y.ConvertBits(32,fulls=true)          : y
         a1   = mcfa && sh < 2 ? y.propClearAll() : isHD ? a1.ConvertBits(32,fulls=true) : a.ConvertBits(32,fulls=fs,fulld=true)
         b1   = mcfa || mcf == "CAMBI" || mVMAF ?   isHD ? b1.ConvertBits(32,fulls=true) : b.ConvertBits(32,fulls=fs,fulld=true) : b1
-        b2   = b1.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
+        b2   = rgb  || isy ? b1.ConvertToPlanarRGB(matrix=matA) : b1.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
 
         y    = mcfa || mcf == "SSIM" || mcf == "BSSIM" ? \
                                         vsSSIM(b1, y, show=1, fulls=true) : y
         y    = mcfa || mcf == "BSSIM" ? BSSIM (b1, y, show=1, fulls=true) : y
-        y    = mcfa                   ? GMSD  (b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : \
-                       mcf == "GMSD"  ? GMSD  (b1, y, show=1, fulls=true) : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : y
+        y    = mcfa                   ? rgb || isy ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) : GMSD(b1, y, show=1, fulls=true).      ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : \
+                       mcf == "GMSD"  ?              GMSD(b1, y, show=1, fulls=true) : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : y
         y    = mcfa || mcf == "MDSI"  ? !isy ? MDSI  (b2, y, show=1, fulls=true) : y : y
         b3   = mcfa || mcf == "BUTT"  ? !isy ? Butteraugli(y, b2)                : y : y  # Very slow filter ~3fps
 
@@ -528,6 +529,7 @@ function ex_logic(clip a, clip b, string "mode", int "thx", int "thy", int "UV")
         mode == "or"    ?        "x y + range_min range_max clip"              : \
         mode == "xor"   ?        "x y - abs"                                   : \
         mode == "andn"  ? bi32 ? "1 x - y *" : "range_max x - y * range_max /" : \
+        mode == "andnot"? bi32 ? "1 x - y *" : "range_max x - y * range_max /" : \
         mode == "min"   ?        "x "+th1+" y "+th2+" min"                     : \
         mode == "max"   ?        "x "+th1+" y "+th2+" max"                     : \
                                  Assert (false, "ex_logic: Unsupported logic mode.")
@@ -1784,9 +1786,9 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
         a
 
     } else if (!full && sm && UV==3                         || \
-               ( rd < 2.00 && rv < 2.00 && mb)              || \
-               (!pad && w0 <= 1099 && (w1 < 24 || h1 < 24)) || \
-                 pad && (w0 <= 480 || h0 <= 480) ) {
+              ( rd < 2.00 && rv < 2.00 && mb)               || \
+              (!pad &&  w0 <= 1099 && (w1 < 24 || h1 < 24)) || \
+                pad && (w0 <= 480 || h0 <= 480) ) {
 
         vsTCanny(a,rd,sigma_vY=rv,mode=-1,y=y,u=uv,v=uv)
 
@@ -1837,7 +1839,7 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
     DCT  = Default( DCTFlicker,  false) # Clean up remaining blotches of the reference lowpass
 
     mwh  = max(w,h)
-    LFR  = min(max(LFR,50),mwh)
+    LFR  = clamp(LFR,50,mwh)
     Fs   = mwh * 2                      # Frequency sample rate is resolution * 2 (for Nyquist)
     k    = sqrt(log(2)/2) * LFR         # Constant for -3dB
     LFR  = Fs / ( k * 2 * pi )          # Frequency Cutoff for Gaussian Sigma
@@ -6669,6 +6671,8 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 ###   ex_luts(mode="min",pixels=ex_shape(2))  -> ex_inpand(2)
 ###   ex_luts(mode="rng",pixels=ex_shape(1))  -> ex_edge(mode="min/max")
 ###   ex_luts(a,ex_blur(),mode="clp")         -> ex_clamp(a,ex_blur().ex_expand(),ex_blur().ex_inpand())
+###   px=ex_shape(3,mode="disk",type="array")
+###   ex_luts(mode="avg",pixels=px[0], exprf=" X^ "+sel_med(px[1])) -> Trimmed mean with custom kernel shape
 ###
 ### For more check Morphological examples above at line: 5585
 ###
@@ -6830,7 +6834,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
 ###    bool "center"=true
 ###    )
 ###
-function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop") {
+function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop", string "type") {
 
     rd = Default(rad,             1)  # integers from 0 to 4 or 8 (see above)
     rv = Default(radV,           rd)  # integers from 0 to 4 or 8 (see above)
@@ -6838,6 +6842,7 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop
     md = ReplaceStr(md,     " ", "")
     cn = Default(center, md!="ring")
     pp = Default(pop,          true)  # Pop out the variable or keep in stack
+    ou = Default(type,     "string")  # Output a "string" with kernel shape, or an "array" with the string and the pixel fetching number
 
     # Soft limit
     lim = md == "plus"       ? rd + rv > 16 : \
@@ -6908,7 +6913,9 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop
     pxc = FindStrInstance(krn, pop)
           Assert( pxc < 51, "ex_shape: "+string(pxc)+": Maximum pixel fetching count reached for '"+md+"' mode.")
 
-    return ReplaceStr(krn,  " "+pop, pop) }
+    str = ReplaceStr(krn,  " "+pop, pop)
+
+    return ou == "string" ? str : [str,pxc] }
 
 
 
@@ -6917,6 +6924,12 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop
 
 
 ######### HELPER FUNCTIONS #########
+
+
+function clamp(val a, val mn, val mx) {
+Assert(isFloat(a) && isFloat(mn) && isFloat(mx), "clamp(): Not a number, revise.")
+return min(max(a,mn),mx) }
+
 
 function isRunTime(clip a, bool rgb) {
     try {
@@ -6985,7 +6998,7 @@ function pixel_parser(string str) {
         sgn2 = sap2 == "-"
         val1 = sgn1 ? MidStr(str,i,2) : sap1
         val2 = sgn2 ? sgn1 ? MidStr(str,min(len,i+2),2) : MidStr(str,min(len,i+1),2) : sap2
-        px   = px + " x["+val1+","+val2+"] " + MidStr(vars,min(max(1,u),len),2) + "^ "
+        px   = px + " x["+val1+","+val2+"] " + MidStr(vars,clamp(u,1,len),2) + "^ "
         i    = sgn1 ? sgn2 ? i+2 : i+1 : sgn2 ? i+1 : i+0
         u    = u + 2
     }
@@ -7105,8 +7118,8 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
     fd  = Default(fulld, tv ? !tvo : fs) # fulld
     fl  = Default(flt,    obi==32)       # force float output
 
-    ibi  = min(max(8,ibi),32)  ibi = ibi-ibi%2
-    obi  = min(max(8,obi),32)  obi = obi-obi%2
+    ibi  = clamp(ibi,8,32)  ibi = ibi-ibi%2
+    obi  = clamp(obi,8,32)  obi = obi-obi%2
 
     ib32 = ibi == 32   ob32 = obi == 32
     ib8  = ibi == 8    ob8  = obi == 8
@@ -7170,8 +7183,8 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],    [3840.,3855.],    [15360.,15420.],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
     range_max   = Select (bitd,  [255.,255.],    [1023.,1023.],    [4095.,4095.],    [16383.,16383.],    [65535.,65535.],    [16776960.,16776960.],    [       1.,       1.])
     range_size  = Select (bitd,  [256.,256.],    [1024.,1024.],    [4096.,4096.],    [16384.,16384.],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
-#   data_max    = Select (bitd,  [254.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [ 254/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in [legal range, full range]
-#   data_min    = Select (bitd,  [  1.,  0.],    [   4.,   0.],    [ 16.,    0.],    [   64.,    0.],    [  256.,    0.],    [   65536.,       0.],    [   1/255.,       0.]) # Legal lower bound for video signal (luma and chroma) in [legal range, full range]
+#   data_max    = Select (bitd,  [254.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [ 254/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in [legal range, full range -not SDI broadcast-]
+#   data_min    = Select (bitd,  [  1.,  0.],    [   4.,   0.],    [ 16.,    0.],    [   64.,    0.],    [  256.,    0.],    [   65536.,       0.],    [   1/255.,       0.]) # Legal lower bound for video signal (luma and chroma) in [legal range, full range -not SDI broadcast-]
 
     fs  = fs ? 1 : 0
     str = ReplaceStr(str, "ymax ymin - range_max /", string(yrange[fs]/range_max[fs]))
@@ -7436,7 +7449,7 @@ function atanhT() {
 function expT(int "degree") {
 
     d = Default(degree, 11)
-    d = max(min(d,11),1)
+    d = clamp(d,1,11)
 
     # Maclaurin series - 11th degree polynomial. -3.55 <= x <= +3.4
     exp11 = "XX@ dup dup * X2@ 0.5 * 1 + + X2 XX * X3@ 0.166666666 * + X2 dup * X4@ 0.041666666 * +
