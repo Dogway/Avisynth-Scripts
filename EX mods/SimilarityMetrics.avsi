@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.1  (23-04-2022)                     ###
+###        Similarity Metrics Pack v3.2  (14-06-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -636,12 +636,13 @@ Round half to even - https://en.wikipedia.org/wiki/Rounding#Round_half_to_even
 
 ### Changelog ###
 #---------------
+# Updated from upstream. "Fixed check for negative numbers."
+#---------------
 # Added output value type (int or float) and edited RoundHalfToEven_mod2() to accept any mod type
 #---------------
 # Initial version
 */
 
-# Looks bugged as -24.5 should return -24 and not -25
 function RoundHalfToEven(float n, string "type") {
 
     tp  = Default(type, "int")
@@ -651,7 +652,7 @@ function RoundHalfToEven(float n, string "type") {
 
         n = n
 
-    } else if (Frac(n) == 0.5) {
+    } else if (Frac(n) == sign(n) * 0.5) {
 
         f = Floor(n)
         n = f % 2 == 0 ? f : Ceil(n)
@@ -678,7 +679,7 @@ function RoundHalfToEven_mod(float n, int "mod", string "type") {
 
         n = n
 
-    } else if (Frac(q) == 0.5) {
+    } else if (Frac(q) == sign(n) * 0.5) {
 
         f = Floor(q)
         n = f % 2 == 0 ? f * mod : Ceil(q) * mod
