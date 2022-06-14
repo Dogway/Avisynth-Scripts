@@ -1,6 +1,6 @@
 #############################################################
 ###                                                       ###
-###  GradFun3plus MIX mod by Dogway (15-03-2022)          ###
+###  GradFun3plus MIX mod by Dogway (14-06-2022)          ###
 ###                                                       ###
 ###                                                       ###
 ###  A simple port of:                                    ###
@@ -229,15 +229,15 @@ function SmoothGradPlus(clip a, int "radius", float "thr", float "elast", clip "
     Assert(rad <=  156,               "SmoothGradPlus: max "+chr(34)+"radius" +chr(34)+" value is 156.")
 
     rad   = max(rad, 2)
-    th2   = min(max(thr,    0.1 ), 10.0)
-    el2   = min(max(el,     1.01), 10.0)
+    th2   = clamp(thr,        0.1, 10.0)
+    el2   = clamp(el,        1.01, 10.0)
     thr_1 = int(th2       * 128.0 + 0.5)
     thr_2 = int(th2 * el2 * 128.0 + 0.5)
 
     min_thr_dif = 2
-    thr_dif     = max    (thr_2 - thr_1,     min_thr_dif)
-    thr_1       = min(max(thr_1, 0), 32767 - min_thr_dif)
-    thr_2       = min    (thr_1 + thr_dif, 32767)
+    thr_dif     = max  (thr_2 - thr_1,           min_thr_dif)
+    thr_1       = clamp(thr_1,      0,   32767 - min_thr_dif)
+    thr_2       = min  (thr_1 + thr_dif, 32767)
 
     thr_slope   = 32768. / (thr_2 - thr_1)
     thr_offset  = thr_1 * thr_slope + 32768
