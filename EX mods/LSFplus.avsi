@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v5.5 ex - 14 May 2022                                     ###
+###                                v5.5 ex - 14 June 2022                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -220,9 +220,9 @@
 ### | DEPENDENCIES |
 ### +--------------+
 ###
-### -> ExTools        (v8.5 or up)
+### -> ExTools        (v8.6 or up)
 ### -> ResizersPack   (v9.3 or up)
-### -> SMDegrain      (v3.5.0 or up)   [for preblur="ON"]
+### -> SMDegrain      (v3.5.1 or up)   [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v4.2 or up)     [for Smode=1, Smode=2, Smode=3 and Smode=6]
 ###
