@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.3 (01-06-2022)      ##
+###   Resizers Functions Pack 9.3 (14-06-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -193,7 +193,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     sh     = Default(show, false)
     ddec   = Defined(deconv)
     dec    = Default(deconv,    0)                                                          # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
-    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # >0 Add grain to big upscales as a mean of cheap hallucination
+    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
     decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
     dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                     # higher deconvolution the higher the upscale
     dec    = dec == 0.095 ? 0 : dec
@@ -755,9 +755,9 @@ function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
 # "[16,128,128]" -> "$108080"
 function ColortoHex(string color) {
     cl = Eval(Color)
-    Y  = min(255,max(0,cl[0]))
-    U  = min(255,max(0,cl[1]))
-    V  = min(255,max(0,cl[2]))
+    Y  = clamp(cl[0],0,255)
+    U  = clamp(cl[1],0,255)
+    V  = clamp(cl[2],0,255)
     Return "$"+string(Hex(Y,2))+string(Hex(U,2))+string(Hex(V,2)) }
 
 
