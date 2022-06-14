@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.2 (06-06-2022)               ##
+###           Grade Pack v7.2 (14-06-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -533,7 +533,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     md == "color"  || md == "luminosity" || \
     md == "hue"    || md == "saturation" ? Assert(!rgb && !isy,              "ex_blend: 'hue', 'saturation', 'color' and 'luminosity' modes require YUV inputs") : nop()
 
-    op  = min(max(op,0.),1.)
+    op  = clamp(op,0,1)
     iso = op == 1.0
 
     md = md == "add"          ? "lineardodge"  : \
@@ -736,7 +736,7 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
     UV   = Default(UV, rgb ? 3 : 2)
 
     mul  = string(Pow (2, 8 - bits - 1))
-    bits = max(min(bits,7),0)
+    bits = clamp(bits,0,7)
 
     ConvertBits(c,16, fulls=fs, fulld=fs)
 
@@ -895,9 +895,9 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
           mB=="L" ? "LUM" : mB
     nul = mB=="SAT" ? str==1.0 : mB=="LUM" ? str==180. : str==0.0 || str==360.0
 
-    dA  = mA=="HUE" ? min(360,max(0,dA))/360. : \
-          mA=="LUM" ? min(255,max(0,dA))/255. : \
-          mA=="SAT" ? min(100,max(0,dA))/100. : dA
+    dA  = mA=="HUE" ? clamp(dA,0,360)/360. : \
+          mA=="LUM" ? clamp(dA,0,255)/255. : \
+          mA=="SAT" ? clamp(dA,0,100)/100. : dA
 
     sc  = 0.32*atan(0.32*tan((dA+0.507)/0.32))+0.5 # less granularity to extremes and more to center
     dA  = mA=="SAT" ? min(1,sc) : dA
@@ -1228,7 +1228,7 @@ function Vignette (clip c, float "Vignette", bool "show", bool "tv_range") {
     str   = Default(Vignette, 0.5)
     show  = Default(show,    false)
     tv    = Default(tv_range, !show)
-    str   = pow((min(1,max(0,str)) + 0.5) / 1.5, 0.5)
+    str   = pow((clamp(str,0,1) + 0.5) / 1.5, 0.5)
 
     Assert(IsVersionOrGreater(3,7,2), "Vignette: Update AviSynth+ version")
 
