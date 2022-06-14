@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.2  (15-03-2022)                             ###
+###        Sharpeners Pack v4.2  (14-06-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -686,7 +686,7 @@ function CASP(clip a, float "strength", int "UV") {
     str = Default(strength,   0.5)  # 0: no sharpening, to 1: full sharpening. Scaled by the sharpness knob while being transformed to a negative lobe (values from -1/5 to -1/8 for A=1)
     UV  = Default(UV, rgb ? 3 : 1)
 
-    str = max(min(str, 1), 0)
+    str = clamp(str, 0, 1)
     str = 1. / (8+str*(5-8))  # reciprocal of lerp
 
     do  = 2. * ex_bs(255, 8, bi, fulls=true)
@@ -731,7 +731,7 @@ function NVSharpen(clip a, float "str", float "th", float "rat", float "boost", 
     str = Default(str, 0.5)  # 0: no sharpening, to 1: full sharpening.
     UV  = Default(UV,    1)
 
-    sharpness = max(min(1.0, str), 0)
+    sharpness = clamp(str, 0, 1)
     sharpen_slider = sharpness - 0.5   # Map 0 to 1 to -0.5 to +0.5
 
     # Different range for 0 to 50% vs 50% to 100%
@@ -1450,7 +1450,7 @@ function SlopeBend( clip a, int "str", int "rad", float "ss_x", float "ss_y", bo
     soft      = Default( soft,   false )
 
     Sstr      = str/100.0
-    rad       = max(min(rad,5),1)
+    rad       = clamp(rad, 1, 5)
     ox        = a.width ()
     oy        = a.height()
     ss        = ss_x != 1.0 || ss_y != 1.0
@@ -2899,8 +2899,8 @@ function SharpenComplex2(clip src, float "str0", float "str1", float "k0", int "
 ## Simple sharpening without limiting
 function MultiSharpen2(clip C, int multi, float "sharpen", float "blur") {
 
-    shrp = Min(Max(0.0, Default(sharpen, 0.6)), 1.0)
-    blr  = Min(Max(0.0, Default(blur,    0.3)), 1.0)
+    shrp = clamp(Default(sharpen, 0.6), 0, 1)
+    blr  = clamp(Default(blur,    0.3), 0, 1)
 
     C
     for (i=multi, 1, -1) {
@@ -2953,8 +2953,8 @@ function pSharpen (clip clp, int "strength", int "threshold", float "ss_x", floa
     dest_x    = Default(dest_x, ox)       # Final image size; defaults to the dimensions of the input clip.
     dest_y    = Default(dest_y, oy)
 
-    strength  = min(100,max(0,strength))
-    threshold = min(100,max(0,threshold))
+    strength  = clamp(strength, 0,100)
+    threshold = clamp(threshold,0,100)
     ss_x      = max(1.0, ss_x)
     ss_y      = max(1.0, ss_y)
 
