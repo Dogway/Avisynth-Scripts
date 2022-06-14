@@ -397,9 +397,9 @@
 #   Vinverse   (0.9.4)
 #
 # Core scripts:
-#   ExTools      (8.4   or above)
-#   SMDegrain    (3.5.0 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
-#   Zs_RF_Shared (1.157 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
+#   ExTools      (8.6   or above)
+#   SMDegrain    (3.5.1 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
 #   NNEDI2, NNEDI, EEDI3, EEDI2, TDeInt - if selected directly or via a source-match preset
