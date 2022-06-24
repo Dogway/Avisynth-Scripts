@@ -20,6 +20,7 @@
 # v1.70 updated in 2021-12-18 (Dogway) Revert MT version for resizers. Optimized edge mask. Sanitized
 # v1.80 updated in 2021-12-23 (Dogway) Replace SangNom with SangNom2, and nnedi2 with nnedi3. Some cosmetics and better U/V plane handling
 # v1.81 updated in 2022-03-05 (Dogway) Rebase with latest LSFplus
+# v1.90 updated in 2022-06-24 (Dogway) Saturate default SangNom2 to 128. Update scaling kernels in LSharpAAF()
 #
 #
 # Requirements (Plugins):
@@ -41,7 +42,7 @@
 #    nnedi
 #    nnedi2
 #    nnedi3
-#    UnFilter
+#    UnFilter (for AAA() )
 #
 #
 # All AA Scripts are in this script, so there's no need to download them separately.
@@ -115,17 +116,17 @@ function LSharpAAF(clip a, int "StrDrk", int "ShPre", int "ShPost", int "SmPost"
 
     preaa = (ShPre==0 && StrDrk==0) ? a                                                           : \
                          (ShPre==0) ? a.FastLineDarkenMOD(thinning=0, strength=StrDrk,prot=prot)  : \
-                        (StrDrk==0) ? a.LSFplus(preset="slow",preblur="ON",strength=float(ShPre)) : \
-                                      a.FastLineDarkenMOD(thinning=0, strength=StrDrk,prot=prot).LSFplus(preset="slow",preblur="ON",strength=float(ShPre))
+                        (StrDrk==0) ? a.LSFplus(preset="slow",preblur="ON",strength=ShPre)        : \
+                                      a.FastLineDarkenMOD(thinning=0, strength=StrDrk,prot=prot).LSFplus(preset="slow",preblur="ON",strength=ShPre)
 
-    ant=(aatype=="EEDI2")        ? preaa.TurnLeft().EEDI2(       ).TurnRight().EEDI2(       ).Spline36Resize(w,h,0.5,-0.5,2*w+.001,2*h+.001)
-    \ : (aatype=="EEDI3")        ? preaa.TurnLeft().EEDI3(U=f,V=f).TurnRight().EEDI3(U=f,V=f).Spline36Resize(w,h)
+    ant=(aatype=="EEDI2")        ? preaa.TurnLeft().EEDI2(       ).TurnRight().EEDI2(       ).bicubicresize(w,h,-0.5,0.25,0.5,-0.5,2*w+.001,2*h+.001)
+    \ : (aatype=="EEDI3")        ? preaa.TurnLeft().EEDI3(U=f,V=f).TurnRight().EEDI3(U=f,V=f).bicubicresize(w,h,-0.5,0.25)
     \ : (aatype=="EdiAA")        ? preaa.ediaa()
-    \ : (aatype=="nnedi")        ? preaa.NNEDI (dh=true,field=1,               U=f,V=f).TurnRight().NNEDI (dh=true,field=1,               U=f,V=f).TurnLeft().Spline36Resize(w,h)
-    \ : (aatype=="nnedi2")       ? preaa.NNEDI2(dh=true,field=1,nsize=2,qual=3,U=f,V=f).TurnRight().NNEDI2(dh=true,field=1,nsize=2,qual=3,U=f,V=f).TurnLeft().Spline36Resize(w,h,0.5,-0.5,2*w+.001,2*h+.001)
-    \ : (aatype=="nnedi3")       ? preaa.NNEDI3(dh=true,field=1,nsize=2,qual=2,U=f,V=f).TurnRight().NNEDI3(dh=true,field=1,nsize=2,qual=2,U=f,V=f).TurnLeft().Spline36Resize(w, h)
+    \ : (aatype=="nnedi")        ? preaa.NNEDI (dh=true,field=1,               U=f,V=f).TurnRight().NNEDI (dh=true,field=1,               U=f,V=f).TurnLeft().bicubicresize(w,h,-0.5,0.25)
+    \ : (aatype=="nnedi2")       ? preaa.NNEDI2(dh=true,field=1,nsize=2,qual=3,U=f,V=f).TurnRight().NNEDI2(dh=true,field=1,nsize=2,qual=3,U=f,V=f).TurnLeft().bicubicresize(w,h,-0.5,0.25,0.5,-0.5,2*w+.001,2*h+.001)
+    \ : (aatype=="nnedi3")       ? preaa.NNEDI3(dh=true,field=1,nsize=2,qual=2,U=f,V=f).TurnRight().NNEDI3(dh=true,field=1,nsize=2,qual=2,U=f,V=f).TurnLeft().bicubicresize(w,h,-0.5,0.25)
     \ : (aatype=="NediAA")       ? preaa.NediAA()
-    \ : (aatype=="SangNom")      ? preaa.Spline64Resize(w*2,h*2).TurnLeft().SangNom2(aa=255,chroma=false).TurnRight().SangNom2(aa=255,chroma=false).Spline36Resize(w,h)
+    \ : (aatype=="SangNom")      ? preaa.blackmanresize(w*2,h*2,taps=6).TurnRight().SangNom2(aa=128, chroma=false).TurnLeft().SangNom2(aa=128, chroma=false) .bicubicresize(w,h,-0.5,0.25)
     \ : (aatype=="aaf")          ? preaa.aaf(aam=-0.7,rep=true)
     \ : (aatype=="aaa")          ? preaa.aaa()
     \ : (aatype=="daa")          ? preaa.daa()
