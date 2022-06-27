@@ -1471,9 +1471,10 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
               0, sin(alpha), cos(alpha)]
 
     # IPT by Ebner & Fairchild
-    IPT = [ 0.4000,  0.4000,   0.2000, \
-            4.4550, -4.8510,   0.3960, \
-            0.8056,  0.3572,  -1.1628]
+    mul = DoVi ? 0.5 : 1    # DVp5 reshaping. Read from flag
+    IPT = [     0.4000,      0.4000,       0.2000, \
+            mul*4.4550, mul*-4.8510,  mul* 0.3960, \
+            mul*0.8056, mul* 0.3572,  mul*-1.1628]
 
     # Fit chroma between -0.5 - 0.5
     # First row weighted to yield 0.5 0.5 0 for I (Intensity) constant luminance coefficients
@@ -1484,11 +1485,8 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     skin  = MatrixDot(rot, IPT)
     fit   = ArrayOp  (skin, sca, "*")
 
-    LMS5  = [ 1,  0.097600,  0.205200, \
-              1, -0.113900,  0.133200, \
-              1,  0.032600, -0.676900]
 
-    MatrixClip(LMS_gam, MatrixTranspose(DoVi ? MatrixInvert(LMS5) : fit), switch=true) }
+    MatrixClip(LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true) }
 
 
 function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi") {
@@ -1506,9 +1504,10 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
              1, -0.008607, -0.111033, \
              1,  0.560046, -0.320632]
 
-    LMS5 = [ 1,  0.097600,  0.205200, \
-             1, -0.113900,  0.133200, \
-             1,  0.032600, -0.676900]
+    mul = DoVi ? 2 : 1    # undo reshaping. Read from flag
+    LMS5 = [ 1,  mul* 0.097600, mul* 0.205200, \
+             1,  mul*-0.113900, mul* 0.133200, \
+             1,  mul* 0.032600, mul*-0.676900]
 
     LMS = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
     LMS_gam = st_2084_oetf(LMS,MasterLevel)
