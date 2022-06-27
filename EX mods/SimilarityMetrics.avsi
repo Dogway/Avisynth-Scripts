@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.2  (14-06-2022)                     ###
+###        Similarity Metrics Pack v3.3  (16-06-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -11,6 +11,7 @@
 ###   MDSI                                                                ###
 ###   SSIM                                                                ###
 ###   BSSIM                                                               ###
+###   SVM                                                                 ###
 ###   SSIM_downsample                                                     ###
 ###   _IQA_downsample                                                     ###
 ###   RoundHalfToEven                                                     ###
@@ -467,6 +468,60 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
         propSet(last,"_PlaneBSSIM", BSSIM, 0)
 
         return show == 2 ? Subtitle(Format("PlaneBSSIM: {BSSIM}")) : last } ) }
+
+
+
+# SVM() by Dogway
+#
+# Sharpness Variance Metric - An efficient metric index calculator for image sharpness
+#
+# Dependencies:
+#     ExTools
+
+function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", bool "aug", bool "Y", bool "U", bool "V", int "show", bool "fulls") {
+
+    rgb   = isRGB(a)
+    isy   = isY(a)
+    bi    = BitsPerComponent(a)
+    fs    = propNumElements (a,"_ColorRange")  > 0 ? \
+            propGetInt      (a,"_ColorRange") == 0 : rgb
+
+    show = Default(show,        0)  # 0: output 'diff'  1: output 'clip'  2: output 'diff' with subtitle
+    rd   = Default(rad,         1)
+    rdv  = Default(radV,       rd)
+    md   = Default(mode, "square")
+    ep   = Default(emphasize,true) # Enable to emphasize low diffs to evaluate texture sharpness
+    au   = Default(aug,      true) # Augment difference map
+    y    = Default(y, true)
+    u    = Default(u, false)
+    v    = Default(v, false)
+    fs   = Default(fulls,      fs)
+
+    Assert(IsVersionOrGreater(3,7,2),                         "SVM: Update AviSynth+ version")
+    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "SVM: only one plane must be processed")
+
+    clp = isy ? a : y ? rgb ? ExtractR(a) : ExtractY(a) : \
+                    u ? rgb ? ExtractG(a) : ExtractU(a) : \
+                        rgb ? ExtractB(a) : ExtractV(a)
+
+    clp = clp.ConvertBits(32, dither=-1, fulls=fs, fulld=true)
+    px  = ex_shape(rd,rdV,mode=md)
+
+    mx = ex_luts(clp, mode="max", pixels=px)
+    mn = ex_luts(clp, mode="min", pixels=px)
+    av = ex_luts(clp, mode="avg", pixels=px)
+
+    var = ex_lutxyz(av,mn,mx,(ep ? "y 1 + log x 1 + log X@ - dup * z 1 + log X" : "y x - dup * z x") +  " - dup * + 0.5 *")
+
+    ScriptClip(show == 1 ? a : var, function [var,show] () {
+
+        SHP = AverageLuma(var)
+
+        propSet(last,"_PlaneSharpness", SHP, 0)
+
+        return show == 2 ? Subtitle(Format("_PlaneSharpness: {SHP}")) : last } )
+
+    show != 1 ? ConvertBits(au ? ex_lut(ep?"x 10 *":"x 5 *"):last, bi, dither=-1, fulls=true) : last }
 
 
 
