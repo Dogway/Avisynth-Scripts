@@ -110,7 +110,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     if (gamut) {
     mata = RGB_to_XYZ  (src[0], src[1], list=true)
     matw = CAT         (src[1], tgt[1], list=true, LMS="CAT16")
-    matb = XYZ_to_RGB  (tgt[0], tgt[1], list=true)
+    matb = XYZ_to_RGB  (tgt[0], src[1], list=true)
     MatrixClip( MatrixDot(MatrixDot(mata, matw), matb) ) }
 
     Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1],false,false) : \
@@ -949,7 +949,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
         mata = RGB_to_XYZ  (cs_in,  D_in,  list=true)
         matw = CAT         (D_in,   D_out, list=true, LMS="CAT16")
-        matb = XYZ_to_RGB  (cs_out, D_out, list=true)
+        matb = XYZ_to_RGB  (cs_out, D_in,  list=true)
         mat  = MatrixDot(MatrixDot(mata, matw), matb)
 
         Ro = "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +"
