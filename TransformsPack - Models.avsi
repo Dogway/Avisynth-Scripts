@@ -1455,7 +1455,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     XYZ = RGB_to_XYZ(mat,props[3],list=true)
     RtL = MatrixDot(LMX, MatrixTranspose(XYZ)) # RGB to LMS joint matrix
 
-    LMS = MatrixClip(rgb, RtL, switch=false)
+    LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
     LMS_gam = st_2084_eotf(LMS,MasterLevel)
 
@@ -1506,12 +1506,12 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
                       DV, 1-2*DV,     DV, \
                       DV,     DV, 1-2*DV]
 
-    LMS = XYZ_to_LMS("HPE",       list=true)
+    LMS = XYZ_to_LMS("HPE",            list=true)
     LMX = MatrixDot(Crosstalk, LMS)
-    XYZ = RGB_to_XYZ(mat,props[3],list=true)
-    RtL = MatrixDot(LMX, MatrixTranspose(XYZ)) # RGB to LMS joint matrix
+    RGB = XYZ_to_RGB(mat,props[3],list=true)
+    LtR = MatrixDot(MatrixTranspose(MatrixInvert(LMX)), RGB) # LMS to RGB joint matrix
 
-    MatrixClip(LMS_gam, MatrixInvert(RtL), switch=false)  }
+    MatrixClip(LMS_gam, LtR, switch=false)  }
 
 
 
