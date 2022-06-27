@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC52  (27-06-2022)   ##
+###   Transforms Pack - Models v1.0 RC53  (27-06-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1431,6 +1431,11 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 #     YUV444PS ICtCp source
 #     ICtCp_to_RGB("2020",4059 ,DoVi=false) # Mastered at 4059 nits
 #     RGB_to_ICtCp("2020",10000,DoVi=false) # roundtrip
+#
+# Example for IPTPQc2:
+#     YUV444PS IPTPQc2 source
+#     ICtCp_to_RGB("709",10000,DoVi=true)   # Decode to 709
+#     st_2084_eotf(10000)                   # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi") {
 
     mat    = color_Fuzzy_Search(matrix)
@@ -1438,7 +1443,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
 
     mat    = Defined (matrix) ? mat[0] : props[0]
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
-    DV     = Default (DoVi, false)
+    DV     = Default (DoVi, false)        # Set to true for IPTPQc2
 
     # Requires 32-bit float
     IsRGB(rgb) ? ConvertToPlanarRGB(rgb).ConvertBits(32) : \
@@ -1479,7 +1484,11 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     skin  = MatrixDot(rot, IPT)
     fit   = ArrayOp  (skin, sca, "*")
 
-    MatrixClip(LMS_gam, MatrixTranspose(fit), switch=true) }
+    LMS5  = [ 1,  0.097600,  0.205200, \
+              1, -0.113900,  0.133200, \
+              1,  0.032600, -0.676900]
+
+    MatrixClip(LMS_gam, MatrixTranspose(DoVi ? MatrixInvert(LMS5) : fit), switch=true) }
 
 
 function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi") {
@@ -1489,15 +1498,19 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
 
     mat    = Defined (matrix) ? mat[0] : props[0]
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
-    DV     = Default (DoVi, false)
+    DV     = Default (DoVi, false)        # Set to true for IPTPQc2
 
     ictcp
     # ICtCp to LMS joint matrix  (The issue is here, this actually blows up clip levels, MMR reshaping transfer is needed)
-    LMS = [ 1,  0.008607,   0.111033, \
-            1, -0.008607,  -0.111033, \
-            1,  0.560046,  -0.320632]
+    LMS  = [ 1,  0.008607,  0.111033, \
+             1, -0.008607, -0.111033, \
+             1,  0.560046, -0.320632]
 
-    LMS = MatrixClip(ictcp, MatrixTranspose(LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
+    LMS5 = [ 1,  0.097600,  0.205200, \
+             1, -0.113900,  0.133200, \
+             1,  0.032600, -0.676900]
+
+    LMS = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
     LMS_gam = st_2084_oetf(LMS,MasterLevel)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
