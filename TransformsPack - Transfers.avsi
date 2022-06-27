@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC51 (06-06-2022) ##
+###   Transforms Pack - Transfers v1.0 RC52 (27-06-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -9,8 +9,9 @@
 ###                             by Dogway (Jose Linares) ##
 ###                                                      ##
 ### TRANSFERS:                                           ##
-###     moncurve_f  /  moncurve_r                        ##
-###     ACEScct_f   /  ACEScct_r                         ##
+###     moncurve_f   /  moncurve_r                       ##
+###     ACEScct_f    /  ACEScct_r                        ##
+###     st_2084_oetf /  st_2084_eotf                     ##
 ###     SMPTE_legal                                      ##
 ###     Full_scale                                       ##
 ###     SoftLimiter                                      ##
@@ -194,12 +195,59 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 
 
 
-# Other names:  Broadcast Safe, Studio Swing, Limited/Legal/SMPTE/Standard/Narrow/Video/Head/TV range.
+# Requires RGB input
+function st_2084_oetf (clip c, int "MasterLevel", bool "tv_range") {
+    c
+    fs        = propNumElements("_ColorRange")  > 0 ? \
+                propGetInt     ("_ColorRange") == 0 : isRGB()
+    PL        = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m2- (1000 - 10000)
+    tv_in     = Default (tv_range, !fs)
+    SI        = tv_in ? "int" : "intf"
+    PL        = PL / 10000. # 10000 is assumed for 1.0
+
+    N1 = 2610./4096 * 0.25
+    M1 = 2523./4096 * 128
+    C1 = 3424./4096         # or 1 + c3 - c2
+    C2 = 2413./4096 * 32
+    C3 = 2392./4096 * 32
+
+    # From BT.2124-0 Annex 2 Conversion 3
+    rangePC = tv_in ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_in ? "ymax ymin - * ymin +"   : "range_max *"
+
+    ConvertToPlanarRGB()
+    ex_lut(Format(""+rangePC+" 1 {M1} / ^ A@ {C1} - 0 max   {C2} {C3} A * - /    1 {N1} / ^ {PL} * "+rangeTV+"")) }
+
+
+function st_2084_eotf (clip c, int "MasterLevel", bool "tv_range") {
+    c
+    fs        = propNumElements("_ColorRange")  > 0 ? \
+                propGetInt     ("_ColorRange") == 0 : isRGB()
+    PL        = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m2- (1000 - 10000)
+    tv_in     = Default (tv_range, !fs)
+    SI        = tv_in ? "int" : "intf"
+    PL        = PL / 10000. # 10000 is assumed for 1.0
+
+    N1 = 2610./4096 * 0.25
+    M1 = 2523./4096 * 128
+    C1 = 3424./4096         # or 1 + c3 - c2
+    C2 = 2413./4096 * 32
+    C3 = 2392./4096 * 32
+
+    rangePC = tv_in ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_in ? "ymax ymin - * ymin +"   : "range_max *"
+
+    ConvertToPlanarRGB()
+    ex_lut(Format(""+rangePC+" B@ {N1} ^ A^ B range_min > {C1} {C2} A * + {PL} {C3} A * + / {M1} ^ range_min ? "+rangeTV+"")) }
+
+
+
+# Other names:  Studio Swing, Broadcast Safe, Limited/Legal/SMPTE/Standard/Narrow/Video/Head/TV range.
 # For opposite: Full Swing, Full/Data/CG/RGB/PC range.
 # Other:        SMPTE+, Camera Range or Extended Range (Ocassional case in broadcast, camera recordings or in HLG for 10-bit [64-1019] narrow blacks + super-whites)
 #
 # Full Range also needs to abide to Video Data range but only for broadcast with SDI interfaces,
-# that is 1-254 for 8-bits, 4-1019 for 10-bits and so on... For these cases set broadcast=true (see "EBU R 103 v3.0" page 7 for details)
+# ...that is 1-254 for 8-bits, 4-1019 for 10-bits and so on... For these cases set broadcast=true (see "EBU R 103 v3.0" page 7 for details)
 
 function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", bool "fulld", bool "broadcast") {
 
@@ -284,8 +332,8 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV", bool "broadcast"
 
 # SoftLimiter (25-05-2022)
 #
-# SoftLimiter is an inclusive limiter, it brings clips with under or overshoot values to in-range legal broadcast values
-# It does so in a gentle manner by rolling off the values into range without altering the clip's levels, then clipping leftovers.
+# SoftLimiter is an inclusive limiter, it brings sources with under or overshoot values to in-range legal broadcast values
+# It does so in a gentle manner by rolling off the values into range without altering the source levels, then clipping leftovers.
 # RGB is not yet supported.
 #
 # Disclaimer1: This is not a range conversion filter! Input is assumed to be "legal/tv range"
@@ -350,8 +398,8 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
     UV  = Default(UV, isy ? 1 : 3 )
     si  = ex_UVf(rgb, bi)
 
-    lo  = min(16, max(0,   lo))   loc  = min(16, max(0,   loc))
-    hi  = min(255,max(235, hi))   hic  = min(255,max(240, hic))
+    lo  = clamp(lo,0,16)      loc  = clamp(loc,0,16)
+    hi  = clamp(hi,235,255)   hic  = clamp(hic,240,255)
 
    # WIP
    # if (tol > 0) {
