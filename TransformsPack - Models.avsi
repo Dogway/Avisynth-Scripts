@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC51  (06-06-2022)   ##
+###   Transforms Pack - Models v1.0 RC52  (27-06-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -19,10 +19,12 @@
 ###     XYZ_to_YDzDx    / YDzDx_to_XYZ                   ##
 ###     XYZ_to_Lab      / Lab_to_XYZ                     ##
 ###     XYZ_to_Luv      / Luv_to_XYZ                     ##
+###     XYZ_to_XYB      / XYB_to_XYZ                     ##
 ###     RGB_to_HSV      / HSV_to_RGB                     ##
 ###     RGB_to_IPT      / IPT_to_RGB                     ##
 ###     RGB_to_Oklab    / Oklab_to_RGB                   ##
 ###     RGB_to_XYZ      / XYZ_to_RGB                     ##
+###     RGB_to_ICtCp    / ICtCp_to_RGB                   ##
 ###     XYZ_to_LMS      / LMS_to_XYZ                     ##
 ###     CAT                                              ##
 ###     CMF                                              ##
@@ -37,6 +39,89 @@
 ###                                     ##
 ##########################################
 
+
+# List of Color Spaces:
+#
+# Color Spaces define the size and shape of our source color gamut container in the unitary XYZ coordinates cube. In other words, a color space conversion doesn't change the size (saturation), quantity (interpolation in HBD) or shape (gamut mapping) of our fruits (gamut), but the basket that holds them.
+# Color Spaces are presented normally as a 3x3 matrix of their color primaries represented in the CIE 1931 diagram coordinates. This might be ok but be aware this is an over-simplification as color spaces are actually 3D volumes within the unitary XYZ cube, and part of them may actually fall outside the CIE 1931 color space which represents all the physically plausible colors.
+#
+# There are several types of Color Spaces defined by their role:
+# Characterization spaces are normally used to represent device gamuts for profiling on a unit-by-unit basis.
+# Standard spaces define a standard to comply with for delivery, normally they are derived from averaging measurements of real unit-by-unit devices defined by their used phosphors.
+# Finally working spaces don't need to be attached to any physical constraints so they can be as big as the CIE 1931 color space (some actually bigger than that), so they are suited for heavy color transformations without much degradation in the process. They can also be geared towards certain effects like getting more color resolution in certain HUES for exposing better shades in color grading tasks. Ultimately everything is being transformed into your display color space in real time so use any working space that suits your job.
+#
+#-470M                   - ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953)
+#-170M                   - ITU-R Rec. BT.601 (525-line = NTSC, SMPTE-C)
+#-240M                   -
+#-470BG                  - ITU-R Rec. BT.601 (625-line = PAL, SECAM)
+#-NTSC-J
+#-sRGB                   - Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users.
+#-2020
+#-AdobeRGB
+#-Adobe Wide Gamut
+#-DCI-P3                 - Digital Cinema
+#-Display-P3
+#-AP0
+#-AP1
+# S-Gamut
+# S-Gamut3
+# S-Gamut3 (Venice)
+# S-Gamut3.Cine          - Sony Gamut Cinema. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film.
+# S-Gamut3.Cine (Venice)
+# CinemaDay              - Canon Cinema Gamut Daylight (5500K)
+# CinemaTungsten         - Canon Cinema Gamut Tungsten (3200K)
+# CanonP3                - Canon DCI-P3+
+# D-Gamut                - DJI D-Gamut
+# D-GamutM               - DJI D-GamutM
+# DragonColor
+# DragonColor2
+# REDColor
+# REDColor2
+# REDColor3
+# REDColor4
+# REDWide                - RED Wide Gamut RGB
+# Protune                - GoPro Protune Native
+# Bolex                  - Bolex Wide Gamut RGB
+# DaVinci Wide Gamut
+# Almira709
+# LC709
+# LC709A
+# s709
+# Cine709                - Sony Cine+709
+# ADX10
+# ADX16
+# BlackMagic Design Wide Gamut
+# BlackMagic Design Film           (Legacy)
+# BlackMagic Design Broadcast Video(Legacy)
+# BlackMagic Design Broadcast Film (Legacy)
+# BlackMagic Design 4K Film        (Legacy)
+# BlackMagic Design 4K Film V3     (Legacy)
+# BlackMagic Design 4K Video V3    (Legacy)
+# BlackMagic Design 4.6K Film      (Legacy)
+# BlackMagic Design 4.6K Film v3   (Legacy)
+# BlackMagic Design 4.6K Video     (Legacy)
+# BlackMagic Design 4.6K Video v3  (Legacy)
+# BlackMagic Pocket 6k Film
+# Alexa                  - Arri Alexa Wide Gamut
+# Film                   - Arri Film Matrix. Traditional film primaries with Illuminant C
+# FS                     - SMPTE Free Scale Gamut for imagery having arbitrary chromaticity that can be conveyed, inherited from Sony's F23, F35, and F65 Wide Gamut cameras. (ST 2048-1)
+# V-Gamut                - Panasonic V-Gamut (Varicam)
+# V709                   - Panasonic Varicam V709
+# F-Log                  - Fujifilm F-Log Gamut
+# Barco Unisee
+# ProPhoto RGB           - RIMM ROMM RGB
+# Wide Gamut RGB
+# CIE RGB                - or CIE 1931 RGB
+# Apple RGB
+# ColorMatch RGB         - Radius PressView Monitors
+# EBU 3213               - EBU Tech. 3213-E / JEDEC P22 phosphors
+# Beta RGB               - by Bruce Lindbloom, an optimized capture, archiving and editing space for high-end digital imaging applications
+# Bruce RGB              - Developed by Bruce Fraser as a conservative-gamut space for dealing with 8-bit imagery that needs heavy editing.
+# BestRGB                - Developed by Don Hutcheson
+# DonRGB4                - Developed by Don Hutcheson
+# ECI-RGB                - Developed by the European Color Initiative <www.eci.org>
+# Ekta Space PS5         - Developed by Joseph Holmes for high quality storage of image data from scans of transparencies.
+# And many more oldies not included here for simplicity: P22 (Measured SMPTE-C), EBU measured, Conrac 7211N19, Hitachi, Barco, Tektronics, SGI Trinitron, Sony Trinitron KV-20M20
 
 # List of Color Models:
 # Color Models -not to be confused with Color Spaces- describe the geometry coordinates of the color gamut container and hence its relation (or correlation) with the other channels. They are typically designed or tailored to certain Color Spaces, but not necesarily bound to them like RGB or YCbCr which support many different Color Spaces and thus are nicked Color Absolute Models
@@ -67,8 +152,7 @@
 # xvYCC        - Expanded Gamut YCbCr. For newer TV systems it was/is a model that allowed the color gamut (typically Rec709) to be stored in the full range while luma in the narrow range.
 #-YCoCg        - Better luma/chroma decorrelation and compression efficiency than YCbCr
 #-YCoCgR       - Same as YCoCg but losslessly reversible to RGB
-# XYB          - Used for JPEG XL, it's derived from LMS.
-#-XYZ          - CIE 1931 XYZ color model
+#-XYZ          - CIE 1931 XYZ tristimulus color model representing all the non-imaginary colors.
 # LSY          - Reads lambda-SY. Spectral color space. Representation based on brightness, dominant wavelength and saturation attributes. LSY color coordinates are defined from xyY color coordinates.
 #-YDzDx+       - HDR version of XYZ. Requires at least 10-bit for no visible quantization.
 # YCxCz        - Color Space for image fidelity metrics. It's a first step space, you have to "filter" it and then convert to Lab to retrieve error delta.
@@ -77,34 +161,31 @@
 #-HSV          - Cylindrical representation of RGB. Not recommended as it doesn't take into account human luminance perception
 #-Duv*         -
 # HunterLab*   - A more perceptually uniform version of CIELab
-#-CIELab*      - Derived from CIEXYZ, one of the first approaches to a perceptually uniform color model. You can derive it's Delta E with the next equation: DE = (DL^2 + Da^2 + Db^2)/2  = ( (Ly-Lx)^2 + (ay-ax)^2 + (by-bx)^2)/2
-# CIELch(ab)*  - HCL (polar coordinates or cylindrical) version of CIELab
+#-CIELab*      - Derived from CIEXYZ, one of the first approaches to a perceptually uniform color model. CIELch(ab) is its cylindrical (polar coordinates) version. You can derive it's Delta E with the next equation: DE = (DL^2 + Da^2 + Db^2)/2  = ( (Ly-Lx)^2 + (ay-ax)^2 + (by-bx)^2)/2
 # CIEsLab*     - CIE simple Lab
 # R-Lab*       - Ruderman Lab space, using log luma and different weights for ab
 # L-Lab*       -
 # SRLab2*      - A 2009 modification of CIELAB in the spirit of RLAB (with discounting-the-illuminant). Uses CIECAM02 chromatic adaptation matrix to fix the blue hue issue.
-#-CIELuv*      -
-# CIELch(uv)*  - HCL (polar coordinates or cylindrical) version of CIELuv
-# HSLuv*       - A cylindrical HSL type adaptation of CIELuv
+#-CIELuv*      - Derived from CIE UVW, a competing perceptually uniform color model of CIELab around the same time the latter appeared. CIELuv uses a Judd-type CAT, while CIELab uses "wrong" von-Kries (XYZ Scaling).
+#   CIELch(uv)*- HCL (polar coordinates or cylindrical) version of CIELuv
+#   HSLuv*     - A cylindrical HSL type adaptation of CIELuv. It extends CIELuv with a new saturation component that allows you to span all the available chroma as a neat percentage.
 # LogLuv*+     - HDR version of CIEluv, that uses log to encode HDR values in a 15-bit container
 # Y''U''V''*+  - HDR version of CIEluv by Poynton. Improves on LogLuv by using a PQ transfer which just needs 12-bits
 # CIEDuDv*+    - or YDuDv. HDR version of CIE Luv. Requires only 8-bit for no visible quantization.
 # CIECAM97s*   -
-# XYB*         - A family of uniform (UCS) spaces used in Guetzli and JPEG XL, with a main goal in compression. Better uniformity than CIELAB.
-# JzAzBz*+     - A 2017 uniform (UCS) space designed for HDR color. Has J (lightness) and two chromaticities.
-# JzCzhz*+     - HCL (polar coordinates or cylindrical) version of JzAzBz
+#-XYB*         - Uniform (UCS) space used in Guetzli's butteraugli metric and JPEG XL, with a main goal in compression. Better uniformity than CIE Lab.
+# DIN99o*      -
+# JzAzBz*+     - A 2017 uniform (UCS) space designed for HDR color. Has J (lightness) and two chromaticities. JzCzhz is the HCL (polar coordinates or cylindrical) version of JzAzBz
 #-IPT*         - Intensity Protanope Tritanope. A more uniform color space in SDR colors. There's a version called hdrIPT
 # ICaCb+       - Precursor and arguably better color model than ICtCp which based on this
-# ICtCp+       - BT.2100 (HDR + Rec.2020) version of IPT. HDR version of YcCbcCrc but with Constant Intensity this time.
+#-ICtCp+       - BT.2100 (HDR + Rec.2020) version of IPT. HDR version of YcCbcCrc but with Constant Intensity this time.
 # ITP*+        - Perceptually uniform color space version of ICtCp, used extensively in error metrics by scaling Ct by 0.5. This transformation is the basis of the Rec.2124 wide gamut color difference metric D.itp (simple scaled Euclidean distance: 720*sqrt(Di^2+D(t*0.5)^2+Dp^2) )
-# IPTPQc2*+    - Improved HDR10 version of ICtCp. Since it's a propietary space no much information is known.
-# CIECAM02*    - Improves on CIECAM97s and can be made uniform with CAM02-UCS.
-# CIECAM02Jch* -
+# IPTPQc2*+    - Improved HDR10 version of ICtCp. Since it's a propietary model not much information is known.
+# CIECAM02*    - Improves on CIECAM97s and can be made uniform with CAM02-UCS. CIECAM02Jch is its cylindrical version.
 # OSA*         -
 # CIECAM16*    - Improves on CIECAM02 and can be made uniform with CAM16-UCS, which works "out-of-the-box" for Euclidean distance metrics.
 # ZCAM*+       - A uniform (UCS) space for HDR color.
-#-Oklab*       - A uniform (UCS) space for SDR color. Simple to compute yet powerful. Takes CAM16 lightness and chroma, and IPT for hue.
-#-OkLch*       - The cylindrical form of Oklab
+#-Oklab*       - A uniform (UCS) space for SDR color. Simple to compute yet powerful. Takes CAM16 lightness and chroma, and IPT for hue. OkLch is the cylindrical form of Oklab.
 # iCAM06       - An image (not only color) appearance metric model to not only compute perceived difference in lightness, hue or chroma, but also contrast, sharpness or graininess. Involves converting to IPT, low-pass filtering in linear space, convert to non-linearity, then to Jch model and QM if necessary for the metrics.
 
 
@@ -737,7 +818,8 @@ function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx", bool "tv_in", bool "tv_
                         ex_dlut(Format("z "+b32+" y {cf2} * + "), bi, !tvi), format=PixelType(YDzDx)) } }
 
 
-# XYZ to CIE Lab -D65 based- (process in linear space) Normalized to 0-1
+# XYZ to CIE Lab -D65 based- (process in linear space) (float bitdepth required as some values overflow)
+# CIELAB is perceptually uniform but only at low frequencies as it is based on 2 degrees of uniform color circles.
 function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
 
     isy  = isy(XYZ)
@@ -756,7 +838,7 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
     ep    = pow(6. / 29,  3)                        # 0.00885645167903563081717167575546 (or 216 / 24389.)
     coef  = pow(6. / 29,  2) *    3                 # 0.12841854934601664684898929845422 (or 108 / 841)
     coefr = pow(6. / 29, -2) * (1/3.)               # 7.78703703703703703703703703703703 (or 841 / 108)  reciprocal of above
-    rW    = [1.052134065421009,1,0.918343935177561] # Reference White: Normalization to Y=100 of illuminant -D65- (and divided by 100)
+    rW    = [1.052134065421009,1,0.918343935177561] # Reference White (Tristimulus Values): Normalization to Y=100 of reciprocal of illuminant -D65- (and divided by 100)
 
     L = Expr(Y,               Format("x                        {ep} > x 0.333333333 ^ x {coefr} * 4 29 / + ? 1.16 * 0.16 -"), optSingleMode=false, lut=lut1)
     a = Expr(X, Y,    ex_dlut(Format("x "+string(rW[0])+" * X@ {ep} > X 0.333333333 ^ X {coefr} * 4 29 / + ?
@@ -768,7 +850,7 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
     isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
 
 
-# CIE Lab to XYZ -D65 based-
+# CIE Lab to XYZ -D65 based- (float bitdepth required as some values overflow)
 function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch", bool "fulls") {
 
     isy  = isy(Lab)
@@ -788,7 +870,7 @@ function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch", bool "fulls") {
     ep2   = pow(6  / 29., 3)                        # 0.00885645167903563081717167575546 (or 216 / 24389.)
     coef  = pow(6  / 29., 2) * 3                    # 0.12841854934601664684898929845422 (or 108 / 841)
     kappa = 24389 / 27.                             # 903.296296296296296296296296296296
-    rW    = [0.950449218275099,1,1.088916648430471] # Reference White: Normalization to Y=100 of reciprocal of illuminant (and divided by 100)
+    rW    = [0.950449218275099,1,1.088916648430471] # Reference White (Tristimulus Values): Normalization to Y=100 of illuminant (and divided by 100)
 
 #    # De facto formula, for reference
 #    Y = Expr( L,    Format("x 100 * 16 + 116 / Y@                 {ep} > Y 3 ^ Y 16 116 / - {coef} * ?                    "))
@@ -828,7 +910,7 @@ function XYZ_to_Yxy (clip XYZ, clip "Y", clip "Z", bool "fulls") {
                            "y dup x z + + /",  optSingleMode=true, format=PixelType(XYZ)) } }
 
 
-
+# Only works in 32-bit float
 function Yxy_to_XYZ (clip Yxy, clip "x", clip "y", bool "fulls") {
 
     isy  = isy(Yxy)
@@ -870,7 +952,7 @@ function XYZ_to_HLab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "fulls") {
     Y    = !isy ? clp[1] :     Y
     Z    = !isy ? clp[2] :      Z
 
-    rW    = [95.0449218275099, 100., 108.8916648430471] # Reference White: Normalization to Y=100 of reciprocal of illuminant
+    rW    = [95.0449218275099, 100., 108.8916648430471] # Reference White: Normalization to Y=100 of illuminant
 
     L = Expr(Y,               Format("x sqrt 10 *"),                            optSingleMode=false, lut=lut1)
     a = Expr(X, Y,    ex_dlut(Format("x 1.02  * y - 17.5 * y sqrt /"), bi, fs), optSingleMode=true,  lut=lut2)
@@ -917,7 +999,7 @@ function XYZ_to_Luv (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Duv", bool 
 
 
 #https://www.brucelindbloom.com/index.html?Eqn_Luv_to_XYZ.html
-# CIE Luv to XYZ
+# CIE Luv to XYZ (32-bit float recommended)
 function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv", bool "tv_in", bool "tv_out") {
 
     isy = isy(Luv)
@@ -951,6 +1033,63 @@ function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv", bool 
     Z = Expr(X, Y, L, u,    Format("z 52 * z 13 * {detu} * a "+duv+b32+" + / 1 - 0.333333333 * x * y 5 * - "), optSingleMode=true,  lut=  0)
 
     isy ? [X, Y, Z] : CombinePlanes(X, Y, Z, planes="RGB") }
+
+
+# WIP. Only works in 32-bit float (correct? grey should output [0, 1, 0.935669])
+# Jyrki Alakuijala: "CIELAB is perceptually uniform but only at low frequencies as it is based on 2 degrees of uniform color circles. At high spatial frequencies something like JPEG XL's XYB space will be perceptually more meaningful"
+function XYZ_to_XYB (clip XYZ, clip "Y", clip "Z", bool "fulls") {
+
+    isy  = isy(XYZ)
+    bi   = BitsPerComponent(XYZ)
+    fs   = Default (fulls,  true)
+
+    clp  = !isy ? ExtractClip(XYZ) : nop()
+    X    = !isy ? clp[0] :    XYZ
+    Y    = !isy ? clp[1] :     Y
+    Z    = !isy ? clp[2] :      Z
+    XYZa = !isy ?[X,Y,Z] :    XYZ
+
+    LMS = XYZ_to_LMS(XYZ,"Bradford",true,false)
+
+    T   = [1, -1, 0, \
+           1,  1, 0, \
+           0,  0, 1]
+
+    M = MatrixDot(T, LMS)
+
+    X = DotClipA(XYZa,[M[0],M[3],M[6]])
+    Y = DotClipA(XYZa,[M[1],M[4],M[7]])
+    B = DotClipA(XYZa,[M[2],M[5],M[8]])
+
+    isy ? [X, Y, B] : MatrixClip(XYZ, M) }
+
+
+# WIP. Only works in 32-bit float
+function XYB_to_XYZ (clip XYB, clip "Y", clip "B", bool "fulls") {
+
+    isy  = isy(XYB)
+    bi   = BitsPerComponent(XYB)
+    fs   = Default (fulls,  true)
+
+    clp  = !isy ? ExtractClip(XYB) : nop()
+    X    = !isy ? clp[0] :    XYB
+    Y    = !isy ? clp[1] :     Y
+    B    = !isy ? clp[2] :      B
+    XYBa = !isy ?[X,Y,B] :    XYB
+
+    LMS = XYZ_to_LMS(XYB,"Bradford",true,false)
+
+    T   = [1, -1, 0, \
+           1,  1, 0, \
+           0,  0, 1]
+
+    M = MatrixInvert(MatrixDot(T, LMS))
+
+    X = DotClipA(XYBa,[M[0],M[3],M[6]])
+    Y = DotClipA(XYBa,[M[1],M[4],M[7]])
+    Z = DotClipA(XYBa,[M[2],M[5],M[8]])
+
+    isy ? [X, Y, Z] : MatrixClip(XYB, M) }
 
 
 # RGB' to HSV
@@ -1042,7 +1181,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
     G   = !isy ? clp[1] :     G
     B   = !isy ? clp[2] :      B
 
-    LMS = XYZ_to_LMS(RGB,"Hunt-Pointer-Estevez",true,true)
+    LMS = XYZ_to_LMS(RGB,"HPEIPT",true,true)
 
     IPT = [0.4000,  4.4550,  0.8056, \
            0.4000, -4.8510,  0.3572, \
@@ -1109,7 +1248,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
             0.4000, -4.8510,  0.3572, \
             0.2000,  0.3960, -1.1628]
 
-    LMS = LMS_to_XYZ(IPT,"Hunt-Pointer-Estevez",true,true)
+    LMS = LMS_to_XYZ(IPT,"HPEIPT",true,true)
 
     IPTc  = MatrixInvert(IPTm)
 
@@ -1284,152 +1423,205 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 
 
 
+# RGB to ICtCp. HDR version of YcCbcCrc (aka YCbCr CL)
+# Used mainly for DV Profile 5 [BL+RPU]
+# Requires 32-bit float
+#
+# Example:
+#     YUV444PS ICtCp source
+#     ICtCp_to_RGB("2020",4059 ,DoVi=false) # Mastered at 4059 nits
+#     RGB_to_ICtCp("2020",10000,DoVi=false) # roundtrip
+function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi") {
+
+    mat    = color_Fuzzy_Search(matrix)
+    props  = color_propGet(rgb,mat[4])
+
+    mat    = Defined (matrix) ? mat[0] : props[0]
+    PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
+    DV     = Default (DoVi, false)
+
+    # Requires 32-bit float
+    IsRGB(rgb) ? ConvertToPlanarRGB(rgb).ConvertBits(32) : \
+    Assert (false, "Unsupported Color Space.")
+
+    # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
+    DV        =       DV ? 0.02 : 0.04
+    Crosstalk = [ 1-2*DV,     DV,     DV, \
+                      DV, 1-2*DV,     DV, \
+                      DV,     DV, 1-2*DV]
+
+    LMS = XYZ_to_LMS("HPE",       list=true)
+    LMX = MatrixDot(Crosstalk, LMS)
+    XYZ = RGB_to_XYZ(mat,props[3],list=true)
+    RtL = MatrixDot(LMX, MatrixTranspose(XYZ)) # RGB to LMS joint matrix
+
+    LMS = MatrixClip(rgb, RtL, switch=false)
+
+    LMS_gam = st_2084_eotf(LMS,MasterLevel)
+
+    # Skin tones alignment
+    alpha = 1.134464
+    rot   = [ 1,          0,          0, \
+              0, cos(alpha),-sin(alpha), \
+              0, sin(alpha), cos(alpha)]
+
+    # IPT by Ebner & Fairchild
+    IPT = [ 0.4000,  0.4000,   0.2000, \
+            4.4550, -4.8510,   0.3960, \
+            0.8056,  0.3572,  -1.1628]
+
+    # Fit chroma between -0.5 - 0.5
+    # First row weighted to yield 0.5 0.5 0 for I (Intensity) constant luminance coefficients
+    sca   = [ 1.25, 1.25, 0.0, \
+              1.40, 1.40, 1.4, \
+              1.00, 1.00, 1.0]
+
+    skin  = MatrixDot(rot, IPT)
+    fit   = ArrayOp  (skin, sca, "*")
+
+    MatrixClip(LMS_gam, MatrixTranspose(fit), switch=true) }
+
+
+function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi") {
+
+    mat    = color_Fuzzy_Search(matrix)
+    props  = color_propGet(ictcp,mat[4])
+
+    mat    = Defined (matrix) ? mat[0] : props[0]
+    PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
+    DV     = Default (DoVi, false)
+
+    ictcp
+    # ICtCp to LMS joint matrix  (The issue is here, this actually blows up clip levels, MMR reshaping transfer is needed)
+    LMS = [ 1,  0.008607,   0.111033, \
+            1, -0.008607,  -0.111033, \
+            1,  0.560046,  -0.320632]
+
+    LMS = MatrixClip(ictcp, MatrixTranspose(LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
+    LMS_gam = st_2084_oetf(LMS,MasterLevel)
+
+    # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
+    DV        =       DV ? 0.02 : 0.04
+    Crosstalk = [ 1-2*DV,     DV,     DV, \
+                      DV, 1-2*DV,     DV, \
+                      DV,     DV, 1-2*DV]
+
+    LMS = XYZ_to_LMS("HPE",       list=true)
+    LMX = MatrixDot(Crosstalk, LMS)
+    XYZ = RGB_to_XYZ(mat,props[3],list=true)
+    RtL = MatrixDot(LMX, MatrixTranspose(XYZ)) # RGB to LMS joint matrix
+
+    MatrixClip(LMS_gam, MatrixInvert(RtL), switch=false)  }
+
+
+
 # RGB linear to XYZ
-function RGB_to_XYZ (clip rgb, string cspace, bool "list") {
+function RGB_to_XYZ (clip rgb, string cspace, string "illuminant", bool "list") {
 
-    list = Default(list, false)
+    cs    = color_Fuzzy_Search(cspace)
+    illu  = color_propGet(rgb,cs[4])
+    list  = Default(list, false)
+    illu  = Default(illuminant, illu[3])
 
-    matrix =        cspace == "sRGB"   || cspace == "709"                                                ?  \
-                                        [ 0.41241079568862915, 0.21264933049678802, 0.01933175697922707,    \
-                                          0.35758456587791443, 0.71516913175582890, 0.11919485777616501,    \
-                                          0.18045382201671600, 0.07218152284622192, 0.95039016008377080]  : \
-                    cspace == "601" || cspace == "170M" || cspace == "240M"                              ?  \
-                                        [ 0.39354196190834045, 0.21238772571086884, 0.0187400933355093,     \
-                                          0.36525884270668030, 0.70106136798858640, 0.1119341626763344,     \
-                                          0.19164848327636720, 0.08655092865228653, 0.9582424163818359]   : \
-                    FindStr(cspace, "CL")>0                                                              ?  \
-                                        [ 0.6361018419265747, 0.262403696775436400, 0.0000449275212304201,  \
-                                          0.1450060009956360, 0.678454995155334500, 0.0283129680901765820,  \
-                                          0.1693413406610489, 0.059141214936971664, 1.0605586767196655000]: \
-                    cspace == "DCI-P3"                                                                   ?  \
-                                        [ 0.44516983628273010, 0.20949168503284454, 0.00000000000000000,    \
-                                          0.27713435888290405, 0.72159516811370850, 0.04706055670976639,    \
-                                          0.17228263616561890, 0.06891304999589920, 0.90735518932342530]  : \
-                    cspace == "Display-P3"                                                               ?  \
-                                        [ 0.48659050464630127, 0.22898375988006592, 0.00000000000000000,    \
-                                          0.26566821336746216, 0.69173991680145260, 0.04511347413063049,    \
-                                          0.19819043576717377, 0.07927616685628891, 1.04380297660827640]  : \
-                    cspace == "AdobeRGB"                                                                 ?  \
-                                        [ 0.57666999101638790, 0.29734000563621520, 0.02703000046312809,    \
-                                          0.18556000292301178, 0.62735998630523680, 0.07068999856710434,    \
-                                          0.18822999298572540, 0.07529000192880630, 0.99133998155593870]  : \
-                    cspace == "AWG"                                                                      ?  \
-                                        [ 0.71650063991546630, 0.258728206157684300, 0.00000000000000000,   \
-                                          0.10102055221796036, 0.724682152271270800, 0.05121181160211563,   \
-                                          0.14677436649799347, 0.016589440405368805, 0.77389270067214970]:  \
-                    cspace == "ACEScg"  ||  cspace == "ACESCCt"                                          ?  \
-                                        [ 0.66332850000000000, 0.27258800000000000, 0.00000000000000000,    \
-                                          0.13399166000000000, 0.67401860000000000, 0.00406035300000000,    \
-                                          0.15532595000000000, 0.05339329000000000, 1.00476470000000000]  : \
-                    cspace == "ACES2065"                                                                 ?  \
-                                        [ 0.95253682136535640000,  0.34396082162857056, 0.0000000000000000, \
-                                          0.00000000000000000000,  0.74020814895629880, 0.0000000000000000, \
-                                          0.00010931033466476947, -0.08416896313428879, 1.0088251829147339]:\
-                    cspace == "470BG"                                                                    ?  \
-                                        [ 0.43057379126548767, 0.22201462090015410, 0.02018314599990845,    \
-                                          0.34154993295669556, 0.70665508508682250, 0.12955342233181000,    \
-                                          0.17832535505294800, 0.07133013755083084, 0.93918019533157350]  : \
-                    cspace == "OPP"                                                                      ?  \
-                                        [ 0.93410000000000000, -1.70130000000000000, 0.16770000000000000,   \
-                                          0.94500000000000000,  0.49860000000000000, 0.05220000000000000,   \
-                                          0.81570000000000000,  0.30470000000000000, 1.94220000000000000] : \
-                    Assert(false,"RGB_to_XYZ: Unsupported Color Space.")
+    # Properties:
+    # Summing columns yields Reference White in Y=1.0 scale
+    # Summing column in the middle yields 1.0
+    # Middle  column represents luminance coefficients
+    # Rows are proportional to color primaries rows
+    #
+    # matrix = cspace == "sRGB" || cspace == "709" ?  \
+    #         [ 0.41241079568862915, 0.21264933049678802, 0.01933175697922707,    \
+    #           0.35758456587791443, 0.71516913175582890, 0.11919485777616501,    \
+    #           0.18045382201671600, 0.07218152284622192, 0.95039016008377080]  : 0
 
-    list ? matrix : MatrixClip(rgb, matrix) }
+    p     = Matrix_coef(cs[0], illu)
+
+    # Reference White
+    RW    = [p[3]/p[4],1,p[5]/p[4]]
+
+    # Primaries Flat Array
+    prims = [p[6][0],p[6][1],p[6][2],\
+             p[7][0],p[7][1],p[7][2],\
+             p[8][0],p[8][1],p[8][2]]
+
+    iP = MatrixInvert(prims)
+    T  = MatrixDot(RW,MatrixTranspose(iP))
+    M  = MatrixDot(Broadcast(T),prims)
+
+    list ? M : MatrixClip(rgb, M) }
 
 
 # XYZ to RGB linear
-function XYZ_to_RGB (clip rgb, string cspace, bool "list") {
+function XYZ_to_RGB (clip xyz, string cspace, string "illuminant", bool "list") {
 
-    list = Default(list, false)
+    cs    = color_Fuzzy_Search(cspace)
+    illu  = color_propGet(xyz,cs[4])
+    list  = Default(list, false)
+    illu  = Default(illuminant, illu[3])
 
-    matrix =        cspace == "sRGB"   || cspace == "709"                                                   ?  \
-                                        [  3.24081254005432130, -0.96924304962158200,  0.055638398975133896,   \
-                                          -1.53730857372283940,  1.87596631050109860, -0.204007431864738460,   \
-                                          -0.49858659505844116,  0.04155505076050758,  1.057129383087158200] : \
-                    cspace == "601" || cspace == "170M" || cspace == "240M"                                 ?  \
-                                        [  3.5058159828186035, -1.06904542446136470,  0.05631496384739876,     \
-                                          -1.7396978139877320,  1.97777497768402100, -0.19700492918491364,     \
-                                          -0.5440292358398438,  0.035171352326869965, 1.05010843276977540]   : \
-                    FindStr(cspace, "CL")>0                                                                 ?  \
-                                        [  1.71929574012756350, -0.66651082038879400,  0.017720524221658707,   \
-                                          -0.35683879256248474,  1.61570894718170170, -0.043118298053741455,   \
-                                          -0.25462427735328674,  0.01632426492869854,  0.942474246025085400] : \
-                    cspace == "DCI-P3"                                                                      ?  \
-                                        [  2.72539401054382320, -0.7951681613922119,  0.041241902858018875,    \
-                                          -1.01800286769866940,  1.6897321939468384, -0.087639048695564270,    \
-                                          -0.44016319513320923,  0.0226471945643425,  1.100929737091064500]  : \
-                    cspace == "Display-P3"                                                                  ?  \
-                                        [  2.49339652061462400, -0.82948720455169680,  0.035850685089826584,   \
-                                          -0.93134605884552000,  1.76266026496887200, -0.076182708144187930,   \
-                                          -0.40269458293914795,  0.02362464182078838,  0.957014024257659900] : \
-                    cspace == "AdobeRGB"                                                                    ?  \
-                                        [  2.04158997535705570, -0.96924000978469850,  0.013439999893307686,   \
-                                          -0.56501001119613650,  1.87597000598907470, -0.118359997868537900,   \
-                                          -0.34472998976707460,  0.04156000167131424,  1.015169978141784700] : \
-                    cspace == "AWG"                                                                         ?  \
-                                        [  1.46230435371398930, -0.52286839485168460,  0.034600451588630676,   \
-                                          -0.18452566862106323,  1.44798874855041500, -0.095819652080535890,   \
-                                          -0.27338108420372010,  0.06812617927789688,  1.287660717964172400] : \
-                    cspace == "ACEScg"  ||  cspace == "ACESCCt"                                             ?  \
-                                        [  1.64102330000000000, -0.66387850000000000,  0.002682799000000000,   \
-                                          -0.32480330000000000,  1.61551320000000000, -0.006528448000000000,   \
-                                          -0.23642470000000000,  0.01678004000000000,  0.995190000000000000] : \
-                    cspace == "ACES2065"                                                                    ?  \
-                                        [  1.04982817173004150000, -0.48783543705940247, 0.0000000000000000,   \
-                                           0.00000000000000000000,  1.35097146034240720, 0.0000000000000000,   \
-                                          -0.00011375317990314215,  0.11276797950267792, 0.9912520051002502] : \
-                    cspace == "470BG"                                                                       ?  \
-                                        [  3.0632193088531494, -0.96924340724945070,  0.06787130981683731,     \
-                                          -1.3933255672454834,  1.87596678733825680, -0.22883385419845580,     \
-                                          -0.4758017063140869,  0.04155505821108818,  1.06925129890441900]   : \
-                    cspace == "OPP"                                                                         ?  \
-                                        [  0.24300000000000000,  0.85600000000000000, -0.04400000000000000,    \
-                                          -0.45740000000000000,  0.42790000000000000,  0.02800000000000000,    \
-                                          -0.03030000000000000, -0.42660000000000000,  0.52900000000000000]  : \
-                    Assert(false,"XYZ_to_RGB: Unsupported Color Space.")
+    p     = Matrix_coef(cs[0], illu)
 
-    list ? matrix : MatrixClip(rgb, matrix) }
+    # Reference White
+    RW    = [p[3]/p[4],1,p[5]/p[4]]
+
+    # Primaries Flat Array
+    prims = [p[6][0],p[6][1],p[6][2],\
+             p[7][0],p[7][1],p[7][2],\
+             p[8][0],p[8][1],p[8][2]]
+
+    iP = MatrixInvert(prims)
+    T  = MatrixDot(MatrixTranspose(iP),RW)
+    M  = MatrixDot(iP,MatrixInvert(Broadcast(T)))
+
+    list ? M : MatrixClip(xyz, M) }
 
 
 
-# LMS space for Chromatic Adaptation Transforms. LMS stands for Long, Medium, Short cone rod responses.
+# LMS space for linear Chromatic Adaptation Transforms. LMS stands for Long, Medium, Short cone rod responses known as fundamental tristimulus values.
 # XYZ Scaling
-# Von Kries (Hunt-Pointer-Estevez adjusted for D65)
-# Von Kries (Hunt-Pointer-Estevez for equal energy -E-)
+# von Kries (Hunt-Pointer-Estevez for equal energy -E-)
+# von Kries (Hunt-Pointer-Estevez adjusted for D65)
+# von Kries (Hunt-Pointer-Estevez D65 modification for IPT model)
 # CAT97 (Bradford) (Spectral-sharpened)
 # Fairchild
 # CAT00
 # CAT02
 # CAT02 Brill 2008
 # CAT16
-# Bianco 2010
-# Bianco PC 2010
+# Bianco BS    2010
+# Bianco BS PC 2010
 # Sharp
 # Sharp Spherical
 # Sharp Spherical with HUE uniformity
 # CIE 2006 Stockman & Sharpe (2000) 2º and 10º Standard Observer
 #
-# Recommended: CAT02B, SharpSphere, SharpSphereHUE and Stockman
+# Recommended: CAT16, CAT02B, SharpSphere and Stockman
+
 function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
-    md    = Default (mode, "CAT02")
+    md    = Default (mode,    "CAT16")
     list  = Default (list,      false)
     trans = Default (transpose, false)
 
     # XYZ Scaling (known as "wrong von Kries")
-    XYZ   = [1.000000, 0.000000,  0.000000, \
+    XYZvk = [1.000000, 0.000000,  0.000000, \
              0.000000, 1.000000,  0.000000, \
              0.000000, 0.000000,  1.000000]
 
-    # Hunt-Pointer-Estevez D65 cone response (also known as "von Kries" by association with the von Kries transform method)
-    HPE65 = [0.40024, 0.70760, -0.08081, \
-            -0.22630, 1.16532,  0.04570, \
-             0.00000, 0.00000,  0.91822]
-    # HPE with equal energy
+    # Hunt-Pointer-Estevez cone response (equal energy)
     HPEE  = [0.389709204, 0.688980877, -0.078686185, \
             -0.229811028, 1.183407545,  0.046401147, \
              0.000000000, 0.000000000,  1.000000000]
+
+    # Hunt-Pointer-Estevez cone response normalized to a D65 white point (also known as "von Kries" by association with the von Kries transform method)
+    HPE65 = [0.40024, 0.70760, -0.08081, \
+            -0.22630, 1.16532,  0.04570, \
+             0.00000, 0.00000,  0.91822]
+
+    # HPE65 modification for IPT model
+    HPEIPT= [0.4002, 0.7075, -0.0807, \
+            -0.2280, 1.1500,  0.0612, \
+             0.0000, 0.0000,  0.9184]
 
     # CAT97/Bradford (also known as Spectral-sharpened Bradford or Linearized Bradford/CIECAM97) usually better than HPE
     # Requires a non-linearity von Kries in the blue channel that is usually omitted (check page 52 of "Computing Chromatic Adaptation" by Süsstrunk)
@@ -1437,15 +1629,15 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
             -0.7502,  1.7135,  0.0367, \
              0.0389, -0.0685,  1.0296]
 
-    # Fairchild improvement over Bradford to make it reversible (better than CAT00)
-    Fair  = [0.8562,  0.3372, -0.1934, \
-            -0.8360,  1.8327,  0.0033, \
-             0.0357, -0.0469,  1.0112]
-
     # CAT2000, revision of CAT97 by minimizing perceptual error over a different data set
     CAT00 = [0.7982, 0.3389, -0.1371, \
             -0.5918, 1.5512,  0.0406, \
              0.0008, 0.0239,  0.9753]
+
+    # Fairchild improvement over Bradford to make it reversible (better than CAT00)
+    Fair  = [0.8562,  0.3372, -0.1934, \
+            -0.8360,  1.8327,  0.0033, \
+             0.0357, -0.0469,  1.0112]
 
     # Improvement over Bradford and CAT00 by excluding the McCann haploscopic data set
     CAT02 = [0.7328,  0.4296, -0.1624, \
@@ -1467,12 +1659,12 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
             -0.8364,  1.8006,  0.0357, \
              0.0297, -0.0315,  1.0018]
 
-    # Improvement over Sharp and CAT02 with spherical sampling optimization
+    # Improvement over Sharp and CAT02 with spherical sampling optimization (very similar to 'CAT16')
     Sph   = [1.1083,  0.0631, -0.1714, \
             -0.8044,  1.7798,  0.0246, \
              0.0000,  0.0151,  0.9849]
 
-    # Improvement over Sphere for HUE uniformity for surface/natural colors (ie. Photographs)
+    # Improvement over Sphere for HUE uniformity for surface/natural colors (ie. Photographs) (very similar to 'Sharp')
     b20   = [1.6351, -0.4071, -0.2280, \
             -0.8044,  1.7798,  0.0246, \
              0.0000,  0.0152,  0.9848]
@@ -1492,7 +1684,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 #             0.000000, 0.000000,  0.000000, \
 #             0.000000, 0.000000,  0.000000]
 
-    # Bianco and Schettini (2010)
+    # Bianco and Schettini (2010) (very similar to CAT02B)
     BIA   = [0.8752, 0.2787, -0.1539, \
             -0.8904, 1.8709,  0.0195, \
             -0.0061, 0.0162,  0.9899]
@@ -1502,19 +1694,26 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
             -0.3775, 1.3055,  0.0720, \
             -0.0271, 0.0888,  0.9383]
 
-    # This looks like a modified Stockman & Sharpe, from RGB to OPP papers.
-    OPP   = [0.2430, 0.8560, -0.0440, \
-            -0.3910, 1.1650,  0.0870, \
-             0.0100, -0.0080, 0.5630]
+    # This looks like a modified Stockman & Sharpe (2000), from RGB to OPP papers.
+    OPP   = [0.2430,  0.8560, -0.0440, \
+            -0.3910,  1.1650,  0.0870, \
+             0.0100, -0.0080,  0.5630]
 
-    LMS = md == "XYZ"       ? XYZ           : \
-          md == "Scale"     ? XYZ           : \
-          md == "Scaling"   ? XYZ           : \
+    # Fuzzy aliases
+    mdL = LCase(md)
+    LMS = md == "XYZ"       ? XYZvk         : \
+          md == "Scale"     ? XYZvk         : \
+          md == "Scaling"   ? XYZvk         : \
+          md == "Kries"     ? HPE65         : \
           md == "von Kries" ? HPE65         : \
-          md == "vonKries" ? HPE65          : \
+          md == "vonKries"  ? HPE65         : \
           md == "HPE"       ? HPE65         : \
-          FindStr(LCase(md),"hunt")>0?HPE65 : \
+          FindStr(mdL,"hunt")>0?HPE65       : \
           md == "E"         ? HPEE          : \
+          md == "EE"        ? HPEE          : \
+          md == "HPEE"      ? HPEE          : \
+          md == "IPT"       ? HPEIPT        : \
+          md == "HPEIPT"    ? HPEIPT        : \
           md == "Bradford"  ? Brad          : \
           md == "CAT97"     ? Brad          : \
           md == "Fairchild" ? Fair          : \
@@ -1528,12 +1727,12 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
           md == "Sharp2"    ? Sph           : \
           md == "Sphere2"   ? b20           : \
           md == "Sharp3"    ? b20           : \
-          FindStr(LCase(md),"hue")>0?b20    : \
+          FindStr(mdL,"hue")>0?b20          : \
           md == "OPP"       ? OPP           : \
           md == "170-2"     ? STK           : \
           FindStr(md,"2006")   >0 ? STK     : \
           FindStr(md,"tockman")>0 ? STK     : \
-          FindStr(LCase(md),"bianco")>0?BIA : \
+          FindStr(mdL,"bianco")>0 ? BIA     : \
           FindStr(md,"PC")>0? BIAPC         : \
           Assert(false,"XYZ_to_LMS: Unsupported LMS mode.")
 
@@ -1557,70 +1756,75 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 #
 # Transformation Method:
 #   Strong von Kries (von Kries-Ives) (used in ICC)
-#   Weak von Kries (default in CAT() )
+#   Weak   von Kries (default in CAT() )
 #
-# 'source' and/or 'target' can be Primaries (Color Space ie. sRGB) or an Illuminant (ie: D65)
+# 'source' and/or 'target' can be Primaries (Color Space ie. sRGB) or a Standard Illuminant (ie: D65)
 function CAT (clip c, string "source", string "target", string "LMS", bool "tv_range", bool "list") {
 
     rgb     = IsRGB(c)
     propIDs = color_propGet(c)
 
-    src    = Default (source,   propIDs[3])
-    tgt    = Default (target,        "D65")
-    LMS    = Default (LMS,   "SharpSphere")
-    tv     = Default (tv_range, propIDs[6])
-    list   = Default (list,          false)
+    src   = Default (source,   propIDs[3])
+    tgt   = Default (target,        "D65")
+    LMS   = Default (LMS,         "CAT16")
+    tv    = Default (tv_range, propIDs[6])
+    list  = Default (list,          false)
 
-    src    = list ? [src,src] : color_Fuzzy_Search (src)
-    tgt    = list ? [tgt,tgt] : color_Fuzzy_Search (tgt)
-    wps    = Matrix_coef(src[1])
-    wpt    = Matrix_coef(tgt[1])
-    same   = wps[3] == wpt[3]
+    src   = color_Fuzzy_Search (src)
+    tgt   = color_Fuzzy_Search (tgt)
+    src   = list ? [src[1],src[1]] : src
+    tgt   = list ? [tgt[1],tgt[1]] : tgt
+    wps   = Matrix_coef(src[1])
+    wpt   = Matrix_coef(tgt[1])
+    same  = wps[3] == wpt[3]
 
-    LMS    = XYZ_to_LMS(c, LMS, true)
+    LMS   = XYZ_to_LMS(c, LMS, true)
 
-    wpsn   = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], LMS)
-    wptn   = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], LMS)
-    trans  = ArrayOp(wptn,wpsn,"/")
-    vk     = [same?1.:trans[0],   0.0000,        0.0000, \
-              0.0000,   same?1.:trans[1],        0.0000, \
-              0.0000,             0.0000,same?1.:trans[2]]
+    wpsn  = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], LMS)
+    wptn  = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], LMS)
+    trans = ArrayOp(wptn,wpsn,"/")
+    vk    = Broadcast(same ? [1,1,1] : [trans[0],trans[1],trans[2]], "vonKries")
 
-    CAM    = !same ? MatrixDot(LMS, MatrixDot(vk, MatrixInvert(LMS))) : vk
+    CAM   = !same ? MatrixDot(LMS, MatrixDot(vk, MatrixInvert(LMS))) : vk
 
     if (!list) {
 
         c
-        s_gam  = moncurve_coef(src[2])
+        s_pri  = src[0] == "" ? propIDs[2] : src[0]
+        s_gam  = src[2] == "" ? propIDs[5] : src[2]
+        s_gam  = moncurve_coef(s_gam)
 
         RGBpln = rgb ? IsPlanar() : false
 
         rgb ? RGBpln ? last : ConvertToPlanarRGB() : \
-        YUV_to_RGB(c, src[0], tv_range_in=tv, tv_range_out=false, kernel="Point")
+        YUV_to_RGB(c, s_pri, tv_range_in=tv, tv_range_out=false, kernel="Point")
 
         moncurve_f(s_gam[0], s_gam[1], false, false, 1)
 
-        mata = RGB_to_XYZ (src[0], list=true)
-        matb = XYZ_to_RGB (src[0], list=true)
+        mata = RGB_to_XYZ (s_pri, list=true)
+        matb = XYZ_to_RGB (s_pri, list=true)
         MatrixClip( MatrixDot(MatrixDot(mata, CAM), matb) )
 
         moncurve_r(s_gam[0], s_gam[1], false, false, 1)
 
         rgb ? RGBpln ? last : MatchClip(c) : \
-        RGB_to_YUV( src[0], tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c))
+        RGB_to_YUV( s_pri, tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c))
         same ? c : last
 
     } else { CAM } }
 
 
-# CIE XYZ Color Matching Functions
+# CIE XYZ Color Matching Functions, the sum of the corresponding CIE RGB CMF integrals define the white point energy.
 # Maps spectral observer sensitivity data into linear CIE tristimulus values X, Y and Z.
 #
-# CIE 1931 2º Standard Observer (ideal for LED)
+# CIE 1931 2º Standard Observer (ideal for LED) (2º -degrees- is the angular size of the human fovea)
 # CIE 1931 Judd (1951) and Vos (1978) modification
+#     1955 2º and 10º Stiles and Burch CMF (was the basis for the later CIE 1964)
 # CIE 1964 10º Supplementary Standard Observer
-# CIE 170-2 or CIE 2006 Stockman & Sharpe (2000) physiological 2º Standard Observer
-# CIE 170-2 or CIE 2006 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL)
+# CIE 170-1 or CIE 2006 Stockman & Sharpe (2000) physiological 2º Standard Observer
+# CIE 170-1 or CIE 2006 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer
+# CIE 170-2 (2015) Stockman & Sharpe (2000) physiological 2º Standard Observer
+# CIE 170-2 (2015) Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL, good for OLED)
 # CIE 170-2 Schanda-Csuti (2008) modified 2º Standard Observer (ideal for Plasma)
 # CIE 170-2 TUI (TU Ilmenau, 2008) modified 2º Standard Observer (ideal for OLED)
 # CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
@@ -1628,7 +1832,7 @@ function CAT (clip c, string "source", string "target", string "LMS", bool "tv_r
 # Modified (2012) CIE 2006 Stockman & Sharpe (2000) physiological-relevant 2º Standard Observer (http://cvrl.ioo.ucl.ac.uk/ciexyzpr.htm)
 # Modified (2012) CIE 2006 Stockman & Sharpe (2000) physiological-relevant 10º Supplementary Standard Observer (ideal for CCFL)
 #
-# * 10º Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets). Movies in a SmartTV might range between 20º and 30º from the observer, but the individual color patches not.
+# * 10º Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets). Movies in a SmartTV might range between 26º and 36º (SMPTE 30 or THX) from the observer, but the individual color patches don't.
 function CMF (clip c, string "source", string "target", bool "tv_range", bool "list") {
 
     # Multi-Lobe, Piecewise Gaussian Fit for CIE 1931 2º Standard Observer
