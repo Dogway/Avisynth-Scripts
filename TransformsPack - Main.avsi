@@ -108,9 +108,9 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     moncurve_f(s_gam[0], s_gam[1],false,false)
 
     if (gamut) {
-    mata = RGB_to_XYZ  (src[0],         list=true)
-    matw = CAT         (src[1], tgt[1], list=true, LMS="SharpSphere")
-    matb = XYZ_to_RGB  (tgt[0],         list=true)
+    mata = RGB_to_XYZ  (src[0], src[1], list=true)
+    matw = CAT         (src[1], tgt[1], list=true, LMS="CAT16")
+    matb = XYZ_to_RGB  (tgt[0], tgt[1], list=true)
     MatrixClip( MatrixDot(MatrixDot(mata, matw), matb) ) }
 
     Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1],false,false) : \
@@ -947,9 +947,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     if (isSpace || isIllu || isGamma && isRGBi) {
 
-        mata = RGB_to_XYZ  (cs_in,       list=true)
-        matw = CAT         (D_in, D_out, list=true, LMS="CAT16")
-        matb = XYZ_to_RGB  (cs_out,      list=true)
+        mata = RGB_to_XYZ  (cs_in,  D_in,  list=true)
+        matw = CAT         (D_in,   D_out, list=true, LMS="CAT16")
+        matb = XYZ_to_RGB  (cs_out, D_out, list=true)
         mat  = MatrixDot(MatrixDot(mata, matw), matb)
 
         Ro = "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +"
