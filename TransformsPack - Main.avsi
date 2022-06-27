@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC52  (27-06-2022)     ##
+###   Transforms Pack - Main v1.0 RC53  (27-06-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -427,7 +427,6 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     OETF       = Defined(OETF) ? OETF =="" ? Und  : OETF : cs_in_d  ? cs_in ==""  ? propIDs[5] : cs_in : propIDs[5]
     EOTF       = Defined(EOTF) ? EOTF =="" ? OETF : EOTF : cs_outF # By default derived from space
         OETF_i = color_Fuzzy_Search (OETF)
-          OETF = OETF_i[2]
         EOTF_i = color_Fuzzy_Search (EOTF)
           EOTF = EOTF_i[2]
        tv_in_d = Defined (tv_in)
@@ -441,13 +440,17 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     D_in       = Defined(D_in)  ? D_in  =="" ? Und  : D_in  : cs_in_d  ? cs_in ==""  ? propIDs[2] : cs_in : propIDs[2]
     D_out      = Defined(D_out) ? D_out =="" ? D_in : D_out : D_in # By default same as input, change based on space?
         D_inA  = color_Fuzzy_Search (D_in )
-        D_in   = D_inA[1]
         D_outA = color_Fuzzy_Search (D_out)
         D_out  = D_outA[1]
     p          = Defined (taps)     ? IsArray(taps)      ? ArraySize(taps)     > 1 ? taps     : ArrayAdd(taps,0)       : [taps,0]       : [0,0]
     pd         = p[0] > 0
     pdc        = p[1] > 0
 
+        prp    = color_propGet (cs_inFA[4], D_inA[5], cs_inFA[4], OETF_i[6])
+        cs_in  = prp[2]
+        cs_out = cs_outF
+        D_in   = prp[3]
+        OETF   = prp[5]
     src_left   = Defined (src_left) ? IsArray(src_left)  ? ArraySize(src_left) > 1 ? src_left : ArrayAdd(src_left,0.0) : [src_left,0.0] : [0.0,0.0]
     src_leftc  = src_left[1]       src_left = src_left[0]
     src_top    = Defined (src_top)  ? IsArray(src_top)   ? ArraySize(src_top)  > 1 ? src_top  : ArrayAdd(src_top, 0.0) : [src_top, 0.0] : [0.0,0.0]
@@ -520,8 +523,6 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                  Assert(false, "ConvertFormat: Invalid scale space type")    : nop()
 
 
-    cs_in    = cs_inF
-    cs_out   = cs_outF
     space    = space  != "" && space  != "none" ? space : "gamma"
 
     # Constants for logic flow
@@ -874,14 +875,12 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             }
 
 
-            Y     = space == "gamma" && isGamma ? Y.moncurve_f(s_gam[0], s_gam[1], tv_in, false, 1).moncurve_r(t_gam[0], t_gam[1], false, !(isRGBo || !tv_out), 1) : Y
-
         if (!isRGBo && !isSpace && !isIllu) {
 
             CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+o_fmt1+o_fmt[2])
-            tv_in != tv_out ? space == "gamma" && !isGamma ? SMPTE_legal(tv_out,3,  3) : \
-                              isScale                      ? SMPTE_legal(tv_out,1,  3) : \
-                             !isScale                      ? SMPTE_legal(tv_out,UVr,3) : last : last
+            tv_in != tv_out ? space == "gamma" ? SMPTE_legal(tv_out,3,  3) : \
+                              isScale          ? SMPTE_legal(tv_out,1,  3) : \
+                             !isScale          ? SMPTE_legal(tv_out,UVr,3) : last : last
             }
 
 
@@ -938,19 +937,18 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         G = ExtractG()
         B = ExtractB()
 
-    } else if (isSpace || isIllu || isGamma && isRGBi) {
-
-        R = R.moncurve_f(s_gam[0], s_gam[1], false, false, 1)
-        G = G.moncurve_f(s_gam[0], s_gam[1], false, false, 1)
-        B = B.moncurve_f(s_gam[0], s_gam[1], false, false, 1)
-     }
+    }
 
     if (isSpace || isIllu || isGamma && isRGBi) {
 
-        mata = RGB_to_XYZ  (cs_in,  D_in,  list=true)
-        matw = CAT         (D_in,   D_out, list=true, LMS="CAT16")
-        matb = XYZ_to_RGB  (cs_out, D_in,  list=true)
-        mat  = MatrixDot(MatrixDot(mata, matw), matb)
+        R = !isRGBi ? R.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : R
+        G = !isRGBi ? G.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : G
+        B = !isRGBi ? B.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : B
+
+        mata = RGB_to_XYZ  (cs_in,  D_in,                  list=true)
+        matw = CAT         (D_in,   D_out, LMS="CAT16",    list=true)
+        matb = XYZ_to_RGB  (cs_out, isIllu ? D_in : D_out, list=true)
+        mat  = MatrixDot(isIllu ? MatrixDot(mata, matw) : mata, matb)
 
         Ro = "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +"
         Go = "x "+string(mat[1])+" * y "+string(mat[4])+" * + z "+string(mat[7])+" * +"
@@ -1102,10 +1100,6 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             u_cof  = (kernel_c == "bicubic" ? string(bch_b,"%1.2f")+","+string(bch_c,"%1.2f") : krnc[3] > 0 ? string(krnc[3]) : "")  u_cof = u_cof == "" ? "" : (kernel_c == "bicubic" ? "" : "     ")+"["+u_cof+"]"
             tv_i   = tv_in  ? "Lim" : "Full"
             tv_o   = tv_out ? "Lim" : "Full"
-            prp    = color_propGet (cs_inFA[4], D_inA[5], mat_i, OETF_i[6])
-            cs_in  = prp[2]
-            D_in   = prp[3]
-            OETF   = prp[5]
             prp    = color_propGet (prim_i, illu_i, mat_i, t_i)
             cs_out = prp[2]
             D_out  = prp[3]
@@ -1115,7 +1109,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.2),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC52",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC53",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
