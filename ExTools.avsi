@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v8.6   (14-06-2022)                   ##
+###        ExTools v8.7   (27-06-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -193,7 +193,7 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 # MS-SSIM - Structural SIMilarity for Multi-Scale
 # BSSIM   - Structural SIMilarity for Blurred
 # GMSD    - Gradient Magnitude Similarity Deviation
-# BUTT    - Butteraugli psychovisual similarity index for DCT compression
+# BUTT    - Butteraugli psychovisual similarity index for DCT compression. Google's open source image metric tool tuned to high quality content (mainly between -q 90 to 95 in JPEG scale)
 # MDSI    - Mean Deviation Similarity Index. IQA model that utilizes gradient similarity (GS), chromaticity similarity (CS), and deviation pooling (DP)
 # CAMBI   - Contrast-Aware Multiscale Banding Index
 # CIEDE2000-CIE Delta-E 2000
@@ -275,7 +275,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         b1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(b1, planes="YUV", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(b1)==32?"PS":"P10")) : b1 : b1
 
       # y    = mcfa || mcf == "VMAF"  ? VMAF  (a1, b1,"",log_format=2,model=0)                        : a1 # VMAF is not supported as it requires writing to disk
-        y    = mcfa || mVMAF          ? VMAF2 (a1, b1, feature=mcfa?isy?[3]:[3,4]:mcf=="MS_SSIM"?3:4) : a1 # Requires 8-10-bit input, 3 planes (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
+        y    = mcfa || mVMAF          ? VMAF2 (a1, b1, feature=mcfa?isy?[3]:[3,4]:mcf=="MS_SSIM"?3:4) : a1 # Requires 8-10-bit input, YCbCr 3 planes (feature: 1: PSNR-HSV 3: MS-SSIM 4: CIEDE2000 5: CAMBI)
         y    = mcfa || mcf == "CAMBI" ? VMAF2 (y,  b1, feature=5, cambi_opt=Format("enc_width={w} enc_height={h}")) : y
         y    = mcfa || mcf == "CAMBI" || mVMAF ?   y.ConvertBits(32,fulls=true)          : y
         a1   = mcfa && sh < 2 ? y.propClearAll() : isHD ? a1.ConvertBits(32,fulls=true) : a.ConvertBits(32,fulls=fs,fulld=true)
@@ -5225,7 +5225,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 
                            X Y dup1 dup1 min swap2 max swap1 Z max min
 
-                             T                   dup1 dup1 min swap2 max
+                            T                   dup1 dup1 min swap2 max
                           U V                   dup1 dup1 min swap2 max
                           swap3  W              dup1 dup1 min swap2 max
                           swap2  swap1  swap3   dup1 dup1 min swap2 max
@@ -5804,10 +5804,10 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
                             y[1,1]  y[-1,-1] dup1 dup1 min swap2 max
                             y[0,1]  y[0,-1]  dup1 dup1 min swap2 max
                             y[-1,1] y[1,-1]  dup1 dup1 min swap2 max
-                            swap3             max swap2 min
-                            swap3 swap1 swap5 max swap3 min
-                                              min swap2 max
-                                    dup1 dup1 min swap2 max
+                            swap3                      max swap2 min
+                            swap3 swap1 swap5          max swap3 min
+                                                       min swap2 max
+                                    dup1 dup1          min swap2 max
                             y max swap y min
                             x swap2 clip"                                                                                                                          : \
                                                                                                                                                                      \
@@ -6338,8 +6338,8 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
           md == "outline"    ?  krn2+"A B max C max D max E max F max G max H max I max range_max x - *"         : \
                                                                                                                    \
           md == "boundary"   ?  krn2+                                                                              \
-                                "A B max C max D max E max F max G max H max I max
-                                 A B min C min D min E min F min G min H min I min - "                           : \
+                               "A B max C max D max E max F max G max H max I max
+                                A B min C min D min E min F min G min H min I min - "                            : \
                                                                                                                    \
           md == "convexhull" ?  krn2+                                                                              \
                                "A D min G min range_max E - E@ min
@@ -6927,7 +6927,7 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop
 
 
 function clamp(val a, val mn, val mx) {
-Assert(isFloat(a) && isFloat(mn) && isFloat(mx), "clamp(): Not a number, revise.")
+Assert(isFloat(a) && isFloat(mn) && isFloat(mx), "clamp(): Not a number, revise")
 return min(max(a,mn),mx) }
 
 
@@ -7351,12 +7351,14 @@ function ArrayPrint (clip a, val arr1, bool "string" ) {
     st = Default(string, false) # output a string instead of subtitled clip
 
     asize = ArraySize(arr1)
+    dim   = sqrt(asize)
+    LC    = Frac(dim)==0.0 ? int(dim) : 12
     str = ""
-    for (i=0, ArraySize(arr1)-1, 1) {
+    for (i=0, asize-1, 1) {
         cm  = asize == i+1 ? "" : ", "
-        str = str + string(arr1[i]) + cm
+        str = str + string(arr1[i]) + cm + (i>0 && i<asize-1 && (i+1)%LC==0 ? "\n " : "")
        }
-    return st ? str : subtitle(a, "["+str+"]") }
+    return st ? str : subtitle(a, "["+str+"]",lsp=8) }
 
 
 # Opposite of ArrayPrint, converts a 'separator' delimited string into an array
