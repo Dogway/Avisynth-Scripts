@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.2 (14-06-2022)               ##
+###           Grade Pack v7.3 (27-06-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -57,7 +57,7 @@
 ###     Saturation: Simple saturation operator without any masks
 ###     Vibrance:   Masks high saturation so you can lower or raise saturation where is low (Default)
 ###     Dullness:   Masks low  saturation so you can lower or raise saturation where is high
-###     Recover:    Recover lost saturation between source and reference clip
+###     Recover:    Recover lost saturation (full or partial) between source and reference clip.
 ###
 ###
 ### Examples:
@@ -258,8 +258,8 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
         plt = GradientLinear(last,zoom=1, positive=true, smooth=true, tv_range=tv)
         plt = ex_contrast (plt,sc,ss,sp,tv,128)
         plt = HistoCurve(plt,size=1,gradient=false).BicubicResize(sw,sh,-0.5,0.25)
-        plt = PadBorders(plt,w-sw,0,0,h-sh)
-        plt = Merge(last,rgb ? plt.ConverttoPlanarRGB() : plt)
+        plt = rgb ? plt.ConvertToPlanarRGB() : plt
+        plt = Merge(PadBorders(plt,w-sw,0,0,h-sh))
         ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
     } }
 
@@ -822,6 +822,7 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 ###
 ### 3x3 operator matrix. Adjust Hue, Saturation or Luminance based on Hue, Saturation or Luminance.
 ### This is similar to internal Tweak(), but double the speed, easier to use and more modes (+5 modes involving 'LUM')
+### RGB not supported.
 ###
 ### Dependencies: > ExTools
 ###                 TransformsPack
@@ -878,7 +879,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     V   = ExtractV(c)
     Yf  = ExtractY(c)
     Ys  = is444(c) ? Yf : Yf.BicubicResize(U.width(),U.height(),-0.5,0.25)
-    c4  = is444(c) ? c : c.ConverttoYUV444(matrix=ID[2],chromaresample="spline16")
+    c4  = is444(c) ?  c : c.ConverttoYUV444(matrix=ID[2],chromaresample="spline16")
     c4U = ExtractU(c4)
     c4V = ExtractV(c4)
     Uc  = YtoUV(U,U,c4U)
@@ -1352,7 +1353,7 @@ function FindTemp (clip c, string "matrix", bool "show") {
 ###
 ### Remove color cast, including extreme cases like underwater shots.
 ### If "stats=true" it will compute scene stats given "_SceneRange" frameprops are present.
-### HBD processing is recommended (32-bit float not supported yet)
+### HBD processing is recommended (32-bit float not supported yet. RGB not supported)
 ###
 ### fast: When 'false' hue/colors don't get skewed nor clipped. Enable for speed ('fast=false' is Work in Progress)
 ###
@@ -1434,7 +1435,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ### WhitePoint()
 ###
 ###
-### Accurately adjust the color temperature of the image
+### Accurately adjust the color temperature of the image. Assumes input matrix is D65 based.
 ###
 ### Dependencies: > ExTools
 ###                 TransformsPack
@@ -1477,17 +1478,14 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
     wpy = -3. * pow(wpx,2.) + 2.870 * wpx - 0.275
     wpz =  1. - wpx - wpy
 
-    LMS = XYZ_to_LMS("CAT02",true)
+    LMS = XYZ_to_LMS("CAT16",true)
 
     fw1      = MatrixDot([0.950450,1.,1.088917],LMS)
     fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,LMS)
     trans    = ArrayOp(fw2,fw1,"/")
+    vonKries = Broadcast([trans[0],trans[1],trans[2]], "vonKries")
 
-    vonkries = [trans[0], 0.0000,  0.0000,  \
-                0.0000, trans[1],  0.0000,  \
-                0.0000,   0.0000, trans[2]]
-
-    CAM      = MatrixDot(LMS, MatrixDot(vonkries, MatrixInvert(LMS)))
+    CAM      = MatrixDot(LMS, MatrixDot(vonKries, MatrixInvert(LMS)))
 
     moncurve_f(s_gam[0], s_gam[1], false, false, 1)
 
