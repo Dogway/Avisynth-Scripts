@@ -883,7 +883,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ##    int "lvl"=1 (0 to 3),
 ##    [float "lo"=40.0 (0.0 to 128.0 by 1.0)],
 ##    [float "hi"=242.0 (128.0 to 255.0 by 1.0)],
-##    [float "sigma"=1.0 (1.0 to 5.0)]
+##    [float "sigma"=1.0 (1.0 to 5.0)],
 ##    [bool "highlight"=false]
 ##    )
 ##
@@ -1170,7 +1170,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
 ##    int s=2 (1 to 6),
 ##    int wmode=0 (0 to 2),
 ##    [int "LFR"=0 (0 to 1920)],
-##    bool "chroma"=true
+##    bool "chroma"=true,
 ##    [int "gpuid"=0 (-1 to 2)]
 ##    )
 ##
