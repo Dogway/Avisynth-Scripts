@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.3 (27-06-2022)               ##
+###           Grade Pack v7.4 (28-06-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -208,15 +208,15 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
             propGetInt      (c,"_ColorRange") == 0 : rgb
     lut   = isRunTime(c,rgb) || bi == 32 ? 0 : 1
 
-    UV    = Default(UV, (Defined(sat) ? sat!=1 : Defined(sat)) || rgb ? 3 : 1)
+    UV    = Default(UV, Defined(sat) && sat!=1 || rgb ? 3 : 1)
     cont  = Default(cont, 0.0)                     # [-1.0 to +1.0] can set further though
     sat   = Default(sat,  (cont+3)/3)              # [ 0.0 to +inf] By default can't be disabled in RGB
     sh    = Default(show,      false)              # Show the contrast curve
     tv    = Default(tv_range, !fs)                 # TV or PC. Color range of your source
     pivot = Default(pivot,    !tv ? 127.5 : 125.5) # Pivot: 64 to 192 (roughly)
-    si    = bi == 32 || tv ? "none" : "intf"
+    si    = bi == 32 || tv ? ex_UVf(rgb, bi) : "intf"
 
-    # Storing for 'show'
+    # Pointer for 'show'
     sc = cont
     ss = sat
     sp = pivot
@@ -226,10 +226,10 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
     Assert(IsVersionOrGreater(3,7,2), "ex_contrast: Update AviSynth+ version")
 
-    rangePC  = tv ? "ymin - ymax ymin - /"                     : ""
+    rangePC  = tv ? "x ymin - ymax ymin - /"                   : "x "
     rangeTV  = tv ? "ymax ymin - * ymin +"                     : ""
-    rangePCc = tv ? "x range_half - range_max cmax cmin - / *" : "x"
-    rangeTVc = tv ? "cmax cmin - range_max / * range_half +"   : ""
+    rangePCc = tv ? "x range_half - range_max cmax cmin - / *" : "x range_half -"
+    rangeTVc = tv ? "cmax cmin - range_max / * range_half  +"  : "  range_half +"
 
     cont   = pow(cont + sign(cont), 3.)
     rcont  = 1. / (cont + ep)
@@ -239,12 +239,12 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     shmkn  = shldr - knee
     rshmkn = 1. / shmkn
 
-    ycont  = "f32 1 1 {cont} {pivot} x "+rangePC+" - * exp + / {knee} - {rshmkn} * "+rangeTV
-    yconti = "f32 {pivot} 1 x "+rangePC+" {shmkn} * {knee} + / 1 - log {rcont} * - "+rangeTV
+    ycont  = "f32 1 1 {cont} {pivot} "+rangePC+" - * exp + / {knee} - {rshmkn} * "+rangeTV
+    yconti = "f32 {pivot} 1 "+rangePC+" {shmkn} * {knee} + / 1 - log {rcont} * - "+rangeTV
     str    = cont != 0. ? ex_dlut(Format(cont > 0. ? ycont : yconti), bi, !tv) : ""
 
     cstr = sat != 1. ? Format(rangePCc+" {sat} * "+rangeTVc) : ""
-    cstr = rgb ? str : sat==1 ? "" : ex_UVexpr(cstr, UV, bi, rgb, !tv)
+    cstr = rgb ? str : sat==1 ? "" : ex_UVexpr(cstr, UV, bi, rgb, !tv, si)
 
     isy     ? Expr(c, str      , lut=lut, scale_inputs=si) : \
     UV == 1 ? Expr(c, str, ""  , lut=lut, scale_inputs=si) : \
