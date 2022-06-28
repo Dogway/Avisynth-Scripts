@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 6.4 by Dogway  (14-06-2022)            ##
+###           MasksPack 6.5 by Dogway  (28-06-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -95,7 +95,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 
 ##################
 ###
-### FlatMask() (23-12-2021)
+### FlatMask() (28-06-2022)
 ###
 ###
 ### This is a dual purpose filter for 2D cartoons to create either flat masks or high-quality single line edge masks.
@@ -132,6 +132,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 
     a
     rgb   = isRGB()
+    isy   = isy()
     w     = width ()
     h     = height()
     bi    = BitsPerComponent()
@@ -151,15 +152,15 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 
     Assert(IsVersionOrGreater(3,7,2), "FlatMask: Update AviSynth+ version")
 
-    !isy() ? ExtractY() : last
+    !isy ? ExtractY() : last
     ConvertBits(8,dither=-1,fulls=fs)
     # 3x3 is too broad for SD so upscale
     !isHD  ? BlackmanResize(w*2,h*2,taps=6)                : last
     # UHD size is too big for good performance
      isUHD ? BicubicResize(nmod(w/2),nmod(h/2),-0.99,0.06) : last
 
-    ex_retinex(lvl=1,lo=lvl,tv_in=!fs)     # some issues here on flat areas (quantization)
-    MSR=ex_median("IQM")                   # pre for full 'qprewitt'
+    ex_retinex(lvl=1,lo=lvl,tv_in=!fs,tv_out=false) # some issues here on flat areas (quantization)
+    MSR=ex_median("IQM")                            # pre for full 'qprewitt'
 
     # Prefilter (scale space)
     vsTCanny(sqrt(rd)/2.*sqrt(2),mode=-1,u=2,v=2)
@@ -197,9 +198,9 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     !isHD   ? BicubicResize(w,h,0.0,0.5)           : ex_smooth(2,mode="SG",sharp=true) # Clean up result. No need when resizing down
      isUHD  ? BicubicResize(w,h,0.679623,0.160189) : last
 
+    ConvertBits(bi,fulls=true)
     msk8 = last
 
-    ConvertBits(bi,fulls=true)
     propDelete(["_Matrix","_Primaries","_Transfer","_PictType","_ChromaLocation"])
 
     if (fil) {
@@ -210,7 +211,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 
     if (sh) {
         src = fil ? last : a
-        msk = mskY_to_YYY(src, msk8, false, false, 128, bi)
+        msk = isy ? msk8 : mskY_to_YYY(src, msk8, false, false, 128, bi)
         StackHorizontal(padresize(src,w/2,h,biasW=w/4),padresize(msk,w/2,h,biasW=-w/4)) } }
 
 
@@ -230,7 +231,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
 ###
 ### Remaps value 0 to 50 and 255 to 100, clipping above and below.
 ### Useful to protect dark/bright areas from certain filters without
-### a hard threshold like ex_binarize()
+### a hard threshold like ex_binarize(75)
 ###
 ###
 ### Function Definition:
