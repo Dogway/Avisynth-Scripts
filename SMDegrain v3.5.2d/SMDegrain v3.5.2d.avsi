@@ -870,7 +870,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ##
 ##         ex_retinex(lvl=1,tv_in=false,tv_out=false,highlights=false)
 ##
-##     # equals but faster (when lvl<2) than:
+##     # equals but faster (when lvl=1) than:
 ##
 ##         a=last
 ##         a=ex_retinex(lvl=1,tv_in=false,tv_out=false)
@@ -934,8 +934,8 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
     str     = Format("f32 x "+rangePC+(hll ? "" : " A@")+" 0.002 max A@ log y 0.2 * z 0.1 * a 0.7 * + + "+rangePC+" A * log / 1 swap - ")
     cstr    = rgb ? str : UV == 3 && tv ? "x cmin - range_max cmax cmin - / *" : ""
 
-    str     = str + (hll ? "" : Format("{LON} - 0 max {MAX} {LON} - / {MAX} * "))                                                         # static levels for highlight=false
-    str     = str + (hll ? "" : Format("A dup swap2 - 1 A {LR} - {LIM} * - 0 1 clip * -")) + (tv && !bi32 && !rgb ? " range_max * " : "") # luma mask     for highlight=false
+    str     = str + (hl || lvl!=1 ? "" : Format("{LON} - 0 max {MAX} {LON} - / {MAX} * "))                                                         # static levels for highlight=false
+    str     = str + (hll          ? "" : Format("A dup swap2 - 1 A {LR} - {LIM} * - 0 1 clip * -")) + (tv && !bi32 && !rgb ? " range_max * " : "") # luma mask     for highlight=false
 
     MSR     = ex_lutxyza(a,b,c,d, str, cstr, UV=uv, fulls=!tv, scale_inputs=si, clamp_float=bi32)
 
