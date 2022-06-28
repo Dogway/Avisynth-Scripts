@@ -166,16 +166,14 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     vsTCanny(sqrt(rd)/2.*sqrt(2),mode=-1,u=2,v=2)
 
     # Second Derivatives Edge Mask
-    xx1=    ex_lut(Format("x[-1,-1] x[1,1]  -"))
-    xx1=xx1.ex_lut(Format("x[-1,-1] x[1,1]  -"))
-    yy1=    ex_lut(Format("x[-1,1]  x[1,-1] -"))
-    yy1=yy1.ex_lut(Format("x[-1,1]  x[1,-1] -"))
-
-    xx2=    ex_lut(Format("x[-1,-1] x[1,1]  swap -"))
-    xx2=xx2.ex_lut(Format("x[-1,-1] x[1,1]  swap -"))
-    yy2=    ex_lut(Format("x[-1,1]  x[1,-1] swap -"))
+    xx1=    ex_lut(Format("x[-1,-1] x[1,1]   -"))
+    yy1=    ex_lut(Format("x[-1,1]  x[1,-1]  -"))
+    xx2=    ex_lut(Format("x[1,1]   x[-1,-1] -"))
+    yy2=    ex_lut(Format("x[1,-1]  x[-1,1]  -"))
     yy2=yy2.ex_lutxyza(xx1,yy1,xx2,            \
-                   Format("x[-1,1]  x[1,-1] swap - 0 max dup * y dup * z dup * a dup * + + + sqrt {scl} * dup {lo} {scl} * > swap 0 ?"+(in && rd==1 ? " range_max swap -" : "")))
+                   Format("y[-1,-1] y[1,1] - 0 max dup *   z[-1,1] z[1,-1] - 0 max dup * +
+                           a[1,1] a[-1,-1] - 0 max dup * + x[1,-1] x[-1,1] - 0 max dup * +
+                           sqrt {scl} * dup {lo} {scl} * > swap 0 ?"+(in && rd==1 ? " range_max swap -" : "")))
 
     # Pre for 'Fill holes'
     ex_contrast(scl>9?yy2.ex_median("median"):yy2,1,pivot=80,tv_range=false)
