@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.5.1d      by Dogway    - 01 June 2022                           ###
+###                       v3.5.2d      by Dogway    - 28 June 2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -611,7 +611,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.5.1",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.5.2",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -811,7 +811,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     f  = d * c
     t  = tv  ? "ymin - 0 max ymax ymin - /" : ""
     o  = tvo ? " ymax ymin - * ymin +"      : ""
-    e  = Format("f32 {k} {d} {f} x "+t+" A@ {c} + / - * A {l} * +") + (!tvo && !bi32 ? " range_max *" : tvo ? o : "")
+    e  = Format("f32 {k} {d} {f} x "+t+" A@ {c} + / - * A {l} * +") + (!tvo && !bi32 && !rgb ? " range_max *" : tvo ? o : "")
     ec = tv==tvo ? "" : !tvo ? "x cmin - range_max cmax cmin - / *" : "x cmax cmin - range_max / * cmin +"
 
     if (S0 > 1.0) {
@@ -838,7 +838,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 
 
 
-## ex_retinex()   by Dogway (31-03-2022)
+## ex_retinex()   by Dogway (28-06-2022)
 ##
 ## Multi-Scale Retinex
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
@@ -863,6 +863,19 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ##               ScenesPack     (for lvl=3)
 ##               TransformsPack (for RGB)
 ##
+## Example:
+##
+##     # ex_retinex() will apply an HDR like contrast enhancement, that is, it will also optimize highlight contrast
+##     # To only apply shadow enhancement, set highlights=false
+##
+##         ex_retinex(lvl=1,tv_in=false,tv_out=false,highlights=false)
+##
+##     # equals but faster (when lvl<2) than:
+##
+##         a=last
+##         a=ex_retinex(lvl=1,tv_in=false,tv_out=false)
+##         ex_merge(a,LumaMask(lo=80, hi=128, invert=true),luma=true)
+##
 ##
 ## Function Definition:
 ##    (
@@ -871,13 +884,15 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ##    [float "lo"=40.0 (0.0 to 128.0 by 1.0)],
 ##    [float "hi"=242.0 (128.0 to 255.0 by 1.0)],
 ##    [float "sigma"=1.0 (1.0 to 5.0)]
+##    [bool "highlight"=false]
 ##    )
 ##
-function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", bool "tv_in", bool "tv_out", int "UV") {
+function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", bool "highlights", bool "tv_in", bool "tv_out", int "UV") {
 
     w    = width (clp)
     h    = height(clp)
     rgb  = isRGB(clp)
+    isy  = isy(clp)
     bi   = BitsPerComponent(clp)
     fs   = propNumElements (clp,"_ColorRange")  > 0 ? \
            propGetInt      (clp,"_ColorRange") == 0 : rgb
@@ -885,8 +900,9 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
     isUHD= (w > 2599 || h > 1499)
 
     lvl  = Default(lvl,          1)         # 0: MSR output   1: Fixed levels output  2: auto-levels  3: scene's levels (requires '_SceneRange')
+    hl   = Default(highlights, true)        # Set to false to only recover shadows
     lo   = Default(lo, lvl==1?40:4)         # value in PC levels of low  level for normalization in lvl=1. For lvl=2 the divisor for the low level percentile (Reminder: crop black borders)
-    hi   = Default(hi,   255-lo/3.)         # value in PC levels of high level for normalization in lvl=1.
+    hi   = Default(hi,!hl?255:255-lo/3.)    # value in PC levels of high level for normalization in lvl=1.
     r    = Default(sigma,        1)         # Multiplier. 1 to 5 roughly (leave it at 1 for the most time)
     tv   = Default(tv_in,      !fs)         # Range of input  clip
     tvo  = Default(tv_out,      tv)         # Range of output clip (only for lvl>0)
@@ -894,22 +910,35 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
     bi32 = bi==32
     si   = tv ? bi32 && UV==3 ? "floatUV" : "none" : "intf"
 
+    hll  = hl || lvl>1
+    mn   = tvo ? 16      : 0
+    mx   = tvo ? 255-235 : 0
+
+    if (!hll) {
+        LON  = ex_bs(lo-mn, 8, tv ? bi : 32, tv_in=false, tv_out=false)
+        LR   = ex_bs(80,    8, tv ? bi : 32, tv_in=false, tv_out=tvo)
+        HR   = ex_bs(128,   8, tv ? bi : 32, tv_in=false, tv_out=tvo)
+        MAX  = ex_bs(255,   8, tv ? bi : 32, fulls=true)
+        LIM  = MAX / (HR - LR)
+    }
+
     w    = max(w,h)
 
-    a    = isy(clp) ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262404,0.678455,0.059141]) : isHD ? clp.DotClip([0.212649,0.715169,0.072182]) : clp.DotClip([0.298903,0.586620,0.114477])
+    a    = isy ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262404,0.678455,0.059141]) : isHD ? clp.DotClip([0.212649,0.715169,0.072182]) : clp.DotClip([0.298903,0.586620,0.114477])
     y    = a.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)
     b    = y.ex_GaussianBlur(w*0.015 * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
     c    = y.ex_GaussianBlur(w*0.05  * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
     d    = y.ScriptClip(function [] () { ex_lut(string(AverageLuma(last))) } ).ConvertBits(bi, fulls=!tv, fulld=!tv)
 
-    rangePC =                        tv ? "ymin - ymax ymin - /" : ""
-    str     = Format("f32 x "+rangePC+" 0.002 max A@ log y 0.2 * z 0.1 * a 0.7 * + + "+rangePC+" A * log / 1 swap -") + (tv && !bi32 ? " range_max *" : "")
+    rangePC =                        tv ? "ymin - ymax ymin - /"               : ""
+    str     = Format("f32 x "+rangePC+(hll ? "" : " A@")+" 0.002 max A@ log y 0.2 * z 0.1 * a 0.7 * + + "+rangePC+" A * log / 1 swap - ")
     cstr    = rgb ? str : UV == 3 && tv ? "x cmin - range_max cmax cmin - / *" : ""
+
+    str     = str + (hll ? "" : Format("{LON} - 0 max {MAX} {LON} - / {MAX} * "))                                                         # static levels for highlight=false
+    str     = str + (hll ? "" : Format("A dup swap2 - 1 A {LR} - {LIM} * - 0 1 clip * -")) + (tv && !bi32 && !rgb ? " range_max * " : "") # luma mask     for highlight=false
 
     MSR     = ex_lutxyza(a,b,c,d, str, cstr, UV=uv, fulls=!tv, scale_inputs=si, clamp_float=bi32)
 
-    mn = tvo ? 16      : 0
-    mx = tvo ? 255-235 : 0
 
     if        (lvl==0) {
 
@@ -917,7 +946,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
     } else if (lvl==1) {
 
-        MSR.ex_levels(max(0,lo-mn,0), 1.0, min(255,hi+mx), 0, 255,false,rgb?3:1)
+        hl ? MSR.ex_levels(max(0,lo-mn,0), 1.0, min(255,hi+mx), 0, 255,false,rgb?3:1) : MSR
 
     } else if (lvl==2) {
 
@@ -937,14 +966,16 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
         TS  = Expr(TS,b2,b,f,f2,"x y z a b + + + + 0.2 *")
 
-        ScriptClip(MSR, function [MSR,TS,rgb,lo,mn,mx] () {
+        ScriptClip(MSR, function [MSR,TS,rgb,lo,mn,mx,hl] () {
 
             sts  = PlaneMinMaxStats(TS, 1./lo, 0, 0, false)
             pmin = sts[2]
             pmax = sts[1]
 
-            pmin > 0 || pmax < 255 ? MSR.ex_levels(max(0,pmin-mn),1.0,min(255,pmax+mx),0,255,false,rgb?3:1) : MSR
+            pmin > 0 || (hl && pmax < 255) ? MSR.ex_levels(max(0,pmin-mn),1.0,!hl ? 255 : min(255,pmax+mx),0,255,false,rgb?3:1) : MSR
         } )
+
+        !hl ? ex_merge(clp,LumaMask(clp, lo=80, hi=128, invert=false),luma=!rgb, UV=rgb?3:1) : last
 
     } else {
 
@@ -952,19 +983,22 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
         Assert(propNumElements("_SceneRange") > 0, "ex_retinex: lvl=3 requires '_SceneRange' frame properties")
         SceneStats("Stats")
 
-        ScriptClip(function [rgb,mn,mx] () {
+        ScriptClip(function [rgb,mn,mx,hl] () {
 
             sts  = propGetAsArray("_SceneStats")
             pmin = sts[2]
             pmax = sts[1]
 
-            pmin > 0 || pmax < 255 ? ex_levels(max(0,pmin-mn),1.0,min(255,pmax+mx),0,255,false,rgb?3:1) : last
+            pmin > 0 || (hl && pmax < 255) ? ex_levels(max(0,pmin-mn),1.0,!hl ? 255 : min(255,pmax+mx),0,255,false,rgb?3:1) : last
         } )
+
+        !hl ? ex_merge(clp,LumaMask(clp, lo=80, hi=128, invert=false),luma=!rgb, UV=rgb?3:1) : last
     }
 
-    UV == 3 ? CombinePlanes(last, clp, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(clp)).\
-              propCopy(clp,true,props="_ChromaLocation")  : last
-              propSet("_ColorRange", tvo ? 1 : 0)         }
+    UV == 3 ? !isy ? CombinePlanes(last, clp, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(clp)).\
+                     propCopy(clp,true,props="_ChromaLocation")  : last : last
+                     propSet("_ColorRange", tvo ? 1 : 0)         }
+
 
 
 
@@ -1075,8 +1109,9 @@ function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "OPP
 
 ## ex_DGDenoise() - DGDenoise GPU denoiser wrapper
 ##
+## CUDA implementation of non-local means denoising.
 ## Output is soft, similar to Photoshop's Surface Blur, so works well as prefilter, specially for anime.
-## Supports YUV format in any bitdepth
+## Supports YUV format in any bitdepth.
 ##
 ## Function Definition:
 ##    (
@@ -1124,6 +1159,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
 
 ## ex_KNLMeansCL() - KNLMeansCL wrapper by Dogway (08-02-2022)
 ##
+## OpenCL implementation of the non-local means denoising algorithm.
 ##
 ## Function Definition:
 ##    (
