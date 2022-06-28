@@ -1430,7 +1430,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 # Example:
 #     YUV444PS ICtCp source
 #     ICtCp_to_RGB("2020",4059 ,DoVi=false) # Mastered at 4059 nits
-#     RGB_to_ICtCp("2020",10000,DoVi=false) # roundtrip
+#     RGB_to_ICtCp("2020",10000,DoVi=false) # round-trip
 #
 # Example for IPTPQc2:
 #     YUV444PS IPTPQc2 source
@@ -1445,15 +1445,11 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
     DV     = Default (DoVi, false)        # Set to true for IPTPQc2
 
-    # Requires 32-bit float
-    IsRGB(rgb) ? ConvertToPlanarRGB(rgb).ConvertBits(32) : \
-    Assert (false, "Unsupported Color Space.")
-
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
-    DV        =       DV ? 0.02 : 0.04
-    Crosstalk = [ 1-2*DV,     DV,     DV, \
-                      DV, 1-2*DV,     DV, \
-                      DV,     DV, 1-2*DV]
+    xt        =       DV ? 0.02 : 0.04
+    Crosstalk = [ 1-2*xt,     xt,     xt, \
+                      xt, 1-2*xt,     xt, \
+                      xt,     xt, 1-2*xt]
 
     LMS = XYZ_to_LMS("HPE",       list=true)
     LMX = MatrixDot(Crosstalk, LMS)
@@ -1471,7 +1467,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
               0, sin(alpha), cos(alpha)]
 
     # IPT by Ebner & Fairchild
-    mul = DoVi ? 0.5 : 1    # DVp5 reshaping. Read from flag
+    mul = DV ? 0.5 : 1    # DVp5 reshaping. Write to RPU flag
     IPT = [     0.4000,      0.4000,       0.2000, \
             mul*4.4550, mul*-4.8510,  mul* 0.3960, \
             mul*0.8056, mul* 0.3572,  mul*-1.1628]
@@ -1485,10 +1481,10 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     skin  = MatrixDot(rot, IPT)
     fit   = ArrayOp  (skin, sca, "*")
 
-
     MatrixClip(LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true) }
 
 
+# ICtCp to RGB
 function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi") {
 
     mat    = color_Fuzzy_Search(matrix)
@@ -1499,12 +1495,13 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     DV     = Default (DoVi, false)        # Set to true for IPTPQc2
 
     ictcp
-    # ICtCp to LMS joint matrix  (The issue is here, this actually blows up clip levels, MMR reshaping transfer is needed)
+    # ICtCp to LMS joint matrix
     LMS  = [ 1,  0.008607,  0.111033, \
              1, -0.008607, -0.111033, \
              1,  0.560046, -0.320632]
 
-    mul = DoVi ? 2 : 1    # undo reshaping. Read from flag
+    # IPTPQc2 to LMS joint matrix
+    mul = DV ? 2 : 1    # undo reshaping. Read from RPU flag
     LMS5 = [ 1,  mul* 0.097600, mul* 0.205200, \
              1,  mul*-0.113900, mul* 0.133200, \
              1,  mul* 0.032600, mul*-0.676900]
@@ -1513,12 +1510,12 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     LMS_gam = st_2084_oetf(LMS,MasterLevel)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
-    DV        =       DV ? 0.02 : 0.04
-    Crosstalk = [ 1-2*DV,     DV,     DV, \
-                      DV, 1-2*DV,     DV, \
-                      DV,     DV, 1-2*DV]
+    xt        =       DV ? 0.02 : 0.04
+    Crosstalk = [ 1-2*xt,     xt,     xt, \
+                      xt, 1-2*xt,     xt, \
+                      xt,     xt, 1-2*xt]
 
-    LMS = XYZ_to_LMS("HPE",            list=true)
+    LMS = XYZ_to_LMS("HPE",       list=true)
     LMX = MatrixDot(Crosstalk, LMS)
     RGB = XYZ_to_RGB(mat,props[3],list=true)
     LtR = MatrixDot(MatrixTranspose(MatrixInvert(LMX)), RGB) # LMS to RGB joint matrix
