@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.3  (16-06-2022)                     ###
+###        Similarity Metrics Pack v3.4  (28-06-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -473,7 +473,7 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
 
 # SVM() by Dogway
 #
-# Sharpness Variance Metric - An efficient metric index calculator for image sharpness
+# Sharpness Variance Metric - An efficient metric index calculator for image sharpness/detail
 #
 # Dependencies:
 #     ExTools
@@ -489,7 +489,7 @@ function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", boo
     show = Default(show,        0)  # 0: output 'diff'  1: output 'clip'  2: output 'diff' with subtitle
     rd   = Default(rad,         1)
     rdv  = Default(radV,       rd)
-    md   = Default(mode, "square")
+    md   = Default(mode, rd>1?"disk":"square")
     ep   = Default(emphasize,true) # Enable to emphasize low diffs to evaluate texture sharpness
     au   = Default(aug,      true) # Augment difference map
     y    = Default(y, true)
@@ -498,7 +498,7 @@ function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", boo
     fs   = Default(fulls,      fs)
 
     Assert(IsVersionOrGreater(3,7,2),                         "SVM: Update AviSynth+ version")
-    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "SVM: only one plane must be processed")
+    Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "SVM: Only one plane must be processed")
 
     clp = isy ? a : y ? rgb ? ExtractR(a) : ExtractY(a) : \
                     u ? rgb ? ExtractG(a) : ExtractU(a) : \
@@ -511,17 +511,15 @@ function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", boo
     mn = ex_luts(clp, mode="min", pixels=px)
     av = ex_luts(clp, mode="avg", pixels=px)
 
-    var = ex_lutxyz(av,mn,mx,(ep ? "y 1 + log x 1 + log X@ - dup * z 1 + log X" : "y x - dup * z x") +  " - dup * + 0.5 *")
+    var = ex_lutxyz(av,mn,mx,(ep ? "y sqrt x sqrt X@ - dup * z sqrt X" : "y x - dup * z x") +  " - dup * + 0.5 *")
 
-    ScriptClip(show == 1 ? a : var, function [var,show] () {
+    ScriptClip(show == 1 ? a : var, function [var] () {
+        propSet(last,"_PlaneSharpness", AverageLuma(var), 0) } )
 
-        SHP = AverageLuma(var)
+    show != 1 ? ConvertBits(au ? ex_lut("x 4 *"):last, bi, dither=-1, fulls=true) : last
 
-        propSet(last,"_PlaneSharpness", SHP, 0)
-
-        return show == 2 ? Subtitle(Format("_PlaneSharpness: {SHP}")) : last } )
-
-    show != 1 ? ConvertBits(au ? ex_lut(ep?"x 10 *":"x 5 *"):last, bi, dither=-1, fulls=true) : last }
+    show == 2 ? ScriptClip(function [] () {
+        Subtitle("_PlaneSharpness: "+string(propGetFloat("_PlaneSharpness"))) } ) : last }
 
 
 
