@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.2  (14-06-2022)                             ###
+###        Sharpeners Pack v4.3  (08-07-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -2251,8 +2251,7 @@ function DelicateSharp (clip src, bool "relaxed", bool "coarse", int "lowpass") 
 #               RgTools      (for median=false, Default)
 #               vsTCanny     (for median=false, Default) (calls vsTCanny      in HaloNR())
 #               SMDegrain    (for median=false, Default) (calls ex_KNLMeansCL in HaloNR())
-#               nnedi3       (for median=false, Default) (in genpelclip())
-#               SysInfo      (for median=false, Default) (in genpelclip())
+#               NNEDI3CL     (for median=false, Default) (in genpelclip())
 #
 function RegularSharp (clip src, bool "median", int "lowpass", int "a", float "h", float "thr", float "elast") {
 
@@ -2409,11 +2408,10 @@ function HaloNR (clip src, int "a", float "h", float "thr", float "elast", int "
 ##                  ExTools
 ##                  MVTools
 ##                  RgTools
-##                  nnedi3
+##                  NNEDI3CL
 ##                  ResizersPack
 ##                  manyPlus
 ##                  KNLMeansCL
-##                  SysInfo
 ##
 
 
@@ -2431,15 +2429,15 @@ function plum_Super(clip src, int "pel") {
     Assert(isint(pel),           "plum_Super: pel has to be an integer!")
     Assert(pel == 2 || pel == 4, "plum_Super: pel has to be 2 or 4!")
 
-    cores   = SI_PhysicalCores()
-    threads = SI_LogicalCores()
-
     src.ConvertBits(8, dither=-1, fulls=fs)
     AssumeFrameBased()
     rgb ? RGB_to_OPP() : isy() ? last : ExtractY()
 
     PadBorders(64, 64, 64, 64, "Dilate")
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+
+    for (i = 1, pel/2, 1) {
+        NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1)
+    }
 
     return last }
 
@@ -2461,7 +2459,7 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
             propGetInt      (src, "_ColorRange") == 0 : rgb
 
     Assert(isclip(src),              "plum_Basic: src has to be a video clip!")
-    Assert(bi == 32,                 "plum_Super: the sample type of src has to be single precision!")
+    Assert(bi == 32,                 "plum_Basic: the sample type of src has to be single precision!")
     Assert(isfloat(strength),        "plum_Basic: strength has to be a real number!")
     Assert(strength>1,               "plum_Basic: strength has to be greater than 0!")
     Assert(isint(a),                 "plum_Basic: a has to be an integer!")
@@ -2489,12 +2487,10 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     strength_ceil       = ceil (strength)
 
     function inline(clip src, int a, float h1, float h2, int radius, float wn, int cutoff_1, float scale, bool fs) {
-        cores           = SI_PhysicalCores()
-        threads         = SI_LogicalCores()
         sharp           = Deconvolution(src, radius, wn, int(a / 2. + 0.5), scale)
 #        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=4,nsize=0,qual=2,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        ref             = nnedi3_rpow2(src,  rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        sharp           = NNEDI3CL(sharp,1,dh=true,dw=true,nns=1,nsize=0,qual=1)
+        ref             = NNEDI3CL(src,  1,dh=true,dw=true,nns=1,nsize=0,qual=1)
         sharp           = NLErrors(ref, a, h1, sharp).ConvertBits(32, fulls=fs)
         dif             = ex_makediff(sharp, ref, fulls=fs)
         dif             = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but keeping image center. -0.5 to correct image center from nnedi3()
@@ -2636,13 +2632,10 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         pel     = Default(pel, 4)
         src2d   = Defined(src2)
 
-        cores   = SI_PhysicalCores()
-        threads = SI_LogicalCores()
-
-        u2x     =                   nnedi3_rpow2(src, rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        u2x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=2,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        u4x     =                   nnedi3_rpow2(src, rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        u4x2    = !src2d ? nop() :  nnedi3_rpow2(src2,rfactor=4,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+        u2x     =                   NNEDI3CL(src, 1,dh=true,dw=true,nns=1,nsize=0,qual=1)
+        u2x2    = !src2d ? nop() :  NNEDI3CL(src2,1,dh=true,dw=true,nns=1,nsize=0,qual=1)
+        u4x     =                   NNEDI3CL(src, 1,dh=true,dw=true,nns=1,nsize=0,qual=1).NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1)
+        u4x2    = !src2d ? nop() :  NNEDI3CL(src2,1,dh=true,dw=true,nns=1,nsize=0,qual=1).NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1)
         dif     = !src2d ? nop() : (pel==2 ? ex_makediff (u2x, u2x2, fulls=fs) : ex_makediff (u4x, u4x2, fulls=fs))
         clp     =  src2d ? dif   : (pel==2 ? u2x : u4x)
         return clp }
