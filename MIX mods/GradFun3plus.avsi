@@ -1,6 +1,6 @@
 #############################################################
 ###                                                       ###
-###  GradFun3plus MIX mod by Dogway (14-06-2022)          ###
+###  GradFun3plus MIX mod by Dogway (08-07-2022)          ###
 ###                                                       ###
 ###                                                       ###
 ###  A simple port of:                                    ###
@@ -68,8 +68,8 @@
 ### 3   Undocumented mode.
 ###
 ### show:
-### 0   Normal output, without debugging information.
-### 1   Shows the detail/edge mask.
+### false  Normal output, without debugging information.
+### true   Shows the detail/edge mask.
 ###
 ### ref:
 ### Reference clip used to limit changes. Allows cascading multiple GradFun3 calls (for example by combining small and large radius settings) without going too far from the original picture.
@@ -85,7 +85,7 @@
 ###     int "mask"=2 (0 to 4),
 ###     int "smode"=0 (0 / 1 / 2 / 3),
 ###     [float "thr_det"=2.00 (0.00 to 10.00)],
-###     [int "show"=0 (0 to 1)],
+###     [bool "show"=false],
 ###     [float "thrc"=0.35 (0.10 to 2.00)],
 ###     [int "radiusc"=8 (1 to 128)],
 ###     [float "elastc"=3.00 (1.00 to 6.00)],
@@ -95,11 +95,12 @@
 ###     )
 ###
 ###
-function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "mask", int "smode", float "thr_det", int "show", float "thrc", int "radiusc", float "elastc", int "Y", int "UV", clip "ref") {
+function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "mask", int "smode", float "thr_det", bool "show", float "thrc", int "radiusc", float "elastc", int "Y", int "UV", clip "ref") {
 
     w     = src.width ()
     h     = src.height()
     is42  = src.is420()
+    rgb   = src.isRGB()
     bi    = BitsPerComponent(src)
     fs    = propNumElements (src,"_ColorRange")  > 0 ? \
             propGetInt      (src,"_ColorRange") == 0 : false
@@ -113,7 +114,7 @@ function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "
     mask    = Default (mask,         2)
     smode   = Default (smode,        0)
     thr_det = Default (thr_det, 2 + round(max(thr - 0.35, 0) / 0.3))
-    debug   = Default (show,        0)
+    sh      = Default (show,     false)
     refd    = Defined (ref)
     mask    = min(mask, 4) # 'circle' shape max radius ('disk' used up to 3)
 
@@ -139,8 +140,8 @@ function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "
 
     # Main debanding
 
-    yp      = (!Defined (y)  || (y  == 3)) ? 3 : 1
-    uvp     = (!Defined (uv) || (uv == 3)) ? 3 : 1
+    yp      = rgb || (!Defined (y)  || (y  == 3)) ? 3 : 1
+    uvp     = rgb || (!Defined (uv) || (uv == 3)) ? 3 : 1
 
     c_flag1 = thrc != thr || elastc != elast
     c_flag2 = yp == 3 && uvp == 3 && (is42 && 0 < smode < 3 ? c_flag1 || radiusc != radius : c_flag1)
@@ -156,16 +157,26 @@ function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "
     td_hi  = ex_bs(max(thr_det,        1), 8, bi, fs, flt=true) + 0.0001
     td_df  = 1. / (td_hi - td_lo)
 
-    dmask  = (mask > 0 && yv411_flag) ? src.ExtractY()              : src
+    dmask  = (mask > 0 && yv411_flag) ? src.ExtractY()                  : src
     dmask  = (mask > 0) ? dmask.ex_luts(mode="rng", pixels=ex_shape(mask,mode=mask==4?"circle":"disk"), exprf=Format(" {td_lo} - {td_df} * range_max *"), clamp_float=true) : dmask
-    dmask  = (mask > 0) ? dmask.removegrain(22, -1)                 : dmask # "cartoon" median blur
-    dmask  = (mask > 1) ? dmask.removegrain(12, -1)                 : dmask
-    dmask  = (mask > 2) ? dmask.removegrain(20, -1)                 : dmask
-    dmask  = (mask > 0 && yv411_flag) ? dmask.ConvertToYV411 ()     : dmask
+    dmask  = (mask > 0) ? dmask.removegrain(22, rgb ? Undefined() : -1) : dmask # "cartoon" median blur
+    dmask  = (mask > 1) ? dmask.removegrain(12, rgb ? Undefined() : -1) : dmask
+    dmask  = (mask > 2) ? dmask.removegrain(20, rgb ? Undefined() : -1) : dmask
+    dmask  = (mask > 0 && yv411_flag) ? dmask.ConvertToYV411 ()         : dmask
 
     result = (mask > 0) ? mt_merge(flt, src, dmask, luma=true, y=yp, u=uvp, v=uvp) : flt
 
-    (debug == 1       ) ? dmask.GreyScale () : result }
+    !sh ? result : Subtitle(dmask.GreyScale(),      \
+                            Format("\n "            \
+                            +"thr:{thr}\n "         \
+                            +"thrc:{thrc}\n "       \
+                            +"radius:{radius}\n "   \
+                            +"radiusc:{radiusc}\n " \
+                            +"elast:{elast}\n "     \
+                            +"elastc:{elastc}\n "   \
+                            +"mask:{mask}\n "       \
+                            +"smode:{smode}\n "     \
+                            +"thr_det:{thr_det}"), size=w/50,lsp=4) }
 
 
 
