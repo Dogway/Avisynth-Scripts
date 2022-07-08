@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.84 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.85 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -17,7 +17,7 @@
 #
 # QTGMC+ features and changes (from v3.382s):
 #     - Frame properties support
-#     - Increased performance for HBD (+70%)
+#     - Increased performance for HBD (+70%) *Using CPU bound nnedi3()
 #     - PC range aware
 #     - Pruned noop or redundant arguments
 #     - Sanitized + adapted code and expressions to align to AVS+ features
@@ -25,12 +25,15 @@
 #
 # --- LATEST CHANGES ---
 #
+# v3.85p
+# - Replace nnedi3 with NNEDI3CL
+#
 # v3.84p
 # - Update with latest ex_luma_rebuild() version
 # - Update function definition
 #
 # v3.83p
-# - Update with latest Asd-g's vinverse plugin, deprecates ex_vinverse() -now legacy- (v3.82 & v3.83)
+# - Update with latest Asd-g's vinverse plugin, deprecates ex_vinverse() -now semi-legacy- (v3.82 & v3.83)
 #
 # v3.81p
 # - Update calls for latest vsTCanny
@@ -390,15 +393,15 @@
 # Core plugins:
 #   MVTools2   (2.7.45 or above)
 #   MaskTools2 (2.2.30 or above)
-#   NNEDI3     (0.9.4.60 or above)
 #   RgTools    (1.2 or above)
 #   vsTCanny   (1.1.8 for gaussian blur)
+#   NNEDI3CL   (1.0.1 or above)
 #   SysInfo    (0.1.2.9)
 #   Vinverse   (0.9.4)
 #
 # Core scripts:
-#   ExTools      (8.6   or above)
-#   SMDegrain    (3.5.1 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   ExTools      (8.7   or above)
+#   SMDegrain    (3.5.3 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
@@ -1139,11 +1142,11 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
 
     ChromaEdi = Default( ChromaEdi, "" )
     CEed      =        ( ChromaEdi == "")
+    par       = GetParity(Input) ? 3 : 2
     threads   = SI_LogicalCores()
-    cores     = SI_PhysicalCores()
 
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
-                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.NNEDI3( field=-2, nsize=NNSize, threads=cores,   U=CEed,V=CEed, qual=EdiQual, nns=NNeurons, prefetch=(threads+cores)/2, range=fulls?1:2) : Undefined()
+                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.NNEDI3CL(par, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp.nonyuy2clipin(true) ).slimit_dif2(NNEDI3clp.nonyuy2clipin(true),thr=4, U=CEed?3:2,V=CEed?3:2).nonyuy2clipout(true) : \
                                                                                Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2)     : \
                 EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ?              Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ) : nop()
@@ -1170,7 +1173,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2).nonyuy2clipout(true) : interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                                 : \
-               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3( field=-2, nsize=4, nns=0, qual=1, threads=cores, prefetch=(threads+cores)/2, Y=false, range=fulls?1:2 ) : \
+               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3CL(par, nsize=4, nns=0, qual=1, planes=[1,2] )                                                            : \
                (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 )        : \
                (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                                 : \
                (ChromaEdi == "Bob")      ? Input.ex_Bob( 0,0.5 )                                                                                                 : \
@@ -1446,8 +1449,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 # Modded for frame properties support
 #
 # Core plugins:
-#   nnedi3     (for nnedi3=true)
-#   SysInfo    (for nnedi3=true)
+#   NNEDI3CL   (for nnedi3=true)
 #
 #
 # Function Definition:
@@ -1475,9 +1477,6 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
     shift = par ? 0.25 : -0.25
     fd    = cp.SeparateFields()
 
-    threads = nn ? SI_LogicalCores()  : nop()
-    cores   = nn ? SI_PhysicalCores() : nop()
-
     if (is420(cp)) {
 
         fd
@@ -1487,9 +1486,9 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
         odd   = SelectOdd()
 
         yeven = !nn ? even.ExtractY().BicubicResize(w, h, b, c, 0,  shift, w, fh) : \
-                      even.ExtractY().nnedi3(dh=true,nsize=3,nns=3,qual=2,threads=cores,prefetch=(threads+cores)/2,range=fs+1)
+                      even.ExtractY().NNEDI3CL(par ? 1 : 0,dh=true,nsize=3,nns=3,qual=2)
         yodd  = !nn ?  odd.ExtractY().BicubicResize(w, h, b, c, 0, -shift, w, fh) : \
-                       odd.ExtractY().nnedi3(dh=true,nsize=3,nns=3,qual=2,threads=cores,prefetch=(threads+cores)/2,range=fs+1)
+                       odd.ExtractY().NNEDI3CL(par ? 1 : 0,dh=true,nsize=3,nns=3,qual=2)
 
         ceven = Interleave( even.ExtractU(), even.ExtractV()).BicubicResize(w2, h/2, b, c, 0,  shift, w2, fh/2)
         codd  = Interleave(  odd.ExtractU() , odd.ExtractV()).BicubicResize(w2, h/2, b, c, 0, -shift, w2, fh/2)
@@ -1501,7 +1500,7 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
     } else {
 
         !nn ? cp.Bob( b, c, h ) : \
-              cp.nnedi3(field=-2,nsize=3,nns=3,qual=2,threads=cores,prefetch=(threads+cores)/2,range=fs+1)
+              cp.NNEDI3CL(par ? 3 : 2,nsize=3,nns=3,qual=2)
     }
 
     par ? AssumeTFF() : AssumeBFF()
