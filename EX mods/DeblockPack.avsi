@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v2.3  (01-05-2022)                                ###
+###        Deblock Pack v2.4  (08-07-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -361,8 +361,7 @@ function CCD (clip a, float "thres", bool "interlaced", int "U", int "V") {
 ##                  KNLMeansCL
 ##                  BM3D
 ##                  DFTTest
-##                  nnedi3
-##                  SysInfo
+##                  NNEDI3CL
 ##                  TransformsPack (for RGB)
 
 
@@ -378,8 +377,6 @@ function oyster_Super(clip src, int "pel") {
     Assert(bi == 32,             "oyster_Super: the sample type of src has to be single precision!")
     Assert(is444(src) || rgb,    "oyster_Super: subsampled stuff not supported!")
     Assert(pel == 2 || pel == 4, "oyster_Super: pel has to be 2 or 4!")
-    cores   = SI_PhysicalCores()
-    threads = SI_LogicalCores()
 
     src
     AssumeFrameBased()
@@ -389,7 +386,11 @@ function oyster_Super(clip src, int "pel") {
 #    PadBorders(128, 128, 128, 128, "Dilate")
     PadBorders(64, 64, 64, 64, "Dilate")
 #    nnedi3_rpow2(rfactor=pel,nns=4,nsize=0,qual=2,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
-    nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+
+    for (i = 1, pel/2, 1) {
+        NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1)
+    }
+
 
     return last }
 
@@ -412,7 +413,7 @@ function oyster_Basic(clip src, clip "super", int "radius", int "pel", int "sad"
 
     Assert(isclip(src),                "oyster_Basic: src has to be a video clip!")
     Assert(is444(src) || rgb,          "oyster_Basic: subsampled stuff not supported!")
-    Assert(pel == 1 || pel == 2 || pel == 4, "oyster_Super: pel has to be 1, 2 or 4!")
+    Assert(pel == 1 || pel == 2 || pel == 4,"oyster_Basic: pel has to be 1, 2 or 4!")
     Assert(isclip(super),              "oyster_Basic: super has to be a video clip or None!")
     Assert(isint(radius),              "oyster_Basic: radius has to be an integer!")
     Assert(radius>1,                   "oyster_Basic: radius has to be greater than 0!")
