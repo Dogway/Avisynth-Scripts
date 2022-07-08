@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.5.2d      by Dogway    - 28 June 2022                           ###
+###                       v3.5.3d      by Dogway    - 08 July 2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -44,8 +44,7 @@
 ###              DGDecNV                (for prefilter=7)
 ###                 TransformsPack      (for prefilter=6 or prefilter=7)
 ###              neo_tmedian            (for mode="medianT")
-###              nnedi3                 (for subpixel=4)
-###                 SysInfo             (for subpixel=4)
+###              NNEDI3CL               (for subpixel=4)
 ###              Average                (for mfilter + (Contrasharp or mode!=MDegrain) )
 ###
 ###
@@ -278,12 +277,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         # Subpixel 3 and 4
         inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)   # nnedi3 is too slow in HBD
-        threads = pelclip && subpixel==4 ? SI_LogicalCores()  : nop()
-        cores   = pelclip && subpixel==4 ? SI_PhysicalCores() : nop()
-        pclip   = pelclip                ? subpixel==4 && prefilter==-1 ? pref8.  nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=!fsp?2:1) :  \
-                                                                          Undefined()                                                                                                    : nop() # Wiener filter is good enough for MAnalyse
-        pclip2  = pelclip && !GlobalR    ? subpixel==4 ?                  inputP8.nnedi3_rpow2(rfactor=pel,nns=1,nsize=0,qual=1,threads=cores,prefetch=(threads+cores)/2,range=  tv?2:1).ConvertBits(bi, fulls=!tv, fulld=!tv) : \
-                                                                          inputP .blackmanresize(w*pel,h*pel/(isInter ? 2 : 1), taps=6, src_left=0.25, src_top=0.25)                     : nop() # from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed). nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
+        pclip   = pelclip                ? subpixel==4 && prefilter==-1 ? pel==2 ? pref8.  NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1,device=gpuid)                                                               : \
+                                                                                   pref8.  NNEDI3CL(1,dh=true,dw=true,nns=2,nsize=0,qual=2,device=gpuid).NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1,device=gpuid) : \
+                                                                                   Undefined()                                                                                                   : nop() # Wiener filter is good enough for MAnalyse
+        pclip2  = pelclip && !GlobalR    ? subpixel==4 ?                  pel==2 ? inputP8.NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1,device=gpuid).                                                              ConvertBits(bi, fulls=!tv, fulld=!tv) : \
+                                                                                   inputP8.NNEDI3CL(1,dh=true,dw=true,nns=2,nsize=0,qual=2,device=gpuid).NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1,device=gpuid).ConvertBits(bi, fulls=!tv, fulld=!tv) : \
+                                                                                   inputP.blackmanresize(w*pel,h*pel/(isInter ? 2 : 1), taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25) : nop() # from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed). nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
 
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
@@ -611,7 +610,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.5.2",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
+        Subtitle("SMDegrain Mod v3.5.3",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/20)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
