@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.3 (14-06-2022)      ##
+###   Resizers Functions Pack 9.4 (10-07-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -76,12 +76,11 @@
 ###   Resizer of choice
 ###       LSFplus        (for default "nnedi3" upscale) (and its dependencies)
 ###       SharpenersPack (for default "nnedi3" upscale)
-###       SysInfo        (for default "nnedi3" upscale)
 ###
 ###
 ### Benchmark (1080p to 2160p):
-###   100.0% deep_resize()      (15.0fps)
-###    24.7% nnedi3_resize16()  (3.7fps)
+###   100.0% deep_resize()      (22.0fps)
+###    16.8% nnedi3_resize16()  (3.7fps)
 ###
 ### General guidelines:
 ### -Avoid bicubics for highly compressed images as it will amplify DCT blocks
@@ -198,9 +197,9 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                     # higher deconvolution the higher the upscale
     dec    = dec == 0.095 ? 0 : dec
     nns    = 3
-    nns3   = 1 # for nnedi3()
+    nns3   = 1 # for one dimensional scale
     nsize  = 0
-    nsize3 = 6 # for nnedi3()
+    nsize3 = 6 # for one dimensional scale
     etype  = 0
     pscrn  = 2
     und    = Undefined()
@@ -213,7 +212,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
     } else if (krn1 == krn2 && etp == ftp) {
 
-        # Downscale or upscale with same edge/flat kernel
+        # Downscale/upscale with same edge/flat kernel
         ConvertFormat(a, w2,h2,cs_out="",EOTF="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
     } else {
@@ -222,11 +221,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
         if (krn1 == "nnedi3") {
 
             rfactor = rw<factor || rh<factor
-            krnn    = ( rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final edge resize: 'Didée' for down 'Blackman6' for up
-            ep0     =   rfactor ?      -0.5 : 6
-
-            cores   = SI_PhysicalCores()
-            threads = SI_LogicalCores()
+            krnn    = rfactor ? "Bicubic" : "Blackman" # hard coded nnedi3 final edge resize: 'Didée' for down 'Blackman6' for up
         }
 
             # Y8 for nnedi3
@@ -235,35 +230,37 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
 
             # nnedi3 one dimensional resize case
-            a8L     = h == h2 ? TurnRight(a8) : a8
 
-            edge1   = krn1 == "nnedi3"  ? oned ? Eval("""a8L
+            edge1   = krn1 == "nnedi3"  ? oned ? Eval("""a8
                                           for (i = 1, factor/2, 1) {
-                                          nnedi3(field=1,dh=True,        nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2) }""") : \
-                                          nnedi3_rpow2(a8,rfactor=factor,nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25) : \
+                                          NNEDI3CL(1,dh=h!=h2,dw=w!=w2,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn) }""") : \
+                                          Eval("""a8
+                                          for (i = 1, factor/2, 1) {
+                                          NNEDI3CL(1,dh=true, dw=true, nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn) }""") : \
                                           ConvertFormat(an,w2,h2,cs_out="",EOTF="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
         if (rat <= rth) {
 
-                      krn1 == "nnedi3"  ? oned ? nnedi3resize(a,w2,h2,qual=qual) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
+                      krn1 == "nnedi3" ? oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
 
         } else {
-            # nnedi3 one dimensional resize case; luma shift (no 'cshift' arg in nnedi3() )
-            edge1   = krn1 == "nnedi3" && h == h2 ? TurnLeft(edge1) : edge1
-            edge1   = oned ? Eval(krnn+"(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=etp")+(h == h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : edge1
+            # resizing to target when nnedi3 is used
+            edge1   = krn1 == "nnedi3" ? oned ? Eval(krnn+"resize(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(h==h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : \
+                                                Eval(krnn+"resize(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(        ",src_left=cpl!=1 ? -float(w)/w2 : 0 ,src_top=cpl!=1 ? -float(h)/h2     : 0)")) : edge1
+
 
             # don't sharpen nnedi3 when one dimensional resize case
-            edge    = krn1 == "nnedi3"  ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
-                                                 LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).ConvertBits(bi, fulls=fs, fulld=fs)      : edge1
+            edge    = krn1 == "nnedi3" ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
+                                                LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).ConvertBits(bi, fulls=fs, fulld=fs) : edge1
 
             # resizing flat area
-            flat    =                            ConvertFormat(a,w2,h2,cs_out="",EOTF="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+            flat    =                           ConvertFormat(a,w2,h2,cs_out="",EOTF="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
             # edge/flat limiting
-            ex_limitdif(          oned && !isy ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
+            ex_limitdif(         !isy && oned ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
 
-            # combine planes when nnedi3 case
-                                  oned && !isy ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
+            # combine planes when oned + nnedi3 case
+                                 !isy && oned ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
             # deconvolution from source downscaling
             dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) } }
 
@@ -323,9 +320,8 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 # It accepts arbitrary dimension values, not only limited to powers of 2
 #
 # Dependencies:
-#       nnedi3
 #       ExTools
-#       SysInfo
+#       NNEDI3CL
 #
 function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn") {
 
@@ -372,33 +368,18 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
     rh      = h2/float(h)
     factor  = max(rw,rh) < 3 ? 2 : 4
     rfactor = rw<factor && rh<factor
-    krnn    = (rfactor ? "bicubic" : "blackman" ) + "resize" # hard coded nnedi3 final resize: 'Didée' for down 'Blackman6' for up
-    ep0     =  rfactor ?      -0.5 : 6
-
-    cores   = SI_PhysicalCores()
-    threads = SI_LogicalCores()
+    krnn    = rfactor ? "Bicubic" : "Blackman" # hard coded nnedi3 final resize: 'Didée' for down 'Blackman6' for up
 
     # 8-bit for nnedi3
-    a8  = !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
+    !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
 
-    # nnedi3 one dimensional resize case + luma shift (no 'cshift' arg in nnedi3() )
-    if (!oned) {
+    for (i = 1, factor/2, 1) {
 
-        nnedi3_rpow2(a8,rfactor=factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn,ep0=ep0,ep1=0.25)
-
-    } else {
-
-        hs          ? TurnRight(a8) : a8
-
-        for (i = 1, factor/2, 1) {
-
-            nnedi3(field=1,dh=True,    nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-        }
-
-        hs          ? TurnLeft() : last
-        cs = cpl!=1 ? -0.5 * (factor-1) : 0
-        Eval(krnn+"(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ",src_top=cs)"))
+        NNEDI3CL(1,dh=!hs,dw=!ws,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn)
     }
+
+    cs = cpl!=1 ? -0.5 * (factor-1) : 0
+    Eval(krnn+"resize(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ws ? ",src_top=cs)" : ",src_left=cs,src_top=cs)"))
 
     !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last
     propCopy(a) }
