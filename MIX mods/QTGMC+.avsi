@@ -1410,7 +1410,8 @@ function QTGMCp_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
 
 
 
-# (LEGACY for 8-16-bit since vinverse v0.9.2) Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
+# (LEGACY for 8-16-bit since vinverse v0.9.2)
+# Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
 # https://forum.doom9.org/showthread.php?p=891788#post891788
 # Optimization and port to EX mod from real.finder's HBD mod. by Dogway (15-09-2021)
 
@@ -1446,7 +1447,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 
 # ex_bob() - port of sh_bob() by real.finder (original QTGMC_Bob() by Vit)
 # Same as Bob, but keeps the field order the same.
-# Modded for frame properties support
+# Modded for frame properties and NNEDI3CL support.
 #
 # Core plugins:
 #   NNEDI3CL   (for nnedi3=true)
@@ -1457,7 +1458,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 #     clip clp,
 #     float "b"=0.0 (-1.0 to 1.0),
 #     float "c"=0.0 (0.0 to 1.0),
-#     [int "height"=1 (360 to 2160)],
+#     [int "height"=1080 (360 to 2160)],
 #     bool "nnedi3"=false
 #     )
 #
@@ -1474,24 +1475,28 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
     nn    = Default(nnedi3, false) # Use nnedi3 instead of cubic interpolation
 
     par   = GetParity(cp)
-    shift = par ? 0.25 : -0.25
-    fd    = cp.SeparateFields()
 
     if (is420(cp)) {
 
-        fd
+        shift = par ? 0.25 : -0.25
+
+        cp.SeparateFields()
+        propSet("_FieldBased",0)
         w2    = w/2
         fh    = Height()
-        even  = SelectEven()
-        odd   = SelectOdd()
+        eY    = ExtractY()
+        eU    = ExtractU()
+        eV    = ExtractV()
+        Yeven = eY.SelectEven()  Ueven = eU.SelectEven()  Veven = eV.SelectEven()
+        Yodd  = eY.SelectOdd()   Uodd  = eU.SelectOdd()   Vodd  = eV.SelectOdd()
 
-        yeven = !nn ? even.ExtractY().BicubicResize(w, h, b, c, 0,  shift, w, fh) : \
-                      even.ExtractY().NNEDI3CL(par ? 1 : 0,dh=true,nsize=3,nns=3,qual=2)
-        yodd  = !nn ?  odd.ExtractY().BicubicResize(w, h, b, c, 0, -shift, w, fh) : \
-                       odd.ExtractY().NNEDI3CL(par ? 1 : 0,dh=true,nsize=3,nns=3,qual=2)
+        yeven = !nn ? Yeven.BicubicResize(w, h, b, c, 0,  shift, w, fh) : \
+                      Yeven.NNEDI3CL(par ? 1 : 0,dh=true,nsize=3,nns=3,qual=2)
+        yodd  = !nn ?  Yodd.BicubicResize(w, h, b, c, 0, -shift, w, fh) : \
+                       Yodd.NNEDI3CL(par ? 0 : 1,dh=true,nsize=3,nns=3,qual=2)
 
-        ceven = Interleave( even.ExtractU(), even.ExtractV()).BicubicResize(w2, h/2, b, c, 0,  shift, w2, fh/2)
-        codd  = Interleave(  odd.ExtractU() , odd.ExtractV()).BicubicResize(w2, h/2, b, c, 0, -shift, w2, fh/2)
+        ceven = Interleave( Ueven, Veven).BicubicResize(w2, h/2, b, c, 0,  shift, w2, fh/2)
+        codd  = Interleave(  Uodd, Vodd ).BicubicResize(w2, h/2, b, c, 0, -shift, w2, fh/2)
 
         YToUV(Interleave(ceven.SelectEven(), codd.SelectEven()),\
               Interleave(ceven.SelectOdd (), codd.SelectOdd ()),\
@@ -1504,8 +1509,7 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
     }
 
     par ? AssumeTFF() : AssumeBFF()
-    propCopy(fd,true,props="_ChromaLocation")
-    propSet("_FieldBased",0)
+    propCopy(cp,true,props="_ChromaLocation")
     propSet("_Combed",0)                    }
 
 
