@@ -23,7 +23,7 @@
 Collection of filters for AviSynth+ 3.7.2 and above. Improved modern syntax allows much greater performance and HBD support (high bit depths).
 
 Since all filters are mostly self-contained script-based you get the benefit of cross compatibility with other OSes like Linux or MacOS, specially with EX mods versions for minimal plugin dependencies. If you need an EX mod port open a ticket in the issue tracker.
-The only non-replaceable plugins required are nnedi3+SysInfo and MVTools, so [check](https://forum.doom9.org/showthread.php?t=182032) beforehand those are compiled for your OS.
+The only non-replaceable plugins required are NNEDI3CL and MVTools, so [check](https://forum.doom9.org/showthread.php?t=182032) beforehand those are compiled for your OS.
 
 For a full description of each check the main forum thread in [Doom9](https://forum.doom9.org/showthread.php?t=182881).
 
