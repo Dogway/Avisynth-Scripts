@@ -1514,6 +1514,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 ###    int "zoom"=1 (1 to 6),
 ###    int "x"=0 (-50 to 50),
 ###    int "y"=0 (-50 to 50),
+###    int "precision"=1 (1 to 4),
 ###    bool "positive"=false,
 ###    bool "smooth"=true
 ###    )
