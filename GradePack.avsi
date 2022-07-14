@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.4 (28-06-2022)               ##
+###           Grade Pack v7.5 (14-07-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -155,11 +155,9 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
         if (sh==1) {
 
             bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
-            sw = nmod(w/3.75)
-            sh = sw*2
             lvl = Histogram(mode="levels",keepsource=false)
-            lvl = StackVertical(lvl,Vectorscope()).GaussResize(sw,sh,p=100)
-            lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
+            lvl = StackVertical(lvl,Vectorscope()).RatioResize(h/512.,"%",kernel="gauss",p=100)
+            lvl = tv?lvl.SMPTE_Legal(false):lvl
             StackHorizontal(GamutWarning(),lvl)
 
         } else if (sh>1) {
@@ -254,10 +252,10 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
         w   = c.width()
         h   = c.height()
-        sw  = nmod(w/5.)   sh = sw
-        plt = GradientLinear(last,zoom=1, positive=true, smooth=true, tv_range=tv)
+        sw  = nmod(w/5.)   sh = min(h,sw)
+        plt = GradientLinear(last,zoom=1, precision=2, positive=true, smooth=true, tv_range=tv)
         plt = ex_contrast (plt,sc,ss,sp,tv,128)
-        plt = HistoCurve(plt,size=1,gradient=false).BicubicResize(sw,sh,-0.5,0.25)
+        plt = HistoCurve(plt,size=2,gradient=false).BicubicResize(sw,sh,-0.5,0.25)
         plt = rgb ? plt.ConvertToPlanarRGB() : plt
         plt = Merge(PadBorders(plt,w-sw,0,0,h-sh))
         ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
@@ -364,16 +362,14 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
         w   = c.width()
         h   = c.height()
-        sw  = nmod(w/4.00)
-        sh  = sw*2
         lvl = Histogram(mode="levels",keepsource=false)
-        plt = GradientLinear(last,zoom=1, positive=true, smooth=true, tv_range=tv)
+        plt = GradientLinear(last,zoom=1, positive=true, precision=2, smooth=true, tv_range=tv)
         plt = ex_levels (plt,silo,sgam,sihi,solo,sohi,tv,128)
         plt = HistoCurve(plt,size=1,gradient=false)
-        plt = StackVertical(rgb ? plt.ConverttoPlanarRGB() : plt,lvl).BicubicResize(sw,sh,-0.5,0.25)
-        plt = PadBorders(tv?plt.SMPTE_Legal(false):plt,w-sw,0,0,h-sh)
+        pls = StackVertical(rgb ? plt.ConverttoPlanarRGB() : plt,lvl).RatioResize(h/512.,"%",b=-0.5,c=0.25)
+        plt = PadBorders(tv?pls.SMPTE_Legal(false):pls,w-width(pls),0,0,0)
         plt = Merge(plt)
-        ex_merge(last,plt,BoxMask(w-sw,w,0,sh),UV=3) } }
+        ex_merge(last,plt,BoxMask(w-width(pls),w,0,h),UV=3) } }
 
 
 ###
@@ -992,8 +988,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
         sw  = nmod(w/3.85)
         sh  = sw*2
         lvl = Histogram(mode="levels",keepsource=false)
-        lvl = StackVertical(lvl,Vectorscope()).GaussResize(sw,sh,p=100)
-        lvl = PadBorders(tv?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
+        lvl = StackVertical(lvl,Vectorscope()).RatioResize(h/512.,"%",kernel="gauss",p=100)
+        lvl = tv ? lvl.SMPTE_Legal(false) : lvl
         StackHorizontal(last,lvl) } }
 
 
@@ -1421,10 +1417,9 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
         bi > 8 ? ConvertBits(8,dither=1,fulls=fs) : last
         w   = a.width()
         h   = a.height()
-        sw  = nmod(w/3.85)  sh = nmod(w/3.85*2)
         lvl = StackVertical(a.ConvertBits(8,dither=1,fulls=fs).Vectorscope().subtitle("before",text_color=$FFFFFF,size=12,x=15),\
-                                                               Vectorscope().subtitle("after" ,text_color=$FFFFFF,size=12,x=15)).GaussResize(sw,sh,p=100)
-        lvl = PadBorders(!fs?lvl.SMPTE_Legal(false):lvl,0,0,0,h-sh,mode="[0,128,128]")
+                                                               Vectorscope().subtitle("after" ,text_color=$FFFFFF,size=12,x=15)).RatioResize(h/512.,"%",kernel="gauss",p=100)
+        lvl = !fs ? lvl.SMPTE_Legal(false) : lvl
         StackHorizontal(last,lvl) } }
 
 
@@ -1525,7 +1520,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 ###
 ######################
 
-function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive", bool "smooth", bool "tv_range") {
+function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive", int "precision", bool "smooth", bool "tv_range") {
 
     Da  = Defined (a)
     isy = Da ? isy(a)     : false
@@ -1536,6 +1531,7 @@ function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive",
     global xo = Default(x,    0)/(zm*10.)    # shift on x axis
     global yo = Default(y,    0)/(zm*10.)    # shift on x axis
     global ps = Default(positive, false)     # Disable to also show -x and -y axis
+    global pc = Default(precision, 1)        # Increase sampling precision
 
     px = Da ? a.is420() ? "YUV420" : \
               a.is422() ? "YUV422" : \
@@ -1543,7 +1539,7 @@ function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive",
 
     of = zm
     zm = zm * 2.
-    BlankClip(Eval(Da ? "a" : "length=100"), width=256, height=256, pixel_type=isy?"Y32":px+"PS")
+    BlankClip(Eval(Da ? "a" : "length=100"), width=256*pc, height=256, pixel_type=isy?"Y32":px+"PS")
 
     !tv ? ex_lutspa(mode="relative", expr=sm?"x":"x 0.5 + 2 % 1 < 0 1 ?",                            UV=128, fulld=true) : \
           ex_lutspa(mode="relative", expr=sm?"x ymax ymin - * ymin +":"x 0.5 + 2 % 1 < ymin ymax ?", UV=128, fulld=false)
@@ -1559,23 +1555,29 @@ function HistoCurve(clip a, float "size", bool "gradient") {
 
     of = zm
     zm = zm * 2.
+    px = 256 * pc
+    py = pc > 1 ? 1024 : 256
     ps ? ex_lut(a,Format("x {of} /         {yo} -"),"") : \
          ex_lut(a,Format("x {of}  + {zm} / {yo} -"),"")
 
     TurnRight()
-    Histogram(mode="classic",keepsource=gr)
+    Histogram(mode="classic",keepsource=gr,markers=false,bits=pc>1?10:8)
     TurnLeft()
-    zm    = zm * (ps ? 1. : 2.)
-    clean = gr ? crop(0,0,0,-256) : last
-    grid  =            clean.ex_lutspa(mode="mix",expr=Format("sx {xo} neg 256 * + round X@ 256 {zm} 2 * / round % 0 ==
-                                                               sy {yo} neg 256 * + round Y@ 256 {zm} 2 * / round % 0 == or
-                                                               X 4 % 0 != Y 0 != Y 4 % 0 != and or 0.25 0 ? x 0.5 < 0 x ? B@ max B ?"), UV=128)
-    axis  = ps ? grid : grid.ex_lutspa(mode="mix",expr=Format("sx 128 {xo} 256 * + round abs ==
-                                                       sy 0 != sy 128 {yo} 256 * + round abs == and or 0.35 x max sy 255 == 0 x ? ?"),  UV=128)
-    grad  = gr ? crop(0,256,0,0) : last
-            gr ? StackHorizontal(grad,axis) : axis
 
-    RatioResize(sz,"%",kernel="Point")
+    zm    = zm * (ps ? 1. : 2.)
+    clean = SMPTE_legal(gr ? crop(0,0,0,-256) : last, false)
+    clean = pc > 1   ? clean.ex_luts  (mode="max",pixels=pc==2?ex_shape(0,1):ex_shape(1,mode="disk")).ex_smooth(pc==2?0:2) : clean
+    grid  =            clean.ex_lutspa(mode="mix",expr=Format("sx {xo} neg {px} * + round X@ {px} {zm} 2 * / round % 0 ==
+                                                               sy {yo} neg {py} * + round Y@ {py} {zm} 2 * / round % 0 == or
+                                                               X 4 {pc} * % 0 != Y 0 != Y 4 {pc} * % 0 != and or 0.25 0 ? x max x ?"+ ( pc>1 ?" {pc} * " : "")), UV=128)
+    axis  = ps ? grid : grid.ex_lutspa(mode="mix",expr=Format("sx {px} 0.5 * {xo} {px} * + round abs ==
+                                                       sy 0 != sy {py} 0.5 * {yo} {py} * + round abs == and or 0.35 x max sy {py} 1 - == 0 x ? ?"),       UV=128)
+    grad  = gr ? crop(0,py,0,0) : last
+            gr ? StackHorizontal(PadResize(grad,px,py,mode="Dilate"),axis) : axis
+
+    pc == 1 ? RatioResize(sz,"%",kernel="Point") : \
+    BicubicResize(round(256*sz*(gr?2:1)),round(256*sz),0.378216,0.310892)
+
     ConvertBits(bt>0?bt:8,dither=bt>0?bt==32?-1:1:-1,fulls=true) }
 
 
