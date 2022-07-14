@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.85 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.85b+ mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -391,13 +391,13 @@
 # Input colorspaces: YV12, YUY2, 8-bit and HBD
 #
 # Core plugins:
-#   MVTools2   (2.7.45 or above)
-#   MaskTools2 (2.2.30 or above)
-#   RgTools    (1.2 or above)
-#   vsTCanny   (1.1.8 for gaussian blur)
-#   NNEDI3CL   (1.0.1 or above)
-#   SysInfo    (0.1.2.9)
-#   Vinverse   (0.9.4)
+#   MVTools2   (2.7.45  or above)
+#   MaskTools2 (2.2.30  or above)
+#   RgTools    (1.2     or above)
+#   vsTCanny   (1.1.8 for gaussian blur or above)
+#   NNEDI3CL   (1.0.1   or above)
+#   SysInfo    (0.1.2.9 or above)
+#   Vinverse   (0.9.4   or above)
 #
 # Core scripts:
 #   ExTools      (8.7   or above)
@@ -1144,9 +1144,10 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
     CEed      =        ( ChromaEdi == "")
     par       = GetParity(Input) ? 3 : 2
     threads   = SI_LogicalCores()
+    Input0    = Input.propSet("_FieldBased",0)
 
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
-                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.NNEDI3CL(par, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons) : Undefined()
+                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input0.NNEDI3CL(par, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp.nonyuy2clipin(true) ).slimit_dif2(NNEDI3clp.nonyuy2clipin(true),thr=4, U=CEed?3:2,V=CEed?3:2).nonyuy2clipout(true) : \
                                                                                Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2)     : \
                 EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ?              Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ) : nop()
@@ -1173,7 +1174,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2).nonyuy2clipout(true) : interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                                 : \
-               (ChromaEdi == "NNEDI3")   ? Input.NNEDI3CL(par, nsize=4, nns=0, qual=1, planes=[1,2] )                                                            : \
+               (ChromaEdi == "NNEDI3")   ? Input0.NNEDI3CL(par, nsize=4, nns=0, qual=1, planes=[1,2] )                                                           : \
                (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 )        : \
                (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                                 : \
                (ChromaEdi == "Bob")      ? Input.ex_Bob( 0,0.5 )                                                                                                 : \
@@ -1504,8 +1505,9 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
 
     } else {
 
-        !nn ? cp.Bob( b, c, h ) : \
-              cp.NNEDI3CL(par ? 3 : 2,nsize=3,nns=3,qual=2)
+        
+        !nn ? Bob(cp, b, c, h ) : \
+              NNEDI3CL(cp.propSet("_FieldBased",0), par ? 3 : 2,nsize=3,nns=3,qual=2)
     }
 
     par ? AssumeTFF() : AssumeBFF()
