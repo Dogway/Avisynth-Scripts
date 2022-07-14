@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.4 (10-07-2022)      ##
+###   Resizers Functions Pack 9.4 (14-07-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -74,6 +74,7 @@
 ###       fmtconv
 ###   GradePack          (for show=true)
 ###   Resizer of choice
+###       NNEDI3CL       (for default "nnedi3" upscale)
 ###       LSFplus        (for default "nnedi3" upscale) (and its dependencies)
 ###       SharpenersPack (for default "nnedi3" upscale)
 ###
@@ -227,7 +228,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             # Y8 for nnedi3
             oned    = krn1 == "nnedi3" && (h == h2 || w == w2)
             an      = oned && !isy ? a.ExtractY() : a
-            a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
+            a8      = ConvertBits(an.propSet("_FieldBased",0), 8, dither=-1, fulls=fs, fulld=fs)
 
             # nnedi3 one dimensional resize case
 
@@ -325,6 +326,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 #
 function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn") {
 
+    a       = propSet(a,"_FieldBased",0)
     wu      = !Defined(width)
     hu      = !Defined(height)
     w       = width (a)
