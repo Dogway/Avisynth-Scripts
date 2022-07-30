@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC53  (27-06-2022)     ##
+###   Transforms Pack - Main v1.0 RC54  (30-07-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -123,11 +123,12 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
 
 # Matches 'a' to 'b' clip format (size, length, color model, Jab, bitdepth)
-function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "props", bool "length", bool "fast") {
+function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size", bool "props", bool "length", bool "fast") {
 
     krn    = Default (kernel, "Spline16")
     fst    = Default (fast,         true)
-    fp     = Default (props,        true)
+    fp     = Default (props,        true) # Assign frame properties
+    sz     = Default (size,         true) # Match dimensions
     mfc    = Default (length,      false) # Match also framecount
 
     Assert(IsVersionOrGreater(3,7,2), "MatchClip: Update AviSynth+ version")
@@ -167,7 +168,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
     } else {
 
         rgbp   = rgbb && b.isPlanar()
-        isScl  = w != wa || h != ha
+        isScl  = (w != wa || h != ha) && sz
         mod    = rgba && rgbb || isy(a) && isy(b) ? 1 : 2
 
         fmt    = format_Fuzzy_Search(b, p_type,  bib)
@@ -182,12 +183,12 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
         # Match dimensions
         isScl ? w > h ? RatioResize(w,mode="adjust2w",kernel=krn,mod=mod,b=bc[0],c=bc[1]) : \
                         RatioResize(h,mode="adjust2h",kernel=krn,mod=mod,b=bc[0],c=bc[1]) : last
-                        PadResize(w,h,mode="dilate",             mod=mod)
+        isScl ?         PadResize(w,h,mode="dilate",             mod=mod)                 : last
 
         # ConvertBackToYUY2 bug: https://forum.doom9.org/showthread.php?p=1038027#post1038027
         isy(b) ? rgba ? isUHDa ? DotClip([0.262404,0.678455,0.059141]) : /* Assumes Rec2020 for UHD */
                       \  isHDa ? DotClip([0.212649,0.715169,0.072182]) : /* Assumes Rec709  for  HD */
-                      \          DotClip([0.298903,0.586620,0.114477]) : ConvertToY(mat)                                                                                         : \
+                      \          DotClip([0.298903,0.586620,0.114477]) : ConvertToY(mat)                                                                                : \
         rgbb   ? rgbp ? Eval(  "ConvertToPlanarRGB            (mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn)"))  : \
                         Eval(  "ConvertTo"   +string(fmt[3])+"(mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn)"))  : \
         yv411         ? Eval(  "ConvertToYV411                (false,mat,"          +(not42 ? ""   :        """ChromaInPlacement=cplacea, """)+"chromaresample=krn)")   : \
@@ -279,8 +280,8 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "prop
 ###     [string "fmt_out"="" (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab")],
 ###     [string "cs_in"=""  (""/ "709"/ "470M"/ "470BG"/ "170M"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG")],
 ###     [string "cs_out"="" (""/ "709"/ "470M"/ "470BG"/ "170M"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG")],
-###     [string "OETF"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "NHK HLG"/ "AdobeRGB"/ "ACESCCt")],
-###     [string "EOTF"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "NHK HLG"/ "AdobeRGB"/ "ACESCCt")],
+###     [string "OETF"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "HLG NHK"/ "AdobeRGB"/ "ACESCCt")],
+###     [string "EOTF"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "HLG NHK"/ "AdobeRGB"/ "ACESCCt")],
 ###     [string "D_in"=""  (""/ "D50"/ "E"/ "D55"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93")],
 ###     [string "D_out"="" (""/ "D50"/ "E"/ "D55"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93")],
 ###     [string "cplace_in"=""  (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
@@ -507,7 +508,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     tv_out        = Select (num,        tv_out,          false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,      false,    false,    false)
     cplace_out    = Select (num,    cplace_out,     "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",    "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
     D_out         = Select (num,         D_out,          "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",       "D60",      "D60",        "E",      "D65",      "D65",    "D65",    "D65")
-    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "170M",       "470",     "170M",      "170M",    "170M",     "DCI",    "linear",  "ACESCCt",      "DCI",     "sRGB",     "sRGB",   "170M",   "sRGB")
+    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "170M",     "470BG",     "170M",      "170M",    "170M",  "DCIXYZ",    "linear",  "ACESCCt",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB")
     PAR           = Select (num,             1,              1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,          1,        1,        1)
     cdc           = Select (num,            "",         "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000",   "JPEGXL", "JPEG2000",    "JPG",    "JPG")
     cont          = Select (num,            "",           "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",          "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jxl",      "jp2",    "jpg",    "jpg")
@@ -1079,10 +1080,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
             # EOTF curve
             sw  = nmod(nw/5.)   sh = sw
-            plt = GradientLinear(last, zoom=1, positive=true, smooth=true, tv_range=tv_in)
+            plt = GradientLinear(last, zoom=1, positive=true, precision=4, smooth=true, tv_range=tv_in)
             plt = plt.moncurve_r(t_gam[0], t_gam[1], tv_in, tv_out, 1)
-            plt = plt.HistoCurve(size=1,gradient=false)
-            plt = plt.BicubicResize(sw,sh,-0.5,0.25).Subtitle("EOTF: "+EOTF)
+            plt = plt.HistoCurve(size=4,gradient=false).BicubicResize(sw,sh,-0.5,0.25).Subtitle("EOTF: "+EOTF)
             plt = isRGBo ? plt.ConvertToPlanarRGB() : plt
             plt = Merge(PadBorders(plt,nw-sw,0,0,nh-sh))
             ex_merge(plt,BoxMask(nw-sw,nw,0,sh),UV=3)
@@ -1109,7 +1109,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.2),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC53",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle(" ConvertFormat() 1.0 RC54",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1175,9 +1175,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 # format_Fuzzy_Search: Second pass of above. Will search for input model and Jab and their IDs and override primaries and matrix IDs based on model.
 # color_propGet: Reads Model, Primaries, Matrix, Standard Illuminant and Transfer frame properties from input, or infer them.
 #
-# xxx_Fuzzy_Search family infers input properties from input string, while color_propGet() infers them directly from frame properties or clip characteristics.
+# xxx_Fuzzy_Search family infers input/output properties from input string, while color_propGet() infers them directly from frame properties or clip characteristics.
 
-# Matrix, Primaries, Standard Illuminant and Transfer strings fuzzy search. Input: string, Output: [string, ID]
+# Matrix, Primaries, Standard Illuminant and Transfer strings fuzzy search. Input: string, Output: [string,string,string,ID,ID,ID,ID]
 function color_Fuzzy_Search (string matrix) {
 
     matrix = UCase(matrix)
@@ -1247,18 +1247,34 @@ function color_Fuzzy_Search (string matrix) {
 \   : (FindStr(matrix,"ARIB")>0 ) ? "HLG"
 \   : (FindStr(matrix,"B67" )>0 ) ? "HLG"
 \   : (FindStr(matrix,"BBC" )>0 ) ? "HLG"
-\   : (FindStr(matrix,"NHK" )>0 ) ? "NHK HLG"
+\   : (FindStr(matrix,"NHK" )>0 ) ? "HLG NHK"
 \   : (matrix == "1886a"        ) ? "1886a"
 \   : (FindStr(matrix,"1886")>0 ) ? "1886"
-\   : (FindStr(matrix,"428" )>0 ) ? "DCI-P3"
+\   : (FindStr(matrix,"428" )>0 ) ? "DCIXYZ"
 \   : (matrix == "Camera"       ) ? "170M"
+\   : (matrix == "2020CL"       ) ? "2020CL"
+\   : (matrix == "2020NCL"      ) ? "2020NCL"
 \   : (matrix == "709-Camera"   ) ? "170M"
-\   : (matrix == "AWG"          ) ? "AdobeRGB"
-\   : (matrix == "XYZ"          ) ? "linear"
 \   : (matrix == "linear"       ) ? "linear"
-\   : (matrix == "ACEScg"       ) ? "linear"
-\   : (matrix == "ACES2065"     ) ? "linear"
-\   : (matrix == "ACESCCt"      ) ? "ACESCCt" : matrixn
+\   : (matrixn== "170M"         ) ? "170M"
+\   : (matrixn== "2020CL"       ) ? "PQ"
+\   : (matrixn== "2020DV5"      ) ? "PQ"
+\   : (matrixn== "2020NCL"      ) ? "1886"
+\   : (matrixn== "240M"         ) ? "240M"
+\   : (matrixn== "470BG"        ) ? "470BG"
+\   : (matrixn== "470M"         ) ? "470M"
+\   : (matrixn== "709"          ) ? "1886"
+\   : (matrixn== "ACES2065"     ) ? "linear"
+\   : (matrixn== "ACEScg"       ) ? "linear"
+\   : (matrixn== "ACESCCt"      ) ? "ACESCCt"
+\   : (matrixn== "AdobeRGB"     ) ? "AdobeRGB"
+\   : (matrixn== "AWG"          ) ? "AdobeRGB"
+\   : (matrixn== "DCI-P3"       ) ? "DCIXYZ"
+\   : (matrixn== "Display-P3"   ) ? "sRGB"
+\   : (matrixn== "OPP"          ) ? "sRGB"
+\   : (matrixn== "sRGB"         ) ? "sRGB"
+\   : (matrixn== "XYZ"          ) ? "linear"
+\   : (matrixn== "YDzDx"        ) ? "PQ" : matrixn
 
     illuminant =
 \     (matrix == "50"            ) ? "D50"
@@ -1279,8 +1295,26 @@ function color_Fuzzy_Search (string matrix) {
 \   : (matrix == "EE"            ) ? "E"
 \   : (matrix == "Neutral"       ) ? "E"
 \   : (matrix == "Equal"         ) ? "E"
-\   : (matrix == "null"          ) ? "E" : matrixn
-
+\   : (matrix == "null"          ) ? "E"
+\   : (matrixn== "170M"          ) ? "D65"
+\   : (matrixn== "2020CL"        ) ? "D65"
+\   : (matrixn== "2020DV5"       ) ? "D65"
+\   : (matrixn== "2020NCL"       ) ? "D65"
+\   : (matrixn== "240M"          ) ? "D65"
+\   : (matrixn== "470BG"         ) ? "D65"
+\   : (matrixn== "470M"          ) ? "C"
+\   : (matrixn== "709"           ) ? "D65"
+\   : (matrixn== "ACES2065"      ) ? "D60"
+\   : (matrixn== "ACESCCt"       ) ? "D60"
+\   : (matrixn== "ACEScg"        ) ? "D60"
+\   : (matrixn== "AdobeRGB"      ) ? "D65"
+\   : (matrixn== "AWG"           ) ? "D50"
+\   : (matrixn== "DCI-P3"        ) ? "DCI"
+\   : (matrixn== "Display-P3"    ) ? "D65"
+\   : (matrixn== "OPP"           ) ? "D65"
+\   : (matrixn== "sRGB"          ) ? "D65"
+\   : (matrixn== "XYZ"           ) ? "E"
+\   : (matrixn== "YDzDx"         ) ? "E" : matrixn
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     idm =
@@ -1326,7 +1360,6 @@ function color_Fuzzy_Search (string matrix) {
     idt =
 \     (transfer == "1886a"         ) ? 0
 \   : (transfer == "1886"          ) ? 1
-\   : (transfer == "709"           ) ? 1
 \   : (transfer == "470M"          ) ? 4
 \   : (transfer == "470BG"         ) ? 5
 \   : (transfer == "170M"          ) ? 6
@@ -1338,14 +1371,12 @@ function color_Fuzzy_Search (string matrix) {
 \   : (transfer == "xvYCC"         ) ? 11
 \   : (transfer == "1361"          ) ? 12
 \   : (transfer == "sRGB"          ) ? 13
-\   : (transfer == "Display-P3"    ) ? 13
-\   : (transfer == "2020"          ) ? 14
 \   : (transfer == "2020NCL"       ) ? 14
 \   : (transfer == "2020CL"        ) ? 15
 \   : (transfer == "PQ"            ) ? 16
 \   : (transfer == "DCIXYZ"        ) ? 17
 \   : (transfer == "HLG"           ) ? 18
-\   : (transfer == "NHK HLG"       ) ? 19
+\   : (transfer == "HLG NHK"       ) ? 19
 \   : (transfer == "AdobeRGB"      ) ? 20
 \   : (transfer == "ACESCCt"       ) ? 21 : -1
 # * DCIXYZ is defined in smpte428-1. It's XYZ space with DCI white point for cinema distribution in DCDM format
@@ -1499,7 +1530,7 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (t_i == 16      ) ? "PQ"
 \   : (t_i == 17      ) ? "DCIXYZ"
 \   : (t_i == 18      ) ? "HLG"
-\   : (t_i == 19      ) ? "NHK HLG"
+\   : (t_i == 19      ) ? "HLG NHK"
 \   : (t_i == 20      ) ? "AdobeRGB"
 \   : (t_i == 21      ) ? "ACESCCt"
 \   : Assert (false, "color_propGet: Unknown _Transfer ID.")
@@ -1653,7 +1684,7 @@ function bicubic_coeffs (string kernel) {
     rbb =      (9   -3. *sqrt(2))/7. # 0.679623
     rbc =      (1   -        rbb)/2. # 0.160189
 
-    # From smoother to sharper
+    # From blurrier to sharper
     c = [-2.,-2.]
     c = kernel == "Notch"             ? [1.5,-0.25]  : c
     c = kernel == "SoftCubic100"      ? [1.0,0.0]    : c # Also called Spline (same as GaussResize(p=21))
@@ -1903,9 +1934,10 @@ function Matrix_coef (string matrix, string "illuminant") {
     [kr, kg, kb, wp[0], wp[1], wp[2], pr, pg, pb] }
 
 
+
 function moncurve_coef (string transfer) {
 
-    # Normalized strings
+    # Normalized strings (601, 709, 2020, AWG and Display-P3 are redundant but kept for clarity)
     t_num =
 \     (transfer == "sRGB"         ) ? 0
 \   : (transfer == "Display-P3"   ) ? 0
@@ -2011,9 +2043,7 @@ function DotClip ( clip clp, float_array vec) {
     CLPa = ExtractClip(clp)
 
     # clip · 1x3
-    Expr(CLPa[0], \
-         CLPa[0], \
-         CLPa[0], "x "+string(vec[0])+" * y "+string(vec[1])+" * + z "+string(vec[2])+" * +", optSingleMode=true) }
+    DotClipA(CLPa, vec) }
 
 
 function DotClipA ( clip_array clp, float_array vec) {
@@ -2060,7 +2090,7 @@ function MatrixDot ( float_array mat1, \
        [ar1,ar2,ar3,ar4,ar5,ar6,ar7,ar8,ar9]  }  }
 
 
-# 3x3 matrix invert
+# 3x3 matrix invert (for pseudo matrix division -> A/B = A * B^-1)
 function MatrixInvert (float_array mat) {
 
     col1 = [mat[0],mat[3],mat[6]]
@@ -2077,7 +2107,10 @@ function MatrixInvert (float_array mat) {
 function MatrixTranspose (float_array mat) {
 
     asize = ArraySize(mat)
-    dim   = int(sqrt(asize))
+    sh    = sqrt(asize)
+    dim   = int(sh)
+
+    Assert(Frac(sh)==0.0, "MatrixTranspose: Matrix shape is not square")
 
     arr = []
     for (y = 0, dim-1, 1) {
@@ -2090,12 +2123,25 @@ function MatrixTranspose (float_array mat) {
     return arr }
 
 
-# Convert a vector into a square matrix by filling with zeroes
-function Broadcast (float_array mat, string "mode", int "size") {
+# 3x3 matrix determinant
+function Determinant (float_array mat) {
+
+    col1 = [mat[0],mat[3],mat[6]]
+    col2 = [mat[1],mat[4],mat[7]]
+    col3 = [mat[2],mat[5],mat[8]]
+    crs2 = Cross(col2, col3)
+    Det  = Dot  (col1, crs2)
+
+    Det }
+
+
+# Convert a vector into a square matrix by filling with dups or zeroes
+function Broadcast (float_array mat, string "mode", bool "fill", int "size") {
 
     asize = ArraySize(mat)
 
     md   = Default(mode, "vonKries") # Right, Bottom or von Kries (diagonal)
+    fill = Default(fill,      false) # Broadcast with copies or set to null (zeroes)
     cast = Default(size,      asize) # Size of matrix in square root form (ie. 3 for a 3x3 matrix)
 
     arr  = []
@@ -2103,12 +2149,20 @@ function Broadcast (float_array mat, string "mode", int "size") {
     cast = cast*cast
     Assert(cast>=asize, "Broadcast: Matrix size cannot be reduced")
 
+    if (!fill) {
     for (i = 1, cast-1, 1) {
         arr = i==1 ? [mat[0]] : arr
         arr = md=="Bottom" ? ArrayAdd(arr,i<     asize                  ? mat[i]                  : 0) : \
               md=="Right"  ? ArrayAdd(arr,i<(dim*asize) && i% dim   ==0 ? mat[min(i/dim,asize-1)] : 0) : \
                              ArrayAdd(arr,i<(dim*asize) && i%(dim+1)==0 ? mat[min(i/dim,asize-1)] : 0)
-      }
+
+      } } else {
+
+    for (i = 0, dim-1, 1) {
+        arr = ArrayAppend(mat,arr)
+        arr = i == dim-1 && md!="Bottom" ? MatrixTranspose(arr) : arr
+    } }
+
     return arr }
 
 
