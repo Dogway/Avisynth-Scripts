@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC53  (27-06-2022)   ##
+###   Transforms Pack - Models v1.0 RC54  (14-07-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -126,7 +126,7 @@
 # List of Color Models:
 # Color Models -not to be confused with Color Spaces- describe the geometry coordinates of the color gamut container and hence its relation (or correlation) with the other channels. They are typically designed or tailored to certain Color Spaces, but not necesarily bound to them like RGB or YCbCr which support many different Color Spaces and thus are nicked Color Absolute Models
 #
-# UCS: Uniform Color Space. Space in which equal distances on the coordinate diagram correspond to equal perceived color differences.
+# UCS: Uniform Color Space. Space (model) in which equal distances on the coordinate diagram correspond to equal perceived color differences.
 # With *: Color Appearance Models (CAM) (Perceptually Uniform -UCS- to various degrees)
 # With +: HDR aware
 # With -: Implemented
@@ -930,9 +930,9 @@ function Yxy_to_XYZ (clip Yxy, clip "x", clip "y", bool "fulls") {
 
     } else {
 
-        Expr(Yb, xl, yl, "y z / x *                ",\
-                         "      x                  ",\
-                         "y z / x * Y@ y / Y - x - ",    optSingleMode=true, format=PixelType(Yxy)) } }
+            Expr(Yb, xl, yl, "y z / x *               ", \
+                             "      x                 ", \
+                             "y z / x * Y@ y / Y - x -", optSingleMode=true, format=PixelType(Yxy)) } }
 
 
 
@@ -1423,7 +1423,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 
 
 
-# RGB to ICtCp. HDR version of YcCbcCrc (aka YCbCr CL)
+# RGB to ICtCp. HDR version of YcCbcCrc (aka YCbCr Constant Luminance)
 # Used mainly for DV Profile 5 [BL+RPU]
 # Requires 32-bit float
 #
@@ -1435,7 +1435,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 # Example for IPTPQc2:
 #     YUV444PS IPTPQc2 source
 #     ICtCp_to_RGB("709",10000,DoVi=true)   # Decode to 709
-#     st_2084_eotf(10000)                   # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
+#     EOTF_2084(10000)                      # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi") {
 
     mat    = color_Fuzzy_Search(matrix)
@@ -1458,7 +1458,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
 
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
-    LMS_gam = st_2084_eotf(LMS,MasterLevel)
+    LMS_gam = EOTF_2084(LMS,MasterLevel)
 
     # Skin tones alignment
     alpha = 1.134464
@@ -1507,7 +1507,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
              1,  mul* 0.032600, mul*-0.676900]
 
     LMS = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
-    LMS_gam = st_2084_oetf(LMS,MasterLevel)
+    LMS_gam = OETF_2084(LMS,MasterLevel)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1585,8 +1585,9 @@ function XYZ_to_RGB (clip xyz, string cspace, string "illuminant", bool "list") 
     list ? M : MatrixClip(xyz, M) }
 
 
-
-# LMS space for linear Chromatic Adaptation Transforms. LMS stands for Long, Medium, Short cone rod responses known as fundamental tristimulus values.
+# LMS space for linear Chromatic Adaptation Transform.
+# LMS stands for Long, Medium, Short cone rod responses known as fundamental tristimulus values.
+# This is the fastest and more straight-forward method for chromatic adaptation, without actually going through the model -CAM-.
 # XYZ Scaling
 # von Kries (Hunt-Pointer-Estevez for equal energy -E-)
 # von Kries (Hunt-Pointer-Estevez adjusted for D65)
@@ -1597,14 +1598,16 @@ function XYZ_to_RGB (clip xyz, string cspace, string "illuminant", bool "list") 
 # CAT02
 # CAT02 Brill 2008
 # CAT16
+# CIE 2015 - Stockman & Sharpe (2000) 2º and 10º Standard Observer
+# Cat.5 from Abhijit Sarkar 10º Observer tests
+# Cat.9 from Abhijit Sarkar 10º Observer tests
 # Bianco BS    2010
 # Bianco BS PC 2010
 # Sharp
 # Sharp Spherical
 # Sharp Spherical with HUE uniformity
-# CIE 2006 Stockman & Sharpe (2000) 2º and 10º Standard Observer
 #
-# Recommended: CAT16, CAT02B, SharpSphere and Stockman
+# Recommended: CAT16, CAT02B, SharpSphere and CIE 2015
 
 function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
@@ -1612,7 +1615,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
     list  = Default (list,      false)
     trans = Default (transpose, false)
 
-    # XYZ Scaling (known as "wrong von Kries")
+    # XYZ Scaling (known as "wrong von Kries"). Equals to RGB (D_in) to XYZ and XYZ to RGB (D_out)
     XYZvk = [1.000000, 0.000000,  0.000000, \
              0.000000, 1.000000,  0.000000, \
              0.000000, 0.000000,  1.000000]
@@ -1632,13 +1635,18 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
             -0.2280, 1.1500,  0.0612, \
              0.0000, 0.0000,  0.9184]
 
+    # HPE65 modification for DVp5 model
+    HPEDV = [0.379702729270854, 0.702595741823277, -0.058294843714358, \
+            -0.209241415246258, 1.132854830780842,  0.060621130953413, \
+             0.003478802327033, 0.037458174951104,  0.880793856972993]
+
     # CAT97/Bradford (also known as Spectral-sharpened Bradford or Linearized Bradford/CIECAM97) usually better than HPE
     # Requires a non-linearity von Kries in the blue channel that is usually omitted (check page 52 of "Computing Chromatic Adaptation" by Süsstrunk)
     Brad  = [0.8951,  0.2664, -0.1614, \
             -0.7502,  1.7135,  0.0367, \
              0.0389, -0.0685,  1.0296]
 
-    # CAT2000, revision of CAT97 by minimizing perceptual error over a different data set
+    # From CIECAM2000 model. CAT00 is a revision of CAT97 by minimizing perceptual error over a different data set
     CAT00 = [0.7982, 0.3389, -0.1371, \
             -0.5918, 1.5512,  0.0406, \
              0.0008, 0.0239,  0.9753]
@@ -1648,7 +1656,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
             -0.8360,  1.8327,  0.0033, \
              0.0357, -0.0469,  1.0112]
 
-    # Improvement over Bradford and CAT00 by excluding the McCann haploscopic data set
+    # From CIECAM02 model. CAT02 is an improvement over Bradford and CAT00 by excluding the McCann haploscopic data set
     CAT02 = [0.7328,  0.4296, -0.1624, \
             -0.7036,  1.6975,  0.0061, \
              0.0030,  0.0136,  0.9834]
@@ -1658,7 +1666,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
             -0.7036,  1.6975,  0.0061, \
              0.0000,  0.0000,  1.0000]
 
-    # Improvement over CAT02
+    # From CIECAM16 model. CAT16 is an improvement over CAT02 (grey with zero chroma)
     CAT16 = [0.401288, 0.650173, -0.051461, \
             -0.250268, 1.204414,  0.045854, \
             -0.002079, 0.048952,  0.953127]
@@ -1678,20 +1686,25 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
             -0.8044,  1.7798,  0.0246, \
              0.0000,  0.0152,  0.9848]
 
-    # CIE 170-2 or CIE 2006 Stockman & Sharpe (2000) physiological 2º Standard Observer
+    # CIE 2015 or CIE 170-2 or (previous CIE 170-1 or CIE 2006/2012) Stockman & Sharpe (2000) physiological 2º Standard Observer
     STK   = [0.210576, 0.855098, -0.0396983, \
             -0.417076, 1.177260,  0.0786283, \
              0.000000, 0.000000,  0.516835]
 
-    # CIE 170-2 or CIE 2006 Stockman & Sharpe (2000) physiological 10º Standard Observer
+    # CIE 2015 or CIE 170-2 or (previous CIE 170-1 or CIE 2006/2012) Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer
     STK10 = [0.217011, 0.835734, -0.043511, \
             -0.429979, 1.203890,  0.086211, \
              0.000000, 0.000000,  0.465792]
 
-    # WIP. Modified (2012) CIE 2006 Stockman & Sharpe (2000) physiological-relevant 2º Standard Observer
-#    CAT12  = [0.000000, 0.000000,  0.000000, \
-#             0.000000, 0.000000,  0.000000, \
-#             0.000000, 0.000000,  0.000000]
+    # Cat.5 of Abhijit Sarkar 10º Observer tests (mean age of 34.5)
+    Cat5   = [ 0.979985, -0.011363, -0.009032, \
+              -0.065248,  1.011010,  0.011730, \
+               0.007037,  0.006649,  1.002210]
+
+    # Cat.9 of Abhijit Sarkar 10º Observer tests (mean age of 52.2)
+    Cat9   = [ 1.121113, -0.011363, -0.012619, \
+              -0.160701,  1.011010,  0.012059, \
+               0.005468,  0.006649,  1.010796]
 
     # Bianco and Schettini (2010) (very similar to CAT02B)
     BIA   = [0.8752, 0.2787, -0.1539, \
@@ -1721,11 +1734,14 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
           md == "E"         ? HPEE          : \
           md == "EE"        ? HPEE          : \
           md == "HPEE"      ? HPEE          : \
+          md == "HPEDV"     ? HPEDV         : \
           md == "IPT"       ? HPEIPT        : \
           md == "HPEIPT"    ? HPEIPT        : \
           md == "Bradford"  ? Brad          : \
           md == "CAT97"     ? Brad          : \
           md == "Fairchild" ? Fair          : \
+          md == "Cat5"      ? Cat5          : \
+          md == "Cat9"      ? Cat9          : \
           md == "CAT00"     ? CAT00         : \
           md == "CAT02"     ? CAT02         : \
           md == "CAT02B"    ? CAT02B        : \
@@ -1740,6 +1756,8 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
           md == "OPP"       ? OPP           : \
           md == "170-2"     ? STK           : \
           FindStr(md,"2006")   >0 ? STK     : \
+          FindStr(md,"2012")   >0 ? STK     : \
+          FindStr(md,"2015")   >0 ? STK     : \
           FindStr(md,"tockman")>0 ? STK     : \
           FindStr(mdL,"bianco")>0 ? BIA     : \
           FindStr(md,"PC")>0? BIAPC         : \
@@ -1751,7 +1769,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
 function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 
-    md   = Default (mode, "CAT02")
+    md   = Default (mode, "CAT16")
     tran = Default (transpose, false)
     list = Default (list,      false)
 
@@ -1823,27 +1841,154 @@ function CAT (clip c, string "source", string "target", string "LMS", bool "tv_r
     } else { CAM } }
 
 
-# CIE XYZ Color Matching Functions, the sum of the corresponding CIE RGB CMF integrals define the white point energy.
+
+# CIE XYZ Color Matching Functions approximations from tabulated data.
+# The sum of the corresponding CIE RGB CMF integrals define the white point energy.
 # Maps spectral observer sensitivity data into linear CIE tristimulus values X, Y and Z.
 #
-# CIE 1931 2º Standard Observer (ideal for LED) (2º -degrees- is the angular size of the human fovea)
-# CIE 1931 Judd (1951) and Vos (1978) modification
-#     1955 2º and 10º Stiles and Burch CMF (was the basis for the later CIE 1964)
-# CIE 1964 10º Supplementary Standard Observer
-# CIE 170-1 or CIE 2006 Stockman & Sharpe (2000) physiological 2º Standard Observer
-# CIE 170-1 or CIE 2006 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer
-# CIE 170-2 (2015) Stockman & Sharpe (2000) physiological 2º Standard Observer
-# CIE 170-2 (2015) Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL, good for OLED)
-# CIE 170-2 Schanda-Csuti (2008) modified 2º Standard Observer (ideal for Plasma)
-# CIE 170-2 TUI (TU Ilmenau, 2008) modified 2º Standard Observer (ideal for OLED)
-# CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
-# Abhijit Sarkar (2011) - ODCI (Observer Dependent Color Imaging) (8 Observer Tables presented as Excel spreadsheet)
-# Modified (2012) CIE 2006 Stockman & Sharpe (2000) physiological-relevant 2º Standard Observer (http://cvrl.ioo.ucl.ac.uk/ciexyzpr.htm)
-# Modified (2012) CIE 2006 Stockman & Sharpe (2000) physiological-relevant 10º Supplementary Standard Observer (ideal for CCFL)
+# Wright & Guild 1931 2° RGB CMFs primaries (which all below are based on) fall at 700nm, 546.1nm and 435.8nm wavelengths.
+# Since computation of RGB spectral tristimulus values was impractical the CIE transformed it into XYZ under the name CIE 1931 2º Standard Observer.
 #
-# * 10º Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets). Movies in a SmartTV might range between 26º and 36º (SMPTE 30 or THX) from the observer, but the individual color patches don't.
-function CMF (clip c, string "source", string "target", bool "tv_range", bool "list") {
+# CIE 1931 2º Standard Observer (ideal for LED) (2º -degrees- is the angular size of the human fovea)
+# CIE 1931 2º Judd (1951) and Vos (1978) modification
+#     1955 2º Stiles and Burch CMF
+#     1975 2º Smith & Pokorny CMF
+#       1992 2º DeMarco, Pokorny & Smith CMF
+# 1959 10º Stiles and Burch CMF
+#   CIE 1964 10º Supplementary Standard Observer (based on 10º (1959) Stiles and Burch CMF)
+# CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 2º  Standard Observer
+# CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL, good for OLED)
+#     CIE 170-2 Schanda-Csuti   (2008) modified 2º Standard Observer (ideal for Plasma)
+#     CIE 170-2 TUI (TU Ilmenau, 2008) modified 2º Standard Observer (ideal for OLED)
+#     CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
+# Cat.5 & Cat.9 - Abhijit Sarkar (2011) - ODCI (Observer Dependent Color Imaging) (8 Observer Tables presented as Excel spreadsheet)
+#
+# * 10º (large field) Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets). Movies in a SmartTV might range between 26º and 36º (SMPTE 30 or THX) from the observer, but the individual color patches don't.
+function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
-    # Multi-Lobe, Piecewise Gaussian Fit for CIE 1931 2º Standard Observer
+    nm  = Default (wavelength,   560) # from 380 to 830. *Shorter wavelengths are absorbed by the cornea (<295nm) and lens (315–390nm)
+    sh  = Default (show,        true) # Show the CMF plot (scaled to unit quadrant) or output the XYZ values
+    CMF = Default (CMF,       "1931") # Color Matching Function
+
+    if (sh) {
+        GradientLinear(c, zoom=1, positive=true, precision=4, smooth=true, x=0, y=0, tv_range=false)
+        L = ExtractY()
+        MergeRGB(L,L,L)
+    }
+
+    # 390nm to 830nm. Multi-Lobe, Piecewise Gaussian Fit for CIE 1931 2º Standard Observer
+    # D65 illuminant at [0.312712, 0.329008]
+    if        (CMF=="1931") {
+    Wx = 0.312712      Wy = 0.329008
+    t1 = (nm-442.0) * (nm<442.0?0.0624:0.0374)
+    t2 = (nm-599.8) * (nm<599.8?0.0264:0.0323)
+    t3 = (nm-501.1) * (nm<501.1?0.0490:0.0382)
+    X  = 0.362 * exp(-0.5 * t1 * t1) + 1.056 * exp(-0.5 * t2 * t2) - 0.065 * exp(-0.5 * t3 * t3)
+    t1 = (nm-568.8) * (nm<568.8?0.0213:0.0247)
+    t2 = (nm-530.9) * (nm<530.9?0.0613:0.0322)
+    Y  = 0.821 * exp(-0.5 * t1 * t1) + 0.286 * exp(-0.5 * t2 * t2)
+    t1 = (nm-437.0) * (nm<437.0?0.0845:0.0278)
+    t2 = (nm-459.0) * (nm<459.0?0.0385:0.0725)
+    Z  = 1.217 * exp(-0.5 * t1 * t1) + 0.681 * exp(-0.5 * t2 * t2)
+
+    sh ? Expr("x 350 * X@ 442   370 - < 0.0624 0.0374 ? X 442   370 - - * 2 ^ -0.5 * exp 0.362 *
+               X          599.8 370 - < 0.0264 0.0323 ? X 599.8 370 - - * 2 ^ -0.5 * exp 1.056 * +
+               X          501.1 370 - < 0.0490 0.0382 ? X 501.1 370 - - * 2 ^ -0.5 * exp 0.065 * - 0.45 *",\
+              "x 350 * X@ 568.8 370 - < 0.0213 0.0247 ? X 568.8 370 - - * 2 ^ -0.5 * exp 0.821 *
+               X          530.9 370 - < 0.0613 0.0322 ? X 530.9 370 - - * 2 ^ -0.5 * exp 0.286 * + 0.45 *",\
+              "x 350 * X@ 437   370 - < 0.0845 0.0278 ? X 437   370 - - * 2 ^ -0.5 * exp 1.217 *
+               X          459   370 - < 0.0385 0.0725 ? X 459   370 - - * 2 ^ -0.5 * exp 0.681 * + 0.45 *") : nop()
+
+    # 360nm to 830nm. Multi-Lobe, Piecewise Gaussian Fit for CIE 1964 10º Standard Observer
+    # D65 illuminant at [0.313824, 0.330999]
+    } else if (CMF=="1964") {
+    Wx = 0.313824      Wy = 0.330999
+    X  = 1.160477     * exp(-1           * pow((nm - 593.27583359)  /48.81284125,2)) + \
+         0.406066     * exp(-1           * pow((nm - 444.33348762)  /27.9289803 ,2))
+    Y  = 1.01318991   * exp(-0.937256650 * pow((nm - 556.301693)    /62.6625473 ,2)) + \
+         0.0235000968 * exp(-7.64404005  * pow((nm - 445.479040)    /67.4229279 ,2))
+    Z  = 2.146832     * exp(-33.88482265 * pow(log((nm - 266.13893779)/180.0702459),2))
+
+    sh ? Expr("x 350 * X@ 593.27583359 370 - - 0.020486412476553 * 2 ^  neg           exp 1.160477     *
+               X          444.33348762 370 - - 0.035805102415429 * 2 ^  neg           exp 0.406066     * + 0.45 *",\
+              "x 350 * X@ 556.301693   370 - - 0.015958495833443 * 2 ^ -0.937256650 * exp 1.01318991   *
+               X          445.479040   370 - - 0.014831749838618 * 2 ^ -7.64404005  * exp 0.0235000968 * + 0.45 *",\
+              "x 350 * X@ 266.13893779 370 - - 0.005553388317998 * log 2 ^ -33.88482265 * exp 2.146832 *   0.45 *") : nop()
+
+    # Multi-Lobe, Piecewise Gaussian Fit for CIE 2015 2º Standard Observer
+    # D65 illuminant at [0.313453, 0.330802]
+    } else if (CMF=="2015_2") {
+    Wx = 0.313453      Wy = 0.330802
+    X  = 1.151326    * exp(-1           * pow((nm - 596.83152348)/46.78554306,2)) + \
+         0.3494153   * exp(-1           * pow((nm - 443.24921254)/29.65566071,2))
+    Y  = 0.918944680 * exp(-1.29798797  * pow((nm - 570.182202)  /63.9498238 ,2)) + \
+         0.291610647 * exp(-2.86867802  * pow((nm - 529.871581)  /49.6014425 ,2)) + \
+         0.089       * exp(-1.87130868  * pow((nm - 475.995186)  /60.5116873 ,2))
+    Z  = 0.9         * exp(-2.40006110  * pow((nm - 433.071156)  /33.3751810 ,2)) + \
+         1.39610998  * exp(-0.413682732 * pow((nm - 455.951450)  /20.4419130 ,2))
+
+    sh ? Expr("x 350 * X@ 596.83152348 370 - - 0.021374124026252 * 2 ^  neg           exp 1.151326    *
+               X          443.24921254 370 - - 0.033720374999529 * 2 ^  neg           exp 0.3494153   * + 0.45 *",\
+              "x 350 * X@ 570.182202   370 - - 0.015637259660440 * 2 ^ -1.29798797  * exp 0.918944680 *
+               X          529.871581   370 - - 0.020160703995655 * 2 ^ -2.86867802  * exp 0.291610647 * +
+               X          475.995186   370 - - 0.016525733203278 * 2 ^ -1.87130868  * exp 0.089       * + 0.45 *",\
+              "x 350 * X@ 433.071156   370 - - 0.029962384323848 * 2 ^ -2.40006110  * exp 0.9         *
+               X          455.951450   370 - - 0.048919100673210 * 2 ^ -0.413682732 * exp 1.39610998  * + 0.45 *") : nop()
+
+    # Multi-Lobe, Piecewise Gaussian Fit for CIE 2015 10º Standard Observer
+    # D65 illuminant at [0.313786, 0.331275]
+    } else if (CMF=="2015_10") {
+    Wx = 0.313786      Wy = 0.331275
+    X  = 1.160477       * exp(-1           * pow((nm - 593.11837073) /48.15263773,2)) + \
+         0.406066       * exp(-1           * pow((nm - 444.07099185) /27.94059768,2))
+    Y  = 0.989818002    * exp(-0.957978328 * pow((nm - 557.662171)   /62.5184569 ,2)) + \
+         0.055256131    * exp(-0.851496216 * pow((nm - 497.775569)   /67.5518673 ,2))
+    Z  = 2.146832       * exp(-33.70579437 * pow(log((nm - 265.93990665)/179.93730243),2))
+
+    sh ? Expr("x 350 * X@ 593.11837073 370 - - 0.020767294319517 * 2 ^  neg           exp 1.160477    *
+               X          444.07099185 370 - - 0.035790215064576 * 2 ^  neg           exp 0.406066    * + 0.45 *",\
+              "x 350 * X@ 557.662171   370 - - 0.015995276428520 * 2 ^ -0.957978328 * exp 0.989818002 *
+               X          497.775569   370 - - 0.014803439785890 * 2 ^ -0.851496216 * exp 0.055256131 * + 0.45 *",\
+              "x 350 * X@ 265.93990665 370 - - 0.005557491340013 * log 2 ^ -33.70579437 * exp 2.146832 *  0.45 *") : nop()
+
+    # 380nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Cat5 Abhijit Sarkar's Observer tests 10º Standard Observer
+    # D65 illuminant at [0.293241, 0.340770]
+    } else if (CMF=="Cat5") {
+    Wx = 0.293241      Wy = 0.34077
+    X  = 1.160477       * exp(-1          * pow((nm - 594.34831376)  /44.70087141,2)) + \
+         0.406066       * exp(-1          * pow((nm - 443.85540032)  /27.42727776,2))
+    Y  = 0.0589846547   * exp(-4.04288641 * pow((nm - 606.960286)    /61.9859710 ,2)) + \
+         0.99262461     * exp(-1.07728930 * pow((nm - 553.655314)    /67.4112904 ,2))
+    Z  = 2.146832       * exp(-33.7308306 * pow(log((nm - 266.07141426)/180.05473374),2))
+
+    sh ? Expr("x 350 * X@ 594.34831376 370 - - 0.022370928540250 * 2 ^  neg           exp 1.160477     *
+               X          443.85540032 370 - - 0.036460052971732 * 2 ^  neg           exp 0.406066     * + 0.45 *",\
+              "x 350 * X@ 606.960286   370 - - 0.016132682667825 * 2 ^ -4.04288641  * exp 0.0589846547 *
+               X          553.655314   370 - - 0.014834310307165 * 2 ^ -1.07728930  * exp 0.99262461   * + 0.45 *",\
+              "x 350 * X@ 266.07141426 370 - - 0.005553866756117 * log 2 ^ -33.7308306 * exp 2.146832  *   0.45 *") : nop()
+
+    # 380nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Cat9 Abhijit Sarkar's Observer tests 10º Standard Observer
+    # D65 illuminant at [0.301797, 0.341821]
+    } else { /* if (CMF=="Cat9") */
+    Wx = 0.301797      Wy = 0.341821
+    X  = 1.160477       * exp(-1           * pow((nm - 598.09202261)  /45.81682164,2)) + \
+         0.406066       * exp(-1           * pow((nm - 447.75849618)  /25.77397532,2))
+    Y  = 0.0589846547   * exp(-4.04288641  * pow((nm - 606.960286)    /61.9859710 ,2)) + \
+         0.992624610    * exp(-1.07728930  * pow((nm - 553.655314)    /67.4112904 ,2))
+    Z  = 2.146832       * exp(-35.77737624 * pow(log((nm - 267.192609)/180.44075615),2))
+
+    sh ? Expr("x 350 * X@ 598.09202261 370 - - 0.021826044762716 * 2 ^  neg           exp 1.160477     *
+               X          447.75849618 370 - - 0.038798826629745 * 2 ^  neg           exp 0.406066     * + 0.45 *",\
+              "x 350 * X@ 606.960286   370 - - 0.016132682667825 * 2 ^ -4.04288641  * exp 0.0589846547 *
+               X          553.655314   370 - - 0.014834310307165 * 2 ^ -1.07728930  * exp 0.99262461   * + 0.45 *",\
+              "x 350 * X@ 267.192609   370 - - 0.005541985199667 * log 2 ^ -35.77737624 * exp 2.146832 *   0.45 *") : nop()
+    }
+
+    if (!sh) { [X,Y,Z,Wx,Wy] } else {
+        R=ExtractR().HistoCurve(3,gradient=true)
+        G=ExtractG().HistoCurve(3,gradient=true)
+        B=ExtractB().HistoCurve(3,gradient=true)
+        MergeRGB(R,G,B).subtitle(CMF,y=10,align=9)
+        }
 
 }
