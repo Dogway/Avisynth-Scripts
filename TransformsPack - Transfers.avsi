@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC52 (27-06-2022) ##
+###   Transforms Pack - Transfers v1.0 RC54 (14-07-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -11,7 +11,7 @@
 ### TRANSFERS:                                           ##
 ###     moncurve_f   /  moncurve_r                       ##
 ###     ACEScct_f    /  ACEScct_r                        ##
-###     st_2084_oetf /  st_2084_eotf                     ##
+###     OETF_2084    /  EOTF_2084                        ##
 ###     SMPTE_legal                                      ##
 ###     Full_scale                                       ##
 ###     SoftLimiter                                      ##
@@ -139,7 +139,7 @@ function ACEScct_f (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     coeffA = 10.5402377416545
     coeffB = 0.0729055341958355
     lb     = 1. / log(2)
-    coeffC = 1 / 17.52
+    coeffC = 1. / 17.52
 
     str    = Format("x "+rangePC+" A@ {X_BRK} <= A {coeffA} * {coeffB} + A log {lb} * 9.72 + {coeffC} * ? "+rangeTV)
 
@@ -196,7 +196,7 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 
 
 # Requires RGB input
-function st_2084_oetf (clip c, int "MasterLevel", bool "tv_range") {
+function OETF_2084 (clip c, int "MasterLevel", bool "tv_range") {
     c
     fs        = propNumElements("_ColorRange")  > 0 ? \
                 propGetInt     ("_ColorRange") == 0 : isRGB()
@@ -219,7 +219,7 @@ function st_2084_oetf (clip c, int "MasterLevel", bool "tv_range") {
     ex_lut(Format(""+rangePC+" 1 {M1} / ^ A@ {C1} - 0 max   {C2} {C3} A * - /    1 {N1} / ^ {PL} * "+rangeTV+"")) }
 
 
-function st_2084_eotf (clip c, int "MasterLevel", bool "tv_range") {
+function EOTF_2084 (clip c, int "MasterLevel", bool "tv_range") {
     c
     fs        = propNumElements("_ColorRange")  > 0 ? \
                 propGetInt     ("_ColorRange") == 0 : isRGB()
@@ -541,7 +541,7 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
         sts = propNumElements("_MinMaxStats") > 0
         st4 = propNumElements("_SceneStats")  > 0
         sw  = nmod(w/5.)   sh = sw
-        plt = GradientLinear(last, zoom=1, positive=true, smooth=true, tv_range=false)
+        plt = GradientLinear(last, zoom=1, positive=true, precision=dyn!=0?1:2, smooth=true, tv_range=false)
         plt = sts || st4 ? ScriptClip(blankclip(last,width=256,height=256,channels=0), function[last,plt,st4,bi,fs,uv] () {
                         sts = st4          ? propGetAsArray("_SceneStats")  : propGetAsArray("_MinMaxStats")
                         stu = st4 && uv==3 ? propGetAsArray("_SceneStatsU") : [16,240]
@@ -551,7 +551,7 @@ function SoftLimiter (clip a, float "lo", float "hi", float "lo_c", float "hi_c"
                                          st4 ? ex_bs(stu[1], bi, 8, fs, flt=true) : sts[3],0,0)
                         HistoCurve(size=1,gradient=false) } ) : \
                     plt.SoftLimiter (slo,shi,sloc,shic,0,0)
-        plt = sts || st4 ? plt : plt.HistoCurve(size=1,gradient=false)
+        plt = sts || st4 ? plt : plt.HistoCurve(size=2,gradient=false)
         plt = plt.BicubicResize(sw,sh,-0.5,0.25)
         plt = PadBorders(plt,w-sw,0,0,h-sh)
         plt = Merge(plt)
