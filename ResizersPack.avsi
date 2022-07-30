@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.4 (14-07-2022)      ##
+###   Resizers Functions Pack 9.5 (30-07-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -12,6 +12,7 @@
 ### Functions:                                      ##
 ###      deep_resize                                ##
 ###      nnedi3resize                               ##
+###      nnedi3wrap                                 ##
 ###      RatioResize                                ##
 ###      PadResize                                  ##
 ###      PadBorders                                 ##
@@ -27,7 +28,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (02-05-2022)
+### deep_resize() - by Dogway (30-07-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -69,14 +70,14 @@
 ###   MasksPack
 ###   TransformsPack
 ###   GrainFactory3mod   (for grain > 0)
-###   SimilarityMetrics  (for 'SSIM2' downscaling)
-###       vsTCanny
-###       fmtconv
 ###   GradePack          (for show=true)
 ###   Resizer of choice
-###       NNEDI3CL       (for default "nnedi3" upscale)
-###       LSFplus        (for default "nnedi3" upscale) (and its dependencies)
-###       SharpenersPack (for default "nnedi3" upscale)
+###       NNEDI3CL          (for default "nnedi3" upscale)
+###       LSFplus           (for default "nnedi3" upscale) (and its dependencies)
+###       SharpenersPack    (for default "nnedi3" upscale)
+###       SimilarityMetrics (for 'SSIM2' downscaling)
+###           vsTCanny
+###           fmtconv
 ###
 ###
 ### Benchmark (1080p to 2160p):
@@ -135,7 +136,7 @@
 ###     deep_resize(1280)
 ###
 ###
-function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "grain", float "th_rat", float "th", float "elast", int "qual", bool "show") {
+function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "grain", float "th_rat", float "th", float "elast", int "qual", int "gpuid", bool "show") {
 
     wu  = !Defined(width)
     hu  = !Defined(height)
@@ -191,6 +192,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     ela    = Default(elast,   4.0)                                                          # 1-255 (normally up to 10)
     qual   = Default(qual,      1)
     sh     = Default(show, false)
+    gpuid  = Default(gpuid,     0)                                                          # Set to -1 for "cpu" nnedi3
     ddec   = Defined(deconv)
     dec    = Default(deconv,    0)                                                          # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
     gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
@@ -228,21 +230,17 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             # Y8 for nnedi3
             oned    = krn1 == "nnedi3" && (h == h2 || w == w2)
             an      = oned && !isy ? a.ExtractY() : a
-            a8      = ConvertBits(an.propSet("_FieldBased",0), 8, dither=-1, fulls=fs, fulld=fs)
+            a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
 
             # nnedi3 one dimensional resize case
 
-            edge1   = krn1 == "nnedi3"  ? oned ? Eval("""a8
-                                          for (i = 1, factor/2, 1) {
-                                          NNEDI3CL(1,dh=h!=h2,dw=w!=w2,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn) }""") : \
-                                          Eval("""a8
-                                          for (i = 1, factor/2, 1) {
-                                          NNEDI3CL(1,dh=true, dw=true, nns=nns, nsize=nsize, qual=qual,etype=etype,pscrn=pscrn) }""") : \
-                                          ConvertFormat(an,w2,h2,cs_out="",EOTF="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+            edge1   = krn1 == "nnedi3" ? oned ? nnedi3wrap(a8,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift="none",HBD=true,gpuid=gpuid) : \
+                                                nnedi3wrap(a8,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,cshift="none",HBD=true,gpuid=gpuid) : \
+                                                ConvertFormat(an,w2,h2,cs_out="",EOTF="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
         if (rat <= rth) {
 
-                      krn1 == "nnedi3" ? oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
+                      krn1 == "nnedi3" ? oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,gpuid=gpuid) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
 
         } else {
             # resizing to target when nnedi3 is used
@@ -317,16 +315,15 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 #
 # nnedi3resize()
 #
-# Simple upscaler that uses nnedi3 at its core, recommended for graphics or textureless images.
+# Simple upscaler that uses nnedi3wrap() at its core, recommended for graphics or textureless images.
 # It accepts arbitrary dimension values, not only limited to powers of 2
 #
 # Dependencies:
 #       ExTools
-#       NNEDI3CL
+#       NNEDI3CL or nnedi3
 #
-function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn") {
+function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn", int "gpuid") {
 
-    a       = propSet(a,"_FieldBased",0)
     wu      = !Defined(width)
     hu      = !Defined(height)
     w       = width (a)
@@ -335,11 +332,6 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
     is4     = is444 (a)
     isy     = isy   (a)
     mod     = rgb || is4 || isy ? 1 : 2
-    bi      = BitsPerComponent(a)
-    fs      = propNumElements (a,"_ColorRange")     > 0 ? \
-              propGetInt      (a,"_ColorRange")    == 0 : rgb
-    cpl     = propNumElements (a,"_ChromaLocation") > 0 ? \
-              propGetInt      (a,"_ChromaLocation")     : 0
 
     w2     = Default(width,  w)
     h2     = Default(height, h)
@@ -357,8 +349,9 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
     hs      = h == h2
     ws      = w == w2
     oned    = hs || ws
-    HBD     = Default(HBD,    false)  # Force HBD. Much slower since nnedi3 is not optimized for HBD
+    HBD     = Default(HBD,    false)  # Force source HBD (slower)
     qual    = Default(qual,       1)
+    gpuid   = Default(gpuid,      0)  # Set to -1 for "cpu" nnedi3
     nns     = Default(nns,   oned ? 1 : 3)
     nsize   = Default(nsize, oned ? 6 : 0)
     etype   = Default(etype,      0)
@@ -372,19 +365,108 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
     rfactor = rw<factor && rh<factor
     krnn    = rfactor ? "Bicubic" : "Blackman" # hard coded nnedi3 final resize: 'Didée' for down 'Blackman6' for up
 
-    # 8-bit for nnedi3
-    !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
+    nnedi3wrap(a,ws?1:factor,hs?1:factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,ep0=rfactor?-0.5:6,ep1=0.25,cshift=krnn,HBD=HBD,gpuid=gpuid)
 
-    for (i = 1, factor/2, 1) {
-
-        NNEDI3CL(1,dh=!hs,dw=!ws,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn)
     }
 
-    cs = cpl!=1 ? -0.5 * (factor-1) : 0
-    Eval(krnn+"resize(w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(hs ? ",src_left=cs)" : ws ? ",src_top=cs)" : ",src_left=cs,src_top=cs)"))
+
+
+#
+# nnedi3wrap()
+#
+# Replacement wrapper for nnedi3_rpow2() and NNEDI3CL() based on 'gpuid' value (default 0 is for NNEDI3CL)
+# Adds "_rpow2" functionality and its arguments to NNEDI3CL().
+# Also decouples 'rfactor' into 'xfactor' and 'yfactor' and sets new reasonable defaults.
+# Finally it automatically fixes center shift for both plugins, set cshift="none" to disable.
+#
+# Dependencies:
+#       ExTools
+#       NNEDI3CL
+#       nnedi3
+#         SysInfo
+#
+function nnedi3wrap(clip a, int "xfactor", int "yfactor", bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn", int "fwidth", int "fheight", string "cshift", float "ep0", float "ep1", int "gpuid") {
+
+    gpuid   = Default(gpuid,     0)  # Set to -1 for "cpu" nnedi3
+    a       = gpuid>-1 ? propSet(a,"_FieldBased",0) : a
+    w       = width (a)
+    h       = height(a)
+    rgb     = isRGB (a)
+    is4     = is444 (a)
+    isy     = isy   (a)
+    bi      = BitsPerComponent(a)
+    fs      = propNumElements (a,"_ColorRange")     > 0 ? \
+              propGetInt      (a,"_ColorRange")    == 0 : rgb
+    cpl     = propNumElements (a,"_ChromaLocation") > 0 ? \
+              propGetInt      (a,"_ChromaLocation")     : 0
+
+    Assert(IsVersionOrGreater(3,7,2), "nnedi3wrap: Update AviSynth+ version")
+
+    xf      = Default(xfactor,    2)
+    yf      = Default(yfactor,   xf)
+    ws      = xf == 1
+    hs      = yf == 1
+    oned    = ws || hs
+    xyf     = max(xf,yf)
+    HBD     = Default(HBD,    false)  # Force source HBD (slower)
+    qual    = Default(qual,       1)
+
+    w1      = w*xf
+    h1      = h*yf
+    nns     = Default(nns,   oned ? 1 : 3)
+    nsize   = Default(nsize, oned ? 6 : 0)
+    etype   = Default(etype,      0)
+    pscrn   = Default(pscrn,      2)
+    w2      = Default(fwidth,     w1)
+    h2      = Default(fheight,    h1)
+
+    sm      = w2 == w1 && h1 == h1
+    rw      = w2/float(w1)
+    rh      = h2/float(h1)
+    factor  = max(rw,rh) < 3 ? 2 : 4
+    rfactor = rw<factor && rh<factor
+
+    krnn    = Default(cshift, sm ? "spline16" : rfactor ? "Bicubic" : "Blackman") # kernel used for fwidth or fheight, otherwise only for pixel shift (set to "none" to disable shift fix)
+    ep0     = Default(ep0,                      rfactor ? -0.5 : 6)
+    ep1     = Default(ep1,                                 0.25)
+
+    # 8-bit for nnedi3
+    a8  = !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
+
+    if (gpuid<0) {
+
+        cores   = SI_PhysicalCores()
+        threads = SI_LogicalCores()
+        if (!oned) {
+            nnedi3_rpow2(a8,rfactor=xyf,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn=="none"?Undefined():krnn+"resize",ep0=ep0,ep1=ep1)
+
+        } else {
+
+            hs          ? TurnRight(a8) : a8
+            for (i = 1, xyf/2, 1) {
+                nnedi3(field=1,dh=True, nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+            }
+            hs          ? TurnLeft()    : last
+        }
+
+    } else {
+        a8
+        for (i = 1, xyf/2, 1) {
+            NNEDI3CL(1, dh=!hs, dw=!ws, nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,device=gpuid)
+            }
+    }
+
+    # Fix for pixel center shift
+    if (krnn!="none" && (oned || gpuid>-1)) {
+        cs  = cpl!=1 ? -0.5 * (xyf-1) : 0
+        krn = LCase(krnn)
+        krn = FindStr(krn, "bicubic") >0 ? 0 : FindStr( krn, "spline")>0 ? 1 : 2
+        Eval(krnn+"resize(w2,h2"+(krn==0 ? ",ep0,ep1" : krn==2 ? ",taps=round(ep0)" : "")+(hs ? ",src_left=cs)" : ws ? ",src_top=cs)" : ",src_left=cs,src_top=cs)"))
+    }
 
     !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last
     propCopy(a) }
+
 
 
 
@@ -505,7 +587,7 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
 ###    int width=1920 (0 to 3840),
 ###    int height=1080 (0 to 2160),
 ###    int "mod"=2 (1 to 16),
-###    string "mode"="$108080" ("Dilate"/ "Mirror"/ "[16,128,128]"/ "[0,128,128]"),
+###    string "mode"="$108080" ("Dilate"/ "Mirror"/ "Fill"/ "[16,128,128]"/ "[0,128,128]"),
 ###    int "biasW"=0 (-1920 to 1920),
 ###    int "biasH"=0 (-1080 to 1080)
 ###    )
@@ -523,7 +605,7 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
     mod    = Default(mod,    fch ? 1 : 2)
     bw     = Default(biasW,  0)
     bh     = Default(biasH,  0)
-    # mode: 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
+    # mode: 'Dilate', 'Mirror', 'Fill' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
     wn  = nmod(wt,mod)  wa = wn-w
     hn  = nmod(ht,mod)  ha = hn-h
@@ -554,9 +636,10 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (https://avisynth.nl/index.php/Color_presets).
 ###
 ### 'Dilate' is slightly faster than 'Mirror' (and probably filtering friendlier)
+### 'Fill' requires FillBorders plugin, and mostly works at low units (1 or 2 pixels max)
 ###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131#post518131)
 ###
-### You can also crop at the same time, let's say crop sides, extend vertically:
+### You can also crop at the same time, let's say crop sides, pad vertically:
 ###     PadBorders(-10,20,-10,20,"Dilate")
 ###
 ### *Color mode has two ways for inputs, the classical PC range based hexadecimal (see link above) or an alternative more intuitive way
@@ -569,7 +652,7 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###    int top=0 (-1000 to 1000 by 2),
 ###    int right=0 (-1000 to 1000 by 2),
 ###    int bottom=0 (-1000 to 1000 by 2),
-###    string "mode"="$108080" ("Dilate"/ "Mirror"/ "[16,128,128]"/ "[0,128,128]")
+###    string "mode"="$108080" ("Dilate"/ "Mirror"/ "Fill"/ "[16,128,128]"/ "[0,128,128]")
 ###    )
 ###
 function PadBorders(clip src, int "left", int "top", int "right", int "bottom", string "mode") {
@@ -589,7 +672,7 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     r  = Default( right,  0 )
     b  = Default( bottom, 0 )
     md = Default( mode, !rgb ? fs ? "$008080" : "$108080" : \
-                               fs ? "$000000" : "$101010" )  # 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
+                               fs ? "$000000" : "$101010" )  # 'Dilate', 'Mirror', 'Fill' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
     md = LeftStr(md,1)=="[" ? ColortoHex(md) : md
 
@@ -599,7 +682,11 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     bc  = nmod(min(b,0),mod)    b  = nmod(max(b,0),mod)
 
 
-    if (md=="mirror") {
+    if (max(l,t,r,b)==0) {
+
+        Crop(-lc,-tc,rc,bc)
+
+    } else if (md=="mirror") {
 
         top=(t  > 0) ? crop(0,0,0,-h+t,      true).flipvertical()   : last
             (t  > 0) ? stackvertical( top,src )                : last
@@ -611,9 +698,10 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
             (r  > 0) ? stackhorizontal(last,rgh)               : last
                        crop(-lc,-tc,rc,bc)
 
-    } else if (md=="dilate") {
+    } else if (md=="dilate"||md=="fill") {
 
         PointResize(w+l+r+lc+rc, h+t+b+tc+bc, -l-lc, -t-tc, w+l+r+lc+rc, h+t+b+tc+bc)
+        md=="fill" ? FillBorders(l,t,r,b,mode=6) : last
 
     } else if (LeftStr(md,1)=="$") {
 
@@ -623,7 +711,7 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 
     } else {
 
-        Assert(false, "PadBorders: Wrong Pad mode")
+        Assert(false, "PadBorders: Wrong mode")
 
     } }
 
@@ -682,7 +770,7 @@ function nmod(val n, int "mod", val "min", int "dec", bool "bankers") {
 
 ##############################
 ### Adjust source to mod(n) size by adding or cropping borders.
-### It's a simpler, more straight-forward alternative of PadResize()
+### It's a simpler, more straight-forward alternative than PadResize()
 ###
 ### modes:
 ###     "auto" - will crop or pad depending on minimal transform (Default)
@@ -695,10 +783,11 @@ function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
     w   = width()
     h   = height()
 
-    mdh = Default(modH,      2)
-    mdv = Default(modV,    mdh)
-    md  = Default(mode, "auto")
-    # borders: 'Dilate', 'Mirror' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
+    mdh = Default(modH,         2)
+    mdv = Default(modV,       mdh)
+    md  = Default(mode,    "auto")
+    bd  = Default(borders, max(mdh,mdv)<3?"Fill":"Dilate")
+    # borders: 'Dilate', 'Mirror', 'Fill' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
     # Ground truth for 'auto'
     wn  = nmod(w,mdh)  wa = abs(wn-w)
@@ -730,7 +819,7 @@ function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
     hc1 = md=="auto" ? hn >= h ? h1 : -h1 : md=="crop" ?  -h1 : h1
     hc2 = md=="auto" ? hn >= h ? h2 : -h2 : md=="crop" ?  -h2 : h2
 
-    PadBorders(wc1,hc1,wc2,hc2,borders) }
+    PadBorders(wc1,hc1,wc2,hc2,bd) }
 
 
 
