@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.85b+ mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.86 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -24,6 +24,9 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.86p
+# - Replace NNEDI3CL with nnedi3wrap
 #
 # v3.85p
 # - Replace nnedi3 with NNEDI3CL
@@ -395,12 +398,13 @@
 #   MaskTools2 (2.2.30  or above)
 #   RgTools    (1.2     or above)
 #   vsTCanny   (1.1.8 for gaussian blur or above)
-#   NNEDI3CL   (1.0.1   or above)
+#   NNEDI3CL   (1.0.2   or above)
 #   SysInfo    (0.1.2.9 or above)
 #   Vinverse   (0.9.4   or above)
 #
 # Core scripts:
 #   ExTools      (8.7   or above)
+#   ResizersPack (9.6   or above) (for nnedi3wrap() )
 #   SMDegrain    (3.5.3 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
@@ -653,6 +657,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     TR2        = (SourceMatch > 0) ? Default(TR2, ((TR2X == 0) ? 1 : TR2X)) : TR2X  # ***TR2 defaults always at least 1 when using source-match***
     RepChroma  = Default( RepChroma,  true )
     Threads    = Default( Threads, SI_LogicalCores() )
+    device_id  = Default( device_id, 0 )
     bomt       = Threads != 1
     ChromaEdi  = Default( ChromaEdi,  ""   )
     NNeurons   = (EdiMode == "NNEDI2" && NNeurons > 2) ? 2 : NNeurons # Smaller range for NNeurons in NNEDI2 (which calls it nsize)
@@ -945,7 +950,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
     # Create interpolated image as starting point for output. Below same as but in one step: PadBorders(0,0,0,(EdiExt.Height()-h)/2,"Dilate").crop(0,(EdiExt.Height()-h)/2,0,0)
     edi1 = Defined(EdiExt) ? EdiExt.PointResize( w,h, 0,(EdiExt.Height()-h)/2, -0,h+eps )                                                              : \
-                             QTGMCp_Interpolate( ediInput.ConvertBits(8,dither=-1,fulls=!tv), InputType, EdiMode, NNSize, NNeurons, EdiQual, EdiMaxD, Threads, bobbed, ChromaEdi, fulls=!tv ).ConvertBits(bi,fulls=!tv)
+                             QTGMCp_Interpolate( ediInput.ConvertBits(8,dither=-1,fulls=!tv), InputType, EdiMode, NNSize, NNeurons, EdiQual, EdiMaxD, Threads, bobbed, ChromaEdi, fulls=!tv, device_id=device_id ).ConvertBits(bi,fulls=!tv)
 
     # >>>> Switch to planar YUY2 during next step - remains planar until very end of script except blurring for back blending & SVThin
 
@@ -994,7 +999,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                                  repair1.QTGMCp_ApplySourceMatch( InputType, ediInput, bVec1,fVec1, bVec2,fVec2, SubPel, SubPelInterp, hpad, vpad,              \
                                                                  ThSAD1, ThSCD1, ThSCD2, SourceMatch, MatchTR1, MatchEdi, MatchNNSize, MatchNNeurons,           \
                                                                  MatchEdiQual, MatchEdiMaxD, MatchTR2, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2,  \
-                                                                 MatchEdiMaxD2, MatchEnhance, Threads, n16, bomt, !tv )
+                                                                 MatchEdiMaxD2, MatchEnhance, Threads, n16, bomt, !tv, device_id )
 
     # Lossless=2 - after preparing an interpolated, de-shimmered clip, restore the original source fields into it and clean up any artefacts.
     # This mode will not give a true lossless result because the resharpening and final temporal smooth are still to come, but it will add further detail.
@@ -1136,18 +1141,17 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
 # Interpolate input clip using method given in EdiMode. Use Fallback or Bob as result if mode not in list. If ChromaEdi string if set then interpolate chroma
 # separately with that method (only really useful for EEDIx). The function is used as main algorithm starting point and for first two source-match stages
-function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSize, int NNeurons, int EdiQual, int EdiMaxD, int Threads, clip "Fallback", string "ChromaEdi", bool "fulls" ) {
+function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSize, int NNeurons, int EdiQual, int EdiMaxD, int Threads, clip "Fallback", string "ChromaEdi", bool "fulls", int "device_id" ) {
 
     # >>>> YUY2 is interleaved here
 
-    ChromaEdi = Default( ChromaEdi, "" )
+    ChromaEdi = Default( ChromaEdi,  "" )
     CEed      =        ( ChromaEdi == "")
-    par       = GetParity(Input) ? 3 : 2
+    id        = Default(device_id,     0)
     threads   = SI_LogicalCores()
-    Input0    = Input.propSet("_FieldBased",0)
 
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
-                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input0.NNEDI3CL(par, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons) : Undefined()
+                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.nnedi3wrap(dh=true, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons, gpuid=id) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp.nonyuy2clipin(true) ).slimit_dif2(NNEDI3clp.nonyuy2clipin(true),thr=4, U=CEed?3:2,V=CEed?3:2).nonyuy2clipout(true) : \
                                                                                Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2)     : \
                 EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ?              Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ) : nop()
@@ -1160,7 +1164,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
              (EdiMode == "EEDI3")        ? EEDI3clp                                                                                  : \
              (EdiMode == "EEDI2")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).SeparateFields().EEDI2( field=-2, maxd=EdiMaxD ).nonyuy2clipout(true) : Input.SeparateFields().EEDI2( field=-2, maxd=EdiMaxD ) : \
              (EdiMode == "Yadif")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 ) : \
-             (EdiMode == "cYadif")       ? Input.Yadif( mode=3 )                                                                     : \
+             (EdiMode == "cYadif")       ? Input.Yadif(  mode=3 )                                                                    : \
              (EdiMode == "TDeint")       ? Input.TDeInt( mode=1 )                                                                    : \
              (EdiMode == "RepYadif")     ? isyuy2(Input) ? Repair( Input.nonyuy2clipin(true).Yadifmod2( mode=3 ), Default( Fallback, Input.ex_Bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
                                                            Repair( Input.Yadifmod2( mode=3 ), Default( Fallback, Input.ex_Bob( 0,0.5 ) ), 2, -1 ) : \
@@ -1174,7 +1178,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2).nonyuy2clipout(true) : interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                                 : \
-               (ChromaEdi == "NNEDI3")   ? Input0.NNEDI3CL(par, nsize=4, nns=0, qual=1, planes=[1,2] )                                                           : \
+               (ChromaEdi == "NNEDI3")   ? Input.nnedi3wrap(dh=true, nsize=4, nns=0, qual=1, planes=[1,2], gpuid=id)                                             : \
                (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 )        : \
                (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                                 : \
                (ChromaEdi == "Bob")      ? Input.ex_Bob( 0,0.5 )                                                                                                 : \
@@ -1303,11 +1307,12 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
                                  int SubPel, int SubPelInterp, int hpad, int vpad, int ThSAD1, int ThSCD1, int ThSCD2, int SourceMatch, \
                                  int MatchTR1, string MatchEdi, int MatchNNSize, int MatchNNeurons, int MatchEdiQual, int MatchEdiMaxD,\
                                  int MatchTR2, string MatchEdi2, int MatchNNSize2, int MatchNNeurons2, int MatchEdiQual2, int MatchEdiMaxD2, \
-                                 float MatchEnhance, int Threads, bool n16, bool "bomt", bool "fulls" ) {
+                                 float MatchEnhance, int Threads, bool n16, bool "bomt", bool "fulls", int "device_id" ) {
 
     # >>>> YUY2: 'Deinterlace' is planar, 'Source' is interleaved (changed to planar here for all processing except interpolation) - returns planar result
     yuy2    = Source.IsYUY2()
     fs      = Default( fulls, false)
+    id      = Default( device_id, 0)
     Source  = yuy2 ? Source.nonyuy2clipin(true) : Source
     sMDegnl = n16 ? ", out16=n16" : ""
     bi      = Source.BitsPerComponent()
@@ -1328,9 +1333,9 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
     noyv16ma1Edi   = MatchEdi =="NNEDI2" || MatchEdi =="NNEDI" || MatchEdi =="EEDI3+NNEDI3" || MatchEdi =="EEDI3" || MatchEdi =="TDeint" || MatchEdi =="cYadif" || MatchEdi =="RepcYadif"
     noyv16ma2Edi   = MatchEdi2=="NNEDI2" || MatchEdi2=="NNEDI" || MatchEdi2=="EEDI3+NNEDI3" || MatchEdi2=="EEDI3" || MatchEdi2=="TDeint" || MatchEdi2=="cYadif" || MatchEdi2=="RepcYadif"
     match1Edi      = (SourceMatch == 0) ? nop() : \
-    !noyv16ma1Edi || !yuy2 ? match1Update.ConvertBits(8,dither=-1,fulls=fs).QTGMCp_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs ).ConvertBits(bi,fulls=fs) : \
-                             match1Update.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                   \
-                                                                           .QTGMCp_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs )   \
+    !noyv16ma1Edi || !yuy2 ? match1Update.ConvertBits(8,dither=-1,fulls=fs).QTGMCp_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs, device_id=id ).ConvertBits(bi,fulls=fs) : \
+                             match1Update.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                               \
+                                                                           .QTGMCp_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs, device_id=id ) \
                                                                            .nonyuy2clipin(true).ConvertBits(bi,fulls=fs)
     match1Super    = (SourceMatch > 0 && MatchTR1 > 0) ? match1Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
     match1Degrain1 = (SourceMatch > 0 && MatchTR1 > 0) ? Eval("match1Edi.MDegrain1( match1Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
@@ -1352,9 +1357,9 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
     match2Clip     = (SourceMatch  < 2 || InputType == 1) ? match1Shp : match1Shp.SeparateFields().SelectEvery( 4, 0,3 ).Weave()
     match2Diff     = (SourceMatch  > 1) ? ex_makediff( Source, match2Clip, UV=3, fulls=fs ) : nop()
     match2Edi      = (SourceMatch <= 1) ? nop() : \
-    !noyv16ma2Edi || !yuy2 ? match2Diff.ConvertBits(8,dither=-1,fulls=fs).QTGMCp_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs ).ConvertBits(bi,fulls=fs) : \
-                             match2Diff.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                         \
-                                                                         .QTGMCp_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs )    \
+    !noyv16ma2Edi || !yuy2 ? match2Diff.ConvertBits(8,dither=-1,fulls=fs).QTGMCp_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs, device_id=id ).ConvertBits(bi,fulls=fs) : \
+                             match2Diff.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                                    \
+                                                                         .QTGMCp_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs, device_id=id ) \
                                                                          .nonyuy2clipin(true).ConvertBits(bi,fulls=fs)
     match2Super    = (SourceMatch > 1 && MatchTR2 > 0) ? match2Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
     match2Degrain1 = (SourceMatch > 1 && MatchTR2 > 0) ? Eval("match2Edi.MDegrain1( match2Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
@@ -1451,7 +1456,8 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 # Modded for frame properties and NNEDI3CL support.
 #
 # Core plugins:
-#   NNEDI3CL   (for nnedi3=true)
+#   ResizersPack  (for nnedi3=true)
+#   NNEDI3CL      (for nnedi3=true)
 #
 #
 # Function Definition:
@@ -1463,10 +1469,12 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 #     bool "nnedi3"=false
 #     )
 #
-function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
+function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int "gpuid") {
 
-   fs     = propNumElements(cp, "_ColorRange")  > 0 ? \
-            propGetInt     (cp, "_ColorRange")      : 1
+    fs     = propNumElements(cp, "_ColorRange")  > 0 ? \
+             propGetInt     (cp, "_ColorRange")      : 1
+    fb     = propNumElements(cp,"_FieldBased")     > 0 ? \
+             propGetInt     (cp,"_FieldBased")         : IsFrameBased(cp) ? 0 : GetParity(cp) ? 2 : 1
 
     w     = cp.Width()
     h     = cp.Height()
@@ -1474,8 +1482,9 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
     b     = Default(b,    0.0)     # cubic coefficient 'b'
     c     = Default(c,    1.0)     # cubic coefficient 'c'. Bob(0.0, 1.0) preserves the original fields for RGB and YUY2, and preserves the Luma but not the Chroma for YV12.
     nn    = Default(nnedi3, false) # Use nnedi3 instead of cubic interpolation
+    gp    = Default(gpuid,  0)
 
-    par   = GetParity(cp)
+    par   = fb==2
 
     if (is420(cp)) {
 
@@ -1492,9 +1501,9 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
         Yodd  = eY.SelectOdd()   Uodd  = eU.SelectOdd()   Vodd  = eV.SelectOdd()
 
         yeven = !nn ? Yeven.BicubicResize(w, h, b, c, 0,  shift, w, fh) : \
-                      Yeven.NNEDI3CL(par ? 1 : 0,dh=true,nsize=3,nns=3,qual=2)
+                      Yeven.nnedi3wrap(1,2,par ? 1 : 0,dh=false,nsize=3,nns=3,qual=2,cshift="none",gpuid=gp)
         yodd  = !nn ?  Yodd.BicubicResize(w, h, b, c, 0, -shift, w, fh) : \
-                       Yodd.NNEDI3CL(par ? 0 : 1,dh=true,nsize=3,nns=3,qual=2)
+                       Yodd.nnedi3wrap(1,2,par ? 0 : 1,dh=false,nsize=3,nns=3,qual=2,cshift="none",gpuid=gp)
 
         ceven = Interleave( Ueven, Veven).BicubicResize(w2, h/2, b, c, 0,  shift, w2, fh/2)
         codd  = Interleave(  Uodd, Vodd ).BicubicResize(w2, h/2, b, c, 0, -shift, w2, fh/2)
@@ -1505,9 +1514,8 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3" ) {
 
     } else {
 
-        
         !nn ? Bob(cp, b, c, h ) : \
-              NNEDI3CL(cp.propSet("_FieldBased",0), par ? 3 : 2,nsize=3,nns=3,qual=2)
+              nnedi3wrap(cp.propSet("_FieldBased",0), field=par ? 3 : 2,dh=true,nsize=3,nns=3,qual=2,gpuid=gp)
     }
 
     par ? AssumeTFF() : AssumeBFF()
