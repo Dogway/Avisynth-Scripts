@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.5 (30-07-2022)      ##
+###   Resizers Functions Pack 9.6 (01-08-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -374,9 +374,10 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
 #
 # nnedi3wrap()
 #
-# Replacement wrapper for nnedi3_rpow2() and NNEDI3CL() based on 'gpuid' value (default 0 is for NNEDI3CL)
+# Replacement wrapper for nnedi3(), nnedi3_rpow2() and NNEDI3CL() based on 'field' and 'gpuid' value.
 # Adds "_rpow2" functionality and its arguments to NNEDI3CL().
-# Also decouples 'rfactor' into 'xfactor' and 'yfactor' and sets new reasonable defaults.
+# Maintains frame props when nnedi3() or nnedi3_rpow2() is used.
+# Decouples 'rfactor' into 'xfactor' and 'yfactor' and sets new reasonable defaults.
 # Finally it automatically fixes center shift for both plugins, set cshift="none" to disable.
 #
 # Dependencies:
@@ -385,38 +386,44 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
 #       nnedi3
 #         SysInfo
 #
-function nnedi3wrap(clip a, int "xfactor", int "yfactor", bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn", int "fwidth", int "fheight", string "cshift", float "ep0", float "ep1", int "gpuid") {
+function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "ep0", float "ep1", int_array "planes", bool "HBD", int "gpuid") {
 
-    gpuid   = Default(gpuid,     0)  # Set to -1 for "cpu" nnedi3
-    a       = gpuid>-1 ? propSet(a,"_FieldBased",0) : a
     w       = width (a)
     h       = height(a)
     rgb     = isRGB (a)
-    is4     = is444 (a)
-    isy     = isy   (a)
     bi      = BitsPerComponent(a)
+    fb      = propNumElements (a,"_FieldBased")     > 0 ? \
+              propGetInt      (a,"_FieldBased")         : IsFrameBased(a) ? 0 : GetParity(a) ? 2 : 1
     fs      = propNumElements (a,"_ColorRange")     > 0 ? \
               propGetInt      (a,"_ColorRange")    == 0 : rgb
     cpl     = propNumElements (a,"_ChromaLocation") > 0 ? \
               propGetInt      (a,"_ChromaLocation")     : 0
 
-    Assert(IsVersionOrGreater(3,7,2), "nnedi3wrap: Update AviSynth+ version")
 
-    xf      = Default(xfactor,    2)
+    dh      = Default(dh,     fb!=0)        # Set to true to switch to deinterlace mode
+    gpuid   = Default(gpuid,      0)        # Set to -1 for "cpu" nnedi3
+    fd      = Default(field,  !dh || fb==0 ? 1 : fb==1 ? 2 : 3)
+    a       = gpuid>-1 && fd<2 ? propSet(a,"_FieldBased",0) : a
+    fd      = gpuid>-1 && fd<0 ? fb : fd
+
+          Assert(IsVersionOrGreater(3,7,2), "nnedi3wrap: Update AviSynth+ version")
+    !dh ? Assert(-2<fd<2,                   "nnedi3wrap: Field must be 0 or 1 for dh=False") : nop()
+
+    xf      = Default(xfactor, !dh ? 2 : 1)  # multiples of 2; 2, 4, 8....
     yf      = Default(yfactor,   xf)
     ws      = xf == 1
     hs      = yf == 1
-    oned    = ws || hs
-    xyf     = max(xf,yf)
-    HBD     = Default(HBD,    false)  # Force source HBD (slower)
-    qual    = Default(qual,       1)
-
     w1      = w*xf
     h1      = h*yf
-    nns     = Default(nns,   oned ? 1 : 3)
-    nsize   = Default(nsize, oned ? 6 : 0)
+    oned    = ws || hs
+    xyf     = max(xf,yf)
+
+    nsize   = Default(nsize, dh ? 3 : oned ? 6 : 0)
+    nns     = Default(nns,   dh ||   !oned ? 3 : 1)
+    qual    = Default(qual,       1)
     etype   = Default(etype,      0)
     pscrn   = Default(pscrn,      2)
+    HBD     = Default(HBD,    false)        # Force source HBD (slower)
     dfw     = Defined(fwidth)
     dfh     = Defined(fheight)
     w2      = Default(fwidth,     w1)
@@ -432,34 +439,34 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", bool "HBD", int "qual"
     ep0     = Default(ep0,                      rfactor ? -0.5 : 6)
     ep1     = Default(ep1,                                 0.25)
 
-    # 8-bit for nnedi3
-    a8  = !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
+    !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
 
     if (gpuid<0) {
 
         cores   = SI_PhysicalCores()
         threads = SI_LogicalCores()
-        if (!oned) {
-            nnedi3_rpow2(a8,rfactor=xyf,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn=="none"?Undefined():krnn+"resize",ep0=ep0,ep1=ep1)
+
+        if        (dh || oned) {
+
+            hs && !dh          ? TurnRight() : last
+            for (i = 1, dh?1:xyf/2, 1) {
+                nnedi3(field=fd, dh=!dh,              nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+            }
+            hs && !dh          ? TurnLeft () : last
 
         } else {
+            nnedi3_rpow2(rfactor=xyf,                 nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn=="none"?Undefined():krnn+"resize",ep0=ep0,ep1=ep1)
 
-            hs          ? TurnRight(a8) : a8
-            for (i = 1, xyf/2, 1) {
-                nnedi3(field=1,dh=True, nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
-            }
-            hs          ? TurnLeft()    : last
         }
 
     } else {
-        a8
-        for (i = 1, xyf/2, 1) {
-            NNEDI3CL(1, dh=!hs, dw=!ws, nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,device=gpuid)
+        for (i = 1, dh?1:xyf/2, 1) {
+            NNEDI3CL(        fd, dh=!dh||!hs, dw=!ws, nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,device=gpuid,planes=planes)
             }
     }
 
     # Fix for pixel center shift or for final scaling
-    if (krnn!="none" && (((dfw||dfh) && !sm) || (oned || gpuid>-1))) {
+    if (krnn!="none" && !dh && (((dfw||dfh) && !sm) || (oned || gpuid>-1))) {
         cs  = cpl!=1 ? -0.5 * (xyf-1) : 0
         krn = LCase(krnn)
         krn = FindStr(krn, "bicubic") >0 ? 0 : FindStr( krn, "spline")>0 ? 1 : 2
@@ -467,7 +474,8 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", bool "HBD", int "qual"
     }
 
     !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last
-    propCopy(a) }
+    gpuid<0  ?  !dh ? propCopy(a) : propCopy(a).propSet("_FieldBased",0) : last
+    ws && hs && !dh && sm ?    a  : last }
 
 
 
