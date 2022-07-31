@@ -417,6 +417,8 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", bool "HBD", int "qual"
     nsize   = Default(nsize, oned ? 6 : 0)
     etype   = Default(etype,      0)
     pscrn   = Default(pscrn,      2)
+    dfw     = Defined(fwidth)
+    dfh     = Defined(fheight)
     w2      = Default(fwidth,     w1)
     h2      = Default(fheight,    h1)
 
@@ -456,8 +458,8 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", bool "HBD", int "qual"
             }
     }
 
-    # Fix for pixel center shift
-    if (krnn!="none" && (oned || gpuid>-1)) {
+    # Fix for pixel center shift or for final scaling
+    if (krnn!="none" && (((dfw||dfh) && !sm) || (oned || gpuid>-1))) {
         cs  = cpl!=1 ? -0.5 * (xyf-1) : 0
         krn = LCase(krnn)
         krn = FindStr(krn, "bicubic") >0 ? 0 : FindStr( krn, "spline")>0 ? 1 : 2
