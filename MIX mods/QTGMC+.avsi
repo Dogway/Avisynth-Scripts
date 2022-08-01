@@ -1150,10 +1150,9 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
     id        = Default(device_id,     0)
     threads   = SI_LogicalCores()
 
-    par       = GetParity(Input) ? 3 : 2
     fb        = propNumElements(Input,"_FieldBased") > 0 ? \
-                propGetInt     (Input,"_FieldBased")     : par
-    fb        = fb==0 ? par : fb==1 ? 2 : 3
+                propGetInt     (Input,"_FieldBased")     : 0
+    fb        = fb==0 ? GetParity(Input) ? 3 : 2 : fb==1 ? 2 : 3
 
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
                 EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.nnedi3wrap(field=fb, dh=true, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons, gpuid=id) : Undefined()
@@ -1476,13 +1475,11 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 #
 function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int "gpuid") {
 
-    fs     = propNumElements(cp, "_ColorRange")  > 0 ? \
-             propGetInt     (cp, "_ColorRange")      : 1
-
-    par       = GetParity(cp) ? 2 : 1
-    fb        = propNumElements(cp,"_FieldBased") > 0 ? \
-                propGetInt     (cp,"_FieldBased")     : par
-    fb        = fb==0 ? par : fb
+    fs    = propNumElements(cp, "_ColorRange") > 0 ? \
+            propGetInt     (cp, "_ColorRange")     : 1
+    fb    = propNumElements(cp, "_FieldBased") > 0 ? \
+            propGetInt     (cp, "_FieldBased")     : 0
+    fb    = fb==0 ? GetParity(cp) ? 2 : 1 : fb
 
     w     = cp.Width()
     h     = cp.Height()
