@@ -1150,8 +1150,13 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
     id        = Default(device_id,     0)
     threads   = SI_LogicalCores()
 
+    par       = GetParity(Input) ? 3 : 2
+    fb        = propNumElements(Input,"_FieldBased") > 0 ? \
+                propGetInt     (Input,"_FieldBased")     : par
+    fb        = fb==0 ? par : fb
+
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
-                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.nnedi3wrap(dh=true, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons, gpuid=id) : Undefined()
+                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.nnedi3wrap(field=fb, dh=true, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons, gpuid=id) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp.nonyuy2clipin(true) ).slimit_dif2(NNEDI3clp.nonyuy2clipin(true),thr=4, U=CEed?3:2,V=CEed?3:2).nonyuy2clipout(true) : \
                                                                                Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2)     : \
                 EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ?              Input.EEDI3( field=-2, mdis=EdiMaxD, threads=Threads, U=CEed,V=CEed, sclip=NNEDI3clp ) : nop()
@@ -1178,7 +1183,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2).nonyuy2clipout(true) : interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2) : interp
 
     interpuv = (InputType == 1)          ? nop()                                                                                                                 : \
-               (ChromaEdi == "NNEDI3")   ? Input.nnedi3wrap(dh=true, nsize=4, nns=0, qual=1, planes=[1,2], gpuid=id)                                             : \
+               (ChromaEdi == "NNEDI3")   ? Input.nnedi3wrap(field=fb, dh=true, nsize=4, nns=0, qual=1, planes=[1,2], gpuid=id)                                   : \
                (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).Yadifmod2( mode=3 ).nonyuy2clipout(true) : Input.Yadifmod2( mode=3 )        : \
                (ChromaEdi == "cYadif")   ? Input.Yadif( mode=3 )                                                                                                 : \
                (ChromaEdi == "Bob")      ? Input.ex_Bob( 0,0.5 )                                                                                                 : \
@@ -1473,8 +1478,11 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
 
     fs     = propNumElements(cp, "_ColorRange")  > 0 ? \
              propGetInt     (cp, "_ColorRange")      : 1
-    fb     = propNumElements(cp,"_FieldBased")     > 0 ? \
-             propGetInt     (cp,"_FieldBased")         : IsFrameBased(cp) ? 0 : GetParity(cp) ? 2 : 1
+
+    par       = GetParity(cp) ? 2 : 1
+    fb        = propNumElements(cp,"_FieldBased") > 0 ? \
+                propGetInt     (cp,"_FieldBased")     : par
+    fb        = fb==0 ? par : fb
 
     w     = cp.Width()
     h     = cp.Height()
