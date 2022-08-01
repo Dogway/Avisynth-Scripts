@@ -392,8 +392,10 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
     h       = height(a)
     rgb     = isRGB (a)
     bi      = BitsPerComponent(a)
+    de      = Defined(dh) ? dh : false
+    fb      = GetParity(a) ? 2 : 1
     fb      = propNumElements (a,"_FieldBased")     > 0 ? \
-              propGetInt      (a,"_FieldBased")         : IsFrameBased(a) ? 0 : GetParity(a) ? 2 : 1
+              propGetInt      (a,"_FieldBased")         : de ? fb : IsFrameBased(a) ? 0 : fb
     fs      = propNumElements (a,"_ColorRange")     > 0 ? \
               propGetInt      (a,"_ColorRange")    == 0 : rgb
     cpl     = propNumElements (a,"_ChromaLocation") > 0 ? \
@@ -409,7 +411,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
           Assert(IsVersionOrGreater(3,7,2), "nnedi3wrap: Update AviSynth+ version")
     !dh ? Assert(-2<fd<2,                   "nnedi3wrap: Field must be 0 or 1 for dh=False") : nop()
 
-    xf      = Default(xfactor, !dh ? 2 : 1)  # multiples of 2; 2, 4, 8....
+    xf      = Default(xfactor, !dh ? 2 : 1)  # powers of 2; 2, 4, 8....
     yf      = Default(yfactor,   xf)
     ws      = xf == 1
     hs      = yf == 1
@@ -473,9 +475,13 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
         Eval(krnn+"resize(w2,h2"+(krn==0 ? ",ep0,ep1" : krn==2 ? ",taps=round(ep0)" : "")+(hs ? ",src_left=cs)" : ws ? ",src_top=cs)" : ",src_left=cs,src_top=cs)"))
     }
 
-    !HBD ? ConvertBits(bi, fulls=fs, fulld=fs) : last
-    gpuid<0  ?  !dh ? propCopy(a) : propCopy(a).propSet("_FieldBased",0) : last
-    ws && hs && !dh && sm ?    a  : last }
+
+    !HBD ? ConvertBits(bi, fulls=fs, fulld=fs)               : last
+
+    gpuid<0  ? propCopy(a)                                   : last
+    dh       ? propSet("_FieldBased",0).propSet("_Combed",0) : last
+
+    ws && hs && !dh && sm ? a : last }
 
 
 
