@@ -1153,7 +1153,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
     par       = GetParity(Input) ? 3 : 2
     fb        = propNumElements(Input,"_FieldBased") > 0 ? \
                 propGetInt     (Input,"_FieldBased")     : par
-    fb        = fb==0 ? par : fb
+    fb        = fb==0 ? par : fb==1 ? 2 : 3
 
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
                 EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3"  ?      Input.nnedi3wrap(field=fb, dh=true, nsize=NNSize, planes=CEed ? [0,1,2] : [0], qual=EdiQual, nns=NNeurons, gpuid=id) : Undefined()
