@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC54 (14-07-2022) ##
+###   Transforms Pack - Transfers v1.0 RC55 (05-08-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -12,6 +12,7 @@
 ###     moncurve_f   /  moncurve_r                       ##
 ###     ACEScct_f    /  ACEScct_r                        ##
 ###     OETF_2084    /  EOTF_2084                        ##
+###     OOTF                                             ##
 ###     SMPTE_legal                                      ##
 ###     Full_scale                                       ##
 ###     SoftLimiter                                      ##
@@ -239,6 +240,97 @@ function EOTF_2084 (clip c, int "MasterLevel", bool "tv_range") {
 
     ConvertToPlanarRGB()
     ex_lut(Format(""+rangePC+" B@ {N1} ^ A^ B range_min > {C1} {C2} A * + {PL} {C3} A * + / {M1} ^ range_min ? "+rangeTV+"")) }
+
+
+
+# Surround adaptation, or Display-to-Display transfer conversion (also for fast inverse OETF conversion when in linear space to retrieve scene-referred)
+# Typical values:
+#    Dim to Dark:    1/0.9811
+#    Neutral to Dim: 1.2
+
+function OOTF (clip a, float "OOTF", val "OETF", val "EOTF", bool "show") {
+
+    rgb   = isRGB(a)
+    bi    = BitsPerComponent(a)
+    fs    = propNumElements (a,"_ColorRange")  > 0 ? \
+            propGetInt      (a,"_ColorRange") == 0 : rgb
+
+    OOTFd     = Defined (OOTF) ?          OOTF  : 0
+    OETF      = Defined (OETF) ? isString(OETF) ? color_Fuzzy_Search(OETF) : OETF : ["","",""]
+    EOTF      = Defined (EOTF) ? isString(EOTF) ? color_Fuzzy_Search(EOTF) : EOTF : ["","",""]
+    sh        = Default (show, false)
+
+    s_gam     = isFloat(OETF) ? [OETF,0] : moncurve_coef(OETF[2]) # still need to work on OOTF for transfers with alpha (maybe do a power law fit?)
+    d_gam     = isFloat(EOTF) ? [EOTF,0] : moncurve_coef(EOTF[2])
+
+    if (s_gam[1]>0) {
+
+        # moncurve_f
+        gamma = s_gam[0]      alpha  = s_gam[1]
+        aplus = 1.0 + alpha   gmins  = gamma - 1.0
+        beta  = (gmins / alpha) * pow( alpha * gamma / ( gmins * aplus), gamma)
+        phi   =  alpha / gmins
+        aplus =  1 / aplus
+
+        # Minimize sum of squares
+        m1 = [100,0]
+        i = max(1,ceil(alpha*100))
+
+        for (p=150, 600, 1) {
+            po = p/300.
+            b = 0
+            for (n=i, 70, 1) {
+                x1 = n/100.
+                y1 = ( x1 > phi) ? pow( ( x1 + alpha) * aplus, gamma) : x1 * beta
+                b  = pow(pow(x1,po)-y1,2)+b  # SSQ sum of squares
+                }
+                m1 = b < m1[0] ? [b,po] : m1
+    }
+    m1 = m1[1]
+    } else { m1 = s_gam[0] }
+
+    if (d_gam[1]>0) {
+
+        # moncurve_f
+        gamma = d_gam[0]      alpha  = d_gam[1]
+        aplus = 1.0 + alpha   gmins  = gamma - 1.0
+        beta  = (gmins / alpha) * pow( alpha * gamma / ( gmins * aplus), gamma)
+        phi   =  alpha / gmins
+        aplus =  1 / aplus
+
+        # Minimize sum of squares
+        m2 = [100,0]
+        i = max(1,ceil(alpha*100))
+
+        for (p=150, 600, 1) {
+            po = p/300.
+            b = 0
+            for (n=i, 70, 1) {
+                x1 = n/100.
+                y1 = ( x1 > phi) ? pow( ( x1 + alpha) * aplus, gamma) : x1 * beta
+                b  = pow(pow(x1,po)-y1,2)+b  # SSQ sum of squares
+                }
+                m2 = b < m2[0] ? [b,po] : m2
+    }
+    m2 = m2[1]
+    } else { m2 = d_gam[0] }
+
+    OOTF = OOTFd==0 ? m1/m2 : OOTFd
+    ex_lut(a, Format("f32 x 0 < x range_min x max {OOTF} ^ ?"))
+
+    if (sh) {
+        bi > 8 ? ConvertBits(8,dither=1,fulls=fs) : last
+        w   = a.width()
+        h   = a.height()
+        sw  = nmod(w/5.)   sh = min(h,sw)
+        plt = GradientLinear(last,zoom=1, precision=2, positive=true, smooth=true, tv_range=false)
+        plt = ex_lut(plt, Format("x {OOTF} ^"))
+        plt = HistoCurve(plt,size=2,gradient=false).BicubicResize(sw,sh,-0.5,0.25)
+        plt = rgb ? plt.ConvertToPlanarRGB() : plt
+        plt = Merge(PadBorders(plt.subtitle(Format(OOTFd!=0?"":"{m1}/{m2}=")+string(OOTF)),w-sw,0,0,h-sh))
+        ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
+    } }
+
 
 
 
