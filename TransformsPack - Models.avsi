@@ -209,7 +209,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     lut      = bi > 12 || isRunTime(yuv,false) ? 0 : 2
     p_type   = format_Fuzzy_Search(yuv, PixelType(yuv), bi)
     matrix   = color_Fuzzy_Search (matrix)
-    coef     = Matrix_coef(matrix[0])
+    coef     = color_coef(mat=matrix[0])
     bc       = bicubic_coeffs(kernel)
     bc_b     = string(bc[1]>=0.?bc[0]:b)
     bc_c     = string(bc[1]>=0.?bc[1]:c)
@@ -318,7 +318,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     bi       = BitsPerComponent(rgb)
     p_type   = format_Fuzzy_Search (rgb, p_type, bi)
     matrix   = color_Fuzzy_Search (matrix)
-    coef     = Matrix_coef(matrix[0])
+    coef     = color_coef(mat=matrix[0])
     bc       = bicubic_coeffs(kernel)
     bc_b     = string(bc[1]>=0.?bc[0]:b)
     bc_c     = string(bc[1]>=0.?bc[1]:c)
@@ -399,7 +399,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
     bi   = BitsPerComponent(RGB)
     lut  = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     mat  = Default (matrix, "709")
-    coef = Default (coef, Matrix_coef(mat))
+    coef = Default (coef, color_coef(mat=mat))
     tvi  = Default (tv_in,  false)
     tvo  = Default (tv_out, false)
 
@@ -444,7 +444,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", float
     bi   = BitsPerComponent(YUV)
     lut  = bi > 12 || isRunTime(YUV,false) ? 0 : 2
     mat  = Default (matrix, "709")
-    coef = Default (coef, Matrix_coef(mat))
+    coef = Default (coef, color_coef(mat=mat))
     tvi  = Default (tv_in,  false)
     tvo  = Default (tv_out, false)
 
@@ -1547,7 +1547,7 @@ function RGB_to_XYZ (clip rgb, string cspace, string "illuminant", bool "list") 
     #           0.35758456587791443, 0.71516913175582890, 0.11919485777616501,    \
     #           0.18045382201671600, 0.07218152284622192, 0.95039016008377080]  : 0
 
-    p     = Matrix_coef(cs[0], illu)
+    p     = color_coef(cs[0], illu=illu)
 
     # Reference White
     RW    = [p[3]/p[4],1,p[5]/p[4]]
@@ -1572,7 +1572,7 @@ function XYZ_to_RGB (clip xyz, string cspace, string "illuminant", bool "list") 
     list  = Default(list, false)
     illu  = Default(illuminant, illu[3])
 
-    p     = Matrix_coef(cs[0], illu)
+    p     = color_coef(cs[0], illu=illu)
 
     # Reference White
     RW    = [p[3]/p[4],1,p[5]/p[4]]
@@ -1805,8 +1805,8 @@ function CAT (clip c, string "source", string "target", string "LMS", bool "tv_r
     tgt   = color_Fuzzy_Search (tgt)
     src   = list ? [src[1],src[1]] : src
     tgt   = list ? [tgt[1],tgt[1]] : tgt
-    wps   = Matrix_coef(src[1])
-    wpt   = Matrix_coef(tgt[1])
+    wps   = color_coef(src[1])
+    wpt   = color_coef(tgt[1])
     same  = wps[3] == wpt[3]
 
     LMS   = XYZ_to_LMS(c, LMS, true)
