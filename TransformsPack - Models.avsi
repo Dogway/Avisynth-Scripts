@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC54  (14-07-2022)   ##
+###   Transforms Pack - Models v1.0 RC55  (05-08-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -50,47 +50,48 @@
 # Standard spaces define a standard to comply with for delivery, normally they are derived from averaging measurements of real unit-by-unit devices defined by their used phosphors.
 # Finally working spaces don't need to be attached to any physical constraints so they can be as big as the CIE 1931 color space (some actually bigger than that), so they are suited for heavy color transformations without much degradation in the process. They can also be geared towards certain effects like getting more color resolution in certain HUES for exposing better shades in color grading tasks. Ultimately everything is being transformed into your display color space in real time so use any working space that suits your job.
 #
-#-470M                   - ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953)
-#-170M                   - ITU-R Rec. BT.601 (525-line = NTSC, SMPTE-C)
-#-240M                   -
-#-470BG                  - ITU-R Rec. BT.601 (625-line = PAL, SECAM)
-#-NTSC-J
-#-sRGB                   - Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users.
-#-2020
-#-AdobeRGB
-#-Adobe Wide Gamut
-#-DCI-P3                 - Digital Cinema
-#-Display-P3
-#-AP0
-#-AP1
-# S-Gamut
-# S-Gamut3
-# S-Gamut3 (Venice)
+#-470M                   - (Historical) ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953)
+#-170M                   - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (525-line = NTSC, SMPTE-C)
+#-240M                   - SMPTE 240M
+#-470BG                  - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (625-line = PAL, SECAM)
+#-NTSC-J                 - ARIB TR-B9. Phosphor primaries used in Japan's consumer CRTs along 9300K + 27 MPCD illuminant.
+#-sRGB                   - IEC 61966-2. Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users. Comprises Primaries, Illuminant and Transfer Characteristics.
+#-2020                   - ITU-R Rec. BT.2020
+#-AdobeRGB               -
+#-Adobe Wide Gamut       -
+#-DCI-P3                 - SMPTE RP 432-2. Digital Cinema
+#-Display-P3             - SMPTE RP 432-1
+#-AP0                    - ACES AP0 coefficients used for ACES2065 color space
+#-AP1                    - ACES AP1 coefficients used for ACEScg   color space
+# S-Gamut                -
+# S-Gamut3               -
+# S-Gamut3 (Venice)      -
 # S-Gamut3.Cine          - Sony Gamut Cinema. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film.
-# S-Gamut3.Cine (Venice)
+# S-Gamut3.Cine (Venice) -
 # CinemaDay              - Canon Cinema Gamut Daylight (5500K)
 # CinemaTungsten         - Canon Cinema Gamut Tungsten (3200K)
 # CanonP3                - Canon DCI-P3+
 # D-Gamut                - DJI D-Gamut
 # D-GamutM               - DJI D-GamutM
-# DragonColor
-# DragonColor2
-# REDColor
-# REDColor2
-# REDColor3
-# REDColor4
+# DragonColor            -
+# DragonColor2           -
+# REDColor               -
+# REDColor2              -
+# REDColor3              -
+# REDColor4              -
 # REDWide                - RED Wide Gamut RGB
 # Protune                - GoPro Protune Native
 # Bolex                  - Bolex Wide Gamut RGB
-# DaVinci Wide Gamut
-# Almira709
-# LC709
-# LC709A
-# s709
+# DaVinci Wide Gamut     -
+# Almira709              -
+# LC709                  -
+# LC709A                 -
+# s709                   -
 # Cine709                - Sony Cine+709
-# ADX10
-# ADX16
-# BlackMagic Design Wide Gamut
+# ADX10                  -
+# ADX16                  -
+# BlackMagic Design Wide Gamut -
+# BlackMagic Pocket 6k Film    -
 # BlackMagic Design Film           (Legacy)
 # BlackMagic Design Broadcast Video(Legacy)
 # BlackMagic Design Broadcast Film (Legacy)
@@ -101,18 +102,17 @@
 # BlackMagic Design 4.6K Film v3   (Legacy)
 # BlackMagic Design 4.6K Video     (Legacy)
 # BlackMagic Design 4.6K Video v3  (Legacy)
-# BlackMagic Pocket 6k Film
 # Alexa                  - Arri Alexa Wide Gamut
 # Film                   - Arri Film Matrix. Traditional film primaries with Illuminant C
 # FS                     - SMPTE Free Scale Gamut for imagery having arbitrary chromaticity that can be conveyed, inherited from Sony's F23, F35, and F65 Wide Gamut cameras. (ST 2048-1)
 # V-Gamut                - Panasonic V-Gamut (Varicam)
 # V709                   - Panasonic Varicam V709
 # F-Log                  - Fujifilm F-Log Gamut
-# Barco Unisee
-# ProPhoto RGB           - RIMM ROMM RGB
-# Wide Gamut RGB
+# Barco Unisee           -
+#-ProPhoto RGB           - RIMM ROMM RGB
+# Wide Gamut RGB         -
 # CIE RGB                - or CIE 1931 RGB
-# Apple RGB
+# Apple RGB              -
 # ColorMatch RGB         - Radius PressView Monitors
 # EBU 3213               - EBU Tech. 3213-E / JEDEC P22 phosphors
 # Beta RGB               - by Bruce Lindbloom, an optimized capture, archiving and editing space for high-end digital imaging applications
@@ -1438,10 +1438,11 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 #     EOTF_2084(10000)                      # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi") {
 
-    mat    = color_Fuzzy_Search(matrix)
-    props  = color_propGet(rgb,mat[4])
+    mat    = Default (matrix, "709")
+    mat    = color_Fuzzy_Search(mat)
+    props  = color_propGet(rgb,mat[2])
 
-    mat    = Defined (matrix) ? mat[0] : props[0]
+    mat    = Defined (matrix) ? mat[0] : color_propGet(rgb)[2]
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
     DV     = Default (DoVi, false)        # Set to true for IPTPQc2
 
@@ -1454,7 +1455,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     LMS = XYZ_to_LMS("HPE",       list=true)
     LMX = MatrixDot(Crosstalk, LMS)
     XYZ = RGB_to_XYZ(mat,props[3],list=true)
-    RtL = MatrixDot(LMX, MatrixTranspose(XYZ)) # RGB to LMS joint matrix
+    RtL = MatrixDot(LMX,  MatrixTranspose(XYZ)) # RGB to LMS joint matrix
 
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
@@ -1462,9 +1463,11 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
 
     # Skin tones alignment
     alpha = 1.134464
-    rot   = [ 1,          0,          0, \
-              0, cos(alpha),-sin(alpha), \
-              0, sin(alpha), cos(alpha)]
+    cosa = cos(alpha)
+    sina = sin(alpha)
+    rot   = [ 1,    0,     0, \
+              0, cosa, -sina, \
+              0, sina,  cosa]
 
     # IPT by Ebner & Fairchild
     mul = DV ? 0.5 : 1    # DVp5 reshaping. Write to RPU flag
@@ -1487,10 +1490,11 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
 # ICtCp to RGB
 function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi") {
 
-    mat    = color_Fuzzy_Search(matrix)
-    props  = color_propGet(ictcp,mat[4])
+    mat    = Default (matrix, "709")
+    mat    = color_Fuzzy_Search(mat)
+    props  = color_propGet(ictcp,mat[2])
 
-    mat    = Defined (matrix) ? mat[0] : props[0]
+    mat    = Defined (matrix) ? mat[0] : color_propGet(ictcp)[2]
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
     DV     = Default (DoVi, false)        # Set to true for IPTPQc2
 
@@ -1588,24 +1592,24 @@ function XYZ_to_RGB (clip xyz, string cspace, string "illuminant", bool "list") 
 # LMS space for linear Chromatic Adaptation Transform.
 # LMS stands for Long, Medium, Short cone rod responses known as fundamental tristimulus values.
 # This is the fastest and more straight-forward method for chromatic adaptation, without actually going through the model -CAM-.
-# XYZ Scaling
-# von Kries (Hunt-Pointer-Estevez for equal energy -E-)
-# von Kries (Hunt-Pointer-Estevez adjusted for D65)
-# von Kries (Hunt-Pointer-Estevez D65 modification for IPT model)
-# CAT97 (Bradford) (Spectral-sharpened)
-# Fairchild
-# CAT00
-# CAT02
-# CAT02 Brill 2008
-# CAT16
-# CIE 2015 - Stockman & Sharpe (2000) 2º and 10º Standard Observer
-# Cat.5 from Abhijit Sarkar 10º Observer tests
-# Cat.9 from Abhijit Sarkar 10º Observer tests
-# Bianco BS    2010
-# Bianco BS PC 2010
-# Sharp
-# Sharp Spherical
-# Sharp Spherical with HUE uniformity
+#    XYZ Scaling
+#    von Kries (Hunt-Pointer-Estevez for equal energy -E-)
+#    von Kries (Hunt-Pointer-Estevez adjusted for D65)
+#    von Kries (Hunt-Pointer-Estevez D65 modification for IPT model)
+#    CAT97 (Bradford) (Spectral-sharpened)
+#    Fairchild
+#    CAT00
+#    CAT02
+#    CAT02 Brill 2008
+#    CAT16
+#    CIE 2015 - Stockman & Sharpe (2000) 2º and 10º Standard Observer (aims to be the defacto CIE standard for the forthcoming future)
+#    Cat.5 from Abhijit Sarkar 10º Observer tests
+#    Cat.9 from Abhijit Sarkar 10º Observer tests
+#    Bianco BS    2010
+#    Bianco BS PC 2010
+#    Sharp
+#    Sharp Spherical
+#    Sharp Spherical with HUE uniformity
 #
 # Recommended: CAT16, CAT02B, SharpSphere and CIE 2015
 
@@ -1791,8 +1795,8 @@ function CAT (clip c, string "source", string "target", string "LMS", bool "tv_r
     rgb     = IsRGB(c)
     propIDs = color_propGet(c)
 
-    src   = Default (source,   propIDs[3])
-    tgt   = Default (target,        "D65")
+    src   = Default (source,   propIDs[3]) # Source illuminant
+    tgt   = Default (target,        "D65") # Target illuminant
     LMS   = Default (LMS,         "CAT16")
     tv    = Default (tv_range, propIDs[6])
     list  = Default (list,          false)
@@ -1846,22 +1850,23 @@ function CAT (clip c, string "source", string "target", string "LMS", bool "tv_r
 # The sum of the corresponding CIE RGB CMF integrals define the white point energy.
 # Maps spectral observer sensitivity data into linear CIE tristimulus values X, Y and Z.
 #
-# Wright & Guild 1931 2° RGB CMFs primaries (which all below are based on) fall at 700nm, 546.1nm and 435.8nm wavelengths.
+# Wright & Guild 1931 2° RGB CMFs primaries (which CIE 1931 is based on) fall at 700nm, 546.1nm and 435.8nm wavelengths.
 # Since computation of RGB spectral tristimulus values was impractical the CIE transformed it into XYZ under the name CIE 1931 2º Standard Observer.
 #
 # CIE 1931 2º Standard Observer (ideal for LED) (2º -degrees- is the angular size of the human fovea)
-# CIE 1931 2º Judd (1951) and Vos (1978) modification
-#     1955 2º Stiles and Burch CMF
-#     1975 2º Smith & Pokorny CMF
-#       1992 2º DeMarco, Pokorny & Smith CMF
+#  |_ CIE 1931 2º Judd (1951) and Vos (1978) modification
+#     |_  1975 2º Smith & Pokorny CMF (LMS based)
+#        |_ 1992 2º DeMarco, Pokorny & Smith CMF
+# 1955 2º  Stiles and Burch CMF (RGB based) (download in XYZ)
+#  |_ 1993 2º  Stockman, MacLeod and Johnson (LMS based)
 # 1959 10º Stiles and Burch CMF
-#   CIE 1964 10º Supplementary Standard Observer (based on 10º (1959) Stiles and Burch CMF)
-# CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 2º  Standard Observer
-# CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL, good for OLED)
-#     CIE 170-2 Schanda-Csuti   (2008) modified 2º Standard Observer (ideal for Plasma)
-#     CIE 170-2 TUI (TU Ilmenau, 2008) modified 2º Standard Observer (ideal for OLED)
-#     CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
-# Cat.5 & Cat.9 - Abhijit Sarkar (2011) - ODCI (Observer Dependent Color Imaging) (8 Observer Tables presented as Excel spreadsheet)
+#  |_ CIE 1964 10º Supplementary Standard Observer (based on 10º (1959) Stiles and Burch CMF)
+#  |_ CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 2º  Standard Observer
+#  |_ CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL, good for OLED)
+#      |_ CIE 170-2 Schanda-Csuti   (2008) modified 2º Standard Observer (ideal for Plasma)
+#      |_ CIE 170-2 TUI (TU Ilmenau, 2008) modified 2º Standard Observer (ideal for OLED)
+#      |_ CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
+# 2011 Cat.5 & Cat.9 (Abhijit Sarkar 2011) - ODCI (Observer Dependent Color Imaging) (8 Observers Table presented as Excel spreadsheet)
 #
 # * 10º (large field) Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets). Movies in a SmartTV might range between 26º and 36º (SMPTE 30 or THX) from the observer, but the individual color patches don't.
 function CMF (clip c, string "CMF", int "wavelength", bool "show") {
@@ -1950,6 +1955,28 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
               "x 350 * X@ 557.662171   370 - - 0.015995276428520 * 2 ^ -0.957978328 * exp 0.989818002 *
                X          497.775569   370 - - 0.014803439785890 * 2 ^ -0.851496216 * exp 0.055256131 * + 0.45 *",\
               "x 350 * X@ 265.93990665 370 - - 0.005557491340013 * log 2 ^ -33.70579437 * exp 2.146832 *  0.45 *") : nop()
+
+    # 380nm to 825nm. Multi-Lobe, Piecewise Gaussian Fit for Judd(1951)-Vos(1978) modified CIE 1931 2º Standard Observer
+    # D65 illuminant at [0.316084, 0.335067]
+    } else if (CMF=="Judd-Vos") {
+    Wx = 0.316084      Wy = 0.335067
+    X  = 1.151326    * exp(-1           * pow((nm - 596.16761823)/44.86322931,2)) + \
+         0.3494153   * exp(-1           * pow((nm - 441.85056287)/30.60218578,2))
+    Y  = 0.601847253 * exp(-1.51659845  * pow((nm - 581.234908)  /63.9735453 ,2)) + \
+         0.712156002 * exp(-0.900352124 * pow((nm - 527.940921)  /49.6827585 ,2)) + \
+        -0.257747007 * exp(-3.95568352  * pow((nm - 496.724457)  /61.8141296 ,2))
+    Z  = 0.53        * exp(-10.7859617  * pow((nm - 429.692756)  /66.7792884 ,2)) + \
+        -703.724202  * exp(-2.81482710  * pow((nm - 475.579269)  /55.2441554 ,2)) + \
+         704.629016  * exp(-4.12148933  * pow((nm - 475.555344)  /66.8735868 ,2))
+
+    sh ? Expr("x 350 * X@ 596.16761823 370 - - 0.022289969210422 * 2 ^  neg           exp  1.151326    *
+               X          441.85056287 370 - - 0.032677404391602 * 2 ^  neg           exp  0.3494153   * + 0.45 *",\
+              "x 350 * X@ 581.234908   370 - - 0.015631461337816 * 2 ^ -1.51659845  * exp  0.601847253 *
+               X          527.940921   370 - - 0.020127706878433 * 2 ^ -0.900352124 * exp  0.712156002 * +
+               X          496.724457   370 - - 0.016177531034911 * 2 ^ -3.95568352  * exp -0.257747007 * + 0.45 *",\
+              "x 350 * X@ 429.692756   370 - - 0.014974702845141 * 2 ^ -10.7859617  * exp  1        *
+               X          475.579269   370 - - 0.018101462367547 * 2 ^ -2.81482710  * exp -703.724202  * +
+               X          475.555344   370 - - 0.014953587026679 * 2 ^ -4.12148933  * exp  704.629016  * + 0.45 *") : nop()
 
     # 380nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Cat5 Abhijit Sarkar's Observer tests 10º Standard Observer
     # D65 illuminant at [0.293241, 0.340770]
