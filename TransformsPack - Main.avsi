@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC54  (30-07-2022)     ##
+###   Transforms Pack - Main v1.0 RC55  (05-08-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -236,7 +236,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 ###               Optional resizer plugins (check links)
 ###
 ### Example 1 - Limited YUV to full RGB:
-###     ConvertBits(10,fulls=false)     # RGB conversion from YUV requires at least 10-bit precision
+###     ConvertBits(10,fulls=false)     # RGB conversion from YUV requires at least 10-bit precision, but fairly enough for transfer/color space conversion tasks I wouldn't go any lower than 16-bit, unless you are curious on low bitdepth side-effects.
 ###     ConvertFormat(1,1,"YUV","RGB")
 ###
 ### Example 2 - Downscale HD Rec.709 YUV to SD 170M YUV:
@@ -425,8 +425,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     cs_out     = Defined (cs_out) ? cs_out =="" ? cs_in : cs_out : cs_in_d ? cs_in : (cs_in == "jpeg" || cs_in == "jpg" || cs_inF == "sRGB") && isRGBo ? "sRGB" : isnUHD ? "2020" : isnHD ? "709" : "170M"
       cs_outFA = color_Fuzzy_Search (cs_out)
       cs_outF  = cs_outFA[0]
-    OETF       = Defined(OETF) ? OETF =="" ? Und  : OETF : cs_in_d  ? cs_in ==""  ? propIDs[5] : cs_in : propIDs[5]
-    EOTF       = Defined(EOTF) ? EOTF =="" ? OETF : EOTF : cs_outF # By default derived from space
+    OETFd      = cs_inF =="709" || cs_inF =="170M" || cs_inF =="240M" || cs_inF =="Display-P3" || FindStr(cs_inF, "470")>0 || FindStr(cs_inF, "2020")>0 ? "1886" : propIDs[5]
+    OETF       = Defined(OETF) ? OETF =="" ? OETFd : OETF : OETFd # Actually EOTF^-1 (inverse EOTF)
+    EOTFd      = cs_outF=="709" || cs_outF=="170M" || cs_outF=="240M" || cs_outF=="Display-P3" || FindStr(cs_outF,"470")>0 || FindStr(cs_outF,"2020")>0 ? "1886" : cs_outF
+    EOTF       = Defined(EOTF) ? EOTF =="" ? OETF : EOTF : EOTFd
         OETF_i = color_Fuzzy_Search (OETF)
         EOTF_i = color_Fuzzy_Search (EOTF)
           EOTF = EOTF_i[2]
@@ -942,9 +944,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     if (isSpace || isIllu || isGamma && isRGBi) {
 
-        R = !isRGBi ? R.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : R
-        G = !isRGBi ? G.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : G
-        B = !isRGBi ? B.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : B
+        R = R.ConvertBits(32)    R = !isRGBi ? R.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : R
+        G = G.ConvertBits(32)    G = !isRGBi ? G.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : G
+        B = B.ConvertBits(32)    B = !isRGBi ? B.moncurve_f(s_gam[0], s_gam[1], false, false, 1) : B
 
         mata = RGB_to_XYZ  (cs_in,  D_in,                  list=true)
         matw = CAT         (D_in,   D_out, LMS="CAT16",    list=true)
@@ -956,11 +958,11 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         Bo = "x "+string(mat[2])+" * y "+string(mat[5])+" * + z "+string(mat[8])+" * +"
 
         if (!isRGBo) {
-        Ro = Expr(R, G, B, Ro, optSingleMode=true)
-        Go = Expr(R, G, B, Go, optSingleMode=true)
-        Bo = Expr(R, G, B, Bo, optSingleMode=true)
+        Ro = Expr(R, G, B, Ro, optSingleMode=true, clamp_float=true) # Implement gamut compression instead of clipping in the future
+        Go = Expr(R, G, B, Go, optSingleMode=true, clamp_float=true)
+        Bo = Expr(R, G, B, Bo, optSingleMode=true, clamp_float=true)
         R = Ro  G = Go  B = Bo
-        } else { Expr(R, G, B, Ro, Go, Bo, Format=o_fmt[3]+o_fmt[2], optSingleMode=true) }
+        } else { Expr(R, G, B, Ro, Go, Bo, Format=o_fmt[3]+o_fmt[2], optSingleMode=true, clamp_float=true).ConvertBits(bi,dither=bi==32?-1:1) }
 
 
     if (isRGBi && isRGBo && isScale) {
@@ -988,9 +990,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     if (!isRGBo && (isSpace || isIllu) || isRGBi && isFrmt) {
 
-        R = isSpace || isIllu || isGamma ? R.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : R
-        G = isSpace || isIllu || isGamma ? G.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : G
-        B = isSpace || isIllu || isGamma ? B.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : B
+        R = isSpace || isIllu || isGamma ? R.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : R    R = R.ConvertBits(bi,dither=bi==32?-1:1)
+        G = isSpace || isIllu || isGamma ? G.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : G    G = G.ConvertBits(bi,dither=bi==32?-1:1)
+        B = isSpace || isIllu || isGamma ? B.moncurve_r(t_gam[0], t_gam[1], isRGBi && !isSpace && !isIllu && tv_in, false, 1) : B    B = B.ConvertBits(bi,dither=bi==32?-1:1)
 
         if (o_fmt0=="YcCbcCrc" || cs_out == "2020CL") {
 
@@ -1109,7 +1111,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.2),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle(" ConvertFormat() 1.0 RC54",               size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.0 RC55",                size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1212,7 +1214,7 @@ function color_Fuzzy_Search (string matrix) {
 \   : (FindStr(matrix,"2085")>0 ) ? "YDzDx"
 \   : (matrix == "AdobeWideGamut")? "AWG"
 \   : (matrix == "AWG"          ) ? "AWG"
-\   : (matrix == "Adobe"        ) ? "AdobeRGB"
+\   : (FindStr(matrix,"ADOBE")>0) ? "AdobeRGB"
 \   : (matrix == "opRGB"        ) ? "AdobeRGB"
 \   : (matrix == "opYCC"        ) ? "AdobeRGB"
 \   : (FindStr(matrix, "DCI")>0 ) ? "DCI-P3"
@@ -1236,7 +1238,7 @@ function color_Fuzzy_Search (string matrix) {
 \   : (matrix == "OPP"          ) ? "OPP"
 \   : (matrix == "OOO"          ) ? "OPP" : ""
 
-# * ST2084 or ARIB STD-B67 is the name of the normative/paper not the transfer function
+# * ST2084 or ARIB STD-B67 is the name of the normative/paper not the transfer function (HLG)
     transfer =
 \     (FindStr(matrix,"2084")>0 ) ? "PQ"
 \   : (FindStr(matrix,"2100")>0 ) ? "PQ"
@@ -1912,15 +1914,17 @@ function Matrix_coef (string matrix, string "illuminant") {
     # It's mandatory for them to do a chromatic adaptation transform (CAT) to convert them to
     # equal energy (E) illuminant based primaries that conform to XYZ space for further transformations
     #
-    #                     NTSC 1953/YCbCr   ITU-R BT.709-6/sRGB ITU-R BT.601     Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100      Adobe RGB (1998)  Adobe Wide Gamut   Display-P3/D65P3  DCI-P3            AP1                AP0                E (Neutral)    D55                D75                NTSC-J
-    #                     BT-470M/FCC       IEC 61966-2-1       SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100      Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg/ACEScct     SMPTE ST 2065-1    XYZ            D55                D75                9300K+27 MPCD   Sunlight        Overcast
-    pr  = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],    [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.70792, 0.29203],  [0.640,  0.330],  [0.73469,0.26531], [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653], [1.0, 0.0] ,                                        [0.618, 0.350] )
-    pg  = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],    [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.17024, 0.79652],  [0.210,  0.710],  [0.11416,0.82621], [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000], [0.0, 1.0] ,                                        [0.280, 0.605] )
-    pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.13137, 0.04588],  [0.150,  0.060],  [0.15664,0.01770], [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770], [0.0, 0.0] ,                                        [0.152, 0.063] )
-    pw  = Select (mat_w,  [0.31006,0.31616],[0.312713, 0.329016],                                                                                           [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3],  [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311], [0.3362,0.3502],[0.3134,0.3275])
-    wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                           [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3],  [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311], [0.3362,0.3502],[0.3134,0.3275])
-    Kv  = Select (mat_wp,  6774.153        , 6503.519           ,                                                                                            5001.828        ,                    6302.797      ,   6000.07                            ,  5455.486  ,   5502.815         , 7506.288         , 8945.623     ,  5348.372      , 6477.494      )
+    #                     NTSC 1953/YCbCr   ITU-R BT.709-6/sRGB ITU-R BT.601     Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100      Adobe RGB (1998)  Adobe Wide Gamut   Display-P3/D65P3  DCI-P3            AP1                AP0                E (Neutral)    D55                D75                NTSC-J*        P22/NTSC-J (from https://bkict-ocw.knu.ac.kr/caster/file/lecture/5955F4002DC3E.pdf)
+    #                     BT-470M/FCC       IEC 61966-2-1       SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100      Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg/ACEScct     SMPTE ST 2065-1    XYZ            D55                D75                9300K+27 MPCD  9300K+27 MPCD  ProPhotoRGB      Sunlight        Overcast
+    pr  = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],    [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.70792, 0.29203],  [0.640,  0.330],  [0.73469,0.26531], [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653], [1.0, 0.0] ,                                        [0.618, 0.350],[0.641, 0.327],[0.7347, 0.2653] )
+    pg  = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],    [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.17024, 0.79652],  [0.210,  0.710],  [0.11416,0.82621], [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000], [0.0, 1.0] ,                                        [0.280, 0.605],[0.272, 0.591],[0.1596, 0.8404] )
+    pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.13137, 0.04588],  [0.150,  0.060],  [0.15664,0.01770], [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770], [0.0, 0.0] ,                                        [0.152, 0.063],[0.142, 0.052],[0.0366, 0.0001] )
+    pw  = Select (mat_w,  [0.31006,0.31616],[0.312713, 0.329016],                                                                                           [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3],  [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311]               ,[0.34567,0.35850], [0.3362,0.3502],[0.3134,0.3275])
+    wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                           [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3],  [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311]               ,[0.34567,0.35850], [0.3362,0.3502],[0.3134,0.3275])
+    Kv  = Select (mat_wp,  6774.153        , 6503.519           ,                                                                                            5001.828        ,                    6302.797      ,   6000.07                            ,  5455.486  ,   5502.815         , 7506.288         , 8945.623                    , 5001.828        ,  5348.372      , 6477.494      )
   # Kv (Kelvin) are Correlated Color Temperatures (CCT) derived from 'CIE 1931 2º Degree Standard Observer' CMF with 'native' isotherms
+  # *BT.2035 defines D93 as 0.2831, 0.2971, but this is a simple straight CCT of 9300K not the illuminant used in standard consumer CRTs in Japan (actually 9300K+27 MPCD**)
+  # ** MPCD -Minimum Perceptible Color Difference- refers to the deviation unit in respect to the temperature CCT. For example D65 can also be specified as 6700K + 18 MPCD or more correctly as 6504K + 4 MPCD.
 
     pr = [pr[0], pr[1], 1 - pr[0] - pr[1]]    pw = [pw[0], pw[1], 1 - pw[0] - pw[1]]
     pg = [pg[0], pg[1], 1 - pg[0] - pg[1]]    wp = [wp[0], wp[1], 1 - wp[0] - wp[1]]
@@ -1934,6 +1938,9 @@ function Matrix_coef (string matrix, string "illuminant") {
     [kr, kg, kb, wp[0], wp[1], wp[2], pr, pg, pb] }
 
 
+# Typical production practices for SDTV transfer characteristics differ from those specified in ITU recommendations.
+# While NTSC-525 and PAL-625 are defined with 170M and 470BG OETFs respectively most often than not 1886 is used nowadays as EOTF (read note 3 on page 6 of REC-BT.601-7)
+# You should be conscious of this and change according your requirements.
 
 function moncurve_coef (string transfer) {
 
