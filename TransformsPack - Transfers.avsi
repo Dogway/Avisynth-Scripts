@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC55 (05-08-2022) ##
+###   Transforms Pack - Transfers v1.0 RC56 (05-08-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -276,12 +276,12 @@ function OOTF (clip a, float "OOTF", val "OETF", val "EOTF", bool "show") {
         m1 = [100,0]
         i = max(1,ceil(alpha*100))
 
-        for (p=150, 600, 1) {
+        for (p=150, 900, 1) {
             po = p/300.
             b = 0
             for (n=i, 70, 1) {
                 x1 = n/100.
-                y1 = ( x1 > phi) ? pow( ( x1 + alpha) * aplus, gamma) : x1 * beta
+                y1 = x1 > phi ? pow( (x1 + alpha) * aplus, gamma) : x1 * beta
                 b  = pow(pow(x1,po)-y1,2)+b  # SSQ sum of squares
                 }
                 m1 = b < m1[0] ? [b,po] : m1
@@ -302,12 +302,12 @@ function OOTF (clip a, float "OOTF", val "OETF", val "EOTF", bool "show") {
         m2 = [100,0]
         i = max(1,ceil(alpha*100))
 
-        for (p=150, 600, 1) {
+        for (p=150, 900, 1) {
             po = p/300.
             b = 0
             for (n=i, 70, 1) {
                 x1 = n/100.
-                y1 = ( x1 > phi) ? pow( ( x1 + alpha) * aplus, gamma) : x1 * beta
+                y1 = x1 > phi ? pow( (x1 + alpha) * aplus, gamma) : x1 * beta
                 b  = pow(pow(x1,po)-y1,2)+b  # SSQ sum of squares
                 }
                 m2 = b < m2[0] ? [b,po] : m2
