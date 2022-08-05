@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.5 (14-07-2022)               ##
+###           Grade Pack v7.6 (05-08-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -556,6 +556,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     # 'hue' mode is YUV (not RGB) based so it differs from Photoshop's
     # 'bleach' and 'stain' modes look the same in ffmpeg (bug?) ('stain' alike here)
     # 'hardoverlay' is close but not math exact to original, revise later
+    # Some modes still need clamping for overflow values, revise later
     str = Format(                                                                                                                                                                  \
                                                                                                                                                                                    \
         md == "--"            ? "x"                                                                                                                                              : \
@@ -727,13 +728,19 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
     fs   = propNumElements (c,"_ColorRange")  > 0 ? \
            propGetInt      (c,"_ColorRange") == 0 : rgb
 
-    bits = Default(bits,     3)    # Valid range: 0 - 7
-    md   = Default(mode,    -1)    # Valid modes: -1: round  0: Bayer OD  1: Floyd-Steinberg ED  2: Sierra-2-4A ED  3: Stucki ED  4: Atkinson ED  5: Ostromoukhov ED  6: Void & Cluster OD  7: Quasirandom OD
     UV   = Default(UV, rgb ? 3 : 2)
-
+    bits = Default(bits,     3)    # Valid range: 0 - 7
     mul  = string(Pow (2, 8 - bits - 1))
     bits = clamp(bits,0,7)
-
+    md   = Default(mode,    -1)    # Valid modes: -1: Round (quantization)
+                                   #               0: Bayer OD
+                                   #               1: Floyd-Steinberg ED
+                                   #               2: Sierra-2-4A ED
+                                   #               3: Stucki ED
+                                   #               4: Atkinson ED
+                                   #               5: Ostromoukhov ED
+                                   #               6: Void & Cluster OD
+                                   #               7: Quasirandom OD
     ConvertBits(c,16, fulls=fs, fulld=fs)
 
     ex_lut ("x "+mul+" /", y=3, UV=UV, fulls=fs)
@@ -985,8 +992,6 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
         w   = c.width()
         h   = c.height()
-        sw  = nmod(w/3.85)
-        sh  = sw*2
         lvl = Histogram(mode="levels",keepsource=false)
         lvl = StackVertical(lvl,Vectorscope()).RatioResize(h/512.,"%",kernel="gauss",p=100)
         lvl = tv ? lvl.SMPTE_Legal(false) : lvl
@@ -1063,7 +1068,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
     Assert(!isRGB(yuv),               "GamutWarning: Only YUV format supported")
 
     mat     = Color_Fuzzy_search (mat)
-    coef    = Matrix_coef(mat[0])
+    coef    = color_coef(mat[0])
 
 
     clp = ExtractClip(!ebu ? yuv : yuv.ex_boxblur(5,1,mode="weighted",UV=3)) # EBU R103 standard lowpass (very similar to V: 1/4, 1/2, 1/4, and H: 1/16, 2/16, 3/16, 4/16, 3/16, 2/16, 1/16)
@@ -1131,14 +1136,13 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ###
 ### PseudoColor() - v1.2 (15-03-2022)
 ###
-### Rainbow color coded "heat map" based on clip's (gamma encoded) luminosity.
-### Useful for luminosity segmentation and augment luma ranges with color coded isoparams.
+### Rainbow color coded "heat map" based on clip's luma (gamma encoded luminosity).
+### Useful for segmentation and augment luma ranges with color coded isoparams.
 ### Also serves for debugging purposes in algorithms such as blend modes or gradient magnitudes.
 ### Cool colors represent low luminosity while warm colors represent high luminosity, green stands for neutral.
 ### 32-bit support is work in progress.
 ###
 ### Version 1.2 implements 'isoparam' mode, similar to "rainbow" but more granular and in black/white.
-### This mode is good to increase detail in shaded area so it's picked up in motion estimation.
 ### Somewhat similar to Histogram("luma") but not as extreme.
 ### I recommend using ex_luma_rebuild() prior to this mode.
 ###
@@ -1243,7 +1247,7 @@ function Vignette (clip c, float "Vignette", bool "show", bool "tv_range") {
 ### greyscale_rgb()
 ###
 ###
-### Properly convert RGB to luminance (PC range gamma encoded)
+### Properly convert R'G'B' to luminance (in PC range linear space, then gamma reencoded)
 ###
 ### Dependencies: > ExTools
 ###                 TransformsPack
@@ -1280,7 +1284,7 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 ### FindTemp() - v1.0 (29-04-2022)
 ###
 ###
-### Find the correlated color temperature (CCT) in Kelvins of your source clip.
+### Find the correlated color temperature (CCT) in Kelvins of your YUV source clip.
 ### It won't work for graded pictures but for natural acquired images.
 ###
 ### If '_SceneStatsU' frameprops is present it will use that for calculating temperature in a scene basis.
@@ -1302,7 +1306,7 @@ function FindTemp (clip c, string "matrix", bool "show") {
     Assert(IsVersionOrGreater(3,7,2), "FindTemp: Update AviSynth+ version")
 
     matrix = color_Fuzzy_Search (mat)[0]
-    coef   = Matrix_coef(matrix)
+    coef   = color_coef(matrix)
     toXYZ  = MatrixTranspose(RGB_to_XYZ(c,string(matrix), list=true))
     Kr     = 1. - coef[0]
     Kb     = 1. - coef[2]
@@ -1430,7 +1434,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ### WhitePoint()
 ###
 ###
-### Accurately adjust the color temperature of the image. Assumes input matrix is D65 based.
+### Accurately adjust the color temperature of the image. Assumes input matrix primaries are D65 based.
 ###
 ### Dependencies: > ExTools
 ###                 TransformsPack
@@ -1548,7 +1552,7 @@ function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive",
           ex_lut(Format("x {xo} - {zm} * {of}  -"),"")  }
 
 
-
+# Output is dithered 8-bit
 function HistoCurve(clip a, float "size", bool "gradient") {
 
     sz = Default(size,2.)
