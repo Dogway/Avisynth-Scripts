@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC55  (05-08-2022)     ##
+###   Transforms Pack - Main v1.0 RC56  (05-08-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -18,7 +18,7 @@
 ###     format_Fuzzy_Search                              ##
 ###     bicubic_coeffs                                   ##
 ###     chroma_placement                                 ##
-###     Matrix_coef                                      ##
+###     color_coef                                       ##
 ###     moncurve_coef                                    ##
 ### MATRIX HELPERS:                                      ##
 ###     ExtractClip                                      ##
@@ -537,10 +537,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     isJab    = i_fmt[1]  !=  o_fmt1
     isChP    = cplace_in != cplace_out
 
-    coef_i   =           Matrix_coef(cs_in)
-    coef_o   = isSpace ? Matrix_coef(cs_out) : coef_i
+    coef_i   =           color_coef(mat=cs_in)
+    coef_o   = isSpace ? color_coef(mat=cs_out) : coef_i
     s_gam    =           moncurve_coef (OETF)
-    t_gam    = isGamma ? moncurve_coef (EOTF) : s_gam
+    t_gam    = isGamma ? moncurve_coef (EOTF)   : s_gam
 
     i_type4  = i_fmt[1] == "444"         o_type4  = o_fmt1 == "444"
     i_type2  = i_fmt[1] == "422"         o_type2  = o_fmt1 == "422"
@@ -1111,7 +1111,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.2),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.0 RC55",                size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.0 RC56",                size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1860,55 +1860,58 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
 # kr: 0.21264933049678802
 # kg: 0.71516913175582890
 # kb: 0.07218152284622192
-function Matrix_coef (string matrix, string "illuminant") {
+function color_coef (string "prims", string "mat", string "illu") {
 
-    illuminant = Default(illuminant, matrix)
+    primd      = Defined(prims)
+    prims      = Default(prims,   "709")
+    mat        = Default(mat,     prims)
+    illu       = Default(illu,    "D65")
 
     mat_i =
-\     (matrix == "sRGB"           ) ? 1
-\   : (matrix == "709"            ) ? 1
-\   : (matrix == "170M"           ) ? 0
-\   : (matrix == "470M"           ) ? 0
-\   : (matrix == "2020CL"         ) ? 5
-\   : (matrix == "2020NCL"        ) ? 5
-\   : (matrix == "AdobeRGB"       ) ? 6
-\   : (matrix == "AWG"            ) ? 7
-\   : (matrix == "Display-P3"     ) ? 8
-\   : (matrix == "DCI-P3"         ) ? 9
-\   : (matrix == "ACEScg"         ) ? 10
-\   : (matrix == "ACESCCt"        ) ? 10
-\   : (matrix == "ACES2065"       ) ? 11
-\   : (matrix == "240M"           ) ? 3
-\   : (matrix == "470BG"          ) ? 0 : 1
+\     (mat    == "sRGB"           ) ? 1
+\   : (mat    == "709"            ) ? 1
+\   : (mat    == "170M"           ) ? primd ? 2 : 0
+\   : (mat    == "470M"           ) ? 0
+\   : (mat    == "2020CL"         ) ? 5
+\   : (mat    == "2020NCL"        ) ? 5
+\   : (mat    == "AdobeRGB"       ) ? 6
+\   : (mat    == "AWG"            ) ? 7
+\   : (mat    == "Display-P3"     ) ? 8
+\   : (mat    == "DCI-P3"         ) ? 9
+\   : (mat    == "ACEScg"         ) ? 10
+\   : (mat    == "ACESCCt"        ) ? 10
+\   : (mat    == "ACES2065"       ) ? 11
+\   : (mat    == "240M"           ) ? 3
+\   : (mat    == "470BG"          ) ? primd ? 4 : 0 : 1
 # * Deriving Rec709 matrix coefficients from its primaries is noted as BT.709-2, in contrast to older and slightly different BT.709-1
 
     mat_wp =
-\     (matrix == "170M"           ) ? 1
-\   : (matrix == "709"            ) ? 1
-\   : (matrix == "DCI-P3"         ) ? 3
-\   : (matrix == "ACES2065"       ) ? 4
-\   : (matrix == "ACEScg"         ) ? 4
-\   : (matrix == "AWG"            ) ? 2
+\     (mat    == "170M"           ) ? 1
+\   : (mat    == "709"            ) ? 1
+\   : (mat    == "DCI-P3"         ) ? 3
+\   : (mat    == "ACES2065"       ) ? 4
+\   : (mat    == "ACEScg"         ) ? 4
+\   : (mat    == "AWG"            ) ? 2
 \   :                                 1
 
     # The coordinates and CCT's are from CIE 1931 2 degree standard observer
     mat_wp =
-\     (illuminant == "D50"        ) ? 2
-\   : (illuminant == "D55"        ) ? 6
-\   : (illuminant == "D60"        ) ? 4
-\   : (illuminant == "DCI"        ) ? 3
-\   : (illuminant == "D65"        ) ? 1
-\   : (illuminant == "C"          ) ? 0
-\   : (illuminant == "E"          ) ? 5
-\   : (illuminant == "D75"        ) ? 7
-\   : (illuminant == "D93"        ) ? 8 : mat_wp
+\     (illu   == "D50"            ) ? 2
+\   : (illu   == "D55"            ) ? 6
+\   : (illu   == "D60"            ) ? 4
+\   : (illu   == "DCI"            ) ? 3
+\   : (illu   == "D65"            ) ? 1
+\   : (illu   == "C"              ) ? 0
+\   : (illu   == "E"              ) ? 5
+\   : (illu   == "D75"            ) ? 7
+\   : (illu   == "D93"            ) ? 8 : mat_wp
 # * D93 is not a D standard illuminant. Here it is defined for CCT (correlated) to consumer's TV standard "9300K+27 MPCD". "9300K+8 MPCD" for master CRT corresponds to 0.2838, 0.2984
 
     # Hardcode constants for the Kr, Kg, Kb derivations
     mat_w =
-\     (matrix == "170M"           ) ? 0
-\   : (matrix == "470BG"          ) ? 0
-\   : (matrix == "AWG"            ) ? 2 : mat_wp
+\     (mat    == "170M"           ) ? 0
+\   : (mat    == "470BG"          ) ? 0
+\   : (mat    == "AWG"            ) ? 2 : mat_wp
 
     # These primaries are associated with their respective standard illuminants (aligned right below 'pw' and 'wp')
     # It's mandatory for them to do a chromatic adaptation transform (CAT) to convert them to
@@ -1930,12 +1933,16 @@ function Matrix_coef (string matrix, string "illuminant") {
     pg = [pg[0], pg[1], 1 - pg[0] - pg[1]]    wp = [wp[0], wp[1], 1 - wp[0] - wp[1]]
     pb = [pb[0], pb[1], 1 - pb[0] - pb[1]]
 
+    if (!primd) {
     det = pw[1] * Dot([pr[0],pg[0],pb[0]], Cross([pr[1],pg[1],pb[1]], [pr[2],pg[2],pb[2]]))
     kr  = pr[1] * Dot(pw, Cross(pg, pb)) / det
     kg  = pg[1] * Dot(pw, Cross(pb, pr)) / det
     kb  = pb[1] * Dot(pw, Cross(pr, pg)) / det
+    } else { kr = 1 kg = 1 kb = 1 }
 
     [kr, kg, kb, wp[0], wp[1], wp[2], pr, pg, pb] }
+
+
 
 
 # Typical production practices for SDTV transfer characteristics differ from those specified in ITU recommendations.
