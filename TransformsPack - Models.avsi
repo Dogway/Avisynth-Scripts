@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC55  (05-08-2022)   ##
+###   Transforms Pack - Models v1.0 RC56  (08-08-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1455,7 +1455,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     LMS = XYZ_to_LMS("HPE",       list=true)
     LMX = MatrixDot(Crosstalk, LMS)
     XYZ = RGB_to_XYZ(mat,props[3],list=true)
-    RtL = MatrixDot(LMX,  MatrixTranspose(XYZ)) # RGB to LMS joint matrix
+    RtL = MatrixDot(LMX, MatrixTranspose(XYZ)) # RGB to LMS joint matrix
 
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
