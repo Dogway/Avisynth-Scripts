@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC56  (05-08-2022)     ##
+###   Transforms Pack - Main v1.0 RC56  (08-08-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -510,12 +510,13 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     tv_out        = Select (num,        tv_out,          false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,      false,    false,    false)
     cplace_out    = Select (num,    cplace_out,     "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",    "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
     D_out         = Select (num,         D_out,          "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",       "D60",      "D60",        "E",      "D65",      "D65",    "D65",    "D65")
-    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "170M",     "470BG",     "170M",      "170M",    "170M",  "DCIXYZ",    "linear",  "ACESCCt",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB")
+    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "1886",      "1886",     "170M",      "170M",    "170M",  "DCIXYZ",    "linear",  "ACESCCt",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB")
     PAR           = Select (num,             1,              1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,          1,        1,        1)
     cdc           = Select (num,            "",         "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000",   "JPEGXL", "JPEG2000",    "JPG",    "JPG")
     cont          = Select (num,            "",           "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",          "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jxl",      "jp2",    "jpg",    "jpg")
     bit           = Select (num,            bi,             12,          10,         10,         8,          8,           8,          8,           0,         0,        16,          16,         32,         12,          8,          8,        8,        8)
 
+  # * DVD-PAL and DVD-NTSC employ 1886 as EOTF since the dawn of digital mastering (early 2000s), otherwise used 170M.
   # * GAM (Graded Archival Master)
 
 
