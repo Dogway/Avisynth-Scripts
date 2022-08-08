@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC56 (05-08-2022) ##
+###   Transforms Pack - Transfers v1.0 RC56 (08-08-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -274,7 +274,7 @@ function OOTF (clip a, float "OOTF", val "OETF", val "EOTF", bool "show") {
 
         # Minimize sum of squares
         m1 = [100,0]
-        i = max(1,ceil(alpha*100))
+        i = min(60,ceil(alpha*300))
 
         for (p=150, 900, 1) {
             po = p/300.
@@ -300,7 +300,7 @@ function OOTF (clip a, float "OOTF", val "OETF", val "EOTF", bool "show") {
 
         # Minimize sum of squares
         m2 = [100,0]
-        i = max(1,ceil(alpha*100))
+        i = min(60,ceil(alpha*300))
 
         for (p=150, 900, 1) {
             po = p/300.
@@ -316,7 +316,7 @@ function OOTF (clip a, float "OOTF", val "OETF", val "EOTF", bool "show") {
     } else { m2 = d_gam[0] }
 
     OOTF = OOTFd==0 ? m1/m2 : OOTFd
-    ex_lut(a, Format("f32 x 0 < x range_min x max {OOTF} ^ ?"))
+    ex_lut(a, Format("f32 x 0 < x range_min x max {OOTF} ^ ?"),scale_inputs=fs?"intf":"int")
 
     if (sh) {
         bi > 8 ? ConvertBits(8,dither=1,fulls=fs) : last
