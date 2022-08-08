@@ -1,4 +1,4 @@
-# ChromaReconstructor v3.4 HBD mod: restore 420/422 to (almost) native 444
+# ChromaReconstructor v4.0 HBD mod: restore 420/422 to (almost) native 444
 # by feisty2
 #
 # just convert 420/422 to 444 with any regular resampling filter, bicubic, spline, kind of stuff
@@ -11,6 +11,7 @@
 # v3.3 Rename gauss() function to avoid name conflict. Some tweaks to kernel settings
 # v3.4 Reenable mode=1 for horizontally stretched chroma. "_faster", add center shift to nnedi3 and tweak taps
 # v3.5 Pass 'gpuid' argument and allow CPU processing with gpuid=-1
+# v4.0 Update with nnedi3wrap (passed gpuid argument). Fix 'device_type' arg assignment
 #
 # Example:
 #
@@ -26,6 +27,7 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
         mode     = Default(mode,    0)   # set to mode=1 for only horizontally stretched chroma
         wild     = Default(wild, True)
         cpu      = gpuid < 0 ? "cpu" : "gpu"
+        gpuCL    = max(0,gpuid)
 
         cores    = SI_PhysicalCores()
         threads  = SI_LogicalCores()
@@ -34,26 +36,25 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
         bdpth    = string(src.BitsPerComponent())
         p_type   = PixelType(src)
 
-        ref      = wild ? src.ExtractY() : src.ExtractY().KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), cpu, device_id=gpuid, dwref=1)
+        ref      = wild ? src.ExtractY() : src.ExtractY().KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), device_type=cpu, device_id=gpuCL, dwref=1)
         srcU     = src.ExtractU()
         srcV     = src.ExtractV()
         src8     = CombinePlanes(ref, srcU, srcV, planes="YUV", pixel_type=p_type)
-        up2x     = src8.nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).TurnRight().nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).TurnLeft()
-        up4x     = up2x.nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).TurnRight().nnedi3(field=1, dh=True, nns=4, qual=2, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2).TurnLeft()
+        up4x     = src8.nnedi3wrap(4, nns=4, qual=2, etype=1, nsize=0, gpuid=gpuid)
         Luma     = up4x.ExtractY()
         U        = up4x.ExtractU()
         V        = up4x.ExtractV()
-        Unew     = wild ? KNLMeansCL(U, 0, radius, 0, str, cpu, wref=0, rclip=Luma, device_id=gpuid) : interpolation(Luma, U, 2, str)
-        Unew     = wild ? Unew : interpolation(Luma, Unew,  4, str)
-        Unew     = wild ? Unew : interpolation(Luma, Unew,  8, str)
-        Unew     = wild ? Unew : interpolation(Luma, Unew, 16, str)
-        Unew     = wild ? Unew : interpolation(Luma, Unew, 32, str)
+        Unew     = wild ? KNLMeansCL(U, 0, radius, 0, str, wref=0, rclip=Luma, device_type=cpu, device_id=gpuCL) : interpolation(Luma, U, 2, str, device_id=gpuCL)
+        Unew     = wild ? Unew : interpolation(Luma, Unew,  4, str, device_id=gpuCL)
+        Unew     = wild ? Unew : interpolation(Luma, Unew,  8, str, device_id=gpuCL)
+        Unew     = wild ? Unew : interpolation(Luma, Unew, 16, str, device_id=gpuCL)
+        Unew     = wild ? Unew : interpolation(Luma, Unew, 32, str, device_id=gpuCL)
         Unew     = Unew.Spline64Resize(w, h, src_left=-1.25, src_top=-1.25)
-        Vnew     = wild ? KNLMeansCL(V, 0, radius, 0, str, cpu, wref=0, rclip=Luma, device_id=gpuid) : interpolation(Luma, V, 2, str)
-        Vnew     = wild ? Vnew : interpolation(Luma, Vnew,  4, str)
-        Vnew     = wild ? Vnew : interpolation(Luma, Vnew,  8, str)
-        Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 16, str)
-        Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 32, str)
+        Vnew     = wild ? KNLMeansCL(V, 0, radius, 0, str, wref=0, rclip=Luma, device_type=cpu, device_id=gpuCL) : interpolation(Luma, V, 2, str, device_id=gpuCL)
+        Vnew     = wild ? Vnew : interpolation(Luma, Vnew,  4, str, device_id=gpuCL)
+        Vnew     = wild ? Vnew : interpolation(Luma, Vnew,  8, str, device_id=gpuCL)
+        Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 16, str, device_id=gpuCL)
+        Vnew     = wild ? Vnew : interpolation(Luma, Vnew, 32, str, device_id=gpuCL)
         Vnew     = Vnew.Spline64Resize(w, h, src_left=-1.25, src_top=-1.25)
         UHi      = (mode == 1) ? ex_makeadddiff(Unew, gauss_h(Unew, hipass), srcU) : ex_makeadddiff(Unew, gauss_b(Unew, hipass), srcU)
         VHi      = (mode == 1) ? ex_makeadddiff(Vnew, gauss_h(Vnew, hipass), srcV) : ex_makeadddiff(Vnew, gauss_b(Vnew, hipass), srcV)
@@ -61,13 +62,13 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
 }
 
 
-function interpolation(clip luma, clip "chroma", int "radius", float "str")
+function interpolation(clip luma, clip "chroma", int "radius", float "str", int "gpuid")
 {
              exp_c0   = 1.060417282747435920994529352433
              exp_c1   = pow(1.070339301855046091743224243341, 32)
              weight   = pow(exp_c0, radius) / exp_c1
              ref      = Expr(chroma, luma, Format("y dup x - {weight} * -"))
-             return KNLMeansCL(chroma, 0, radius, 0, str, "auto", wref=0, rclip=ref)
+             return KNLMeansCL(chroma, 0, radius, 0, str, "auto", wref=0, rclip=ref, device_id=gpuid)
 }
 
 
@@ -110,6 +111,7 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
         threads = Default(threads, 4)
         gpuid   = Default(gpuid,   0)
         cpu     = gpuid < 0 ? "cpu" : "gpu"
+        gpuCL    = max(0,gpuid)
 
         cores   = SI_PhysicalCores()
         threads = SI_LogicalCores()
@@ -118,12 +120,12 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
         Uor = ExtractU(src)
         Vor = ExtractV(src)
 
-        ref     =   Y.KNLMeansCL (0, radius, 0, pow(1.464968620512209618455732713658, str), cpu, wref=1, device_id=gpuid)
-        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, range=fs?1:2, cshift="spline16resize").ConvertBits(bi,fulls=fs)
-        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
-        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=fs)
-        Unew    = Uu.KNLMeansCL  (0, radius, 0, str, cpu, wref=0, rclip=Luma, device_id=gpuid).BicubicResize(w, h, b=0.0, c=0.5)
-        Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, cpu, wref=0, rclip=Luma, device_id=gpuid).BicubicResize(w, h, b=0.0, c=0.5)
+        ref     =   Y.KNLMeansCL (0, radius, 0, pow(1.464968620512209618455732713658, str), wref=1, device_type=cpu, device_id=gpuCL)
+        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2,           nns=1, qual=1, etype=1, nsize=0,                                 cshift="spline16",gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2,           nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackman",gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2,           nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackman",gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Unew    = Uu.KNLMeansCL  (0, radius, 0, str, wref=0, rclip=Luma, device_type=cpu, device_id=gpuCL).BicubicResize(w, h, b=0.0, c=0.5)
+        Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, wref=0, rclip=Luma, device_type=cpu, device_id=gpuCL).BicubicResize(w, h, b=0.0, c=0.5)
         U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
         V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 20), Vu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
         return CombinePlanes(Y, U, V, planes="YUV")
