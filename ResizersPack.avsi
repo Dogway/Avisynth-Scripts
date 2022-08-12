@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.6 (01-08-2022)      ##
+###   Resizers Functions Pack 9.7 (12-08-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -216,7 +216,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     } else if (krn1 == krn2 && etp == ftp) {
 
         # Downscale/upscale with same edge/flat kernel
-        ConvertFormat(a, w2,h2,cs_out="",EOTF="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+        ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
     } else {
 
@@ -236,7 +236,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
             edge1   = krn1 == "nnedi3" ? oned ? nnedi3wrap(a8,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift="none",HBD=true,gpuid=gpuid) : \
                                                 nnedi3wrap(a8,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,cshift="none",HBD=true,gpuid=gpuid) : \
-                                                ConvertFormat(an,w2,h2,cs_out="",EOTF="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+                                                ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
         if (rat <= rth) {
 
@@ -253,7 +253,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
                                                 LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).ConvertBits(bi, fulls=fs, fulld=fs) : edge1
 
             # resizing flat area
-            flat    =                           ConvertFormat(a,w2,h2,cs_out="",EOTF="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+            flat    =                           ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
 
             # edge/flat limiting
             ex_limitdif(         !isy && oned ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
