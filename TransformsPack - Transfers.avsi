@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC56 (08-08-2022) ##
+###   Transforms Pack - Transfers v1.0 RC57 (12-08-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -9,9 +9,11 @@
 ###                             by Dogway (Jose Linares) ##
 ###                                                      ##
 ### TRANSFERS:                                           ##
-###     moncurve_f   /  moncurve_r                       ##
-###     ACEScct_f    /  ACEScct_r                        ##
-###     OETF_2084    /  EOTF_2084                        ##
+###     moncurve_f   /   moncurve_r                      ##
+###     ACEScct_f    /   ACEScct_r                       ##
+###     EOTF_2084    /   EOTFi_2084                      ##
+###     EOTF_1886a   /   EOTFi_1886a                     ##
+###     EOTF_Apple   /   EOTFi_Apple                     ##
 ###     OOTF                                             ##
 ###     SMPTE_legal                                      ##
 ###     Full_scale                                       ##
@@ -27,7 +29,7 @@
 ##########################################
 
 
-# OETF. Monitor Curve Functions: https://github.com/ampas/aces-dev
+# OETFi. Monitor Curve Functions: https://github.com/ampas/aces-dev
 function moncurve_f (clip c, float "gamma", float "alpha", bool "tv_range_in", bool "tv_range_out", int "UV") {
 
     c
@@ -71,7 +73,7 @@ function moncurve_f (clip c, float "gamma", float "alpha", bool "tv_range_in", b
     tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0)        : last }
 
 
-# EOTF. Monitor Curve Functions: https://github.com/ampas/aces-dev
+# EOTFi. Monitor Curve Functions: https://github.com/ampas/aces-dev
 function moncurve_r (clip c, float "gamma", float "alpha", bool "tv_range_in", bool "tv_range_out", int "UV") {
 
     c
@@ -197,10 +199,11 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 
 
 # Requires RGB input
-function OETF_2084 (clip c, int "MasterLevel", bool "tv_range") {
+function EOTF_2084 (clip c, int "MasterLevel", bool "tv_range") {
     c
+    rgb       = isRGB()
     fs        = propNumElements("_ColorRange")  > 0 ? \
-                propGetInt     ("_ColorRange") == 0 : isRGB()
+                propGetInt     ("_ColorRange") == 0 : rgb
     PL        = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m2- (1000 - 10000)
     tv_in     = Default (tv_range, !fs)
     SI        = tv_in ? "int" : "intf"
@@ -216,14 +219,15 @@ function OETF_2084 (clip c, int "MasterLevel", bool "tv_range") {
     rangePC = tv_in ? "x ymin - ymax ymin - /" : "x range_max /"
     rangeTV = tv_in ? "ymax ymin - * ymin +"   : "range_max *"
 
-    ConvertToPlanarRGB()
+    rgb ? ConvertToPlanarRGB() : last
     ex_lut(Format(""+rangePC+" 1 {M1} / ^ A@ {C1} - 0 max   {C2} {C3} A * - /    1 {N1} / ^ {PL} * "+rangeTV+"")) }
 
 
-function EOTF_2084 (clip c, int "MasterLevel", bool "tv_range") {
+function EOTFi_2084 (clip c, int "MasterLevel", bool "tv_range") {
     c
+    rgb       = isRGB()
     fs        = propNumElements("_ColorRange")  > 0 ? \
-                propGetInt     ("_ColorRange") == 0 : isRGB()
+                propGetInt     ("_ColorRange") == 0 : rgb
     PL        = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m2- (1000 - 10000)
     tv_in     = Default (tv_range, !fs)
     SI        = tv_in ? "int" : "intf"
@@ -238,30 +242,130 @@ function EOTF_2084 (clip c, int "MasterLevel", bool "tv_range") {
     rangePC = tv_in ? "x ymin - ymax ymin - /" : "x range_max /"
     rangeTV = tv_in ? "ymax ymin - * ymin +"   : "range_max *"
 
-    ConvertToPlanarRGB()
+    rgb ? ConvertToPlanarRGB() : last
     ex_lut(Format(""+rangePC+" B@ {N1} ^ A^ B range_min > {C1} {C2} A * + {PL} {C3} A * + / {M1} ^ range_min ? "+rangeTV+"")) }
 
 
 
-# Surround adaptation, or Display-to-Display transfer conversion (also for fast inverse OETF conversion when in linear space to retrieve scene-referred)
-# Typical values:
-#    Dim to Dark:    1/0.9811
-#    Neutral to Dim: 1.2
 
-function OOTF (clip a, float "OOTF", val "OETF", val "EOTF", bool "show") {
+# 1886a (Alternative 1886). A better match for CRT TRF. Uses gamma 3.0 up to offset 0.35, then gamma 2.6.
+# Best match with 2.6033333 power gamma (at default BlackLevel=0)
+
+/*The EOTF specified for 1886 is considered to be a satisfactory, but not exact, match to the
+  characteristic of an actual CRT. When it is desired to match a CRT, the Lw and Lb parameters of the
+  EOTF can be set to the corresponding values of the CRT that are being matched. For moderate
+  black level settings, e.g. 0.1 cd/m 2 , setting the Lb of the EOTF to 0.1 will give a satisfactory match
+  to the CRT. In the event the CRT is operated at a lower black level, e.g. 0.01 cd/m 2 , the EOTF will
+  provide a better match with Lb set to a lower value such as 0.0 cd/m 2 . When it is necessary to more
+  precisely match a flat panel display characteristic to a CRT, the alternative 1886a EOTF formulation
+  may provide a solution. */
+
+function EOTF_1886a (clip c, float "BlackLevel", bool "tv_range") {
+    c
+    fs        = propNumElements("_ColorRange")  > 0 ? \
+                propGetInt     ("_ColorRange") == 0 : isRGB()
+    bl        = Default (BlackLevel, 0.0) # Black level in cd/m2
+    tv_in     = Default (tv_range, !fs)
+
+    rangePC = tv_in ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_in ? "ymax ymin - * ymin +"   : "range_max *"
+
+    Lw = 1    # White level
+    Lb = bl   # Black level
+    a1 = 2.6  # "Shoulder" gamma
+    a2 = 3.0  # Knee gamma
+    Vc = 0.35 # Offset
+    k  = Lw /pow(1  + Lb, a1)
+    sl = k * pow(Vc + Lb, a1-a2) # Slope for knee gamma
+
+    ex_lut(Format(""+rangePC+" 0.35 > x {Lb} + XP@ {a1} ^ {k} * XP {a2} ^ {sl} * ? "+rangeTV+"")) }
+
+
+function EOTFi_1886a (clip c, float "BlackLevel", bool "tv_range") {
+    c
+    fs        = propNumElements("_ColorRange")  > 0 ? \
+                propGetInt     ("_ColorRange") == 0 : isRGB()
+    bl        = Default (BlackLevel, 0.0) # Black level in (cd/m2)/100 units
+    tv_in     = Default (tv_range, !fs)
+
+    rangePC = tv_in ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_in ? "ymax ymin - * ymin +"   : "range_max *"
+
+    Lw = 1     # White level
+    Lb = bl    # Black level
+    a1 = 1/2.6 # "Shoulder" gamma
+    a2 = 1/3.0 # Knee gamma
+    Vc = 0.35  # Offset
+    k  = Lw /pow(1  + Lb, a1)
+    sl = k * pow(Vc + Lb, a1-a2) # Slope for knee gamma
+
+    ex_lut(Format(""+rangePC+" 0.35 > x {Lb} + XP@ {a1} ^ {k} * XP {a2} ^ {sl} * ? "+rangeTV+"")) }
+
+
+
+# Apple piecewise gamma used for AppleRGB, ProPhotoRGB or ColorMatchRGB.
+# Mainly for 1.8 gamma (best match with 1.786666 power gamma)
+function EOTF_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_range") {
+    c
+    fs        = propNumElements("_ColorRange")  > 0 ? \
+                propGetInt     ("_ColorRange") == 0 : isRGB()
+    gm        = Default (gamma,           1.8)
+    bl        = Default (BlackLevel, 0.003473) # Black level in (cd/m2)/100 units
+    tv_in     = Default (tv_range, !fs)
+
+    rangePC = tv_in ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_in ? "ymax ymin - * ymin +"   : "range_max *"
+
+    ex_lut(Format(""+rangePC+" X@ 0.03125 < X 0.0622829 * {bl} + X {gm} ^ 0.996527 * {bl} + ? "+rangeTV+"")) }
+
+
+function EOTFi_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_range") {
+    c
+    fs        = propNumElements("_ColorRange")  > 0 ? \
+                propGetInt     ("_ColorRange") == 0 : isRGB()
+    gm        = Default (gamma, 1.8)
+    bl        = Default (BlackLevel, 0.003473) # Black level in (cd/m2)/100 units
+    tv_in     = Default (tv_range, !fs)
+
+    rangePC = tv_in ? "x ymin - ymax ymin - /" : "x range_max /"
+    rangeTV = tv_in ? "ymax ymin - * ymin +"   : "range_max *"
+
+    ex_lut(Format(""+rangePC+" X@ 0.03125 < X {bl} - 0 max 1 {gm} / ^ X2@ X2 0.996527 * ? {bl} + "+rangeTV+"")) }
+
+
+
+###
+### OOTF (Opto-Optical Transfer Function)
+###
+### Surround adaptation, or Display-to-Display transfer conversion (also for fast inverse OETFi conversion when in linear space to retrieve scene-referred)
+### For piecewise transfer functions, a best-fit curve algorithm is used to find the power gamma match.
+###
+### Typical values:
+###    Dim to Dark:    1/0.9811
+###    Neutral to Dim: 1.2
+###
+### Examples:
+###
+###    OOTF(OOTF=1/0.9811) # A dim to dark adaptation
+###
+###    OOTF(OETFi="1886",EOTFi="1886",show=true)
+###
+###
+
+function OOTF (clip a, float "OOTF", val "OETFi", val "EOTFi", bool "show") {
 
     rgb   = isRGB(a)
     bi    = BitsPerComponent(a)
     fs    = propNumElements (a,"_ColorRange")  > 0 ? \
             propGetInt      (a,"_ColorRange") == 0 : rgb
 
-    OOTFd     = Defined (OOTF) ?          OOTF  : 0
-    OETF      = Defined (OETF) ? isString(OETF) ? color_Fuzzy_Search(OETF) : OETF : ["","",""]
-    EOTF      = Defined (EOTF) ? isString(EOTF) ? color_Fuzzy_Search(EOTF) : EOTF : ["","",""]
+    OOTFd     = Defined (OOTF) ?           OOTF   : 0
+    OETF      = Defined (OETFi) ? isString(OETFi) ? color_Fuzzy_Search(OETFi) : OETFi : ["","",""]
+    EOTF      = Defined (EOTFi) ? isString(EOTFi) ? color_Fuzzy_Search(EOTFi) : EOTFi : ["","",""]
     sh        = Default (show, false)
 
-    s_gam     = isFloat(OETF) ? [OETF,0] : moncurve_coef(OETF[2]) # still need to work on OOTF for transfers with alpha (maybe do a power law fit?)
-    d_gam     = isFloat(EOTF) ? [EOTF,0] : moncurve_coef(EOTF[2])
+    s_gam     = isFloat(OETF) ? [OETF,0] : OETF[2]=="1886a" ? [2.6033333,0] : OETF[2]=="AppleRGB" ? [1.786666,0] : moncurve_coef(OETF[2])
+    d_gam     = isFloat(EOTF) ? [EOTF,0] : EOTF[2]=="1886a" ? [2.6033333,0] : EOTF[2]=="AppleRGB" ? [1.786666,0] : moncurve_coef(EOTF[2])
 
     if (s_gam[1]>0) {
 
