@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC56  (08-08-2022)   ##
+###   Transforms Pack - Models v1.0 RC57  (12-08-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -50,14 +50,14 @@
 # Standard spaces define a standard to comply with for delivery, normally they are derived from averaging measurements of real unit-by-unit devices defined by their used phosphors.
 # Finally working spaces don't need to be attached to any physical constraints so they can be as big as the CIE 1931 color space (some actually bigger than that), so they are suited for heavy color transformations without much degradation in the process. They can also be geared towards certain effects like getting more color resolution in certain HUES for exposing better shades in color grading tasks. Ultimately everything is being transformed into your display color space in real time so use any working space that suits your job.
 #
-#-470M                   - (Historical) ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953)
-#-170M                   - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (525-line = NTSC, SMPTE-C)
+#-470M                   - (Historical) ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953) with C illuminant and 170M OETF
+#-170M                   - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (525-line = NTSC, SMPTE-C) (originally defined in "CCIR Recommendation 601-1 (1982-1986)")
 #-240M                   - SMPTE 240M
 #-470BG                  - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (625-line = PAL, SECAM)
-#-NTSC-J                 - ARIB TR-B9. Phosphor primaries used in Japan's consumer CRTs along 9300K + 27 MPCD illuminant.
-#-sRGB                   - IEC 61966-2. Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users. Comprises Primaries, Illuminant and Transfer Characteristics.
+#-NTSC-J                 - ARIB TR-B9. Phosphor primaries used in Japan's consumer CRTs along 9300K + 27 MPCD illuminant
+#-sRGB                   - IEC 61966-2. Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users. Comprises Primaries -derived from phosphors of calibrated consumer CRTs of the 90s-, Illuminant and Transfer Characteristics.
 #-2020                   - ITU-R Rec. BT.2020
-#-AdobeRGB               -
+#-AdobeRGB               - IEC 61966-2-5:1999. Also known as opRGB (optional RGB). Designed to encompass most printers' gamuts and to be used as a working space in Photoshop, ideally at 16-bit. It's basically the 470BG primaries with greens from 470M allegedly after a sucessions of mistakes.
 #-Adobe Wide Gamut       -
 #-DCI-P3                 - SMPTE RP 432-2. Digital Cinema
 #-Display-P3             - SMPTE RP 432-1
@@ -66,7 +66,7 @@
 # S-Gamut                -
 # S-Gamut3               -
 # S-Gamut3 (Venice)      -
-# S-Gamut3.Cine          - Sony Gamut Cinema. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film.
+# S-Gamut3.Cine          - Sony Gamut Cinema. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film
 # S-Gamut3.Cine (Venice) -
 # CinemaDay              - Canon Cinema Gamut Daylight (5500K)
 # CinemaTungsten         - Canon Cinema Gamut Tungsten (3200K)
@@ -109,18 +109,19 @@
 # V709                   - Panasonic Varicam V709
 # F-Log                  - Fujifilm F-Log Gamut
 # Barco Unisee           -
-#-ProPhoto RGB           - RIMM ROMM RGB
-# Wide Gamut RGB         -
-# CIE RGB                - or CIE 1931 RGB
-# Apple RGB              -
-# ColorMatch RGB         - Radius PressView Monitors
+#-ProPhoto RGB           - RIMM/ROMM RGB by Kodak to encompass all printable and most real world colors. D50 with Apple gamma. ERIMM RGB is geared towards HDR.
+# Wide Gamut RGB         - Adobe first wide gamut version with D50, and AdobeRGB gamma (2.19921875). Designed by Adobe to be a wide gamut color space that uses spectral colors as its primaries.
+# AllColorsRGB           - Developed by Ellen Stone to encompass all colors, slightly wider than AP0. Defined with linear transfer at D50 and prims: 0.734690265, 0.265309735, 0.17451, 0.005182, 0.0, -0.07585421971554103213
+# CIE RGB                - or CIE 1931 RGB in linear space (sometimes over generic gamma of 2.2) and E illuminant
+# Apple RGB              - RGB color space by Apple derived from Sony Trinitron phosphors, similar in gamut size to sRGB or ColorMatch. Employs a gamma of 1.8
+# ColorMatch RGB         - Radius PressView Monitors with D50 and a power gamma of 1.8
 # EBU 3213               - EBU Tech. 3213-E / JEDEC P22 phosphors
 # Beta RGB               - by Bruce Lindbloom, an optimized capture, archiving and editing space for high-end digital imaging applications
-# Bruce RGB              - Developed by Bruce Fraser as a conservative-gamut space for dealing with 8-bit imagery that needs heavy editing.
+# Bruce RGB              - Developed by Bruce Fraser as a conservative-gamut space for dealing with 8-bit imagery that needs heavy editing
 # BestRGB                - Developed by Don Hutcheson
 # DonRGB4                - Developed by Don Hutcheson
 # ECI-RGB                - Developed by the European Color Initiative <www.eci.org>
-# Ekta Space PS5         - Developed by Joseph Holmes for high quality storage of image data from scans of transparencies.
+# Ekta Space PS5         - Developed by Joseph Holmes for high quality storage of image data from scans of transparencies
 # And many more oldies not included here for simplicity: P22 (Measured SMPTE-C), EBU measured, Conrac 7211N19, Hitachi, Barco, Tektronics, SGI Trinitron, Sony Trinitron KV-20M20
 
 # List of Color Models:
@@ -159,7 +160,7 @@
 # DCI XYZ      - XYZ space in DCI illuminant. In effect it's just a container for DCI-P3 in XYZ coordinates for delivery to theaters.
 #-Yxy/xyY      - Chroma normalized XYZ space which gives full luma/chroma decorrelation. Not apt for HDR, use YDzDx+ instead.
 #-HSV          - Cylindrical representation of RGB. Not recommended as it doesn't take into account human luminance perception
-#-Duv*         -
+#-Duv*         - Perceptual uniform model in contrast to the radiometric uniform CIE XYZ. Some color spaces and Delta metrics are computed in this model over a CIE 1960 UCS chromaticity diagram. A white point defined in Duv coordinates is called a "color tint".
 # HunterLab*   - A more perceptually uniform version of CIELab
 #-CIELab*      - Derived from CIEXYZ, one of the first approaches to a perceptually uniform color model. CIELch(ab) is its cylindrical (polar coordinates) version. You can derive it's Delta E with the next equation: DE = (DL^2 + Da^2 + Db^2)/2  = ( (Ly-Lx)^2 + (ay-ax)^2 + (by-bx)^2)/2
 # CIEsLab*     - CIE simple Lab
@@ -1435,7 +1436,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 # Example for IPTPQc2:
 #     YUV444PS IPTPQc2 source
 #     ICtCp_to_RGB("709",10000,DoVi=true)   # Decode to 709
-#     EOTF_2084(10000)                      # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
+#     EOTFi_2084(10000)                     # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi") {
 
     mat    = Default (matrix, "709")
@@ -1459,7 +1460,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
 
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
-    LMS_gam = EOTF_2084(LMS,MasterLevel)
+    LMS_gam = EOTFi_2084(LMS,MasterLevel)
 
     # Skin tones alignment
     alpha = 1.134464
@@ -1511,7 +1512,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
              1,  mul* 0.032600, mul*-0.676900]
 
     LMS = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
-    LMS_gam = OETF_2084(LMS,MasterLevel)
+    LMS_gam = EOTF_2084(LMS,MasterLevel)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1529,12 +1530,16 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
 
 
 # RGB linear to XYZ
-function RGB_to_XYZ (clip rgb, string cspace, string "illuminant", bool "list") {
+function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bool "list") {
+
+    illu  = illuminant
+    isIllu= isArray(illu)
+    Assert(!isFloat(illu) && !isFloat(illu), "RGB_to_XYZ: Illuminant only supports string or array type.")
 
     cs    = color_Fuzzy_Search(cspace)
-    illu  = color_propGet(rgb,cs[4])
-    list  = Default(list, false)
-    illu  = Default(illuminant, illu[3])
+    list  = Default(list, false)        # Enable to output the Normalised Primary Matrix
+    LMS   = Default(LMS, "CAT02B")
+    illu  = Defined(illuminant) ? isIllu ? ArraySize(illu)>2 ? illu : [illu[0],illu[1],1-illu[0]-illu[1]] : illu : color_propGet(rgb,cs[4])[3]
 
     # Properties:
     # Summing columns yields Reference White in Y=1.0 scale
@@ -1547,44 +1552,78 @@ function RGB_to_XYZ (clip rgb, string cspace, string "illuminant", bool "list") 
     #           0.35758456587791443, 0.71516913175582890, 0.11919485777616501,    \
     #           0.18045382201671600, 0.07218152284622192, 0.95039016008377080]  : 0
 
-    p     = color_coef(cs[0], illu=illu)
+    p1    =                 color_coef(cs[0])
+    p2    = isIllu ? illu : color_coef(cs[0], illu=illu)
 
-    # Reference White
-    RW    = [p[3]/p[4],1,p[5]/p[4]]
+    # White Point
+    wp1   =                 [p1[3],p1[4],p1[5]]
+    wp2   = isIllu ? illu : [p2[3],p2[4],p2[5]]
 
     # Primaries Flat Array
-    prims = [p[6][0],p[6][1],p[6][2],\
-             p[7][0],p[7][1],p[7][2],\
-             p[8][0],p[8][1],p[8][2]]
+    prims = [p1[6][0],p1[6][1],p1[6][2],\
+             p1[7][0],p1[7][1],p1[7][2],\
+             p1[8][0],p1[8][1],p1[8][2]]
+
+    # Reference White
+    RW = ArrayOp(wp1, wp1[1], "/")
 
     iP = MatrixInvert(prims)
+
     T  = MatrixDot(RW,MatrixTranspose(iP))
     M  = MatrixDot(Broadcast(T),prims)
+
+    # Chromacity Adapted Transformation matrix
+    if (wp1[2]!=wp2[2]) {
+
+    D  = CAT(rgb, wp1, wp2, LMS=LMS, list=true)
+    M  = MatrixDot(M,MatrixTranspose(D))
+    }
 
     list ? M : MatrixClip(rgb, M) }
 
 
-# XYZ to RGB linear
-function XYZ_to_RGB (clip xyz, string cspace, string "illuminant", bool "list") {
+
+function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bool "list") {
+
+
+    illu  = illuminant
+    isIllu= isArray(illu)
+    Assert(!isFloat(illu) && !isFloat(illu), "XYZ_to_RGB: Illuminant only supports string or array type.")
 
     cs    = color_Fuzzy_Search(cspace)
-    illu  = color_propGet(xyz,cs[4])
     list  = Default(list, false)
-    illu  = Default(illuminant, illu[3])
+    LMS   = Default(LMS, "CAT02B")
+    illu  = Defined(illuminant) ? isIllu ? ArraySize(illu)>2 ? illu : [illu[0],illu[1],1-illu[0]-illu[1]] : illu : color_propGet(xyz,cs[4])[3]
 
-    p     = color_coef(cs[0], illu=illu)
+    # Checking discrepancies
+    p1    =                 color_coef(cs[0])
+    p2    = isIllu ? illu : color_coef(cs[0], illu=illu)
+
+    # White Point
+    wp1   =                 [p1[3],p1[4],p1[5]]
+    wp2   = isIllu ? illu : [p2[3],p2[4],p2[5]]
 
     # Reference White
-    RW    = [p[3]/p[4],1,p[5]/p[4]]
+    RW    = ArrayOp(wp1, wp1[1], "/")
 
     # Primaries Flat Array
-    prims = [p[6][0],p[6][1],p[6][2],\
-             p[7][0],p[7][1],p[7][2],\
-             p[8][0],p[8][1],p[8][2]]
+    prims = [p1[6][0],p1[6][1],p1[6][2],\
+             p1[7][0],p1[7][1],p1[7][2],\
+             p1[8][0],p1[8][1],p1[8][2]]
 
     iP = MatrixInvert(prims)
     T  = MatrixDot(MatrixTranspose(iP),RW)
     M  = MatrixDot(iP,MatrixInvert(Broadcast(T)))
+
+    # Chromacity Adapted Transformation matrix
+    if (wp1[2]!=wp2[2]) {
+
+    # Doesn't match RGB_to_XYZ()^-1 so I had to invert it explicitly
+#   D  = CAT(xyz, wp1, wp2, LMS=LMS, list=true)
+#   M  = MatrixDot(D,M)
+    M  = MatrixInvert(RGB_to_XYZ(xyz, cspace,illuminant,LMS,list=true))
+
+    }
 
     list ? M : MatrixClip(xyz, M) }
 
@@ -1615,11 +1654,11 @@ function XYZ_to_RGB (clip xyz, string cspace, string "illuminant", bool "list") 
 
 function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
-    md    = Default (mode,    "CAT16")
+    md    = Default (mode,    "CAT02B")
     list  = Default (list,      false)
     trans = Default (transpose, false)
 
-    # XYZ Scaling (known as "wrong von Kries"). Equals to RGB (D_in) to XYZ and XYZ to RGB (D_out)
+    # XYZ Scaling (known as "wrong von Kries"). Equals to RGB (D_in) to XYZ to CIELab (D_in) and CIELab (D_out) to XYZ to RGB (D_out)
     XYZvk = [1.000000, 0.000000,  0.000000, \
              0.000000, 1.000000,  0.000000, \
              0.000000, 0.000000,  1.000000]
@@ -1742,6 +1781,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
           md == "IPT"       ? HPEIPT        : \
           md == "HPEIPT"    ? HPEIPT        : \
           md == "Bradford"  ? Brad          : \
+          md == "Brad"      ? Brad          : \
           md == "CAT97"     ? Brad          : \
           md == "Fairchild" ? Fair          : \
           md == "Cat5"      ? Cat5          : \
@@ -1773,7 +1813,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
 function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 
-    md   = Default (mode, "CAT16")
+    md   = Default (mode, "CAT02B")
     tran = Default (transpose, false)
     list = Default (list,      false)
 
@@ -1789,34 +1829,46 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 #   Strong von Kries (von Kries-Ives) (used in ICC)
 #   Weak   von Kries (default in CAT() )
 #
-# 'source' and/or 'target' can be Primaries (Color Space ie. sRGB) or a Standard Illuminant (ie: D65)
-function CAT (clip c, string "source", string "target", string "LMS", bool "tv_range", bool "list") {
+# 'source' and/or 'target' can be Primaries (Color Space ie. "sRGB"), Standard Illuminant (ie: "D65") or a white point tuplet [x,y]
+function CAT (clip c, val "source", val "target", string "LMS", bool "tv_range", bool "list") {
 
     rgb     = IsRGB(c)
     propIDs = color_propGet(c)
 
     src   = Default (source,   propIDs[3]) # Source illuminant
     tgt   = Default (target,        "D65") # Target illuminant
-    LMS   = Default (LMS,         "CAT16")
+    LMS   = Default (LMS,         "CAT02B")
     tv    = Default (tv_range, propIDs[6])
     list  = Default (list,          false)
 
-    src   = color_Fuzzy_Search (src)
-    tgt   = color_Fuzzy_Search (tgt)
-    src   = list ? [src[1],src[1]] : src
-    tgt   = list ? [tgt[1],tgt[1]] : tgt
-    wps   = color_coef(src[1])
-    wpt   = color_coef(tgt[1])
+    Assert(!isFloat(src)&&!isFloat(src), "CAT: Only string or array type supported")
+
+    if (isArray(src)) {
+        wps = ArraySize(src)>2 ? src : [src[0],src[1],1-src[0]-src[1],src[0]]
+        wps = ArrayAppend(wps,wps)
+    } else {
+        src   = color_Fuzzy_Search (src)
+        src   = list ? [src[1],src[1]] : src
+        wps   = color_coef(src[1],illu=src[1])
+    }
+    if (isArray(tgt)) {
+        wpt = ArraySize(tgt)>2 ? tgt : [tgt[0],tgt[1],1-tgt[0]-tgt[1],tgt[0]]
+        wpt = ArrayAppend(wpt,wpt)
+    } else {
+        tgt   = color_Fuzzy_Search (tgt)
+        tgt   = list ? [tgt[1],tgt[1]] : tgt
+        wpt   = color_coef(tgt[1],illu=tgt[1])
+    }
+
     same  = wps[3] == wpt[3]
 
-    LMS   = XYZ_to_LMS(c, LMS, true)
+    LMSm  = XYZ_to_LMS(c, LMS, true)
 
-    wpsn  = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], LMS)
-    wptn  = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], LMS)
-    trans = ArrayOp(wptn,wpsn,"/")
-    vk    = Broadcast(same ? [1,1,1] : [trans[0],trans[1],trans[2]], "vonKries")
+    wpsn  = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], LMSm)
+    wptn  = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], LMSm)
+    vk    = Broadcast(same ? [1,1,1] : ArrayOp(wptn,wpsn,"/"), "vonKries")
 
-    CAM   = !same ? MatrixDot(LMS, MatrixDot(vk, MatrixInvert(LMS))) : vk
+    CAM   = !same ? MatrixDot(MatrixInvert(LMSm), MatrixDot(vk, LMSm)) : vk
 
     if (!list) {
 
@@ -1832,14 +1884,16 @@ function CAT (clip c, string "source", string "target", string "LMS", bool "tv_r
 
         moncurve_f(s_gam[0], s_gam[1], false, false, 1)
 
-        mata = RGB_to_XYZ (s_pri, list=true)
-        matb = XYZ_to_RGB (s_pri, list=true)
+        mata = RGB_to_XYZ (s_pri, src[1], LMS=LMS, list=true)
+        matb = XYZ_to_RGB (s_pri, tgt[1], LMS=LMS, list=true)
         MatrixClip( MatrixDot(MatrixDot(mata, CAM), matb) )
 
         moncurve_r(s_gam[0], s_gam[1], false, false, 1)
 
         rgb ? RGBpln ? last : MatchClip(c) : \
         RGB_to_YUV( s_pri, tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c))
+        propCopy(c,true,props="_ChromaLocation")
+        isString(target) ? propSet("_Illuminant", color_Fuzzy_Search(target)[5]) : last
         same ? c : last
 
     } else { CAM } }
@@ -1850,17 +1904,17 @@ function CAT (clip c, string "source", string "target", string "LMS", bool "tv_r
 # The sum of the corresponding CIE RGB CMF integrals define the white point energy.
 # Maps spectral observer sensitivity data into linear CIE tristimulus values X, Y and Z.
 #
-# Wright & Guild 1931 2° RGB CMFs primaries (which CIE 1931 is based on) fall at 700nm, 546.1nm and 435.8nm wavelengths.
+# Wright & Guild 1931 2º RGB CMFs primaries (which CIE 1931 is based on) fall at 700nm, 546.1nm and 435.8nm wavelengths.
 # Since computation of RGB spectral tristimulus values was impractical the CIE transformed it into XYZ under the name CIE 1931 2º Standard Observer.
 #
-# CIE 1931 2º Standard Observer (ideal for LED) (2º -degrees- is the angular size of the human fovea)
+# CIE 1931 2º Standard Observer (ideal for LED) (conversion from Wright & Guild 1931 2º RGB CMF)
 #  |_ CIE 1931 2º Judd (1951) and Vos (1978) modification
 #     |_  1975 2º Smith & Pokorny CMF (LMS based)
 #        |_ 1992 2º DeMarco, Pokorny & Smith CMF
 # 1955 2º  Stiles and Burch CMF (RGB based) (download in XYZ)
 #  |_ 1993 2º  Stockman, MacLeod and Johnson (LMS based)
 # 1959 10º Stiles and Burch CMF
-#  |_ CIE 1964 10º Supplementary Standard Observer (based on 10º (1959) Stiles and Burch CMF)
+#  |_ CIE 1964 10º Supplementary Standard Observer (conversion from 10º (1959) Stiles and Burch CMF)
 #  |_ CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 2º  Standard Observer
 #  |_ CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL, good for OLED)
 #      |_ CIE 170-2 Schanda-Csuti   (2008) modified 2º Standard Observer (ideal for Plasma)
@@ -1868,7 +1922,9 @@ function CAT (clip c, string "source", string "target", string "LMS", bool "tv_r
 #      |_ CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
 # 2011 Cat.5 & Cat.9 (Abhijit Sarkar 2011) - ODCI (Observer Dependent Color Imaging) (8 Observers Table presented as Excel spreadsheet)
 #
-# * 10º (large field) Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets). Movies in a SmartTV might range between 26º and 36º (SMPTE 30 or THX) from the observer, but the individual color patches don't.
+# * 2º -degrees- is the angular size of the human fovea
+# * 10º (large field) Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets).
+#   Movies in a SmartTV might range between 26º and 36º (SMPTE 30 or THX) from the observer, but the individual color patches don't.
 function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     nm  = Default (wavelength,   560) # from 380 to 830. *Shorter wavelengths are absorbed by the cornea (<295nm) and lens (315–390nm)
@@ -2017,5 +2073,4 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
         B=ExtractB().HistoCurve(3,gradient=true)
         MergeRGB(R,G,B).subtitle(CMF,y=10,align=9)
         }
-
-}
+    }
