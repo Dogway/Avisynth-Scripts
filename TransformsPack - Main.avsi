@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC57  (12-08-2022)     ##
+###   Transforms Pack - Main v1.0 RC57b (13-08-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -57,6 +57,7 @@
 ###     - About three times more scaling kernels to choose from
 ###     - Many more color model conversion functions
 ###     - Convert from any illuminant to any illuminant (ie. sRGB at D50 to NTSC at D93)
+###     - Full coefficients derivations
 ###     - Ratio resize (ie. 0.5 to halve size instead of absolute dimensions)
 ###     - Aliases and fuzzy search for any given string argument
 ###     - Preset support
@@ -131,9 +132,9 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     moncurve_f(s_gam[0], s_gam[1], false, false)
 
     if (gamut) {
-    mata = RGB_to_XYZ (src[0], src[1], LMS=LMS, list=true)
-    matw = CAT        (src[1], tgt[1], LMS=LMS, list=true)
-    matb = XYZ_to_RGB (tgt[0], tgt[1], LMS=LMS, list=true)
+    mata = RGB_to_XYZ   (src[0], src[1], LMS=LMS, list=true)
+    matw = CAT          (src[1], tgt[1], LMS=LMS, list=true)
+    matb = XYZ_to_RGB   (tgt[0], tgt[1], LMS=LMS, list=true)
     MatrixClip(MatrixDot(src[1]!=tgt[1] ? MatrixDot(mata, matw) : mata, matb) ) }
 
     Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1], false, false) : \
@@ -251,12 +252,11 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 ###
 ### Dependencies: AviSynth+ 3.7.2 and over
 ###               ExTools
-###               GradePack    (for show=true and 'sigmoid' scaling)
+###               GradePack    (for show=true or 'sigmoid' scaling)
 ###               MasksPack    (for show=true)
-###               ResizersPack (for show=true)
+###               ResizersPack (for show=true or UVRecon=true)
 ###               KNLMeansCL   (for UVRecon=true)
-###               nnedi3       (for UVRecon=true)
-###               SysInfo      (for UVRecon=true)
+###               nnedi3(CL)   (for UVRecon=true)
 ###               Optional resizer plugins (check links)
 ###
 ### Example 1 - Limited YUV to full RGB:
@@ -431,7 +431,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     isRGBi ? ConvertToPlanarRGB() : last
 
-    mod        = Default (mod, isy||isRGBo||o_fmt[1]=="444" ? 1 : 2) # mod size for resizing. ie: 1, 2, 4, 8, 16...
+    mod        = Default (mod, isy||isRGBo||o_fmt[1]=="444" ? 1 : 2) # mod size for resizing, powers of 2 ie: 1, 2, 4, 8, 16...
 
     Assert(isFloat(nw) || isFloat(nh), "ConvertFormat: Width/Height type not supported.") # isFloat(int) also returns true, so good for 'number' type evaluation
     nw         = isInt(nw) && nw<=10 ? float(nw) : isFloat(nw) && nw>10. ? int(nw) : nw
@@ -533,24 +533,25 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                  preset == "Grade"        ? 12 : \
                  preset == "Theater"      ? 13 : \
                  preset == "JPEGXL"       ? 14 : \
+                 preset == "JPEG-XL"      ? 14 : \
                  preset == "JPEG2000"     ? 15 : \
                  preset == "JPG_old"      ? 16 : \
                  preset == "JPG"          ? 17 : 0
 
-    #                                   Default  DoVi/DVp5/DVp7  PQ10/UHD/2100   HLG10    HD/1886  DVD-NTSC/601  DVD-PAL/470BG  DV-NTSC     CRT-NTSC     CRT-PAL     Master  GAM*/Archival    Grade     Theater      JPEGXL    JPEG2000    JPG_old  JPG/sRGB
-    o_fmt0        = Select (num,      o_fmt[0],      "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",     "YCbCr",    "YCbCr",       "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",      "XYB",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
-    cs_outFA      = Select (num,      cs_outFA,         "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",      "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old standardized decoding (PS, mozjpeg, cjxl, etc) is always treated as encoded with 170M (470M derived) matrix, regardless of image/profile primaries, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
-    o_fmt1        = Select (num,      o_fmt[1],          "420",       "420",      "420",     "420",      "420",       "420",      "410",       "411",     "411",     "444",       "444",      "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
-    tv_out        = Select (num,        tv_out,          false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,      false,    false,    false)
-    cplace_out    = Select (num,    cplace_out,     "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",    "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
-    D_out         = Select (num,         D_out,          "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",       "D60",      "D60",        "E",      "D65",      "D65",    "D65",    "D65")
-    EOTF          = Select (num,          EOTF,           "PQ",        "PQ",      "HLG",    "1886",     "1886",      "1886",     "170M",      "170M",    "170M",  "DCIXYZ",    "linear",  "ACESCCt",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB")
-    PAR           = Select (num,             1,              1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,          1,        1,        1)
-    cdc           = Select (num,            "",         "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000",   "JPEGXL", "JPEG2000",    "JPG",    "JPG")
-    cont          = Select (num,            "",           "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",          "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jxl",      "jp2",    "jpg",    "jpg")
-    bit           = Select (num,            bi,             12,          10,         10,         8,          8,           8,          8,           0,         0,        16,          16,         32,         12,          8,          8,        8,        8)
+    #                         Default    DoVi/DVp5/DVp7  PQ10/UHD/2100   HLG10    HD/1886  DVD-NTSC/601  DVD-PAL/470BG  DV-NTSC     CRT-NTSC     CRT-PAL     Master  GAM*/Archival    Grade     Theater     JPEG-XL    JPEG2000    JPG_old  JPG/sRGB
+    o_fmt0     = Select (num,   o_fmt[0],    "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",     "YCbCr",    "YCbCr",       "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",      "XYB",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
+    cs_outFA   = Select (num,   cs_outFA,       "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",      "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old standardized decoding (PS, mozjpeg, cjxl, etc) is always treated as encoded with 170M (470M derived) matrix, regardless of image/profile primaries, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
+    o_fmt1     = Select (num,   o_fmt[1],        "420",       "420",      "420",     "420",      "420",       "420",      "410",       "411",     "411",     "444",       "444",      "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
+    tv_out     = Select (num,     tv_out,        false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,      false,    false,    false)
+    cplace_out = Select (num, cplace_out,   "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",    "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
+    D_out      = Select (num,      D_out,        "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",       "D60",      "D60",        "E",      "D65",      "D65",    "D65",    "D65")
+    EOTF       = Select (num,       EOTF,         "PQ",        "PQ",      "HLG",    "1886",     "1886",      "1886",     "170M",      "170M",    "170M",  "DCIXYZ",    "linear",  "ACESCCt",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB")
+    PAR        = Select (num,          1,            1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,          1,        1,        1)
+    cdc        = Select (num,         "",       "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000",   "JPEGXL", "JPEG2000",    "JPG",    "JPG")
+    cont       = Select (num,         "",         "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",          "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jxl",      "jp2",    "jpg",    "jpg")
+    bit        = Select (num,         bi,           12,          10,         10,         8,          8,           8,          8,           0,         0,        16,          16,         32,         12,          8,          8,        8,        8)
 
-  # * DVD-PAL and DVD-NTSC employ 1886 as EOTF since the dawn of digital mastering (early 2000s), otherwise used 170M.
+  # * DVD-PAL and DVD-NTSC employ 1886 as EOTFi since the dawn of digital mastering (early 2000s), otherwise used 170M.
   # * GAM (Graded Archival Master)
 
 
@@ -691,10 +692,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         kernel == "Ginseng"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Ginseng3)      """ : \
                         kernel == "Welch"        ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Welch3)        """ : \
                         kernel == "Cosine"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Cosine3)       """ : \
-                        kernel == "Bessel"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(bessel3)       """ : \
-                        kernel == "Parzen"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(parzen8)       """ : \
-                        kernel == "Kaiser"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(kaiser8)       """ : \
-                        kernel == "Bohman"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(bohman8)       """ : \
+                        kernel == "Bessel"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Bessel3)       """ : \
+                        kernel == "Parzen"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Parzen8)       """ : \
+                        kernel == "Kaiser"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Kaiser8)       """ : \
+                        kernel == "Bohman"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Bohman8)       """ : \
                         kernel == "Quadratic"    || kernel == "Quadric" || kernel == "Bell"                  ? \
                                                    """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=16,cnorm=true,center=true,impulse=ArraySym(quadratic15)  """ : \
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
@@ -799,18 +800,16 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     cplaceC  = (src_nulc ? ""     : (cplaceH + cplaceV + src_whc)) + ")" + fmtcb
 
 
-    c_recon  = """threads = SI_LogicalCores()
-                  cores   = SI_PhysicalCores()
-                  refs    = isRGBo || isSpace || isScale ? true : !tv_in
+    c_recon  = """refs    = isRGBo || isSpace || isScale ? true : !tv_in
                   c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
-                  ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
-                  Luma    = ref.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2).ConvertBits(bi,fulls=fs)
-                  Uu      =  Cb.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2)
+                  ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), wref=1)
+                  Luma    = ref.ConvertBits(8,dither=-1,fulls=refs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0).ConvertBits(bi,fulls=fs)
+                  Uu      =  Cb.ConvertBits(8,dither=-1,fulls=refs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0)
                   Uu      =  Eval("Uu."+kernel_c+"resize(w*2,h*2,"+(kernel_c=="bicubic"?"b=bch_b,c=bch_c":"taps=tapsc")+")").ConvertBits(bi,fulls=refs)
-                  Vu      =  Cr.ConvertBits(8,dither=-1,fulls=refs).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2)
+                  Vu      =  Cr.ConvertBits(8,dither=-1,fulls=refs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0)
                   Vu      =  Eval("Vu."+kernel_c+"resize(w*2,h*2,"+(kernel_c=="bicubic"?"b=bch_b,c=bch_c":"taps=tapsc")+")").ConvertBits(bi,fulls=refs)
-                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5) # -0.5 to recenter image center shift from nnedi3()
-                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5)
+                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5) # -0.5 to recenter image center shift from nnedi3()
+                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5)
                   Cb      = ex_LFR(Unew, Uu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5), LFR=fcnw/1.1)
                   Cr      = ex_LFR(Vnew, Vu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5), LFR=fcnw/1.1)"""
 
@@ -1294,13 +1293,11 @@ function color_Fuzzy_Search (string matrix) {
 \   : (FindStr(matrix,"428" )>0 ) ? "DCIXYZ"
 \   : (FindStr(matrix,"APPLE")>0) ? "AppleRGB"
 \   : (matrix == "Camera"       ) ? "170M"
-\   : (matrix == "2020CL"       ) ? "2020CL"
-\   : (matrix == "2020NCL"      ) ? "2020NCL"
 \   : (matrix == "709-Camera"   ) ? "170M"
 \   : (matrix == "linear"       ) ? "linear"
 \   : (matrixn== "170M"         ) ? "170M"
-\   : (matrixn== "2020CL"       ) ? "PQ"
 \   : (matrixn== "2020DV5"      ) ? "PQ"
+\   : (matrixn== "2020CL"       ) ? "PQ"
 \   : (matrixn== "2020NCL"      ) ? "1886"
 \   : (matrixn== "240M"         ) ? "240M"
 \   : (matrixn== "470BG"        ) ? "470BG"
@@ -1370,7 +1367,6 @@ function color_Fuzzy_Search (string matrix) {
 \   : (matrixn == "240M"           ) ? 7
 \   : (matrixn == "2020NCL"        ) ? 9
 \   : (matrixn == "2020CL"         ) ? 10
-\   : (matrixn == "2020"           ) ? 9
 \   : (matrixn == "YDzDx"          ) ? 11
 \   : (matrixn == "DCI-P3"         ) ? 12
 \   : (matrixn == "Display-P3"     ) ? 12
@@ -1961,7 +1957,7 @@ function color_coef (string "prims", string "mat", string "illu") {
     # It's mandatory for them to do a chromatic adaptation to convert them to the new illuminant primaries. RGB_to_XYZ()/XYZ_to_RGB() does this automatically.
     #
     #                     NTSC 1953/YCbCr   ITU-R BT.709-6/sRGB ITU-R BT.601     Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100      Adobe RGB (1998)  Adobe Wide Gamut   Display-P3/D65P3  DCI-P3            AP1                AP0                E (Neutral)    D55                D75                NTSC-J*        P22/NTSC-J (from https://bkict-ocw.knu.ac.kr/caster/file/lecture/5955F4002DC3E.pdf)
-    #                     BT-470M/FCC       IEC 61966-2-1       SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100      Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg/ACEScct     SMPTE ST 2065-1    XYZ            D55                D75                9300K+27 MPCD  9300K+27 MPCD  ProPhotoRGB      Sunlight        Overcast
+    #                     BT-470M/FCC       IEC 61966-2-1       SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100      Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg/ACEScct     SMPTE ST 2065-1    XYZ            D55                D75                9300K+27 MPCD  9300K+27 MPCD  ProPhotoRGB       Sunlight        Overcast
     pr  = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],    [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.70792, 0.29203],  [0.640,  0.330],  [0.73469,0.26531], [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653], [1.0, 0.0] ,                                        [0.618, 0.350],[0.641, 0.327],[0.7347, 0.2653] )
     pg  = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],    [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.17024, 0.79652],  [0.210,  0.710],  [0.11416,0.82621], [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000], [0.0, 1.0] ,                                        [0.280, 0.605],[0.272, 0.591],[0.1596, 0.8404] )
     pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.13137, 0.04588],  [0.150,  0.060],  [0.15664,0.01770], [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770], [0.0, 0.0] ,                                        [0.152, 0.063],[0.142, 0.052],[0.0366, 0.0001] )
@@ -2051,7 +2047,7 @@ function moncurve_coef (string transfer) {
             */
 
     #                                                SMPTE-C    / BT-2020           Y’PbPr 601              PAL/SECAM                      Rec.709  AdobeRGB   DCI-P3      AP1/AP0   NTSC 1953/YCbCr  Apple TRC**
-    #                       sRGB                     SMPTE 170M / BT-2020           SMPTE 240M              BT-470BG (historical)          BT-1886  AdobeRGB** DCI-P3/XYZ  ACES/LIN  BT-470M/FCC
+    #                       sRGB                     SMPTE 170M / BT-2020           SMPTE 240M (historical) BT-470BG (historical)          BT-1886  AdobeRGB** DCI-P3/XYZ  ACES/LIN  BT-470M/FCC
     t_gamma = Select(t_num, 2.40                   , 1/0.45                       , 1/0.45                , 2.80                         , 2.40   , 563/256.,  2.60       , 1.0      , 2.2           , 461/256.   )
     t_alpha = Select(t_num, 0.055                  , 0.099296826809442940347282759, 0.1115                , 0.099296826809442940347282759, 0      , 0       ,  0          , 0        , 0             , 0          )
     t_beta  = Select(t_num, 0.00303993463977843    , 0.018053968510807807335869592, 0.02280681818181818182, 0.00410749063249639977       , 0      , 0       ,  0          , 0        , 0             , 0          )
@@ -2213,7 +2209,6 @@ function Broadcast (float_array mat, string "mode", bool "fill", int "size") {
         arr = md=="Bottom" ? ArrayAdd(arr,i<     asize                  ? mat[i]                  : 0) : \
               md=="Right"  ? ArrayAdd(arr,i<(dim*asize) && i% dim   ==0 ? mat[min(i/dim,asize-1)] : 0) : \
                              ArrayAdd(arr,i<(dim*asize) && i%(dim+1)==0 ? mat[min(i/dim,asize-1)] : 0)
-
       } } else {
 
     for (i = 0, dim-1, 1) {
