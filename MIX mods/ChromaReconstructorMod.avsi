@@ -11,7 +11,7 @@
 # v3.3 Rename gauss() function to avoid name conflict. Some tweaks to kernel settings
 # v3.4 Reenable mode=1 for horizontally stretched chroma. "_faster", add center shift to nnedi3 and tweak taps
 # v3.5 Pass 'gpuid' argument and allow CPU processing with gpuid=-1
-# v4.0 Update with nnedi3wrap (passed gpuid argument). Fix 'device_type' arg assignment
+# v4.0 Update with nnedi3wrap (passed gpuid argument). Fix 'device_type' arg assignments
 #
 # Example:
 #
@@ -20,21 +20,19 @@
 #
 function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", int "mode", bool "wild", int "gpuid") {
 
+        w        = src.width()
+        h        = src.height()
+        bdpth    = string(src.BitsPerComponent())
+        p_type   = PixelType(src)
+
         radius   = Default(radius, 32)
         str      = Default(str,   6.4)
         gpuid    = Default(gpuid,   0)
         hipass   = Default(hipass,  6)
         mode     = Default(mode,    0)   # set to mode=1 for only horizontally stretched chroma
-        wild     = Default(wild, True)
+        wild     = Default(wild, true)
         cpu      = gpuid < 0 ? "cpu" : "gpu"
-        gpuCL    = max(0,gpuid)
-
-        cores    = SI_PhysicalCores()
-        threads  = SI_LogicalCores()
-        w        = src.width()
-        h        = src.height()
-        bdpth    = string(src.BitsPerComponent())
-        p_type   = PixelType(src)
+        gpuCL    = max(0, gpuid)
 
         ref      = wild ? src.ExtractY() : src.ExtractY().KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), device_type=cpu, device_id=gpuCL, dwref=1)
         srcU     = src.ExtractU()
@@ -68,7 +66,7 @@ function interpolation(clip luma, clip "chroma", int "radius", float "str", int 
              exp_c1   = pow(1.070339301855046091743224243341, 32)
              weight   = pow(exp_c0, radius) / exp_c1
              ref      = Expr(chroma, luma, Format("y dup x - {weight} * -"))
-             return KNLMeansCL(chroma, 0, radius, 0, str, "auto", wref=0, rclip=ref, device_id=gpuid)
+             return KNLMeansCL(chroma, 0, radius, 0, str, wref=0, rclip=ref, device_type=gpuid < 0 ? "cpu" : "gpu", device_id=gpuid)
 }
 
 
@@ -98,7 +96,7 @@ function gauss_h(clip src, int "p")
 #    420_Source
 #    ChromaReconstructor_faster() # 444_Output
 #
-function ChromaReconstructor_faster(clip src, int "radius", float "str", int "threads", int "gpuid") {
+function ChromaReconstructor_faster(clip src, int "radius", float "str", int "gpuid") {
 
         w       = src.width()
         h       = src.height()
@@ -108,22 +106,18 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "th
 
         radius  = Default(radius, 16)
         str     = Default(str,   6.4)
-        threads = Default(threads, 4)
         gpuid   = Default(gpuid,   0)
         cpu     = gpuid < 0 ? "cpu" : "gpu"
-        gpuCL    = max(0,gpuid)
-
-        cores   = SI_PhysicalCores()
-        threads = SI_LogicalCores()
+        gpuCL   = max(0, gpuid)
 
         Y   = ExtractY(src)
         Uor = ExtractU(src)
         Vor = ExtractV(src)
 
         ref     =   Y.KNLMeansCL (0, radius, 0, pow(1.464968620512209618455732713658, str), wref=1, device_type=cpu, device_id=gpuCL)
-        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2,           nns=1, qual=1, etype=1, nsize=0,                                 cshift="spline16",gpuid=gpuid).ConvertBits(bi,fulls=fs)
-        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2,           nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackman",gpuid=gpuid).ConvertBits(bi,fulls=fs)
-        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2,           nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackman",gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0,                                 cshift="spline16",gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackman",gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackman",gpuid=gpuid).ConvertBits(bi,fulls=fs)
         Unew    = Uu.KNLMeansCL  (0, radius, 0, str, wref=0, rclip=Luma, device_type=cpu, device_id=gpuCL).BicubicResize(w, h, b=0.0, c=0.5)
         Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, wref=0, rclip=Luma, device_type=cpu, device_id=gpuCL).BicubicResize(w, h, b=0.0, c=0.5)
         U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
