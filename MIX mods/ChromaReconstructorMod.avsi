@@ -34,6 +34,8 @@ function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", 
         cpu      = gpuid < 0 ? "cpu" : "gpu"
         gpuCL    = max(0, gpuid)
 
+        Assert (is444(src), "ChromaReconstructor: Input should be full chroma sampled (444)")
+
         ref      = wild ? src.ExtractY() : src.ExtractY().KNLMeansCL(0, radius, 0, pow(1.464968620512209618455732713658, str), device_type=cpu, device_id=gpuCL, dwref=1)
         srcU     = src.ExtractU()
         srcV     = src.ExtractV()
