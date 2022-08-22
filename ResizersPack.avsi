@@ -437,7 +437,9 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     ConvertBits(a, 32, fulls=!tv, fulld=true)
     rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertToPlanarRGB(matrix=mat,chromaresample="lanczos4")
 
-    w2xncnnvk(noise=ns-1, scale=factor, tile_w=ti, tile_h=ti, model=md, tta=true, fp32=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2) # 2: CUnet is too slow for video
+    for (i = 1, factor/2, 1) {
+        w2xncnnvk(noise=ns-1, scale=2, tile_w=ti, tile_h=ti, model=md, tta=factor<4, fp32=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2) # 2: CUnet is too slow for video
+        }
 
     isy  ? ExtractR()                         : last
     !rgb ? MatchClip(a,matrix=pri,size=false) : last
