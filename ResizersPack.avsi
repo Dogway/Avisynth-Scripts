@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.7 (12-08-2022)      ##
+###   Resizers Functions Pack 9.8 (22-08-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -12,6 +12,7 @@
 ### Functions:                                      ##
 ###      deep_resize                                ##
 ###      nnedi3resize                               ##
+###      waifu2xresize                              ##
 ###      nnedi3wrap                                 ##
 ###      RatioResize                                ##
 ###      PadResize                                  ##
@@ -161,10 +162,10 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
     w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
     h2     = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
-    w2     =  w2<=10. ? w*w2 : w2        w2 = round(w2/mod)*mod
-    h2     =  h2<=10. ? h*h2 : h2        h2 = round(h2/mod)*mod
-    w2     =  w2 == 0 || wu  ? round((w*(h2/float(h)))/mod)*mod : w2
-    h2     =  h2 == 0 || hu  ? round((h*(w2/float(w)))/mod)*mod : h2
+    w2     =  w2<=10. ? w*w2 : w2        w2 = nmod(w2,mod)
+    h2     =  h2<=10. ? h*h2 : h2        h2 = nmod(h2,mod)
+    w2     =  w2 == 0 || wu  ? nmod((w*(h2/float(h))),mod) : w2
+    h2     =  h2 == 0 || hu  ? nmod((h*(w2/float(w))),mod) : h2
 
     isHD   = (w  > 1099 || h  >  599)
     isHD2  = (w2 > 1099 || h2 >  599)
@@ -341,10 +342,10 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
 
     w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
     h2     = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
-    w2     =  w2<=10. ? w*w2 : w2        w2 = round(w2/mod)*mod
-    h2     =  h2<=10. ? h*h2 : h2        h2 = round(h2/mod)*mod
-    w2     =  w2 == 0 || wu  ? round((w*(h2/float(h)))/mod)*mod : w2
-    h2     =  h2 == 0 || hu  ? round((h*(w2/float(w)))/mod)*mod : h2
+    w2     =  w2<=10. ? w*w2 : w2        w2 = nmod(w2,mod)
+    h2     =  h2<=10. ? h*h2 : h2        h2 = nmod(h2,mod)
+    w2     =  w2 == 0 || wu  ? nmod((w*(h2/float(h))),mod) : w2
+    h2     =  h2 == 0 || hu  ? nmod((h*(w2/float(w))),mod) : h2
 
     hs      = h == h2
     ws      = w == w2
@@ -368,6 +369,85 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
     nnedi3wrap(a,ws?1:factor,hs?1:factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,ep0=rfactor?-0.5:6,ep1=0.25,cshift=krnn,HBD=HBD,gpuid=gpuid)
 
     }
+
+
+
+#
+# waifu2xresize()
+#
+# Replacement wrapper for w2xncnnvk() upscaler. Runs VERY slow ~1 fps (GTX 1070)
+# * w2xncnnvk has a known bug which causes to cast a green tint
+#
+# Dependencies:
+#       w2xncnnvk
+#       ExTools
+#       TransformsPack
+#       MasksPack (for model=1)
+#
+function waifu2xresize(clip a, val "width", val "height", int "model", int "noise", float "grain", bool "soothe", bool "tv_range", int "gpuid") {
+
+    pID    = color_propGet(a)
+    bi     = pID[7]
+    pri    = pID[2]
+    mat    = "PC"+pri
+
+    wu     = !Defined(width)
+    hu     = !Defined(height)
+    w      = width (a)
+    h      = height(a)
+    rgb    = isRGB (a)
+    rgbp   = isPlanarRGB(a)
+    is4    = is444 (a)
+    isy    = isy   (a)
+    mod    = rgb || is4 || isy ? 1 : 2
+    cpl    = propNumElements (a,"_ChromaLocation") > 0 ? \
+             propGetInt      (a,"_ChromaLocation")     : 0
+
+    w2     = Default(width,  w)
+    h2     = Default(height, h)
+
+    ver = VersionString()
+    Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3682"),"waifu2xresize: Update AviSynth+ version")
+    Assert(isFloat(w2) || isFloat(h2),                           "waifu2xresize: Width/Height type not supported")
+
+    w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
+    h2     = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
+    w2     =  w2<=10. ? w*w2 : w2        w2 = nmod(w2,mod)
+    h2     =  h2<=10. ? h*h2 : h2        h2 = nmod(h2,mod)
+    w2     =  w2 == 0 || wu  ? nmod((w*(h2/float(h))),mod) : w2
+    h2     =  h2 == 0 || hu  ? nmod((h*(w2/float(w))),mod) : h2
+
+    rw     = w2/float(w)
+    rh     = h2/float(h)
+    factor = max(rw,rh) < 3 ? 2 : 4
+    rfactor= rw<factor && rh<factor
+    krnn   = rfactor ? "Bicubic" : "Blackman" # hard coded final resize: 'Didée' for down 'Blackman6' for up
+
+    isHD   = (w > 1099 || h >  599)
+    isUHD  = (w > 2599 || h > 1499)
+    ti     = isUHD ? 512 : isHD ? 256 : 128
+
+    md     = Default(model,  1)
+    tv     = Default(tv_range,  pID[6])
+    gid    = Default(gpuid,  0)
+    so     = Default(soothe, md==1)                        # Temporal stabilize sharpening for less temporal jitter
+    ns     = Default(noise,  0)                            # From 0 (no denoise) to 4 full denoise
+    gr     = Default(grain, rw>1.25 && rh>1.25 ? 0.3 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
+
+    ConvertBits(a, 32, fulls=!tv, fulld=true)
+    rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertToPlanarRGB(matrix=mat,chromaresample="lanczos4")
+
+    w2xncnnvk(noise=ns-1, scale=factor, tile_w=ti, tile_h=ti, model=md, tta=true, fp32=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2) # 2: CUnet is too slow for video
+
+    isy  ? ExtractR()                         : last
+    !rgb ? MatchClip(a,matrix=pri,size=false) : last
+
+    so && rw>1.25 && rh>1.25 ? Soothe(a.nnedi3wrap(factor,gpuid=gid),tv_range=tv) : last
+
+    Eval(krnn+"resize(w2,h2"+(rfactor ? ",-0.5,0.25)" : ",taps=6)"))
+
+    size = w2/2134.
+    gr > 0 ? GrainFactory3mod(g1str=6*gr,g2str=8*gr,g3str=5*gr,g1size=1.2*size,g2size=1.5*size,g3size=1.4*size,g1cstr=1.5*gr,g2cstr=1.5*gr,g3cstr=1.5*gr,temp_avg=0,tv_range=tv) : last }
 
 
 
