@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC57  (12-08-2022)   ##
+###   Transforms Pack - Models v1.0 RC58  (23-08-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -48,46 +48,46 @@
 # There are several types of Color Spaces defined by their role:
 # Characterization spaces are normally used to represent device gamuts for profiling on a unit-by-unit basis.
 # Standard spaces define a standard to comply with for delivery, normally they are derived from averaging measurements of real unit-by-unit devices defined by their used phosphors.
-# Finally working spaces don't need to be attached to any physical constraints so they can be as big as the CIE 1931 color space (some actually bigger than that), so they are suited for heavy color transformations without much degradation in the process. They can also be geared towards certain effects like getting more color resolution in certain HUES for exposing better shades in color grading tasks. Ultimately everything is being transformed into your display color space in real time so use any working space that suits your job.
+# Finally working spaces don't need to be attached to any physical constraints so they can be as big as the CIE 1931 color space (some actually bigger than that), so they are suited for heavy color transformations without much degradation in the process. They can also be geared towards certain effects like getting more color resolution in certain HUES for exposing better shades in color grading tasks. Ultimately everything is being transformed into your viewing transform color space in real time so use any working space that suits your job.
 #
-#-470M                   - (Historical) ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953) with C illuminant and 170M OETF
-#-170M                   - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (525-line = NTSC, SMPTE-C) (originally defined in "CCIR Recommendation 601-1 (1982-1986)")
-#-240M                   - SMPTE 240M
-#-470BG                  - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (625-line = PAL, SECAM)
-#-NTSC-J                 - ARIB TR-B9. Phosphor primaries used in Japan's consumer CRTs along 9300K + 27 MPCD illuminant
+#-470M                   - (Historical) ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953) with C illuminant and 170M OETF.
+#-170M                   - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (525-line = NTSC, SMPTE-C) (originally defined in "CCIR Recommendation 601-1 (1982-1986)").
+#-240M                   - SMPTE 240M.
+#-470BG                  - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (625-line = PAL, SECAM).
+#-NTSC-J                 - ARIB TR-B9. Phosphor primaries used in Japan's consumer CRTs along 9300K + 27 MPCD illuminant.
 #-sRGB                   - IEC 61966-2. Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users. Comprises Primaries -derived from phosphors of calibrated consumer CRTs of the 90s-, Illuminant and Transfer Characteristics.
-#-2020                   - ITU-R Rec. BT.2020
+#-2020                   - ITU-R Rec. BT.2020.
 #-AdobeRGB               - IEC 61966-2-5:1999. Also known as opRGB (optional RGB). Designed to encompass most printers' gamuts and to be used as a working space in Photoshop, ideally at 16-bit. It's basically the 470BG primaries with greens from 470M allegedly after a sucessions of mistakes.
 #-Adobe Wide Gamut       -
-#-DCI-P3                 - SMPTE RP 432-2. Digital Cinema
-#-Display-P3             - SMPTE RP 432-1
-#-AP0                    - ACES AP0 coefficients used for ACES2065 color space
-#-AP1                    - ACES AP1 coefficients used for ACEScg   color space
+#-DCI-P3                 - SMPTE RP 432-2. Digital Cinema.
+#-Display-P3             - SMPTE RP 432-1.
+#-AP0                    - ACES AP0 coefficients used for ACES2065 color space.
+#-AP1                    - ACES AP1 coefficients used for ACEScg   color space.
 # S-Gamut                -
 # S-Gamut3               -
 # S-Gamut3 (Venice)      -
-# S-Gamut3.Cine          - Sony Gamut Cinema. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film
+# S-Gamut3.Cine          - Sony Gamut Cinema. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film.
 # S-Gamut3.Cine (Venice) -
-# CinemaDay              - Canon Cinema Gamut Daylight (5500K)
-# CinemaTungsten         - Canon Cinema Gamut Tungsten (3200K)
-# CanonP3                - Canon DCI-P3+
-# D-Gamut                - DJI D-Gamut
-# D-GamutM               - DJI D-GamutM
+# CinemaDay              - Canon Cinema Gamut Daylight (5500K).
+# CinemaTungsten         - Canon Cinema Gamut Tungsten (3200K).
+# CanonP3                - Canon DCI-P3+.
+# D-Gamut                - DJI D-Gamut.
+# D-GamutM               - DJI D-GamutM.
 # DragonColor            -
 # DragonColor2           -
 # REDColor               -
 # REDColor2              -
 # REDColor3              -
 # REDColor4              -
-# REDWide                - RED Wide Gamut RGB
-# Protune                - GoPro Protune Native
-# Bolex                  - Bolex Wide Gamut RGB
+# REDWide                - RED Wide Gamut RGB.
+# Protune                - GoPro Protune Native.
+# Bolex                  - Bolex Wide Gamut RGB.
 # DaVinci Wide Gamut     -
 # Almira709              -
 # LC709                  -
 # LC709A                 -
 # s709                   -
-# Cine709                - Sony Cine+709
+# Cine709                - Sony Cine+709.
 # ADX10                  -
 # ADX16                  -
 # BlackMagic Design Wide Gamut -
@@ -102,83 +102,86 @@
 # BlackMagic Design 4.6K Film v3   (Legacy)
 # BlackMagic Design 4.6K Video     (Legacy)
 # BlackMagic Design 4.6K Video v3  (Legacy)
-# Alexa                  - Arri Alexa Wide Gamut
-# Film                   - Arri Film Matrix. Traditional film primaries with Illuminant C
-# FS                     - SMPTE Free Scale Gamut for imagery having arbitrary chromaticity that can be conveyed, inherited from Sony's F23, F35, and F65 Wide Gamut cameras. (ST 2048-1)
-# V-Gamut                - Panasonic V-Gamut (Varicam)
-# V709                   - Panasonic Varicam V709
-# F-Log                  - Fujifilm F-Log Gamut
+# Alexa                  - Arri Alexa Wide Gamut.
+# Film                   - Arri Film Matrix. Traditional film primaries with Illuminant C.
+# FS                     - SMPTE Free Scale Gamut for imagery having arbitrary chromaticity that can be conveyed, inherited from Sony's F23, F35, and F65 Wide Gamut cameras. (ST 2048-1).
+# V-Gamut                - Panasonic V-Gamut (Varicam).
+# V709                   - Panasonic Varicam V709.
+# F-Log                  - Fujifilm F-Log Gamut.
 # Barco Unisee           -
 #-ProPhoto RGB           - RIMM/ROMM RGB by Kodak to encompass all printable and most real world colors. D50 with Apple gamma. ERIMM RGB is geared towards HDR.
 # Wide Gamut RGB         - Adobe first wide gamut version with D50, and AdobeRGB gamma (2.19921875). Designed by Adobe to be a wide gamut color space that uses spectral colors as its primaries.
-# AllColorsRGB           - Developed by Ellen Stone to encompass all colors, slightly wider than AP0. Defined with linear transfer at D50 and prims: 0.734690265, 0.265309735, 0.17451, 0.005182, 0.0, -0.07585421971554103213
-# CIE RGB                - or CIE 1931 RGB in linear space (sometimes over generic gamma of 2.2) and E illuminant
-# Apple RGB              - RGB color space by Apple derived from Sony Trinitron phosphors, similar in gamut size to sRGB or ColorMatch. Employs a gamma of 1.8
-# ColorMatch RGB         - Radius PressView Monitors with D50 and a power gamma of 1.8
-# EBU 3213               - EBU Tech. 3213-E / JEDEC P22 phosphors
-# Beta RGB               - by Bruce Lindbloom, an optimized capture, archiving and editing space for high-end digital imaging applications
-# Bruce RGB              - Developed by Bruce Fraser as a conservative-gamut space for dealing with 8-bit imagery that needs heavy editing
-# BestRGB                - Developed by Don Hutcheson
-# DonRGB4                - Developed by Don Hutcheson
-# ECI-RGB                - Developed by the European Color Initiative <www.eci.org>
-# Ekta Space PS5         - Developed by Joseph Holmes for high quality storage of image data from scans of transparencies
-# And many more oldies not included here for simplicity: P22 (Measured SMPTE-C), EBU measured, Conrac 7211N19, Hitachi, Barco, Tektronics, SGI Trinitron, Sony Trinitron KV-20M20
+# AllColorsRGB           - Developed by Ellen Stone to encompass all colors, slightly wider than AP0. Defined with linear transfer at D50 and prims: 0.734690265, 0.265309735, 0.17451, 0.005182, 0.0, -0.07585421971554103213.
+# CIE RGB                - or CIE 1931 RGB in linear space (sometimes over generic gamma of 2.2) and E illuminant.
+# Apple RGB              - RGB color space by Apple derived from Sony Trinitron phosphors, similar in gamut size to sRGB or ColorMatch. Employs a gamma of 1.8.
+# ColorMatch RGB         - Radius PressView Monitors with D50 and a power gamma of 1.8.
+# EBU 3213               - EBU Tech. 3213-E / JEDEC P22 phosphors.
+# Beta RGB               - by Bruce Lindbloom, an optimized capture, archiving and editing space for high-end digital imaging applications.
+# Bruce RGB              - Developed by Bruce Fraser as a conservative-gamut space for dealing with 8-bit imagery that needs heavy editing.
+# BestRGB                - Developed by Don Hutcheson.
+# DonRGB4                - Developed by Don Hutcheson.
+# ECI-RGB                - Developed by the European Color Initiative <www.eci.org>.
+# Ekta Space PS5         - Developed by Joseph Holmes for high quality storage of image data from scans of transparencies.
+# And many more oldies not included here for simplicity: P22 (Measured SMPTE-C), EBU measured, Conrac 7211N19, Hitachi, Barco, Tektronics, SGI Trinitron, Sony Trinitron KV-20M20.
 
 # List of Color Models:
-# Color Models -not to be confused with Color Spaces- describe the geometry coordinates of the color gamut container and hence its relation (or correlation) with the other channels. They are typically designed or tailored to certain Color Spaces, but not necesarily bound to them like RGB or YCbCr which support many different Color Spaces and thus are nicked Color Absolute Models
+# Color Models -not to be confused with Color Spaces- describe the geometry coordinates of the color gamut container and hence its relation (or correlation) with the other channels. They are typically designed or tailored to certain Color Spaces, but not necessarily bound to them, like RGB or YCbCr which support many different Color Spaces and thus are nicked Color Absolute Models.
+# Color Spaces comprises Primaries and an associated Illuminant. It is also common to be associated with a transfer function although it's relationship is not as strict (as it depends on viewing conditions).
 #
 # UCS: Uniform Color Space. Space (model) in which equal distances on the coordinate diagram correspond to equal perceived color differences.
 # With *: Color Appearance Models (CAM) (Perceptually Uniform -UCS- to various degrees)
 # With +: HDR aware
 # With -: Implemented
 #
-# CMYK         - Color model used in print industry
+# CMYK         - Color model used in print industry.
 #-RGB+         - RGB color model for channels Red, Green, and Blue. Normally found in interleaved packing format. AviSynth works best with planar RGB so a conversion is first needed.
-#-OPP          - by Liang et al. RGB opponent space
+#-OPP          - by Liang et al. RGB opponent space.
 # NOPP         - by Liang et al.
 # COPP         - by Liang et al.
 # rg           - Photometric invariant (shadows, shading) 2 channel color representation, by Danelljan [R/(R+G+B), G/(R+G+B)]
 # I1I2I3       - by Guo and Lyu [0.3333*(R+G+B),0.5*(R-B),0.25*(2G-R-B)]
 # C1C2C3       - by Salvador et al.
-# LSLM         - RGB opponent space based on the signals of the cones: black-white, red-green, and yellow-blue
+# LSLM         - RGB opponent space based on the signals of the cones: black-white, red-green, and yellow-blue.
 # YES          - by Saber et al.
 # UVW          - by Ohta et al.
-# SO           - Biologically Inspired Color Image Descriptor
+# SO           - Biologically Inspired Color Image Descriptor.
 #-YCbCr        - Color format roughly based on human perception of luma and chroma contribution (approximately perceptually uniform). Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green. It's a 45º skewed parallelogram relative to the square RGB box, therefore only 23.6% of its color volume matches RGB and 76.4% is out of RGB gamut.
 # YIQ          - YCbCr with (YCbCr) UV axes rotated 33º, used for NTSC TV analogue system. Quote from avisynth.nl/index.php/Tweak: "In YIQ, orange and teal are along the in-phase (I) axis, while green and magenta are along the quadrature (Q) axis. The eye is far more sensitive to detail along the I axis than along the Q axis, and NTSC allocated more bandwidth for I than for Q."
-# YDbDr        - PAL-N and SECAM TV analogue format
-#-YUVr         - "YUV RCT". Same as YUV but fully reversible to RGB
+# YDbDr        - PAL-N and SECAM TV analogue format.
+#-YUVr         - "YUV RCT". Same as YUV but fully reversible to RGB.
 # sYUV         - "Sharp YUV". Same as YUV but luma-weighted chroma subsampling, retaining chroma fidelity.
 #-YcCbcCrc     - YCbCr Constant Luminance (CL). Better decorrelation than YCbCr.
 # xvYCC        - Expanded Gamut YCbCr. For newer TV systems it was/is a model that allowed the color gamut (typically Rec709) to be stored in the full range while luma in the narrow range.
-#-YCoCg        - Better luma/chroma decorrelation and compression efficiency than YCbCr
-#-YCoCgR       - Same as YCoCg but losslessly reversible to RGB
+#-YCoCg        - Better luma/chroma decorrelation and compression efficiency than YCbCr.
+#-YCoCgR       - Same as YCoCg but losslessly reversible to RGB.
+# YFbFr        - Similar to YCoCg, employs Karhunen-Loève transform (KLT) to design an integer reversible transform.
 #-XYZ          - CIE 1931 XYZ tristimulus color model representing all the non-imaginary colors.
 # LSY          - Reads lambda-SY. Spectral color space. Representation based on brightness, dominant wavelength and saturation attributes. LSY color coordinates are defined from xyY color coordinates.
 #-YDzDx+       - HDR version of XYZ. Requires at least 10-bit for no visible quantization.
 # YCxCz        - Color Space for image fidelity metrics. It's a first step space, you have to "filter" it and then convert to Lab to retrieve error delta.
 # DCI XYZ      - XYZ space in DCI illuminant. In effect it's just a container for DCI-P3 in XYZ coordinates for delivery to theaters.
 #-Yxy/xyY      - Chroma normalized XYZ space which gives full luma/chroma decorrelation. Not apt for HDR, use YDzDx+ instead.
-#-HSV          - Cylindrical representation of RGB. Not recommended as it doesn't take into account human luminance perception
+#-HSV          - Cylindrical representation of RGB. Not recommended as it doesn't take into account human luminance perception.
 #-Duv*         - Perceptual uniform model in contrast to the radiometric uniform CIE XYZ. Some color spaces and Delta metrics are computed in this model over a CIE 1960 UCS chromaticity diagram. A white point defined in Duv coordinates is called a "color tint".
-# HunterLab*   - A more perceptually uniform version of CIELab
-#-CIELab*      - Derived from CIEXYZ, one of the first approaches to a perceptually uniform color model. CIELch(ab) is its cylindrical (polar coordinates) version. You can derive it's Delta E with the next equation: DE = (DL^2 + Da^2 + Db^2)/2  = ( (Ly-Lx)^2 + (ay-ax)^2 + (by-bx)^2)/2
-# CIEsLab*     - CIE simple Lab
-# R-Lab*       - Ruderman Lab space, using log luma and different weights for ab
+# HunterLab*   - A more perceptually uniform version of CIELab.
+#-CIELab*      - Derived from CIEXYZ, one of the first approaches to a perceptually uniform color model. CIELch(ab) is its cylindrical (polar coordinates) version. You can derive it's Delta E with the next equation: DE = (DL^2 + Da^2 + Db^2)/2  = ( (Ly-Lx)^2 + (ay-ax)^2 + (by-bx)^2)/2.
+# CIEsLab*     - CIE simple Lab.
+# R-Lab*       - Ruderman Lab space, using log luma and different weights for ab.
 # L-Lab*       -
-# SRLab2*      - A 2009 modification of CIELAB in the spirit of RLAB (with discounting-the-illuminant). Uses CIECAM02 chromatic adaptation matrix to fix the blue hue issue.
+# SRLab2*      - A 2009 modification of CIELab in the spirit of RLAB. Uses CIECAM02 chromatic adaptation matrix to fix the blue hue issue.
 #-CIELuv*      - Derived from CIE UVW, a competing perceptually uniform color model of CIELab around the same time the latter appeared. CIELuv uses a Judd-type CAT, while CIELab uses "wrong" von-Kries (XYZ Scaling).
-#   CIELch(uv)*- HCL (polar coordinates or cylindrical) version of CIELuv
+#   CIELch(uv)*- HCL (polar coordinates or cylindrical) version of CIELuv.
 #   HSLuv*     - A cylindrical HSL type adaptation of CIELuv. It extends CIELuv with a new saturation component that allows you to span all the available chroma as a neat percentage.
-# LogLuv*+     - HDR version of CIEluv, that uses log to encode HDR values in a 15-bit container
-# Y''U''V''*+  - HDR version of CIEluv by Poynton. Improves on LogLuv by using a PQ transfer which just needs 12-bits
+# LogLuv*+     - HDR version of CIEluv, that uses log to encode HDR values in a 15-bit container.
+# Y''U''V''*+  - HDR version of CIEluv by Poynton. Improves on LogLuv by using a PQ transfer which just needs 12-bits.
 # CIEDuDv*+    - or YDuDv. HDR version of CIE Luv. Requires only 8-bit for no visible quantization.
 # CIECAM97s*   -
-#-XYB*         - Uniform (UCS) space used in Guetzli's butteraugli metric and JPEG XL, with a main goal in compression. Better uniformity than CIE Lab.
+#-XYB*         - Uniform (UCS) space used in Guetzli's butteraugli metric and JPEG-XL, with a main goal in compression. Better uniformity than CIE Lab.
 # DIN99o*      -
-# JzAzBz*+     - A 2017 uniform (UCS) space designed for HDR color. Has J (lightness) and two chromaticities. JzCzhz is the HCL (polar coordinates or cylindrical) version of JzAzBz
-#-IPT*         - Intensity Protanope Tritanope. A more uniform color space in SDR colors. There's a version called hdrIPT
-# ICaCb+       - Precursor and arguably better color model than ICtCp which based on this
+# JzAzBz*+     - A 2017 uniform (UCS) space designed for HDR color. Has J (lightness) and two chromaticities. JzCzhz is the HCL (polar coordinates or cylindrical) version of JzAzBz.
+#-IPT*         - Intensity Protanope Tritanope. A more uniform color space in SDR colors. There's a version called hdrIPT.
+# IgPgTg       - Based on IPT but optimized using gaussian spectra to derive a hue-linear color space.
+# ICaCb+       - Precursor and arguably better color model than ICtCp which based on this.
 #-ICtCp+       - BT.2100 (HDR + Rec.2020) version of IPT. HDR version of YcCbcCrc but with Constant Intensity this time.
 # ITP*+        - Perceptually uniform color space version of ICtCp, used extensively in error metrics by scaling Ct by 0.5. This transformation is the basis of the Rec.2124 wide gamut color difference metric D.itp (simple scaled Euclidean distance: 720*sqrt(Di^2+D(t*0.5)^2+Dp^2) )
 # IPTPQc2*+    - Improved HDR10 version of ICtCp. Since it's a propietary model not much information is known.
@@ -226,16 +229,16 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
     nw = p_type4 ? w : p_type1 || p_type10 ? round(w/4.0) : round(w/2.0)
     nh = p_type4 ||    p_type1 || p_type2  ?            h : round(h/2.0)
 
-    cplace  = chroma_placement(w, h, nw, nh, matrix[0], matrix[0], "YUV"+p_type[1], "RGB", p_type[1], "444", cplace, "center" )
+    cplace  = chroma_placement(w, h, w, h, matrix[0], matrix[0], "YUV"+p_type[1], "RGB", p_type[1], "444", cplace, "center" )
 
-     p_type1             ? Assert(bi == 8,    "YUV_to_RGB: Unsupported Pixel Type: HBD YUV411") : nop()
-                           Assert(!p_type10,  "YUV_to_RGB: Unsupported Pixel Type: YUV410")
+     p_type1             ? Assert(bi == 8,   "YUV_to_RGB: Unsupported Pixel Type: HBD YUV411") : nop()
+                           Assert(!p_type10, "YUV_to_RGB: Unsupported Pixel Type: YUV410")
 
 
     cplaceH = ",src_left="+string(cplace[0])
     cplaceV = ",src_top ="+string(cplace[1])
 
-    resampler = kernel == "nnedi3" ?     "deep_resize(" + String(w) + "," + String(h)                     + ")"                       : \
+    resampler = kernel == "nnedi3" ?    "nnedi3resize(" + String(w) + "," + String(h)                     + ")"                      : \
                 kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",b="+bc_b+",c="+bc_c+")" : \
                 kernel == "gauss"  ?     "GaussResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",p=p)"                   : \
                                      kernel + "Resize(" + String(w) + "," + String(h) + cplaceH + cplaceV +")"
@@ -276,27 +279,28 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_range_in", bool "tv_ran
 
     } else {
 
-        scale_y   = tv_in ? (255 / 219.) : 1.0
-        scale_uv  = tv_in ? (255 / 112.) : 2.0
+        scale_y   = tv_in ? (256 / 219.) : 1.0
+        scale_uv  = tv_in ? (256 / 112.) : 2.0
 
         Kr = 1. - coef[0]
         Kb = 1. - coef[2]
 
         m0 = scale_y     m1 = 0.0                                   m2 = scale_uv * Kr
         m3 = scale_y     m4 = scale_uv * ( -Kb * coef[2] / coef[1]) m5 = scale_uv * ( -Kr * coef[0] / coef[1])
-        m6 = scale_y     m7 = scale_uv * Kb                         m8 = 0.0
+        m6 = scale_y     m7 = scale_uv *    Kb                      m8 = 0.0
 
         rangeY   = tv_in   ? "ymin - "                          : ""
         range_TV = tv_out  ? "ymax ymin - range_max / * ymin +" : ""
         UVf      = bi < 32 ? "range_half - " : ""
 
-        R = Expr(Y,    V, ex_dlut( "x "+rangeY+" "+string(m0)+" *                            y "+UVf + string(m2)+" * + "+range_TV+"", bi, !tv_in), optSingleMode=false, lut=lut)
-        G = Expr(Y, U, V, ex_dlut( "x "+rangeY+" "+string(m3)+" * y "+UVf + string(m4)+" * + z "+UVf + string(m5)+" * + "+range_TV+"", bi, !tv_in), optSingleMode=true , lut=  0)
-        B = Expr(Y, U,    ex_dlut( "x "+rangeY+" "+string(m6)+" * y "+UVf + string(m7)+" * +                            "+range_TV+"", bi, !tv_in), optSingleMode=false, lut=lut)
+        R = Expr(Y,    V, ex_dlut( "x "+rangeY+" "+string(m0)+" *                            y "+UVf + string(m2)+" * + "+range_TV+"", bi, false), optSingleMode=false, lut=lut)
+        G = Expr(Y, U, V, ex_dlut( "x "+rangeY+" "+string(m3)+" * y "+UVf + string(m4)+" * + z "+UVf + string(m5)+" * + "+range_TV+"", bi, false), optSingleMode=true , lut=  0)
+        B = Expr(Y, U,    ex_dlut( "x "+rangeY+" "+string(m6)+" * y "+UVf + string(m7)+" * +                            "+range_TV+"", bi, false), optSingleMode=false, lut=lut)
 
     }
 
-    CombinePlanes(R, G, B, planes="RGB") }
+    CombinePlanes(R, G, B, planes="RGB")
+    tv_in!=tv_out ? propSet("_ColorRange", tv_out ? 1 : 0) : last }
 
 
 
@@ -335,14 +339,14 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     nw = p_type4 ? w : p_type1 || p_type10 ? round(w/4.0) : round(w/2.0)
     nh = p_type4 ||    p_type1 || p_type2  ?            h : round(h/2.0)
 
-    cplace  = chroma_placement(w, h, nw, nh, matrix[0], matrix[0], "RGB", "YUV"+p_type[1], "444", p_type[1], "center", cplace )
+    cplace  = chroma_placement(w, h, w, h, matrix[0], matrix[0], "RGB", "YUV"+p_type[1], "444", p_type[1], "center", cplace )
 
-     p_type1             ? Assert(bi == 8,    "RGB_to_YUV: Unsupported Pixel Type: HBD YUV411") : nop()
-                           Assert(!p_type10,  "RGB_to_YUV: Unsupported Pixel Type: YUV410")
+     p_type1             ? Assert(bi == 8,   "RGB_to_YUV: Unsupported Pixel Type: HBD YUV411") : nop()
+                           Assert(!p_type10, "RGB_to_YUV: Unsupported Pixel Type: YUV410")
 
-                           Assert(h%2==0,     "RGB_to_YUV: Height is not mod2" )
-    !p_type1 || !p_type4 ? Assert(w%2==0,     "RGB_to_YUV: Width is not mod2" )                 : nop()
-     p_type1             ? Assert(w%4==0,     "RGB_to_YUV: Width is not mod4" )                 : nop()
+                           Assert(h%2==0,    "RGB_to_YUV: Height is not mod2" )
+    !p_type1 || !p_type4 ? Assert(w%2==0,    "RGB_to_YUV: Width is not mod2" )                 : nop()
+     p_type1             ? Assert(w%4==0,    "RGB_to_YUV: Width is not mod4" )                 : nop()
 
 
     Rx = ExtractR(rgb)
@@ -358,8 +362,8 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
 
     } else {
 
-        scale_y   = !tv_in && tv_out ? ( 219 / 255.) : 1.0
-        scale_uv  = !tv_in && tv_out ? ( 112 / 255.) : 0.5
+        scale_y  = !tv_in && tv_out ? ( 219 / 256.) : 1.0
+        scale_uv = !tv_in && tv_out ? ( 112 / 256.) : 0.5
 
         Kr = 1. - coef[0]
         Kb = 1. - coef[2]
@@ -372,9 +376,9 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
         rangeY_TV =  tv_out ?  tv_in ? "" : "ymin +" : tv_in ? "ymin - range_max ymax ymin - / *"    : ""
         rangeC_TV = !tv_out && tv_in ? "range_half - range_max cmax cmin - / * range_half + "+UVf+"" : UVf
 
-        Y  = Expr(Rx, Gx, Bx, ex_dlut("           x "+string(m0)+" *   y "+string(m1)+" * + z "+string(m2)+" * + "+rangeY_TV+"", bi, !tv_in), optSingleMode=true)
-        Cb = Expr(Rx, Gx, Bx, ex_dlut("range_half x "+string(m3)+" * + y "+string(m4)+" * + z "+string(m5)+" * + "+rangeC_TV+"", bi, !tv_in), optSingleMode=true)
-        Cr = Expr(Rx, Gx, Bx, ex_dlut("range_half x "+string(m6)+" * + y "+string(m7)+" * + z "+string(m8)+" * + "+rangeC_TV+"", bi, !tv_in), optSingleMode=true)
+        Y  = Expr(Rx, Gx, Bx, ex_dlut("           x "+string(m0)+" *   y "+string(m1)+" * + z "+string(m2)+" * + "+rangeY_TV+"", bi, false), optSingleMode=true)
+        Cb = Expr(Rx, Gx, Bx, ex_dlut("range_half x "+string(m3)+" * + y "+string(m4)+" * + z "+string(m5)+" * + "+rangeC_TV+"", bi, false), optSingleMode=true)
+        Cr = Expr(Rx, Gx, Bx, ex_dlut("range_half x "+string(m6)+" * + y "+string(m7)+" * + z "+string(m8)+" * + "+rangeC_TV+"", bi, false), optSingleMode=true)
 
     }
 
@@ -382,7 +386,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     cplaceV = ",src_top ="+string(cplace[1])
 
     # Although not optimal, technically YUV420 accepts odd size chroma planes
-    resampler = kernel == "nnedi3" ?     "deep_resize(" + String(nw) + "," + String(nh)                     + ")"         : \
+    resampler = kernel == "nnedi3" ?    "nnedi3resize(" + String(nw) + "," + String(nh)                     + ")"         : \
                 kernel == "bicubic"?   "BicubicResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ",b="+bc_b+",c="+bc_c+")" : \
                 kernel == "gauss"  ?     "GaussResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ",p=p)"     : \
                                      kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ")"
@@ -390,7 +394,8 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_range_in", bool "tv_ran
     Cb = p_type4 ? Cb : Eval("Cb." + resampler)
     Cr = p_type4 ? Cr : Eval("Cr." + resampler)
 
-    CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+p_type[1]+p_type[2]) }
+    CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+p_type[1]+p_type[2])
+    tv_in!=tv_out ? propSet("_ColorRange", tv_out ? 1 : 0) : last              }
 
 
 # RGB' to YcCbcCrc function (for Rec.2020CL)
@@ -1824,20 +1829,22 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 
 
 # Linear CAT (Chromatic Adaptation Transform):
+# Adapts colors (HUEs) to match those viewed under a different target illuminant.
+# To also match white point (aka White Balance or "Simulation") set adaptXYZ=true.
 #
 # Transformation Method:
 #   Strong von Kries (von Kries-Ives) (used in ICC)
 #   Weak   von Kries (default in CAT() )
 #
 # 'source' and/or 'target' can be Primaries (Color Space ie. "sRGB"), Standard Illuminant (ie: "D65") or a white point tuplet [x,y]
-function CAT (clip c, val "source", val "target", string "LMS", bool "tv_range", bool "list") {
+function CAT (clip c, val "source", val "target", string "LMS", bool "adaptXYZ", bool "tv_range", bool "list") {
 
     rgb     = IsRGB(c)
     propIDs = color_propGet(c)
 
     src   = Default (source,   propIDs[3]) # Source illuminant
     tgt   = Default (target,        "D65") # Target illuminant
-    LMS   = Default (LMS,         "CAT02B")
+    LMS   = Default (LMS,        "CAT02B")
     tv    = Default (tv_range, propIDs[6])
     list  = Default (list,          false)
 
@@ -1921,6 +1928,7 @@ function CAT (clip c, val "source", val "target", string "LMS", bool "tv_range",
 #      |_ CIE 170-2 TUI (TU Ilmenau, 2008) modified 2º Standard Observer (ideal for OLED)
 #      |_ CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
 # 2011 Cat.5 & Cat.9 (Abhijit Sarkar 2011) - ODCI (Observer Dependent Color Imaging) (8 Observers Table presented as Excel spreadsheet)
+# 2015 Asano Cat.1 2º Standard Observer (151 Observers)
 #
 # * 2º -degrees- is the angular size of the human fovea
 # * 10º (large field) Standard Observer should only be used for scientific purposes or where the target color patches exceed 4º of the observer field view (like illuminary, and other general related targets).
@@ -1938,9 +1946,8 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
     }
 
     # 390nm to 830nm. Multi-Lobe, Piecewise Gaussian Fit for CIE 1931 2º Standard Observer
-    # D65 illuminant at [0.312712, 0.329008]
     if        (CMF=="1931") {
-    Wx = 0.312712      Wy = 0.329008
+    Wx = 0.312712      Wy = 0.329008 # D65 illuminant at [0.312712, 0.329008]
     t1 = (nm-442.0) * (nm<442.0?0.0624:0.0374)
     t2 = (nm-599.8) * (nm<599.8?0.0264:0.0323)
     t3 = (nm-501.1) * (nm<501.1?0.0490:0.0382)
@@ -1961,9 +1968,8 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
                X          459   370 - < 0.0385 0.0725 ? X 459   370 - - * 2 ^ -0.5 * exp 0.681 * + 0.45 *") : nop()
 
     # 360nm to 830nm. Multi-Lobe, Piecewise Gaussian Fit for CIE 1964 10º Standard Observer
-    # D65 illuminant at [0.313824, 0.330999]
     } else if (CMF=="1964") {
-    Wx = 0.313824      Wy = 0.330999
+    Wx = 0.313824      Wy = 0.330999     # D65 illuminant at [0.313824, 0.330999]
     X  = 1.160477     * exp(-1           * pow((nm - 593.27583359)  /48.81284125,2)) + \
          0.406066     * exp(-1           * pow((nm - 444.33348762)  /27.9289803 ,2))
     Y  = 1.01318991   * exp(-0.937256650 * pow((nm - 556.301693)    /62.6625473 ,2)) + \
@@ -1977,9 +1983,8 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
               "x 350 * X@ 266.13893779 370 - - 0.005553388317998 * log 2 ^ -33.88482265 * exp 2.146832 *   0.45 *") : nop()
 
     # Multi-Lobe, Piecewise Gaussian Fit for CIE 2015 2º Standard Observer
-    # D65 illuminant at [0.313453, 0.330802]
     } else if (CMF=="2015_2") {
-    Wx = 0.313453      Wy = 0.330802
+    Wx = 0.313453      Wy = 0.330802    # D65 illuminant at [0.313453, 0.330802]
     X  = 1.151326    * exp(-1           * pow((nm - 596.83152348)/46.78554306,2)) + \
          0.3494153   * exp(-1           * pow((nm - 443.24921254)/29.65566071,2))
     Y  = 0.918944680 * exp(-1.29798797  * pow((nm - 570.182202)  /63.9498238 ,2)) + \
@@ -1997,9 +2002,8 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
                X          455.951450   370 - - 0.048919100673210 * 2 ^ -0.413682732 * exp 1.39610998  * + 0.45 *") : nop()
 
     # Multi-Lobe, Piecewise Gaussian Fit for CIE 2015 10º Standard Observer
-    # D65 illuminant at [0.313786, 0.331275]
     } else if (CMF=="2015_10") {
-    Wx = 0.313786      Wy = 0.331275
+    Wx = 0.313786      Wy = 0.331275       # D65 illuminant at [0.313786, 0.331275]
     X  = 1.160477       * exp(-1           * pow((nm - 593.11837073) /48.15263773,2)) + \
          0.406066       * exp(-1           * pow((nm - 444.07099185) /27.94059768,2))
     Y  = 0.989818002    * exp(-0.957978328 * pow((nm - 557.662171)   /62.5184569 ,2)) + \
@@ -2013,9 +2017,8 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
               "x 350 * X@ 265.93990665 370 - - 0.005557491340013 * log 2 ^ -33.70579437 * exp 2.146832 *  0.45 *") : nop()
 
     # 380nm to 825nm. Multi-Lobe, Piecewise Gaussian Fit for Judd(1951)-Vos(1978) modified CIE 1931 2º Standard Observer
-    # D65 illuminant at [0.316084, 0.335067]
     } else if (CMF=="Judd-Vos") {
-    Wx = 0.316084      Wy = 0.335067
+    Wx = 0.316084      Wy = 0.335067    # D65 illuminant at [0.316084, 0.335067]
     X  = 1.151326    * exp(-1           * pow((nm - 596.16761823)/44.86322931,2)) + \
          0.3494153   * exp(-1           * pow((nm - 441.85056287)/30.60218578,2))
     Y  = 0.601847253 * exp(-1.51659845  * pow((nm - 581.234908)  /63.9735453 ,2)) + \
@@ -2030,14 +2033,13 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
               "x 350 * X@ 581.234908   370 - - 0.015631461337816 * 2 ^ -1.51659845  * exp  0.601847253 *
                X          527.940921   370 - - 0.020127706878433 * 2 ^ -0.900352124 * exp  0.712156002 * +
                X          496.724457   370 - - 0.016177531034911 * 2 ^ -3.95568352  * exp -0.257747007 * + 0.45 *",\
-              "x 350 * X@ 429.692756   370 - - 0.014974702845141 * 2 ^ -10.7859617  * exp  1        *
+              "x 350 * X@ 429.692756   370 - - 0.014974702845141 * 2 ^ -10.7859617  * exp  1           *
                X          475.579269   370 - - 0.018101462367547 * 2 ^ -2.81482710  * exp -703.724202  * +
                X          475.555344   370 - - 0.014953587026679 * 2 ^ -4.12148933  * exp  704.629016  * + 0.45 *") : nop()
 
     # 380nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Cat5 Abhijit Sarkar's Observer tests 10º Standard Observer
-    # D65 illuminant at [0.293241, 0.340770]
     } else if (CMF=="Cat5") {
-    Wx = 0.293241      Wy = 0.34077
+    Wx = 0.293241      Wy = 0.34077       # D65 illuminant at [0.293241, 0.340770]
     X  = 1.160477       * exp(-1          * pow((nm - 594.34831376)  /44.70087141,2)) + \
          0.406066       * exp(-1          * pow((nm - 443.85540032)  /27.42727776,2))
     Y  = 0.0589846547   * exp(-4.04288641 * pow((nm - 606.960286)    /61.9859710 ,2)) + \
@@ -2051,9 +2053,8 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
               "x 350 * X@ 266.07141426 370 - - 0.005553866756117 * log 2 ^ -33.7308306 * exp 2.146832  *   0.45 *") : nop()
 
     # 380nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Cat9 Abhijit Sarkar's Observer tests 10º Standard Observer
-    # D65 illuminant at [0.301797, 0.341821]
-    } else { /* if (CMF=="Cat9") */
-    Wx = 0.301797      Wy = 0.341821
+    } else if (CMF=="Cat9") {
+    Wx = 0.301797      Wy = 0.341821       # D65 illuminant at [0.301797, 0.341821]
     X  = 1.160477       * exp(-1           * pow((nm - 598.09202261)  /45.81682164,2)) + \
          0.406066       * exp(-1           * pow((nm - 447.75849618)  /25.77397532,2))
     Y  = 0.0589846547   * exp(-4.04288641  * pow((nm - 606.960286)    /61.9859710 ,2)) + \
@@ -2065,6 +2066,27 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
               "x 350 * X@ 606.960286   370 - - 0.016132682667825 * 2 ^ -4.04288641  * exp 0.0589846547 *
                X          553.655314   370 - - 0.014834310307165 * 2 ^ -1.07728930  * exp 0.99262461   * + 0.45 *",\
               "x 350 * X@ 267.192609   370 - - 0.005541985199667 * log 2 ^ -35.77737624 * exp 2.146832 *   0.45 *") : nop()
+
+    # 390nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Asanos's 151 Cat.1 2º Observer tests
+    } else { /* if (CMF=="Asano") */
+    Wx = 0.312994      Wy = 0.328972    # D65 illuminant at [0.312994, 0.328972]
+    X  = 1.151326    * exp(-1           * pow((nm - 596.85301964)/44.83663761,2)) + \
+         0.3494153   * exp(-1           * pow((nm - 444.51663941)/30.28442651,2))
+    Y  =-0.468768354 * exp(-2.88091492  * pow((nm - 568.978314)  /63.7801126 ,2)) + \
+         1.412251930 * exp(-0.865345614 * pow((nm - 562.841338)  /50.0097534 ,2)) + \
+         0.0304406374* exp(-0.736336456 * pow((nm - 519.029938)  /60.6092595 ,2))
+    Z  = 0.53        * exp(-13.9353165  * pow((nm - 469.623230)  /66.1854288 ,2)) + \
+        -578.815828  * exp(-3.21437574  * pow((nm - 462.275075)  /52.7574052 ,2)) + \
+         579.414011  * exp(-4.60573889  * pow((nm - 462.225862)  /63.2476534 ,2))
+
+    sh ? Expr("x 350 * X@ 596.85301964 370 - - 0.022303188938882 * 2 ^  neg           exp  1.151326     *
+               X          444.51663941 370 - - 0.033020271976086 * 2 ^  neg           exp  0.3494153    * + 0.45 *",\
+              "x 350 * X@ 568.978314   370 - - 0.015678868525547 * 2 ^ -2.88091492  * exp -0.468768354  *
+               X          562.841338   370 - - 0.019996099400882 * 2 ^ -0.865345614 * exp  1.412251930  * +
+               X          519.029938   370 - - 0.016499129147090 * 2 ^ -0.736336456 * exp  0.0304406374 * + 0.45 *",\
+              "x 350 * X@ 469.623230   370 - - 0.015109065819031 * 2 ^ -13.9353165  * exp  0.53         *
+               X          462.275075   370 - - 0.018954685057179 * 2 ^ -3.21437574  * exp -578.815828   * +
+               X          462.225862   370 - - 0.015810863269119 * 2 ^ -4.60573889  * exp  579.414011   * + 0.45 *") : nop()
     }
 
     if (!sh) { [X,Y,Z,Wx,Wy] } else {
