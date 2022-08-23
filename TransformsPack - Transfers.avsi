@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC57 (12-08-2022) ##
+###   Transforms Pack - Transfers v1.0 RC58 (23-08-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -197,7 +197,8 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0)        : last }
 
 
-
+# SMPTE ST 2084 transfer function
+# Basically a curve-fit to the Barten model over HDR luminance
 # Requires RGB input
 function EOTF_2084 (clip c, int "MasterLevel", bool "tv_range") {
     c
