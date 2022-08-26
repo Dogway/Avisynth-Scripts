@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 6.5 by Dogway  (28-06-2022)            ##
+###           MasksPack 6.6 by Dogway  (26-08-2022)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -617,5 +617,7 @@ function Soothe(clip sharp, clip orig, int "keep", bool "median", bool "MC", int
 
         diff  = ex_makediff(orig,  sharp, UV=uv, fulls=!tv)
         diff2 = med ? diff.ex_median("medianT",UV=uv) : diff.temporalsoften(1,255,UV3?255:0,32,2)
-        ex_lutxyz(orig,diff,diff2,Format("y range_half - Y@ z range_half - Z@ * 0 < Y {KP} * range_half + Y abs Z abs > y z - {KP} * z + y ? ? x swap - range_half +"),UV=uv,fulls=!tv).propCopy(sharp)
+        expr  = bi==32 ? Format("y z * 0 < y {KP} * y abs z abs > y z - {KP} * z + y ? ? x swap -")                                                         : \
+                         Format("y range_half - Y@ z range_half - Z@ * 0 < Y {KP} * range_half + Y abs Z abs > y z - {KP} * z + y ? ? x swap - range_half +")
+        ex_lutxyz(orig,diff,diff2,expr,UV=uv,fulls=!tv).propCopy(sharp)
     } }
