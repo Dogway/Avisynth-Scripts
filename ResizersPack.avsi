@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.8 (22-08-2022)      ##
+###   Resizers Functions Pack 9.9 (26-08-2022)      ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -29,7 +29,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (30-07-2022)
+### deep_resize() - by Dogway (26-08-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -107,6 +107,7 @@
 ###    int "f_taps"=8 (2 to 20),
 ###    int "c_taps"=6 (2 to 20),
 ###    int "deconv"=0 (-10 to 15),
+###    float "sharpness"=1 (0 to 20),
 ###    [float "grain"=0.0 (0.0 to 2.0)],
 ###    float "th_rat"=1.25 (1.00 to 2.00 by 0.05),
 ###    float "th"=1.0 (0.0 to 5.0),
@@ -137,7 +138,7 @@
 ###     deep_resize(1280)
 ###
 ###
-function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "grain", float "th_rat", float "th", float "elast", int "qual", int "gpuid", bool "show") {
+function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "sharpness", float "grain", float "th_rat", float "th", float "elast", int "qual", int "gpuid", bool "show") {
 
     wu  = !Defined(width)
     hu  = !Defined(height)
@@ -189,13 +190,14 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     etp    = Default(e_taps, krn1 =="Blackman" ? 6  : krn1 =="Lanczos" ? 4 : 0)             # taps for edge   kernel (0 for undefined)
     ftp    = Default(f_taps, krn2 =="Blackman" ? 16 : krn2 =="Lanczos" ? 8 : 0)             # taps for flat   kernel (0 for undefined)
     ctp    = Default(c_taps, krn1c=="Blackman" ? 6  : krn1c=="Lanczos" ? 4 : 0)             # taps for chroma kernel (0 for undefined)
-    thr    = Default(th,      1.0)                                                          # 0-255 (normally up to 10)
-    ela    = Default(elast,   4.0)                                                          # 1-255 (normally up to 10)
-    qual   = Default(qual,      1)
-    sh     = Default(show, false)
-    gpuid  = Default(gpuid,     0)                                                          # Set to -1 for "cpu" nnedi3
+    mul    = Default(sharpness,krn1=="nnedi3"  ? 1  : 0)                                    # Add sharpness (only to nnedi3 based upscaling)
+    thr    = Default(th,       1.0)                                                         # 0-255 (normally up to 10)
+    ela    = Default(elast,    4.0)                                                         # 1-255 (normally up to 10)
+    qual   = Default(qual,       1)
+    sh     = Default(show,  false)
+    gpuid  = Default(gpuid,      0)                                                         # Set to -1 for "cpu" nnedi3
     ddec   = Defined(deconv)
-    dec    = Default(deconv,    0)                                                          # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
+    dec    = Default(deconv,     0)                                                         # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
     gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
     decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
     dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                     # higher deconvolution the higher the upscale
@@ -218,6 +220,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
         # Downscale/upscale with same edge/flat kernel
         ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+        mul>0 ? LSFplus(preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     } else {
 
@@ -251,7 +254,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
             # don't sharpen nnedi3 when one dimensional resize case
             edge    = krn1 == "nnedi3" ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
-                                                LSFplus(edge1,preset="LSF",strength=FC?2*rat:2,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).ConvertBits(bi, fulls=fs, fulld=fs) : edge1
+                      mul>0            ?        LSFplus(edge1,preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).ConvertBits(bi, fulls=fs, fulld=fs) : edge1 : edge1
 
             # resizing flat area
             flat    =                           ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
@@ -308,7 +311,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
                            +string(rth,"%1.3f")+" \n " \
                            +string(thr,"%1.3f")+" \n " \
                            +string(ela,"%1.3f")), x=msize/4, size=msize/25,lsp=4,text_color=$ffcc99)
- } }
+    } }
 
 
 
@@ -316,14 +319,14 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 #
 # nnedi3resize()
 #
-# Simple upscaler that uses nnedi3wrap() at its core, recommended for graphics or textureless images.
+# Wrapper for nnedi3wrap() for simplified ____resize() style arguments.
+# Performant neural network based upscaler recommended for graphics or textureless images.
 # It accepts arbitrary dimension values, not only limited to powers of 2
 #
 # Dependencies:
-#       ExTools
-#       NNEDI3CL or nnedi3
+#       see nnedi3wrap() below
 #
-function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual", int "nns", int "nsize", int "etype", int "pscrn", int "gpuid") {
+function nnedi3resize(clip a, val "width", val "height", bool "HBD", float "sharpness", int "qual", int "nns", int "nsize", int "etype", int "pscrn", int "gpuid") {
 
     wu      = !Defined(width)
     hu      = !Defined(height)
@@ -334,39 +337,32 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", int "qual",
     isy     = isy   (a)
     mod     = rgb || is4 || isy ? 1 : 2
 
-    w2     = Default(width,  w)
-    h2     = Default(height, h)
+    w2      = Default(width,  w)
+    h2      = Default(height, h)
 
     Assert(IsVersionOrGreater(3,7,2),  "nnedi3resize: Update AviSynth+ version")
     Assert(isFloat(w2) || isFloat(h2), "nnedi3resize: Width/Height type not supported")
 
-    w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
-    h2     = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
-    w2     =  w2<=10. ? w*w2 : w2        w2 = nmod(w2,mod)
-    h2     =  h2<=10. ? h*h2 : h2        h2 = nmod(h2,mod)
-    w2     =  w2 == 0 || wu  ? nmod((w*(h2/float(h))),mod) : w2
-    h2     =  h2 == 0 || hu  ? nmod((h*(w2/float(w))),mod) : h2
+    w2      = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
+    h2      = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
+    w2      =  w2<=10. ? w*w2 : w2        w2 = nmod(w2,mod)
+    h2      =  h2<=10. ? h*h2 : h2        h2 = nmod(h2,mod)
+    w2      =  w2 == 0 || wu  ? nmod((w*(h2/float(h))),mod) : w2
+    h2      =  h2 == 0 || hu  ? nmod((h*(w2/float(w))),mod) : h2
 
     hs      = h == h2
     ws      = w == w2
     oned    = hs || ws
-    HBD     = Default(HBD,    false)  # Force source HBD (slower)
-    qual    = Default(qual,       1)
-    gpuid   = Default(gpuid,      0)  # Set to -1 for "cpu" nnedi3
     nns     = Default(nns,   oned ? 1 : 3)
     nsize   = Default(nsize, oned ? 6 : 0)
-    etype   = Default(etype,      0)
-    pscrn   = Default(pscrn,      2)
-
-    Assert(IsVersionOrGreater(3,7,2), "nnedi3resize: Update AviSynth+ version")
 
     rw      = w2/float(w)
     rh      = h2/float(h)
     factor  = max(rw,rh) < 3 ? 2 : 4
     rfactor = rw<factor && rh<factor
-    krnn    = rfactor ? "Bicubic" : "Blackman" # hard coded nnedi3 final resize: 'Didée' for down 'Blackman6' for up
+    krnn    = rfactor ? "Bicubic" : "Blackman"
 
-    nnedi3wrap(a,ws?1:factor,hs?1:factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,ep0=rfactor?-0.5:6,ep1=0.25,cshift=krnn,HBD=HBD,gpuid=gpuid)
+    nnedi3wrap(a,ws?1:factor,hs?1:factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,ep0=rfactor?-0.5:6,ep1=0.25,sharpness=sharpness,cshift=krnn,HBD=HBD,gpuid=gpuid)
 
     }
 
@@ -391,6 +387,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     pri    = pID[2]
     mat    = "PC"+pri
 
+    FC     = FrameCount(a)>1
     wu     = !Defined(width)
     hu     = !Defined(height)
     w      = width (a)
@@ -427,11 +424,11 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     isUHD  = (w > 2599 || h > 1499)
     ti     = isUHD ? 512 : isHD ? 256 : 128
 
-    md     = Default(model,  1)
+    md     = Default(model,      1)                        # model: 0 - for Anime or lineart, 1 - for photos or live action
     tv     = Default(tv_range,  pID[6])
-    gid    = Default(gpuid,  0)
+    gid    = Default(gpuid,      0)
     so     = Default(soothe, md==1)                        # Temporal stabilize sharpening for less temporal jitter
-    ns     = Default(noise,  0)                            # From 0 (no denoise) to 4 full denoise
+    ns     = Default(noise,      0)                        # From 0 (no denoise) to 4 full denoise
     gr     = Default(grain, rw>1.25 && rh>1.25 ? 0.3 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
 
     ConvertBits(a, 32, fulls=!tv, fulld=true)
@@ -444,7 +441,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     isy  ? ExtractR()                         : last
     !rgb ? MatchClip(a,matrix=pri,size=false) : last
 
-    so && rw>1.25 && rh>1.25 ? Soothe(a.nnedi3wrap(factor,gpuid=gid),tv_range=tv) : last
+    so && FC && rw>1.25 && rh>1.25 ? Soothe(a.nnedi3wrap(factor,gpuid=gid),tv_range=tv) : last
 
     Eval(krnn+"resize(w2,h2"+(rfactor ? ",-0.5,0.25)" : ",taps=6)"))
 
@@ -456,7 +453,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 #
 # nnedi3wrap()
 #
-# Replacement wrapper for nnedi3(), nnedi3_rpow2() and NNEDI3CL() based on 'field' and 'gpuid' value.
+# Replacement wrapper for nnedi3(), nnedi3_rpow2() and NNEDI3CL() based on 'field' and 'gpuid' values.
 # Adds "_rpow2" functionality and its arguments to NNEDI3CL().
 # Maintains frame props when nnedi3() or nnedi3_rpow2() is used.
 # Decouples 'rfactor' into 'xfactor' and 'yfactor' and sets new reasonable defaults.
@@ -465,10 +462,11 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 # Dependencies:
 #       ExTools
 #       NNEDI3CL
+#       or
 #       nnedi3
 #         SysInfo
 #
-function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "ep0", float "ep1", int_array "planes", bool "HBD", int "gpuid") {
+function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "ep0", float "ep1", int_array "planes", bool "HBD", float "sharpness", int "gpuid") {
 
     w       = width (a)
     h       = height(a)
@@ -504,6 +502,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
 
     nsize   = Default(nsize, dh ? 3 : oned ? 6 : 0)
     nns     = Default(nns,   dh ||   !oned ? 3 : 1)
+    mul     = Default(sharpness,  0)
     qual    = Default(qual,       1)
     etype   = Default(etype,      0)
     pscrn   = Default(pscrn,      2)
@@ -539,7 +538,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
             hs && !dh          ? TurnLeft () : last
 
         } else {
-            nnedi3_rpow2(rfactor=xyf,                 nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn=="none"?Undefined():krnn+"resize",ep0=ep0,ep1=ep1)
+                nnedi3_rpow2(rfactor=xyf,             nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn=="none"?Undefined():krnn+"resize",ep0=ep0,ep1=ep1)
 
         }
 
@@ -548,6 +547,9 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
             NNEDI3CL(        fd, dh=!dh||!hs, dw=!ws, nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,device=gpuid,planes=planes)
             }
     }
+
+
+     mul>0 ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # Fix for pixel center shift or for final scaling
     if (krnn!="none" && !dh && (((dfw||dfh) && !sm) || (oned || gpuid>-1))) {
