@@ -471,6 +471,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
     w       = width (a)
     h       = height(a)
     rgb     = isRGB (a)
+    FC      = FrameCount(a)>1
     bi      = BitsPerComponent(a)
     de      = Defined(dh) ? dh : false
     fb      = GetParity(a) ? 2 : 1
