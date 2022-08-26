@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v8.7   (27-06-2022)                   ##
+###        ExTools v8.8   (26-08-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -849,7 +849,7 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
     integral = last
 
     # BLUR
-    md=="gaussian" ? ex_gaussianblur(sg,pad=false,UV=uv!=3?2:3) : ex_boxblur(ceil(sg*2),mode="mean",UV=uv)
+    md=="gaussian" ? ex_gaussianblur(sg,pad=false,UV=uv!=3?2:3) : ex_boxblur(ceil(sg*2),mode="mean",UV=uv!=3?2:3)
 
     # THRESHOLD
     str  = Format("y x {th} * "+(in ? ">" : "<")+" 0 range_max ?")
@@ -6641,12 +6641,12 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
     cstr = ex_UVexpr(str, UV, bi, rgb, un, si)
     str  = ex_dlut  (str, bi, un)
 
-    isy     ? Expr(a, str                       ) : \
-    UV == 1 ? Expr(a, str, ""                   ) : \
-              Expr(a, str, cstr, scale_inputs=si)
+    isy     ? Expr(a, str                       ,clamp_float=true) : \
+    UV == 1 ? Expr(a, str, ""                   ,clamp_float=true) : \
+              Expr(a, str, cstr, scale_inputs=si,clamp_float=true)
               prop = ["_Matrix","_Primaries","_Transfer","_PictType"]
               propDelete(UV<4?prop:ArrayAdd(prop,"_ChromaLocation"))
-              propSet("_ColorRange", 0)         }
+              propSet("_ColorRange", 0)                            }
 
 
 
@@ -7055,6 +7055,7 @@ function ex_UVexpr(string "str", int "UV", int "bits", bool "rgb", bool "fulls",
           UV == 3   ? str         : \
           UV == 4   ? "y"         : \
           UV == 6   ? "z"         : \
+          UV == 128 && bi==32 ? si=="floatUV" ? "0.5" : "0" : \
           string(ex_bs(UV, 8, bi, fulls=fs)+off)
 
     return str }
@@ -7263,7 +7264,7 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 
 
 # Does a component-wise operation on flat/1D int or float arrays
-# If either is a scalar, it operates on all array indexes
+# If either is a scalar, it operates on all array indices
 #
 # Examples:
 #     ArrayOp([2,4],1,"-")            # output: [1,3]
