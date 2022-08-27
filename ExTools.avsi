@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v8.8   (26-08-2022)                   ##
+###        ExTools v8.8   (27-08-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -6491,15 +6491,16 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 #    float "invert"=false
 #    )
 
-function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool "invert", int "UV") {
+function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool "invert", bool "clamp_float", int "UV") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
     bi   = BitsPerComponent(a)
 
-    mode = Default(mode, "kroon")
-    in   = Default(invert,    false)
-    UV   = Default(UV,    rgb ? 3 : 128)
+    mode = Default(mode,     "kroon")
+    in   = Default(invert,     false)
+    UV   = Default(UV, rgb ? 3 : 128)
+    cf   = Default(clamp_float, true) # Unless you are using it for error metrics, leave this at 'true'
     un   = Undefined()
     si   = ex_UVf(rgb, bi)
 
@@ -6641,9 +6642,9 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
     cstr = ex_UVexpr(str, UV, bi, rgb, un, si)
     str  = ex_dlut  (str, bi, un)
 
-    isy     ? Expr(a, str                       ,clamp_float=true) : \
-    UV == 1 ? Expr(a, str, ""                   ,clamp_float=true) : \
-              Expr(a, str, cstr, scale_inputs=si,clamp_float=true)
+    isy     ? Expr(a, str                       ,clamp_float=cf) : \
+    UV == 1 ? Expr(a, str, ""                   ,clamp_float=cf) : \
+              Expr(a, str, cstr, scale_inputs=si,clamp_float=cf)
               prop = ["_Matrix","_Primaries","_Transfer","_PictType"]
               propDelete(UV<4?prop:ArrayAdd(prop,"_ChromaLocation"))
               propSet("_ColorRange", 0)                            }
