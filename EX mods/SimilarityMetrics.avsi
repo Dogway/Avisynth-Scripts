@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.4  (28-06-2022)                     ###
+###        Similarity Metrics Pack v3.5  (27-08-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -123,9 +123,9 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     # qprewitt gradient magnitude with custom normalization
     krn         = ex_shape(1,center=false)
     quality_map = ex_lutxy(ex_edge(clip1, krn+"A D F + + C - E - H - dup *
-                                               A B C + + F - G - H - dup * +", 0, 255),  \
+                                               A B C + + F - G - H - dup * +", 0, 255, clamp_float=false),  \
                            ex_edge(clip2, krn+"A D F + + C - E - H - dup *
-                                               A B C + + F - G - H - dup * +", 0, 255), Format("x y * sqrt 2 * {c} + x y + {c} + /"))
+                                               A B C + + F - G - H - dup * +", 0, 255, clamp_float=false), Format("x y * sqrt 2 * {c} + x y + {c} + /"))
 
     last = show_map ?
     \ ScriptClip(quality_map, function[] () { propSet(last,"_PlaneGMSD", Sqrt(AverageLuma(Expr(last,"x "+ String(AverageLuma(last)) +" - dup *"))), 0) } ) :
@@ -392,9 +392,9 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     mu2     = vsTCanny(clip2, sigmay=stddev, mode=-1)
     mu1_sq  = ex_lut(mu1,      "x dup *")
     mu2_sq  = ex_lut(mu2,      "x dup *")
-    sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut(clip1,        "x dup *"), sigmay=stddev, mode=-1)
-    sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut(clip2,        "x dup *"), sigmay=stddev, mode=-1)
-    sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x y *"), sigmay=stddev, mode=-1)
+    sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut  (clip1,        "x dup *"), sigmay=stddev, mode=-1)
+    sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut  (clip2,        "x dup *"), sigmay=stddev, mode=-1)
+    sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x   y *"), sigmay=stddev, mode=-1)
 
     ssim_map = c1 > 0.0 && c2 > 0.0 ?
     \ Expr(sigmay12_pls_mu1_mu2, mu1_sq, mu2_sq, sigmay1_sq_pls_mu1_sq, sigmay2_sq_pls_mu2_sq, mu1, mu2, Format("c d * X@ 2 * {c1} + x X - 2 * {c2} + * y z + {c1} + a y - b z - + {c2} + * /")) :
