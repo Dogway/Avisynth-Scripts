@@ -1,12 +1,12 @@
-# Frame Rate Converter ex mod
-# Version: 2.2.1  (05-02-2022)
+# Frame Rate Converter EX mod
+# Version: 2.3.0  (28-08-2022)
 #
 # By Etienne Charland
 # Based on Oleg Yushko's YFRC artifact masking,
 # johnmeyer's frame interpolation code, and
 # raffriff42's "weak mask" and output options.
 # Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (2.2.1)  (05-02-2022) replaced MaskTools2 with internal HBD aware Expr() wrappers, performance optimizations + cosmetics. (Requires ExTools, GradePack and AviSynth+ 3.7.1+)
+# Dogway (2.3.0)  (28-08-2022) replaced MaskTools2 with internal HBD aware Expr() wrappers, performance optimizations + cosmetics. (Requires ExTools, GradePack and AviSynth+ 3.7.2+)
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -30,13 +30,13 @@
 ## Increases the frame rate with interpolation and fine artifact removal.
 ##
 ## YV12/YV24/Y8 over any bitdepth
-## Requires: FrameRateConverter.dll, MVTools, ExTools and GradePack
+## Requires: FrameRateConverter.dll, MVTools, ExTools and GradePack (and RIFE if used with TransformsPack)
 ##
 ## @ NewNum      - The new framerate numerator (if FrameDouble = false, default = 60)
 ##
 ## @ NewDen      - The new framerate denominator (if FrameDouble = false, default = 1)
 ##
-## @ Preset      - The speed/quality preset [slowest|slower|slow|normal|fast|faster|anime]. (default=normal)
+## @ Preset      - The speed/quality preset [slowest|slower|slow|normal|fast|faster|anime|rife|rifeanime]. (default=normal)
 ##
 ## @ BlkSize     - The block size. Latest MvTools2.dll version from Pinterf supports 6, 8, 12, 16, 24, 32, 48 and 64.
 ##                 Defaults for 4/3 video of height:
@@ -88,6 +88,9 @@
 ## @ BlendRatio  - Changes the blend ratio used to fill artifact zones. 0 = frame copy and 100 = full blend.
 ##                 Other values provide a result in-between to eliminate ghost effects. (Default = 40)
 ##
+## @ RIFE        - Uses RIFE to double the framerate of the frame blending clip used to mask artifacts, reducing the need for frame blending.
+##                 0 disables RIFE and uses only frame blending. 1 runs RIFE once but you will still notice frame blending. 2 runs RIFE twice for better quality.
+##
 ## @ tv_range    - True if source is Limited(TV) range, False if source is Full(PC) range. (Default = true)
 ##
 ## @ luma_rebuild- True to improve detail in dark areas for motion analysis
@@ -101,20 +104,24 @@
 ## Slower:  Calculate diff between DCT=4 and DCT=0 to take the best from both
 ## Slowest: Calculate diff between DCT=1 and DCT=0 to take the best from both
 ## Anime:   Slow with BlendOver=40, SkipOver=140
+## RIFE:    Slow with rife=2, maskThr=80
+## RIFEanime: Both Anime and RIFE presets
 ##
-function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Preset", int "BlkSize", int "BlkSizeV", bool "FrameDouble", string "Output", bool "Debug",
-\ clip "Prefilter", int "MaskThr", int "MaskOcc", int "SkipThr", int "BlendOver", int "SkipOver", bool "Stp", int "Dct", int "DctRe", int "BlendRatio", bool "tv_range", bool "luma_rebuild")
+function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Preset", int "BlkSize", int "BlkSizeV", bool "FrameDouble", string "Output", bool "Debug",
+\ clip "Prefilter", int "MaskThr", int "MaskOcc", int "SkipThr", int "BlendOver", int "SkipOver", bool "Stp", int "Dct", int "DctRe", int "RIFE", int "rifeModel", int "BlendRatio", bool "tv_range", bool "luma_rebuild", int "gpuid")
 {
     Preset = Default(Preset, "normal")
 
-    num = Preset == "slowest" ? 5 : \
-          Preset == "slower"  ? 4 : \
-          Preset == "slow"    ? 3 : \
-          Preset == "normal"  ? 2 : \
-          Preset == "fast"    ? 1 : \
-          Preset == "faster"  ? 0 : \
-          Preset == "anime"   ? 6 : \
-          Assert(false, "FrameRateConverter: 'Preset' must be slowest, slower, slow, normal, fast, faster or anime {'" + Preset + "'}")
+    num = Preset == "slowest"  ? 5 : \
+          Preset == "slower"   ? 4 : \
+          Preset == "slow"     ? 3 : \
+          Preset == "normal"   ? 2 : \
+          Preset == "fast"     ? 1 : \
+          Preset == "faster"   ? 0 : \
+          Preset == "anime"    ? 6 : \
+          Preset == "RIFE"     ? 7 : \
+          Preset == "RIFEanime"? 8 : \
+          Assert(false, "FrameRateConverter: 'Preset' must be slowest, slower, slow, normal, fast, faster, anime, RIFE or RIFEanime {'" + Preset + "'}")
 
     Output = Default(Output, "auto")
 
@@ -136,6 +143,7 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
     h             = C.height()
     frn           = C.FrameRateNumerator()
     frd           = C.FrameRateDenominator()
+    isUHD         = (w > 2599 || h > 1499)
     isHD          = (w > 1099 || h >  599)
     Stp           = Default(Stp, true)
     FrameDouble   = Default(FrameDouble,   !Defined(NewNum))
@@ -148,7 +156,7 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
                                      DefH<1200 ? 16 : \
                                      DefH<1600 ? 24 : 32)
     BlkSizeV      = Default(BlkSizeV, BlkSize)
-    MaskThr       = Default(MaskThr, 120)
+    MaskThr       = Default(MaskThr,  num>6 ? 80 : 120)
     SkipThr       = Default(SkipThr,  55)
     MaskOcc       = MaskThr > 0 ? Default(MaskOcc, 105) : 0
     CalcPrefilter = Defined(Prefilter)
@@ -157,19 +165,23 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
     tv            = Default(tv_range,   !fs)
     lr            = Default(luma_rebuild, true)
     BlendRatio    = Default(BlendRatio, 40)
+    gpuid         = Default(gpuid, 0)
+    rifeI         = Default(rife,  0)
+    rife          = rifeI>0 || num>6
+    rifeModel     = Default(rifeModel, rife ? num>7 ? 3 : 6 : 0)  # model=5 distorts more than 6 which does more blending (though pleasant)
     OutFps        = OPut < 4  # Whether output has altered frame rate
     wb            = w/BlkSize
     wb4           = round(wb/4.0)*4
     hb            = h/BlkSizeV
     hb4           = round(hb/4.0)*4
 
-    #                           Faster     Fast    Normal    Slow    Slower    Slowest   Anime
-    Dctn        = Select (num,      0,        0,       0,       4,       4,         1,       4)
-    DctRe       = Select (num,      0,        0,       4,       4,       4,         1,       4)
-    BlendOvern  = Select (num,     70,       70,      70,      70,      70,        70,      40)
-    SkipOvern   = Select (num,    210,      210,     210,     210,     210,       210,     140)
-    Recalculate = Select (num,  false,     true,    true,    true,    true,      true,    true)
-    CalcDiff    = Select (num,  false,    false,   false,   false,    true,      true,   false)
+    #                           Faster     Fast    Normal    Slow    Slower    Slowest   Anime     RIFE  RIFEanime ('RIFE' matches 'Slow' defaults)
+    Dctn        = Select (num,      0,        0,       0,       4,       4,         1,       4,       4,        4)
+    DctRe       = Select (num,      0,        0,       4,       4,       4,         1,       4,       4,        4)
+    BlendOvern  = Select (num,     70,       70,      70,      70,      70,        70,      40,      70,       70)
+    SkipOvern   = Select (num,    210,      210,     210,     210,     210,       210,     140,     210,      210)
+    Recalculate = Select (num,  false,     true,    true,    true,    true,      true,    true,    true,     true)
+    CalcDiff    = Select (num,  false,    false,   false,   false,    true,      true,    true,   false,    false)
 
     # Overrides
     Dctre     = Default(Dct, DctRe)
@@ -177,7 +189,9 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
     BlendOver = Default(BlendOver, BlendOvern)
     SkipOver  = Default(SkipOver,  SkipOvern)
 
-    Assert(IsVersionOrGreater(3,7,1), "Update AviSynth+ version")
+    ver = VersionString()
+    RIFE ? Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3682"),"FrameRateConverter: RIFE requires AviSynth+ r3682 or above") : nop()
+    Assert(IsVersionOrGreater(3,7,2), "Update AviSynth+ version")
     Assert(MaskThr >= 0 && MaskThr <= 255, String(MaskThr,       "FrameRateConverter: MaskThr must be between 0 and 255 {%.f}"))
     Assert(MaskOcc >= 0 && MaskOcc <= 255, String(MaskOcc,       "FrameRateConverter: MaskOcc must be between 0 and 255 {%.f}"))
     Assert(SkipThr < MaskThr,                                    "FrameRateConverter: SkipThr must be lower (stronger) than MaskThr")
@@ -186,59 +200,46 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
     Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver,  "FrameRateConverter: SkipOver must be greater than BlendOver")
     Assert(CalcDiff || OPut!=7,                                  "FrameRateConverter: You can only use Output='Diff' when using Preset=slower or slowest")
 
-    # "B" - Blending, "BHard" - No blending
+    # "B" - Blending, "BHard" - No blending, B = RIFE + Blending
     B = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
+
+    if (RIFE) {
+        matA = (isUHD ? "2020" : isHD ? "709" : "170m") + (tv ? ":l" : ":f")
+        B = is444(C) ? C.ConvertToPlanarRGB(matrix=matA) : C.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
+        B = B.ConvertBits(32,fulls=true)
+        for (i=1, frameDouble ? 1 : min(rifeI,2), 1) {
+            B = B.RIFE(uhd=isUHD, model=rifeModel, tta=false, gpu_id=gpuid, sc=true)
+        }
+        B = MatchClip(B,C,matrix=matA)
+        B = B.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
+    }
     BHard  = C.ChangeFps (NewNum, NewDen)
     C_luma = C.ExtractY()
     Blank  = BlankClip(C_luma, color_yuv=$000000, pixel_type=PixelType(C), channels=0)
 
     # Adjust parameters for different block sizes, causing stronger or weaker masks
     blk      = Max(BlkSize, BlkSizeV)
-    MaskThr  = MaskThr + (blk<=4  ? -40  : \
-                          blk<=6  ? -30  : \
-                          blk<=8  ? -20  : \
-                          blk<=12 ? -10  : \
-                          blk<=16 ?  0   : \
-                          blk<=24 ?  10  : \
-                          blk<=32 ?  20  : \
-                          blk<=48 ?  28  : 35)
-    MaskThr  = Max(Min(MaskThr, 255), 0)
-    SkipThr  = SkipThr + (blk<=4  ? -33  : \
-                          blk<=6  ? -26  : \
-                          blk<=8  ? -18  : \
-                          blk<=12 ?  -9  : \
-                          blk<=16 ?   0  : \
-                          blk<=24 ?   8  : \
-                          blk<=32 ?  16  : \
-                          blk<=48 ?  23  : 30)
-    SkipThr  = Max(Min(SkipThr, 255), 0)
-    gam      =            blk<=4  ? .60  : \
-                          blk<=6  ? .58  : \
-                          blk<=8  ? .56  : \
-                          blk<=12 ? .54  : \
-                          blk<=16 ? .50  : \
-                          blk<=24 ? .44  : \
-                          blk<=32 ? .36  : \
-                          blk<=48 ? .26  : .14
-    dct_mult =       !Recalculate ? 0.9  : \
+    MaskThr  = MaskThr + (-90.4/pow(exp(blk),0.066)+30.9)
+    MaskThr  = clamp(MaskThr, 0, 255)
+    SkipThr  = SkipThr + (-75.4/pow(exp(blk),0.065)+25.7)
+    SkipThr  = clamp(SkipThr, 0, 255)
+    gam      =            -0.0078*blk+0.63
+    dct_pow  =       !Recalculate ? 1.00 : 0 < DctRe < 5 ? 1.069+0.102*pow(DctRe-2.56,2) : 1.0
+    dct_mult =       !Recalculate ? 0.90 : \
                          DctRe==1 ? 1.90 : \
                          DctRe==2 ? 1.30 : \
                          DctRe==3 ? 1.20 : \
                          DctRe==4 ? 1.09 : 1
-    dct_pow  =       !Recalculate ? 1.0  : \
-                         DctRe==1 ? 1.32 : \
-                         DctRe==2 ? 1.10 : \
-                         DctRe==3 ? 1.09 : \
-                         DctRe==4 ? 1.28 : 1
+
 
     # For some reason feeding PC range and increasing chroma weight for good sources doesn't improve motion interpolation. Prolly the filter is very tuned to tv range
     # Hard-coded ex_luma_rebuild(S0=3) with tv range output (didn't scale up tv range as an optimization trick)
-    rangePC = tv ? " ymin - 0 max " : ""
-    rangeTV = tv ? " ymin +"        : ""
+    rangePC = tv ? "ymin - 0 max A@" : ""  callX = tv ? "A" : "x"
+    rangeTV = tv ? " ymin +"         : ""
     pre = prefilter.ConvertBits(8,dither=-1,fulls=!tv)
     Cp  =         C.ConvertBits(8,dither=-1,fulls=!tv)
-    pre = lr ? pre.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" A@ 0.0625 + / - * A 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : pre
-    Cp  = lr ?  Cp.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" A@ 0.0625 + / - * A 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : Cp
+    pre = lr ? pre.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" 0.0625 + / - * "+callX+" 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : pre
+    Cp  = lr ?  Cp.ex_lut("f32 0.125 1.0625 0.0664 x "+rangePC+" 0.0625 + / - * "+callX+" 0.875 * +"+rangeTV, scale_inputs=tv?"int":"intf",fulls=!tv) : Cp
 
 
     # jm_fps interpolation
@@ -295,25 +296,26 @@ function ex_FrameRateConverter (clip C, int "NewNum", int "NewDen", string "Pres
     EM = EM.DeleteFrame(EM.Framecount()-1).Loop(2, EM.Framecount()-1)
 
     # Create skip mask
-    SkipThrb = ex_bs(SkipThr,8,bi,fulls=true)
+    SkipThrb = ex_bs(SkipThr,8,bi,fulls=true,flt=true)
     EMs      = EM.BicubicResize(wb4, hb4)
     EMskip   = EMs.ex_lut(Format("x[-1,0] x[0,-1] max x[0,1] max x[1,0] max x max {SkipThrb} > range_max 0 ?"), fulls=true)
     OutSkip  = EMskip.BicubicResize(w, h)
 
     # Create artifact correction mask
     OutRaw   = EM
-    MaskThrb = ex_bs(MaskThr,8,bi,fulls=true)
+    MaskThrb = ex_bs(MaskThr,8,bi,fulls=true,flt=true)
     EM       = EMs.ex_lut(Format("x[-1,0] x[0,-1] max x[0,1] max x[1,0] max x max {MaskThrb} > range_max 0 ?"), fulls=true)
+    EM       = RIFE ? EM.ex_expand() : EM
     EM       = EM.GaussResize(w, h, p=15)
 
     # Mask: Stripes
     thb   = ex_bs(82,8,bi,fulls=true)
-    EMstp = C.ex_StripeMask(blksize=BlkSize, blksizev=BlkSizeV, str=min(SkipThr*2+20, 255), strf=min(SkipThr+10, 255), fullRange=!tv)
+    EMstp = C.ex_StripeMask(blksize=BlkSize, blksizev=BlkSizeV, str=round(min(SkipThr*2+20, 255)), strf=round(min(SkipThr+10, 255)), fullRange=!tv)
     \      .BicubicResize(round(wb)*4, round(hb)*4)
     \      .ContinuousMask(22)
     EMstp = EMstp.BicubicResize(EMstp.Width()/2, EMstp.Height()/2)
     \      .ex_lut(Format("x[-1,-1] x[0,-1] min x[1,-1] min x[-1,0] min x[1,0] min x[-1,1] min x[0,1] min x[1,1] min x min {thb} > range_max 0 ?"), fulls=true)
-    \      .ex_expand(3,mode="circle").ex_expand(5,mode="ring")
+    \      .ex_expand (3,mode="circle").ex_expand(5,mode="ring")
     \      .ex_boxblur(2,mode="mean")
     \      .GaussResize(w, h, p=4)
 
