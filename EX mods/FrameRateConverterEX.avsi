@@ -90,6 +90,8 @@
 ##
 ## @ RIFE        - Uses RIFE to double the framerate of the frame blending clip used to mask artifacts, reducing the need for frame blending.
 ##                 0 disables RIFE and uses only frame blending. 1 runs RIFE once but you will still notice frame blending. 2 runs RIFE twice for better quality.
+##                 You can lower the MaskThr to see more of the RIFE clip.
+##                 More about the RIFE implementation: https://forum.doom9.org/showthread.php?t=174793&page=25
 ##
 ## @ tv_range    - True if source is Limited(TV) range, False if source is Full(PC) range. (Default = true)
 ##
@@ -208,7 +210,7 @@ function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Prese
         B = is444(C) ? C.ConvertToPlanarRGB(matrix=matA) : C.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
         B = B.ConvertBits(32,fulls=true)
         for (i=1, frameDouble ? 1 : min(rifeI,2), 1) {
-            B = B.RIFE(uhd=isUHD, model=rifeModel, tta=false, gpu_id=gpuid, sc=true)
+            B = B.RIFE(uhd=isUHD, model=rifeModel, tta=false, gpu_id=gpuid)
         }
         B = MatchClip(B,C,matrix=matA)
         B = B.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
