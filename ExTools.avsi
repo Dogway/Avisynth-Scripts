@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v8.8   (27-08-2022)                   ##
+###        ExTools v8.9   (12-09-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -271,6 +271,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         a1   = mcfa && sh < 2 ? a.propClearAll() :a
         a1   = mcfa || mcf == "CAMBI" || mVMAF ? mcfa && isHD ? _IQA_downsample(a1, fulls=fs, fulld=true).ConvertBits(10,dither=-1,fulls=true) : a1.ConvertBits(10,dither=-1,fulls=fs,fulld=true) : a1.ConvertBits(32,fulls=fs,fulld=true)  # _IQA_downsample() is not much better than bicubic(b=-0.5,c=0.3), but better in any case.
         b1   = mcfa || mcf == "CAMBI" || mVMAF ? mcfa && isHD ? _IQA_downsample(b,  fulls=fs, fulld=true).ConvertBits(10,dither=-1,fulls=true) : b. ConvertBits(10,dither=-1,fulls=fs,fulld=true) : b. ConvertBits(32,fulls=fs,fulld=true)
+        a1   = rgb && (mcfa || mcf != "MDSI" && mcf != "BUTT" && mcf != "rMEA" && mcf != "OkMSE") ? a1.ConvertToYUV420(matrix=matA) : a1
+        b1   = rgb && (mcfa || mcf != "MDSI" && mcf != "BUTT" && mcf != "rMEA" && mcf != "OkMSE") ? b1.ConvertToYUV420(matrix=matA) : b1
         a1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(a1, planes="YUV", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(a1)==32?"PS":"P10")) : a1 : a1
         b1   = mcfa || mcf == "CAMBI" || mVMAF ? isy ? CombinePlanes(b1, planes="YUV", source_planes="YYY", pixel_type="YUV444"+(BitsPerComponent(b1)==32?"PS":"P10")) : b1 : b1
 
@@ -280,18 +282,18 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         y    = mcfa || mcf == "CAMBI" || mVMAF ?   y.ConvertBits(32,fulls=true)          : y
         a1   = mcfa && sh < 2 ? y.propClearAll() : isHD ? a1.ConvertBits(32,fulls=true) : a.ConvertBits(32,fulls=fs,fulld=true)
         b1   = mcfa || mcf == "CAMBI" || mVMAF ?   isHD ? b1.ConvertBits(32,fulls=true) : b.ConvertBits(32,fulls=fs,fulld=true) : b1
-        b2   = rgb  || isy ? b1.ConvertToPlanarRGB(matrix=matA) : b1.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
+        b2   = rgb  || isy || is444(b1) ? b1.ConvertToPlanarRGB(matrix=matA) : b1.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
 
         y    = mcfa || mcf == "SSIM" || mcf == "BSSIM" ? \
                                         vsSSIM(b1, y, show=1, fulls=true) : y
         y    = mcfa || mcf == "BSSIM" ? BSSIM (b1, y, show=1, fulls=true) : y
-        y    = mcfa                   ? rgb || isy ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) : GMSD(b1, y, show=1, fulls=true).      ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : \
-                       mcf == "GMSD"  ?              GMSD(b1, y, show=1, fulls=true) : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : y
+        y    = mcfa                   ? rgb || isy ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) :      is444(b1) ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) : GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : \
+                       mcf == "GMSD"  ?              GMSD(b1, y, show=1, fulls=true) : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? is444(y) ? y.ConvertToPlanarRGB(matrix=matA) :                               y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16") : y
         y    = mcfa || mcf == "MDSI"  ? !isy ? MDSI  (b2, y, show=1, fulls=true) : y : y
         b3   = mcfa || mcf == "BUTT"  ? !isy ? Butteraugli(y, b2)                : y : y  # Very slow filter ~3fps
 
-        z1   = mcfa || mcf == "ME"  || mcf == "MAE"  || mcf == "SMAE"                  ? ex_lutxy(a1,b1,"x y -",                      UV=1,fulls=true) : nop()
-        z2   = mcfa || mcf == "MSE" || mcf == "CHAR" || mcf == "RMSE" || mcf == "PSNR" ? ex_lutxy(a1,b1,"x y - dup *",                UV=1,fulls=true) : nop()
+        z1   = mcfa || mcf == "ME"  || mcf == "MAE"  || mcf == "SMAE"                  ? ex_lutxy(a1,b1,"x y -"                      ,UV=1,fulls=true) : nop()
+        z2   = mcfa || mcf == "MSE" || mcf == "CHAR" || mcf == "RMSE" || mcf == "PSNR" ? ex_lutxy(a1,b1,"x y - dup *"                ,UV=1,fulls=true) : nop()
         z3   = mcfa || mcf == "MSLE"                                                   ? ex_lutxy(a1,b1,"x 1 + log y 1 + log - dup *",UV=1,fulls=true) : nop()
 
         # RedMean
@@ -652,8 +654,8 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     isUHD= (w > 2599 || h > 1499) && !isy
 
     th   = Default(thres, 115)
-    lo   = Default(lo,      0)          # Value for under threshold
-    hi   = Default(hi,    255)          # Value for above threshold
+    lo   = Default(lo,      0)          # Value for under threshold (set to -1 to passthrough clip values)
+    hi   = Default(hi,    255)          # Value for above threshold (set to -1 to passthrough clip values)
     in   = Default(invert, false)       # Use this for invert instead of lo=255 and hi=0
     sm   = Default(smooth, false)
     md   = Default(mode, "simple")      # 'simple', 'dynamic' or 'otsu'
@@ -665,10 +667,18 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     lox = lo < 0   hix = hi < 0
     lox && hix ? Assert (false, "ex_binarize: 'lo' or 'hi': At least one bound should be binarized.") : nop()
 
-    bs  = a.ConvertBits(8,dither=-1,fulls=fs) # Matrix assumed by dimensions
-    bs  = isUHD ? bs.DotClip([0.262404,0.678455,0.059141]) : isHD ? bs.DotClip([0.212649,0.715169,0.072182]) : bs.DotClip([0.298903,0.586620,0.114477])
-    a   = rgb   ? bs.ConvertBits(bi,fulls=fs) : a
-    br  = bs.width() > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
+
+    if (md!="simple") {
+
+        bs  = a.ConvertBits(8,dither=-1,fulls=fs) # Matrix assumed by dimensions
+        bs  = rgb ? isUHD ? bs.DotClip([0.262404,0.678455,0.059141]) : \
+                     isHD ? bs.DotClip([0.212649,0.715169,0.072182]) : \
+                            bs.DotClip([0.298903,0.586620,0.114477]) : \
+                            a. ConvertBits(8,dither=-1,fulls=fs)
+        a   = rgb         ? bs.ConvertBits(bi,fulls=fs) : a
+        br  = w > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
+    }
+
     isy = rgb || isy
 
     if (md=="otsu") {
@@ -756,8 +766,6 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
 
     } else {
 
-        fd = lo == 0 && hi == 255
-
         if (sm) {
 
             # same output than smoothstep but faster
@@ -767,29 +775,22 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
             thh  = th * 1.1    thh = bi32 ? thh : round(thh)
             thm  = 1./(thh - thl)
 
-            sub = Format(lox ? in ? "dup {thl} < swap2 swap1       ?" : \
-                                    "dup {thh} > swap2 swap1 swap1 ?" : \
-                         hix ? in ? "dup {thl} < swap2 swap1 swap1 ?" : \
-                                    "dup {thh} > swap2 swap1       ?" : \
-                                    ""                                )
-            dp  = lox || hix ? "dup" : ""
-            lo  = lox ? 0  : ex_bs(lo, 8, bi, fulls=fs, fulld=true)
-            hi  = hix ? mx : ex_bs(hi, 8, bi, fulls=fs, fulld=true)
-            olo = lo == 0  ? ""  :      "0 max"
-            ohi = hi == mx ? "*" : in ? "dup swap2 0 max * swap1 max " : "dup swap2 * swap1 min "
+            lob = lox ? 0  : ex_bs(lo, 8, bi, fulls=fs, fulld=true)
+            hib = hix ? mx : ex_bs(hi, 8, bi, fulls=fs, fulld=true)
 
+            msk = Format("x {thl} - {thm} * 0 1 clip")
+            msk = in ? "1 "+msk+" -" : msk
 
-            str = Format(in ? "x "+dp+" {thl} - "+olo+" {thm} * {lo} {hi} - "+ohi+" {hi} + "   : \
-                    lo == 0 ? "x "+dp+" {thl} - "+olo+" {thm} * {hi}        "+ohi              : \
-                              "x "+dp+" {thl} - "+olo+" {thm} * {hi} {lo} - "+ohi+" {lo} + " ) + sub
-
+            str = Format( lox ? "x dup {hib}     - "+msk+" * -"       : \
+                          hix ? "{lob} dup x     - "+msk+" * -"       : \
+                                "x {thl} - {thm} * 0 max range_max *" )
         } else {
 
-            lo = lox ? "x" : string(ex_bs(lo, 8, bi, fulls=fs, fulld=true))
-            hi = hix ? "x" : string(ex_bs(hi, 8, bi, fulls=fs, fulld=true))
+            lob = lox ? "x" : string(ex_bs(lo, 8, bi, fulls=fs, fulld=true))
+            hib = hix ? "x" : string(ex_bs(hi, 8, bi, fulls=fs, fulld=true))
 
-            str = Format(in ? "x {th} < "+hi+" "+lo+" ?" : \
-                              "x {th} > "+hi+" "+lo+" ?")
+            str = Format(in ? "x {th} < "+hib+" "+lob+" ?" : \
+                              "x {th} > "+hib+" "+lob+" ?")
         }
 
     cstr = ex_UVexpr(  str, UV, bi, rgb, fs, si)
@@ -797,7 +798,8 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     isy     ?  Expr(a, str                       , lut=lut, clamp_float=sm && bi32 ) : \
     UV == 1 ?  Expr(a, str, ""                   , lut=lut, clamp_float=sm && bi32 ) : \
                Expr(a, str, cstr, scale_inputs=si, lut=lut, clamp_float=sm && bi32 )
-    if (fd) {
+
+    if (lo == 0 && hi == 255) {
                prop = ["_Matrix","_Primaries","_Transfer","_PictType"]
                propDelete(UV<4?prop:ArrayAdd(prop,"_ChromaLocation"))
                propSet("_ColorRange", 0)                     }
