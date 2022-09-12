@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v8.9   (12-09-2022)                   ##
+###        ExTools v9.0   (12-09-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -668,16 +668,15 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
     lox && hix ? Assert (false, "ex_binarize: 'lo' or 'hi': At least one bound should be binarized.") : nop()
 
 
-    if (md!="simple") {
 
-        bs  = a.ConvertBits(8,dither=-1,fulls=fs) # Matrix assumed by dimensions
-        bs  = rgb ? isUHD ? bs.DotClip([0.262404,0.678455,0.059141]) : \
-                     isHD ? bs.DotClip([0.212649,0.715169,0.072182]) : \
-                            bs.DotClip([0.298903,0.586620,0.114477]) : \
-                            a. ConvertBits(8,dither=-1,fulls=fs)
-        a   = rgb         ? bs.ConvertBits(bi,fulls=fs) : a
-        br  = w > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
-    }
+    bs  =               a. ConvertBits(8,dither=-1,fulls=fs)     # Matrix assumed by dimensions
+    bs  = rgb ? isUHD ? bs.DotClip([0.262404,0.678455,0.059141]) : \
+                 isHD ? bs.DotClip([0.212649,0.715169,0.072182]) : \
+                        bs.DotClip([0.298903,0.586620,0.114477]) : \
+                        a. ConvertBits(8,dither=-1,fulls=fs)
+    a   = rgb ?         bs.ConvertBits(bi,fulls=fs) : a
+    br  = w > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
+
 
     isy = rgb || isy
 
@@ -781,9 +780,10 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
             msk = Format("x {thl} - {thm} * 0 1 clip")
             msk = in ? "1 "+msk+" -" : msk
 
-            str = Format( lox ? "x dup {hib}     - "+msk+" * -"       : \
-                          hix ? "{lob} dup x     - "+msk+" * -"       : \
-                                "x {thl} - {thm} * 0 max range_max *" )
+            str = Format( lox ? "x dup {hib}        - "+msk+" * -"           : \
+                          hix ? "{lob} dup x        - "+msk+" * -"           : \
+                         (in  ? "1" : "")+" x {thl} - {thm} * 0 max "+(in?"-":"")+" range_max *" )
+
         } else {
 
             lob = lox ? "x" : string(ex_bs(lo, 8, bi, fulls=fs, fulld=true))
