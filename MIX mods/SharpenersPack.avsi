@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.3  (08-07-2022)                             ###
+###        Sharpeners Pack v4.4  (13-09-2022)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -34,6 +34,7 @@
 ###       DelicateSharp                                                   ###
 ###       RegularSharp                                                    ###
 ###   Other:                                                              ###
+###       LindaSharp                                                      ###
 ###       DGSharpen2                                                      ###
 ###       SharpenComplex2 (uncredited)                                    ###
 ###       MultiSharpen2                                                   ###
@@ -497,7 +498,7 @@ function Adaptive_Sharpen(clip a, float "str", float "slope", float "H_over", fl
 ### Equivalences:
 ### unsharpmask(strength=str,radius=rad,threshold=0) --> ex_unsharp(str=str*0.007,                        Fc=width()/max(1,0.76*exp(0.26*rad),th=0)
 ### unsharp    (strength=str,vary=rad)               --> ex_unsharp(str=str/(1.489*pow(rad,-1.112)+0.51), Fc=width()*0.8,                     th=0)
-### Internal Sharpen(0.75)            roughly matches    ex_unsharp(2.5,width()*1.5,0,UV=3)
+### Internal's Sharpen(0.75)          roughly matches    ex_unsharp(2.5,width()*1.5,0,UV=3)
 ###
 ###
 ### Dependencies:
@@ -1584,8 +1585,6 @@ function DetailSharpen(clip c, float "str", int "pow", int "z", int "ldmp", int 
 
 
 
-
-
 #######################
 ###                 ###
 ###   *.mp4 guy     ###
@@ -2408,8 +2407,8 @@ function HaloNR (clip src, int "a", float "h", float "thr", float "elast", int "
 ##                  ExTools
 ##                  MVTools
 ##                  RgTools
-##                  NNEDI3CL
 ##                  ResizersPack
+##                  NNEDI3CL
 ##                  manyPlus
 ##                  KNLMeansCL
 ##
@@ -2434,10 +2433,7 @@ function plum_Super(clip src, int "pel") {
     rgb ? RGB_to_OPP() : isy() ? last : ExtractY()
 
     PadBorders(64, 64, 64, 64, "Dilate")
-
-    for (i = 1, pel/2, 1) {
-        NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1)
-    }
+    nnedi3wrap(pel,nns=1,nsize=0,qual=1)
 
     return last }
 
@@ -2489,8 +2485,8 @@ function plum_Basic(clip src, float "strength", int "a", float "h1", float "h2",
     function inline(clip src, int a, float h1, float h2, int radius, float wn, int cutoff_1, float scale, bool fs) {
         sharp           = Deconvolution(src, radius, wn, int(a / 2. + 0.5), scale)
 #        sharp           = nnedi3_rpow2(sharp,rfactor=2,nns=4,nsize=0,qual=2,threads=8/2,prefetch=8,SetAffinity=true,MaxPhysCore=false)
-        sharp           = NNEDI3CL(sharp,1,dh=true,dw=true,nns=1,nsize=0,qual=1)
-        ref             = NNEDI3CL(src,  1,dh=true,dw=true,nns=1,nsize=0,qual=1)
+        sharp           = nnedi3wrap(sharp,2,nns=1,nsize=0,qual=1)
+        ref             = nnedi3wrap(src,  2,nns=1,nsize=0,qual=1)
         sharp           = NLErrors(ref, a, h1, sharp).ConvertBits(32, fulls=fs)
         dif             = ex_makediff(sharp, ref, fulls=fs)
         dif             = GaussResize(dif, src.width(), src.height(), src_left=-0.5, src_top=-0.5, p=100) # like PointResize but keeping image center. -0.5 to correct image center from nnedi3()
@@ -2632,10 +2628,10 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         pel     = Default(pel, 4)
         src2d   = Defined(src2)
 
-        u2x     =                   NNEDI3CL(src, 1,dh=true,dw=true,nns=1,nsize=0,qual=1)
-        u2x2    = !src2d ? nop() :  NNEDI3CL(src2,1,dh=true,dw=true,nns=1,nsize=0,qual=1)
-        u4x     =                   NNEDI3CL(src, 1,dh=true,dw=true,nns=1,nsize=0,qual=1).NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1)
-        u4x2    = !src2d ? nop() :  NNEDI3CL(src2,1,dh=true,dw=true,nns=1,nsize=0,qual=1).NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1)
+        u2x     =                   nnedi3wrap(src, 2,nns=1,nsize=0,qual=1)
+        u2x2    = !src2d ? nop() :  nnedi3wrap(src2,2,nns=1,nsize=0,qual=1)
+        u4x     =                   nnedi3wrap(src, 4,nns=1,nsize=0,qual=1)
+        u4x2    = !src2d ? nop() :  nnedi3wrap(src2,4,nns=1,nsize=0,qual=1)
         dif     = !src2d ? nop() : (pel==2 ? ex_makediff (u2x, u2x2, fulls=fs) : ex_makediff (u4x, u4x2, fulls=fs))
         clp     =  src2d ? dif   : (pel==2 ? u2x : u4x)
         return clp }
@@ -2789,6 +2785,41 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 ###                 ###
 #######################
 
+
+
+##################################
+#
+# LindaSharp() by Tempter57  (26-11-2012)
+#         mod  by Dogway     (13-09-2022)
+#
+#  From: https://forum.doom9.org/showthread.php?p=1602640#post1602640
+#
+# Very similar to DetailSharpen() but only sharpening a difference of blurs (between ex_sbr() and a median blur)...
+# ...to minimize sharpening of noise inherent to high frequencies.
+#
+# For the mod, HBD support was added as well as the 'med' and the non-linear 'pow', 'z', and 'ldmp' arguments.
+#
+function LindaSharp (clip clp, float "str", int "pow", int "z", int "ldmp", bool "med") {
+
+    bi   = BitsPerComponent(clp)
+
+    z     = Default( z,      4 )
+    sstr  = Default( str, 0.85 )
+    power = Default( pow,    4 )
+    ldmp  = Default( ldmp,   1 )
+    med   = Default( med, true )     # Toggle between median or box blur. Default is LindaSharp's median blur.
+    str   = med ? str : str * 1.375  # Multiplier to resemble DetailSharpen() when !med
+
+    ldmp  = ex_bs(max(ldmp, 0), 8, bi, fulls=true)
+    strzi = ex_bs(sstr*z,       8, bi, fulls=true, flt=true)
+    zs    = 1. / ex_bs(z,       8, bi, fulls=true)
+    rpwr  = 1. / power
+
+    and   = clp.ex_sbr()
+    Peter = med ? and.ex_median("median")     : \
+                  and.ex_boxblur(1,mode="mean")
+    go    = ex_makediff(and,Peter)
+    ex_lutxy(clp, go, Format("x y range_half - A@ abs B@ {zs} * {rpwr} ^ {strzi} * A B {ldmp} + / * +"), UV=1) }
 
 
 
