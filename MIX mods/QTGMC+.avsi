@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.86 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.87 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -24,6 +24,9 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.87p
+# - Update ex_bob() for latest NNEDI3CL version
 #
 # v3.86p
 # - Replace NNEDI3CL with nnedi3wrap
@@ -398,14 +401,14 @@
 #   MaskTools2 (2.2.30  or above)
 #   RgTools    (1.2     or above)
 #   vsTCanny   (1.1.8 for gaussian blur or above)
-#   NNEDI3CL   (1.0.2   or above)
+#   NNEDI3CL   (1.0.4   or above)
 #   SysInfo    (0.1.2.9 or above)
 #   Vinverse   (0.9.4   or above)
 #
 # Core scripts:
-#   ExTools      (8.7   or above)
-#   ResizersPack (9.6   or above) (for nnedi3wrap() )
-#   SMDegrain    (3.5.3 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   ExTools      (9.0   or above)
+#   ResizersPack (10.0  or above) (for nnedi3wrap() )
+#   SMDegrain    (3.5.5 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins and scripts:
@@ -1496,7 +1499,6 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
         shift = par ? 0.25 : -0.25
 
         cp.SeparateFields()
-        propSet("_FieldBased",0)
         w2    = w/2
         fh    = Height()
         eY    = ExtractY()
@@ -1520,12 +1522,12 @@ function ex_Bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
     } else {
 
         !nn ? Bob(cp, b, c, h ) : \
-              nnedi3wrap(cp.propSet("_FieldBased",0), field=par ? 3 : 2,dh=true,nsize=3,nns=3,qual=2,gpuid=gp)
+              nnedi3wrap(cp, field=par ? 3 : 2,dh=true,nsize=3,nns=3,qual=2,gpuid=gp)
     }
 
     par ? AssumeTFF() : AssumeBFF()
     propCopy(cp,true,props="_ChromaLocation")
-    propSet("_Combed",0)                    }
+    propSet("_FieldBased",0).propSet("_Combed",0) }
 
 
 
