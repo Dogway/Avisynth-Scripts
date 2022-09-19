@@ -1,7 +1,7 @@
 ###
-### Logo v14.0  (https://forum.doom9.org/showthread.php?t=182881)
+### Logo v15.0  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (25-02-2022) by Dogway
+###  (30-07-2022) by Dogway
 ###
 ### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
 ### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465#post525465)
@@ -13,7 +13,6 @@
 ###
 ### Dependencies:
 ###     ExTools
-###     MaskTools2
 ###     GradePack
 ###     ResizersPack
 ###     TransformsPack
@@ -33,6 +32,9 @@
 ###   -Better matte workaround
 ###
 ### Changelog:
+###
+### 15.0 -Updating mmod() call and checking for Alpha in RGB
+###      -Drop MaskTools2 dependency
 ###
 ### 14.0 -Rebasing to latest AviSynth+ and ExTools versions (now accepts partial hidden logo)
 ###
@@ -139,14 +141,16 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     PAR      = Default(PAR,1.0)        # Indicate the PAR of your source, if anamorphic output, so logo will show correct at display
     gif      = Default(anim_gif,false) # Is your logo a packed animated gif?
 
+    Assert(IsVersionOrGreater(3,7,2),  "Logo: Update AviSynth+ version")
+
     !(mode == "Over" || mode == "Watermark" || mode == "Screen"  || mode == "Multiply") ? \
-    Assert(false,           "Logo: Unsupported Blending Mode: " +string(mode))  : nop()
+    Assert(false,         "Logo: Unsupported Blending Mode: " +string(mode))  : nop()
     end > 0 ?\
-    Assert(start <= end,     "Logo: Invalid start frame: "       +String(start)) : nop()
-    Assert(start <=  Fc,     "Logo: Start frame out of bounds: " +String(start))
-    Assert(start >=   0,     "Logo: Start frame out of bounds: " +String(start))
-    Assert(end   < Fc+1,     "Logo: End frame out of bounds: "   +String(end))
-    Assert(end   >=  -1,     "Logo: End frame out of bounds: "   +String(end))
+    Assert(start <= end,  "Logo: Invalid start frame: "       +String(start)) : nop()
+    Assert(start <=  Fc,  "Logo: Start frame out of bounds: " +String(start))
+    Assert(start >=   0,  "Logo: Start frame out of bounds: " +String(start))
+    Assert(end   < Fc+1,  "Logo: End frame out of bounds: "   +String(end))
+    Assert(end   >=  -1,  "Logo: End frame out of bounds: "   +String(end))
     end2 = end == 0 || end == Fc-1 ? Fc : end
 
 
@@ -154,10 +158,10 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     \           : ImageSource(path, start=start, end= end == -1 ? start : end2, use_Devil=true, pixel_type="RGB32")
 
 
-    logo0 = isRGB(logo0) ? isPlanarRGB(logo0) ? logo0 : logo0.ConvertToPlanarRGBA() : logo0
+    logo0 = isRGB(logo0) ? isPlanar(logo0) ? logo0 : HasAlpha(logo0) ? logo0.ConvertToPlanarRGBA() : logo0.ConvertToPlanarRGB() : logo0
 
     logo0 = PAR !=  1.0  ? logo0.BicubicResize(nmod(logo0.Width()/par,2),nmod(logo0.Height(),2),0.0,0.75)
-    \                    : logo0.mmod(2)
+    \                    : logo0.mmod(2,mode="pad",borders="$008080FF")
 
     lw = logo0.Width ()    mw = mat ? lw : nop()
     lh = logo0.Height()    mh = mat ? lh : nop()
@@ -171,9 +175,9 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
 
     V = c.trim(start,end)
     V =
-    \ (mode=="Over")     ? mt_merge(V,logo0,ex_lut(msk,Format("x {Opac} *"),UV=1), luma=ch)
-    \:(mode=="Watermark")? mt_merge(V,ex_lut(V,Format("x ymin - ymax ymin - A@ / 1 {Wstr} {Opac} ^ / ^ A * ymin +"),UV=1), msk)
-    \:                     mt_merge(V,ex_blend(V,logo0,mode,Opac,1,true,UV=ch?4:2), msk, luma=ch)
+    \ (mode=="Over")     ? ex_merge(V,logo0,ex_lut(msk,Format("x {Opac} *"),UV=1), luma=ch)
+    \:(mode=="Watermark")? ex_merge(V,ex_lut(V,Format("x ymin - ymax ymin - A@ / 1 {Wstr} {Opac} ^ / ^ A * ymin +"),UV=1), msk)
+    \:                     ex_merge(V,ex_blend(V,logo0,mode,Opac,1,true,UV=ch?4:2), msk, luma=ch)
 
 
     start == 0 && (end == 0 || end == Fc) ? V :
