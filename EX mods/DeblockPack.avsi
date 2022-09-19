@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v2.4  (08-07-2022)                                ###
+###        Deblock Pack v2.5  (19-09-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -383,14 +383,12 @@ function oyster_Super(clip src, int "pel") {
     rgb ? !fs ? SMPTE_legal(false).RGB_to_OPP() : RGB_to_OPP() : last
     ConvertBits(8, dither=-1, fulls=rgb ? false : fs)
 
+#    Original
 #    PadBorders(128, 128, 128, 128, "Dilate")
-    PadBorders(64, 64, 64, 64, "Dilate")
 #    nnedi3_rpow2(rfactor=pel,nns=4,nsize=0,qual=2,threads=th/2,prefetch=th,SetAffinity=true,MaxPhysCore=false)
 
-    for (i = 1, pel/2, 1) {
-        NNEDI3CL(1,dh=true,dw=true,nns=1,nsize=0,qual=1)
-    }
-
+    PadBorders(64, 64, 64, 64, "Dilate")
+    nnedi3wrap(pel,nns=1,nsize=0,qual=1)
 
     return last }
 
@@ -674,7 +672,7 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
     cleansed = ex_adddiff(cleansed, dif)
     ref      = FreqMerge(cleansed, ref, nmod(block_size,2) + 1, lowpass)
     src      = FreqMerge(cleansed, src, nmod(block_size,2) + 1, lowpass)
-    clp      = ex_merge(src, ref, msk, luma=True)
+    clp      = ex_merge(src, ref, msk, luma=true)
 
     clp      = rgb ? OPP_to_RGB(clp).SMPTE_legal(true) : clp
     return clp }
