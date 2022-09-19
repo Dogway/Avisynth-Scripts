@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 9.9 (26-08-2022)      ##
+###   Resizers Functions Pack 10.0 (19-09-2022)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -404,7 +404,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     h2     = Default(height, h)
 
     ver = VersionString()
-    Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3682"),"waifu2xresize: Update AviSynth+ version")
+    Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3689"),"waifu2xresize: Update AviSynth+ version")
     Assert(isFloat(w2) || isFloat(h2),                           "waifu2xresize: Width/Height type not supported")
 
     w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
@@ -486,7 +486,6 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
     dh      = Default(dh,     fb!=0)        # Set to true to switch to deinterlace mode
     gpuid   = Default(gpuid,      0)        # Set to -1 for "cpu" nnedi3
     fd      = Default(field,  !dh || fb==0 ? 1 : fb==1 ? 2 : 3)
-    a       = gpuid>-1 && fd<2 ? propSet(a,"_FieldBased",0) : a
     fd      = gpuid>-1 && fd<0 ? fb : fd
 
           Assert(IsVersionOrGreater(3,7,2), "nnedi3wrap: Update AviSynth+ version")
@@ -540,7 +539,6 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
 
         } else {
                 nnedi3_rpow2(rfactor=xyf,             nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn=="none"?Undefined():krnn+"resize",ep0=ep0,ep1=ep1)
-
         }
 
     } else {
@@ -554,15 +552,28 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
 
     # Fix for pixel center shift or for final scaling
     if (krnn!="none" && !dh && (((dfw||dfh) && !sm) || (oned || gpuid>-1))) {
-        cs  = cpl!=1 ? -0.5 * (xyf-1) : 0
+
+        i20  = is420()  i22  = is422()
+        i44  = is444()  i11  = isYV411()
+
+        # Default 0.5 because it's always halving (except for 411)
+        cpc  = cpl == 0 ? [-0.5, 0.0] : \
+               cpl == 1 ? [ 0.0, 0.0] : \
+               cpl == 2 ? [-0.5,-0.5] : \
+               cpl == 3 ? [ 0.0,-0.5] : \
+               cpl == 4 ? [-0.5, 0.5] : [0.0, 0.5]
+
+        cpw  =  i44 ? 0 : i11 ? cpc[0]/2 : cpc[0]
+        cph  = !i20 ? 0 : cpc[1]
+
+        csl = cpl!=1 ?  cpw    * (xyf-1) : 0
+        cst = cpl!=1 ? -cph -1 * (xyf-1) : 0
         krn = LCase(krnn)
         krn = FindStr(krn, "bicubic") >0 ? 0 : FindStr( krn, "spline")>0 ? 1 : 2
-        Eval(krnn+"resize(w2,h2"+(krn==0 ? ",ep0,ep1" : krn==2 ? ",taps=round(ep0)" : "")+(hs ? ",src_left=cs)" : ws ? ",src_top=cs)" : ",src_left=cs,src_top=cs)"))
+        Eval(krnn+"resize(w2,h2"+(krn==0 ? ",ep0,ep1" : krn==2 ? ",taps=round(ep0)" : "")+(hs ? ",src_left=csl)" : ws ? ",src_top=cst)" : ",src_left=csl,src_top=cst)"))
     }
 
-
-    !HBD ? ConvertBits(bi, fulls=fs, fulld=fs)               : last
-
+    !HBD     ? ConvertBits(bi, fulls=fs, fulld=fs)           : last
     gpuid<0  ? propCopy(a)                                   : last
     dh       ? propSet("_FieldBased",0).propSet("_Combed",0) : last
 
