@@ -277,7 +277,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
         }
 
         rn ?       propSet("_SceneChangePrev",   1 )                          : last
-        rn ?       propSet("_SceneRange" , [n,SE+1])                          : last
+        rn ?       propSet("_SceneRange" , [n,min(SE+1,FrameCount()-1)])    : last
         mo ?       propSet("_SceneMotion", (nDf/max(1,divm-1)) *0.03125)      : last  # Motion in a scale of 0.0 - 1.0 (0-0.2 calm, 0.2-0.4 busy, >0.4 high motion)
         dt && Y ?  propSet("_SceneDetail",   min(100,(avgt*div)*0.784313725)) : last  # Detail in a scale of 0.0 - 100.0
         ev && Y ?  propSet("_SceneExposure", min(4, round( max(0, (EVm * div - PSA) * ZN - 1) + max(0, EVr * div * ZN - 2))))                  : last
