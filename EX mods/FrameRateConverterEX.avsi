@@ -17,6 +17,7 @@
 ##############################################################
 ##
 ## Frame Rate Converter By Etienne Charland
+##      https://forum.doom9.org/showthread.php?t=174793
 ##
 ## Based on Oleg Yushko's YFRC artifact masking,
 ## johnmeyer's frame interpolation code, and
@@ -28,6 +29,7 @@
 ##
 ## Frame Rate Converter    by Etienne Charland - v2.0.0 b11 (19-09-2021)
 ## Frame Rate Converter EX by Dogway           - v2.3.1     (20-09-2022)
+##     https://forum.doom9.org/showthread.php?t=182881
 ##
 ## Increases the frame rate with interpolation and fine artifact removal.
 ## EX Mod for performance optimizations, minimum dependencies, HBD support, frame properties support and RIFE support.
@@ -244,9 +246,9 @@ function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Prese
     Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver,         "FrameRateConverterEX: SkipOver must be greater than BlendOver")
     Assert(CalcDiff || OPut!=7,                                         "FrameRateConverterEX: You can only use Output='Diff' when using Preset=slower or slowest")
 
-    # "B" - Blending, "BHard" - No blending, B = RIFE + Blending
-    B = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
-
+    # "BSoft" - Blending, "BHard" - No blending, "B" = RIFE + Blending
+    B     = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
+    BSoft = B
     if (RIFE) {
         matA = (isUHD ? "2020" : isHD ? "709" : "170m") + (tv ? ":l" : ":f")
         B = is444(C) ? C.ConvertToPlanarRGB(matrix=matA) : C.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
@@ -375,8 +377,8 @@ function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Prese
     ## Apply BlendOver and SkipOver
     SO = ex_bs(SkipOver ,8,bi,fulls=true)
     BO = ex_bs(BlendOver,8,bi,fulls=true)
-    M2 =  SkipOver > 0 ? ConditionalFilter(EMskip, B, BHard, "AverageLuma", "<", string(SO)) : B
-    M  = BlendOver > 0 ? ConditionalFilter(EMskip, M, M2,    "AverageLuma", "<", string(BO)) : M
+    M2 =  SkipOver > 0 ? ConditionalFilter(EMskip, BSoft, BHard, "AverageLuma", "<", string(SO)) : B
+    M  = BlendOver > 0 ? ConditionalFilter(EMskip, M,     M2,    "AverageLuma", "<", string(BO)) : M
 
     # Prepare Output=Over: Mask(cyan), Stripes(yellow)
     FlowOver =       ex_blend(Flow.ConverttoPlanarRGB(), CombinePlanes(Blank, EM, EM,       source_planes="YYY", planes="RGB", pixel_type="RGBP"+string(bi==32?"S":bi)), "add", 0.4, UV=3, tv_range=false)
@@ -401,7 +403,7 @@ function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Prese
     \     ? EMdiff
     \ : (Oput==8)                              [** stripe: stripes mask       *]
     \     ? EMstp
-    \ : Assert(false, "FrameRateConverter: 'Output' INTERNAL ERROR")
+    \ : Assert(false, "FrameRateConverterEX: 'Output' INTERNAL ERROR")
 
     # Debug: display AverageLuma values of Skip, Mask and Raw
     ShowRaw = OutFps ? OutRaw.ChangeFPS(NewNum, NewDen) : OutRaw

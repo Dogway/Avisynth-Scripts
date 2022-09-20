@@ -17,6 +17,7 @@
 ##############################################################
 ##
 ## Frame Rate Converter By Etienne Charland
+##      https://forum.doom9.org/showthread.php?t=174793
 ##
 ## Based on Oleg Yushko's YFRC artifact masking,
 ## johnmeyer's frame interpolation code, and
@@ -28,6 +29,7 @@
 ##
 ## Frame Rate Converter     by Etienne Charland - v2.0.0 b11 (19-09-2021)
 ## Frame Rate Converter MIX by Dogway           - v2.3.1     (20-09-2022)
+##     https://forum.doom9.org/showthread.php?t=182881
 ##
 ## Increases the frame rate with interpolation and fine artifact removal.
 ## MIX Mod for performance optimizations, HBD support, frame properties support and RIFE support.
@@ -238,17 +240,17 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     ver = VersionString()
     RIFE ? Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3689"),"FrameRateConverterMIX: RIFE requires AviSynth+ r3689 or above") : nop()
     Assert(IsVersionOrGreater(3,7,2),                                   "FrameRateConverterMIX: Update AviSynth+ version")
-    Assert(MaskThr >= 0 && MaskThr <= 255, String(MaskThr,              "FrameRateConverterMIX: MaskThr must be between 0 and 255 {%.f}"))
-    Assert(MaskOcc >= 0 && MaskOcc <= 255, String(MaskOcc,              "FrameRateConverterMIX: MaskOcc must be between 0 and 255 {%.f}"))
+    Assert(MaskThr >= 0   && MaskThr   <= 255, String(MaskThr,          "FrameRateConverterMIX: MaskThr must be between 0 and 255 {%.f}"))
+    Assert(MaskOcc >= 0   && MaskOcc   <= 255, String(MaskOcc,          "FrameRateConverterMIX: MaskOcc must be between 0 and 255 {%.f}"))
     Assert(BlendOver >= 0 && BlendOver <= 255, String(BlendOver,        "FrameRateConverterMIX: BlendOver must be between 0 and 255 {%.f}"))
     Assert(SkipOver  >= 0 && SkipOver  <= 255, String(SkipOver,         "FrameRateConverterMIX: SkipOver must be between 0 and 255 {%.f}"))
     Assert(SkipThr < MaskThr,                                           "FrameRateConverterMIX: SkipThr must be lower (stronger) than MaskThr")
     Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver,         "FrameRateConverterMIX: SkipOver must be greater than BlendOver")
     Assert(CalcDiff || OPut!=7,                                         "FrameRateConverterMIX: You can only use Output='Diff' when using Preset=slower or slowest")
 
-    # "B" - Blending, "BHard" - No blending, B = RIFE + Blending
-    B = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
-
+    # "BSoft" - Blending, "BHard" - No blending, "B" = RIFE + Blending
+    B     = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
+    BSoft = B
     if (RIFE) {
         matA = (isUHD ? "2020" : isHD ? "709" : "170m") + (tv ? ":l" : ":f")
         B = is444(C) ? C.ConvertToPlanarRGB(matrix=matA) : C.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
@@ -377,8 +379,8 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     ## Apply BlendOver and SkipOver
     SO = ex_bs(SkipOver ,8,bi,fulls=true)
     BO = ex_bs(BlendOver,8,bi,fulls=true)
-    M2 =  SkipOver > 0 ? ConditionalFilter(EMskip, B, BHard, "AverageLuma", "<", string(SO)) : B
-    M  = BlendOver > 0 ? ConditionalFilter(EMskip, M, M2,    "AverageLuma", "<", string(BO)) : M
+    M2 =  SkipOver > 0 ? ConditionalFilter(EMskip, BSoft, BHard, "AverageLuma", "<", string(SO)) : B
+    M  = BlendOver > 0 ? ConditionalFilter(EMskip, M,     M2,    "AverageLuma", "<", string(BO)) : M
 
     # Prepare Output=Over: Mask(cyan), Stripes(yellow)
     FlowOver =       ex_blend(Flow.ConverttoPlanarRGB(), CombinePlanes(Blank, EM, EM,       source_planes="YYY", planes="RGB", pixel_type="RGBP"+string(bi==32?"S":bi)), "add", 0.4, UV=3, tv_range=false)
@@ -403,7 +405,7 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     \     ? EMdiff
     \ : (Oput==8)                              [** stripe: stripes mask       *]
     \     ? EMstp
-    \ : Assert(false, "FrameRateConverter: 'Output' INTERNAL ERROR")
+    \ : Assert(false, "FrameRateConverterMIX: 'Output' INTERNAL ERROR")
 
     # Debug: display AverageLuma values of Skip, Mask and Raw
     ShowRaw = OutFps ? OutRaw.ChangeFPS(NewNum, NewDen) : OutRaw
