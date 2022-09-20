@@ -1,50 +1,105 @@
-# Frame Rate Converter MIX mod
-# Version: 2.3.0  (28-08-2022)
-#
-# By Etienne Charland
-# Based on Oleg Yushko's YFRC artifact masking,
-# johnmeyer's frame interpolation code, and
-# raffriff42's "weak mask" and output options.
-# Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
-# Dogway (2.3.0)  (28-08-2022) replaced MaskTools2 with internal HBD aware Expr() wrappers, performance optimizations + cosmetics. (Requires ExTools, GradePack and AviSynth+ 3.7.2+)
-#
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA, or visit
-# https:#www.gnu.org/copyleft/gpl.html.
-
-#######################################################################################
 ##
-## Frame Rate Converter
+## This program is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program; if not, write to the Free Software
+## Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA, or visit
+## https:#www.gnu.org/copyleft/gpl.html.
+##
+##############################################################
+##
+## Frame Rate Converter By Etienne Charland
+##
+## Based on Oleg Yushko's YFRC artifact masking,
+## johnmeyer's frame interpolation code, and
+## raffriff42's "weak mask" and output options.
+##
+## Pinterf is the one who spent the most time working on the core libraries, adding features and fixing bugs
+##
+#############################################################
+##
+## Frame Rate Converter     by Etienne Charland - v2.0.0 b11 (19-09-2021)
+## Frame Rate Converter MIX by Dogway           - v2.3.1     (20-09-2022)
+##
 ## Increases the frame rate with interpolation and fine artifact removal.
+## MIX Mod for performance optimizations, HBD support, frame properties support and RIFE support.
 ##
-## YV12/YV24/Y8 over any bitdepth
-## Requires: FrameRateConverter.dll, MaskTools2, MVTools, RgTools, GradePack and ExTools (and RIFE if used with TransformsPack)
+## Dependencies: > FrameRateConverter.dll
+##                 ExTools
+##                 MVTools2
+##                 MaskTools2
+##                 RgTools
+##                 GradePack
+##                 RIFE              (for preset="RIFE")
+##                    TransformsPack (for preset="RIFE")
+##
+##
+## Example: ConvertBits(16).FrameRateConverterMIX(Preset="RIFE",FrameDouble=true)
+##
+##
+## Function Definition:
+##    (
+##    clip,
+##    [int "NewNum"=0 (0 to 4)],
+##    [int "NewDen"=0 (0 to 4)],
+##    [string "Preset"="RIFE" ("Faster"/ "Fast"/ "Normal"/ "Slow"/ "Slower"/ "Slowest"/ "Anime"/ "RIFE"/ "RIFEanime")],
+##    [int "BlkSize"=16 (6/ 8/ 12/ 16/ 24/ 32/ 48/ 64)],
+##    [int "BlkSizeV"=16 (6/ 8/ 12/ 16/ 24/ 32/ 48/ 64)],
+##    [bool "FrameDouble"=true],
+##    [string "Output"="auto" ("auto"/ "flow"/ "over"/ "none"/ "raw"/ "mask"/ "skip"/ "diff"/ "stripe")],
+##    [clip "Prefilter"=],
+##    [int "MaskThr"=120 (0 to 255)],
+##    [int "MaskOcc"=105 (0 to 255)],
+##    [int "SkipThr"=55 (0 to 255)],
+##    [int "BlendOver"=70 (0 to 255)],
+##    [int "SkipOver"=210 (0 to 255)],
+##    [bool "Stp"=true],
+##    [int "Dct"=1 (0 to 10)],
+##    [int "DctRe"=4 (0 to 10)],
+##    [int "RIFE"=1 (0 to 2)],
+##    [int "rifeModel"=6 (0 to 9)],
+##    [int "BlendRatio"=40 (0 to 100)],
+##    [bool "tv_range"=true],
+##    [bool "luma_rebuild"=true],
+##    [bool "Debug"=false],
+##    [int "gpuid"=0]
+##    )
+##
+##
+## SETTINGS:
+##
+## @ Input       - YV12/YV24/Y8 over any bitdepth
 ##
 ## @ NewNum      - The new framerate numerator (if FrameDouble = false, default = 60)
 ##
 ## @ NewDen      - The new framerate denominator (if FrameDouble = false, default = 1)
 ##
 ## @ Preset      - The speed/quality preset [slowest|slower|slow|normal|fast|faster|anime|rife|rifeanime]. (default=normal)
+##                    Faster:  Basic interpolation
+##                    Fast:    MRecalculate
+##                    Normal:  MRecalculate with DCT=4
+##                    Slow:    MAnalyse + MRecalculate with DCT=4
+##                    Slower:  Calculate diff between DCT=4 and DCT=0 to take the best from both
+##                    Slowest: Calculate diff between DCT=1 and DCT=0 to take the best from both
+##                    Anime:   'Slow' with BlendOver=40, SkipOver=140
+##                    RIFE:    'Slowest' with rife=2, maskThr=80 and DctRe=4
+##                    RIFEanime: Both 'Anime' and 'RIFE' presets
 ##
 ## @ BlkSize     - The block size. Latest MvTools2.dll version from Pinterf supports 6, 8, 12, 16, 24, 32, 48 and 64.
-##                 Defaults for 4/3 video of height:
-##                 0-359:  8
-##                 360-749: 12
-##                 750-1199: 16
-##                 1200-1699: 24
-##                 1600-2160: 32
+##                    Defaults for 4/3 video of height:
+##                    0-359:  8
+##                    360-749: 12
+##                    750-1199: 16
+##                    1200-1699: 24
+##                    1600-2160: 32
 ##
 ## @ BlkSizeV    - The vertical block size. (default = BlkSize)
 ##
@@ -90,7 +145,7 @@
 ##
 ## @ RIFE        - Uses RIFE to double the framerate of the frame blending clip used to mask artifacts, reducing the need for frame blending.
 ##                 0 disables RIFE and uses only frame blending. 1 runs RIFE once but you will still notice frame blending. 2 runs RIFE twice for better quality.
-##                 You can lower the MaskThr to see more of the RIFE clip.
+##                 You can lower MaskThr to see more of the RIFE clip.
 ##                 More about the RIFE implementation: https://forum.doom9.org/showthread.php?t=174793&page=25
 ##
 ## @ tv_range    - True if source is Limited(TV) range, False if source is Full(PC) range. (Default = true)
@@ -98,19 +153,8 @@
 ## @ luma_rebuild- True to improve detail in dark areas for motion analysis
 ##
 ##
-## PRESETS
-## Faster:  Basic interpolation
-## Fast:    MRecalculate
-## Normal:  MRecalculate with DCT=4
-## Slow:    MAnalyze + MRecalculate with DCT=4
-## Slower:  Calculate diff between DCT=4 and DCT=0 to take the best from both
-## Slowest: Calculate diff between DCT=1 and DCT=0 to take the best from both
-## Anime:   Slow with BlendOver=40, SkipOver=140
-## RIFE:    Slow with rife=2, maskThr=80
-## RIFEanime: Both Anime and RIFE presets
-##
-function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Preset", int "BlkSize", int "BlkSizeV", bool "FrameDouble", string "Output", bool "Debug",
-\ clip "Prefilter", int "MaskThr", int "MaskOcc", int "SkipThr", int "BlendOver", int "SkipOver", bool "Stp", int "Dct", int "DctRe", int "RIFE", int "rifeModel", int "BlendRatio", bool "tv_range", bool "luma_rebuild", int "gpuid")
+function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Preset", int "BlkSize", int "BlkSizeV", bool "FrameDouble", string "Output",
+\ clip "Prefilter", int "MaskThr", int "MaskOcc", int "SkipThr", int "BlendOver", int "SkipOver", bool "Stp", int "Dct", int "DctRe", int "RIFE", int "rifeModel", int "BlendRatio", bool "tv_range", bool "luma_rebuild", bool "Debug", int "gpuid")
 {
     Preset = Default(Preset, "normal")
 
@@ -123,7 +167,7 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
           Preset == "anime"    ? 6 : \
           Preset == "RIFE"     ? 7 : \
           Preset == "RIFEanime"? 8 : \
-          Assert(false, "FrameRateConverter: 'Preset' must be slowest, slower, slow, normal, fast, faster, anime, RIFE or RIFEanime {'" + Preset + "'}")
+          Assert(false, "FrameRateConverterMIX: 'Preset' must be slowest, slower, slow, normal, fast, faster, anime, RIFE or RIFEanime {'" + Preset + "'}")
 
     Output = Default(Output, "auto")
 
@@ -136,7 +180,7 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
            Output == "skip"   ? 6 : \
            Output == "diff"   ? 7 : \
            Output == "stripe" ? 8 : \
-           Assert(false, "FrameRateConverter: 'Output' not one of (auto|flow|none|mask|skip|raw|diff|over) {'" + Output + "'}")
+           Assert(false, "FrameRateConverterMIX: 'Output' not one of (auto|flow|none|mask|skip|raw|diff|over) {'" + Output + "'}")
 
     fs            = propNumElements(C,"_ColorRange")  > 0 ? \
                     propGetInt     (C,"_ColorRange") == 0 : false
@@ -177,30 +221,30 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     hb            = h/BlkSizeV
     hb4           = round(hb/4.0)*4
 
-    #                           Faster     Fast    Normal    Slow    Slower    Slowest   Anime     RIFE  RIFEanime ('RIFE' matches 'Slow' defaults)
-    Dctn        = Select (num,      0,        0,       0,       4,       4,         1,       4,       4,        4)
+    #                           Faster     Fast    Normal    Slow    Slower    Slowest   Anime     RIFE  RIFEanime ('RIFEanime' matches 'Slow' defaults)
+    Dctn        = Select (num,      0,        0,       0,       4,       4,         1,       4,       1,        4)
     DctRe       = Select (num,      0,        0,       4,       4,       4,         1,       4,       4,        4)
     BlendOvern  = Select (num,     70,       70,      70,      70,      70,        70,      40,      70,       70)
     SkipOvern   = Select (num,    210,      210,     210,     210,     210,       210,     140,     210,      210)
     Recalculate = Select (num,  false,     true,    true,    true,    true,      true,    true,    true,     true)
-    CalcDiff    = Select (num,  false,    false,   false,   false,    true,      true,    true,   false,    false)
+    CalcDiff    = Select (num,  false,    false,   false,   false,    true,      true,    true,    true,    false)
 
     # Overrides
-    Dctre     = Default(Dct, DctRe)
-    Dct       = Default(Dct, Dctn)
-    BlendOver = Default(BlendOver, BlendOvern)
-    SkipOver  = Default(SkipOver,  SkipOvern)
+    Dctre       = Default(Dct, DctRe)
+    Dct         = Default(Dct, Dctn)
+    BlendOver   = Default(BlendOver, BlendOvern)
+    SkipOver    = Default(SkipOver,  SkipOvern)
 
     ver = VersionString()
-    RIFE ? Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3682"),"FrameRateConverter: RIFE requires AviSynth+ r3682 or above") : nop()
-    Assert(IsVersionOrGreater(3,7,2), "Update AviSynth+ version")
-    Assert(MaskThr >= 0 && MaskThr <= 255, String(MaskThr,       "FrameRateConverter: MaskThr must be between 0 and 255 {%.f}"))
-    Assert(MaskOcc >= 0 && MaskOcc <= 255, String(MaskOcc,       "FrameRateConverter: MaskOcc must be between 0 and 255 {%.f}"))
-    Assert(SkipThr < MaskThr,                                    "FrameRateConverter: SkipThr must be lower (stronger) than MaskThr")
-    Assert(BlendOver >= 0 && BlendOver <= 255, String(BlendOver, "FrameRateConverter: BlendOver must be between 0 and 255 {%.f}"))
-    Assert(SkipOver >= 0 && SkipOver <= 255, String(SkipOver,    "FrameRateConverter: SkipOver must be between 0 and 255 {%.f}"))
-    Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver,  "FrameRateConverter: SkipOver must be greater than BlendOver")
-    Assert(CalcDiff || OPut!=7,                                  "FrameRateConverter: You can only use Output='Diff' when using Preset=slower or slowest")
+    RIFE ? Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3689"),"FrameRateConverterMIX: RIFE requires AviSynth+ r3689 or above") : nop()
+    Assert(IsVersionOrGreater(3,7,2),                                   "FrameRateConverterMIX: Update AviSynth+ version")
+    Assert(MaskThr >= 0 && MaskThr <= 255, String(MaskThr,              "FrameRateConverterMIX: MaskThr must be between 0 and 255 {%.f}"))
+    Assert(MaskOcc >= 0 && MaskOcc <= 255, String(MaskOcc,              "FrameRateConverterMIX: MaskOcc must be between 0 and 255 {%.f}"))
+    Assert(BlendOver >= 0 && BlendOver <= 255, String(BlendOver,        "FrameRateConverterMIX: BlendOver must be between 0 and 255 {%.f}"))
+    Assert(SkipOver  >= 0 && SkipOver  <= 255, String(SkipOver,         "FrameRateConverterMIX: SkipOver must be between 0 and 255 {%.f}"))
+    Assert(SkipThr < MaskThr,                                           "FrameRateConverterMIX: SkipThr must be lower (stronger) than MaskThr")
+    Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver,         "FrameRateConverterMIX: SkipOver must be greater than BlendOver")
+    Assert(CalcDiff || OPut!=7,                                         "FrameRateConverterMIX: You can only use Output='Diff' when using Preset=slower or slowest")
 
     # "B" - Blending, "BHard" - No blending, B = RIFE + Blending
     B = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
@@ -212,14 +256,14 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
         for (i=1, frameDouble ? 1 : min(rifeI,2), 1) {
             B = B.RIFE(uhd=isUHD, model=rifeModel, tta=false, gpu_id=gpuid)
         }
-        B = MatchClip(B,C,matrix=matA)
+        B = MatchClip(B,C,matrix=matA,Size=false)
         B = B.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
     }
     BHard  = C.ChangeFps (NewNum, NewDen)
     C_luma = C.ExtractY()
     Blank  = BlankClip(C_luma, color_yuv=$000000, pixel_type=PixelType(C), channels=0)
 
-    # Adjust parameters for different block sizes, causing stronger or weaker masks
+    # Adjust parameters for different BlkSize (block sizes), causing stronger or weaker masks
     blk      = Max(BlkSize, BlkSizeV)
     MaskThr  = MaskThr + (-90.4/pow(exp(blk),0.066)+30.9)
     MaskThr  = clamp(MaskThr, 0, 255)
@@ -295,7 +339,7 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
 
 
     # Last mask frame is white. Replace with previous frame.
-    EM = EM.DeleteFrame(EM.Framecount()-1).Loop(2, EM.Framecount()-1)
+    EM     = EM.DeleteFrame(EM.Framecount()-1).Loop(2, EM.Framecount()-1)
 
     # Create skip mask
     SkipThrb = ex_bs(SkipThr,8,bi,fulls=true,flt=true)
@@ -365,10 +409,10 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     ShowRaw = OutFps ? OutRaw.ChangeFPS(NewNum, NewDen) : OutRaw
     R       = Debug  ? R.ScriptClip(function [EM,EMskip,EMstp,EMdiff,ShowRaw,BlkSize,SkipOver,BlendOver,CalcDiff,Stp] () {
 
-                Skip    = EMskip.AverageLuma()     Skip    = ex_bs(Skip    ,bi,8,fulls=true,flt=true)
-                EMdiff  = EMdiff.AverageLuma()     EMdiff  = ex_bs(EMdiff  ,bi,8,fulls=true,flt=true)
-                EMstp   = EMstp.AverageLuma()      EMstp   = ex_bs(EMstp   ,bi,8,fulls=true,flt=true)
-                EM      = EM.AverageLuma()         EM      = ex_bs(EM      ,bi,8,fulls=true,flt=true)
+                Skip    = EMskip. AverageLuma()    Skip    = ex_bs(Skip    ,bi,8,fulls=true,flt=true)
+                EMdiff  = EMdiff. AverageLuma()    EMdiff  = ex_bs(EMdiff  ,bi,8,fulls=true,flt=true)
+                EMstp   = EMstp.  AverageLuma()    EMstp   = ex_bs(EMstp   ,bi,8,fulls=true,flt=true)
+                EM      = EM.     AverageLuma()    EM      = ex_bs(EM      ,bi,8,fulls=true,flt=true)
                 ShowRaw = ShowRaw.AverageLuma()    ShowRaw = ex_bs(ShowRaw ,bi,8,fulls=true,flt=true)
 
                 SkipSoft = BlendOver > 0 && Skip >= BlendOver && (Skip < SkipOver || SkipOver == 0)
@@ -383,44 +427,44 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     \           (Stp ? "\nStripes: " + string(EMstp, "%.4f") : "")
     \           , lsp=0)
                 } ) : R
-    return R
-}
+
+    return R }
 
 
 
 #######################################################################################
-### InterpolateDoubles
-### Replace double frames with interpolated frames using FrameRateConverter
 ##
-## @ Thr         - Frames will be replaced when Luma difference with previous frame is greater than threshold (default=.1)
+## InterpolateDoubles
+## Replace double frames with interpolated frames using FrameRateConverter
+##
+## @ Thr         - Frames will be replaced when Luma difference with previous frame is greater than threshold (default=0.1)
 ##
 ## @ Show        - If true, "FRAME FIXED" will be written on replaced frames (default=false)
 ##
-## @ All other parameters are the same as FrameRateConverter
+## @ All other parameters are the same as FrameRateConverter.
 ##
 function ex_InterpolateDoubles(clip C, float "Thr", bool "Show", string "Preset", int "BlkSize", int "BlkSizeV", int "MaskThr", int "MaskOcc", int "SkipThr", int "BlendOver", int "SkipOver", bool "Stp", int "Dct", int "DctRe", bool "tv_range") {
 
     bi     = BitsPerComponent(C)
     fs     = propNumElements (C,"_ColorRange")  > 0 ? \
              propGetInt      (C,"_ColorRange") == 0 : false
-    thr    = Default(thr, .1)
+    thr    = Default(thr, 0.1)
     tv     = Default(tv_range, !fs)
     Show   = Default(Show,  false)
 
     thr = bi > 8 ? ex_bs(thr,8, bi, fulls=!tv, flt=true) : thr
     PrevC  = C.DeleteFrame(c.FrameCount()-1).DuplicateFrame(0)
     #NextC  = C.DuplicateFrame(C.FrameCount-1).DeleteFrame(0)
-    Flow = ex_FrameRateConverter(C, FrameDouble=true, Preset=preset, BlkSize=BlkSize, BlkSizeV=BlkSizeV, MaskThr=MaskThr, MaskOcc=MaskOcc, SkipThr=SkipThr, BlendOver=BlendOver, SkipOver=SkipOver, Stp=Stp, Dct=Dct, DctRe=DctRe, tv_range=tv).SelectOdd()
+    Flow = FrameRateConverterMIX(C, FrameDouble=true, Preset=preset, BlkSize=BlkSize, BlkSizeV=BlkSizeV, MaskThr=MaskThr, MaskOcc=MaskOcc, SkipThr=SkipThr, BlendOver=BlendOver, SkipOver=SkipOver, Stp=Stp, Dct=Dct, DctRe=DctRe, tv_range=tv).SelectOdd()
     Flow = Show ? Flow.Subtitle("FRAME FIXED",size=30,text_color=$0000FF,align=5) : Flow
 
     return ConditionalFilter(PrevC, Flow, C, "YDifferenceToNext", "lessthan", string(thr)) }
 
 
 #######################################################################################
-### StripeMask
-### Create a mask detecting horizontal and vertical stripes.
 ##
-## Requires: FrameRateConverter.dll
+## StripeMask
+## Create a mask detecting horizontal and vertical stripes.
 ##
 ## @ blkSize     - The processing block size.
 ##
