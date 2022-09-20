@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.87 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.88 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -24,6 +24,9 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.88p
+# - Fix HBD for 'ShutterBlur'
 #
 # v3.87p
 # - Update ex_bob() for latest NNEDI3CL version
@@ -1099,7 +1102,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     sblur =      (ShutterBlur > 0) ? addNoise2.MFlowBlur( sblurSuper, sbBVec1, sbFVec1, blur=blurLevel, thSCD1=ThSCD1,thSCD2=ThSCD2 ) : nop()
 
     # Shutter motion blur - use motion mask to reduce blurring in areas of low motion - also helps reduce blur "bleeding" into static areas, then select blur type
-    sbMotionMask = (ShutterBlur  > 0 && SBlurLimit > 0) ? MMask( srchClip, bVec1, kind=0, ml=SBlurLimit ) : nop()
+    sbMotionMask = (ShutterBlur  > 0 && SBlurLimit > 0) ? MMask( srchClip, bVec1, kind=0, ml=SBlurLimit ).ConvertBits(bi,fulls=true)  : nop()
     sblurred     = (ShutterBlur == 0) ? addNoise2                                         : \
                    (SBlurLimit  == 0) ? sblur                                             : \
                                         mt_merge( addNoise2, sblur, sbMotionMask, U=3,V=3 )
