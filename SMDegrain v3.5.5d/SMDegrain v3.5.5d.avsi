@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.5.4d      by Dogway    - 02 Aug  2022                           ###
+###                       v3.5.5d      by Dogway    - 20 Sep  2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -24,7 +24,7 @@
 ### Check documentation for deep explanation on settings and defaults.
 ### https://forum.doom9.org/showthread.php?t=182881
 ###
-### UHD: Use as input (or at least as prefilter) the decoded (and tonemapped) PQ clip (ie. DGHDRtoSDR(mode="pq",white=100))
+### UHD: Use as input (or at least as prefilter) the decoded (and tonemapped) PQ clip (ie. DGHDRtoSDR(mode="pq",white=ceil(59.49080238715383)))
 ###
 ###
 ### Dependencies:
@@ -266,9 +266,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     # Default Auto-Prefilter - Luma expansion TV->PC (up to 16% more values for motion estimation)
 
-    pref8  =    Str > 1 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,                UV=Chr, tv_in=!fsp, tv_out=false, bits=8)                               : \
-            0 < Str < 1 ? pref.ex_retinex(lo=Str==1?40:(Str)*100,lvl=sr?3:1,UV=Chr, tv_in=!fsp, tv_out=false).ConvertBits(8, dither=-1, fulls=true) : \
-                  !fsp ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) :                       pref.ConvertBits(8, dither=-1, fulls=true)
+    pref8  =    Str > 1 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,    UV=Chr, tv_in=!fsp, tv_out=false, bits=8)                               : \
+            0 < Str < 1 ? pref.ex_retinex(lo=Str*100,lvl=sr?3:1,UV=Chr, tv_in=!fsp, tv_out=false).ConvertBits(8, dither=-1, fulls=true) : \
+                   !fsp ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) :          pref.ConvertBits(8, dither=-1, fulls=true)
 
     pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., Fc=w/8., th=0.0) : pref8 # Low Frequency expansion (higher SAD -> more protection)
 
@@ -399,11 +399,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 output = TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                             : \
                          md == "medianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
+                         md == "dfttest"  ? inter.dfttest(sstring="0.0:4 0.5:8 1.0:16",U=plane0,V=plane0,dither=1,sbsize=nmod(blksize*0.75),sosize=nmod(blksize*0.75)/2,tbsize=tr,tosize=floor(tr/2.),swin=2,twin=tr>2?4:7) : \
                          T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1)                                     : \
                                             inter.ex_median(mode=md, thres=limit, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1)
 
 
-                output = isMult || TS || T7 || (md == "medianTn") ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
+                output = isMult || TS || T7 || (md == "medianTn") || (md == "dfttest") ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
 
                 if (LFRB) {
 
@@ -536,6 +537,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     ##############
 
           # Common Variables
+
         w2    = UHDhalf ? nw : w    w2 = float(w2)
         h2    = UHDhalf ? nh : h    h2 = float(h2)
         hi    = isInter ? round(h2/2.0) : round(h2)
@@ -608,7 +610,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.5.4",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
+        Subtitle("SMDegrain Mod v3.5.5",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -626,7 +628,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         Subtitle(            "\n\n\nsubpixel   = " + string( pel==1 ?"bypass":subpixel)                                                      ,lsp=lsp,text_color=(yellow||blue)&&pel!=1  ?Color:$7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
         Subtitle(varn+varn+  "\n\n\ntruemotion = " + string( GlobalR?"bypass":truemotion)                                                    ,lsp=lsp,text_color=(yellow||blue)&&!GlobalR?Color:$7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
         Subtitle(varn+             "mfilter    = " + string( GlobalR?"bypass":MFilterB?"Clip"+sp+" Variable":"OFF")                          ,lsp=lsp,text_color=                               $7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
-        Subtitle(varn+         "\n\nStr        = " + (GlobalR?string("bypass"):string(Str,"%1.2f"))+sp+" Brightness"                         + \
+        Subtitle(varn+         "\n\nStr        = " + (GlobalR?string("bypass"):string(Str,"%1.2f"))+sp+(Str<1?" Retinex":" Brightness")      + \
                  varn+             "search     = " + string( GlobalR?"bypass":search)                                                        ,lsp=lsp,text_color=yellow&&!GlobalR        ?Color:$7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
         Subtitle(varn+varn+        "blksize    = " + string( GlobalR?"bypass":blksize)                                                       + \
                                  "\noverlap    = " + string( GlobalR?"bypass":overlap)                                                       ,lsp=lsp,text_color=(red||blue)&&!GlobalR   ?Color:$7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
