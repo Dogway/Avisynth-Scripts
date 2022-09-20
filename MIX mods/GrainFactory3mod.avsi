@@ -103,8 +103,8 @@
 ### -> RgTools           [v1.2]
 ### -> MaskTools2        [v2.2.30]
 ### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v8.6.0]
-### -> ResizersPack      [v9.3.0]
+### -> ExTools           [v9.0.0]
+### -> ResizersPack      [v10.0.0]
 ###
 
 function GrainFactory3mod(clip clp,

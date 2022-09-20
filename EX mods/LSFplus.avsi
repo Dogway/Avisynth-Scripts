@@ -220,11 +220,11 @@
 ### | DEPENDENCIES |
 ### +--------------+
 ###
-### -> ExTools        (v8.6 or up)
-### -> ResizersPack   (v9.3 or up)
-### -> SMDegrain      (v3.5.1 or up)   [for preblur="ON"]
+### -> ExTools        (v9.0    or up)
+### -> ResizersPack   (v10.0   or up)
+### -> SMDegrain      (v3.5.5  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
-### -> SharpenersPack (v4.2 or up)     [for Smode=1, Smode=2, Smode=3 and Smode=6]
+### -> SharpenersPack (v4.4 or up)     [for Smode=1, Smode=2, Smode=3 and Smode=6]
 ###
 ###
 ###
