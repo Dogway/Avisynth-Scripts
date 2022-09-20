@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Scenes Pack v4.2   (19-09-2022)               ##
+###   Scenes Pack v4.3   (20-09-2022)               ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -240,7 +240,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                 blku= """statsu = Y   ? ArrayOp(statsu, PlaneMinMaxStats(sClip, th, f1, 1, false),"+") : \
                                         ArrayOp(statsu, PlaneMinMaxStats(uClip, th, f1, 0, false),"+")
                          statsv = Y   ? ArrayOp(statsv, PlaneMinMaxStats(sClip, th, f1, 2, false),"+") : \
-                                        ArrayOp(statsu, PlaneMinMaxStats(vClip, th, f1, 0, false),"+")
+                                        ArrayOp(statsv, PlaneMinMaxStats(vClip, th, f1, 0, false),"+")
                          divu   = divu + 1"""
 
                 if (!stp0 && (fe1 || f%stp==0)) {
@@ -277,7 +277,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
         }
 
         rn ?       propSet("_SceneChangePrev",   1 )                          : last
-        rn ?       propSet("_SceneRange" , [n,min(SE+1,FrameCount()-1)])      : last
+        rn ?       propSet("_SceneRange" , [n,min(SE+1,FC)])                  : last
         mo ?       propSet("_SceneMotion", (nDf/max(1,divm-1)) *0.03125)      : last  # Motion in a scale of 0.0 - 1.0 (0-0.2 calm, 0.2-0.4 busy, >0.4 high motion)
         dt && Y ?  propSet("_SceneDetail",   min(100,(avgt*div)*0.784313725)) : last  # Detail in a scale of 0.0 - 100.0
         ev && Y ?  propSet("_SceneExposure", min(4, round( max(0, (EVm * div - PSA) * ZN - 1) + max(0, EVr * div * ZN - 2))))                  : last
