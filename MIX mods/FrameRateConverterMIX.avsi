@@ -28,7 +28,7 @@
 #############################################################
 ##
 ## Frame Rate Converter     by Etienne Charland - v2.0.0 b11 (19-09-2021)
-## Frame Rate Converter MIX by Dogway           - v2.3.1     (20-09-2022)
+## Frame Rate Converter MIX by Dogway           - v2.3.2     (24-09-2022)
 ##     https://forum.doom9.org/showthread.php?t=182881
 ##
 ## Increases the frame rate with interpolation and fine artifact removal.
@@ -50,14 +50,12 @@
 ## Function Definition:
 ##    (
 ##    clip,
-##    [int "NewNum"=0 (0 to 4)],
-##    [int "NewDen"=0 (0 to 4)],
-##    [string "Preset"="RIFE" ("Faster"/ "Fast"/ "Normal"/ "Slow"/ "Slower"/ "Slowest"/ "Anime"/ "RIFE"/ "RIFEanime")],
+##    [int "NewNum"=0 (10000 to 60000)],
+##    [int "NewDen"=0 (1000 to 2000)],
+##     string "Preset"="RIFE" ("Faster"/ "Fast"/ "Normal"/ "Slow"/ "Slower"/ "Slowest"/ "Anime"/ "RIFE"/ "RIFEanime"),
 ##    [int "BlkSize"=16 (6/ 8/ 12/ 16/ 24/ 32/ 48/ 64)],
-##    [int "BlkSizeV"=16 (6/ 8/ 12/ 16/ 24/ 32/ 48/ 64)],
-##    [bool "FrameDouble"=true],
+##     bool "FrameDouble"=true,
 ##    [string "Output"="auto" ("auto"/ "flow"/ "over"/ "none"/ "raw"/ "mask"/ "skip"/ "diff"/ "stripe")],
-##    [clip "Prefilter"=],
 ##    [int "MaskThr"=120 (0 to 255)],
 ##    [int "MaskOcc"=105 (0 to 255)],
 ##    [int "SkipThr"=55 (0 to 255)],
@@ -72,7 +70,7 @@
 ##    [bool "tv_range"=true],
 ##    [bool "luma_rebuild"=true],
 ##    [bool "Debug"=false],
-##    [int "gpuid"=0]
+##     int "gpuid"=0
 ##    )
 ##
 ##
@@ -240,8 +238,8 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     ver = VersionString()
     RIFE ? Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3689"),"FrameRateConverterMIX: RIFE requires AviSynth+ r3689 or above") : nop()
     Assert(IsVersionOrGreater(3,7,2),                                   "FrameRateConverterMIX: Update AviSynth+ version")
-    Assert(MaskThr >= 0   && MaskThr   <= 255, String(MaskThr,          "FrameRateConverterMIX: MaskThr must be between 0 and 255 {%.f}"))
-    Assert(MaskOcc >= 0   && MaskOcc   <= 255, String(MaskOcc,          "FrameRateConverterMIX: MaskOcc must be between 0 and 255 {%.f}"))
+    Assert(MaskThr   >= 0 && MaskThr   <= 255, String(MaskThr,          "FrameRateConverterMIX: MaskThr must be between 0 and 255 {%.f}"))
+    Assert(MaskOcc   >= 0 && MaskOcc   <= 255, String(MaskOcc,          "FrameRateConverterMIX: MaskOcc must be between 0 and 255 {%.f}"))
     Assert(BlendOver >= 0 && BlendOver <= 255, String(BlendOver,        "FrameRateConverterMIX: BlendOver must be between 0 and 255 {%.f}"))
     Assert(SkipOver  >= 0 && SkipOver  <= 255, String(SkipOver,         "FrameRateConverterMIX: SkipOver must be between 0 and 255 {%.f}"))
     Assert(SkipThr < MaskThr,                                           "FrameRateConverterMIX: SkipThr must be lower (stronger) than MaskThr")
@@ -294,31 +292,31 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     superfilt =                 MSuper(pre, hpad=16, vpad=16,           sharp=1, rfilter=isHD?1:4)             # all levels for MAnalyse
     super     = CalcPrefilter ? MSuper(Cp,  hpad=16, vpad=16, levels=1, sharp=1, rfilter=isHD?1:4) : superfilt # one level is enough for MRecalculate
     superR    =                 MSuper(C,   hpad=16, vpad=16, levels=1, sharp=1, rfilter=isHD?1:4)
-    bak =         MAnalyse(superfilt, isb=true,  blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=Dct,   mt=true)
-    fwd =         MAnalyse(superfilt, isb=false, blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=Dct,   mt=true)
-    fwd = Recalculate ? MRecalculate(super, fwd, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe, mt=true) : fwd
-    bak = Recalculate ? MRecalculate(super, bak, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe, mt=true) : bak
-    Flow = MFlowFps(C, superR, bak, fwd, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255)
+    bak       =         MAnalyse(superfilt, isb=true,  blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=Dct,   mt=true)
+    fwd       =         MAnalyse(superfilt, isb=false, blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=Dct,   mt=true)
+    fwd       = Recalculate ? MRecalculate(super, fwd, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe, mt=true) : fwd
+    bak       = Recalculate ? MRecalculate(super, bak, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=DctRe, mt=true) : bak
+    Flow      = MFlowFps(C, superR, bak, fwd, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255)
 
     # "EM" - error or artifact mask
     # Mask: SAD
-    EM    = MaskThr > 0 ? C_luma.MMask(bak, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver)  : Blank
+    EM     = MaskThr > 0 ? C_luma.MMask(bak, ml=255, kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver)  : Blank
     # Mask: Temporal blending
-    EMfwd = MaskThr > 0 ? C_luma.MMask(fwd, ml=255, kind=1, gamma=1/gam,          thSCD2=SkipOver)  : EM
-    EM    = MaskThr > 0 ? ex_blend(EM, EMfwd,"lighten",0.6,UV=1,tv_range=false)                     : EM
+    EMfwd  = MaskThr > 0 ? C_luma.MMask(fwd, ml=255, kind=1, gamma=1/gam,          thSCD2=SkipOver)  : EM
+    EM     = MaskThr > 0 ? ex_blend(EM, EMfwd,"lighten",0.6,UV=1,tv_range=false)                     : EM
 
 
     # Mask: Occlusion
-    EMocc = MaskOcc > 0 ? C_luma.MMask(bak, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand()       : Blank
-    EM    = MaskOcc > 0 ? ex_blend(EM, EMocc,"lighten",0.4,UV=1,tv_range=false)                                          : EM
-    EM    = dct_mult!=1 || dct_pow!=1 ? ex_lut(EM,Format("x {dct_mult} * {dct_pow} ^"), scale_inputs="allf", fulls=true) : EM
+    EMocc  = MaskOcc > 0 ? C_luma.MMask(bak, ml=MaskOcc, kind=2, gamma=1/gam, ysc=255, thSCD2=SkipOver).mt_inpand()       : Blank
+    EM     = MaskOcc > 0 ? ex_blend(EM, EMocc,"lighten",0.4,UV=1,tv_range=false)                                          : EM
+    EM     = dct_mult!=1 || dct_pow!=1 ? ex_lut(EM,Format("x {dct_mult} * {dct_pow} ^"), scale_inputs="allf", fulls=true) : EM
 
     ## For CalcDiff, calculate a 2nd version and create mask to restore from 2nd version the areas that look better
-    bak2  = CalcDiff ?          MAnalyse(superfilt, isb=true,  blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=0, mt=true) : nop()
-    fwd2  = CalcDiff ?          MAnalyse(superfilt, isb=false, blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=0, mt=true) : nop()
-    fwd2  = CalcDiff ? Recalculate ? MRecalculate(super, fwd2, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=0, mt=true) : fwd : nop()
-    bak2  = CalcDiff ? Recalculate ? MRecalculate(super, bak2, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=0, mt=true) : bak : nop()
-    Flow2 = CalcDiff ? MFlowFps(C, superR, bak2, fwd2, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255) : nop()
+    bak2   = CalcDiff ?          MAnalyse(superfilt, isb=true,  blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=0, mt=true) : nop()
+    fwd2   = CalcDiff ?          MAnalyse(superfilt, isb=false, blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=0, mt=true) : nop()
+    fwd2   = CalcDiff ? Recalculate ? MRecalculate(super, fwd2, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=0, mt=true) : fwd : nop()
+    bak2   = CalcDiff ? Recalculate ? MRecalculate(super, bak2, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=0, mt=true) : bak : nop()
+    Flow2  = CalcDiff ? MFlowFps(C, superR, bak2, fwd2, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255) : nop()
 
     # Get raw mask again
     EM2    = CalcDiff ? MaskThr > 0 ? C_luma.MMask(bak2, ml=255,     kind=1, gamma=1/gam, ysc=255, thSCD2=SkipOver) : Blank : nop()
@@ -422,13 +420,12 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
                 Subtitle("BlkSize: " + string(BlkSize) +
     \           (SkipSoft ? " - Blend" : "") +
     \           (SkipOver > 0 && Skip >= SkipOver ? " - Skip" : "") +
-    \           "\nSkip:  " + string(Skip, "%.4f") +
-    \           "\nRaw:  " + string(ShowRaw, "%.4f") +
-    \           "\nMask: " + string(EM, "%.4f") +
-    \           (CalcDiff ? "\nDiff:    " + string(EMdiff, "%.4f") : "") +
-    \           (Stp ? "\nStripes: " + string(EMstp, "%.4f") : "")
-    \           , lsp=0)
-                } ) : R
+    \                       "\nSkip:  "   + string(Skip,    "%.4f") +
+    \                       "\nRaw:  "    + string(ShowRaw, "%.4f") +
+    \                       "\nMask: "    + string(EM,      "%.4f") +
+    \           (CalcDiff ? "\nDiff:    " + string(EMdiff,  "%.4f") : "") +
+    \           (Stp      ? "\nStripes: " + string(EMstp,   "%.4f") : "")
+    \           , lsp=0) } ) : R
 
     return R }
 
