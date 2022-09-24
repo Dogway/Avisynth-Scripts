@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Scenes Pack v4.3   (20-09-2022)               ##
+###   Scenes Pack v4.4   (24-09-2022)               ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -16,7 +16,7 @@
 ######################################################
 ###
 ###
-### SceneStats() by Dogway (25-04-2022)
+### SceneStats() by Dogway (24-09-2022)
 ###
 ### SceneStats does a robust Scene Change Detection and calculates scene's statistics.
 ### Therefore it allows to work or apply filters on a per-scene ("per-shot" in film terms) basis,
@@ -62,16 +62,16 @@
 ###
 ### Function Definition:
 ###    (
-###    clip,
-###    string "mode"="ALL" ("ALL"/ "none"/ "Range"/ "Stats"/ "Motion"/ "Detail"/ "EV"/ "Stats+StdErr"/ "Range+Stats"/ "Range+Stats+Motion"/ "Range+Stats+Motion+Detail"/ "Range+Stats+Motion+Detail+EV"),
-###    float "interval"=0.5 (0.0 to 2.0),
-###    float "th"=0.5 (0.0 to 5.0),
-###    float "dFactor"=3.7 (2.5 to 4.0),
+###     clip,
+###     string "mode"="ALL" ("ALL"/ "none"/ "Range"/ "Stats"/ "Motion"/ "Detail"/ "EV"/ "Stats+StdErr"/ "Range+Stats"/ "Range+Stats+Motion"/ "Range+Stats+Motion+Detail"/ "Range+Stats+Motion+Detail+EV"),
+###     float "interval"=0.5 (0.0 to 2.0),
+###     float "th"=0.5 (0.0 to 5.0),
+###     float "dFactor"=3.7 (2.5 to 4.0),
 ###    [float "MinDif"=1.0 (0.5 to 4.0)],
 ###    [bool "iFactor"=true],
 ###    [bool "Y"=true],
 ###    [bool "UV"=false],
-###    bool "show"=false
+###     bool "show"=false
 ###    )
 ###
 ###
@@ -81,7 +81,7 @@
 ###     SceneStats(mode="Range+Stats",Y=true,UV=false)
 ###     prefetch(n)
 ###
-### Example file output:
+### Example file output (run over analysis pass):
 ###     setmemorymax(2048*3) # I wouldn't go any lower than 3 (6Gb)
 ###     ffvideoSource("source.mkv")
 ###     SceneStats("Range+Stats+Motion+EV",path="E:\source_stats.log")
@@ -90,6 +90,8 @@
 ###     ### and load the stats ###
 ###
 ###     ReadStats("E:\source_stats.log")
+###     or
+###     ClipStats("E:\source_stats.log") # Slow initialization
 ###
 function SceneStats(clip a, string "mode", float "interval", float "th", float "dFactor", float "MinDif", bool "iFactor", bool "anime", clip "dClip", string "path", bool "Y", bool "UV", bool "show") {
 
@@ -121,7 +123,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     dfactor = (an ? 15.0 : 1.0) * dfactor
     YUV     = Y && UV
 
-    la  = round(FR * 600)                  # Hard-coded 10mins max look-ahead
+    la  = round(FR * 600)                  # Hard-coded 10 mins max look-ahead
     stp = round(FR * in)
     stp0= stp==0
 
@@ -149,14 +151,14 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     uClip =  UV ? dClip.ExtractU().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : nop()
     vClip =  UV ? dClip.ExtractV().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : nop()
     dClip = !UV ? dClip.ExtractY().ConvertBits(8, dither=-1, fulls=fs, fulld=st ? fs : true) : dClip.ConvertBits(8, dither=-1, fulls=fs, fulld=fs)
-    sClip =  UV && !Y  ?       vClip     :   dClip.RatioResize(0.5, "%"       ,2,"bicubic",b=-0.5,c=0.3)
+    sClip =  UV && !Y  ?     vClip       :   dClip.RatioResize(0.5, "%"       ,2,"bicubic",b=-0.5,c=0.3)
     dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(480, "adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : dClip
     uClip = YUV ? sClip.ExtractU()       : uClip
     vClip = YUV ? sClip.ExtractV()       : vClip
-    dClip =  an ? dClip.Limiter(0,100)   : dClip  # AntiFlash & Anti-BiModal
+    dClip =  an ? dClip.Limiter(0,100)   : dClip       # AntiFlash & Anti-BiModal for Anime
     oClip =       dClip.SelectEvery(1,-1)
     dClip =       dClip.SelectEvery(1, 1)
-    tClip =  dt ? sClip.ex_edge("tritical",0) : nop()
+    tClip =  dt ? sClip.ex_edge("tritical",0) : nop()  # Replace with SVM()?
 
     ScriptClip(a, function [oClip,dClip,sClip,tClip,uClip,vClip,Y,UV,stp,stp0,la,th,dfactor,ib,iFactor,MinDif,FC,an,rn,mo,ev,dt,st,std,sr,ZN,PSA,sh] () {
 
@@ -397,7 +399,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 
 
 ###
-### ReadStats() by Dogway (25-04-2022)
+### ReadStats() by Dogway (24-09-2022)
 ###
 ### Reads scene statistics from a file created by SceneStats() and writes them into frame properties:
 ###    "_SceneRange":       [SceneStart, SceneEnd]
@@ -415,7 +417,7 @@ function ReadStats(clip a, string "path") {
 
     ScriptClip(a, function [] () {
 
-        text  = LCase  (text)
+        text  = LCase(ReplaceStr(text,", ",","))+" "
         rn    = FindStr(text, "range"   )
         mo    = FindStr(text, "motion"  )  mo0 = mo  > 0
         dt    = FindStr(text, "detail"  )  dt0 = dt  > 0
@@ -425,14 +427,15 @@ function ReadStats(clip a, string "path") {
         stv   = FindStr(text, "statsv"  )  stv0= stv > 0
         sts   = FindStr(text, "stat"    )
         rn7   = rn+7
+        rnp   = FindStr(MidStr(text, rn7)," ")
 
-        range = MidStr(text, rn7, (mo0?mo:dt0?dt:ev0?ev:sts>0?sts:StrLen(text))-(rn7))
+        range = MidStr(text, rn7,  rnp)
         motio = MidStr(text, mo +8,  8)
         detai = MidStr(text, dt +8,  9)
         expos = MidStr(text, ev +10, 2)
-        stats = MidStr(text, st +7, 76)
-        statu = MidStr(text, stu+8, 69)
-        statv = MidStr(text, stv+8, 69)
+        stats = MidStr(text, st +7, 71)
+        statu = MidStr(text, stu+8, 64)
+        statv = MidStr(text, stv+8, 64)
 
         rng   = ArrayEval(range,false)
                 propSet("_SceneRange" , rng)
@@ -451,7 +454,7 @@ function ReadStats(clip a, string "path") {
 
 
 ###
-### ClipStats() by Dogway (25-04-2022)
+### ClipStats() by Dogway (24-09-2022)
 ###
 ### Dependencies:
 ###              ExTools
@@ -464,7 +467,7 @@ function ClipStats(clip a, string "path") {
 
     Assert(Exist(path), "ClipStats: Defined file path doesn't exist.")
     a
-    text  = LCase(RT_ReadTxtFromFile(path))
+    text  = LCase(ReplaceStr(RT_ReadTxtFromFile(path),", ",","))
     count = min(  RT_TxtQueryLines (text), FrameCount())-1
 
     ScriptClip(function [text,count] () {
@@ -473,14 +476,14 @@ function ClipStats(clip a, string "path") {
         detai = 0.0
         expos = 0
         stats = [0.0,0.0,0.0,0.0,0.0,0.0]
-        statu = [0.0,0.0,0.0,0.0,0.0]
-        statv = [0.0,0.0,0.0,0.0,0.0]
+        statu = [0.0,0.0,0.0,0.0,0.0,0.0]
+        statv = [0.0,0.0,0.0,0.0,0.0,0.0]
 
     if (current_frame==0) {
 
         for (i = 1, count, 1) {
 
-            line  = RT_TxtGetLine(text,i)
+            line  = RT_TxtGetLine(text,i)+" "
             rn    = FindStr(line, "range"   )
             mo    = FindStr(line, "motion"  )  mo0 = mo  > 0
             dt    = FindStr(line, "detail"  )  dt0 = dt  > 0
@@ -490,8 +493,9 @@ function ClipStats(clip a, string "path") {
             stv   = FindStr(line, "statsv"  )  stv0= stv > 0
             sts   = FindStr(line, "stat"    )
             rn7   = rn+7
+            rnp   = FindStr(  MidStr(line, rn7)," ")
 
-            range = ArrayEval(MidStr(line, rn7, (mo0?mo:dt0?dt:ev0?ev:sts>0?sts:StrLen(line))-(rn7)),false)
+            range = ArrayEval(MidStr(line, rn7, rnp),false)
             rn0   = range[0]
             sc    = i==rn0+1
 
@@ -500,9 +504,9 @@ function ClipStats(clip a, string "path") {
                 motio = mo0  ? motio  +                       Eval(MidStr(line, mo +8,  8))*rng             : motio
                 detai = dt0  ? detai  +                       Eval(MidStr(line, dt +8,  9))*rng             : detai
                 expos = ev0  ? expos  +                       Eval(MidStr(line, ev +10, 2))*rng             : expos
-                stats = st0  ? ArrayOp(stats,ArrayOp(rng,ArrayEval(MidStr(line, st +7, 76),false),"*"),"+") : stats
-                statu = stu0 ? ArrayOp(statu,ArrayOp(rng,ArrayEval(MidStr(line, stu+8, 69),false),"*"),"+") : statu
-                statv = stv0 ? ArrayOp(statv,ArrayOp(rng,ArrayEval(MidStr(line, stv+8, 69),false),"*"),"+") : statv
+                stats = st0  ? ArrayOp(stats,ArrayOp(rng,ArrayEval(MidStr(line, st +7, 71),false),"*"),"+") : stats
+                statu = stu0 ? ArrayOp(statu,ArrayOp(rng,ArrayEval(MidStr(line, stu+8, 64),false),"*"),"+") : statu
+                statv = stv0 ? ArrayOp(statv,ArrayOp(rng,ArrayEval(MidStr(line, stv+8, 64),false),"*"),"+") : statv
             }
 
     }
