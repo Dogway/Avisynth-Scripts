@@ -28,7 +28,7 @@
 #############################################################
 ##
 ## Frame Rate Converter     by Etienne Charland - v2.0.0 b11 (19-09-2021)
-## Frame Rate Converter MIX by Dogway           - v2.3.2     (24-09-2022)
+## Frame Rate Converter MIX by Dogway           - v2.3.3     (10-10-2022)
 ##     https://forum.doom9.org/showthread.php?t=182881
 ##
 ## Increases the frame rate with interpolation and fine artifact removal.
@@ -52,7 +52,7 @@
 ##    clip,
 ##    [int "NewNum"=0 (10000 to 60000)],
 ##    [int "NewDen"=0 (1000 to 2000)],
-##     string "Preset"="RIFE" ("Faster"/ "Fast"/ "Normal"/ "Slow"/ "Slower"/ "Slowest"/ "Anime"/ "RIFE"/ "RIFEanime"),
+##     string "Preset"="RIFE" ("Faster"/ "Fast"/ "Normal"/ "Slow"/ "Slower"/ "Slowest"/ "Anime"/ "RIFE"/ "RIFE-HQ"/ "RIFEanime"),
 ##    [int "BlkSize"=16 (6/ 8/ 12/ 16/ 24/ 32/ 48/ 64)],
 ##     bool "FrameDouble"=true,
 ##    [string "Output"="auto" ("auto"/ "flow"/ "over"/ "none"/ "raw"/ "mask"/ "skip"/ "diff"/ "stripe")],
@@ -82,15 +82,16 @@
 ##
 ## @ NewDen      - The new framerate denominator (if FrameDouble = false, default = 1)
 ##
-## @ Preset      - The speed/quality preset [slowest|slower|slow|normal|fast|faster|anime|rife|rifeanime]. (default=normal)
+## @ Preset      - The speed/quality preset [slowest|slower|slow|normal|fast|faster|anime|rife|rifeHQ|rifeanime]. (default="normal")
 ##                    Faster:  Basic interpolation
 ##                    Fast:    MRecalculate
 ##                    Normal:  MRecalculate with DCT=4
 ##                    Slow:    MAnalyse + MRecalculate with DCT=4
 ##                    Slower:  Calculate diff between DCT=4 and DCT=0 to take the best from both
 ##                    Slowest: Calculate diff between DCT=1 and DCT=0 to take the best from both
-##                    Anime:   'Slow' with BlendOver=40, SkipOver=140
-##                    RIFE:    'Slowest' with rife=2, maskThr=80 and DctRe=4
+##                    Anime:   'Slow'    with BlendOver=40, SkipOver=140
+##                    RIFE:    'Slow'    with rife=1, maskThr=80 and DctRe=4
+##                    RIFE-HQ: 'Slowest' with rife=1, maskThr=80 and DctRe=4
 ##                    RIFEanime: Both 'Anime' and 'RIFE' presets
 ##
 ## @ BlkSize     - The block size. Latest MvTools2.dll version from Pinterf supports 6, 8, 12, 16, 24, 32, 48 and 64.
@@ -105,7 +106,7 @@
 ##
 ## @ FrameDouble - Whether to double the frame rate and preserve original frames (default = true)
 ##
-## @ Output      - Output mode [auto|flow|over|none|raw|mask|skip|diff|stripe] (default = auto)
+## @ Output      - Output mode [auto|flow|over|none|raw|mask|skip|diff|stripe] (default = "auto")
 ##                    auto   = normal artifact masking
 ##                    flow   = interpolation only
 ##                    over   = mask as cyan overlay, stripes mask as yellow
@@ -148,7 +149,7 @@
 ##                 You can lower MaskThr to see more of the RIFE clip.
 ##                 More about the RIFE implementation: https://forum.doom9.org/showthread.php?t=174793&page=25
 ##
-## @ tv_range    - True if source is Limited(TV) range, False if source is Full(PC) range. (Default = true)
+## @ tv_range    - True if source is Limited/TV range, False if source is Full/PC range. (Default = true)
 ##
 ## @ luma_rebuild- True to improve detail in dark areas for motion analysis
 ##
@@ -166,8 +167,9 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
           Preset == "faster"   ? 0 : \
           Preset == "anime"    ? 6 : \
           Preset == "RIFE"     ? 7 : \
-          Preset == "RIFEanime"? 8 : \
-          Assert(false, "FrameRateConverterMIX: 'Preset' must be slowest, slower, slow, normal, fast, faster, anime, RIFE or RIFEanime {'" + Preset + "'}")
+          Preset == "RIFE-HQ"  ? 8 : \
+          Preset == "RIFEanime"? 9 : \
+          Assert(false, "FrameRateConverterMIX: 'Preset' must be slowest, slower, slow, normal, fast, faster, anime, RIFE, RIFE-HQ or RIFEanime {'" + Preset + "'}")
 
     Output = Default(Output, "auto")
 
@@ -203,7 +205,7 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
                                      DefH<1600 ? 24 : 32)
     BlkSizeV      = Default(BlkSizeV, BlkSize)
     MaskThr       = Default(MaskThr,  num>6 ? 80 : 120)
-    SkipThr       = Default(SkipThr,  55)
+    SkipThr       = Default(SkipThr,  min(55,MaskThr-1))
     MaskOcc       = MaskThr > 0 ? Default(MaskOcc, 105) : 0
     CalcPrefilter = Defined(Prefilter)
     Prefilter     = Default(Prefilter, C)
@@ -214,20 +216,20 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     gpuid         = Default(gpuid, 0)
     rifeI         = Default(rife,  0)
     rife          = rifeI>0 || num>6
-    rifeModel     = Default(rifeModel, rife ? num>7 ? 3 : 6 : 0)  # model=5 distorts more than 6 which does more blending (though pleasant)
+    rifeModel     = Default(rifeModel, rife ? num>8 ? 3 : num>7 ? 22 : 23 : 0)  # model=5 distorts more than 6 which does more blending (though pleasant)
     OutFps        = OPut < 4  # Whether output has altered frame rate
     wb            = w/BlkSize
     wb4           = round(wb/4.0)*4
     hb            = h/BlkSizeV
     hb4           = round(hb/4.0)*4
 
-    #                           Faster     Fast    Normal    Slow    Slower    Slowest   Anime     RIFE  RIFEanime ('RIFEanime' matches 'Slow' defaults)
-    Dctn        = Select (num,      0,        0,       0,       4,       4,         1,       4,       1,        4)
-    DctRe       = Select (num,      0,        0,       4,       4,       4,         1,       4,       4,        4)
-    BlendOvern  = Select (num,     70,       70,      70,      70,      70,        70,      40,      70,       70)
-    SkipOvern   = Select (num,    210,      210,     210,     210,     210,       210,     140,     210,      210)
-    Recalculate = Select (num,  false,     true,    true,    true,    true,      true,    true,    true,     true)
-    CalcDiff    = Select (num,  false,    false,   false,   false,    true,      true,    true,    true,    false)
+    #                           Faster     Fast    Normal    Slow    Slower    Slowest   Anime     RIFE   RIFE-HQ  RIFEanime ('RIFEanime' matches 'Slow' defaults)
+    Dctn        = Select (num,      0,        0,       0,       4,       4,         1,       4,       4,       1,        4)  # DCT=4 helps over hight motion or panning compared to DCT=1
+    DctRe       = Select (num,      0,        0,       4,       4,       4,         1,       4,       4,       4,        4)
+    BlendOvern  = Select (num,     70,       70,      70,      70,      70,        70,      40,      70,      70,       70)
+    SkipOvern   = Select (num,    210,      210,     210,     210,     210,       210,     140,     210,     210,      210)
+    Recalculate = Select (num,  false,     true,    true,    true,    true,      true,    true,    true,    true,     true)
+    CalcDiff    = Select (num,  false,    false,   false,   false,    true,      true,    true,    true,    true,    false)
 
     # Overrides
     Dctre       = Default(Dct, DctRe)
@@ -249,6 +251,7 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     # "BSoft" - Blending, "BHard" - No blending, "B" = RIFE + Blending
     B     = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
     BSoft = B
+
     if (RIFE) {
         matA = (isUHD ? "2020" : isHD ? "709" : "170m") + (tv ? ":l" : ":f")
         B = is444(C) ? C.ConvertToPlanarRGB(matrix=matA) : C.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
@@ -314,8 +317,8 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     ## For CalcDiff, calculate a 2nd version and create mask to restore from 2nd version the areas that look better
     bak2   = CalcDiff ?          MAnalyse(superfilt, isb=true,  blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=0, mt=true) : nop()
     fwd2   = CalcDiff ?          MAnalyse(superfilt, isb=false, blksize=BlkSize,   blksizev=BlkSizeV,   overlap = BlkSize  >4?(BlkSize/4+1)/2*2:0, overlapv = BlkSizeV  >4?(BlkSizeV/4+1)/2*2:0, search=3,  dct=0, mt=true) : nop()
-    fwd2   = CalcDiff ? Recalculate ? MRecalculate(super, fwd2, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=0, mt=true) : fwd : nop()
-    bak2   = CalcDiff ? Recalculate ? MRecalculate(super, bak2, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=0, mt=true) : bak : nop()
+    fwd2   = CalcDiff ? Recalculate ? MRecalculate(super, fwd2, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=num==8 ? 4 : 0, mt=true) : fwd : nop()
+    bak2   = CalcDiff ? Recalculate ? MRecalculate(super, bak2, blksize=BlkSize/2, blksizev=BlkSizeV/2, overlap = BlkSize/2>4?(BlkSize/8+1)/2*2:0, overlapv = BlkSizeV/2>4?(BlkSizeV/8+1)/2*2:0, thSAD=100, dct=num==8 ? 4 : 0, mt=true) : bak : nop()
     Flow2  = CalcDiff ? MFlowFps(C, superR, bak2, fwd2, num=NewNum, den=NewDen, blend=false, ml=200, mask=2, thSCD2=255) : nop()
 
     # Get raw mask again
@@ -339,7 +342,8 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
 
 
     # Last mask frame is white. Replace with previous frame.
-    EM     = EM.DeleteFrame(EM.Framecount()-1).Loop(2, EM.Framecount()-1)
+    LF     = EM.Framecount()-1
+    EM     = EM.DeleteFrame(LF).Loop(2, LF)
 
     # Create skip mask
     SkipThrb = ex_bs(SkipThr,8,bi,fulls=true,flt=true)
@@ -381,7 +385,7 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
     M  = BlendOver > 0 ? ConditionalFilter(EMskip, M,     M2,    "AverageLuma", "<", string(BO)) : M
 
     # Prepare Output=Over: Mask(cyan), Stripes(yellow)
-    FlowOver =       ex_blend(Flow.ConverttoPlanarRGB(), CombinePlanes(Blank, EM, EM,       source_planes="YYY", planes="RGB", pixel_type="RGBP"+string(bi==32?"S":bi)), "add", 0.4, UV=3, tv_range=false)
+    FlowOver =       ex_blend(Flow.ConverttoPlanarRGB(), CombinePlanes(Blank, EM,    EM,    source_planes="YYY", planes="RGB", pixel_type="RGBP"+string(bi==32?"S":bi)), "add", 0.4, UV=3, tv_range=false)
     FlowOver = Stp ? ex_blend(FlowOver,                  CombinePlanes(EMstp, EMstp, Blank, source_planes="YYY", planes="RGB", pixel_type="RGBP"+string(bi==32?"S":bi)), "add", 0.4, UV=3, tv_range=false) : FlowOver
 
     # Output modes
@@ -407,7 +411,7 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
 
     # Debug: display AverageLuma values of Skip, Mask and Raw
     ShowRaw = OutFps ? OutRaw.ChangeFPS(NewNum, NewDen) : OutRaw
-    R       = Debug  ? R.ScriptClip(function [EM,EMskip,EMstp,EMdiff,ShowRaw,BlkSize,SkipOver,BlendOver,CalcDiff,Stp] () {
+    R       = Debug  ? R.ScriptClip(function [EM,EMskip,EMstp,EMdiff,ShowRaw,BlkSize,SkipOver,BlendOver,CalcDiff,Stp,bi] () {
 
                 Skip    = EMskip. AverageLuma()    Skip    = ex_bs(Skip    ,bi,8,fulls=true,flt=true)
                 EMdiff  = EMdiff. AverageLuma()    EMdiff  = ex_bs(EMdiff  ,bi,8,fulls=true,flt=true)
@@ -419,12 +423,12 @@ function FrameRateConverterMIX (clip C, int "NewNum", int "NewDen", string "Pres
 
                 Subtitle("BlkSize: " + string(BlkSize) +
     \           (SkipSoft ? " - Blend" : "") +
-    \           (SkipOver > 0 && Skip >= SkipOver ? " - Skip" : "") +
-    \                       "\nSkip:  "   + string(Skip,    "%.4f") +
-    \                       "\nRaw:  "    + string(ShowRaw, "%.4f") +
-    \                       "\nMask: "    + string(EM,      "%.4f") +
-    \           (CalcDiff ? "\nDiff:    " + string(EMdiff,  "%.4f") : "") +
-    \           (Stp      ? "\nStripes: " + string(EMstp,   "%.4f") : "")
+    \           (SkipOver > 0 && Skip >= SkipOver ? " - Skip" : "")         +
+    \                       "\nSkip:  "   + string(Skip,   "   %.4f")       +
+    \                       "\nRaw:  "    + string(ShowRaw,"   %.4f")       +
+    \                       "\nMask: "    + string(EM,     "   %.4f")       +
+    \           (CalcDiff ? "\nDiff:    " + string(EMdiff, "   %.4f") : "") +
+    \           (Stp      ? "\nStripes: " + string(EMstp,     "%.4f") : "")
     \           , lsp=0) } ) : R
 
     return R }
