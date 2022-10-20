@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.6 (05-08-2022)               ##
+###           Grade Pack v7.7 (20-10-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -30,7 +30,7 @@
 ###                                                      ##
 ###########################################################
 ###
-### Look transforms pack for grading and look tone adjustments.
+### Pack of artistic look transform functions for grading and look tone adjustments.
 ###
 ###
 ####################################
@@ -183,7 +183,9 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 ###
 ### Apply over gamma encoded clip
 ###
-### Example: ex_contrast(0.7)  # Default pivot=125.5 is mid-grey for TV range sources (Color range read from frameprops)
+### Examples:
+###     ex_contrast(0.7)             # Default pivot=125.5 is mid-grey for TV range sources (Color range read from frameprops)
+###     ex_contrast(0.786,pivot=83)  # DCP Tone Curve - Adobe Camera Raw's default fallback film curve
 ###
 ### Function Definition:
 ###    (
@@ -260,6 +262,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
         plt = Merge(PadBorders(plt,w-sw,0,0,h-sh))
         ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
     } }
+
 
 
 
@@ -410,10 +413,10 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
 
 ###
 ###
-### ex_blend() - v4.2 (10-04-2022)
+### ex_blend() - v4.3 (29-09-2022)
 ###
 ###
-### Works like Overlay() but supports more modes (53 in total), better handling of TV range and performs much faster in either 8-bit or HBD (YUV or RGB).
+### Works like Overlay() but supports more modes (55 in total), better handling of TV range and performs much faster in either 8-bit or HBD (YUV or RGB).
 ###
 ###
 ### Dependencies: > ExTools
@@ -425,7 +428,7 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
 ###    (
 ###    clip a,
 ###    clip b,
-###    string "mode"="multiply" ("normal"/ "blend"/ "interpolation"/ "harmonic"/ "geometric"/ "watermark"/ "--"/ "darker"/ "darken"/ "multiply"/ "multiply128"/ "softburn"/ "colorburn"/ "linearburn"/ "--"/ "lighter"/ "lighten"/ "screen"/ "softdodge"/ "colordodge"/ "lineardodge"/ "linearadd"/ "--"/ "overlay"/ "softoverlay"/ "hardoverlay"/ "softlight"/ "hardlight"/ "vividlight"/ "linearlight"/ "stamp"/ "pinlight"/ "hardmix"/ "reflect"/ "glow"/ "freeze"/ "heat"/ "--"/ "grainextract"/ "grainmerge"/ "--"/ "difference"/ "softdifference"/ "negation"/ "exclusion"/ "subtract"/ "linearsubtract"/ "from"/ "divide"/ "andn"/ "bleach"/ "extremity"/ "stain"/ "phoenix"/ "--"/ "hue"/ "saturation"/ "color"/ "luminosity"),
+###    string "mode"="multiply" ("normal"/ "blend"/ "interpolation"/ "harmonic"/ "geometric"/ "watermark"/ "--"/ "darker"/ "darken"/ "darkenS"/ "multiply"/ "multiply128"/ "softburn"/ "colorburn"/ "linearburn"/ "--"/ "lighter"/ "lighten"/ "lightenS"/ "screen"/ "softdodge"/ "colordodge"/ "lineardodge"/ "linearadd"/ "--"/ "overlay"/ "softoverlay"/ "hardoverlay"/ "softlight"/ "hardlight"/ "vividlight"/ "linearlight"/ "stamp"/ "pinlight"/ "hardmix"/ "reflect"/ "glow"/ "freeze"/ "heat"/ "--"/ "grainextract"/ "grainmerge"/ "--"/ "difference"/ "softdifference"/ "negation"/ "exclusion"/ "subtract"/ "linearsubtract"/ "from"/ "divide"/ "andn"/ "bleach"/ "extremity"/ "stain"/ "phoenix"/ "--"/ "hue"/ "saturation"/ "color"/ "luminosity"),
 ###    float "opacity"=1.00 (0.00 to 1.00),
 ###    [float "watermark"=1.0 (0.0 to 2.0)],
 ###    [int "UV"=3 (1 / 2 / 3)]
@@ -450,6 +453,7 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
 ### DARK
 ### darker         - (RGB only) Returns the RGB values from the Base or Top layers with the lowest absolute summed R+G+B value
 ### darken         - Keep only the darkest colors from either Base or Top layers
+### darkenS        - Keep only the darkest colors from either Base or Top layers using a "smooth min" polynomial (from Iñigo Quilez articles)
 ### multiply       - Multiply Base with Top layer (a * b)
 ### multiply128    -
 ### softburn       - A softer ColorBurn, actually a combination of ColorBurn and the inverse of ColorDodge.
@@ -459,6 +463,7 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
 ### LIGHT
 ### lighter        - (RGB only) Returns the RGB values from the Base or Top layers with the highest absolute summed R+G+B value
 ### lighten        - Keep only the lightest colors from either Base or Top layers
+### lightenS       - Keep only the lightest colors from either Base or Top layers using a "smooth max" polynomial (from Iñigo Quilez articles)
 ### screen         - Multiply the complement (invert) of Base and Top layers and invert back the result.  1 - (1 - a) * (1 - b)
 ### softdodge      - A softer ColorDodge, actually a combination of ColorDodge and the inverse of ColorBurn.
 ### colordodge     - Opposite of Multiply, actually it's a divide with the complementary of the Top layer. a / (1 - b)
@@ -541,6 +546,8 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
          md == "difference128"? "grainextract" : \
          md == "dodge"        ? "colordodge"   : \
          md == "burn"         ? "colorburn"    : \
+         md == "smoothmin"    ? "darkenS"      : \
+         md == "smoothmax"    ? "lightenS"     : \
          md == "average"      ? "blend"        : \
          md == "hypot"        ? "linearadd"    : \
          md == "diagonal "    ? "linearadd"    : \
@@ -569,6 +576,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
                               \
         md == "darker"        ? "see footer"                                                                                                                                     : \
         md == "darken"        ? "x "+V+" y min "                                                                                                                                 : \
+        md == "darkenS"       ? "0.2 x "+srcmx+" A@ y "+srcmx+" B@ - abs "+rngmx+" / - 0 max 5 * 3 ^ 0.166666 0.2 "+rngmx+" * * * A B min swap - "                               : \
         md == "multiply"      ? "x "+srcmx+" "+V+" y "+srcmx+" * "+rngmx+" / "                                                                                                   : \
         md == "multiply128"   ? "x "+srcmx+" "+V+" range_half "+srcmx+" - y "+srcmx+" ymin 2 * / * range_half "+srcmx+" + 0 "+rngmx+" clip "                                     : \
         md == "softburn"      ? "y "+srcmx+" B@ x "+srcmx+" A@ + "+rngmx+" < B range_half "+srcmx+" * "+rngmx+" A - 0 max C@ / "+rngmx+" C range_half "+srcmx+" * B / - ? "      : \
@@ -577,6 +585,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
                               \
         md == "lighter"       ? "see footer"                                                                                                                                     : \
         md == "lighten"       ? "x "+V+" y max "                                                                                                                                 : \
+        md == "lightenS"      ? "0.2 x "+srcmx+" A@ y "+srcmx+" B@ - abs "+rngmx+" / - 0 max 5 * 3 ^ 0.166666 0.2 "+rngmx+" * * * A B max + "                                                                              : \
         md == "screen"        ? ""+rngmx+" C@ dup x "+srcmx+" "+V+" - C y "+srcmx+" - * C / - "                                                                                  : \
         md == "softdodge"     ? "x "+srcmx+" A@ y "+srcmx+" B@ + "+rngmx+" < A range_half "+srcmx+" * "+rngmx+" B - C@ / "+rngmx+" C range_half "+srcmx+" * A / - ? "            : \
         md == "colordodge"    ? "x "+srcmx+" "+V+" "+rngmx+" * "+rngmx+" y "+srcmx+" 0 max - / "                                                                                 : \
@@ -696,7 +705,7 @@ function ex_glow(clip a, int "radius", int "thres", float "opacity", bool "tv_ra
            }
 
     Eval(str)
-    d = ex_makediff(last,b,dif=false,UV=uv,fulls=fs).moncurve_r(2.222222,0.0,false,tv,uv)
+    d = ex_makediff(last,b,dif=false,UV=uv,fulls=fs).moncurve_r(2.22,0.0,false,tv,uv)
     rd != 0 ? ex_blend(a,d,"screen",op,1,tv,uv) : a }
 
 
@@ -795,13 +804,12 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
     LO  = 1-bw
     HI  = 1-bw/(3.01-min(str,1))
     mat = Color_fuzzy_search(ID[2])
-    gm  = moncurve_coef(mat[2])
 
     rgb ? IsPlanar(c) ? c : ConvertToPlanarRGB(c) : c
 
     bi < 14 ? ConvertBits(14, fulls=fs)                                : last
     !rgb    ? ConvertToPlanarRGB(matrix=mat[0])                        : last
-              moncurve_f(gm[0], gm[1], !rgb ? false : !fs, false, UV=3)
+              CCTF(mat[2], true, !rgb ? false : !fs, false)
 
     RGB_to_Oklab(matrix=mat[0], Jch=true, fulls=true)
 
@@ -1061,7 +1069,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 
     mat     = Default (matrix, propIDs[2])
     tv      = Default (tv_range,      !fs)
-    ebu     = Default (EBUR103,     false)  # Enable for EBU R103 (frameprops and less strict thresholds)
+    ebu     = Default (EBUR103,     false)  # Enable for EBU R103 ("_OutGamut" frameprops and less strict thresholds)
     sh      = Default (show,            0)  # 0: Show out-of-gamut overlay   1: Also show metric   2: Show mask so you can filter out those areas
 
     Assert(IsVersionOrGreater(3,7,2), "GamutWarning: Update AviSynth+ version")
@@ -1121,12 +1129,11 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 
         bin = ex_lut("x range_size 1 - < 0 x ?",Y=1,UV=3)
         div = (ex_bs(256, 8, bi, !tv)-1)*(2/100.)
-        U   = bin.ExtractU()
-        V   = bin.ExtractV()
 
-        ScriptClip( function[bin,div,U,V] () {
-            U = U.AverageLuma()
-            V = V.AverageLuma()
+        ebu ? CombinePlanes(yuv, last, planes="YUV") : last
+        ScriptClip( function[bin,div] () {
+            U = bin.AverageChromaU()
+            V = bin.AverageChromaV()
             Subtitle("Out of Gamut: "+string((U+V)/div,"%1.3f")+"%") # In percentage
         } ) } }
 
@@ -1266,16 +1273,15 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 
     rgb
     matrix = Color_fuzzy_search(matrix)
-    s_gam  = moncurve_coef(matrix[2])
     coeffs = RGB_to_XYZ   (matrix[0], list=true)
 
     ConvertToPlanarRGB()
 
-    moncurve_f(s_gam[0], s_gam[1], tv, false)
+    CCTF(matrix[2], true,      tv, false)
 
     DotClip(last, [coeffs[1],coeffs[4],coeffs[7]])
 
-    moncurve_r(s_gam[0], s_gam[1], false, false) }
+    CCTF(matrix[2], false, false, false) }
 
 
 
@@ -1449,7 +1455,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ###
 ####################################
 
-function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range") {
+function WhitePoint (clip c, int "temperature", string "matrix", string "locus", bool "list", bool "tv_range") {
 
     rgb  = isRGB(c)
     rgbp = rgb ? isPlanar(c) : false
@@ -1457,45 +1463,65 @@ function WhitePoint (clip c, int "temperature", string "matrix", bool "tv_range"
 
     temp = Default(temperature, 6504)  # Target temperature in Kelvin units (Default: D65 == nop())
     mat  = Default(matrix,   ID[2] )
+    loc  = Default(locus,  "Daylight") # 'Daylight' or 'Planckian' locus
     tv   = Default(tv_range, ID[6] )
+    lis  = Default(list,     false )   # Set to True to output [x,y,z] coordinates of the CCT (correlated color temperature)
 
     Assert(IsVersionOrGreater(3,7,2), "WhitePoint: Update AviSynth+ version")
 
-    mat   = Color_fuzzy_search(mat)
-    s_gam = moncurve_coef(mat[2])
+    mat  = Color_fuzzy_search(mat)
 
     rgb ? rgbp ? c : ConvertToPlanarRGB(c) : \
     YUV_to_RGB(c, mat[0], tv_range_in=tv, tv_range_out=false, kernel="Point", cplace="")
+
 
     temp3 = 1000.       /     temp
     temp6 = 1000000.    / pow(temp, 2.)
     temp9 = 1000000000. / pow(temp, 3.)
 
-    wpx = (temp <= 7000.) ? 0.244063 + 0.09911 * temp3 + 2.9678 * temp6 - 4.6070 * temp9 : \
-                            0.237040 + 0.24748 * temp3 + 1.9018 * temp6 - 2.0064 * temp9
+    # Also need to add the CIE 1964 variant locus for both
+    if (loc=="Planckian"||loc=="Blackbody") {
 
-    wpy = -3. * pow(wpx,2.) + 2.870 * wpx - 0.275
+        wpx = temp <= 4000 ? -0.2661239*temp9-0.2343589*temp6+0.8776956*temp3+0.17991  : \
+                             -3.0258469*temp9+2.1070379*temp6+0.2226347*temp3+0.24039
+
+        wpy = temp <= 2222 ? -1.1063814*pow(wpx,3)-1.34811020*pow(wpx,2)+2.18555832*wpx-0.20219683  : \
+              temp <= 4000 ? -0.9549476*pow(wpx,3)-1.37418593*pow(wpx,2)+2.09137015*wpx-0.16748867  : \
+                             +3.0817580*pow(wpx,3)-5.87338670*pow(wpx,2)+3.75112997*wpx-0.37001483
+    } else {
+
+        wpx = (temp <= 7000.) ? 0.244063 + 0.09911 * temp3 + 2.9678 * temp6 - 4.6070 * temp9 : \
+                                0.237040 + 0.24748 * temp3 + 1.9018 * temp6 - 2.0064 * temp9
+
+        wpy = -3. * pow(wpx,2) + 2.870 * wpx - 0.275
+    }
+
     wpz =  1. - wpx - wpy
 
-    LMS = XYZ_to_LMS("CAT16",true)
+    if (lis) {
 
-    fw1      = MatrixDot([0.950450,1.,1.088917],LMS)
-    fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,LMS)
-    trans    = ArrayOp(fw2,fw1,"/")
-    vonKries = Broadcast([trans[0],trans[1],trans[2]], "vonKries")
+        [wpx,wpy,wpz]
 
-    CAM      = MatrixDot(LMS, MatrixDot(vonKries, MatrixInvert(LMS)))
+    } else {
 
-    moncurve_f(s_gam[0], s_gam[1], false, false, 1)
+        LMS = XYZ_to_LMS("CAT02B",true)
 
-    mata = RGB_to_XYZ (mat[0], list=true)
-    matb = XYZ_to_RGB (mat[0], list=true)
-    MatrixClip( MatrixDot(MatrixDot(mata, CAM), matb) )
+        fw1      = MatrixDot([0.950450,1.,1.088917],LMS) # D65 Reference White
+        fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,LMS)
+        vonKries = Broadcast(ArrayOp(fw2,fw1,"/"), "vonKries")
 
-    moncurve_r(s_gam[0], s_gam[1], false, false, 1)
+        CAM      = MatrixDot(LMS, MatrixDot(vonKries, MatrixInvert(LMS)))
 
-    rgb ? rgbp ? last : MatchClip(c) : \
-    RGB_to_YUV( mat[0], tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c), cplace="") }
+        CCTF(mat[2], true, false, false)
+
+        mata = RGB_to_XYZ (mat[0], list=true)
+        matb = XYZ_to_RGB (mat[0], list=true)
+        MatrixClip( MatrixDot(MatrixDot(mata, CAM), matb) )
+
+        CCTF(mat[2], false, false, false)
+
+        rgb ? rgbp ? last : MatchClip(c) : \
+        RGB_to_YUV( mat[0], tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c), cplace="") } }
 
 
 
