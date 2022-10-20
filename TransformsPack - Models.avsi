@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC58  (23-08-2022)   ##
+###   Transforms Pack - Models v1.0 RC59  (20-10-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -9,25 +9,27 @@
 ###                             by Dogway (Jose Linares) ##
 ###                                                      ##
 ### MODELS:                                              ##
-###     RGB_to_YUV      / YUV_to_RGB                     ##
-###     RGB_to_YcCbcCrc / YcCbcCrc_to_RGB                ##
-###     RGB_to_YCoCg    / YCoCg_to_RGB                   ##
-###     RGB_to_YCoCgR   / YCoCgR_to_RGB                  ##
-###     RGB_to_YUVr     / YUVr_to_RGB                    ##
-###     RGB_to_OPP      / OPP_to_RGB                     ##
-###     XYZ_to_Yxy      / Yxy_to_XYZ                     ##
-###     XYZ_to_YDzDx    / YDzDx_to_XYZ                   ##
-###     XYZ_to_Lab      / Lab_to_XYZ                     ##
-###     XYZ_to_Luv      / Luv_to_XYZ                     ##
-###     XYZ_to_XYB      / XYB_to_XYZ                     ##
-###     RGB_to_HSV      / HSV_to_RGB                     ##
-###     RGB_to_IPT      / IPT_to_RGB                     ##
-###     RGB_to_Oklab    / Oklab_to_RGB                   ##
-###     RGB_to_XYZ      / XYZ_to_RGB                     ##
-###     RGB_to_ICtCp    / ICtCp_to_RGB                   ##
-###     XYZ_to_LMS      / LMS_to_XYZ                     ##
+###     RGB_to_YUV      /    YUV_to_RGB                  ##
+###     RGB_to_YcCbcCrc /    YcCbcCrc_to_RGB             ##
+###     RGB_to_YCoCg    /    YCoCg_to_RGB                ##
+###     RGB_to_YCoCgR   /    YCoCgR_to_RGB               ##
+###     RGB_to_YUVr     /    YUVr_to_RGB                 ##
+###     RGB_to_OPP      /    OPP_to_RGB                  ##
+###     XYZ_to_Yxy      /    Yxy_to_XYZ                  ##
+###     XYZ_to_YDzDx    /    YDzDx_to_XYZ                ##
+###     XYZ_to_Lab      /    Lab_to_XYZ                  ##
+###     XYZ_to_Luv      /    Luv_to_XYZ                  ##
+###     XYZ_to_XYB      /    XYB_to_XYZ                  ##
+###     RGB_to_HSV      /    HSV_to_RGB                  ##
+###     RGB_to_IPT      /    IPT_to_RGB                  ##
+###     RGB_to_Oklab    /    Oklab_to_RGB                ##
+###     RGB_to_XYZ      /    XYZ_to_RGB                  ##
+###     RGB_to_ICtCp    /    ICtCp_to_RGB                ##
+###     XYZ_to_LMS      /    LMS_to_XYZ                  ##
 ###     CAT                                              ##
 ###     CMF                                              ##
+###     SPD_D                                            ##
+###     Chroma_Coords                                    ##
 ###                                                      ##
 ###########################################################
 
@@ -73,8 +75,8 @@
 # CanonP3                - Canon DCI-P3+.
 # D-Gamut                - DJI D-Gamut.
 # D-GamutM               - DJI D-GamutM.
-# DragonColor            -
-# DragonColor2           -
+# DragonColor            - RED DragonColor
+# DragonColor2           - RED DragonColor2
 # REDColor               -
 # REDColor2              -
 # REDColor3              -
@@ -90,19 +92,19 @@
 # Cine709                - Sony Cine+709.
 # ADX10                  -
 # ADX16                  -
-# BlackMagic Design Wide Gamut -
-# BlackMagic Pocket 6k Film    -
-# BlackMagic Design Film           (Legacy)
-# BlackMagic Design Broadcast Video(Legacy)
-# BlackMagic Design Broadcast Film (Legacy)
-# BlackMagic Design 4K Film        (Legacy)
-# BlackMagic Design 4K Film V3     (Legacy)
-# BlackMagic Design 4K Video V3    (Legacy)
-# BlackMagic Design 4.6K Film      (Legacy)
-# BlackMagic Design 4.6K Film v3   (Legacy)
-# BlackMagic Design 4.6K Video     (Legacy)
-# BlackMagic Design 4.6K Video v3  (Legacy)
-# Alexa                  - Arri Alexa Wide Gamut.
+# BMD Wide Gamut         - BlackMagic Design Wide Gamut
+# BMP 6k Film            - BlackMagic Pocket 6K Film
+# BMD Film               - (Legacy)
+# BMD Broadcast Video    - (Legacy)
+# BMD Broadcast Film     - (Legacy)
+# BMD 4K Film            - (Legacy)
+# BMD 4K Film V3         - (Legacy)
+# BMD 4K Video V3        - (Legacy)
+# BMD 4.6K Film          - (Legacy)
+# BMD 4.6K Film v3       - (Legacy)
+# BMD 4.6K Video         - (Legacy)
+# BMD 4.6K Video v3      - (Legacy)
+# Alexa                  - Arri (Alexa) Wide Gamut.
 # Film                   - Arri Film Matrix. Traditional film primaries with Illuminant C.
 # FS                     - SMPTE Free Scale Gamut for imagery having arbitrary chromaticity that can be conveyed, inherited from Sony's F23, F35, and F65 Wide Gamut cameras. (ST 2048-1).
 # V-Gamut                - Panasonic V-Gamut (Varicam).
@@ -110,18 +112,23 @@
 # F-Log                  - Fujifilm F-Log Gamut.
 # Barco Unisee           -
 #-ProPhoto RGB           - RIMM/ROMM RGB by Kodak to encompass all printable and most real world colors. D50 with Apple gamma. ERIMM RGB is geared towards HDR.
-# Wide Gamut RGB         - Adobe first wide gamut version with D50, and AdobeRGB gamma (2.19921875). Designed by Adobe to be a wide gamut color space that uses spectral colors as its primaries.
-# AllColorsRGB           - Developed by Ellen Stone to encompass all colors, slightly wider than AP0. Defined with linear transfer at D50 and prims: 0.734690265, 0.265309735, 0.17451, 0.005182, 0.0, -0.07585421971554103213.
-# CIE RGB                - or CIE 1931 RGB in linear space (sometimes over generic gamma of 2.2) and E illuminant.
-# Apple RGB              - RGB color space by Apple derived from Sony Trinitron phosphors, similar in gamut size to sRGB or ColorMatch. Employs a gamma of 1.8.
-# ColorMatch RGB         - Radius PressView Monitors with D50 and a power gamma of 1.8.
+#-Wide Gamut RGB         - Adobe first wide gamut version with D50, and AdobeRGB gamma (2.19921875). Designed by Adobe to be a wide gamut color space that uses spectral colors as its primaries.
+#-AllColorsRGB           - Developed by Ellen Stone to encompass all colors, slightly wider than AP0. Defined with linear transfer at D50 and prims: 0.734690265, 0.265309735, 0.17451, 0.005182, 0.0, -0.07585421971554103213.
+#-MaxRGB                 - Developed by Don Hutcheson. "If you can accept 'illegal' colors (outside the CIEYxy limits) then try the outrageously saturated gamut of MaxRGB. Not that you gain anything useful, but at least you can say you have an even bigger Photoshop-style tri-coordinate RGB working space than ProPhoto RGB!"
+#-xTremeRGB              - Developed by Don Hutcheson. "XtremeRGB pushes Photoshop (tri-coordinate 3x3 matrix) color spaces rules to the absolute limit, producing the world's largest possible Photoshop-legal tricoordinate RGB space. However it does so at extreme risk and is provided here as a curiosity more than a useful tool. Only use XtremeRGB on 16 bit-per-channel (or higher) images."
+#-CIE RGB                - or CIE 1931 RGB in linear space (sometimes over generic gamma of 2.2) and E illuminant.
+#-Apple RGB              - RGB color space by Apple derived from Sony Trinitron phosphors, similar in gamut size to sRGB or ColorMatch. Employs a gamma of 1.8.
+#-ColorMatch RGB         - Radius PressView Monitors with D50 and a power gamma of 1.8.
 # EBU 3213               - EBU Tech. 3213-E / JEDEC P22 phosphors.
-# Beta RGB               - by Bruce Lindbloom, an optimized capture, archiving and editing space for high-end digital imaging applications.
-# Bruce RGB              - Developed by Bruce Fraser as a conservative-gamut space for dealing with 8-bit imagery that needs heavy editing.
-# BestRGB                - Developed by Don Hutcheson.
-# DonRGB4                - Developed by Don Hutcheson.
-# ECI-RGB                - Developed by the European Color Initiative <www.eci.org>.
-# Ekta Space PS5         - Developed by Joseph Holmes for high quality storage of image data from scans of transparencies.
+#-Bruce RGB              - Developed by Bruce Fraser as a conservative-gamut space for dealing with 8-bit imagery that needs heavy editing. Early and modest gamut that made into one of the SWOP printing standards in the U.S.
+#-DonRGB4                - Developed by Don Hutcheson in 1996. Wide gamut working space for photography, prepress, etc. 2.2 pure power gamma.
+#-BestRGB                - Developed by Don Hutcheson. Improved DonRGB4 for saturated reds and magentas. 2.2 pure power gamma.
+#-Beta RGB               - Developed by Bruce Lindbloom. An optimized capture, archiving and editing space for high-end digital imaging applications, modeled after famous photographic films like Fuji, Agfa or Kodak. 2.2 pure power gamma.
+#-Russell RGB            - Developed by Russell Cottrell. An extension of Beta RGB for cyans and blues to encompass some printers' gamuts. Uses D55 illuminant in 2.2 power gamma.
+#-ECI-RGB v2             - Developed by the European Color Initiative <www.eci.org>. Employs the L* gamma transfer.
+#-Ekta Space PS5         - Developed by Joseph Holmes for high quality storage of image data from scans of transparencies (aka chromes), mostly for positives but works fine also for negative film. 2.2 pure power gamma.
+#-Chrome Space 100       - Developed by Joseph Holmes. Refined 2005 version of Ekta Space PS5, conserving primaries and illuminant but with a different gamma, designed to match the tonality of a perceptually linear greyscale for printers.
+# DCam Sets              - Developed by Joseph Holmes. 5 color spaces designed for digital cameras, they also use Chrome Space 100 tone curve.
 # And many more oldies not included here for simplicity: P22 (Measured SMPTE-C), EBU measured, Conrac 7211N19, Hitachi, Barco, Tektronics, SGI Trinitron, Sony Trinitron KV-20M20.
 
 # List of Color Models:
@@ -145,6 +152,8 @@
 # YES          - by Saber et al.
 # UVW          - by Ohta et al.
 # SO           - Biologically Inspired Color Image Descriptor.
+# c1c2c4       - Biologically Inspired Color Image Descriptor.
+# o1o2         - For Robust Image Detection in Scenes under Cast Shadows. https://digital.csic.es/bitstream/10261/30099/1/Combining%20color-based.pdf
 #-YCbCr        - Color format roughly based on human perception of luma and chroma contribution (approximately perceptually uniform). Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green. It's a 45º skewed parallelogram relative to the square RGB box, therefore only 23.6% of its color volume matches RGB and 76.4% is out of RGB gamut.
 # YIQ          - YCbCr with (YCbCr) UV axes rotated 33º, used for NTSC TV analogue system. Quote from avisynth.nl/index.php/Tweak: "In YIQ, orange and teal are along the in-phase (I) axis, while green and magenta are along the quadrature (Q) axis. The eye is far more sensitive to detail along the I axis than along the Q axis, and NTSC allocated more bandwidth for I than for Q."
 # YDbDr        - PAL-N and SECAM TV analogue format.
@@ -162,18 +171,18 @@
 # DCI XYZ      - XYZ space in DCI illuminant. In effect it's just a container for DCI-P3 in XYZ coordinates for delivery to theaters.
 #-Yxy/xyY      - Chroma normalized XYZ space which gives full luma/chroma decorrelation. Not apt for HDR, use YDzDx+ instead.
 #-HSV          - Cylindrical representation of RGB. Not recommended as it doesn't take into account human luminance perception.
-#-Duv*         - Perceptual uniform model in contrast to the radiometric uniform CIE XYZ. Some color spaces and Delta metrics are computed in this model over a CIE 1960 UCS chromaticity diagram. A white point defined in Duv coordinates is called a "color tint".
+#-Duv*         - Perceptual based model which measures the closest distance from the Planckian locus on the CIE 1976 (u', 2/3 v') diagram. Some color spaces and Delta metrics are computed in this model which is an update of the CIE 1960 UCS chromaticity diagram. A white point defined in Duv coordinates is called a "color tint".
 # HunterLab*   - A more perceptually uniform version of CIELab.
-#-CIELab*      - Derived from CIEXYZ, one of the first approaches to a perceptually uniform color model. CIELch(ab) is its cylindrical (polar coordinates) version. You can derive it's Delta E with the next equation: DE = (DL^2 + Da^2 + Db^2)/2  = ( (Ly-Lx)^2 + (ay-ax)^2 + (by-bx)^2)/2.
+#-CIELab*      - Derived from CIE XYZ, one of the first approaches to a perceptually uniform color model. CIELch(ab) is its cylindrical (polar coordinates) version. You can derive it's Delta E with the next equation: DE = (DL^2 + Da^2 + Db^2)/2  = ( (Ly-Lx)^2 + (ay-ax)^2 + (by-bx)^2)/2.
 # CIEsLab*     - CIE simple Lab.
 # R-Lab*       - Ruderman Lab space, using log luma and different weights for ab.
 # L-Lab*       -
 # SRLab2*      - A 2009 modification of CIELab in the spirit of RLAB. Uses CIECAM02 chromatic adaptation matrix to fix the blue hue issue.
-#-CIELuv*      - Derived from CIE UVW, a competing perceptually uniform color model of CIELab around the same time the latter appeared. CIELuv uses a Judd-type CAT, while CIELab uses "wrong" von-Kries (XYZ Scaling).
+#-CIELuv*      - CIE 1976. Derived from CIE 1964 UVW, a competing perceptually uniform color model of CIELab around the same time the latter appeared. CIELuv uses a Judd-type CAT, while CIELab uses "wrong" von-Kries (XYZ Scaling).
 #   CIELch(uv)*- HCL (polar coordinates or cylindrical) version of CIELuv.
 #   HSLuv*     - A cylindrical HSL type adaptation of CIELuv. It extends CIELuv with a new saturation component that allows you to span all the available chroma as a neat percentage.
-# LogLuv*+     - HDR version of CIEluv, that uses log to encode HDR values in a 15-bit container.
-# Y''U''V''*+  - HDR version of CIEluv by Poynton. Improves on LogLuv by using a PQ transfer which just needs 12-bits.
+# LogLuv*+     - HDR version of CIELuv, that uses log to encode HDR values in a 15-bit container.
+# Y''U''V''*+  - HDR version of CIELuv by Charles Poynton. Improves on LogLuv by using a PQ transfer which just needs 12-bits.
 # CIEDuDv*+    - or YDuDv. HDR version of CIE Luv. Requires only 8-bit for no visible quantization.
 # CIECAM97s*   -
 #-XYB*         - Uniform (UCS) space used in Guetzli's butteraugli metric and JPEG-XL, with a main goal in compression. Better uniformity than CIE Lab.
@@ -419,10 +428,10 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
     R   = !isy ? clp[0] :    RGB
     B   = !isy ? clp[2] :      Bx
 
-    clp = !isy ?          moncurve_f(RGB, s_gam[0], s_gam[1], tvi, false, 3).ExtractClip() : nop()
-    Rln = !isy ? clp[0] : moncurve_f(RGB, s_gam[0], s_gam[1], tvi, false, 1)
-    Gln = !isy ? clp[1] : moncurve_f(Gx,  s_gam[0], s_gam[1], tvi, false, 1)
-    Bln = !isy ? clp[2] : moncurve_f(Bx,  s_gam[0], s_gam[1], tvi, false, 1)
+    clp = !isy ?          CCTF(RGB, mat[2], true, tvi, false).ExtractClip() : nop()
+    Rln = !isy ? clp[0] : CCTF(RGB, mat[2], true, tvi, false)
+    Gln = !isy ? clp[1] : CCTF(Gx,  mat[2], true, tvi, false)
+    Bln = !isy ? clp[2] : CCTF(Bx,  mat[2], true, tvi, false)
 
     ca = 1.0 + s_gam[1]
     cb = 1.0 / s_gam[0]
@@ -433,11 +442,11 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", float
     Nr = 1 / (-2. * (ca*(1.0 - pow(coef[1] + coef[2], cb)) - 1.0))
 
     Y     = Expr(Rln, Gln, Bln, "x "+string(coef[0])+" * y "+string(coef[1])+" * + z "+string(coef[2])+" * + ")
-    Yx    = moncurve_r(Y,  s_gam[0], s_gam[1], false, false, 1)
+    Yx    = CCTF(Y,  mat[2], false, false, false)
 
     Cbc   = Expr(B, Yx, ex_dlut(Format("x "+rangeC_PC+" y - A@ 0 <= A {Nb} * A {Pb} * ? "+rangeC_TV+" "), bi, !tvi), lut=lut)
     Crc   = Expr(R, Yx, ex_dlut(Format("x "+rangeC_PC+" y - A@ 0 <= A {Nr} * A {Pr} * ? "+rangeC_TV+" "), bi, !tvi), lut=lut)
-    Yc    = !tvo ?  Yx : moncurve_r(Y,  s_gam[0], s_gam[1], false, true, 1)
+    Yc    = !tvo ?  Yx : CCTF(Y,  mat[2], false, false, true)
 
      isy ? [Yc, Cbc, Crc] : CombinePlanes(Yc, Cbc, Crc, planes="YUV")
     !isy && mat[0] == "2020CL" ? propSet("_Matrix", 10) : last }
@@ -473,7 +482,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", float
     Nb = -2. * (a*(1.0 - pow(coef[0] + coef[1], b)) - 1.0)
     Nr = -2. * (a*(1.0 - pow(coef[1] + coef[2], b)) - 1.0)
 
-    Y  = moncurve_f(Y,  s_gam[0], s_gam[1], tvi, false, 1)
+    Y  = CCTF(Y,  mat[2], true, tvi, false)
 
     Bx = Expr(Cb, Y, ex_dlut(Format("x "+rangeC_PC+" A@ 0 <= A {Nb} * y "+bi32m+" B@ + A {Pb} * B + ? "+bi32p), bi, !tvi), lut=lut)
     Rx = Expr(Cr, Y, ex_dlut(Format("x "+rangeC_PC+" A@ 0 <= A {Nr} * y "+bi32m+" B@ + A {Pr} * B + ? "+bi32p), bi, !tvi), lut=lut)
@@ -482,15 +491,15 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", float
 
     if (isy) {
 
-        B = moncurve_r(Bx,  s_gam[0], s_gam[1], false, tvo, 1)
-        R = moncurve_r(Rx,  s_gam[0], s_gam[1], false, tvo, 1)
-        G = moncurve_r(Gx,  s_gam[0], s_gam[1], false, tvo, 1)
+        B = CCTF(Bx,  mat[2], false, false, tvo)
+        R = CCTF(Rx,  mat[2], false, false, tvo)
+        G = CCTF(Gx,  mat[2], false, false, tvo)
         [R, G, B]
 
     } else {
 
         CombinePlanes(Rx, Gx, Bx, planes="RGB")
-        moncurve_r(s_gam[0], s_gam[1], false, tvo, 3)
+        CCTF(mat[2], false, false, tvo)
 
     } }
 
@@ -906,14 +915,14 @@ function XYZ_to_Yxy (clip XYZ, clip "Y", clip "Z", bool "fulls") {
 
     if (isy) {
 
-        xl = Expr(X, Y, Z, "x dup y z + + /",  optSingleMode=false)
-        yl = Expr(X, Y, Z, "y dup x z + + /",  optSingleMode=false)
+        xl = Expr(X, Y, Z, "x 0 <= 0.3805 x dup y z + + / ?",  optSingleMode=false)
+        yl = Expr(X, Y, Z, "y 0 <= 0.3769 y dup x z + + / ?",  optSingleMode=false)
         [Y, xl, yl]
 
     } else {
 
-        Expr(X, Y, Z, "y", "x dup y z + + /",\
-                           "y dup x z + + /",  optSingleMode=true, format=PixelType(XYZ)) } }
+        Expr(X, Y, Z, "y", "x 0 <= 0.3805 x dup y z + + / ?",\
+                           "y 0 <= 0.3769 y dup x z + + / ?",  optSingleMode=true, format=PixelType(XYZ)) } }
 
 
 # Only works in 32-bit float
@@ -1449,7 +1458,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     props  = color_propGet(rgb,mat[2])
 
     mat    = Defined (matrix) ? mat[0] : color_propGet(rgb)[2]
-    PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
+    PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 to 10000)
     DV     = Default (DoVi, false)        # Set to true for IPTPQc2
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
@@ -1465,7 +1474,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
 
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
-    LMS_gam = EOTFi_2084(LMS,MasterLevel)
+    LMS_gam = EOTFi_2084(LMS,PL)
 
     # Skin tones alignment
     alpha = 1.134464
@@ -1501,7 +1510,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     props  = color_propGet(ictcp,mat[2])
 
     mat    = Defined (matrix) ? mat[0] : color_propGet(ictcp)[2]
-    PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 - 10000)
+    PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 to 10000)
     DV     = Default (DoVi, false)        # Set to true for IPTPQc2
 
     ictcp
@@ -1517,7 +1526,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
              1,  mul* 0.032600, mul*-0.676900]
 
     LMS = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
-    LMS_gam = EOTF_2084(LMS,MasterLevel)
+    LMS_gam = EOTF_2084(LMS,PL)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1882,20 +1891,19 @@ function CAT (clip c, val "source", val "target", string "LMS", bool "adaptXYZ",
         c
         s_pri  = src[0] == "" ? propIDs[2] : src[0]
         s_gam  = src[2] == "" ? propIDs[5] : src[2]
-        s_gam  = moncurve_coef(s_gam)
 
         RGBpln = rgb ? IsPlanar() : false
 
         rgb ? RGBpln ? last : ConvertToPlanarRGB() : \
         YUV_to_RGB(c, s_pri, tv_range_in=tv, tv_range_out=false, kernel="Point")
 
-        moncurve_f(s_gam[0], s_gam[1], false, false, 1)
+        CCTF(s_gam, true,  false, false)
 
         mata = RGB_to_XYZ (s_pri, src[1], LMS=LMS, list=true)
         matb = XYZ_to_RGB (s_pri, tgt[1], LMS=LMS, list=true)
         MatrixClip( MatrixDot(MatrixDot(mata, CAM), matb) )
 
-        moncurve_r(s_gam[0], s_gam[1], false, false, 1)
+        CCTF(s_gam, false, false, false)
 
         rgb ? RGBpln ? last : MatchClip(c) : \
         RGB_to_YUV( s_pri, tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c))
@@ -1904,7 +1912,6 @@ function CAT (clip c, val "source", val "target", string "LMS", bool "adaptXYZ",
         same ? c : last
 
     } else { CAM } }
-
 
 
 # CIE XYZ Color Matching Functions approximations from tabulated data.
@@ -2068,7 +2075,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
               "x 350 * X@ 267.192609   370 - - 0.005541985199667 * log 2 ^ -35.77737624 * exp 2.146832 *   0.45 *") : nop()
 
     # 390nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Asanos's 151 Cat.1 2º Observer tests
-    } else { /* if (CMF=="Asano") */
+    } else { /* if (CMF=="Asano") revise fit for Z prolly also for Judd-Vos */
     Wx = 0.312994      Wy = 0.328972    # D65 illuminant at [0.312994, 0.328972]
     X  = 1.151326    * exp(-1           * pow((nm - 596.85301964)/44.83663761,2)) + \
          0.3494153   * exp(-1           * pow((nm - 444.51663941)/30.28442651,2))
@@ -2096,3 +2103,70 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
         MergeRGB(R,G,B).subtitle(CMF,y=10,align=9)
         }
     }
+
+
+# WIP
+function Chroma_Coords(clip a, int "Temp", string "CMF") {
+
+    T   = Default(temp, 6504)
+    CMF = Default(CMF, "1931")
+    a
+    wp  = WhitePoint(temp, locus=T<4000?"Planckian":"Daylight", list=true) # From 4000 onwards use 'Daylight'
+    wpx = wp[0]
+    wpy = wp[1]
+
+    M  =   0.0241 + 0.2562  * wpx - 0.7341  * wpy
+    M1 = (-1.3515 - 1.7703  * wpx + 5.9114  * wpy) / M
+    M2 = ( 0.0300 - 31.4424 * wpx + 30.0717 * wpy) / M
+
+    # Beware, some CMFs start at 360nm, and others at 380nm
+    W = []
+    for (i=380, 780, 5) {
+
+        SPD = SPD_D(i)
+        SPD = SPD[0] + M1 * SPD[1] + M2 * SPD[2]
+
+        MF  = CMF(CMF,i,false)
+        W   = ArrayOp(ArrayOp(MF,SPD,"*"),W,"+")
+    }
+
+    ArrayDel(ArrayDel(ArrayOp(W,W[0] + W[1] + W[2],"/"),4),3)
+
+    }
+
+
+/*
+BSD-3-Clause - New BSD License
+Copyright (C) 2013-2022 - Colour Developers
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided
+that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
+following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived
+from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
+WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*/
+
+# CIE Standard Illuminant D Series SPD (Spectral Power Distribution) dataset
+# Precision of 5nm, and further spline interpolated.
+function SPD_D(int i) {
+
+    S0 = spline(i, 300,0.04, 305,3.02, 310,6.00, 315,17.80, 320,29.60, 325,42.45, 330,55.30, 335,56.30, 340,57.30, 345,59.55, 350,61.80, 355,61.65, 360,61.50, 365,65.15, 370,68.80, 375,66.10, 380,63.40, 385,64.60, 390,65.80, 395,80.30, 400,94.80, 405,99.80, 410,104.80, 415,105.35, 420,105.90, 425,101.35, 430,96.80, 435,105.35, 440,113.90, 445,119.75, 450,125.60, 455,125.55, 460,125.50, 465,123.40, 470,121.30, 475,121.30, 480,121.30, 485,117.40, 490,113.50, 495,113.30, 500,113.10, 505,111.95, 510,110.80, 515,108.65, 520,106.50, 525,107.65, 530,108.80, 535,107.05, 540,105.30, 545,104.85, 550,104.40, 555,102.20, 560,100.00, 565,98.00, 570,96.00, 575,95.55, 580,95.10, 585,92.10, 590,89.10, 595,89.80, 600,90.50, 605,90.40, 610,90.30, 615,89.35, 620,88.40, 625,86.20, 630,84.00, 635,84.55, 640,85.10, 645,83.50, 650,81.90, 655,82.25, 660,82.60, 665,83.75, 670,84.90, 675,83.10, 680,81.30, 685,76.60, 690,71.90, 695,73.10, 700,74.30, 705,75.35, 710,76.40, 715,69.85, 720,63.30, 725,67.50, 730,71.70, 735,74.35, 740,77.00, 745,71.10, 750,65.20, 755,56.45, 760,47.70, 765,58.15, 770,68.60, 775,66.80, 780,65.00, 785,65.50, 790,66.00, 795,63.50, 800,61.00, 805,57.15, 810,53.30, 815,56.10, 820,58.90, 825,60.40, 830,61.90)
+    S1 = spline(i, 300,0.02, 305,2.26, 310,4.50, 315,13.45, 320,22.40, 325,32.20, 330,42.00, 335,41.30, 340,40.60, 345,41.10, 350,41.60, 355,39.80, 360,38.00, 365,40.20, 370,42.40, 375,40.45, 380,38.50, 385,36.75, 390,35.00, 395,39.20, 400,43.40, 405,44.85, 410,46.30, 415,45.10, 420,43.90, 425,40.50, 430,37.10, 435,36.90, 440,36.70, 445,36.30, 450,35.90, 455,34.25, 460,32.60, 465,30.25, 470,27.90, 475,26.10, 480,24.30, 485,22.20, 490,20.10, 495,18.15, 500,16.20, 505,14.70, 510,13.20, 515,10.90, 520,8.60, 525,7.35, 530,6.10, 535,5.15, 540,4.20, 545,3.05, 550,1.90, 555,0.95, 560,0.00, 565,-0.80, 570,-1.60, 575,-2.55, 580,-3.50, 585,-3.50, 590,-3.50, 595,-4.65, 600,-5.80, 605,-6.50, 610,-7.20, 615,-7.90, 620,-8.60, 625,-9.05, 630,-9.50, 635,-10.20, 640,-10.90, 645,-10.80, 650,-10.70, 655,-11.35, 660,-12.00, 665,-13.00, 670,-14.00, 675,-13.80, 680,-13.60, 685,-12.80, 690,-12.00, 695,-12.65, 700,-13.30, 705,-13.10, 710,-12.90, 715,-11.75, 720,-10.60, 725,-11.10, 730,-11.60, 735,-11.90, 740,-12.20, 745,-11.20, 750,-10.20, 755,-9.00, 760,-7.80, 765,-9.50, 770,-11.20, 775,-10.80, 780,-10.40, 785,-10.50, 790,-10.60, 795,-10.15, 800,-9.70, 805,-9.00, 810,-8.30, 815,-8.80, 820,-9.30, 825,-9.55, 830,-9.80)
+    S2 = spline(i, 300,0.00, 305,1.00, 310,2.00, 315,3.00, 320,4.00, 325,6.25, 330,8.50, 335,8.15, 340,7.80, 345,7.25, 350,6.70, 355,6.00, 360,5.30, 365,5.70, 370,6.10, 375,4.55, 380,3.00, 385,2.10, 390,1.20, 395,0.05, 400,-1.10, 405,-0.80, 410,-0.50, 415,-0.60, 420,-0.70, 425,-0.95, 430,-1.20, 435,-1.90, 440,-2.60, 445,-2.75, 450,-2.90, 455,-2.85, 460,-2.80, 465,-2.70, 470,-2.60, 475,-2.60, 480,-2.60, 485,-2.20, 490,-1.80, 495,-1.65, 500,-1.50, 505,-1.40, 510,-1.30, 515,-1.25, 520,-1.20, 525,-1.10, 530,-1.00, 535,-0.75, 540,-0.50, 545,-0.40, 550,-0.30, 555,-0.15, 560,0.00, 565,0.10, 570,0.20, 575,0.35, 580,0.50, 585,1.30, 590,2.10, 595,2.65, 600,3.20, 605,3.65, 610,4.10, 615,4.40, 620,4.70, 625,4.90, 630,5.10, 635,5.90, 640,6.70, 645,7.00, 650,7.30, 655,7.95, 660,8.60, 665,9.20, 670,9.80, 675,10.00, 680,10.20, 685,9.25, 690,8.30, 695,8.95, 700,9.60, 705,9.05, 710,8.50, 715,7.75, 720,7.00, 725,7.30, 730,7.60, 735,7.80, 740,8.00, 745,7.35, 750,6.70, 755,5.95, 760,5.20, 765,6.30, 770,7.40, 775,7.10, 780,6.80, 785,6.90, 790,7.00, 795,6.70, 800,6.40, 805,5.95, 810,5.50, 815,5.80, 820,6.10, 825,6.30, 830,6.50)
+
+    [S0,S1,S2] }
