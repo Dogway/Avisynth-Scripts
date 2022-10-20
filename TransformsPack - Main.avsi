@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC58  (23-08-2022)     ##
+###   Transforms Pack - Main v1.0 RC59  (20-10-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -122,14 +122,12 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
             FindStr(src[0], "470")>0 || FindStr(src[0], "2020")>0 ? [src[0],src[1],"1886"] : src
     tgt   = tgt[0]=="709" || tgt[0]=="170M" || tgt[0]=="240M" || tgt[0]=="Display-P3" || \
             FindStr(tgt[0], "470")>0 || FindStr(tgt[0], "2020")>0 ? [tgt[0],tgt[1],"1886"] : tgt
-    s_gam = moncurve_coef (src[2])  # Primaries derived transfer
-    t_gam = moncurve_coef (tgt[2])
     gamut = !(src[0] == tgt[0] || !gamut)
 
-    rgb ? ConvertToPlanarRGB(src[0])                                     : \
+    rgb ? ConvertToPlanarRGB(src[0]+(tv?":l":":f"))                                     : \
           YUV_to_RGB(src[0], tv_range_in=tv, kernel=kernel, b=b, c=c, p=p)
 
-    moncurve_f(s_gam[0], s_gam[1], false, false)
+    CCTF(src[2], true, false, false)
 
     if (gamut) {
     mata = RGB_to_XYZ   (src[0], src[1], LMS=LMS, list=true)
@@ -137,8 +135,8 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     matb = XYZ_to_RGB   (tgt[0], tgt[1], LMS=LMS, list=true)
     MatrixClip(MatrixDot(src[1]!=tgt[1] ? MatrixDot(mata, matw) : mata, matb) ) }
 
-    Defined(LUT) || gamma ? moncurve_r(t_gam[0], t_gam[1], false, false) : \
-                    gamut ? moncurve_r(s_gam[0], s_gam[1], false, false) : last
+    Defined(LUT) || gamma ? CCTF(tgt[2], false, false, false) : \
+                    gamut ? CCTF(src[2], false, false, false) : last
 
     Defined(LUT) ? ConvertBits(16, dither=-1, fulls=true) : last
     Defined(LUT) ? Cube(LUT, 3, true)                     : last
@@ -271,7 +269,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 ###     ConvertFormat(preset="DVD-NTSC") # Work-in-Progress
 ###
 ### Example 3 - YUV420 to YUV444 and scale up by 2 in sigmoid space with chroma reconstruction and noring (cs_out to "" or "none" to skip color space autoconversion):
-###     ConvertFormat(2,fmt_out="44",cs_out="",kernel="FSRCC",scale_space="sigmoid",noring=true,UVRecon=true,cplace_in="MPEG2")
+###     ConvertFormat(2,fmt_out="44",cs_out="",kernel="FSRCNN",scale_space="sigmoid",noring=true,UVRecon=true,cplace_in="MPEG2")
 ###
 ### Example 4 - Scale down by 2 with no moirée in linear light space (typically downscaling as well as pre-blurring -for nomoiree- are done in linear light):
 ###     ConvertFormat(0.5,kernel="RobiSharp",scale_space="linear",nomoiree=true)
@@ -293,7 +291,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 ###       ConvertFormat(1,1,"YUV","RGB","jpeg","sRGB",UVRecon=true) # 'jpeg' as an alias for '170M'
 ###   Explicit:
 ###       ConvertFormat(1,1,"YUV","RGB","170M","sRGB",tv_in=false,tv_out=false,cplace_in="MPEG1",UVRecon=true)
-###   fmtc_bitdepth(bits=8, dmode=5) # Ostromoukhov error diffusion
+###   fmtc_bitdepth(bits=8, dmode=7) # Ostromoukhov error diffusion
 ###
 ###
 ### Function Definition:
@@ -304,20 +302,20 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 ###     [string preset="" (""/ "none"/ "DoVi/DVp5/DVp7"/ "PQ10/UHD"/ "HLG10"/ "HD"/ "DVD-NTSC"/ "DVD-PAL"/ "DV"/ "CRT-NTSC"/ "CRT-PAL"/ "Master"/ "Archival"/ "Grade"/ "Theater"/ "JPEGXL"/ "JPEG2000"/ "JPG_old"/ "JPG")],
 ###     [string "fmt_in"=""  (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab")],
 ###     [string "fmt_out"="" (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab")],
-###     [string "cs_in"=""  (""/ "709"/ "470M"/ "470BG"/ "170M"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG")],
-###     [string "cs_out"="" (""/ "709"/ "470M"/ "470BG"/ "170M"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG")],
-###     [string "OETF" ="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "HLG NHK"/ "AdobeRGB"/ "ACESCCt")],
-###     [string "OETFi"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "HLG NHK"/ "AdobeRGB"/ "ACESCCt")],
-###     [string "EOTFi"="" (""/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "log100"/ "log316"/ "xvYCC"/ "1361"/ "sRGB"/ "2020NCL"/ "2020CL"/ "PQ"/ "DCIXYZ"/ "HLG"/ "HLG NHK"/ "AdobeRGB"/ "ACESCCt")],
-###     [string "D_in"=""  (""/ "D50"/ "E"/ "D55"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93")],
-###     [string "D_out"="" (""/ "D50"/ "E"/ "D55"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93")],
+###     [string "cs_in"=""  (""/ "709"/ "470M"/ "470BG"/ "170M"/ "NTSC-J"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG"/ "WideGamut"/ "AppleRGB"/ "ProPhoto"/ "AllColorsRGB"/ "MaxRGB"/ "xTremeRGB"/ "ColorMatch"/ "BruceRGB"/ "DonRGB4"/ "BestRGB"/ "BetaRGB"/ "RussellRGB"/ "ECI-RGB"/ "EktaSpacePS5"/ "ChromeSpace100"/ "CIE RGB")],
+###     [string "cs_out"="" (""/ "709"/ "470M"/ "470BG"/ "170M"/ "NTSC-J"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG"/ "WideGamut"/ "AppleRGB"/ "ProPhoto"/ "AllColorsRGB"/ "MaxRGB"/ "xTremeRGB"/ "ColorMatch"/ "BruceRGB"/ "DonRGB4"/ "BestRGB"/ "BetaRGB"/ "RussellRGB"/ "ECI-RGB"/ "EktaSpacePS5"/ "ChromeSpace100"/ "CIE RGB")],
+###     [string "OETF" ="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG NHK"/ "ACESCCt"/ "log100"/ "log316"/ "1361")],
+###     [string "OETFi"="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG NHK"/ "ACESCCt"/ "log100"/ "log316"/ "1361")],
+###     [string "EOTFi"="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG NHK"/ "ACESCCt"/ "log100"/ "log316"/ "1361")],
+###     [string "D_in"=""  (""/ "A"/ "B"/ "D50"/ "E"/ "D55"/ "ACES"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93")],
+###     [string "D_out"="" (""/ "A"/ "B"/ "D50"/ "E"/ "D55"/ "ACES"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93")],
 ###     [string "cplace_in"=""  (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
 ###     [string "cplace_out"="" (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
 ###     [bool "tv_in"=true],
 ###     [bool "tv_out"=true],
 ###     [string "scale_space"="gamma" ("gamma"/ "linear"/ "sigmoid"/ "log")],
-###     [string "kernel"="spline36"   ("nnedi3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
-###     [string "kernel_c"="spline36" ("nnedi3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
+###     [string "kernel"="spline36"   ("nnedi3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
+###     [string "kernel_c"="spline36" ("nnedi3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
 ###     [int "taps"=[0,0] ([0,0] to [12,12] by [1,1])],
 ###     [bool "nomoiree"=false],
 ###     [bool "noring"=false],
@@ -344,15 +342,14 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 # Jinc (EWA Lanczos)                          (up) https://github.com/Asd-g/AviSynth-JincResize/releases
 # FCBI (Fast Curve Based Interp)              (up) https://github.com/Asd-g/AviSynth-FCBI
 # SuperResXBR                                 (up) https://github.com/mysteryx93/AviSynthShader/releases
-# AiUpscale/FSRCNN (FastSuperResolutionConvo) (up) https://github.com/Alexkral/AviSynthAiUpscale/tree/master/Shaders (lineart / photo folders)
+# AiUpscale/FSRCNN (FastSuperResolutionConvo) (up) https://github.com/Alexkral/AviSynthAiUpscale/tree/master/Shaders (lineart / photo folders), designed for clean sources and at least x1.42 upscaling
 # Waifu2x                                     (up) https://github.com/Asd-g/AviSynthPlus-w2xncnnvk (best upscaler among the no-hallucination types)
+# NNEDI3CL                                    (up) https://github.com/Asd-g/AviSynthPlus-NNEDI3CL
+# RAVU (or gpuid>-1)                          (up) https://github.com/Asd-g/avslibplacebo
 # KrigBilateral                               (up) https://github.com/Alexkral/AviSynthAiUpscale/tree/master/Shaders/KrigBilateral
 # NoHalo                                           https://github.com/libvips/libvips/blob/master/libvips/resample/nohalo.cpp (NicolasRobidoux special up/downscalers)
 # LoHalo                                           https://legacy.imagemagick.org/discourse-server/viewtopic.php?p=90433&sid=9b1885ea67cf86554709da0282c14796#p90433
-# EWA QuadraticJinc 3-taps
-# EWA RobidouxSharp
-# EWA CatRom
-# EASU - Edge Adaptive Spatial Upscaling (AMD's FSR) (up) (Uses a custom (McLaurin approx) of a 2-tap Lanczos in a single pass (EWA?), and clamped to nearest neighbour upscale to eliminate ringing)
+# EWA_RobidouxSharp                                https://github.com/Asd-g/avslibplacebo
 
 # Internal:
 # Point    / Nearest             (actually slower than bicubic!)
@@ -383,32 +380,43 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 # Ginseng             is a Jinc-windowed     sinc filter (3 lobes). Better for HBD than ewa_lanczos3. Very similar to spline36 aliasing wise, but sharper. Also adds some bloating.
 # -Lagrange           is a Lagrange cubic polynomial filter that approximates a windowed filter https://legacy.imagemagick.org/Usage/filter/#lagrange
 # -Jinc/Bessel        is a Box-windowed      jinc filter (3.2383154841662362 lobes). Jinc filters are not separable so they're usually slower than sinc, cubic, etc but more pleasant artifacts. See here: https://legacy.imagemagick.org/Usage/filter/#cylindrical
-# -ewa_hanning        is a Hanning-windowed  jinc filter (3.238 lobes).
-# -ewa_ginseng        is a sinc-windowed     jinc filter (3.238 lobes).
+# ewa_hanning         is a Hanning-windowed  jinc filter (3.238 lobes).
+# ewa_ginseng         is a sinc-windowed     jinc filter (3.238 lobes).
 # ewa_lanczos         is a lanczos-windowed  jinc filter (3.238 lobes). Under same circumstances -in this case 'taps'- Jinc (radial) is always sharper than their Sinc (orthogonal) equivalent. Check ewa_lanczosradius3 below.
 # ewa_lanczossharp    is a lanczos-windowed  jinc filter (3.238 lobes). Slightly sharpened as per calculations by Nicolas Robidoux, his preferred all-around scaler. Can be replicated with Jinc filter and blur = 0.9812505644269356
-# ewa_lanczossharpest is a lanczos-windowed  jinc filter(3.238 lobes). Very sharp, technically not recommended by Robidoux except when downscaling. Can be replicated with Jinc filter and blur = 0.88549061701764
-# ewa_lanczos2sharp   is a lanczos-windowed  jinc filter(2.2331305943815286 lobes). Good alternative to the other EWAs when you don't want the moiree or "hash pattern blur" artifact, so use this for dithered content or RobiSharp.
-# ewa_lanczosradius3  is a lanczos-windowed  jinc filter(3 lobes). More sharpened than ewa_lanczossharp and very similar to Ginseng tensor, good for up and downscale. Can be replicated with Jinc filter and blur = 0.9264075766146068 (scales lobes from 3.238 to 3)
+# ewa_lanczossharpest is a lanczos-windowed  jinc filter (3.238 lobes). Very sharp, technically not recommended by Robidoux except when downscaling. Can be replicated with Jinc filter and blur = 0.88549061701764
+# ewa_lanczos2sharp   is a lanczos-windowed  jinc filter (2.2331305943815286 lobes). Good alternative to the other EWAs when you don't want the moiree or "hash pattern blur" artifact, so use this for dithered content or RobiSharp.
+# ewa_lanczosradius3  is a lanczos-windowed  jinc filter (3 lobes). More sharpened than ewa_lanczossharp and very similar to Ginseng tensor, good for up and downscale. Can be replicated with Jinc filter and blur = 0.9264075766146068 (scales lobes from 3.238 to 3)
 # ewa_lanczos4        is a lanczos-windowed  jinc filter (4.2410628637960699 lobes).
 # ewa_lanczossoft     is a lanczos-windowed  jinc filter (3.238 lobes). Softened instead. This one makes hash patterns disappear completely (blur determined by trial and error). Can be replicated with Jinc filter and blur = 1.015. https://github.com/mpv-player/mpv/blob/27c38eac1040cd781f39d977ce53adcd65ddcfb6/video/out/filter_kernels.c#L380
-# -Haasnsoft          is a Hanning-windowed  jinc filter (3.238 lobes). Removes almost all aliasing. Blur value to match orthogonal and diagonal contributions on a regular grid. Can be replicated with Jinc filter and blur = 1.11
-# -Tukey              is a Hanning-windowed  jinc filter taper = 0.5
+#-ewa_catrom
+#-ewa_QuadraticJinc 3-taps
+# Haasnsoft           is a Hanning-windowed  jinc filter (3.238 lobes). Removes almost all aliasing. Blur value to match orthogonal and diagonal contributions on a regular grid. Can be replicated with Jinc filter and blur = 1.11
+# Tukey               is a Hanning-windowed  jinc filter taper = 0.5
 # Quadratic/Quadric/Bell like Cubic but 66% faster (1.5 taps/lobes). Also known as 'Bell' -> https://clouard.users.greyc.fr/Pantheon/experiments/rescaling/index-en.html#bell
-# -RAVU / RAISR       similar to XBR and nnedi3
+#  RAVU / RAISR       RAVU (Rapid and Accurate Video Upscaling) is a set of prescalers inspired by RAISR (Rapid and Accurate Image Super Resolution). Similar in quality to XBR and nnedi3. RAVU 4 Lite looks very much like spline36 though.
 # -NGU                Next Generation Upscaler. madVR edge directed NN algo (closed source, similar to FSRCNN)
+#  EASU               Edge Adaptive Spatial Upscaling (AMD's FSR 1.0) (up) (Uses a custom (McLaurin approx) 2-tap Lanczos in a single pass (EWA?), and clamped to nearest neighbour upscale to eliminate ringing) (https://gist.github.com/agyild/82219c545228d70c5604f865ce0b0ce5)
+# -FSR2.1             AMD FidelityFX Super Resolution v2.1.1 (https://github.com/GPUOpen-Effects/FidelityFX-FSR2)
 #  Waifu2x            Image Super-Resolution for Anime-style art (also includes a photo model) using Deep Convolutional Neural Networks running on Vulkan (uses the ncnn framework). Inspired by SRCNN (http://arxiv.org/abs/1501.00092)
 # -Sphinx             Continuation of Sinc and Jinc, interpolating all three dimensions at the same time using a carefully constructed filter that has a perfectly spherical frequency response. 1.4302966531242027, sphinx window.
 # -ICBI               (Iterative Curve Based Interpolation) is a single image superresolution technique described in Fast artifact-free image interpolation by Andrea Giachetti and Nicola Asuni, presented at BMVC 2008
 #
 #
 # Understanding an end-to-end transfer function pipeline for a system:
-#    OETF (Input Device) -> OETFi (input transfer decode) -> EOTFi (Display transfer encode) -> EOTF (Output Device, ie. Display)
+#   _                                                                                                                                                                                                    _\/_
+# [|_| OETF (Input Device) -> OETFi (Input transfer decode) -> OOTF* (Rendering Intent) -> EETF (HDR PQ Peak Luminance scaling) -> EOTFi (Display transfer encode) -> EOTF (Output Device, ie. Display) |    |
+#  /|\                                                                                                                                                                                                  |____|
 #
-# * If you define 'OETF' (also known as OECF) it will override 'EOTFi'
+# * The OOTF can be implemented within the pipeline for a 1:1 scene referred output (assumes EOTFi transfer matches the inverse of EOTF)
+#   or added directly in the EOTFi. Example: moncurve_r(1.2).moncurve_r(2.2) -> moncurve_r(1.2*2.2)
+#
+
+
+# * If you define the argument 'OETF' (also known as OECF) it will override 'EOTFi'
 #
 function ConvertFormat (clip clp, val "width", val       "height", string   "fmt_in", string       "fmt_out", string        "cs_in", string         "cs_out", string           "OETFi", string      "EOTFi", string "OETF",  \
-                                                                   string     "D_in", string         "D_out", bool          "tv_in", bool           "tv_out", string       "cplace_in", string "cplace_out", string  "LMS",  \
+                            string     "D_in", string     "D_out", bool      "tv_in", bool          "tv_out", string    "cplace_in", string     "cplace_out", string             "LMS", bool           "GC",                 \
                          string "scale_space", string    "kernel", string "kernel_c", float_array "src_left", float_array "src_top", float_array "src_width", float_array "src_height",                                      \
                            string    "preset", float_array "taps", int         "mod", bool        "nomoiree", bool         "noring", bool          "UVrecon", bool              "show", int         "gpuid") {
     clp
@@ -501,9 +509,14 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     noring     = Default (noring,  false)
     nomoir     = Default (nomoiree,false)
     recon      = Default (UVrecon, false)
+    Comp       = Default (GC,      false)  # Gamut compression
     fs         = !tv_in
     dg         = Default (show,    false)
-    gpu        = Default (gpuid,       0)
+    Lkrn       = LCase(kernel)    Lkrnc = LCase(kernel_c)
+    gpu        = FindStr(Lkrn,  "jinc")>0 || FindStr(Lkrn,  "ewa")>0 || FindStr(Lkrn,  "deep")>0 || FindStr(Lkrn,  "nnedi3")>0 || \
+                 FindStr(Lkrnc, "jinc")>0 || FindStr(Lkrnc, "ewa")>0 || FindStr(Lkrnc, "deep")>0 || FindStr(Lkrnc, "nnedi3")>0
+    gpu        = Default (gpuid,  gpu ? 0 : -1) # Set to 0 or above to run scalers over the GPU. Supported kernels are nnedi3 and those supported by avslibplacebo (bicubics, splines, sincs, and some jincs).
+                                                # Waifu, RAVU, SSIM, FSRCNN, Krig, SuperResXBR, FCBI and Tukey are GPU only. GPU scaling for anything other than jincs is suprisingly slower though.
 
     # PRESETS (maps outputs format)
     preset     = Default(preset, "none")
@@ -550,7 +563,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     o_fmt1     = Select (num,   o_fmt[1],        "420",       "420",      "420",     "420",      "420",       "420",      "410",       "411",     "411",     "444",       "444",      "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
     tv_out     = Select (num,     tv_out,        false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,      false,    false,    false)
     cplace_out = Select (num, cplace_out,   "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",    "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
-    D_out      = Select (num,      D_out,        "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",       "D60",      "D60",        "E",      "D65",      "D65",    "D65",    "D65")
+    D_out      = Select (num,      D_out,        "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",      "ACES",     "ACES",        "E",      "D65",      "D65",    "D65",    "D65")
     EOTF       = Select (num,       EOTF,         "PQ",        "PQ",      "HLG",    "1886",     "1886",      "1886",     "170M",      "170M",    "170M",  "DCIXYZ",    "linear",  "ACESCCt",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB")
     PAR        = Select (num,          1,            1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,          1,        1,        1)
     cdc        = Select (num,         "",       "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000",   "JPEGXL", "JPEG2000",    "JPG",    "JPG")
@@ -626,7 +639,6 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                  num} } # Checks if string is a number between 1 and 16
 
     # Exclusion list
-    Lkrn = LCase(kernel)    Lkrnc = LCase(kernel_c)
     nope = (kernel   == "spline16" || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline100" || kernel   == "spline144" || kernel   == "spline196" || kernel   == "spline256") && Lkrn  !="spline" || \
             FindStr(Lkrn, "jinc") > 0   && Lkrn  !="jinc" || FindStr(Lkrn, "ewasharp") > 0 || FindStr(Lkrn, "nnedi3") > 0 || FindStr(Lkrn, "ssim2") > 0 || FindStr(Lkrn, "ewas") > 0
     nopc = (kernel_c == "spline16" || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline100" || kernel_c == "spline144" || kernel_c == "spline196" || kernel_c == "spline256") && Lkrnc !="spline" || \
@@ -672,37 +684,55 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     parzen8       = [0.666667,0.648727,0.596804,0.51624,0.415088,0.303095,0.190509,0.086876,0,-0.064824,-0.105205,-0.121655,-0.117225,-0.096848,-0.0665116,-0.032382,0,0.026335,0.0439404,0.051856,0.0506892,0.042271,0.0291773,0.014224,0,-0.011489,-0.0190243,-0.022227,-0.0214634,-0.017647,-0.0119891,-0.005745,0,\
                      0.004475,0.00727292,0.008338,0.00789788,0.006366,0.00423604,0.001986,0,-0.001471,-0.00232189,-0.002577,-0.00235492,-0.001824,-0.00116114,-0.000518,0,0.000341,0.000502619,0.000515,0.000430408,0.000301,0.000169602,0.000066,0,-0.00003,-0.0000341078,-0.000025,-0.0000138158,-0.000005,-0.00000118185,0]
 
-    function KernStr(string kernel, int nw, int nh, float bc_b, float bc_c, float p, bool pd, bool show) {
+    function KernStr(string kernel, int nw, int nh, float bc_b, float bc_c, float p, bool pd, bool show, int gpuid) {
 
-    resampler = Format( kernel == "nnedi3"       ?    "nnedi3resize({nw},{nh}"                               : \
-                        kernel == "Bicubic"      ? "BicubicResize ( {nw},{nh},b={bc_b},c={bc_c}"             : \
+    shpath = "C:\Program Files (x86)\AviSynth+\plugins64+\Shaders\avslibplacebo\"
+    ewarad = pd ? int(p)==2 ? 2.2331305943815286 : int(p)==4 ? 4.2410628637960699 : 3.2383154841662362 : 3.2383154841662362
+
+    resampler = Format( kernel == "nnedi3"       ?    "nnedi3resize({nw},{nh},gpuid={gpuid}"                 : \
+                        kernel == "Bicubic"                                                                  ? \
+                                   gpuid<0       ? "BicubicResize ( {nw},{nh},b={bc_b},c={bc_c}"             : \
+                                   """libplacebo_Resample({nw},{nh},"bicubic",param1={bc_b},param2={bc_c},device={gpuid}""" : \
                         kernel == "Bilinear" || kernel == "Triangle" || kernel == "Bartlett"                 ? \
-                                                   "BilinearResize({nw},{nh}"                                : \
+                                   gpuid<0       ? "BilinearResize( {nw},{nh}"                               : \
+                                   """libplacebo_Resample({nw},{nh},"bilinear",device={gpuid}"""             : \
                         kernel == "Nearest"  || kernel == "NearestNeighbour" || kernel == "NN"               ? \
-                                                      "GaussResize({nw},{nh},p=100"                          : \
-                        kernel == "Gauss"        ?    "GaussResize({nw},{nh},p={pd}?{p}:9"                   : \
-                        kernel == "deep"         ?    "deep_resize({nw},{nh},grain=0,gpuid=gpuid"            : \
+                                   gpuid<0       ? "GaussResize({nw},{nh},p=100"                             : \
+                                   """libplacebo_Resample({nw},{nh},"gaussian",param1=100,device={gpuid}"""  : \
+                        kernel == "Point"  || kernel == "Pointer"                                            ? \
+                                   gpuid<0       ? "PointResize({nw},{nh}"                                   : \
+                                   """libplacebo_Resample({nw},{nh},"nearest",            device={gpuid}"""  : \
+                        kernel == "Gauss"                                                                    ? \
+                                   gpuid<0       ? "GaussResize({nw},{nh},p={pd}?{p}:9"                      : \
+                                   """libplacebo_Resample({nw},{nh},"gaussian",param1={pd}?{p}:9,device={gpuid}""" : \
+                        kernel == "deep"         ?    "deep_resize({nw},{nh},grain=0,gpuid={gpuid}"          : \
                         kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" || kernel == "Simple" ? \
                                                    """fmtc_resample({nw},{nh},kernel="box" """               : \
                         kernel == "Spline"       ? """fmtc_resample({nw},{nh},kernel="Spline",taps={pd}?int({p}):4""": \
+                        kernel == "Spline16" && gpuid>-1 ? """libplacebo_Resample({nw},{nh},"spline16",device={gpuid}""": \
+                        kernel == "Spline36" && gpuid>-1 ? """libplacebo_Resample({nw},{nh},"spline36",device={gpuid}""": \
+                        kernel == "Spline64" && gpuid>-1 ? """libplacebo_Resample({nw},{nh},"spline64",device={gpuid}""": \
                         kernel == "Spline100"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=5"""      : \
                         kernel == "Spline144"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=6"""      : \
                         kernel == "Spline196"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=7"""      : \
                         kernel == "Spline256"    ? """fmtc_resample({nw},{nh},kernel="Spline",taps=8"""      : \
                         kernel == "Wiener"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Wiener3)       """ : \
-                        kernel == "Hann"         ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Hann4)         """ : \
                         kernel == "Hamming"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Hamming4)      """ : \
                         kernel == "Black-Harris" ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(BlackHarris4)  """ : \
                         kernel == "Black-Nuttall"? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(BlackNuttall4) """ : \
                         kernel == "Flat-Top"     ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(FlatTop4)      """ : \
                         kernel == "MinSide"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(MinSide4)      """ : \
-                        kernel == "Ginseng"      ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Ginseng3)      """ : \
                         kernel == "Welch"        ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Welch3)        """ : \
                         kernel == "Cosine"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Cosine3)       """ : \
                         kernel == "Bessel"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Bessel3)       """ : \
                         kernel == "Parzen"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Parzen8)       """ : \
                         kernel == "Kaiser"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Kaiser8)       """ : \
                         kernel == "Bohman"       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Bohman8)       """ : \
+                        kernel == "Ginseng"                                                                                                                         ? \
+                                   gpuid<0       ? """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Ginseng3)      """ : \
+                                                   """libplacebo_Resample({nw},{nh},"ginseng",device={gpuid},radius={pd}?int({p}):3"""                              : \
+                        kernel == "Hann"         || kernel == "Hanning"                                                                                             ? \
+                                                   """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=8,cnorm=true,center=true,impulse=ArraySym(Hann4)         """ : \
                         kernel == "Quadratic"    || kernel == "Quadric" || kernel == "Bell"                  ? \
                                                    """fmtc_resample({nw},{nh},kernel="impulse",kovrspl=16,cnorm=true,center=true,impulse=ArraySym(quadratic15)  """ : \
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
@@ -715,56 +745,102 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                                                    """ResizeShader({nw},{nh},kernel="SSIM",b=0.1"""          : \
                         kernel == "SSIM2"                                                                    ? \
                                         """SSIM_downsample({nw},{nh},smooth=0.43,resample_args="-0.6,0.4" """: \
-                        kernel == "Sinc"         ?     "SincResize(    {nw},{nh},taps={pd}?int({p}):4"       : \
+                        kernel == "Sinc"                                                                     ? \
+                                   gpuid<0       ?     "SincResize(    {nw},{nh},taps={pd}?int({p}):4"       : \
+                                   """libplacebo_Resample({nw},{nh},"sinc",device={gpuid},radius={pd}?int({p}):4""" : \
                         kernel == "Blackman"     ?     "BlackmanResize({nw},{nh},taps={pd}?int({p}):6"       : \
-                        kernel == "Lanczos"      ?     "LanczosResize( {nw},{nh},taps={pd}?int({p}):4"       : \
+                        kernel == "Lanczos"                                                                  ? \
+                                   gpuid<0       ?     "LanczosResize( {nw},{nh},taps={pd}?int({p}):4"       : \
+                                   """libplacebo_Resample({nw},{nh},"lanczos",device={gpuid},radius={pd}?int({p}):4""" : \
                         kernel == "DPID"         ?     "DPID({nw},{nh},lambdaY=0.5"                          : \
-                        kernel == "Jinc16"       ?     "JincResize({nw},{nh},tap=2"                          : \
-                        kernel == "Jinc100"      ?     "JincResize({nw},{nh},tap=5"                          : \
-                        kernel == "Jinc196"      ?     "JincResize({nw},{nh},tap=7"                          : \
+                        kernel == "Jinc16"                                                                   ? \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=2"                          : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",device={gpuid},radius=2""" : \
+                        kernel == "Jinc36"                                                                   ? \
+                                   gpuid<0       ?     "Jinc36Resize({nw},{nh}"                              : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",device={gpuid},radius=3""" : \
+                        kernel == "Jinc64"                                                                   ? \
+                                   gpuid<0       ?     "Jinc64Resize({nw},{nh}"                              : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",device={gpuid},radius=4""" : \
+                        kernel == "Jinc100"                                                                  ? \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=5"                          : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",device={gpuid},radius=5""" : \
+                        kernel == "Jinc144"                                                                  ? \
+                                   gpuid<0       ?     "Jinc144Resize({nw},{nh}"                             : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",device={gpuid},radius=6""" : \
+                        kernel == "Jinc196"                                                                  ? \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=7"                          : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",device={gpuid},radius=7""" : \
+                        kernel == "Jinc256"                                                                  ? \
+                                   gpuid<0       ?     "Jinc256Resize({nw},{nh}"                             : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",device={gpuid},radius=8""" : \
                         kernel == "EWA"          || kernel == "Jinc"       || kernel == "ewa_lanczos"      || kernel == "LoBlur"  ? \
-                                                       "JincResize({nw},{nh},tap={pd}?int({p}):3"            : \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap={pd}?int({p}):3"            : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",device={gpuid},radius={ewarad}""" : \
                         kernel == "EWASharp"     || kernel == "JincSharp"  || kernel == "ewa_lanczossharp" || kernel == "LoJaggy" ? \
-                                                       "JincResize({nw},{nh},tap=3,blur=0.9812505644269356"  : \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=3,blur=0.9812505644269356"  : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=0.9812505644269356,device={gpuid},radius=3.2383154841662362""" : \
                         kernel == "EWASharp2"    || kernel == "JincSharp2" || kernel == "ewa_lanczos2sharp"  ? \
-                                                       "JincResize({nw},{nh},tap=2,blur=0.9549963639785485"  : \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=2,blur=0.9549963639785485"  : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=0.9549963639785485,device={gpuid},radius=2.2331305943815286""" : \
                         kernel == "EWASharp4"    || kernel == "JincSharp4" || kernel == "ewa_lanczos4sharp"  ? \
-                                                       "JincResize({nw},{nh},tap=4,blur=0.9885973386557245"  : \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=4,blur=0.9885973386557245"  : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=0.9885973386557245,device={gpuid},radius=4.2410628637960699""" : \
                         kernel == "EWASharper"   || kernel == "JincSharper"|| kernel =="ewa_lanczosradius3"  ? \
-                                                       "JincResize({nw},{nh},tap=3,blur=0.9264075766146068"  : \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=3,blur=0.9264075766146068"  : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=0.9264075766146068,device={gpuid},radius=3.2383154841662362""" : \
                         kernel == "EWASharper2"  || kernel == "JincSharper2"||kernel =="ewa_lanczosradius2"  ? \
-                                                       "JincResize({nw},{nh},tap=2,blur=0.895603689740279282": \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=2,blur=0.895603689740279282": \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=0.895603689740279282,device={gpuid},radius=2.2331305943815286""" : \
                         kernel == "EWASharper4"  || kernel == "JincSharper4"||kernel =="ewa_lanczosradius4"  ? \
-                                                       "JincResize({nw},{nh},tap=4,blur=0.943159799432847707": \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=4,blur=0.943159799432847707": \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=0.943159799432847707,device={gpuid},radius=4.2410628637960699""" : \
                         kernel == "EWASharpest"  || kernel == "JincSharpest"|| kernel =="ewa_lanczossharpest"? \
-                                                       "JincResize({nw},{nh},tap=3,blur=0.88549061701764"    : \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=3,blur=0.88549061701764"    : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=0.88549061701764,device={gpuid},radius=3.2383154841662362""" : \
                         kernel == "EWASoft"      || kernel == "JincSoft"   || kernel == "ewa_lanczossoft"    ? \
-                                                       "JincResize({nw},{nh},tap=3,blur=1.015"               : \
-                        kernel == "FCBI"         ? "FCBI().deep_resize({nw},{nh},grain=0,gpuid=gpuid"        : \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=3,blur=1.015"               : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=1.015 ,device={gpuid},radius=3.2383154841662362""" : \
+                        kernel == "Haasnsoft"                                                                ? \
+                                   gpuid<0       ?     "JincResize({nw},{nh},tap=3,blur=1.11"                : \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=1.11  ,device={gpuid},radius=3.2383154841662362""" : \
+                        kernel == "Tukey"                                                                    ? \
+                                   """libplacebo_Resample({nw},{nh},"ewa_lanczos",blur=1.11,taper=0.5,device=max(0,{gpuid}),radius=3.2383154841662362""" : \
+                        kernel == "ewa_robidoux"                                                             ? \
+                                   """libplacebo_Resample({nw},{nh},"ewa_robidoux"     ,device=max(0,{gpuid})""" : \
+                        kernel == "ewa_robidouxsharp"                                                        ? \
+                                   """libplacebo_Resample({nw},{nh},"ewa_robidouxsharp",device=max(0,{gpuid})""" : \
+                        kernel == "ewa_hann"     || kernel == "ewa_hanning"                                  ? \
+                                   """libplacebo_Resample({nw},{nh},"ewa_hann"         ,device=max(0,{gpuid}),radius={ewarad}""" : \
+                        kernel == "ewa_ginseng"                                                              ? \
+                                   """libplacebo_Resample({nw},{nh},"ewa_ginseng"      ,device=max(0,{gpuid}),radius={ewarad}""" : \
+                        kernel == "FCBI"         ? "FCBI().deep_resize({nw},{nh},grain=0,gpuid={gpuid}"      : \
                         kernel == "SuperResXBR"  || kernel == "XBR"                                          ? \
-                                                         "SuperResXBR(factor=2)."                              \
-                                                   +"deep_resize({nw},{nh},grain=0,gpuid=gpuid"              : \
+                                    "SuperResXBR(factor=2).deep_resize({nw},{nh},grain=0,gpuid={gpuid}"      : \
                         FindStr(kernel,"aifu")>0                                                             ? \
-                                    "waifu2xresize({nw},{nh},1,0,grain=0,soothe=false,gpuid=gpuid"           : \
+                                    "waifu2xresize({nw},{nh},1,0,grain=0,soothe=false,gpuid={gpuid}"         : \
+                        kernel == "RAVU"         || kernel == "RAISR"                                        ? \
+                                    """RAVUresize({nw},{nh},path="C:\Program Files\AviSynth+\plugins64+\Shaders\avslibplacebo\ravu-r4.hook",gpuid=max(0,{gpuid}),grain=0""" : \
+                        kernel == "FSR"         || kernel == "EASU"                                          ? \
+                                    """FSRresize( {nw},{nh},path="C:\Program Files\AviSynth+\plugins64+\Shaders\avslibplacebo\FSR.glsl"    ,gpuid=max(0,{gpuid}),grain=0""" : \
                         kernel == "Krig"         || kernel == "KrigBilateral"                                ? \
-                                    "KrigBilateral().deep_resize({nw},{nh},grain=0,gpuid=gpuid"              : \
-                        kernel == "FSRCC"        || kernel == "AiUpscale"                                    ? \
+                                    "KrigBilateral().deep_resize({nw},{nh},grain=0,gpuid={gpuid}"            : \
+                        kernel == "FSRCNN"       || kernel == "AiUpscale"                                    ? \
                                              """AiUpscale(2,Luma="Medium",Chroma="Lanczos4",Mode="Photo")."""  \
                                                    +"BicubicResize({nw},{nh},b=0.378216,c=0.310892"          : \
                         kernel +                           "Resize({nw},{nh}"                                 )
 
                         # Exclusion of additional resize arguments
-                        src_nul = kernel == "ResizeShader"    || kernel == "SSIM"   || kernel == "SSIM2"   || kernel == "DPID" || kernel == "nnedi3" || kernel == "deep" || kernel == "FSRCC" || kernel == "Krig" || kernel == "FCBI" || kernel == "SuperResXBR" || kernel == "Waifu" || kernel == "Waifu2x"
-                        src_box = kernel == "Dirichlet"       || kernel == "Simple" || kernel == "Average" || kernel == "Box" || kernel == "Area" || kernel == "Spline100" || kernel == "Spline144" || kernel == "Spline" || kernel == "Spline196" || kernel == "Spline256" || \
-                                  kernel == "Black-Harris"    || kernel == "Wiener" || kernel == "Hann"    || kernel == "Hamming" || kernel == "Black-Nuttall" || kernel == "Flat-Top" || kernel == "MinSide" || \
-                                  kernel == "BlackmanMinLobe" || kernel == "Nuttall"|| kernel == "Welch"   || kernel == "Cosine" || kernel == "Ginseng" || kernel == "Quadratic" || kernel=="Quadric" || kernel=="Bell" || kernel == "Bessel" || kernel == "Parzen" || kernel == "Kaiser" || kernel == "Bohman"
+                        src_nul = FindStr(resampler,"device")>0 || FindStr(resampler,"gpuid")>0 || FindStr(UCase(resampler),"SSIM")>0 || kernel == "DPID"
+                        src_box = FindStr(resampler,"fmtc_resample")>0
 
                         # Retrieving taps for 'show'
                         if (show) {
                             resampler = TrimAll(resampler)
-                            taps = FindStr(resampler, "inPow")   > 0 ? MidStr(resampler,FindStr(resampler, "p=")+2)                                       : \
+                            taps = FindStr(resampler, "placebo") > 0 ? FindStr(resampler, "radius=")>0 ? MidStr(resampler,FindStr(resampler,"radius=")+7) : "0" : \
+                                   FindStr(resampler, "inPow")   > 0 ? MidStr(resampler,FindStr(resampler, "p=")+2)                                       : \
                                    FindStr(resampler, "impulse") > 0 ? MidStr(resampler,StrLen(resampler)-1,1)                                            : \
-                                   FindStr(resampler, "tap")     > 0 ? FindStr(resampler, "Jinc") > 0 ? \
+                                   FindStr(resampler, "tap")     > 0 ? FindStr(resampler, "Jinc") > 0 ?                                                     \
                                                                        kernel == "Jinc"               ? MidStr(resampler,FindStr(resampler, "tap=") +4)   : \
                                                                                                         MidStr(resampler,FindStr(resampler, "tap=") +4,1) : \
                                                                                                         MidStr(resampler,FindStr(resampler, "taps=")+5)   : "0"
@@ -782,13 +858,15 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         [resampler, src_nul, src_box, Eval(taps)] }
 
 
-    krny = KernStr(kernel  ,  nw,  nh, bc_b,  bc_c,  taps,  pd,  dg)  resampler   = krny[0]  src_nuly = krny[1]  src_boxy = krny[2]
-    krnc = KernStr(kernel_c, cnw, cnh, bch_b, bch_c, tapsc, pdc, dg)  resampler_c = krnc[0]  src_nulc = krnc[1]  src_boxc = krnc[2]
+    krny = KernStr(kernel  ,  nw,  nh, bc_b,  bc_c,  taps,  pd,  dg, gpu)  resampler   = krny[0]  src_nuly = krny[1]  src_boxy = krny[2]
+    krnc = KernStr(kernel_c, cnw, cnh, bch_b, bch_c, tapsc, pdc, dg, gpu)  resampler_c = krnc[0]  src_nulc = krnc[1]  src_boxc = krnc[2]
 
+    src_lbp = FindStr(resampler,  "libplacebo_Resample")>0
+    src_lbpc= FindStr(resampler_c,"libplacebo_Resample")>0
     src_wh  = src_boxy ? Format(",sw={src_width},  sh={src_height}")  : Format(",src_width={src_width}, src_height={src_height}")
     src_whc = src_boxc ? Format(",sw={src_widthc}, sh={src_heightc}") : Format(",src_width={src_widthc},src_height={src_heightc}")
-    fmtcb   = src_boxy ? Format(".ConvertBits({bi},fulls={fs})") : ""
-    fmtcbc  = src_boxc ? Format(".ConvertBits({bi},fulls={fs})") : ""
+    fmtcb   = src_boxy ? Format(".ConvertBits({bi})") : ""
+    fmtcbc  = src_boxc ? Format(".ConvertBits({bi})") : ""
     src_nr  = src_nuly ? ")" : src_boxy ? "" : Format(",src_left={src_left},src_top={src_top}"+src_wh+")")     # take into account cplace
     src_c   = src_nuly ? ")" : src_boxy ?      Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr # take into account cplace
     Ynr     = Format(".Repair(BicubicResize(Y,{nw},{nh},0,0"+src_nr+",1)")  # noring uses Hermite kernel. Check here if I need -1 for chroma
@@ -797,7 +875,6 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
 
     cplaceY  = (src_nuly || src_boxy ? "" : ",src_left=" +string(src_left)+",src_top="+string(src_top) + src_wh ) + ")" + fmtcb
-    point    = kernel_c=="Point" ? "+1.0" : ""
     c_point  = kernel_c=="Point" ? i_type4 ?  1.0 : i_type1 || i_type10 ? round( 1*4.0) : round( 1*2.0) : 0
     c_point  = c_point  *(float(cow)/cnw)  # chroma scaled
     src_leftc= i_type4 ?  src_leftc : i_type1 || i_type10 ? round( src_leftc*4.0) : round( src_leftc*2.0)
@@ -810,21 +887,20 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     cplaceC  = (src_nulc ? ""     : (cplaceH + cplaceV + src_whc)) + ")" + fmtcbc
 
 
-    c_recon  = """refs    = isRGBo || isSpace || isScale ? true : !tv_in
-                  c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
+    c_recon  = """c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
                   ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), wref=1)
-                  Luma    = ref.ConvertBits(8,dither=-1,fulls=refs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, gpuid=gpu).ConvertBits(bi,fulls=fs)
-                  Uu      =  Cb.ConvertBits(8,dither=-1,fulls=refs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, gpuid=gpu)
-                  Uu      =  Uu.deep_resize(2,edge=kernel_c,flat=kernel_c,e_taps=tapsc,f_taps=tapsc,grain=0).ConvertBits(bi,fulls=refs)
-                  Vu      =  Cr.ConvertBits(8,dither=-1,fulls=refs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, gpuid=gpu)
-                  Vu      =  Vu.deep_resize(2,edge=kernel_c,flat=kernel_c,e_taps=tapsc,f_taps=tapsc,grain=0).ConvertBits(bi,fulls=refs)
+                  Luma    = ref.ConvertBits(8,dither=-1).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, gpuid=gpu).ConvertBits(bi)
+                  Uu      =  Cb.ConvertBits(8,dither=-1).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, gpuid=gpu)
+                  Uu      =  Uu.deep_resize(2,edge=kernel_c,flat=kernel_c,e_taps=tapsc,f_taps=tapsc,grain=0).ConvertBits(bi)
+                  Vu      =  Cr.ConvertBits(8,dither=-1).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, gpuid=gpu)
+                  Vu      =  Vu.deep_resize(2,edge=kernel_c,flat=kernel_c,e_taps=tapsc,f_taps=tapsc,grain=0).ConvertBits(bi)
                   Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5) # -0.5 to recenter image center shift from nnedi3()
                   Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5)
                   Cb      = ex_LFR(Unew, Uu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5), LFR=fcnw/1.1)
                   Cr      = ex_LFR(Vnew, Vu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc-0.5, src_top=c_cplace[1]+src_topc-0.5), LFR=fcnw/1.1)"""
 
 
-
+    propSet("_ColorRange", tv_in ? 1 :0)
     # Only scaling (or change in range, or gamma, or chroma placement, or subpixel shift, or odd cropping)
     if (!isSpaIllu && !isFrmt && !isJab || isy) {
 
@@ -993,13 +1069,27 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         Go = "x "+string(mat[1])+" * y "+string(mat[4])+" * + z "+string(mat[7])+" * +"
         Bo = "x "+string(mat[2])+" * y "+string(mat[5])+" * + z "+string(mat[8])+" * +"
 
-        if (!isRGBo) {
-        Ro = Expr(R, G, B, Ro, optSingleMode=true, clamp_float=false) # Implement gamut compression instead of clipping in the future
-        Go = Expr(R, G, B, Go, optSingleMode=true, clamp_float=false)
-        Bo = Expr(R, G, B, Bo, optSingleMode=true, clamp_float=false)
-        R = Ro  G = Go  B = Bo
-        } else { Expr(R, G, B, Ro, Go, Bo, Format=o_fmt[3]+"PS", optSingleMode=true, clamp_float=false) } }
 
+        if (!isRGBo && !Comp) {
+
+            Ro = Expr(R, G, B, Ro, optSingleMode=true, clamp_float=false)
+            Go = Expr(R, G, B, Go, optSingleMode=true, clamp_float=false)
+            Bo = Expr(R, G, B, Bo, optSingleMode=true, clamp_float=false)
+            R = Ro  G = Go  B = Bo
+
+        } else {
+
+            Expr(R, G, B, Ro, Go, Bo, Format="RGBPS", optSingleMode=true, clamp_float=false)
+
+            if (Comp) {
+
+                # Desaturate Gamut Compression (by John Walker: https://www.fourmilab.ch/documents/specrend)
+                OF = "x 0 min y min z min neg dup dup x +"
+                Expr(RGB[0], RGB[1], RGB[2], OF+" X@ swap2 y +    swap z +    max max dup 1 > X swap swap2 / X ?", \
+                                             OF+"    swap2 y + Y@ swap z +    max max dup 1 > Y swap swap2 / Y ?", \
+                                             OF+"    swap2 y    + swap z + Z@ max max dup 1 > Z swap swap2 / Z ?", Format="RGBPS", optSingleMode=true, clamp_float=false)
+
+        } } }
 
     if (isRGBo) {
 
@@ -1124,7 +1214,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         # Show panel
         if (dg) {
 
-            # EOTF curve
+            # EOTF curve plot
             msize = min(nw,nh)
             sw  = nmod(nw/5.)   sh = sw
             plt = GradientLinear(last, zoom=1, positive=true, precision=4, smooth=true, tv_range=tv_in)
@@ -1142,11 +1232,11 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             c_col  = cplace[0]   c_in = cplace[2]
             c_cot  = cplace[1]   c_ou = cplace[3]
             kernel = UCase(LeftStr(kernel,  1))+MidStr(kernel,  2) # Sentence Case
-            kernel = ReplaceStr(kernel, "ewas","EWAS",dg).ReplaceStr("ewa","EWA",dg).ReplaceStr("ssim","SSIM",dg).ReplaceStr("dpid","DPID",dg).ReplaceStr("fsrcc","FSRCC",dg).ReplaceStr("fcbi","FCBI",dg).ReplaceStr("nnedi","nnedi",dg)
+            kernel = ReplaceStr(kernel, "ewas","EWAS",dg).ReplaceStr("ewa","EWA",dg).ReplaceStr("ssim","SSIM",dg).ReplaceStr("dpid","DPID",dg).ReplaceStr("fsrcnn","FSRCNN",dg).ReplaceStr("fcbi","FCBI",dg).ReplaceStr("nnedi","nnedi",dg)
             kernelc= UCase(LeftStr(kernel_c,1))+MidStr(kernel_c,2) # Sentence Case
-            kernelc= ReplaceStr(kernelc,"ewas","EWAS",dg).ReplaceStr("ewa","EWA",dg).ReplaceStr("ssim","SSIM",dg).ReplaceStr("dpid","DPID",dg).ReplaceStr("fsrcc","FSRCC",dg).ReplaceStr("fcbi","FCBI",dg).ReplaceStr("nnedi","nnedi",dg)
-            y_cof  = (kernel   == "bicubic" ? string(bc_b, "%1.2f")+","+string(bc_c, "%1.2f") : krny[3] > 0 ? string(krny[3]) : "")  y_cof = y_cof == "" ? "" : (kernel   == "bicubic" ? "" : "     ")+"["+y_cof+"]"
-            u_cof  = (kernel_c == "bicubic" ? string(bch_b,"%1.2f")+","+string(bch_c,"%1.2f") : krnc[3] > 0 ? string(krnc[3]) : "")  u_cof = u_cof == "" ? "" : (kernel_c == "bicubic" ? "" : "     ")+"["+u_cof+"]"
+            kernelc= ReplaceStr(kernelc,"ewas","EWAS",dg).ReplaceStr("ewa","EWA",dg).ReplaceStr("ssim","SSIM",dg).ReplaceStr("dpid","DPID",dg).ReplaceStr("fsrcnn","FSRCNN",dg).ReplaceStr("fcbi","FCBI",dg).ReplaceStr("nnedi","nnedi",dg)
+            y_cof  = (kernel   == "bicubic" ? string(bc_b, "%1.2f")+","+string(bc_c, "%1.2f") : krny[3] > 0 ? isInt(krny[3]) ? string(krny[3]) : string(krny[3],"%1.3f") : "")  y_cof = y_cof == "" ? "" : (StrLen(y_cof)>2 && StrLen(kernel) <10 ? "" : "     ")+"["+y_cof+"]"
+            u_cof  = (kernel_c == "bicubic" ? string(bch_b,"%1.2f")+","+string(bch_c,"%1.2f") : krnc[3] > 0 ? isInt(krnc[3]) ? string(krnc[3]) : string(krnc[3],"%1.3f") : "")  u_cof = u_cof == "" ? "" : (StrLen(u_cof)>2 && StrLen(kernelc)<10 ? "" : "     ")+"["+u_cof+"]"
             tv_i   = tv_in  ? "Lim" : "Full"
             tv_o   = tv_out ? "Lim" : "Full"
             prp    = color_propGet (prim_i, illu_i, mat_i, t_i)
@@ -1157,7 +1247,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.0 RC58",                size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.0 RC59",                size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1233,160 +1323,130 @@ function color_Fuzzy_Search (string matrix) {
 
     matrix = UCase(matrix)
     matrixn =
-\     (FindStr(matrix,"709" )>0 ) ? "709"
-\   : (matrix == "HDTV"         ) ? "709"
-\   : (matrix == "sRGB"         ) ? "sRGB"
-\   : (matrix == "XYZ"          ) ? "XYZ"
-\   : (matrix == "SDTV"         ) ? "170M"
-\   : (FindStr(matrix, "274")>0 ) ? "170M"
-\   : (FindStr(matrix, "170")>0 ) ? "170M"
-\   : (FindStr(matrix, "601")>0 ) ? "170M"
-\   : (FindStr(matrix, "525")>0 ) ? "170M"
-\   : (matrix == "jpeg"         ) ? "170M"
-\   : (matrix == "jpg"          ) ? "170M"
-\   : (matrix == "NTSC"         ) ? "170M"
-\   : (matrix == "SMPTE-C"      ) ? "170M"
-\   : (matrix == "YPbPr"        ) ? "170M"
-\   : (matrix == "YCC"          ) ? "709"
-\   : (matrix == "YUV"          ) ? "709"
-\   : (matrix == "sYCC"         ) ? "709"
-\   : (matrix == "YCbCr"        ) ? "709"
-\   : (FindStr(matrix,"NCL"  )>0) ? "2020NCL"
-\   : (FindStr(matrix,"20-10")>0) ? "2020NCL"
-\   : (FindStr(matrix,"CL"   )>0) ? "2020CL"
-\   : (FindStr(matrix,"20-12")>0) ? "2020CL"
-\   : (FindStr(matrix,"2020")>0 ) ? "2020NCL"
-\   : (FindStr(matrix,"2084")>0 ) ? "2020CL"
-\   : (FindStr(matrix,"2100")>0 ) ? "2020CL"
-\   : (FindStr(matrix,"DOVI")>0 ) ? "2020DV5"
-\   : (FindStr(matrix,"VISION")>0)? "2020DV5"
-\   : (FindStr(matrix,"2085")>0 ) ? "YDzDx"
-\   : (matrix == "AdobeWideGamut")? "AWG"
-\   : (matrix == "AWG"          ) ? "AWG"
-\   : (FindStr(matrix,"ADOBE")>0) ? "AdobeRGB"
-\   : (matrix == "opRGB"        ) ? "AdobeRGB"
-\   : (matrix == "opYCC"        ) ? "AdobeRGB"
-\   : (FindStr(matrix, "DCI")>0 ) ? "DCI-P3"
-\   : (matrix == "P3"           ) ? "Display-P3"
-\   : (matrix == "P3D65"        ) ? "Display-P3"
-\   : (FindStr(matrix,"DISPLAY")>0)?"Display-P3"
-\   : (matrix == "AP1"          ) ? "ACEScg"
-\   : (matrix == "AP0"          ) ? "ACES2065"
-\   : (matrix == "ACEScg"       ) ? "ACEScg"
-\   : (matrix == "ACESCCt"      ) ? "ACESCCt"
-\   : (FindStr(matrix,"ACES2")>0) ? "ACES2065"
-\   : (FindStr(matrix, "240")>0 ) ? "240M"
-\   : (matrix == "PAL"          ) ? "470BG"
-\   : (matrix == "SECAM"        ) ? "470BG"
-\   : (matrix == "NTSC-M"       ) ? "470M"
-\   : (matrix == "FCC"          ) ? "470M"
-\   : (FindStr(matrix,"470M")>0 ) ? "470M"
-\   : (FindStr(matrix,"470" )>0 ) ? "470BG"
-\   : (FindStr(matrix,"1701")>0 ) ? "470BG"
-\   : (FindStr(matrix,"625" )>0 ) ? "470BG"
-\   : (FindStr(matrix,"APPLE")>0) ? "AppleRGB"
-\   : (matrix == "OPP"          ) ? "OPP"
-\   : (matrix == "OOO"          ) ? "OPP" : ""
+\     FindStr(matrix,   "709"  )>0 ? "709"        :         matrix == "HDTV"     ? "709"
+\   :         matrix == "sRGB"     ? "sRGB"       :         matrix == "XYZ"      ? "XYZ"
+\   :         matrix == "SDTV"     ? "170M"       : FindStr(matrix,   "274"  )>0 ? "170M"
+\   : FindStr(matrix,   "170"  )>0 ? "170M"       : FindStr(matrix,   "601"  )>0 ? "170M"
+\   : FindStr(matrix,   "525"  )>0 ? "170M"       :         matrix == "jpeg"     ? "170M"
+\   :         matrix == "jpg"      ? "170M"       :         matrix == "NTSC"     ? "170M"
+\   :         matrix == "SMPTE-C"  ? "170M"       :         matrix == "YPbPr"    ? "170M"
+\   :         matrix == "YCC"      ? "709"        :         matrix == "YUV"      ? "709"
+\   :         matrix == "sYCC"     ? "709"        :         matrix == "YCbCr"    ? "709"
+\   : FindStr(matrix,   "NCL"  )>0 ? "2020NCL"    : FindStr(matrix,   "20-10")>0 ? "2020NCL"
+\   : FindStr(matrix,   "CL"   )>0 ? "2020CL"     : FindStr(matrix,   "20-12")>0 ? "2020CL"
+\   : FindStr(matrix,   "2020" )>0 ? "2020NCL"    : FindStr(matrix,   "2084" )>0 ? "2020CL"
+\   : FindStr(matrix,   "2100" )>0 ? "2020CL"     : FindStr(matrix,   "DOVI" )>0 ? "2020DV5"
+\   : FindStr(matrix,   "VISION")>0? "2020DV5"    : FindStr(matrix,   "2085" )>0 ? "YDzDx"
+\   :         matrix == "AdobeWideGamut" ? "AWG"  :         matrix == "AWG"      ? "AWG"
+\   : FindStr(matrix,   "ADOBE")>0 ? "AdobeRGB"   :         matrix == "opRGB"    ? "AdobeRGB"
+\   :         matrix == "opYCC"    ? "AdobeRGB"   : FindStr(matrix,   "DCI"  )>0 ? "DCI-P3"
+\   : FindStr(matrix,   "CLAY" )>0 ? "AdobeRGB"   :         matrix == "P3D65"    ? "Display-P3"
+\   :         matrix == "P3"       ? "Display-P3" :         matrix == "AP1"      ? "ACEScg"
+\   : FindStr(matrix,   "DISPLAY")>0?"Display-P3" :         matrix == "ACEScg"   ? "ACEScg"
+\   :         matrix == "AP0"      ? "ACES2065"   : FindStr(matrix,   "ACES2")>0 ? "ACES2065"
+\   :         matrix == "ACESCCt"  ? "ACESCCt"    :         matrix == "PAL"      ? "470BG"
+\   : FindStr(matrix,   "240"  )>0 ? "240M"       :         matrix == "NTSC-M"   ? "470M"
+\   :         matrix == "SECAM"    ? "470BG"      : FindStr(matrix,   "470M" )>0 ? "470M"
+\   :         matrix == "FCC"      ? "470M"       : FindStr(matrix,   "1701" )>0 ? "470BG"
+\   : FindStr(matrix,   "470"  )>0 ? "470BG"      : FindStr(matrix,   "APPLE")>0 ? "AppleRGB"
+\   : FindStr(matrix,   "625"  )>0 ? "470BG"      : FindStr(matrix,   "RUSSELL")>0?"RussellRGB"
+\   : FindStr(matrix,   "WIDE" )>0 ? "WideGamut"  : FindStr(matrix,   "BEST" )>0 ? "BestRGB"
+\   : FindStr(matrix,   "DON"  )>0 ? "DonRGB4"    : FindStr(matrix,   "BRUCE")>0 ? "BruceRGB"
+\   : FindStr(matrix,   "BETA" )>0 ? "BetaRGB"    : FindStr(matrix,   "MATCH")>0 ? "ColorMatch"
+\   : FindStr(matrix,   "ECI"  )>0 ? "ECI-RGB"    : FindStr(matrix,   "PHOTO")>0 ? "ProPhoto"
+\   : FindStr(matrix,   "CIE"  )>0 ? "CIE RGB"    : FindStr(matrix,   "LARGE")>0 ? "ProPhoto"
+\   :         matrix == "NTSCJ"    ? "NTSC-J"     :         matrix == "Melissa"  ? "ProPhoto"
+\   :         matrix == "OOO"      ? "OPP"        :         matrix == "NTSC-J"   ? "NTSC-J"
+\   :         matrix == "OPP"      ? "OPP"        : FindStr(matrix,   "ALL"  )>0 ? "AllColorsRGB"
+\   : FindStr(matrix,   "MAX"  )>0 ? "MaxRGB"     : FindStr(matrix,   "EKTA" )>0 ? "EktaSpacePS5"
+\   : FindStr(matrix,   "CHROME")>0? "ChromeSpace100" : FindStr(matrix,"XTREM")>0? "xTremeRGB" : ""
 
+
+# * 'Melissa' is ProPhoto with sRGB transfer as defined in Adobe Lightroom
 # * ST2084 or ARIB STD-B67 is the name of the normative/paper not the transfer function (HLG)
     transfer =
-\     (FindStr(matrix,"2084")>0 ) ? "PQ"
-\   : (FindStr(matrix,"2100")>0 ) ? "PQ"
-\   : (matrix == "PQ"           ) ? "PQ"
-\   : (matrix == "Perceptual"   ) ? "PQ"
-\   : (matrix == "2020DVp5"     ) ? "PQ"
-\   : (matrix == "HLG"          ) ? "HLG"
-\   : (FindStr(matrix,"ARIB")>0 ) ? "HLG"
-\   : (FindStr(matrix,"B67" )>0 ) ? "HLG"
-\   : (FindStr(matrix,"BBC" )>0 ) ? "HLG"
-\   : (FindStr(matrix,"NHK" )>0 ) ? "HLG NHK"
-\   : (matrix == "1886a"        ) ? "1886a"
-\   : (FindStr(matrix,"1886")>0 ) ? "1886"
-\   : (FindStr(matrix,"428" )>0 ) ? "DCIXYZ"
-\   : (FindStr(matrix,"APPLE")>0) ? "AppleRGB"
-\   : (matrix == "Camera"       ) ? "170M"
-\   : (matrix == "709-Camera"   ) ? "170M"
-\   : (matrix == "linear"       ) ? "linear"
-\   : (matrixn== "170M"         ) ? "170M"
-\   : (matrixn== "2020DV5"      ) ? "PQ"
-\   : (matrixn== "2020CL"       ) ? "PQ"
-\   : (matrixn== "2020NCL"      ) ? "1886"
-\   : (matrixn== "240M"         ) ? "240M"
-\   : (matrixn== "470BG"        ) ? "470BG"
-\   : (matrixn== "470M"         ) ? "470M"
-\   : (matrixn== "709"          ) ? "1886"
-\   : (matrixn== "ACES2065"     ) ? "linear"
-\   : (matrixn== "ACEScg"       ) ? "linear"
-\   : (matrixn== "ACESCCt"      ) ? "ACESCCt"
-\   : (matrixn== "AdobeRGB"     ) ? "AdobeRGB"
-\   : (matrixn== "AWG"          ) ? "AdobeRGB"
-\   : (matrixn== "DCI-P3"       ) ? "DCIXYZ"
-\   : (matrixn== "Display-P3"   ) ? "sRGB"
-\   : (matrixn== "OPP"          ) ? "sRGB"
-\   : (matrixn== "sRGB"         ) ? "sRGB"
-\   : (matrixn== "XYZ"          ) ? "linear"
-\   : (matrixn== "YDzDx"        ) ? "PQ" : matrixn
+\     FindStr(matrix,   "2084"  )>0  ? "PQ"       : FindStr(matrix,   "2100"   )>0 ? "PQ"
+\   :         matrix == "PQ"         ? "PQ"       :         matrix == "Perceptual" ? "PQ"
+\   :         matrix == "2020DVp5"   ? "PQ"       :         matrix == "HLG"        ? "HLG"
+\   : FindStr(matrix,   "ARIB"  )>0  ? "HLG"      : FindStr(matrix,   "B67"    )>0 ? "HLG"
+\   : FindStr(matrix,   "BBC"   )>0  ? "HLG"      : FindStr(matrix,   "NHK"    )>0 ? "HLG NHK"
+\   :         matrix == "1886a"      ? "1886a"    : FindStr(matrix,   "1886"   )>0 ? "1886"
+\   : FindStr(matrix,   "428"   )>0  ? "DCIXYZ"   : FindStr(matrix,   "APPLE"  )>0 ? "AppleRGB"
+\   :         matrix == "Camera"     ? "170M"     :         matrix == "709-Camera" ? "170M"
+\   :         matrix == "linear"     ? "linear"   :         matrix == "L*"         ? "CIELab"
+\   :         matrix == "Lstar"      ? "CIELab"   :         matrix == "CIELab"     ? "CIELab"
+\   :         matrixn== "170M"       ? "170M"     :         matrix == "Melissa"    ? "sRGB"
+\   :         matrixn== "2020CL"     ? "PQ"       :         matrixn== "2020DV5"    ? "PQ"
+\   :         matrixn== "240M"       ? "240M"     :         matrixn== "2020NCL"    ? "1886"
+\   :         matrixn== "470M"       ? "470M"     :         matrixn== "470BG"      ? "470BG"
+\   :         matrixn== "ACES2065"   ? "linear"   :         matrixn== "709"        ? "1886"
+\   :         matrixn== "ACESCCt"    ? "ACESCCt"  :         matrixn== "ACEScg"     ? "linear"
+\   :         matrixn== "AWG"        ? "AdobeRGB" :         matrixn== "AdobeRGB"   ? "AdobeRGB"
+\   :         matrixn== "Display-P3" ? "sRGB"     :         matrixn== "DCI-P3"     ? "DCIXYZ"
+\   :         matrixn== "sRGB"       ? "sRGB"     :         matrixn== "OPP"        ? "sRGB"
+\   :         matrixn== "BestRGB"    ? "AdobeRGB" :         matrixn== "RussellRGB" ? "AdobeRGB"
+\   :         matrixn== "DonRGB4"    ? "AdobeRGB" :         matrixn== "BruceRGB"   ? "AdobeRGB"
+\   :         matrixn== "ECI-RGB"    ? "CIELab"   :         matrixn== "BetaRGB"    ? "AdobeRGB"
+\   :         matrixn== "ColorMatch" ? "AppleRGB" :         matrixn== "CIE RGB"    ? "linear"
+\   :         matrixn== "NTSC-J"     ? "1886"     :         matrixn== "WideGamut"  ? "AdobeRGB"
+\   :         matrixn== "XYZ"        ? "linear"   :         matrixn== "ProPhoto"   ? "AppleRGB"
+\   :         matrixn== "YDzDx"      ? "PQ"       :         matrixn=="AllColorsRGB"? "linear"
+\   :         matrixn== "MaxRGB"     ? "AdobeRGB" :         matrixn=="EktaSpacePS5"? "AdobeRGB"
+\   :         matrixn== "ChromeSpace100" ? "Chrome" :       matrixn=="xTremeRGB"   ? "AdobeRGB" : matrixn
 
     illuminant =
-\     (matrix == "50"            ) ? "D50"
-\   : (matrix == "D50"           ) ? "D50"
-\   : (matrix == "55"            ) ? "D55"
-\   : (matrix == "D55"           ) ? "D55"
-\   : (matrix == "60"            ) ? "D60"
-\   : (matrix == "D60"           ) ? "D60"
-\   : (matrix == "DCI"           ) ? "DCI"
-\   : (matrix == "65"            ) ? "D65"
-\   : (matrix == "D65"           ) ? "D65"
-\   : (matrix == "75"            ) ? "D75"
-\   : (matrix == "D75"           ) ? "D75"
-\   : (matrix == "C"             ) ? "C"
-\   : (matrix == "93"            ) ? "D93"
-\   : (matrix == "D93"           ) ? "D93"
-\   : (matrix == "E"             ) ? "E"
-\   : (matrix == "EE"            ) ? "E"
-\   : (matrix == "Neutral"       ) ? "E"
-\   : (matrix == "Equal"         ) ? "E"
-\   : (matrix == "null"          ) ? "E"
-\   : (matrixn== "170M"          ) ? "D65"
-\   : (matrixn== "2020CL"        ) ? "D65"
-\   : (matrixn== "2020DV5"       ) ? "D65"
-\   : (matrixn== "2020NCL"       ) ? "D65"
-\   : (matrixn== "240M"          ) ? "D65"
-\   : (matrixn== "470BG"         ) ? "D65"
-\   : (matrixn== "470M"          ) ? "C"
-\   : (matrixn== "709"           ) ? "D65"
-\   : (matrixn== "ACES2065"      ) ? "D60"
-\   : (matrixn== "ACESCCt"       ) ? "D60"
-\   : (matrixn== "ACEScg"        ) ? "D60"
-\   : (matrixn== "AdobeRGB"      ) ? "D65"
-\   : (matrixn== "AWG"           ) ? "D50"
-\   : (matrixn== "DCI-P3"        ) ? "DCI"
-\   : (matrixn== "Display-P3"    ) ? "D65"
-\   : (matrixn== "OPP"           ) ? "D65"
-\   : (matrixn== "sRGB"          ) ? "D65"
-\   : (matrixn== "XYZ"           ) ? "E"
-\   : (matrixn== "YDzDx"         ) ? "E" : matrixn
+\             matrix == "50"         ? "D50"      :         matrix == "A"          ? "A"
+\   :         matrix == "55"         ? "D55"      :         matrix == "D50"        ? "D50"
+\   : FindStr(matrixn,  "ACES"   )>0 ? "ACES"     :         matrix == "D55"        ? "D55"
+\   :         matrix == "60"         ? "D60"      :         matrix == "65"         ? "D65"
+\   :         matrix == "DCI"        ? "DCI"      :         matrix == "75"         ? "D75"
+\   :         matrix == "D65"        ? "D65"      :         matrix == "C"          ? "C"
+\   :         matrix == "D75"        ? "D75"      :         matrix == "D93"        ? "D93"
+\   :         matrix == "93"         ? "D93"      :         matrix == "EE"         ? "E"
+\   :         matrix == "E"          ? "E"        :         matrix == "Equal"      ? "E"
+\   :         matrix == "Neutral"    ? "E"        :         matrix == "Sun"        ? "Sunlight"
+\   :         matrix == "null"       ? "E"        :         matrix == "Sunlight"   ? "Sunlight"
+\   :         matrix == "Overcast"   ? "Overcast" :         matrixn== "170M"       ? "D65"
+\   :         matrixn== "2020CL"     ? "D65"      :         matrixn== "2020DV5"    ? "D65"
+\   :         matrixn== "2020NCL"    ? "D65"      :         matrixn== "240M"       ? "D65"
+\   :         matrixn== "470BG"      ? "D65"      :         matrixn== "470M"       ? "C"
+\   :         matrixn== "709"        ? "D65"      :         matrixn== "ACES2065"   ? "ACES"
+\   :         matrixn== "AdobeRGB"   ? "D65"      :         matrixn== "AWG"        ? "D50"
+\   :         matrixn== "DCI-P3"     ? "DCI"      :         matrixn== "Display-P3" ? "D65"
+\   :         matrixn== "OPP"        ? "D65"      :         matrixn== "sRGB"       ? "D65"
+\   :         matrixn== "AppleRGB"   ? "D65"      :         matrixn== "RussellRGB" ? "D55"
+\   :         matrixn== "BestRGB"    ? "D50"      :         matrixn== "BruceRGB"   ? "D65"
+\   :         matrixn== "DonRGB4"    ? "D50"      :         matrixn== "BetaRGB"    ? "D50"
+\   :         matrixn== "ECI-RGB"    ? "D50"      :         matrixn== "CIE RGB"    ? "E"
+\   :         matrixn== "ColorMatch" ? "D50"      :         matrixn== "WideGamut"  ? "D50"
+\   :         matrixn== "ProPhoto"   ? "D50"      :         matrixn== "NTSC-J"     ? "D93"
+\   :         matrixn== "XYZ"        ? "E"        :         matrixn=="AllColorsRGB"? "D50"
+\   :         matrixn== "YDzDx"      ? "E"        :         matrixn=="EktaSpacePS5"? "D50"
+\   :         matrixn== "MaxRGB"     ? "D50"      :         matrixn== "xTremeRGB"  ? "D50"
+\   :         matrixn== "ChromeSpace100" ? "D50"  : matrixn
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     idm =
-\     (matrixn == "XYZ"            ) ? 0
-\   : (matrixn == "RGB"            ) ? 0
-\   : (matrixn == "sRGB"           ) ? 1
-\   : (matrixn == "709"            ) ? 1
-\   : (matrixn == "470M"           ) ? 4
-\   : (matrixn == "470BG"          ) ? 5
-\   : (matrixn == "170M"           ) ? 6
-\   : (matrixn == "240M"           ) ? 7
-\   : (matrixn == "2020NCL"        ) ? 9
-\   : (matrixn == "2020CL"         ) ? 10
-\   : (matrixn == "YDzDx"          ) ? 11
-\   : (matrixn == "DCI-P3"         ) ? 12
-\   : (matrixn == "Display-P3"     ) ? 12
-\   : (matrixn == "ACEScg"         ) ? 13
-\   : (matrixn == "ACES2065"       ) ? 14
-\   : (matrixn == "ACESCCt"        ) ? 15
-\   : (matrixn == "AdobeRGB"       ) ? 16
-\   : (matrixn == "AWG"            ) ? 17 : -1
+\     (matrixn == "XYZ"            ) ? 0    : (matrixn == "AdobeRGB"       ) ? 17
+\   : (matrixn == "RGB"            ) ? 0    : (matrixn == "AWG"            ) ? 18
+\   : (matrixn == "sRGB"           ) ? 1    : (matrixn == "WideGamut"      ) ? 19
+\   : (matrixn == "709"            ) ? 1    : (matrixn == "AppleRGB"       ) ? 20
+\   : (matrixn == "470M"           ) ? 4    : (matrixn == "ProPhoto"       ) ? 21
+\   : (matrixn == "470BG"          ) ? 5    : (matrixn == "AllColorsRGB"   ) ? 22
+\   : (matrixn == "170M"           ) ? 6    : (matrixn == "ColorMatch"     ) ? 23
+\   : (matrixn == "240M"           ) ? 7    : (matrixn == "RussellRGB"     ) ? 24
+\   : (matrixn == "2020NCL"        ) ? 9    : (matrixn == "BestRGB"        ) ? 25
+\   : (matrixn == "2020CL"         ) ? 10   : (matrixn == "BruceRGB"       ) ? 26
+\   : (matrixn == "YDzDx"          ) ? 11   : (matrixn == "DonRGB4"        ) ? 27
+\   : (matrixn == "DCI-P3"         ) ? 12   : (matrixn == "BetaRGB"        ) ? 28
+\   : (matrixn == "Display-P3"     ) ? 12   : (matrixn == "ECI-RGB"        ) ? 29
+\   : (matrixn == "NTSC-J"         ) ? 13   : (matrixn == "EktaSpacePS5"   ) ? 30
+\   : (matrixn == "ACEScg"         ) ? 14   : (matrixn == "CIE RGB"        ) ? 31
+\   : (matrixn == "ACES2065"       ) ? 15   : (matrixn == "xTremeRGB"      ) ? 32
+\   : (matrixn == "ACESCCt"        ) ? 16   : (matrixn == "MaxRGB"         ) ? 33
+\   : (matrixn == "ChromeSpace100" ) ? 34   : -1
+
+
 # * YDzDx is defined in SMPTE 2085
 
     # ID for _Primaries frame properties (BT.2380-2. Table 2.6)
@@ -1396,15 +1456,20 @@ function color_Fuzzy_Search (string matrix) {
 
     # ID for _Illuminant frame properties
     idi =
-\     (illuminant == "D50"         ) ? 0
+\     (illuminant == "A"           ) ? 13
+\   : (illuminant == "B"           ) ? 14
+\   : (illuminant == "D50"         ) ? 0
 \   : (illuminant == "D55"         ) ? 1
+\   : (illuminant == "ACES"        ) ? 9
 \   : (illuminant == "D60"         ) ? 2
 \   : (illuminant == "DCI"         ) ? 3
 \   : (illuminant == "D65"         ) ? 4
 \   : (illuminant == "C"           ) ? 5
 \   : (illuminant == "D75"         ) ? 6
 \   : (illuminant == "D93"         ) ? 7
-\   : (illuminant == "E"           ) ? 8 : -1
+\   : (illuminant == "E"           ) ? 8
+\   : (illuminant == "Sunlight"    ) ? 11
+\   : (illuminant == "Overcast"    ) ? 12 : -1
 
     # ID for _Transfer frame properties (BT.2380-2. Table 2.7)
     idt =
@@ -1429,7 +1494,9 @@ function color_Fuzzy_Search (string matrix) {
 \   : (transfer == "HLG NHK"       ) ? 19
 \   : (transfer == "AdobeRGB"      ) ? 20
 \   : (transfer == "ACESCCt"       ) ? 21
-\   : (transfer == "AppleRGB"      ) ? 22 : -1
+\   : (transfer == "AppleRGB"      ) ? 22
+\   : (transfer == "CIELab"        ) ? 23
+\   : (transfer == "Chrome"        ) ? 24 : -1
 # * DCIXYZ is defined in smpte428-1. It's XYZ space with DCI white point for cinema distribution in DCDM format
 
     [matrixn,illuminant,transfer,idm,ids,idi,idt] }
@@ -1526,11 +1593,28 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (prim_i == 10   ) ? "XYZ"
 \   : (prim_i == 11   ) ? "DCI-P3"
 \   : (prim_i == 12   ) ? "Display-P3"
-\   : (prim_i == 13   ) ? "ACEScg"
-\   : (prim_i == 14   ) ? "ACES2065"
-\   : (prim_i == 15   ) ? "ACESCCt"
-\   : (prim_i == 16   ) ? "AdobeRGB"
-\   : (prim_i == 17   ) ? "AWG"
+\   : (prim_i == 13   ) ? "NTSC-J"
+\   : (prim_i == 14   ) ? "ACEScg"
+\   : (prim_i == 15   ) ? "ACES2065"
+\   : (prim_i == 16   ) ? "ACESCCt"
+\   : (prim_i == 17   ) ? "AdobeRGB"
+\   : (prim_i == 18   ) ? "AWG"
+\   : (prim_i == 19   ) ? "WideGamut"
+\   : (prim_i == 20   ) ? "AppleRGB"
+\   : (prim_i == 21   ) ? "ProPhoto"
+\   : (prim_i == 22   ) ? "AllColorsRGB"
+\   : (prim_i == 23   ) ? "ColorMatch"
+\   : (prim_i == 24   ) ? "RussellRGB"
+\   : (prim_i == 25   ) ? "BestRGB"
+\   : (prim_i == 26   ) ? "BruceRGB"
+\   : (prim_i == 27   ) ? "DonRGB4"
+\   : (prim_i == 28   ) ? "BetaRGB"
+\   : (prim_i == 29   ) ? "ECI-RGB"
+\   : (prim_i == 30   ) ? "EktaSpacePS5"
+\   : (prim_i == 31   ) ? "CIE RGB"
+\   : (prim_i == 32   ) ? "xTremeRGB"
+\   : (prim_i == 33   ) ? "MaxRGB"
+\   : (prim_i == 34   ) ? "ChromeSpace100"
 \   : Assert (false, "color_propGet: Unknown _Primaries ID.")
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
@@ -1553,6 +1637,7 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
     illu_i =
 \     (illu_i == 0    ) ? "D50"
 \   : (illu_i == 1    ) ? "D55"
+\   : (illu_i == 9    ) ? "ACES"
 \   : (illu_i == 2    ) ? "D60"
 \   : (illu_i == 3    ) ? "DCI"
 \   : (illu_i == 4    ) ? "D65"
@@ -1560,6 +1645,10 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (illu_i == 6    ) ? "D75"
 \   : (illu_i == 7    ) ? "D93"
 \   : (illu_i == 8    ) ? "E"
+\   : (illu_i == 11   ) ? "Sunlight"
+\   : (illu_i == 12   ) ? "Overcast"
+\   : (illu_i == 13   ) ? "A"
+\   : (illu_i == 14   ) ? "B"
 \   : Assert (false, "color_propGet: Unknown _Illuminant ID.")
 
     # ID for _Transfer frame properties (BT.2380-2. Table 2.7)
@@ -1585,6 +1674,8 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (t_i == 20      ) ? "AdobeRGB"
 \   : (t_i == 21      ) ? "ACESCCt"
 \   : (t_i == 22      ) ? "AppleRGB"
+\   : (t_i == 23      ) ? "CIELab"
+\   : (t_i == 24      ) ? "Chrome"
 \   : Assert (false, "color_propGet: Unknown _Transfer ID.")
 # * 1, 14, and 15 share the same function
 
@@ -1614,36 +1705,36 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
     format = UCase(format)
 
     jab =
-\     (FindStr(format,"420"     )>0) ? "420"
-\   : (FindStr(format, "42"     )>0) ? "420"
-\   : (FindStr(format, "20"     )>0) ? "420"
-\   : (FindStr(format, "12"     )>0) ? "420"
-\   : (FindStr(format,"444"     )>0) ? "444"
-\   : (FindStr(format, "44"     )>0) ? "444"
-\   : (FindStr(format, "24"     )>0) ? "444"
-\   : (FindStr(format,"422"     )>0) ? "422"
-\   : (FindStr(format, "22"     )>0) ? "422"
-\   : (FindStr(format, "16"     )>0) ? "422"
-\   : (FindStr(format,"411"     )>0) ? "411"
-\   : (FindStr(format, "11"     )>0) ? "411"
-\   : (FindStr(format,"440"     )>0) ? "440"
-\   : (FindStr(format, "40"     )>0) ? "410"
-\   : (FindStr(format,"410"     )>0) ? "410"
-\   : (FindStr(format, "41"     )>0) ? "410"
-\   : (FindStr(format, "10"     )>0) ? "410"
-\   : (FindStr(format,"YUV9"    )>0) ? "410"
+\     FindStr(format,"420"     )>0 ? "420"
+\   : FindStr(format, "42"     )>0 ? "420"
+\   : FindStr(format, "20"     )>0 ? "420"
+\   : FindStr(format, "12"     )>0 ? "420"
+\   : FindStr(format,"444"     )>0 ? "444"
+\   : FindStr(format, "44"     )>0 ? "444"
+\   : FindStr(format, "24"     )>0 ? "444"
+\   : FindStr(format,"422"     )>0 ? "422"
+\   : FindStr(format, "22"     )>0 ? "422"
+\   : FindStr(format, "16"     )>0 ? "422"
+\   : FindStr(format,"411"     )>0 ? "411"
+\   : FindStr(format, "11"     )>0 ? "411"
+\   : FindStr(format,"440"     )>0 ? "440"
+\   : FindStr(format, "40"     )>0 ? "410"
+\   : FindStr(format,"410"     )>0 ? "410"
+\   : FindStr(format, "41"     )>0 ? "410"
+\   : FindStr(format, "10"     )>0 ? "410"
+\   : FindStr(format,"YUV9"    )>0 ? "410"
 \
-\   : (FindStr(format,"RGB"     )>0) ? "444"
-\   : (FindStr(format,"YXY"     )>0) ? "444"
-\   : (FindStr(format,"xyY"     )>0) ? "444"
-\   : (        format=="Yxy"       ) ? "444"
-\   : (        format=="xyY"       ) ? "444"
-\   : (FindStr(format,"XYZ"     )>0) ? "444"
-\   : (        format=="XYZ"       ) ? "444"
-\   : (FindStr(format,"JZAZBZ"  )>0) ? "444"
-\   : (FindStr(format,"JZCZHZ"  )>0) ? "444"
-\   : (FindStr(format,"HSV"     )>0) ? "444"
-\   : (        format=="HSV"       ) ? "444"
+\   : FindStr(format,"RGB"     )>0 ? "444"
+\   : FindStr(format,"YXY"     )>0 ? "444"
+\   : FindStr(format,"xyY"     )>0 ? "444"
+\   :         format=="Yxy"        ? "444"
+\   :         format=="xyY"        ? "444"
+\   : FindStr(format,"XYZ"     )>0 ? "444"
+\   :         format=="XYZ"        ? "444"
+\   : FindStr(format,"JZAZBZ"  )>0 ? "444"
+\   : FindStr(format,"JZCZHZ"  )>0 ? "444"
+\   : FindStr(format,"HSV"     )>0 ? "444"
+\   :         format=="HSV"        ? "444"
 \   :                "4"+string(a)+string(b)
 
 
@@ -1652,27 +1743,27 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
     # Store all opposing models in YUV format, otherwise (correlated) as RGB
     # Input Model, Name Normalizing, Packing format, model ID
     cm =
-\     (FindStr(model, "RGB"    )>0) ? ["RGB",      "RGB",1]
-\   : (        model=="JPEG"      ) ? ["YCbCr",    "YUV",5]
-\   : (        model=="JPG"       ) ? ["YCbCr",    "YUV",5]
-\   : (        model=="YUVJ"      ) ? ["YUVJ",     "YUV",5]
-\   : (        model=="YCbCr"     ) ? ["YCbCr",    "YUV",5]
-\   : (        model=="YUV"       ) ? ["YCbCr",    "YUV",5]
-\   : (FindStr(model, "YV"     )>0) ? ["YCbCr",    "YUV",5]
-\   : (FindStr(model, "DV"     )>0) ? ["YCbCr",    "YUV",5]
-\   : (        model=="YCC"       ) ? ["YCbCr",    "YUV",5]
-\   : (        model=="sYCC"      ) ? ["sYCC",     "YUV",8]
-\   : (        model=="YPbPr"     ) ? ["YCbCr",    "YUV",5]
-\   : (        model=="YIQ"       ) ? ["YIQ",      "YUV",3]
-\   : (        model=="YDbDr"     ) ? ["YDbDr",    "YUV",4]
-\   : (        model=="YUVr"      ) ? ["YUVr",     "YUV",6]
-\   : (        model=="sYUV"      ) ? ["sYUV",     "YUV",7]
-\   : (FindStr(model, "SHARP"  )>0) ? ["sYUV",     "YUV",7]
+\     (FindStr(model, "RGB"    )>0) ? ["RGB",      "RGB", 1]
+\   : (        model=="JPEG"      ) ? ["YCbCr",    "YUV", 5]
+\   : (        model=="JPG"       ) ? ["YCbCr",    "YUV", 5]
+\   : (        model=="YUVJ"      ) ? ["YUVJ",     "YUV", 5]
+\   : (        model=="YCbCr"     ) ? ["YCbCr",    "YUV", 5]
+\   : (        model=="YUV"       ) ? ["YCbCr",    "YUV", 5]
+\   : (FindStr(model, "YV"     )>0) ? ["YCbCr",    "YUV", 5]
+\   : (FindStr(model, "DV"     )>0) ? ["YCbCr",    "YUV", 5]
+\   : (        model=="YCC"       ) ? ["YCbCr",    "YUV", 5]
+\   : (        model=="sYCC"      ) ? ["sYCC",     "YUV", 8]
+\   : (        model=="YPbPr"     ) ? ["YCbCr",    "YUV", 5]
+\   : (        model=="YIQ"       ) ? ["YIQ",      "YUV", 3]
+\   : (        model=="YDbDr"     ) ? ["YDbDr",    "YUV", 4]
+\   : (        model=="YUVr"      ) ? ["YUVr",     "YUV", 6]
+\   : (        model=="sYUV"      ) ? ["sYUV",     "YUV", 7]
+\   : (FindStr(model, "SHARP"  )>0) ? ["sYUV",     "YUV", 7]
 \   : (        model=="YcCbcCr"   ) ? ["YcCbcCrc", "YUV",11]
 \   : (FindStr(model, "YCCBC"  )>0) ? ["YcCbcCrc", "YUV",11]
-\   : (        model=="YCgCo"     ) ? ["YCoCg",    "YUV",9]
+\   : (        model=="YCgCo"     ) ? ["YCoCg",    "YUV", 9]
 \   : (        model=="YCgCoR"    ) ? ["YCoCgR",   "YUV",10]
-\   : (        model=="YCoCg"     ) ? ["YCoCg",    "YUV",9]
+\   : (        model=="YCoCg"     ) ? ["YCoCg",    "YUV", 9]
 \   : (        model=="YCoCgR"    ) ? ["YCoCgR",   "YUV",10]
 \   : (        model=="ICaCb"     ) ? ["ICaCb",    "YUV",19]
 \   : (        model=="ICtCp"     ) ? ["ICtCp",    "YUV",21]
@@ -1682,9 +1773,9 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : (        model=="xvYCC"     ) ? ["xvYCC",    "YUV",24]
 \   : (        model=="Yxy"       ) ? ["Yxy",      "RGB",23]
 \   : (        model=="xyY"       ) ? ["Yxy",      "RGB",23]
-\   : (        model=="XYZ"       ) ? ["XYZ",      "RGB",0]
-\   : (        model=="CIEXYZ"    ) ? ["XYZ",      "RGB",0]
-\   : (        model=="YZX"       ) ? ["XYZ",      "RGB",0]
+\   : (        model=="XYZ"       ) ? ["XYZ",      "RGB", 0]
+\   : (        model=="CIEXYZ"    ) ? ["XYZ",      "RGB", 0]
+\   : (        model=="YZX"       ) ? ["XYZ",      "RGB", 0]
 \   : (        model=="CMYK"      ) ? ["CMYK",     "RGBA",2]
 \   : (        model=="OPP"       ) ? ["OPP",      "RGB",12]
 \   : (        model=="Jzazbz"    ) ? ["Jzazbz",   "YUV",13]
@@ -1740,34 +1831,34 @@ function bicubic_coeffs (string kernel) {
 
     # From blurrier to sharper
     c = [-2.,-2.]
-    c = kernel == "Notch"             ? [1.5,-0.25]  : c
-    c = kernel == "SoftCubic100"      ? [1.0,0.0]    : c # Also called Spline (same as GaussResize(p=21))
-    c = kernel == "Robidoux Soft"     ? [rbb,rbc]    : c # BC-spline soft approximation to EWA affine scaling. Close to a 'Quadratic' kernel.
-    c = kernel == "SoftCubic75"       ? [0.75,0.25]  : c
-    c = kernel == "BilcubicD"         ? [1/3.,0.0]   : c # dw Bicubic practical match to Bilinear
-    c = kernel == "BilcubicU"         ? [0.5, 0.2]   : c # up Bicubic practical match to Bilinear
-    c = kernel == "Hermite"           ? [0.0,0.0]    : c # up,dw Canonical Bicubic approximation to Bilinear (a bit sharper than it)
-    c = kernel == "Robidoux"          ? [rb,  rc]    : c # up,dw Derived from EWA considerations, the values that "minimize the maximum possible change in vertical or horizontal straight lines (Robidoux) or any image (RobidouxSharp) under no-op" while satisfying Keys Cubics (affine gradients)
-    c = kernel == "Centroid"          ? [0.37,0.35]  : c # up Arithmetic mean of the satisfactory zone (by Dogway)
-    c = kernel == "Mitchell-Netravali"? [1/3.,1/3.]  : c # up Canonical Bicubic (roughly equivalent to EWA Robidoux)
-    c = kernel == "Robidoux Sharp"    ? [rsb,rsc]    : c
-    c = kernel == "SoftCubic50"       ? [0.5,0.5]    : c
-    c = kernel == "Catmule-Dog"       ? [0.1750,0.4125]:c# up Sharp while orthogonally furthest key cubic coefficients from Blocking and Ringing zones in Cubics diagram (between CatRom and RobiSharp) (by Dogway)
-    c = kernel == "Cub-grange"        ? [0.0308,0.4846]:c# dw but also up. Bicubic approximation to Lagrange scaling (a bit sharper than it)
-    c = kernel == "Catmull-Rom"       ? [0.0,0.5]    : c # Canonical sharp Bicubic (roughly equivalent to spline16resize() and EWA RobidouxSharp)
-    c = kernel == "Didee"             ? [-0.5,0.25]  : c # dw Didée's downscaling sharp coefficients. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
-    c = kernel == "Zopti"             ? [-0.6,0.4]   : c # dw 2160p to 720p Zopti optimized (by Boulder) (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218#post1865218
-    c = kernel == "ZoptiN"            ? [-0.6,0.3]   : c # dw Like Zopti but more neutral (better over/undershoot normalization). Good for final resizing.
-    c = kernel == "ZoptiH"            ? [-0.83,0.14] : c # dw 1080 to half optimized (for 1080p and smaller clips)
-    c = kernel == "Zopti720"          ? [-1.00,0.16] : c # dw 1080p to 720p (for upscaling it always optimized to Catmull-Rom, although I visually prefer Precise)
-    c = kernel == "Zopti720U"         ? [-0.99,0.26] : c # dw 2160p to 720p. This is my optimization for going straight from UHD to 720p, but I still recommend going first "Zopti1080" to 1080p and then "SSIM2" to 720p.
-    c = kernel == "Zopti1080"         ? [-0.99,0.06] : c # dw 2160p to 1080p. Suprisingly better than using "SSIM2". If you want to skip halos but retain the great texture rendition use deep_resize(1080,edge="Didee",flat="Zopti1080")
-    c = kernel == "Precise"           ? [0.0,0.75]   : c # up Almost identical to spline36 but a bit more halo. Very good cheap upscaler
-    c = kernel == "Sharp"             ? [0.0,1.0]    : c # dw Good alternative for dw. Less aliasing and sharper edges but softer textures
-    c = kernel == "Hatch"             ? [0.0,-5.0]   : c
+    c = kernel == "Notch"             ? [1.5, -0.25] : c
+    c = kernel == "SoftCubic100"      ? [1.0,   0.0] : c  # Also called Spline (same as GaussResize(p=21))
+    c = kernel == "Robidoux Soft"     ? [rbb,   rbc] : c  # up,dw BC-spline soft approximation to EWA affine scaling. Close to a 'Quadratic' kernel.
+    c = kernel == "SoftCubic75"       ? [0.75, 0.25] : c
+    c = kernel == "BilcubicD"         ? [1/3.,  0.0] : c  # dw Bicubic practical match to Bilinear.
+    c = kernel == "BilcubicU"         ? [0.5,   0.2] : c  # up Bicubic practical match to Bilinear.
+    c = kernel == "Hermite"           ? [0.0,   0.0] : c  # up,dw Canonical Bicubic approximation to Bilinear (a bit sharper than it)
+    c = kernel == "Robidoux"          ? [rb,     rc] : c  # up,dw Derived from EWA considerations, the values that "minimize the maximum possible change in vertical or horizontal straight lines (Robidoux) or any image (RobidouxSharp) under no-op" while satisfying Keys Cubics (affine gradients)
+    c = kernel == "Centroid"          ? [0.37, 0.35] : c  # up Arithmetic mean of the satisfactory zone (by Dogway)
+    c = kernel == "Mitchell-Netravali"? [1/3., 1/3.] : c  # up Canonical Bicubic (roughly equivalent to EWA Robidoux, a little softer though)
+    c = kernel == "Robidoux Sharp"    ? [rsb,   rsc] : c  # up,dw
+    c = kernel == "SoftCubic50"       ? [0.5,   0.5] : c
+    c = kernel == "Catmule-Dog"       ? [0.1750,0.4125]:c # up Sharp while orthogonally furthest key cubic coefficients from Blocking and Ringing zones in Cubics diagram (between CatRom and RobiSharp) (by Dogway)
+    c = kernel == "Cub-grange"        ? [0.0308,0.4846]:c # up but also dw. Bicubic approximation to Lagrange scaling (a bit sharper than it)
+    c = kernel == "Catmull-Rom"       ? [ 0.0,  0.5] : c  # up Canonical sharp Bicubic (roughly equivalent to spline16resize() and EWA RobidouxSharp)
+    c = kernel == "Didee"             ? [-0.5, 0.25] : c  # dw Didée's downscaling sharp coefficients. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
+    c = kernel == "Zopti"             ? [-0.6,  0.4] : c  # dw 2160p to 720p Zopti optimized (by Boulder) (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218#post1865218
+    c = kernel == "ZoptiN"            ? [-0.6,  0.3] : c  # dw Like Zopti but more neutral (better over/undershoot normalization). Good for final resizing.
+    c = kernel == "ZoptiH"            ? [-0.83,0.14] : c  # dw 1080 to half optimized (for 1080p and smaller clips)
+    c = kernel == "Zopti720"          ? [-1.00,0.16] : c  # dw 1080p to 720p (for upscaling it always optimized to Catmull-Rom, although I visually prefer Precise)
+    c = kernel == "Zopti720U"         ? [-0.99,0.26] : c  # dw 2160p to 720p. This is my optimization for going straight from UHD to 720p, but I still recommend going first "Zopti1080" to 1080p and then "SSIM2" to 720p.
+    c = kernel == "Zopti1080"         ? [-0.99,0.06] : c  # dw 2160p to 1080p. Suprisingly better than using "SSIM2". If you want to skip halos but retain the great texture rendition use deep_resize(1080,edge="Didee",flat="Zopti1080")
+    c = kernel == "Precise"           ? [ 0.0, 0.75] : c  # up Almost identical to spline36 but a bit more halo. Very good cheap upscaler.
+    c = kernel == "Sharp"             ? [ 0.0,  1.0] : c  # dw Good alternative for dw. Less aliasing and sharper edges but softer textures.
+    c = kernel == "Hatch"             ? [ 0.0, -5.0] : c
 
     # Aliases
-  # c = kernel == "Spline"            ? [1.0,0.0]    : c # Commented as to not conflict with SplinexxResize kernel
+  # c = kernel == "Spline"            ? [1.0,0.0]    : c # Commented as to not conflict with SplinexxResize kernel.
     c = kernel == "SoftCubic"         ? [0.75,0.25]  : c
     c = kernel == "Precise Bicubic"   ? [0.0,0.75]   : c
     c = kernel == "Catrom"            ? [0.0,0.5]    : c
@@ -1921,21 +2012,23 @@ function color_coef (string "prims", string "mat", string "illu") {
     illu       = Default(illu,    "D65")
 
     mat_i =
-\     (mat    == "sRGB"           ) ? 1
-\   : (mat    == "709"            ) ? 1
-\   : (mat    == "170M"           ) ? primd ? 2 : 0
-\   : (mat    == "470M"           ) ? 0
-\   : (mat    == "2020CL"         ) ? 5
-\   : (mat    == "2020NCL"        ) ? 5
-\   : (mat    == "AdobeRGB"       ) ? 6
-\   : (mat    == "AWG"            ) ? 7
-\   : (mat    == "Display-P3"     ) ? 8
-\   : (mat    == "DCI-P3"         ) ? 9
-\   : (mat    == "ACEScg"         ) ? 10
-\   : (mat    == "ACESCCt"        ) ? 10
-\   : (mat    == "ACES2065"       ) ? 11
-\   : (mat    == "240M"           ) ? 3
-\   : (mat    == "470BG"          ) ? primd ? 4 : 0 : 1
+\     (mat    == "sRGB"           ) ? 1              : (mat    == "WideGamut"      ) ? 13
+\   : (mat    == "709"            ) ? 1              : (mat    == "AppleRGB"       ) ? 14
+\   : (mat    == "170M"           ) ? primd ? 2 : 0  : (mat    == "ProPhoto"       ) ? 15
+\   : (mat    == "470M"           ) ? 0              : (mat    == "ColorMatch"     ) ? 16
+\   : (mat    == "2020CL"         ) ? 5              : (mat    == "RussellRGB"     ) ? 17
+\   : (mat    == "2020NCL"        ) ? 5              : (mat    == "BestRGB"        ) ? 18
+\   : (mat    == "AdobeRGB"       ) ? 6              : (mat    == "BruceRGB"       ) ? 19
+\   : (mat    == "AWG"            ) ? 7              : (mat    == "DonRGB4"        ) ? 20
+\   : (mat    == "Display-P3"     ) ? 8              : (mat    == "BetaRGB"        ) ? 21
+\   : (mat    == "DCI-P3"         ) ? 9              : (mat    == "ECI-RGB"        ) ? 22
+\   : (mat    == "ACEScg"         ) ? 10             : (mat    == "AllColorsRGB"   ) ? 23
+\   : (mat    == "ACESCCt"        ) ? 10             : (mat    == "EktaSpacePS5"   ) ? 24
+\   : (mat    == "ACES2065"       ) ? 11             : (mat    == "CIE RGB"        ) ? 25
+\   : (mat    == "240M"           ) ? 2              : (mat    == "MaxRGB"         ) ? 26
+\   : (mat    == "470BG"          ) ? primd ? 4 : 0  : (mat    == "xTremeRGB"      ) ? 27
+\   : (mat    == "NTSC-J"         ) ? 12             : (mat    == "ChromeSpace100" ) ? 24 : 1
+
 # * Deriving Rec709 matrix coefficients from its primaries is noted as BT.709-2, in contrast to older and slightly different BT.709-1
 
     mat_wp =
@@ -1944,53 +2037,283 @@ function color_coef (string "prims", string "mat", string "illu") {
 \   : (mat    == "DCI-P3"         ) ? 3
 \   : (mat    == "ACES2065"       ) ? 4
 \   : (mat    == "ACEScg"         ) ? 4
-\   : (mat    == "AWG"            ) ? 2
-\   :                                 1
+\   : (mat    == "AWG"            ) ? 2 : 1
 
-    # The coordinates and CCT's are from CIE 1931 2 degree standard observer
+    # The coordinates and CCT's are from CIE 1931 2º Standard Observer
     mat_wp =
-\     (illu   == "D50"            ) ? 2
+\     (illu   == "A"              ) ? 13
+\   : (illu   == "B"              ) ? 14
+\   : (illu   == "D50"            ) ? 2
 \   : (illu   == "D55"            ) ? 6
+\   : (illu   == "ACES"           ) ? 9
 \   : (illu   == "D60"            ) ? 4
 \   : (illu   == "DCI"            ) ? 3
 \   : (illu   == "D65"            ) ? 1
 \   : (illu   == "C"              ) ? 0
 \   : (illu   == "E"              ) ? 5
 \   : (illu   == "D75"            ) ? 7
-\   : (illu   == "D93"            ) ? 8 : mat_wp
-# * D93 is not a D standard illuminant. Here it is defined for CCT (correlated) to Japanese consumer's TV standard "9300K+27 MPCD". "9300K+8 MPCD" for master CRT corresponds to 0.2838, 0.2984
+\   : (illu   == "D93"            ) ? 8
+\   : (illu   == "Sunlight"       ) ? 11
+\   : (illu   == "Overcast"       ) ? 12 : mat_wp
+
+# History:
+# Initially D (Daylight) series illuminants made reference to its number designation in absolute numbers (ie. D50 = 5000K)
+# In 1948, Planck's c2 coefficient (second radiation constant) was updated from 1.438 * 10^(-2) to 1.4388 * 10^(-2)
+# Since 2018, c2 is fixed at an exact value of 1.438776877 * 10^(-2), therefore turning the original 5000K to 5000*(1.438776877/1.438) = 5002.70124K
+# Before 1948, c2 was defined at 1.432 by the SI, despite this CIE used the "U.S. National Bureau of Standards" constant proposal of 1.435, which was used for the Illuminants A, B and C.
+
+# Illuminants try to match the medium and environment mixed contribution white point where the colors are meant to be reproduced.
+# * CCT of about 1850K matches that of a candle light
+# * 'A' Illuminant represents the temperature of a tungsten incandescent light of ~100W (2855.496K)
+# * CCT between 2650K and 3500K is typical of halogen-tungsten light bulbs
+# * CCT between 4200K and 4800K is typical of fluorescents used in scanners
 # * D50 is commonly used for printing and ICC profiles
-# * D55 is common in photography
-# * D60 is used for ACES
-# * D65 is used for consumer media in dim surround
+# * D55 is common in photography as it matches daylight-balanced color negative film temperature. Represents a clear sky sunny daylight.
+# * ACES is used for ACES color spaces. With a CCT of 6000.07K actually this is not a D illuminant, neither a Planckian locus. Reasoning: https://docs.acescentral.com/tb/white-point
 # * DCI is for (cinema) projectors
+# * D65 is used for consumer media shown in LED displays under dim surround, represents an overcast daylight temperature at noon
+# * D93 is not a D standard illuminant. Here it is defined for CCT (correlated) to Japanese consumer's TV standard "9300K+27 MPCD". "9300K+8 MPCD" for master CRT corresponds to 0.2838, 0.2984
 
-    # Hardcode constants for the Kr, Kg, Kb derivations
-    mat_w =
-\     (mat    == "170M"           ) ? 0
-\   : (mat    == "470BG"          ) ? 0
-\   : (mat    == "AWG"            ) ? 2 : mat_wp
 
-    # These primaries are associated with their respective standard illuminants (aligned right below 'pw' and 'wp')
-    # It's mandatory for them to do a chromatic adaptation to convert them to the new illuminant primaries. RGB_to_XYZ() and XYZ_to_RGB() do this automatically.
-    #
-    #                     NTSC 1953/YCbCr   ITU-R BT.709-6/sRGB ITU-R BT.601     Y’PbPr 601        PAL/SECAM         BT-2020/BT-2100      Adobe RGB (1998)  Adobe Wide Gamut   Display-P3/D65P3  DCI-P3            AP1                AP0                E (Neutral)    D55                D75                NTSC-J*        P22/NTSC-J (from https://bkict-ocw.knu.ac.kr/caster/file/lecture/5955F4002DC3E.pdf)
-    #                     BT-470M/FCC       IEC 61966-2-1       SMPTE 170M       SMPTE 240M        BT-470BG          BT-2020/BT-2100      Adobe RGB (1998)  AWG                SMPTE RP 432-1    SMPTE RP 431-2    ACEScg/ACEScct     SMPTE ST 2065-1    XYZ            D55                D75                9300K+27 MPCD  9300K+27 MPCD  ProPhotoRGB       Sunlight        Overcast
-    pr  = Select (mat_i,  [0.670,  0.330],  [0.640, 0.330],    [0.630,  0.340],  [0.630,  0.340],  [0.640,  0.330],  [0.70792, 0.29203],  [0.640,  0.330],  [0.73469,0.26531], [0.680,  0.320],  [0.680,  0.320],  [0.713,   0.293],  [0.7347,  0.2653], [1.0, 0.0] ,                                        [0.618, 0.350],[0.641, 0.327],[0.7347, 0.2653] )
-    pg  = Select (mat_i,  [0.210,  0.710],  [0.300, 0.600],    [0.310,  0.595],  [0.310,  0.595],  [0.290,  0.600],  [0.17024, 0.79652],  [0.210,  0.710],  [0.11416,0.82621], [0.265,  0.690],  [0.265,  0.690],  [0.165,   0.830],  [0.0000,  1.0000], [0.0, 1.0] ,                                        [0.280, 0.605],[0.272, 0.591],[0.1596, 0.8404] )
-    pb  = Select (mat_i,  [0.140,  0.080],  [0.150, 0.060],    [0.155,  0.070],  [0.155,  0.070],  [0.150,  0.060],  [0.13137, 0.04588],  [0.150,  0.060],  [0.15664,0.01770], [0.150,  0.060],  [0.150,  0.060],  [0.128,   0.044],  [0.0001, -0.0770], [0.0, 0.0] ,                                        [0.152, 0.063],[0.142, 0.052],[0.0366, 0.0001] )
-    pw  = Select (mat_w,  [0.31006,0.31616],[0.312713, 0.329016],                                                                                           [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3],  [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311]               ,[0.34567,0.35850], [0.3362,0.3502],[0.3134,0.3275])
-    wp  = Select (mat_wp, [0.31006,0.31616],[0.312713, 0.329016],                                                                                           [0.34567,0.35850],                   [0.314,  0.351],  [0.32168,0.33767]                   , [1./3,1./3],  [0.33242, 0.34743],[0.29902, 0.31485],[0.281, 0.311]               ,[0.34567,0.35850], [0.3362,0.3502],[0.3134,0.3275])
-    Kv  = Select (mat_wp,  6774.153        , 6503.519           ,                                                                                            5001.828        ,                    6302.797      ,   6000.07                            ,  5455.486  ,   5502.815         , 7506.288         , 8945.623                    , 5001.828        ,  5348.372      , 6477.494      )
-  # Kv (Kelvin) are Correlated Color Temperatures (CCT) derived from 'CIE 1931 2º Degree Standard Observer' CMF with 'native' isotherms
-  # *  A third set of primaries for Japanese NTSC (1987) simply uses 170M prims but with [0.2848, 0.2932] chromatic coordinates
-  # *  BT.2035 defines D93 as 0.2831, 0.2971, but this is a simple straight CCT of 9300K not the illuminant used in standard consumer CRTs in Japan (actually 9300K+27 MPCD**)
-  # *  D65 up to 6 significant digits (CICA98, 5.3)
-  # ** MPCD -Minimum Perceptible Color Difference- refers to the deviation unit in respect to the temperature CCT. For example D65 can also be specified as 6700K + 18 MPCD or more correctly as 6504K + 4 MPCD.
+# These primaries are associated with their respective standard illuminants.
+# It's mandatory for them to do a chromatic adaptation to convert them to the new illuminant primaries. RGB_to_XYZ() and XYZ_to_RGB() do this automatically.
+# Correlated Color Temperatures (CCT) in K (Kelvin) are derived from 'CIE 1931 2º Degree Standard Observer' CMF with 'native' isotherms
 
-    pr = [pr[0], pr[1], 1 - pr[0] - pr[1]]    pw = [pw[0], pw[1], 1 - pw[0] - pw[1]]
-    pg = [pg[0], pg[1], 1 - pg[0] - pg[1]]    wp = [wp[0], wp[1], 1 - wp[0] - wp[1]]
-    pb = [pb[0], pb[1], 1 - pb[0] - pb[1]]
+#####################################################################################
+###                                                                                ##
+### Illuminant 'C' family color spaces (CCT of 6774.153K) (leg. indirect sunlight) ##
+    wp = mat_wp==0 ? [0.31006, 0.31616] : [0.312713, 0.329016]                     ##
+###                                                                                ##
+#####################################################################################
+
+    # NTSC 1953
+    # BT-470M / FCC
+    cs = mat_i==0 ? [0.670,  0.330,   \
+                     0.210,  0.710,   \
+                     0.140,  0.080] : \
+                    [0.640,  0.330,   \
+                     0.300,  0.600,   \
+                     0.150,  0.060]   # Fallback to 709 + D65 when no match
+
+###################################################
+###                                              ##
+### 'D65' family color spaces (6503.512K)        ##
+    wp = mat_wp==1 ? [0.312713, 0.329016] : wp   ##
+###                                              ##
+###################################################
+
+    # sRGB (IEC 61966-2-1) and ITU-R BT.709-6 (originally CCIR Rec.709)
+    cs = mat_i==1 ? [0.640,  0.330, \
+                     0.300,  0.600, \
+                     0.150,  0.060  ] : cs
+    # Y’PbPr 601 | ITU-R BT.601 (originally CCIR Rec.601-1 circa 1982)
+    # SMPTE 240M | SMPTE 170M   (modeled after P22 phosphors of Conrac consumer CRTs)
+    cs = mat_i==2 ? [0.630,   0.340, \
+                     0.310,   0.595, \
+                     0.155,   0.070  ] : cs
+    # PAL/SECAM
+    # BT-470BG (originally EBU Tech.3123)
+    cs = mat_i==4 ? [0.640,   0.330, \
+                     0.290,   0.600, \
+                     0.150,   0.060  ] : cs
+    # BT-2020/BT-2100
+    cs = mat_i==5 ? [0.70792, 0.29203, \
+                     0.17024, 0.79652, \
+                     0.13137, 0.04588] : cs
+    # Adobe RGB (1998) (ClayRGB in Elle Stone's profiles)
+    cs = mat_i==6 ? [0.640,   0.330, \
+                     0.210,   0.710, \
+                     0.150,   0.060  ] : cs
+    # Apple RGB
+    cs = mat_i==15? [0.6250,  0.3400, \
+                     0.2800,  0.5950, \
+                     0.1550,  0.0700 ] : cs
+    # Bruce RGB (very early SWOP printing standard space)
+    cs = mat_i==19? [0.6400,  0.3300, \
+                     0.2800,  0.6500, \
+                     0.1500,  0.0600 ] : cs
+
+###################################################
+###                                              ##
+### 'DCI' family color spaces (CCT of 6302.797K) ##
+    wp = mat_wp==3 ? [0.314,  0.351] : wp        ##
+###                                              ##
+###################################################
+
+
+    # SMPTE RP 432-1 (Display-P3 / D65P3)  (Display-P3 keeps the same primaries but over a D65 illuminant)
+    # SMPTE RP 432-2 (DCI-P3)
+    cs = mat_i==9 ? [0.680,  0.320, \
+                     0.265,  0.690, \
+                     0.150,  0.060] : cs
+
+###################################################
+###                                              ##
+### 'ACES' family color spaces (CCT of 6000.07K) ##
+    wp = mat_wp==9 ? [0.32168,0.33767] : wp      ##
+###                                              ##
+###################################################
+
+    # AP1 (ACEScg/ACEScc/ACEScct)
+    cs = mat_i==10? [0.713,   0.293, \
+                     0.165,   0.830, \
+                     0.128,   0.044 ] : cs
+    # AP0 (ACES2065 -SMPTE ST 2065-1-)
+    cs = mat_i==11? [0.7347,  0.2653, \
+                     0.0000,  1.0000, \
+                     0.0001, -0.0770] : cs
+
+##############################################################
+###                                                         ##
+### 'E' -achromatic- family color spaces (CCT of 5455.486K) ##
+    wp = mat_wp==5 ? [1./3,1./3] : wp                       ##
+###                                                         ##
+##############################################################
+
+    # CIE RGB
+    cs = mat_i==25? [0.7346900230, 0.2653099770, \
+                     0.2736747378, 0.7174284409, \
+                     0.1665361196, 0.0088826412] : cs
+    # XYZ
+    cs = mat_i==13? [1.0, 0.0, \
+                     0.0, 1.0, \
+                     0.0, 0.0] : cs
+
+###########################################################
+###                                                      ##
+### '9300+27MPCD' family color spaces (CCT of 8945.623K) ##
+    wp = mat_wp==8 ? [0.281, 0.311] : wp                 ##
+###                                                      ##
+###########################################################
+# *  BT.2035 defines 'D93' as 0.2831, 0.2971, but this is a simple straight CCT of 9300K not the illuminant used in standard consumer CRTs in Japan (actually 9300K+27 MPCD**)
+# ** MPCD -Minimum Perceptible Color Difference- refers to the deviation unit in respect to the temperature CCT. For example D65 can also be specified as 6700K + 18 MPCD or more correctly as 6504K + 4 MPCD.
+
+
+    # NTSC-J (https://web.archive.org/web/20130413104152if_/http://arib.or.jp/english/html/overview/doc/4-TR-B09v1_0.pdf#[{"num":73,"gen":0},{"name":"FitR"},-119,195,724,850])
+    cs = mat_i==12? [0.618, 0.350, \
+                     0.280, 0.605, \
+                     0.152, 0.063] : cs
+    # NTSC-J/P22 (https://bkict-ocw.knu.ac.kr/caster/file/lecture/5955F4002DC3E.pdf#page=14)
+    cs = mat_i==0 ? [0.641, 0.327, \
+                     0.272, 0.591, \
+                     0.142, 0.052] : cs
+
+# A third set of primaries for Japanese NTSC (1987) simply uses 170M prims but with [0.2848, 0.2932] chromatic coordinates
+
+###########################################################
+###                                                      ##
+### 'D50' family color spaces (5002.701K)                ##
+    wp = mat_wp==2 ? [0.34567,0.35850] : wp              ##
+###                                                      ##
+###########################################################
+# Most of these come from: http://www.brucelindbloom.com/index.html?WorkingSpaceInfo.html
+
+    # Don RGB 4
+    cs = mat_i==20? [0.6960, 0.3000, \
+                     0.2150, 0.7650, \
+                     0.1300, 0.0350] : cs
+    # Best RGB
+    cs = mat_i==18? [0.7347, 0.2653, \
+                     0.2150, 0.7750, \
+                     0.1300, 0.0350] : cs
+    # Beta RGB
+    cs = mat_i==21? [0.6888, 0.3112, \
+                     0.1986, 0.7551, \
+                     0.1265, 0.0352] : cs
+    # ColorMatch RGB (very close to PAL/SECAM but with D50 illuminant)
+    cs = mat_i==16? [0.6300, 0.3400, \
+                     0.2950, 0.6050, \
+                     0.1500, 0.0750] : cs
+    # ECI RGB v2
+    cs = mat_i==22? [0.6700, 0.3300, \
+                     0.2100, 0.7100, \
+                     0.1400, 0.0800] : cs
+    # Ekta Space PS5 / Chrome Space 100
+    cs = mat_i==24? [0.6950, 0.3050, \
+                     0.2600, 0.7000, \
+                     0.1100, 0.0050] : cs
+    # Wide Gamut RGB (Adobe's first attempt at a Wide Gamut)
+    cs = mat_i==13? [0.7347, 0.2653, \
+                     0.1152, 0.8264, \
+                     0.1566, 0.0177] : cs
+    # AWG (Adobe Wide Gamut)
+    cs = mat_i==7 ? [0.73469, 0.26531, \
+                     0.11416, 0.82621, \
+                     0.15664, 0.01770] : cs
+    # ProPhotoRGB (LargeRGB in RawTherapee and Elle Stone's profiles)
+    cs = mat_i==15? [0.7347, 0.2653, \
+                     0.1596, 0.8404, \
+                     0.0366, 0.0001] : cs
+    # AllColorsRGB (includes illegal values)
+    cs = mat_i==23? [0.734690265,  0.26530973500000000000, \
+                     0.000000000,  1.00000000000000000000, \
+                     0.000000000, -0.07585421971554103213] : cs
+    # MaxRGB (includes illegal values)
+    cs = mat_i==26? [0.7340, 0.2660, \
+                     0.1000, 0.9000, \
+                     0.0366, 0.0001] : cs
+    # Xtreme16RGB (includes irreal values)
+    cs = mat_i==27? [0.9999, 0.0001, \
+                     0.0001, 0.9999, \
+                     0.0001, 0.0001] : cs
+    # "Gamut A" - Philips LivingColors gamut
+    cs = mat_i==30? [0.7040, 0.2960, \
+                     0.2151, 0.7106, \
+                     0.1380, 0.0800] : cs
+    # "Gamut B" - Philips HUE Gen1 & Gen2 (uses the sRGB transfer) Illuminant Unknown (D50 assumed)
+    cs = mat_i==30? [0.6750, 0.322, \
+                     0.4091, 0.518, \
+                     0.1670, 0.040] : cs
+    # "Gamut C" - Philips HUE Gen3+, HUE Go, and Lightstrip Plus
+    cs = mat_i==30? [0.692, 0.308, \
+                     0.170, 0.700, \
+                     0.153, 0.048] : cs
+
+################################################################
+###                                                           ##
+### 'D55' (Film Stock) family color spaces (5502.971K)        ##
+    wp = mat_wp==6 ? [0.33243, 0.34744] : wp                  ##
+###                                                           ##
+################################################################
+
+    # Russell RGB
+    cs = mat_i==17? [0.6900, 0.3100, \
+                     0.1800, 0.7700, \
+                     0.1000, 0.0200] : cs
+
+###################################################
+###                                              ##
+### 'D60' illuminant (6003.241K)                 ##
+    wp = mat_wp==4 ? [0.321626, 0.337737] : wp   ##
+###                                              ##
+###################################################
+
+###################################################
+###                                              ##
+### 'D75' illuminant (7504.052K)                 ##
+    wp = mat_wp==7 ? [0.29903, 0.31488] : wp     ##
+###                                              ##
+###################################################
+
+    # Illuminant 'A' illuminant (2855.496K) Tungsten incandescent bulb of ~100W
+    wp = mat_wp==13 ? [0.44758,0.40745] : wp
+
+    # Illuminant 'B' illuminant (CCT of 4873.998K) Deprecated Sunlight standard, see 'Sunlight' below for updated CCT
+    wp = mat_wp==14 ? [0.34842,0.35161] : wp
+
+    # 'Sunlight' illuminant (CCT of 5348.372K)
+    wp = mat_wp==9  ? [0.3362, 0.3502]  : wp
+
+    # 'Overcast' illuminant (CCT of 6477.494K)
+    wp = mat_wp==10 ? [0.3134, 0.3275]  : wp
+
+    # Hard-coded constants for the Kr, Kg, Kb derivations
+    pw = mat_i == "170M" || mat_i == "470BG" ? [0.31006, 0.31616] : wp
+
+
+    pr = [cs[0], cs[1], 1 - cs[0] - cs[1]]    pw = [pw[0], pw[1], 1 - pw[0] - pw[1]]
+    pg = [cs[2], cs[3], 1 - cs[2] - cs[3]]    wp = [wp[0], wp[1], 1 - wp[0] - wp[1]]
+    pb = [cs[4], cs[5], 1 - cs[4] - cs[5]]
 
     if (!primd) {
     det = pw[1] * Dot([pr[0],pg[0],pb[0]], Cross([pr[1],pg[1],pb[1]], [pr[2],pg[2],pb[2]]))
@@ -2008,28 +2331,36 @@ function color_coef (string "prims", string "mat", string "illu") {
 # While NTSC-525 and PAL-625 are defined with 170M and 470BG OETFs respectively nowadays 1886 is used as output transfer (inverse EOTF) (read note 3 on page 6 of REC-BT.601-7)
 # You should be conscious of this and change according your requirements.
 
+# Transfer functions help redistribute the values of the color gamut for better precision.
+
 function moncurve_coef (string transfer) {
 
-    # Normalized strings (601, 709, 2020, AWG and Display-P3 are redundant but kept for clarity)
+    # Normalized transfer strings (601, 709, 2020, AWG and Display-P3 are duplicates but kept as reference)
     t_num =
-\     (transfer == "sRGB"         ) ? 0
-\   : (transfer == "Display-P3"   ) ? 0
-\   : (transfer == "170M"         ) ? 1
-\   : (transfer == "601"          ) ? 1
-\   : (transfer == "709-Camera"   ) ? 1
-\   : (transfer == "2020NCL"      ) ? 1
-\   : (transfer == "2020CL"       ) ? 1
-\   : (transfer == "2020"         ) ? 1
-\   : (transfer == "240M"         ) ? 2
-\   : (transfer == "470BG"        ) ? 3
-\   : (transfer == "709"          ) ? 4
-\   : (transfer == "1886"         ) ? 4
-\   : (transfer == "AdobeRGB"     ) ? 5
-\   : (transfer == "AWG"          ) ? 5
-\   : (transfer == "DCIXYZ"       ) ? 6
-\   : (transfer == "linear"       ) ? 7
-\   : (transfer == "470M"         ) ? 8 : 4
-#\  : (transfer == "1886a"        ) ? 9 : 4
+\     (transfer == "470M"         ) ? 0
+\   : (transfer == "sRGB"         ) ? 1
+\   : (transfer == "Display-P3"   ) ? 1
+\   : (transfer == "170M"         ) ? 2
+\   : (transfer == "601"          ) ? 2
+\   : (transfer == "NTSC-J"       ) ? 2
+\   : (transfer == "709-Camera"   ) ? 2
+\   : (transfer == "2020NCL"      ) ? 2
+\   : (transfer == "2020CL"       ) ? 2
+\   : (transfer == "2020"         ) ? 2
+\   : (transfer == "240M"         ) ? 3
+\   : (transfer == "470BG"        ) ? 4
+\   : (transfer == "709"          ) ? 5
+\   : (transfer == "1886"         ) ? 5
+\   : (transfer == "AdobeRGB"     ) ? 6
+\   : (transfer == "AWG"          ) ? 6
+\   : (transfer == "DCIXYZ"       ) ? 7
+\   : (transfer == "linear"       ) ? 8
+\   : (transfer == "CIELab"       ) ? 9 : 5
+
+#\  : (transfer == "Chrome"       ) ? x
+#\  : (transfer == "AppleRGB"     ) ? x
+#\  : (transfer == "ColorMatch"   ) ? x # same as AppleRGB
+#\  : (transfer == "1886a"        ) ? x
 #\  : (transfer == "xvYCC"        ) ? -1
 #\  : (transfer == "PhotoCD"      ) ? -1 (same as xvYCC, a variant of '1' with negative fix)
 #\  : (transfer == "PQ"           ) ? -1
@@ -2042,7 +2373,7 @@ function moncurve_coef (string transfer) {
 
         #   alpha = offset     (x coord - 1)
         #   beta  = transition (y coord)= K0/Phi
-        #   phi   = slope
+        #   phi   = slope                (k0/beta)
         #   k0    = beta * phi or alpha / (gam-1)
                                                                       #  SMPTE 240M
         #   BT.2020/SMPTE 170M                                        #  piece+slope match
@@ -2065,18 +2396,19 @@ function moncurve_coef (string transfer) {
             phi   = 12.92321018078786109464                              phi   = 12.92
             */
 
-    #                                                SMPTE-C    / BT-2020           Y’PbPr 601              PAL/SECAM                      Rec.709  AdobeRGB   DCI-P3      AP1/AP0    NTSC 1953/YCbCr Apple TRC**
-    #                       sRGB                     SMPTE 170M / BT-2020           SMPTE 240M (historical) BT-470BG (historical)          BT-1886  AdobeRGB** DCI-P3/XYZ  ACES/LIN   BT-470M/FCC
-    t_gamma = Select(t_num, 2.40                   , 1/0.45                       , 1/0.45                , 2.80                         , 2.40   , 563/256.,  2.60       , 1.0      , 2.2           , 461/256.   )
-    t_alpha = Select(t_num, 0.055                  , 0.099296826809442940347282759, 0.1115                , 0.099296826809442940347282759, 0      , 0       ,  0          , 0        , 0             , 0          )
-    t_beta  = Select(t_num, 0.00303993463977843    , 0.018053968510807807335869592, 0.02280681818181818182, 0.00410749063249639977       , 0      , 0       ,  0          , 0        , 0             , 0          )
-    t_k0    = Select(t_num, 0.03928571428571428571 , 0.081242858298635133011413164, 0.09122727272727272727, 0.05516490378302385575       , 0      , 0       ,  0          , 0        , 0             , 0          )
-    t_phi   = Select(t_num, 12.92321018078786109464, 4.5                          , 4.0                   , 13.43031761206876179575      , 4.5    , 0       ,  0          , 0        , 0             , 0          )
-    p_approx= Select(t_num, 2.223333               , 1.946666                     , 1.920000              , 2.460000                     , 2.40   , 2.199219,  2.60       , 1.0      , 2.2           , 1.800781255)
+    #                        NTSC 1953/YCbCr                          SMPTE-C    / BT-2020           Y’PbPr 601              PAL/SECAM                      Rec.709  AdobeRGB   DCI-P3      AP1/AP0    CIE L*ab
+    #                        BT-470M/FCC     sRGB                     SMPTE 170M / BT-2020           SMPTE 240M (historical) BT-470BG (historical)          BT-1886  AdobeRGB** DCI-P3/XYZ  ACES/LIN
+    t_gamma = Select(t_num,  2.2           , 2.40                   , 1/0.45                       , 1/0.45                , 2.80                         , 2.40   , 563/256.,  2.60       , 1.0      , 3.0       )
+    t_alpha = Select(t_num,  0             , 0.055                  , 0.099296826809442940347282759, 0.1115                , 0.099296826809442940347282759, 0      , 0       ,  0          , 0        , 0.16      )
+    t_beta  = Select(t_num,  0             , 0.00303993463977843    , 0.018053968510807807335869592, 0.02280681818181818182, 0.00410749063249639977       , 0      , 0       ,  0          , 0        , 0.00885645167903563082)
+    t_k0    = Select(t_num,  0             , 0.03928571428571428571 , 0.081242858298635133011413164, 0.09122727272727272727, 0.05516490378302385575       , 0      , 0       ,  0          , 0        , 0.08      )
+    t_phi   = Select(t_num,  0             , 12.92321018078786109464, 4.5                          , 4.0                   , 13.43031761206876179575      , 4.5    , 0       ,  0          , 0        , (24389/27.)/100) # 9.032963
+    p_approx= Select(t_num,  2.2           , 2.220000               , 1.943333                     , 1.916666              , 2.460000                     , 2.40   , 2.199219,  2.60       , 1.0      , 2.48      )
   # *  Approximated matching power law gamma value
-  # ** An hexadecimal rounded value of the ideal 2.2 or 1.8 power gamma. There's also the original piecewise function with a linear part in the shadows
+  # ** An hexadecimal rounded value of the ideal 2.2 power gamma.
 
     [t_gamma, t_alpha] }
+
 
 
 
