@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.0   (12-09-2022)                   ##
+###        ExTools v9.1   (20-10-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -209,8 +209,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
 
     Daug = Defined(aug)     Baug = isBool(aug)
     met  = Daug && !Baug ? aug == -1 ? "ALL" : "none" : "none"
-    dif  = Default(dif,        bi!=32)
     tv   = Default(tv_range,    false)   # Enable to mimic Subtract(), "ygrey" centered instead of "range_half" (only applies to luma plane)
+    dif  = Default(dif,  tv || bi!=32)
     fs   = Default(fulls,          fs)   # Only used for 'metric' to properly convert to PC range
     cf   = Default(clamp_float, false)
     mcf  = Default(metric,        met)   # "ALL", "none" or "metric_name".
@@ -500,6 +500,12 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "sca
 
 # mt_logic(mode="and") is 6% slower
 #
+# AND  : if both pixels in a pair have the value of 255, you値l get 255 in a result clip, otherwise 0.
+# OR   : if any of pixels in a pair has the value of 255, you値l get 255, otherwise 0.
+# XOR  : if both pixels have the value of 255 or 0, you値l get 0, otherwise (if only one of the pixels is 255) 255.
+# ANDN : you値l get 255 if and only if the first pixel is 255 and the second is 0.
+#
+#
 # Function Definition:
 #    (
 #    clip a,
@@ -735,11 +741,8 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
                 }
                     Mf = F != 0 ? Mf / F : 0
 
-                Wb = B / (B + F)
-                Wf = F / (B + F)
-
                 # Between class variance for each 't'
-                Eval(Format("th{t} = Wb * Wf * pow(Mb - Mf, 2) "))
+                Eval(Format("th{t} = ((B * F)/pow(B+F,2)) * pow(Mb - Mf, 2) "))
             }
 
             th = max(max(max(max(max(max(max(max(max(th0,th1),th2),th3),th4),th5),th6),th7),th8),th9)
@@ -1220,7 +1223,7 @@ function binom_coeffs(n, k) {
 #  88% ablur(1, 1, chroma=1)                        # against ex_boxblur(2,mode="weighted",UV=1)
 #  85% BinomialBlur(sqrt(1)/2.*sqrt(2),U=1,V=1)     # only in 8-bit
 #  81% vsTCanny(sqrt(1)/2.*sqrt(2),mode=-1,u=1,v=1) # true gaussian (fastest for mid sigma, not apt for combing -not exact binomial fit of rad=1-)
-#  70% ex_blur(1,mode="binomial,UV=1)               # true gaussian blur
+#  70% ex_blur(1,mode="binomial",UV=1)              # true gaussian blur
 #  68% blur(1.00)                                   # weighted mean of [1 2 1]
 #  65% generalconvolution(matrix="1 2 1 2 4 2 1 2 1",chroma=false)
 #  44% mt_convolution("1 2 1","1 2 1",U=1,V=1)
@@ -1235,7 +1238,7 @@ function binom_coeffs(n, k) {
 # modes:
 # gaussian:    true gaussian blur
 # binomial:    discreet gaussian blur approximation (Default)
-# butterworth: bias between a ~gaussian (n=8) and mean (n=300) blur distribution with default n=6 (decay of 6dB/oct) typical for low-pass.
+# butterworth: bias between a ~gaussian (n=8) and mean (n=300) blur distribution with default n=6 (decay of 6dB/oct) typical for frequency domain low-pass.
 #
 # Other:
 # half-band:    ex_blur(1) or ex_boxblur(1,mode="weighted"). 'low-pass' filter, reduces the maximum bandwidth of sampled data (resolution) by a factor of 2 (1 octave)
@@ -1291,9 +1294,7 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     cstrh = md == "butterworth" ? butt_constructor(sm,n,false) : gauss_constructor(sm,false)
 
     if (gm != "none") {
-        matrix = Color_Fuzzy_search (gm)
-        s_gam  = moncurve_coef(matrix[0])
-        a      = moncurve_f(a, s_gam[0], s_gam[1], !fs, false, UV)
+        a      = CCTF(a, gm, true, !fs, false)
     }
 
     strv = ex_Yexpr (strv, Y, bi, rgb, fs)
@@ -1308,7 +1309,7 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     UV == 1 ? Expr(last, strh, ""                                                    ) : \
               Expr(last, strh, ex_UVexpr(cstrh, UV, bi, rgb, fs), scale_inputs="none")
 
-    gm != "none" ? moncurve_r(last, s_gam[0], s_gam[1], false, !fs, UV) : last       }
+    gm != "none" ? CCTF(last, gm, false, false, !fs) : last                         }
 
 
 function gauss_constructor(float rad, bool vert) {
@@ -1708,22 +1709,20 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ##     ResizersPack
 ##     vsTCanny  (for small radii or small sources - h <= 480)
 ##
-## It was profiled against ex_blur(mode="gaussian") so ex_blur(10,mode="gaussian") ~> ex_GaussianBlur(10)
-##
-## version 2013-10-23 raffriff42
-## version 2014-05-31 discrete hor. and vert. args
-## version 2017-05-21 bugfix: blockiness
-## version 2021-09-05 Optimized (~38% gain) and profiled against ex_blur(), also Y+UV args
-## version 2021-09-22 Added padding to protect borders and fallback to ex_blur() for low sigma
-## version 2021-10-12 Reparametrized. Changed to bilinear downscale, faster and more accurate. Change to mod2
-## version 2021-10-31 Reparametrized. Optimal 'p' value and linear regressed when pad=true
-## version 2021-12-15 Reparametrized. Correct UV blurring. Further fit fine tuning and fallback to vsTcanny for erratic fit in pad=false + high radii (>21) + small source
+## 2013-10-23 raffriff42
+## 2014-05-31 discrete hor. and vert. args
+## 2017-05-21 bugfix: blockiness
+## 2021-09-05 Optimized (~38% gain) and profiled against ex_blur(), also Y+UV args
+## 2021-09-22 Added padding to protect borders and fallback to ex_blur() for low sigma
+## 2021-10-12 Reparametrized. Changed to bilinear downscale, faster and more accurate. Change to mod2
+## 2021-10-31 Reparametrized. Optimal 'p' value and linear regressed when pad=true
+## 2021-12-15 Reparametrized. Correct UV blurring. Further fit fine tuning and fallback to vsTcanny for erratic fit in pad=false + high radii (>21) + small source
 ##
 ##
 ## Function Definition:
 ##    (
-##    clip,
-##    float sigma=1.0 (0.0 to 150.0),
+##     clip,
+##     float sigma=1.0 (0.0 to 150.0),
 ##    [float sigmaV=1.0 (0.0 to 150.0)],
 ##    [bool "pad"=true],
 ##    [bool "mblur"=true],
@@ -5973,10 +5972,10 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 ##   or
 ##   ex_hitormiss(mode="boundary")             # binary only
 ##
-## Top Hat:   (a - opening) To reveal bright elements (use kernel wisely) over dark backgrounds on a greyscale image
+## Top Hat:   (a - opening) To reveal bright elements (use kernel wisely) over dark backgrounds on a non-binary image
 ##   ex_makediff(a, ex_inpand(n).ex_expand(n), dif=false)
 ##
-## Black Hat: (closing - a) To reveal dark elements (use kernel wisely) over bright backgrounds on a greyscale image
+## Black Hat: (closing - a) To reveal dark elements (use kernel wisely) over bright backgrounds on a non-binary image
 ##   ex_makediff(ex_expand(n).ex_inpand(n), a, dif=false)
 ##
 ## Pseudomedian: (opening + closing)/2  Approximation to a simple median filter with morphological structuring elements
@@ -6930,8 +6929,8 @@ function ex_shape(int "rad", int "radV", string "mode", bool "center", bool "pop
 
 
 function clamp(val a, val mn, val mx) {
-Assert(isFloat(a) && isFloat(mn) && isFloat(mx), "clamp(): Not a number, revise")
-return min(max(a,mn),mx) }
+    Assert(isFloat(a) && isFloat(mn) && isFloat(mx), "clamp(): Not a number, revise")
+    return min(max(a,mn),mx) }
 
 
 function isRunTime(clip a, bool rgb) {
@@ -6941,7 +6940,7 @@ function isRunTime(clip a, bool rgb) {
     } catch ( error_msg ) {
       iRT = false
     }
-return iRT }
+    return iRT }
 
 
 function DivideStr(string str, string separator) {
@@ -7216,6 +7215,9 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 
 function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits") {
 
+    bi   = BitsPerComponent(a)
+    bi   = Default(bits,   bi)
+
     w    = width (a)    wm = width (msk)
     h    = height(a)    hm = height(msk)
 
@@ -7239,12 +7241,12 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
 
 
     wh = wm!=w || hm!=h
-    p_float = bits == 32
+    p_float = bi == 32
     clr     = UV > 6 ? ex_bs(UV, 8, bits, fulls=true) : 0
 
     mskYs   =  isy(msk)        ? msk        : isRGB(msk) ? msk.ExtractR() : msk.ExtractY()
     mskYt   =                                 mskYs.ConvertBits(8,dither=-1,fulls=true)
-    mskYr   =  !wh             ? mskYs      : mskYt.BicubicResize(w,h,0.262015,0.368993).ConvertBits(bits,fulls=true)
+    mskYr   =  !wh             ? mskYs      : mskYt.BicubicResize(w,h,0.262015,0.368993).ConvertBits(bi,fulls=true)
 
     w       = (i44 || rgb) ? w : i11        ? round(w/4.0) : round(w/2.0)
     h       = (i44 || rgb) ? h : i11 || i22 ?            h : round(h/2.0)
@@ -7252,8 +7254,8 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     mskC    = (i44 || rgb)     ? mskYr                                  : \
                                  mskYt.BicubicResize(w,h,0.0,0.5,cpw,cph) # no mod2 needed for chroma
 
-    mskC    = luma && UV==3    ? mskC.ConvertBits(bits,fulls=true)                         : \
-                                 BlankClip(a,1,w,h,"Y"+string(bits),colors=[clr],channels=0)
+    mskC    = luma && UV==3    ? mskC.ConvertBits(bi,fulls=true)                         : \
+                                 BlankClip(a,1,w,h,"Y"+string(bi),colors=[clr],channels=0)
 
     msk     = isy(a) ? mskYr : CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
 
@@ -7422,6 +7424,11 @@ function atanT(bool "expand") {
     elrs  = "A7 1.570796326 -"                                                                                           # from -2.1 onwards
     atanE = "XX@ dup dup -2.1 >= swap 2.1 <= & swap "+e3+" XX 2.1 > "+els+" "+elrs+" ? ?"
 
+    # Remez approximation   (-1.2 to 1.2)
+#    atanE = "dup dup * ZZ@ -0.0117212 * 0.05265332 + ZZ * 0.11643287 - ZZ * 0.19354346 + ZZ * 0.33262347 - ZZ * 0.99997726 + *"
+    # Another approximation (-1.0 to 1.0)
+#    atanE = "dup dup * -0.220587 * 0.983758618 + *"
+
     return ex ? atanE : e3 }
 
 
@@ -7431,6 +7438,9 @@ function atan2T(bool "expand") {
     ex    = Default(expand, true) # Enable for values beyond -2.1 and +2.1
 
     atan2 = "ZZ@ dup abs / SX^ YY@ dup abs / SY@ dup * YY ZZ / "+atanT(true)+" * 1 SX - 0.5 * SY dup dup * - 1 + * pi * +"
+
+    # Remez approximation
+#    atan2 = "ZZ@ dup 1.8424899 * 0.000000001 - dup ZZ * 9.9281202 - dup ZZ * 0.0000000027 + dup ZZ * 13.374235 + dup ZZ * 0.000000001210359 -"
 
     return atan2 }
 
@@ -7481,7 +7491,7 @@ function expT(int "degree") {
     # Maclaurin series - 1st degree polynomial. In some situations/expressions this is enough
     exp1  = "dup dup * 0.5 * 1 + +"
 
-    return d==1 ? exp1 : d==3 ? exp3 : d==5 ? exp5 : d==7 ? exp7 : d==9 ? exp9 : exp11 }
+    return Eval(Format("exp{d}")) }
 
 
 # (LEGACY: since v3.7.1 test19) Returns an approximation of cos(x) for -1.7 <= x <= 1.7 for near 300% speed increase (before AVS+ 3.7.1 test 19)
