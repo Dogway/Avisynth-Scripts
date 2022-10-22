@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC59  (20-10-2022)   ##
+###   Transforms Pack - Models v1.0 RC59  (22-10-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -29,7 +29,7 @@
 ###     CAT                                              ##
 ###     CMF                                              ##
 ###     SPD_D                                            ##
-###     Chroma_Coords                                    ##
+###     Chromaticity_xy                                  ##
 ###                                                      ##
 ###########################################################
 
@@ -48,9 +48,9 @@
 # Color Spaces are presented normally as a 3x3 matrix of their color primaries represented in the CIE 1931 diagram coordinates. This might be ok but be aware this is an over-simplification as color spaces are actually 3D volumes within the unitary XYZ cube, and part of them may actually fall outside the CIE 1931 color space which represents all the physically plausible colors.
 #
 # There are several types of Color Spaces defined by their role:
-# Characterization spaces are normally used to represent device gamuts for profiling on a unit-by-unit basis.
+# Characterization spaces are normally used to represent device gamuts for profiling on a unit-to-unit basis.
 # Standard spaces define a standard to comply with for delivery, normally they are derived from averaging measurements of real unit-by-unit devices defined by their used phosphors.
-# Finally working spaces don't need to be attached to any physical constraints so they can be as big as the CIE 1931 color space (some actually bigger than that), so they are suited for heavy color transformations without much degradation in the process. They can also be geared towards certain effects like getting more color resolution in certain HUES for exposing better shades in color grading tasks. Ultimately everything is being transformed into your viewing transform color space in real time so use any working space that suits your job.
+# Finally working spaces don't need to be attached to any physical constraints so they can be as big as the CIE 1931 color space (some actually bigger than that), so they are suited for heavy color transformations without much degradation in the process. They can also be geared towards certain effects like getting more color resolution in certain HUEs for exposing better shades in color grading tasks. Ultimately everything is being transformed into your viewing transform color space in real time so use any working space that suits your job.
 #
 #-470M                   - (Historical) ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953) with C illuminant and 170M OETF.
 #-170M                   - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (525-line = NTSC, SMPTE-C) (originally defined in "CCIR Recommendation 601-1 (1982-1986)").
@@ -133,7 +133,7 @@
 
 # List of Color Models:
 # Color Models -not to be confused with Color Spaces- describe the geometry coordinates of the color gamut container and hence its relation (or correlation) with the other channels. They are typically designed or tailored to certain Color Spaces, but not necessarily bound to them, like RGB or YCbCr which support many different Color Spaces and thus are nicked Color Absolute Models.
-# Color Spaces comprises Primaries and an associated Illuminant. It is also common to be associated with a transfer function although it's relationship is not as strict (as it depends on viewing conditions).
+# Color Spaces comprises Primaries and an associated Illuminant. It is also common to be associated with a transfer function although its relationship is not as strict (as it depends on viewing conditions).
 #
 # UCS: Uniform Color Space. Space (model) in which equal distances on the coordinate diagram correspond to equal perceived color differences.
 # With *: Color Appearance Models (CAM) (Perceptually Uniform -UCS- to various degrees)
@@ -2106,12 +2106,12 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
 
 # WIP
-function Chroma_Coords(clip a, int "Temp", string "CMF") {
+function Chromaticity_xy(clip a, int "Temp", string "CMF") {
 
     T   = Default(temp, 6504)
     CMF = Default(CMF, "1931")
     a
-    wp  = WhitePoint(temp, locus=T<4000?"Planckian":"Daylight", list=true) # From 4000 onwards use 'Daylight'
+    wp  = WhitePoint(temp, locus=T<5000?"Planckian":"Daylight", list=true) # From 5000 onwards use 'Daylight'
     wpx = wp[0]
     wpy = wp[1]
 
@@ -2119,7 +2119,8 @@ function Chroma_Coords(clip a, int "Temp", string "CMF") {
     M1 = (-1.3515 - 1.7703  * wpx + 5.9114  * wpy) / M
     M2 = ( 0.0300 - 31.4424 * wpx + 30.0717 * wpy) / M
 
-    # Beware, some CMFs start at 360nm, and others at 380nm
+    # Beware, some CMFs start at 360nm or 390nm
+    # Similarly some end at 830nm instead of 780nm
     W = []
     for (i=380, 780, 5) {
 
@@ -2135,38 +2136,14 @@ function Chroma_Coords(clip a, int "Temp", string "CMF") {
     }
 
 
-/*
-BSD-3-Clause - New BSD License
-Copyright (C) 2013-2022 - Colour Developers
-
-Redistribution and use in source and binary forms, with or without modification, are permitted provided
-that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and the
-following disclaimer.
-
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
-documentation and/or other materials provided with the distribution.
-
-3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived
-from this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
-WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-*/
 
 # CIE Standard Illuminant D Series SPD (Spectral Power Distribution) dataset
-# Precision of 5nm, and further spline interpolated.
+# https://en.wikipedia.org/wiki/Illuminant_D65#External_links
+# Precision of 10nm, and further cubic spline interpolated (as recommended in "Reevaluation of daylight spectral distributions" 2000)
 function SPD_D(int i) {
 
-    S0 = spline(i, 300,0.04, 305,3.02, 310,6.00, 315,17.80, 320,29.60, 325,42.45, 330,55.30, 335,56.30, 340,57.30, 345,59.55, 350,61.80, 355,61.65, 360,61.50, 365,65.15, 370,68.80, 375,66.10, 380,63.40, 385,64.60, 390,65.80, 395,80.30, 400,94.80, 405,99.80, 410,104.80, 415,105.35, 420,105.90, 425,101.35, 430,96.80, 435,105.35, 440,113.90, 445,119.75, 450,125.60, 455,125.55, 460,125.50, 465,123.40, 470,121.30, 475,121.30, 480,121.30, 485,117.40, 490,113.50, 495,113.30, 500,113.10, 505,111.95, 510,110.80, 515,108.65, 520,106.50, 525,107.65, 530,108.80, 535,107.05, 540,105.30, 545,104.85, 550,104.40, 555,102.20, 560,100.00, 565,98.00, 570,96.00, 575,95.55, 580,95.10, 585,92.10, 590,89.10, 595,89.80, 600,90.50, 605,90.40, 610,90.30, 615,89.35, 620,88.40, 625,86.20, 630,84.00, 635,84.55, 640,85.10, 645,83.50, 650,81.90, 655,82.25, 660,82.60, 665,83.75, 670,84.90, 675,83.10, 680,81.30, 685,76.60, 690,71.90, 695,73.10, 700,74.30, 705,75.35, 710,76.40, 715,69.85, 720,63.30, 725,67.50, 730,71.70, 735,74.35, 740,77.00, 745,71.10, 750,65.20, 755,56.45, 760,47.70, 765,58.15, 770,68.60, 775,66.80, 780,65.00, 785,65.50, 790,66.00, 795,63.50, 800,61.00, 805,57.15, 810,53.30, 815,56.10, 820,58.90, 825,60.40, 830,61.90)
-    S1 = spline(i, 300,0.02, 305,2.26, 310,4.50, 315,13.45, 320,22.40, 325,32.20, 330,42.00, 335,41.30, 340,40.60, 345,41.10, 350,41.60, 355,39.80, 360,38.00, 365,40.20, 370,42.40, 375,40.45, 380,38.50, 385,36.75, 390,35.00, 395,39.20, 400,43.40, 405,44.85, 410,46.30, 415,45.10, 420,43.90, 425,40.50, 430,37.10, 435,36.90, 440,36.70, 445,36.30, 450,35.90, 455,34.25, 460,32.60, 465,30.25, 470,27.90, 475,26.10, 480,24.30, 485,22.20, 490,20.10, 495,18.15, 500,16.20, 505,14.70, 510,13.20, 515,10.90, 520,8.60, 525,7.35, 530,6.10, 535,5.15, 540,4.20, 545,3.05, 550,1.90, 555,0.95, 560,0.00, 565,-0.80, 570,-1.60, 575,-2.55, 580,-3.50, 585,-3.50, 590,-3.50, 595,-4.65, 600,-5.80, 605,-6.50, 610,-7.20, 615,-7.90, 620,-8.60, 625,-9.05, 630,-9.50, 635,-10.20, 640,-10.90, 645,-10.80, 650,-10.70, 655,-11.35, 660,-12.00, 665,-13.00, 670,-14.00, 675,-13.80, 680,-13.60, 685,-12.80, 690,-12.00, 695,-12.65, 700,-13.30, 705,-13.10, 710,-12.90, 715,-11.75, 720,-10.60, 725,-11.10, 730,-11.60, 735,-11.90, 740,-12.20, 745,-11.20, 750,-10.20, 755,-9.00, 760,-7.80, 765,-9.50, 770,-11.20, 775,-10.80, 780,-10.40, 785,-10.50, 790,-10.60, 795,-10.15, 800,-9.70, 805,-9.00, 810,-8.30, 815,-8.80, 820,-9.30, 825,-9.55, 830,-9.80)
-    S2 = spline(i, 300,0.00, 305,1.00, 310,2.00, 315,3.00, 320,4.00, 325,6.25, 330,8.50, 335,8.15, 340,7.80, 345,7.25, 350,6.70, 355,6.00, 360,5.30, 365,5.70, 370,6.10, 375,4.55, 380,3.00, 385,2.10, 390,1.20, 395,0.05, 400,-1.10, 405,-0.80, 410,-0.50, 415,-0.60, 420,-0.70, 425,-0.95, 430,-1.20, 435,-1.90, 440,-2.60, 445,-2.75, 450,-2.90, 455,-2.85, 460,-2.80, 465,-2.70, 470,-2.60, 475,-2.60, 480,-2.60, 485,-2.20, 490,-1.80, 495,-1.65, 500,-1.50, 505,-1.40, 510,-1.30, 515,-1.25, 520,-1.20, 525,-1.10, 530,-1.00, 535,-0.75, 540,-0.50, 545,-0.40, 550,-0.30, 555,-0.15, 560,0.00, 565,0.10, 570,0.20, 575,0.35, 580,0.50, 585,1.30, 590,2.10, 595,2.65, 600,3.20, 605,3.65, 610,4.10, 615,4.40, 620,4.70, 625,4.90, 630,5.10, 635,5.90, 640,6.70, 645,7.00, 650,7.30, 655,7.95, 660,8.60, 665,9.20, 670,9.80, 675,10.00, 680,10.20, 685,9.25, 690,8.30, 695,8.95, 700,9.60, 705,9.05, 710,8.50, 715,7.75, 720,7.00, 725,7.30, 730,7.60, 735,7.80, 740,8.00, 745,7.35, 750,6.70, 755,5.95, 760,5.20, 765,6.30, 770,7.40, 775,7.10, 780,6.80, 785,6.90, 790,7.00, 795,6.70, 800,6.40, 805,5.95, 810,5.50, 815,5.80, 820,6.10, 825,6.30, 830,6.50)
+    S0 = spline(i, 300,0.04, 310,6.00, 320,29.60, 330,55.30, 340,57.30, 350,61.80, 360,61.50, 370,68.80, 380,63.40, 390,65.80, 400,94.80, 410,104.80, 420,105.90, 430,96.80, 440,113.90, 450,125.60, 460,125.50, 470,121.30, 480,121.30, 490,113.50, 500,113.10, 510,110.80, 520,106.50, 530,108.80, 540,105.30, 550,104.40, 560,100.00, 570,96.00, 580,95.10, 590,89.10, 600,90.50, 610,90.30, 620,88.40, 630,84.00, 640,85.10, 650,81.90, 660,82.60, 670,84.90, 680,81.30, 690,71.90, 700,74.30, 710,76.40, 720,63.30, 730,71.70, 740,77.00, 750,65.20, 760,47.70, 770,68.60, 780,65.00, 790,66.00, 800,61.00, 810,53.30, 820,58.90, 830,61.90)
+    S1 = spline(i, 300,0.02, 310,4.50, 320,22.40, 330,42.00, 340,40.60, 350,41.60, 360,38.00, 370,42.40, 380,38.50, 390,35.00, 400,43.40, 410,46.30, 420,43.90, 430,37.10, 440,36.70, 450,35.90, 460,32.60, 470,27.90, 480,24.30, 490,20.10, 500,16.20, 510,13.20, 520,8.60, 530,6.10, 540,4.20, 550,1.90, 560,0.00, 570,-1.60, 580,-3.50, 590,-3.50, 600,-5.80, 610,-7.20, 620,-8.60, 630,-9.50, 640,-10.90, 650,-10.70, 660,-12.00, 670,-14.00, 680,-13.60, 690,-12.00, 700,-13.30, 710,-12.90, 720,-10.60, 730,-11.60, 740,-12.20, 750,-10.20, 760,-7.80, 770,-11.20, 780,-10.40, 790,-10.60, 800,-9.70, 810,-8.30, 820,-9.30, 830,-9.80)
+    S2 = spline(i, 300,0.00, 310,2.00, 320,4.00, 330,8.50, 340,7.80, 350,6.70, 360,5.30, 370,6.10, 380,3.00, 390,1.20, 400,-1.10, 410,-0.50, 420,-0.70, 430,-1.20, 440,-2.60, 450,-2.90, 460,-2.80, 470,-2.60, 480,-2.60, 490,-1.80, 500,-1.50, 510,-1.30, 520,-1.20, 530,-1.00, 540,-0.50, 550,-0.30, 560,0.00, 570,0.20, 580,0.50, 590,2.10, 600,3.20, 610,4.10, 620,4.70, 630,5.10, 640,6.70, 650,7.30, 660,8.60, 670,9.80, 680,10.20, 690,8.30, 700,9.60, 710,8.50, 720,7.00, 730,7.60, 740,8.00, 750,6.70, 760,5.20, 770,7.40, 780,6.80, 790,7.00, 800,6.40, 810,5.50, 820,6.10, 830,6.50)
 
     [S0,S1,S2] }
