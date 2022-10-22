@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.7 (20-10-2022)               ##
+###           Grade Pack v7.7 (22-10-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -1113,6 +1113,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
     sh>1 ? mskY_to_YYY(yuv, last, true, false, 3, bi).\
            propDelete(["_Matrix","_Primaries","_Transfer","_PictType"]) : last
 
+    # EBUR103 tag
     sh==2 || !ebu ? last : \
     ScriptClip( function[bi,tv] () {
 
@@ -1124,7 +1125,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 
         U >= 255 || V >= 255 ? propSet("_OutGamut", 1) : \
                                propSet("_OutGamut", 0) } )
-
+    # Stats Overlay
     if (sh==1) {
 
         bin = ex_lut("x range_size 1 - < 0 x ?",Y=1,UV=3)
@@ -1463,7 +1464,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", string "locus",
 
     temp = Default(temperature, 6504)  # Target temperature in Kelvin units (Default: D65 == nop())
     mat  = Default(matrix,   ID[2] )
-    loc  = Default(locus,  "Daylight") # 'Daylight' or 'Planckian' locus
+    loc  = Default(locus, temp<5000?"Planckian":"Daylight")
     tv   = Default(tv_range, ID[6] )
     lis  = Default(list,     false )   # Set to True to output [x,y,z] coordinates of the CCT (correlated color temperature)
 
@@ -1476,8 +1477,8 @@ function WhitePoint (clip c, int "temperature", string "matrix", string "locus",
 
 
     temp3 = 1000.       /     temp
-    temp6 = 1000000.    / pow(temp, 2.)
-    temp9 = 1000000000. / pow(temp, 3.)
+    temp6 = 1000000.    / pow(temp, 2)
+    temp9 = 1000000000. / pow(temp, 3)
 
     # Also need to add the CIE 1964 variant locus for both
     if (loc=="Planckian"||loc=="Blackbody") {
@@ -1485,18 +1486,22 @@ function WhitePoint (clip c, int "temperature", string "matrix", string "locus",
         wpx = temp <= 4000 ? -0.2661239*temp9-0.2343589*temp6+0.8776956*temp3+0.17991  : \
                              -3.0258469*temp9+2.1070379*temp6+0.2226347*temp3+0.24039
 
-        wpy = temp <= 2222 ? -1.1063814*pow(wpx,3)-1.34811020*pow(wpx,2)+2.18555832*wpx-0.20219683  : \
-              temp <= 4000 ? -0.9549476*pow(wpx,3)-1.37418593*pow(wpx,2)+2.09137015*wpx-0.16748867  : \
-                             +3.0817580*pow(wpx,3)-5.87338670*pow(wpx,2)+3.75112997*wpx-0.37001483
+        wpx2 = pow(wpx, 2)
+        wpx3 = pow(wpx, 3)
+
+        wpy = temp <= 2222 ? -1.1063814*wpx3-1.34811020*wpx2+2.18555832*wpx-0.20219683 : \
+              temp <= 4000 ? -0.9549476*wpx3-1.37418593*wpx2+2.09137015*wpx-0.16748867 : \
+                             +3.0817580*wpx3-5.87338670*wpx2+3.75112997*wpx-0.37001483
     } else {
 
+        # Valid in the range [0.250, 0.380]
         wpx = (temp <= 7000.) ? 0.244063 + 0.09911 * temp3 + 2.9678 * temp6 - 4.6070 * temp9 : \
                                 0.237040 + 0.24748 * temp3 + 1.9018 * temp6 - 2.0064 * temp9
 
         wpy = -3. * pow(wpx,2) + 2.870 * wpx - 0.275
     }
 
-    wpz =  1. - wpx - wpy
+    wpz =  1 - wpx - wpy
 
     if (lis) {
 
@@ -1506,7 +1511,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", string "locus",
 
         LMS = XYZ_to_LMS("CAT02B",true)
 
-        fw1      = MatrixDot([0.950450,1.,1.088917],LMS) # D65 Reference White
+        fw1      = MatrixDot([0.950450,1.,1.088917],LMS) # CIE 1931 D65 Daylight Reference White
         fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,LMS)
         vonKries = Broadcast(ArrayOp(fw2,fw1,"/"), "vonKries")
 
