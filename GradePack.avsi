@@ -428,7 +428,7 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
 ###    (
 ###    clip a,
 ###    clip b,
-###    string "mode"="multiply" ("normal"/ "blend"/ "interpolation"/ "harmonic"/ "geometric"/ "watermark"/ "--"/ "darker"/ "darken"/ "darkenS"/ "multiply"/ "multiply128"/ "softburn"/ "colorburn"/ "linearburn"/ "--"/ "lighter"/ "lighten"/ "lightenS"/ "screen"/ "softdodge"/ "colordodge"/ "lineardodge"/ "linearadd"/ "--"/ "overlay"/ "softoverlay"/ "hardoverlay"/ "softlight"/ "hardlight"/ "vividlight"/ "linearlight"/ "stamp"/ "pinlight"/ "hardmix"/ "reflect"/ "glow"/ "freeze"/ "heat"/ "--"/ "grainextract"/ "grainmerge"/ "--"/ "difference"/ "softdifference"/ "negation"/ "exclusion"/ "subtract"/ "linearsubtract"/ "from"/ "divide"/ "andn"/ "bleach"/ "extremity"/ "stain"/ "phoenix"/ "--"/ "hue"/ "saturation"/ "color"/ "luminosity"),
+###    string "mode"="multiply" ("normal"/ "blend"/ "interpolation"/ "harmonic"/ "geometric"/ "watermark"/ "--"/ "darker"/ "darken"/ "darkenS"/ "multiply"/ "multiply128"/ "softburn"/ "colorburn"/ "linearburn"/ "--"/ "lighter"/ "lighten"/ "lightenS"/ "screen"/ "softdodge"/ "colordodge"/ "lineardodge"/ "linearadd"/ "--"/ "overlay"/ "softoverlay"/ "hardoverlay"/ "softlight"/ "hardlight"/ "vividlight"/ "linearlight"/ "stamp"/ "pinlight"/ "hardmix"/ "reflect"/ "glow"/ "freeze"/ "heat"/ "--"/ "grainextract"/ "grainmerge"/ "--"/ "difference"/ "softdifference"/ "negation"/ "exclusion"/ "subtract"/ "linearsubtract"/ "from"/ "divide"/ "andn"/ "bleach"/ "extremity"/ "stain"/ "phoenix"/ "--"/ "hue"/ "saturation"/ "color"/ "value"),
 ###    float "opacity"=1.00 (0.00 to 1.00),
 ###    [float "watermark"=1.0 (0.0 to 2.0)],
 ###    [int "UV"=3 (1 / 2 / 3)]
@@ -507,10 +507,10 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
 ### phoenix        -
 ###
 ### HSL COMPONENT
-### hue            - Keep LUMINANCE and SATURATION of the Base layer and inherit HUE                 of the Top layer
-### saturation     - Keep LUMINANCE and HUE        of the Base layer and inherit SATURATION          of the Top layer
-### color          - Keep LUMINANCE                of the Base layer and mix with HUE and SATURATION of the Top  layer
-### luminosity     - Keep LUMINANCE                of the Top  layer and mix with HUE and SATURATION of the Base layer
+### hue            - Keep BRIGHTNESS and SATURATION of the Base layer and inherit HUE                 of the Top  layer
+### saturation     - Keep BRIGHTNESS and HUE        of the Base layer and inherit SATURATION          of the Top  layer
+### color          - Keep BRIGHTNESS                of the Base layer and mix with HUE and SATURATION of the Top  layer
+### value          - Keep BRIGHTNESS                of the Top  layer and mix with HUE and SATURATION of the Base layer
 ###
 
 function ex_blend(clip a, clip b, string "mode", float "opacity", float "watermark", bool "tv_range", int "UV") {
@@ -529,11 +529,6 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     UV   = Default(UV,  rgb ? 3 : md == "normal" ? 4 : 1)
     si   = ex_UVf(rgb, bi)
 
-                                           Assert(IsVersionOrGreater(3,7,2), "ex_blend: Update AviSynth+ version")
-    md == "darker" || md == "lighter"    ? Assert(rgb && UV == 3,            "ex_blend: 'darker' and 'lighter' modes require RGB inputs and UV = 3") : nop()
-    md == "color"  || md == "luminosity" || \
-    md == "hue"    || md == "saturation" ? Assert(!rgb && !isy,              "ex_blend: 'hue', 'saturation', 'color' and 'luminosity' modes require YUV inputs") : nop()
-
     op  = clamp(op,0,1)
     iso = op == 1.0
 
@@ -549,10 +544,19 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
          md == "smoothmin"    ? "darkenS"      : \
          md == "smoothmax"    ? "lightenS"     : \
          md == "average"      ? "blend"        : \
+         md == "colour"       ? "color"        : \
+         md == "luminosity"   ? "value"        : \
+         md == "brightness"   ? "value"        : \
+         md == "lightness"    ? "value"        : \
          md == "hypot"        ? "linearadd"    : \
          md == "diagonal "    ? "linearadd"    : \
          md == "minus"        ? "subtract"     : \
          md == "and"          ? "multiply"     : md
+
+                                           Assert(IsVersionOrGreater(3,7,2), "ex_blend: Update AviSynth+ version")
+    md == "darker" || md == "lighter"    ? Assert(rgb && UV == 3,            "ex_blend: 'darker' and 'lighter' modes require RGB inputs and UV = 3") : nop()
+    md == "color"  || md == "value"      || \
+    md == "hue"    || md == "saturation" ? Assert(!rgb && !isy,              "ex_blend: 'hue', 'saturation', 'color' and 'value' modes require YUV inputs") : nop()
 
     rngmx = tv   ? "ymax ymin -" : "range_max"
     srcmx = tv   ? "ymin -"      : ""
@@ -628,7 +632,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
         md == "hue"           ? "see footer "                                                                                                                                    : \
         md == "saturation"    ? "see footer "                                                                                                                                    : \
         md == "color"         ? "see footer "                                                                                                                                    : \
-        md == "luminosity"    ? "see footer "                                                                                                                                    : \
+        md == "value"         ? "see footer "                                                                                                                                    : \
                               \
                                 Assert (false, "ex_blend: '"+md+"', unsupported blend mode") )
 
@@ -648,12 +652,12 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
 
         ex_merge(a, b, msk, luma=false, UV=3)
 
-    } else if (md == "hue" || md == "saturation" || md == "color" || md == "luminosity") {
+    } else if (md == "hue" || md == "saturation" || md == "color" || md == "value") {
 
         md == "color"      ? CombinePlanes(a, b, planes="YUV").propCopy(b,true,props=["_Matrix","_Primaries","_ChromaLocation"]) : \
-        md == "luminosity" ? CombinePlanes(b, a, planes="YUV").propCopy(a,true,props=["_Matrix","_Primaries","_ChromaLocation"]) : \
+        md == "value"      ? CombinePlanes(b, a, planes="YUV").propCopy(a,true,props=["_Matrix","_Primaries","_ChromaLocation"]) : \
         md == "saturation" ? ex_vibrance  (a, 1.0, mode="Recover2", Rc=b,    tv_range=tv) : \
-                             HSVxHSV(b, 1.0, "HUE", "LUM", 0.0,   1.00, 1.0, tv_range=tv, show=3)
+                             HSVxHSV(b, 1.0, "HUE", "VAL", 0.0,   1.00, 1.0, tv_range=tv, show=3)
 
         Ch = md == "hue"   ? ex_vibrance(a,bias=1,show=3).ex_lut("x range_half - abs") : nop()
              md == "hue"   ? Expr(last,ch,"","f32 x cos y *","f32 x sin y *",scale_inputs="intf",lut=lut,Format="YUV444P"+string(bi==32?"S":bi)) : last
@@ -831,8 +835,8 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 ###
 ### HSVxHSV() - (11-01-2022)
 ###
-### 3x3 operator matrix. Adjust Hue, Saturation or Luminance based on Hue, Saturation or Luminance.
-### This is similar to internal Tweak(), but double the speed, easier to use and more modes (+5 modes involving 'LUM')
+### 3x3 operator matrix. Adjust Hue, Saturation or Value based on Hue, Saturation or Value.
+### This is similar to internal Tweak(), but double the speed, easier to use and more modes (+5 modes involving 'VAL')
 ### RGB not supported.
 ###
 ### Dependencies: > ExTools
@@ -843,21 +847,21 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 ### This includes the following 9 operators (modeA x modeB):
 ###   HUExHUE
 ###   HUExSAT
-###   HUExLUM
+###   HUExVAL
 ###   SATxHUE
 ###   SATxSAT (This is similar to ex_vibrance() )
-###   SATxLUM
-###   LUMxHUE
-###   LUMxSAT
-###   LUMxLUM
+###   SATxVAL
+###   VALxHUE
+###   VALxSAT
+###   VALxVAL
 ###
 ### Note:
 ###     Include the following function definition in AvsPmod to enable sliders.
 ###     (
 ###     clip yuv,
 ###     float str=1.0 (0.0 to 360.0),
-###     string "modeA"="HUE" ("HUE"/ "SAT"/ "LUM"),
-###     string "modeB"="SAT" ("HUE"/ "SAT"/ "LUM"),
+###     string "modeA"="HUE" ("HUE"/ "SAT"/ "VAL"),
+###     string "modeB"="SAT" ("HUE"/ "SAT"/ "VAL"),
 ###     float "Delta"=180.0 (0.0 to 360.0 by 1),
 ###     float "Q"=0.20 (0.01 to 1.00),
 ###     float "Opacity"=1.0 (0.0 to 1.0),
@@ -872,9 +876,9 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     bi  = ID[7]
     bi32= bi==32
 
-    str = Default (str,     1.0)   # Strength of 'modeB' operator. 0-360 for 'L' and 'H' and 0.0-4.0 for 'S'
-    mA  = Default (modeA, "HUE")   # 'modeA' (HUE or H, SAT or S, LUM or L or V)
-    mB  = Default (modeB, "SAT")   # 'modeB' (HUE or H, SAT or S, LUM or L or V)
+    str = Default (str,     1.0)   # Strength of 'modeB' operator. 0-360 for 'V' and 'H' and 0.0-4.0 for 'S'
+    mA  = Default (modeA, "HUE")   # 'modeA' (HUE or H, SAT or S, VAL or L or V)
+    mB  = Default (modeB, "SAT")   # 'modeB' (HUE or H, SAT or S, VAL or L or V)
     dA  = Default (Delta, 180.0)   # Degrees of 'modeA' (isolate this area. 0-255 for 'L', 0-360 for for 'H' and 0.0-100.0 for 'S')
     bA  = Default (Q,       0.2)   # Q-factor (Bandwidth) of 'modeA' Spread of the isolated area. 0.0-1.0
     sA  = Default (opacity, 1.0)   # Scale   of 'modeA' Scale  of the isolated area (typical to scale down since by default it's white). 0.0-1.0
@@ -899,23 +903,23 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
     mA  = mA=="H" ? "HUE" : \
           mA=="S" ? "SAT" : \
-          mA=="V" ? "LUM" : \
-          mA=="L" ? "LUM" : mA
+          mA=="V" ? "VAL" : \
+          mA=="L" ? "VAL" : mA
     mB  = mB=="H" ? "HUE" : \
           mB=="S" ? "SAT" : \
-          mB=="V" ? "LUM" : \
-          mB=="L" ? "LUM" : mB
-    nul = mB=="SAT" ? str==1.0 : mB=="LUM" ? str==180. : str==0.0 || str==360.0
+          mB=="V" ? "VAL" : \
+          mB=="L" ? "VAL" : mB
+    nul = mB=="SAT" ? str==1.0 : mB=="VAL" ? str==180. : str==0.0 || str==360.0
 
     dA  = mA=="HUE" ? clamp(dA,0,360)/360. : \
-          mA=="LUM" ? clamp(dA,0,255)/255. : \
+          mA=="VAL" ? clamp(dA,0,255)/255. : \
           mA=="SAT" ? clamp(dA,0,100)/100. : dA
 
     sc  = 0.32*atan(0.32*tan((dA+0.507)/0.32))+0.5 # less granularity to extremes and more to center
     dA  = mA=="SAT" ? min(1,sc) : dA
 
     str = mB=="HUE" ? str * ( pi /180.)                        :          \
-          mB=="LUM" ? 1./((str/360.) * (0.5 + str/360.) + 0.5) : min(6,str)
+          mB=="VAL" ? 1./((str/360.) * (0.5 + str/360.) + 0.5) : min(6,str)
     sA  = sA < 1.0  ? string(sA)+" * "    : ""
 
     bA  = 1. / (mA=="SAT" ? dA < 0.5 ? bA/2 : bA/(2-4*pow(dA-0.5,2)) : bA)
@@ -930,16 +934,16 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     varY = mB=="HUE" ? " Y@" : mA=="HUE" && mB=="SAT" ? " Y@"      : ""
     varM = mB!="HUE" ?    "" : mA=="SAT" ? "S@" : mA=="HUE" ? "H@" : ""
 
-    clpB = mA=="LUM" && mB=="LUM" ? " X"           : \
-           mB=="LUM"              ? " x "+rangePC  : \
-           mA=="LUM" && mB!="HUE" ? " y "+rangePCc : \
-           mA=="HUE" ? mB=="SAT"  ? " X" :    " H" : \
+    clpB = mA=="VAL" && mB=="VAL" ? " X"           : \
+           mB=="VAL"              ? " x "+rangePC  : \
+           mA=="VAL" && mB!="HUE" ? " y "+rangePCc : \
+           mA=="HUE" ?  mB=="SAT" ? " X" :    " H" : \
            mB!="HUE"              ? " x "+rangePCc : mA=="SAT" ? " X Y atan2" : " y "+offS+rangePCc+varX+" z "+offS+rangePCc+varY+" atan2 "
 
-    msk  = mA=="LUM" ? Format("f32 x "     +rangePC+" X@                                                                  {dA} - abs 1 swap - {bA} ^       0 1 clip "+sA) : \
+    msk  = mA=="VAL" ? Format("f32 x "     +rangePC+" X@                                                                  {dA} - abs 1 swap - {bA} ^       0 1 clip "+sA) : \
            mA=="SAT" ? Format("f32 x "+offS+rangePCc+varX+" dup * y "+offS+rangePCc+varY+" dup * + sqrt 0.5 + "+varM+"    {dA} - abs 1 swap - {bA} ^ 0.5 - 0 1 clip "+sA) : \
                        Format("f32 x "+offS+rangePCc+varX+"       y "+offS+rangePCc+varY+" atan2 "+varM+" pi + 0.159155 * {dA} + 1 % {bA} ^ "+sA) # "0.159155 *" = "pi 2 * /"
-    op   = mB=="LUM" ? Format(clpB+" dup dup dup dup 0.005 > swap {str} ^ swap ? 0 1 clip    swap - swap swap2 * + "+rangeTV)  : \
+    op   = mB=="VAL" ? Format(clpB+" dup dup dup dup 0.005 > swap {str} ^ swap ? 0 1 clip    swap - swap swap2 * + "+rangeTV)  : \
            mB=="SAT" ? Format(clpB+" dup dup                      {str} *                    swap - swap swap2 * + "+rangeTVc) : \
                        Format(clpB+" dup dup                      {str} pi + + pi 2 * % pi - swap - swap swap2 * + " )
 
@@ -948,7 +952,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
         msk = ReplaceStr(msk, "X@", "").ReplaceStr("Y@", "").ReplaceStr("^ 0.5 -", "^")
 
-        mA=="LUM" ? ex_lut  (c,   msk, UV=128, scale_inputs=si) : \
+        mA=="VAL" ? ex_lut  (c,   msk, UV=128, scale_inputs=si) : \
                     ex_lutxy(U,V, msk, UV=1,   scale_inputs=si)
                     propDelete(["_Matrix","_Primaries","_Transfer","_PictType"])
                     propSet("_ColorRange", 0)
@@ -958,7 +962,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
         c
 
-    } else if (mB!="LUM" && (mA=="HUE" || mB=="HUE")) {
+    } else if (mB!="VAL" && (mA=="HUE" || mB=="HUE")) {
 
         if (mB=="HUE") {
 
@@ -969,8 +973,8 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
             mBU   = msk+op+" sin "+clpS+" * "+bi32H+rangeTVc
             mBV   = msk+op+" cos "+clpS+" * "+bi32H+rangeTVc
 
-            U = mA=="LUM" ? ex_lutxyz(Ys,U,V,mBU,scale_inputs=si) : ex_lutxy(U,V,mBU,scale_inputs=si)
-            V = mA=="LUM" ? ex_lutxyz(Ys,U,V,mBV,scale_inputs=si) : ex_lutxy(U,V,mBV,scale_inputs=si)
+            U = mA=="VAL" ? ex_lutxyz(Ys,U,V,mBU,scale_inputs=si) : ex_lutxy(U,V,mBU,scale_inputs=si)
+            V = mA=="VAL" ? ex_lutxyz(Ys,U,V,mBV,scale_inputs=si) : ex_lutxy(U,V,mBV,scale_inputs=si)
             CombinePlanes(Yf, U, V, planes="YUV",Pixel_Type=PixelType(c))
 
         } else if (mA=="HUE") {
@@ -987,13 +991,13 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
     } else {
 
-    msk = mA=="LUM" && mB!="LUM" && !bi32 ? ReplaceStr(msk," x ",  " x 0.5 + ")                   : \
-          mA!="LUM" && mB=="LUM"          ? ReplaceStr(msk," y ", " z ").ReplaceStr(" x ", " y ") : msk
+    msk = mA=="VAL" && mB!="VAL" && !bi32 ? ReplaceStr(msk," x ",  " x 0.5 + ")                   : \
+          mA!="VAL" && mB=="VAL"          ? ReplaceStr(msk," y ", " z ").ReplaceStr(" x ", " y ") : msk
 
-    # In order: LUMxLUM, LUMxSAT, SATxLUM, HUExLUM, SATxSAT
-    mA=="LUM"   ? mB=="LUM" ? ex_lut   (c,                 msk+op,UV=2,   scale_inputs=si) : \
+    # In order: VALxVAL, VALxSAT, SATxVAL, HUExVAL, SATxSAT
+    mA=="VAL"   ? mB=="VAL" ? ex_lut   (c,                 msk+op,UV=2,   scale_inputs=si) : \
                               ex_lutxyz(Y,c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs=si) : \
-                  mB=="LUM" ? ex_lutxyz(c,Uc,Vc,           msk+op,UV=2,   scale_inputs=si) : \
+                  mB=="VAL" ? ex_lutxyz(c,Uc,Vc,           msk+op,UV=2,   scale_inputs=si) : \
                               ex_lutxy (  c,c.SwapUV(),"", msk+op,UV=3,   scale_inputs=si) }
 
     if (sh==1) {
@@ -1509,7 +1513,7 @@ function WhitePoint (clip c, int "temperature", string "matrix", string "locus",
 
     } else {
 
-        LMS = XYZ_to_LMS("CAT02B",true)
+        LMS      = XYZ_to_LMS("CAT02B",true)
 
         fw1      = MatrixDot([0.950450,1.,1.088917],LMS) # CIE 1931 D65 Daylight Reference White
         fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,LMS)
