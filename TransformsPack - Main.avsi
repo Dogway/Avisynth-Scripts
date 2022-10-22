@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC59  (20-10-2022)     ##
+###   Transforms Pack - Main v1.0 RC59  (22-10-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -95,6 +95,7 @@
 ###
 function Display_Referred (clip clp, string "source", string "disp_ref", string "kernel", bool "gamut", bool "gamma", string "profile", bool "tv_range", string "LMS", float "b", float "c", float "p") {
 
+    img        = FrameCount(clp) < 2
     rgb        = isRGB(clp)
     propIDs    = color_propGet(clp)
     bi         =  propIDs[7]
@@ -103,7 +104,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     LUT        = Default (profile, Undefined()) # Display profile LUT (the path string of your monitor .cube 3D LUT, if calibrated)
     gamut      = Default (gamut, true)          # convert gamut
     gamma      = Default (gamma, true)          # convert gamma
-    source     = Default (source, propIDs[2])   # Source Color Space
+    source     = Default (source, img ? "jpg" : propIDs[2])       # Source Color Space
     disp_ref   = Default (disp_ref,Defined(LUT) ? "709" : "sRGB") # Display Referred Color Space: sRGB for typical uncalibrated monitor, 709 (with 1886 transfer) for calibrated monitors or SmartTVs
     kernel     = Default (kernel,  "Bicubic")
     tv         = Default (tv_range, !fs )
@@ -118,8 +119,8 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
     src   = color_Fuzzy_Search (source)
     tgt   = color_Fuzzy_Search (disp_ref)
-    src   = src[0]=="709" || src[0]=="170M" || src[0]=="240M" || src[0]=="Display-P3" || \
-            FindStr(src[0], "470")>0 || FindStr(src[0], "2020")>0 ? [src[0],src[1],"1886"] : src
+    src   = src[0]=="709" || src[0]=="170M" && !img || src[0]=="240M" || src[0]=="Display-P3" || \
+            FindStr(src[0], "470")>0 && !img || FindStr(src[0], "2020")>0 ? [src[0],src[1],"1886"] : [src[0],src[1],img?"sRGB":src[2]]
     tgt   = tgt[0]=="709" || tgt[0]=="170M" || tgt[0]=="240M" || tgt[0]=="Display-P3" || \
             FindStr(tgt[0], "470")>0 || FindStr(tgt[0], "2020")>0 ? [tgt[0],tgt[1],"1886"] : tgt
     gamut = !(src[0] == tgt[0] || !gamut)
@@ -280,7 +281,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 ### Example 6 - Convert from YUV444 to YUV422 and TV range to PC range:
 ###     ConvertFormat(1,fmt_out="422",tv_out=false,cplace_out="MPEG2")
 ###
-### Example 7: High quality JPEG decoding and conversion to RGB
+### Example 7: High quality JPEG decoding and conversion to RGB (sRGB primaries)
 ###   MP_Pipeline("""
 ###   ### platform: win32
 ###   JPEGSource("source.jpg",rec=3)
@@ -290,8 +291,11 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 ###   Implicit:
 ###       ConvertFormat(1,1,"YUV","RGB","jpeg","sRGB",UVRecon=true) # 'jpeg' as an alias for '170M'
 ###   Explicit:
-###       ConvertFormat(1,1,"YUV","RGB","170M","sRGB",tv_in=false,tv_out=false,cplace_in="MPEG1",UVRecon=true)
+###       ConvertFormat(1,1,"YUV","RGB",cs_in="170M",cs_out="sRGB",tv_in=false,tv_out=false,cplace_in="MPEG1",UVRecon=true)
 ###   fmtc_bitdepth(bits=8, dmode=7) # Ostromoukhov error diffusion
+###
+### Example 8: Another JPEG conversion to RGB while keeping primaries
+###   ConvertFormat(1,1,"YUV","RGB","470BG") # In this case the jpeg was 470BG encoded
 ###
 ###
 ### Function Definition:
@@ -471,9 +475,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
       cs_outFA = color_Fuzzy_Search (cs_out)
       cs_outF  = cs_outFA[0]
     OETFd      = Defined(OETF) ? OETF=="" ? false : true : false
-    OETFid     = cs_inF =="709" || cs_inF =="170M" || cs_inF =="240M" || cs_inF =="Display-P3" || FindStr(cs_inF, "470")>0 || FindStr(cs_inF, "2020")>0 ? "1886" : propIDs[5]
+    OETFid     = cs_inF =="709" || cs_inF =="170M" && !fc || cs_inF =="240M" || cs_inF =="Display-P3" || FindStr(cs_inF, "470")>0 && !fc || FindStr(cs_inF, "2020")>0 ? "1886" : fc ? "sRGB" : propIDs[5]
     OETFi      = Defined(OETFi) ? OETFi =="" ? OETFid : OETFi : OETFid # By default undoes encoded display referred transfer (1886 EOTFi) for consumer media instead of scene-referred camera transfer (OETFi)
-    EOTFid     = cs_outF=="709" || cs_outF=="170M" || cs_outF=="240M" || cs_outF=="Display-P3" || FindStr(cs_outF,"470")>0 || FindStr(cs_outF,"2020")>0 ? "1886" : cs_outF
+    EOTFid     = cs_outF=="709" || cs_outF=="170M" && !fc || cs_outF=="240M" || cs_outF=="Display-P3" || FindStr(cs_outF,"470")>0 && !fc || FindStr(cs_outF,"2020")>0 ? "1886" : fc ? "sRGB" : cs_outF
     EOTFi      = OETFd ? OETF : Defined(EOTFi) ? EOTFi =="" ? OETFi : EOTFi : EOTFid
        OETFi_i = color_Fuzzy_Search (OETFi)
        EOTFi_i = color_Fuzzy_Search (EOTFi)
@@ -984,14 +988,17 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             }
 
 
-        if (isScale) {
+        if (isScale || isGamma) {
 
+            Yp    = Y
             Y     = nomoir ? Y.ex_blur((1. / rat) / 2., mode="gaussian") : Y
             Y     = Eval("Y." + resampler + src_c + (noring ? Ynr : ""))
-            Y     = space == "linear"                  ? Y.                                moncurve_r(t_gam[0], t_gam[1], false, !(isRGBo || !tv_out), 1) : \
-                    space == "sigmoid"                 ? Y.ex_contrast(1.15,0,191,false,1).moncurve_r(t_gam[0], t_gam[1], false, !(isRGBo || !tv_out), 1) : \
-                    space == "log"                     ? Y.ACEScct_r(UV=1,false,false).    moncurve_r(t_gam[0], t_gam[1], false, !(isRGBo || !tv_out), 1) : \
+
+            Y     = space == "linear"                  ? Y.                                moncurve_r(t_gam[0], t_gam[1], false, !(isRGBo || isSpaIllu || !tv_out), 1) : \
+                    space == "sigmoid"                 ? Y.ex_contrast(1.15,0,191,false,1).moncurve_r(t_gam[0], t_gam[1], false, !(isRGBo || isSpaIllu || !tv_out), 1) : \
+                    space == "log"                     ? Y.ACEScct_r(UV=1,false,false).    moncurve_r(t_gam[0], t_gam[1], false, !(isRGBo || isSpaIllu || !tv_out), 1) : \
                                                          Y
+            Y     = !isScale ?          Yp.moncurve_f(s_gam[0], s_gam[1], tv_in, false, 1).moncurve_r(t_gam[0], t_gam[1], false, !(isRGBo || isSpaIllu || !tv_out), 1) : Y
             }
 
 
@@ -1052,7 +1059,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     if (isSpaIllu) {
 
-        d_gam =!isRGBi && isScale && space!="gamma" ? t_gam : s_gam
+        d_gam =!isRGBi && (isScale && space!="gamma" || isGamma) ? t_gam : s_gam
 
             isRGBi ?                ConvertBits(32,fulls=!tv_in,fulld=true).moncurve_f(s_gam[0], s_gam[1], false, false, 3) : last
         R = isRGBi ? ExtractR() : R.ConvertBits(32,fulls=true,  fulld=true).moncurve_f(d_gam[0], d_gam[1], false, false, 1)
@@ -1084,7 +1091,8 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             if (Comp) {
 
                 # Desaturate Gamut Compression (by John Walker: https://www.fourmilab.ch/documents/specrend)
-                OF = "x 0 min y min z min neg dup dup x +"
+                RGB = ExtractClip()
+                OF  = "x 0 min y min z min neg dup dup x +"
                 Expr(RGB[0], RGB[1], RGB[2], OF+" X@ swap2 y +    swap z +    max max dup 1 > X swap swap2 / X ?", \
                                              OF+"    swap2 y + Y@ swap z +    max max dup 1 > Y swap swap2 / Y ?", \
                                              OF+"    swap2 y    + swap z + Z@ max max dup 1 > Z swap swap2 / Z ?", Format="RGBPS", optSingleMode=true, clamp_float=false)
@@ -1359,7 +1367,7 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrix == "OOO"      ? "OPP"        :         matrix == "NTSC-J"   ? "NTSC-J"
 \   :         matrix == "OPP"      ? "OPP"        : FindStr(matrix,   "ALL"  )>0 ? "AllColorsRGB"
 \   : FindStr(matrix,   "MAX"  )>0 ? "MaxRGB"     : FindStr(matrix,   "EKTA" )>0 ? "EktaSpacePS5"
-\   : FindStr(matrix,   "CHROME")>0? "ChromeSpace100" : FindStr(matrix,"XTREM")>0? "xTremeRGB" : ""
+\   : FindStr(matrix,   "XTREM")>0 ? "xTremeRGB"  : FindStr(matrix,  "CHROME")>0 ? "ChromeSpace100" : ""
 
 
 # * 'Melissa' is ProPhoto with sRGB transfer as defined in Adobe Lightroom
@@ -2060,7 +2068,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 # Initially D (Daylight) series illuminants made reference to its number designation in absolute numbers (ie. D50 = 5000K)
 # In 1948, Planck's c2 coefficient (second radiation constant) was updated from 1.438 * 10^(-2) to 1.4388 * 10^(-2)
 # Since 2018, c2 is fixed at an exact value of 1.438776877 * 10^(-2), therefore turning the original 5000K to 5000*(1.438776877/1.438) = 5002.70124K
-# Before 1948, c2 was defined at 1.432 by the SI, despite this CIE used the "U.S. National Bureau of Standards" constant proposal of 1.435, which was used for the Illuminants A, B and C.
+# Before 1948, c2 was defined at 1.432 by the SI (Système International), despite this CIE used the "U.S. National Bureau of Standards" constant proposal of 1.435, which was used in 1931 for the Illuminants A, B and C.
 
 # Illuminants try to match the medium and environment mixed contribution white point where the colors are meant to be reproduced.
 # * CCT of about 1850K matches that of a candle light
@@ -2079,12 +2087,12 @@ function color_coef (string "prims", string "mat", string "illu") {
 # It's mandatory for them to do a chromatic adaptation to convert them to the new illuminant primaries. RGB_to_XYZ() and XYZ_to_RGB() do this automatically.
 # Correlated Color Temperatures (CCT) in K (Kelvin) are derived from 'CIE 1931 2º Degree Standard Observer' CMF with 'native' isotherms
 
-#####################################################################################
-###                                                                                ##
-### Illuminant 'C' family color spaces (CCT of 6774.153K) (leg. indirect sunlight) ##
-    wp = mat_wp==0 ? [0.31006, 0.31616] : [0.312713, 0.329016]                     ##
-###                                                                                ##
-#####################################################################################
+######################################################################################
+###                                                                                 ##
+### Illuminant 'C' family color spaces (CCT of 6774.153K) (shade/indirect sunlight) ## Legacy
+    wp = mat_wp==0 ? [0.31006, 0.31616] : [0.312713, 0.329016]                      ##
+###                                                                                 ##
+######################################################################################
 
     # NTSC 1953
     # BT-470M / FCC
@@ -2190,13 +2198,13 @@ function color_coef (string "prims", string "mat", string "illu") {
 
 
     # NTSC-J (https://web.archive.org/web/20130413104152if_/http://arib.or.jp/english/html/overview/doc/4-TR-B09v1_0.pdf#[{"num":73,"gen":0},{"name":"FitR"},-119,195,724,850])
-    cs = mat_i==12? [0.618, 0.350, \
-                     0.280, 0.605, \
-                     0.152, 0.063] : cs
+    cs = mat_i==12 ? [0.618, 0.350, \
+                      0.280, 0.605, \
+                      0.152, 0.063] : cs
     # NTSC-J/P22 (https://bkict-ocw.knu.ac.kr/caster/file/lecture/5955F4002DC3E.pdf#page=14)
-    cs = mat_i==0 ? [0.641, 0.327, \
-                     0.272, 0.591, \
-                     0.142, 0.052] : cs
+    cs = mat_i==30 ? [0.641, 0.327, \
+                      0.272, 0.591, \
+                      0.142, 0.052] : cs
 
 # A third set of primaries for Japanese NTSC (1987) simply uses 170M prims but with [0.2848, 0.2932] chromatic coordinates
 
@@ -2295,11 +2303,17 @@ function color_coef (string "prims", string "mat", string "illu") {
 ###                                              ##
 ###################################################
 
-    # Illuminant 'A' illuminant (2855.496K) Tungsten incandescent bulb of ~100W
+    # Illuminant 'A' (2855.496K) Tungsten incandescent bulb of ~100W
     wp = mat_wp==13 ? [0.44758,0.40745] : wp
 
-    # Illuminant 'B' illuminant (CCT of 4873.998K) Deprecated Sunlight standard, see 'Sunlight' below for updated CCT
+    # Illuminant 'B' (CCT of 4873.998K) Deprecated Sunlight standard, see 'Sunlight' below for updated CCT
     wp = mat_wp==14 ? [0.34842,0.35161] : wp
+
+    # Illuminant 'ID50' (CCT of 5097.784K) Interior Daylight D50
+    wp = mat_wp==30 ? [0.3432,0.3602] : wp
+
+    # Illuminant 'ID65' (CCT of 6599.242K) Interior Daylight D65
+    wp = mat_wp==30 ? [0.3107,0.3307] : wp
 
     # 'Sunlight' illuminant (CCT of 5348.372K)
     wp = mat_wp==9  ? [0.3362, 0.3502]  : wp
@@ -2308,7 +2322,7 @@ function color_coef (string "prims", string "mat", string "illu") {
     wp = mat_wp==10 ? [0.3134, 0.3275]  : wp
 
     # Hard-coded constants for the Kr, Kg, Kb derivations
-    pw = mat_i == "170M" || mat_i == "470BG" ? [0.31006, 0.31616] : wp
+    pw = mat == "170M" || mat == "470BG" ? [0.31006, 0.31616] : wp
 
 
     pr = [cs[0], cs[1], 1 - cs[0] - cs[1]]    pw = [pw[0], pw[1], 1 - pw[0] - pw[1]]
@@ -2329,7 +2343,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 
 # Typical production practices for SDTV transfer characteristics differ from those specified in ITU recommendations.
 # While NTSC-525 and PAL-625 are defined with 170M and 470BG OETFs respectively nowadays 1886 is used as output transfer (inverse EOTF) (read note 3 on page 6 of REC-BT.601-7)
-# You should be conscious of this and change according your requirements.
+# You should be aware of this and change according your requirements.
 
 # Transfer functions help redistribute the values of the color gamut for better precision.
 
