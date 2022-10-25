@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.7 (22-10-2022)               ##
+###           Grade Pack v7.8 (25-10-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -1453,22 +1453,25 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ### Function Definition:
 ###    (
 ###    clip,
-###    int temperature=6504 (4008 to 12024 by 24),
-###    string "matrix"="Rec709" ("470M"/ "470BG"/ "170M"/ "Rec709"/ "Rec2020CL"/ "Rec2020NCL"/ "Display-P3"/ "ACEScg"),
+###    float temperature=6504 (1704 to 12024 by 24),
+###    string "matrix"="709" ("470M"/ "470BG"/ "170M"/ "709"/ "2020CL"/ "2020NCL"/ "Display-P3"/ "ACEScg"),
+###    int "observer"=true,
+###    string "locus"="Daylight" ("Daylight"/ "Planckian"),
 ###    bool "tv_range"=true
 ###    )
 ###
 ####################################
 
-function WhitePoint (clip c, int "temperature", string "matrix", string "locus", bool "list", bool "tv_range") {
+function WhitePoint (clip c, float "temperature", string "matrix", string "locus", int "observer", bool "list", bool "tv_range") {
 
     rgb  = isRGB(c)
     rgbp = rgb ? isPlanar(c) : false
     ID   = color_propGet (c)
 
-    temp = Default(temperature, 6504)  # Target temperature in Kelvin units (Default: D65 == nop())
+    temp = Default(temperature, 6504)  # 1900K (sRGB limit) to 25000K. Target temperature in Kelvin units (Default: D65 == nop())
     mat  = Default(matrix,   ID[2] )
     loc  = Default(locus, temp<5000?"Planckian":"Daylight")
+    ob   = Default(observer,  1931 )   # Standard Observer 1931 or 2 for 2º Standard Observer. 1964 or 10 for 10º Standard Observer
     tv   = Default(tv_range, ID[6] )
     lis  = Default(list,     false )   # Set to True to output [x,y,z] coordinates of the CCT (correlated color temperature)
 
@@ -1484,28 +1487,57 @@ function WhitePoint (clip c, int "temperature", string "matrix", string "locus",
     temp6 = 1000000.    / pow(temp, 2)
     temp9 = 1000000000. / pow(temp, 3)
 
-    # Also need to add the CIE 1964 variant locus for both
-    if (loc=="Planckian"||loc=="Blackbody") {
+    # CIE 1931 2º Standard Observer
+    if (ob==1931||ob==2) {
 
-        wpx = temp <= 4000 ? -0.2661239*temp9-0.2343589*temp6+0.8776956*temp3+0.17991  : \
-                             -3.0258469*temp9+2.1070379*temp6+0.2226347*temp3+0.24039
+        if (loc=="Planckian"||loc=="Blackbody") {
+
+            wpx = temp <= 2900 ? 0.142148 + 1.16453   * temp3 - 0.926236  * temp6 + 0.267565  * temp9 : \
+                  temp <= 4000 ? 0.17991  + 0.8776956 * temp3 - 0.2343589 * temp6 - 0.2661239 * temp9 : \
+                                 0.24039  + 0.2226347 * temp3 + 2.1070379 * temp6 - 3.0258469 * temp9
+
+            wpx2 = pow(wpx, 2)
+            wpx3 = pow(wpx, 3)
+
+            wpy = temp <= 2222 ? -1.1063814 * wpx3 - 1.34811020 * wpx2 + 2.18555832 * wpx - 0.20219683 : \
+                  temp <= 2900 ? -2.7749800 * wpx3 + 1.10334000 * wpx2 + 0.97248300 * wpx              : \
+                  temp <= 4000 ? -0.9549476 * wpx3 - 1.37418593 * wpx2 + 2.09137015 * wpx - 0.16748867 : \
+                                 +3.0817580 * wpx3 - 5.87338670 * wpx2 + 3.75112997 * wpx - 0.37001483
+
+        } else {
+
+            # Valid in the range [0.250, 0.380] (>=4000K) (3000K-3200K range also works as it coincides with Planckian)
+            wpx = temp < 5500 ? 0.244058 + 0.0989971 * temp3 + 2.96545 * temp6 - 4.59673 * temp9 : \
+                  temp < 8000 ? 0.200033 + 0.9545630 * temp3 - 2.53169 * temp6 + 7.08578 * temp9 : \
+                                0.237045 + 0.2437440 * temp3 + 1.94062 * temp6 - 2.11004 * temp9 # there's a dip around 7000K though
+
+            wpy = -0.275275 + 2.87396 * wpx - 3.02034 * pow(wpx,2) + 0.0297408 * pow(wpx,3)
+
+    # CIE 1964 10º Standard Observer
+    } } else {
+
+        if (loc=="Planckian"||loc=="Blackbody") {
+
+        wpx = temp <= 4000 ? 0.132123 + 1.245000 * temp3 - 1.06779 * temp6 + 0.335515 * temp9 : \
+                             0.240094 + 0.199403 * temp3 + 2.36932 * temp6 - 3.541520 * temp9
 
         wpx2 = pow(wpx, 2)
         wpx3 = pow(wpx, 3)
 
-        wpy = temp <= 2222 ? -1.1063814*wpx3-1.34811020*wpx2+2.18555832*wpx-0.20219683 : \
-              temp <= 4000 ? -0.9549476*wpx3-1.37418593*wpx2+2.09137015*wpx-0.16748867 : \
-                             +3.0817580*wpx3-5.87338670*wpx2+3.75112997*wpx-0.37001483
-    } else {
+        wpy = temp <= 2900 ? -2.885940 * wpx3 + 1.55652 * wpx2 + 0.640988 * wpx + 0.0649384 : \
+              temp <= 4000 ? -0.813915 * wpx3 - 1.23629 * wpx2 + 1.89435  * wpx - 0.122346  : \
+                              3.482430 * wpx3 - 5.92925 * wpx2 + 3.60717  * wpx - 0.331274
 
-        # Valid in the range [0.250, 0.380]
-        wpx = (temp <= 7000.) ? 0.244063 + 0.09911 * temp3 + 2.9678 * temp6 - 4.6070 * temp9 : \
-                                0.237040 + 0.24748 * temp3 + 1.9018 * temp6 - 2.0064 * temp9
+        } else {
 
-        wpy = -3. * pow(wpx,2) + 2.870 * wpx - 0.275
-    }
+            # Should not be used for < 4000K but technically it might be fine down to 2855.496K (Illuminant A)
+            wpx = -3.14504 * temp9 + 2.27982 * temp6 + 0.226414 * temp3 + 0.236388
+
+            wpy = -0.176938 + 2.22673 * wpx - 1.67187 * pow(wpx,2) - 0.848624 * pow(wpx, 3)
+    } }
 
     wpz =  1 - wpx - wpy
+
 
     if (lis) {
 
