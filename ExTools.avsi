@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.1   (20-10-2022)                   ##
+###        ExTools v9.2   (30-10-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -7295,7 +7295,7 @@ function ArrayOp ( val arr1, \
     a2size = ArraySize(arr2)
 
     asize = max(a1size,a2size)
-    str = ""
+    str   = ""
     for (i=0, asize, 1) {
 
         mx1 = !(!isa1 || a1size > i)
@@ -7319,12 +7319,23 @@ function ArrayOp ( val arr1, \
 # Reverses the array
 function ArrayInv( val arr1 ) {
 
-    bs = ArraySize(arr1)-1
+    bs  = ArraySize(arr1)-1
     arr = []
     for (i = bs, 0, -1) {
         arr = ArrayAdd(arr,arr1[i])
       }
 
+    return arr }
+
+
+# Combines or mixes two arrays in pairs
+function ArrayZip( val arr1, val arr2) {
+
+    bs = ArraySize(arr2)-1
+    arr = []
+    for (i = 0, bs, 1) {
+        arr = ArrayAdd(ArrayAdd(arr,arr1[i]),arr2[i])
+      }
     return arr }
 
 
@@ -7334,7 +7345,7 @@ function ArraySym ( val arr1, bool "center" ) {
     cn = Default(center, false) # Include (true) or exclude (false) center duplicate
 
     asize = ArraySize(arr1)
-    inv   = ArrayInv(arr1)
+    inv   = ArrayInv (arr1)
     inv   = cn ? inv : ArrayDel(inv,asize-1)
 
     return ArrayAppend(inv,arr1) }
@@ -7343,7 +7354,7 @@ function ArraySym ( val arr1, bool "center" ) {
 # Appends 'arr2' array to 'arr1' array
 function ArrayAppend( val arr1, val arr2) {
 
-    bs = ArraySize(arr2)-1
+    bs  = ArraySize(arr2)-1
     arr = arr1
     for (i = 0, bs, 1) {
         arr = ArrayAdd(arr,arr2[i])
@@ -7351,7 +7362,7 @@ function ArrayAppend( val arr1, val arr2) {
     return arr }
 
 
-# Casts the array to a string and prints it (for debug purposes)
+# Casts a flat array to a string and prints it (for debug purposes)
 function ArrayPrint (clip a, val arr1, bool "string" ) {
 
     st = Default(string, false) # output a string instead of subtitled clip
@@ -7359,7 +7370,7 @@ function ArrayPrint (clip a, val arr1, bool "string" ) {
     asize = ArraySize(arr1)
     dim   = sqrt(asize)
     LC    = Frac(dim)==0.0 ? int(dim) : 12
-    str = ""
+    str   = ""
     for (i=0, asize-1, 1) {
         cm  = asize == i+1 ? "" : ", "
         str = str + string(arr1[i]) + cm + (i>0 && i<asize-1 && (i+1)%LC==0 ? "\n " : "")
@@ -7410,6 +7421,7 @@ function atanTM(bool "expand", bool "negative") {
 
 # Benchs: 402 P(4) 370 P(6)  Above: 376 P(4) 390 P(6)
 # Use expand (Default true) to compute atan for larger values beyond -2.1 and +2.1
+# Also compared to atanTM(), fixes a discontinuity on the negative x axis
 #
 # Example (atan for sigmoidal contrast):
 #   ex_lut(Format("f32 x {b} - {a} * "+atanT()+" 1 {b} - + "), scale_inputs="int") # {a} is strength, {b} is pivot/bias
