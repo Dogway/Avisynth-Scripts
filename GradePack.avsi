@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.8 (25-10-2022)               ##
+###           Grade Pack v7.9 (30-10-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -29,6 +29,7 @@
 ###                                                      ##
 ###                                                      ##
 ###########################################################
+###
 ###
 ### Pack of artistic look transform functions for grading and look tone adjustments.
 ###
@@ -67,7 +68,7 @@
 ###
 ###     ex_vibrance(0.5)                       # Lower saturation where is low
 ###
-###     ex_vibrance(2.0, mode="Dullness")      # Lower saturation where is high
+###     ex_vibrance(2.0, mode="Dullness")      # Lower saturation where is high (could help for out-of-gamut cases)
 ###
 ###     ex_vibrance(1.0, mode="Recover", Rc=b) # Recover saturation from clip 'b'
 ###
@@ -171,7 +172,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
 
 ###
 ###
-### ex_contrast() - v7.1 (07-01-2022)
+### ex_contrast() - v7.2 (29-10-2022)
 ###
 ###
 ### Applies contrast in the "S" (sigmoidal) curve fashion.
@@ -240,7 +241,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     rshmkn = 1. / shmkn
 
     ycont  = "f32 1 1 {cont} {pivot} "+rangePC+" - * exp + / {knee} - {rshmkn} * "+rangeTV
-    yconti = "f32 {pivot} 1 "+rangePC+" {shmkn} * {knee} + / 1 - log {rcont} * - "+rangeTV
+    yconti = "f32 {pivot} 1 "+rangePC+" {shmkn} * {knee} + 0.01 max / 1 - log {rcont} * - "+rangeTV
     str    = cont != 0. ? ex_dlut(Format(cont > 0. ? ycont : yconti), bi, !tv) : ""
 
     cstr = sat != 1. ? Format(rangePCc+" {sat} * "+rangeTVc) : ""
@@ -991,7 +992,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 
     } else {
 
-    msk = mA=="VAL" && mB!="VAL" && !bi32 ? ReplaceStr(msk," x ",  " x 0.5 + ")                   : \
+    msk = mA=="VAL" && mB!="VAL" && !bi32 ? ReplaceStr(msk," x ", " x 0.5 + ")                    : \
           mA!="VAL" && mB=="VAL"          ? ReplaceStr(msk," y ", " z ").ReplaceStr(" x ", " y ") : msk
 
     # In order: VALxVAL, VALxSAT, SATxVAL, HUExVAL, SATxSAT
@@ -1453,11 +1454,11 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ### Function Definition:
 ###    (
 ###    clip,
-###    float temperature=6504 (1704 to 12024 by 24),
-###    string "matrix"="709" ("470M"/ "470BG"/ "170M"/ "709"/ "2020CL"/ "2020NCL"/ "Display-P3"/ "ACEScg"),
-###    int "observer"=true,
-###    string "locus"="Daylight" ("Daylight"/ "Planckian"),
-###    bool "tv_range"=true
+###    float temperature=6504 (1704 to 14016 by 24),
+###    [string "matrix"="709" ("470M"/ "470BG"/ "170M"/ "709"/ "2020CL"/ "2020NCL"/ "Display-P3"/ "ACEScg")],
+###    [int "observer"=1931 (1931/ 1964)],
+###    [string "locus"="Daylight" ("Daylight"/ "Planckian")],
+###    [bool "tv_range"=true]
 ###    )
 ###
 ####################################
@@ -1575,9 +1576,9 @@ function WhitePoint (clip c, float "temperature", string "matrix", string "locus
 ###                 ResizersPack
 ###
 ### Example:
-###    GradientLinear()
+###    GradientLinear(zoom=1,positive=true,precision=4)
 ###    # ex_contrast(cont=1,tv_range=false)  # Here the 32-bit aware curve expression (for not 32-bit aware expressions, you can use scale_inputs="float" to evaluate expression at 8-bit)
-###    HistoCurve()
+###    HistoCurve(size=2,gradient=true)
 ###
 ### Function Definition:
 ###    (
@@ -1639,11 +1640,11 @@ function HistoCurve(clip a, float "size", bool "gradient") {
     zm    = zm * (ps ? 1. : 2.)
     clean = SMPTE_legal(gr ? crop(0,0,0,-256) : last, false)
     clean = pc > 1   ? clean.ex_luts  (mode="max",pixels=pc==2?ex_shape(0,1):ex_shape(1,mode="disk")).ex_smooth(pc==2?0:2) : clean
-    grid  =            clean.ex_lutspa(mode="mix",expr=Format("sx {xo} neg {px} * + round X@ {px} {zm} 2 * / round % 0 ==
+    grd   =            clean.ex_lutspa(mode="mix",expr=Format("sx {xo} neg {px} * + round X@ {px} {zm} 2 * / round % 0 ==
                                                                sy {yo} neg {py} * + round Y@ {py} {zm} 2 * / round % 0 == or
                                                                X 4 {pc} * % 0 != Y 0 != Y 4 {pc} * % 0 != and or 0.25 0 ? x max x ?"+ ( pc>1 ?" {pc} * " : "")), UV=128)
-    axis  = ps ? grid : grid.ex_lutspa(mode="mix",expr=Format("sx {px} 0.5 * {xo} {px} * + round abs ==
-                                                       sy 0 != sy {py} 0.5 * {yo} {py} * + round abs == and or 0.35 x max sy {py} 1 - == 0 x ? ?"),       UV=128)
+    axis  = ps ? grd : grd.ex_lutspa(mode="mix",expr=Format("sx {px} 0.5 * {xo} {px} * + round abs ==
+                                                     sy 0 != sy {py} 0.5 * {yo} {py} * + round abs == and or 0.35 x max sy {py} 1 - == 0 x ? ?"),       UV=128)
     grad  = gr ? crop(0,py,0,0) : last
             gr ? StackHorizontal(PadResize(grad,px,py,mode="Dilate"),axis) : axis
 
