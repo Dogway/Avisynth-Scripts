@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v2.5  (19-09-2022)                                ###
+###        Deblock Pack v2.6  (29-10-2022)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -274,7 +274,7 @@ function CCD (clip a, float "thres", bool "interlaced", int "U", int "V") {
                                   pr==9 ? "2020"   : "709" : isUHD ? "2020" : isHD ? "709" : "170m"
 
         y   = ExtractY(a)
-        a4  = CombinePlanes(y.BicubicResize(w/2, h/2, -0.5, 0.3), a, planes="YUV", pixel_type="YUV444P"+string(bi==32 ? "S" : bi))
+        a4  = CombinePlanes(y.BicubicResize(w/2, is422(a) ? h : h/2, -0.5, 0.3), a, planes="YUV", pixel_type="YUV444P"+string(bi==32 ? "S" : bi))
         rgb = ConvertToPlanarRGB(is4 ? a : a4, matrix=fs?pr+":f":pr+":l")
 
         r   = CombinePlanes(rgb, planes="RGB", source_planes="RRR")
