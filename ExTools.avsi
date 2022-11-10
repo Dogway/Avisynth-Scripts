@@ -835,8 +835,8 @@ function ex_athres(clip a, float "th", float "sigma", bool "invert", string "mod
     un  = Undefined()
     si  = ex_UVf(rgb, bi)
 
-    sg = max(sg,0)
-    th = 1 - (th / 1000.)
+    sg  = max(sg,0)
+    th  = 1 - (th / 1000.)
 
     # INTEGRAL
     str = "x[-2,-2] x[-1,-2] x[0,-2] x[1,-2]     + + + A@  x[2,-2] +         B^
@@ -1252,7 +1252,7 @@ function binom_coeffs(n, k) {
 #    [float radiusV=1.0 (0.0 to 43.0)],
 #    [int "n"=6 (0 to 300)],
 #    [string "mode"="binomial" ("gaussian"/ "binomial"/ "butterworth")],
-#    [string "gamma"="none" ("none"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "170M"/ "240M"/ "linear"/ "xvYCC"/ "1361"/ "sRGB"/ "Rec2020"/ "AdobeRGB / "ACESCCt")],
+#    [string "gamma"="none" ("none"/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ "170M"/ "709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG NHK"/ "ACESCCt"/ "log100"/ "log316"/ "1361")],
 #    [int "UV"=3 (2 to 3)]
 #    )
 #
@@ -1264,20 +1264,20 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
 
-    rm = Default(radius,   1)             # Avoid going over 43 for "butterworth" at default 'n=6' or clip range will be compromised -single float AVSValue limit-
-    rv = Default(radiusv, rm)
-    n  = Default(n,        6)             # 0-inf. slope in frequency domain of the lowpass in dB/oct units. In spatial domain a bias between "butterworth" 1st order (similar to "gaussian") and "sinc" or "brickwall" ideal filter (same to "mean" blur with rad+0.5 and n>300)
-    md = Default(mode,"binomial")         # "gaussian": true gaussian distribution  "binomial": binomial distribution fit (like blur() or ex_boxblur(mode="weighted") )  "butterworth": between gaussian and mean blur falloff distribution
-    gm = Default(gamma,   "none")         # Set transfer for "gamma" encoded clips (ie. 601, 709, 2020...). Requires TransformsPack
-    Y  = Default( Y,          3)
-    UV = Default(UV,    rgb ? 3 : 1)
-    fs = Default(fulls, fs)
+    rm  = Default(radius,   1)             # Avoid going over 43 for "butterworth" at default 'n=6' or clip range will be compromised -single float AVSValue limit-
+    rv  = Default(radiusv, rm)
+    n   = Default(n,        6)             # 0-inf. slope in frequency domain of the lowpass in dB/oct units. In spatial domain a bias between "butterworth" 1st order (similar to "gaussian") and "sinc" or "brickwall" ideal filter (same to "mean" blur with rad+0.5 and n>300)
+    md  = Default(mode,"binomial")         # "gaussian": true gaussian distribution  "binomial": binomial distribution fit (like blur() or ex_boxblur(mode="weighted") )  "butterworth": between gaussian and mean blur falloff distribution
+    gm  = Default(gamma,   "none")         # Set transfer for "gamma" encoded clips (ie. 601, 709, 2020...). Requires TransformsPack
+    Y   = Default( Y,          3)
+    UV  = Default(UV,    rgb ? 3 : 1)
+    fs  = Default(fulls, fs)
 
     # Binomial Fit
-    rm = max(rm,0)
-    rv = max(rv,0)
-    sm = md == "binomial" ? (sqrt(rm) / 2) * sqrt(2) : float(rm)
-    sv = md == "binomial" ? (sqrt(rv) / 2) * sqrt(2) : float(rv)
+    rm  = max(rm,0)
+    rv  = max(rv,0)
+    sm  = md == "binomial" ? (sqrt(rm) / 2) * sqrt(2) : float(rm)
+    sv  = md == "binomial" ? (sqrt(rv) / 2) * sqrt(2) : float(rv)
 
     # LUMA
     strv = md == "butterworth" ? butt_constructor(sv,n,true)  : gauss_constructor(sv,true)
@@ -1309,7 +1309,7 @@ function ex_blur(clip a, float "radius", float "radiusV", int "n", string "mode"
     UV == 1 ? Expr(last, strh, ""                                                    ) : \
               Expr(last, strh, ex_UVexpr(cstrh, UV, bi, rgb, fs), scale_inputs="none")
 
-    gm != "none" ? CCTF(last, gm, false, false, !fs) : last                         }
+    gm != "none" ? CCTF(last, gm, false, false, !fs) : last                          }
 
 
 function gauss_constructor(float rad, bool vert) {
@@ -1391,9 +1391,9 @@ function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV") {
     UV  = Default(UV,    rgb ? 3 : 1)
     un  = Undefined()
 
-    md = md == "avg"     ? "mean" : \
-         md == "average" ? "mean" : \
-         md == "mean"    ? "mean" : "weighted"
+    md  = md == "avg"     ? "mean" : \
+          md == "average" ? "mean" : \
+          md == "mean"    ? "mean" : "weighted"
     a
     x+y!=0 ? ex_boxblur(x,y, mode=md, UV=uv) : last
 
@@ -7446,10 +7446,10 @@ function ArrayOp ( val arr1, \
         mx1 = !(!isa1 || a1size > i)
         mx2 = !(!isa2 || a2size > i)
 
-        X1 = mx1 ? "" : string(arr1[min(a1size-1,i)])
-        X  = ReplaceStr(op, "x", X1)
-        Y1 = mx2 ? "" : string(arr2[min(a2size-1,i)])
-        Y  = ReplaceStr(X,  "y", Y1).ReplaceStr("ma|", "max").ReplaceStr("e|p", "exp")
+        X1  = mx1 ? "" : string(arr1[min(a1size-1,i)])
+        X   = ReplaceStr(op, "x", X1)
+        Y1  = mx2 ? "" : string(arr2[min(a2size-1,i)])
+        Y   = ReplaceStr(X,  "y", Y1).ReplaceStr("ma|", "max").ReplaceStr("e|p", "exp")
 
         a1  = asize == i+1
         cm  = a1 ? "" : ","
@@ -7476,7 +7476,7 @@ function ArrayInv( val arr1 ) {
 # Combines or mixes two arrays in pairs
 function ArrayZip( val arr1, val arr2) {
 
-    bs = ArraySize(arr2)-1
+    bs  = ArraySize(arr2)-1
     arr = []
     for (i = 0, bs, 1) {
         arr = ArrayAdd(ArrayAdd(arr,arr1[i]),arr2[i])
@@ -7550,8 +7550,8 @@ function ArrayEval (string arr1, bool "brackets", string "separator") {
 # Calculate the median from an array of values
 function ArrayMedian (float_array arr, int "pos", bool "list") {
 
-    lis  = Default(list, false) # Return the sorted array instead of median
     pos  = Default(pos,     50) # Default 50% for median
+    lis  = Default(list, false) # Return the sorted array instead of median
 
     pos  = clamp(pos,0,100)
     sz   = ArraySize(arr)-1
@@ -7592,7 +7592,7 @@ function ArrayIQM(float_array arr) {
     pos = []
     for (i = sz-1, sz-qti, -1) {
         trim = ArrayDel(trim,i) }
-    for (i = qti-1, 0, -1) {
+    for (i = qti-1,     0, -1) {
         trim = ArrayDel(trim,i) }
 
     Tsz = ArraySize(trim)
