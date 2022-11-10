@@ -1,3 +1,8 @@
+# Windows style line endings
+*.txt text eol=crlf
+*.avs text eol=crlf
+*.avsi text eol=crlf
+
 *.html linguist-detectable=false
 *.css linguist-detectable=false
 *.md linguist-detectable=false
