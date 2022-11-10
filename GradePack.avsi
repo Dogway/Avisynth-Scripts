@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v7.9 (30-10-2022)               ##
+###           Grade Pack v8.0 (09-11-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -414,7 +414,7 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
 
 ###
 ###
-### ex_blend() - v4.3 (29-09-2022)
+### ex_blend() - v4.4 (09-11-2022)
 ###
 ###
 ### Works like Overlay() but supports more modes (55 in total), better handling of TV range and performs much faster in either 8-bit or HBD (YUV or RGB).
@@ -581,35 +581,35 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
                               \
         md == "darker"        ? "see footer"                                                                                                                                     : \
         md == "darken"        ? "x "+V+" y min "                                                                                                                                 : \
-        md == "darkenS"       ? "0.2 x "+srcmx+" A@ y "+srcmx+" B@ - abs "+rngmx+" / - 0 max 5 * 3 ^ 0.166666 0.2 "+rngmx+" * * * A B min swap - "                               : \
+        md == "darkenS"       ? "0.2 x "+srcmx+" A@ y "+srcmx+" B@ - abs "+rngmx+" / - 0 max 5 * 3 ^ 0.166666 0.2 "+rngmx+" * * * A B min swap - 0 max "                         : \
         md == "multiply"      ? "x "+srcmx+" "+V+" y "+srcmx+" * "+rngmx+" / "                                                                                                   : \
         md == "multiply128"   ? "x "+srcmx+" "+V+" range_half "+srcmx+" - y "+srcmx+" ymin 2 * / * range_half "+srcmx+" + 0 "+rngmx+" clip "                                     : \
         md == "softburn"      ? "y "+srcmx+" B@ x "+srcmx+" A@ + "+rngmx+" < B range_half "+srcmx+" * "+rngmx+" A - 0 max C@ / "+rngmx+" C range_half "+srcmx+" * B / - ? "      : \
-        md == "colorburn"     ? ""+rngmx+" dup x "+srcmx+" "+V+" - "+rngmx+" * 0 max y "+srcmx+" 0 max / - "                                                                     : \
+        md == "colorburn"     ? ""+rngmx+" dup x "+srcmx+" "+V+" - "+rngmx+" * 0 max y "+srcmx+" 0 max / - 0 max "                                                               : \
         md == "linearburn"    ? "x "+srcmx+" "+V+" y "+srcmx+" + B@ "+rngmx+" < 0 B "+rngmx+" - ? "                                                                              : \
                               \
         md == "lighter"       ? "see footer"                                                                                                                                     : \
         md == "lighten"       ? "x "+V+" y max "                                                                                                                                 : \
-        md == "lightenS"      ? "0.2 x "+srcmx+" A@ y "+srcmx+" B@ - abs "+rngmx+" / - 0 max 5 * 3 ^ 0.166666 0.2 "+rngmx+" * * * A B max + "                                                                              : \
+        md == "lightenS"      ? "0.2 x "+srcmx+" A@ y "+srcmx+" B@ - abs "+rngmx+" / - 0 max 5 * 3 ^ 0.166666 0.2 "+rngmx+" * * * A B max + "                                    : \
         md == "screen"        ? ""+rngmx+" C@ dup x "+srcmx+" "+V+" - C y "+srcmx+" - * C / - "                                                                                  : \
         md == "softdodge"     ? "x "+srcmx+" A@ y "+srcmx+" B@ + "+rngmx+" < A range_half "+srcmx+" * "+rngmx+" B - C@ / "+rngmx+" C range_half "+srcmx+" * A / - ? "            : \
-        md == "colordodge"    ? "x "+srcmx+" "+V+" "+rngmx+" * "+rngmx+" y "+srcmx+" 0 max - / "                                                                                 : \
+        md == "colordodge"    ? "x "+srcmx+" "+V+" "+rngmx+" * "+rngmx+" y "+srcmx+" 0 max - / "+rngmx+" min "                                                                   : \
         md == "lineardodge"   ? "x "+srcmx+" "+V+" y "+srcmx+" + "+rngmx+" min "                                                                                                 : \
-        md == "linearadd"     ? "x "+srcmx+" "+V+" dup * y "+srcmx+" dup * + sqrt "                                                                                              : \
+        md == "linearadd"     ? "x "+srcmx+" "+V+" dup * y "+srcmx+" dup * + sqrt "+rngmx+" min "                                                                                : \
                               \
         md == "overlay"       ? "x "+srcmx+" A@ range_half "+srcmx+" < 2 A y "+srcmx+" B@ * "+rngmx+" / * "+rngmx+" 2 "+rngmx+" A - "+rngmx+" B - * "+rngmx+" / * - ? "          : \
         md == "softoverlay"   ? ""+rngmx+" C@ x "+srcmx+" A@ - A y "+srcmx+" B@ * C / * A C dup A - C B - * C / - * + C / "                                                      : \
         md == "hardoverlay"   ? "x "+srcmx+" A@ "+rngmx+" == "+rngmx+" y "+srcmx+" B@ "+rngmx+" * "+rngmx+" 2 * A 2 * - / 0.3333 * A B * 3 * "+rngmx+" 2 * / + "+rngmx+" min ? " : \
         md == "softlight"     ? ""+rngmx+" C@ y "+srcmx+" B@ - B x "+srcmx+" A@ * C / * B C dup B - C A - * C / - * + C / "                                                      : \
         md == "hardlight"     ? "y "+srcmx+" B@ range_half "+srcmx+" < 2 B x "+srcmx+" A@ * "+rngmx+" / * "+rngmx+" 2 "+rngmx+" B - "+rngmx+" A - * "+rngmx+" / * - ? "          : \
-        md == "vividlight"    ? "y "+srcmx+" B@ range_half "+srcmx+" C@ < B 0 <= 2 B * "+rngmx+" dup x "+srcmx+" A@ - "+rngmx+" * 2 B * / - ? 2 B C - * "+rngmx+" >= 2 B C - * A "+rngmx+" * "+rngmx+" 2 B C - * - / ? ? ": \
-        md == "linearlight"   ? "x "+srcmx+" A@ range_half "+srcmx+" < A 2 y "+srcmx+" B@ * + "+rngmx+" - A 2 B range_half "+srcmx+" - * + ? "                                   : \
+        md == "vividlight"    ? "y "+srcmx+" B@ range_half "+srcmx+" C@ < B 0 <= 2 B * "+rngmx+" dup x "+srcmx+" A@ - "+rngmx+" * 2 B * / - ? 2 B C - * "+rngmx+" >= 2 B C - * A "+rngmx+" * "+rngmx+" 2 B C - * - / ? ? 0 "+rngmx+" clip ": \
+        md == "linearlight"   ? "x "+srcmx+" A@ range_half "+srcmx+" < A 2 y "+srcmx+" B@ * + "+rngmx+" - A 2 B range_half "+srcmx+" - * + ? 0 "+rngmx+" clip "                  : \
         md == "stamp"         ? "x "+srcmx+" "+V+"     y "+srcmx+"         2 * + "+rngmx+"  - 0 "+rngmx+" clip "                                                                 : \
         md == "pinlight"      ? "y "+srcmx+" B@ range_half "+srcmx+" < x "+srcmx+" A@ 2 B * min A 2 B range_half "+srcmx+" - * max ? "                                           : \
         md == "hardmix"       ? "x "+srcmx+" "+V+" y "+srcmx+" + "+rngmx+" < 0 "+rngmx+" ? "                                                                                     : \
                               \
-        md == "reflect"       ? "x "+srcmx+" "+V+" dup * "+rngmx+" y "+srcmx+" 0 max - /  "                                                                                      : \
-        md == "glow"          ? "y "+srcmx+" dup * "+rngmx+" x "+srcmx+" "+V+" 0 max - / "                                                                                       : \
+        md == "reflect"       ? "x "+srcmx+" "+V+" dup * "+rngmx+" y "+srcmx+" 0 max - / "+rngmx+" min "                                                                         : \
+        md == "glow"          ? "y "+srcmx+" dup * "+rngmx+" x "+srcmx+" "+V+" 0 max - / "+rngmx+" min "                                                                         : \
         md == "freeze"        ? ""+rngmx+" dup x "+srcmx+" "+V+" - dup * y "+srcmx+" 0 max / "+rngmx+" min - "                                                                   : \
         md == "heat"          ? ""+rngmx+" dup y "+srcmx+" - dup * x "+srcmx+" 0 max "+V+" / "+rngmx+" min - "                                                                   : \
                               \
@@ -619,14 +619,14 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
         md == "difference"    ? "x "+srcmx+" "+V+"  y "+srcmx+"                    - abs   "                                                                                     : \
         md == "softdifference"? "x "+srcmx+" A@     y "+srcmx+" B@ > B "+rngmx+" == 0 A B - "+rngmx+" * "+rngmx+" B - / 0 max ? B 0 == 0 B A - "+rngmx+" * B / 0 max ? ? "       : \
         md == "negation"      ? ""+rngmx+" dup    x "+srcmx+" "+V+" - y "+srcmx+" - abs - "                                                                                      : \
-        md == "exclusion"     ? "x "+srcmx+" A@ dup y "+srcmx+" B@ + A B * 2 * + + "+rngmx+" / "                                                                                 : \
-        md == "subtract"      ? "x "+srcmx+" "+V+"  y "+srcmx+"                    - "                                                                                           : \
+        md == "exclusion"     ? "x "+srcmx+" A@ dup y "+srcmx+" B@ + A B * 2 * + + "+rngmx+" / "+rngmx+" min "                                                                   : \
+        md == "subtract"      ? "x "+srcmx+" "+V+"  y "+srcmx+"                    - 0 max "                                                                                     : \
         md == "linearsubtract"? "x "+srcmx+" "+V+" dup * y "+srcmx+" dup * - sqrt "                                                                                              : \
-        md == "from"          ? "x "+srcmx+" "+V+"  y "+srcmx+" swap               - "                                                                                           : \
-        md == "divide"        ? ""+rngmx+" x "+srcmx+" "+V+" * y "+srcmx+" 0 max / "                                                                                             : \
+        md == "from"          ? "x "+srcmx+" "+V+"  y "+srcmx+" swap               - 0 max "                                                                                     : \
+        md == "divide"        ? ""+rngmx+" x "+srcmx+" "+V+" * y "+srcmx+" 0 max / "+rngmx+" min "                                                                               : \
         md == "andn"          ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" * "+rngmx+" / "                                                                                : \
         md == "extremity"     ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" - abs   "                                                                                      : \
-        md == "bleach"        ? ""+rngmx+" 2 *    x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" - "                                                                              : \
+        md == "bleach"        ? ""+rngmx+" 2 *    x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" - 0 max "                                                                        : \
         md == "stain"         ? ""+rngmx+" 2 *    x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" %     "                                                                          : \
         md == "phoenix"       ? "x "+srcmx+" "+V+" y "+srcmx+" dup1 dup1 min swap2 max - "+rngmx+" + "                                                                           : \
                               \
@@ -638,7 +638,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
                                 Assert (false, "ex_blend: '"+md+"', unsupported blend mode") )
 
 
-    off = !tv || md == "--" || md == "normal" || md == "lighten" || md == "darken" ? "" : " ymin + "
+    off = !tv || md == "--" || md == "normal" || md == "lighten" || md == "darken" ? "" : " ymin +"
     str = iso || md == "--" || md == "normal" || md == "blend" ? str+off : \
                                                                  str+Format(" A - {op} * A + ")+off
 
