@@ -6821,7 +6821,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 ###   px=ex_shape(3,mode="disk",type="array")
 ###   ex_luts(mode="avg",pixels=px[0], exprf=" X^ "+sel_med(px[1])) -> Trimmed mean with custom kernel shape
 ###
-### For more check Morphological examples above at line: 5585
+### For more check Morphological examples above at line: 6085
 ###
 ### Function Definition:
 ###    (
@@ -6897,7 +6897,7 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
 
     in  = FindStrInstance(px, "^")
     med = md == "med" ? sel_med(in) : ""
-    med = isb ? ReplaceStr(med,  "X swap2", "Y swap2") : px0 ? ReplaceStr(med,  "X swap2", "x swap2") : med
+    med = isb ? ReplaceStr(med,  "X swap2", "Y swap2") : px0 ? ReplaceStr(med, "X swap2", "x swap2") : med
 
 
     vars = "A B C D E F G H I J K L M N O P Q R S T U V W Z " \
@@ -7520,9 +7520,11 @@ function ArrayDelVal(float_array arr, float val) {
 
 
 # Casts a flat array to a string and prints it (for debug purposes)
-function ArrayPrint (clip a, val arr1, bool "string" ) {
+function ArrayPrint (clip a, val arr1, bool "string", int "x", int "y") {
 
     st = Default(string, false) # output a string instead of subtitled clip
+    x  = Default(x, 0)
+    y  = Default(y, 0)
 
     asize = ArraySize(arr1)
     dim   = sqrt(asize)
@@ -7532,7 +7534,7 @@ function ArrayPrint (clip a, val arr1, bool "string" ) {
         cm  = asize == i+1 ? "" : ", "
         str = str + string(arr1[i]) + cm + (i>0 && i<asize-1 && (i+1)%LC==0 ? "\n " : "")
        }
-    return st ? str : subtitle(a, "["+str+"]",lsp=8) }
+    return st ? str : subtitle(a, "["+str+"]",lsp=8,x=x,y=y) }
 
 
 # Opposite of ArrayPrint, converts a 'separator' delimited string into an array
@@ -7564,22 +7566,24 @@ function ArrayMedian (float_array arr, int "pos", bool "list") {
             minv = min(minv,arr[j]) }
 
         arr  = ArrayDelVal(arr, minv)
-        arro = ArrayAdd   (arro,isin ? int(minv) : minv)
+        arro = ArrayAdd   (arro,isin ? int(minv) : minv) # type is inherited from index#0
         minv = reset
     }
-    if (list) { arro } else {
-    mid = sz*(pos*0.01)
-    if (Frac(mid)==0.0) {
-        return arro[int(mid)]
+    if (lis) { arro } else {
+    md = sz*(pos*0.01)
+    if (Frac(md)==0.0) {
+        return arro[int(md)]
     } else {
-        # todo: use 'pos' weighting
-        mi  = floor(mid)   ma = ceil(mid)
-        med = (arro[int(mi)]+arro[int(ma)]) * 0.5
+        mi  = floor(md)   ma = ceil(md)
+        mid = arro[int(mi)]
+        mad = arro[int(ma)]
+        med = (mad-mid)*(md-mi)+mid
         return Frac(med)==0.0 ? int(med) : med
     } } }
 
 
 # Return the IQM (Inter Quartile Mean) value from an array of values
+# Useful for moving windows (not as as a global estimator)
 function ArrayIQM(float_array arr) {
 
     sz   = ArraySize(arr)
@@ -7588,17 +7592,16 @@ function ArrayIQM(float_array arr) {
     qt   = sz*0.25
     qti  = ceil(qt)
     srtd = ArrayMedian(arr,list=true)
-    trim = srtd
-    pos = []
+    trm  = srtd
     for (i = sz-1, sz-qti, -1) {
-        trim = ArrayDel(trim,i) }
+        trm = ArrayDel(trm,i) }
     for (i = qti-1,     0, -1) {
-        trim = ArrayDel(trim,i) }
+        trm = ArrayDel(trm,i) }
 
-    Tsz = ArraySize(trim)
+    Tsz = ArraySize(trm)
     IQa = 0
     for (i = 0, Tsz-1, 1) {
-        IQa = IQa+trim[i] }
+        IQa = IQa+trm[i] }
 
     if (qt==qti) {
     return IQa / float(Tsz)
