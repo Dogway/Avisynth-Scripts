@@ -1,11 +1,11 @@
 [KEYWORDS]
-return global function last true false try catch
+return global function last true false try catch if else for current_frame error_msg
 
 [OPERATORS]
 + - * / = ! % & | , . : ? \ < > ( ) [ ] { }
 
 [DATATYPES]
-clip int float string bool val func array
+clip int float string bool val func array bool_array int_array string_array float_array clip_array func_array val_array
 
 [CLIPPROPERTIES]
 AudioBits(clip)
@@ -66,6 +66,7 @@ ArrayAdd(array ar1, val val2 [, int index1 [, ...]])
 ArrayDel(array ar1, val val2 [, int index1 [, ...]])
 ArrayIns(array ar1, val val2 [, int index1 [, ...]])
 ArraySet(array ar1, val val2 [, int index1 [, ...]])
+ArraySize(array)
 Asin(float)
 Assert(condition, [string error_message])
 Atan(float)
@@ -73,6 +74,9 @@ Atan2(float, float)
 AverageLuma(clip [, int "offset"=0])
 AverageChromaU(clip [, int "offset"=0])
 AverageChromaV(clip [, int "offset"=0])
+AverageR(clip [, int "offset"=0])
+AverageG(clip [, int "offset"=0])
+AverageB(clip [, int "offset"=0])
 BitAnd(int, int)
 BitChange(int, int)
 BitChg(int, int)
@@ -96,11 +100,14 @@ BitRShiftU(int, int)
 BitSaL(int, int)
 BitSaR(int, int)
 BitSet(int, int)
+BitSetCount(int [, ...])
 BitShL(int, int)
 BitShR(int, int)
 BitTest(int, int)
 BitTst(int, int)
 BitXor(int, int)
+BuildPixelType(string family, int bits, int chroma, bool compat, bool oldnames, clip sample_clip)
+ColorSpaceNameToPixelType(string)
 Ceil(float)
 Chr(int)
 ContinuedDenominator(float, [int], [int "limit"])
@@ -124,6 +131,7 @@ Format(string formatstring , val value1 [, ...])
 Frac(float)
 FunctionExists(name)
 GetMTMode(bool "threads"=false)
+GetProcessInfo(int)
 Hex(int)
 HexValue(string)
 Import(string filename [, ...])
@@ -144,6 +152,7 @@ LoadVFAPIPlugin(string filename, string filtername)
 LoadVirtualdubPlugin(string filename, string filtername, int preroll)
 Log(float)
 Log10(float)
+LogMsg(string, int)
 LumaDifference(clip1, clip2)
 Max(float, float [, ...])
 Min(float, float [, ...])
@@ -155,6 +164,11 @@ Pi()
 PlaneMinMaxStats(float threshold, int offset, int plane, bool setvar)
 Pow(float base, float power)
 propSet(clip, string key_name, function func_obj [, int "mode"])
+propSetInt(clip, string key_name, function func_obj [, int "mode"])
+propSetFloat(clip, string key_name, function func_obj [, int "mode"])
+propSetString(clip, string key_name, function func_obj [, int "mode"])
+propSetArray(clip, string key_name, function func_obj [, int "mode"])
+propSetClip(clip, string key_name, function func_obj [, int "mode"])
 propGetAny(clip, string key_name[, int "index", int "offset"])
 propGetInt(clip, string key_name[, int "index", int "offset"])
 propGetFloat(clip, string key_name[, int "index", int "offset"])
@@ -170,19 +184,34 @@ propNumElements(clip, string key_name [, int "offset"])
 propNumKeys(clip [, int "offset"])
 propGetKeyByIndex(clip, int "index"[, int "offset"])
 propGetType(clip, string key_name [, int "offset"])
-propCopy(clip, clip [,bool "merge"])
+propCopy(clip, clip [,bool "merge", string_array "props", bool "exclude"])
 Rand(int "max"=32768, bool "scale"=false, bool "seed"=false)
 RGBDifference(clip1, clip2)
 RGBDifferenceFromPrevious(clip)
 RGBDifferenceToNext(clip)
+BDifferenceFromPrevious(clip)
+GDifferenceFromPrevious(clip)
+RDifferenceFromPrevious(clip)
+BDifferenceToNext(clip [, int "offset" = 1])
+GDifferenceToNext(clip [, int "offset" = 1])
+RDifferenceToNext(clip [, int "offset" = 1])
+BDifference
+GDifference
+RDifference
 RevStr(string)
 RightStr(string, int)
 Round(float)
 ScriptDir()
+ScriptDirUtf8()
 ScriptFile()
+ScriptFileUtf8()
 ScriptName()
+ScriptNameUtf8()
+SetLogParams([string target, int level])
 Select(int index, val item0 [, ...])
 SetMemoryMax(int mb)
+SetCacheMode(int mode)
+SetMaxCPU(string [, ...])
 SetMTMode(int "mode"=2 (1 to 6), [int "threads"=0])
 SetPlanarLegacyAlignment(clip, bool mode)
 SetWorkingDir(string dirname)
@@ -193,35 +222,52 @@ Spline(float x, float x1, float y1, float x2, float y2, [, ...], bool "cubic"=tr
 Sqrt(float)
 StrCmp(string, string)
 StrCmpi(string, string)
+StrToUtf8(string)
+StrFromUtf8(string)
 String(val x, [string "format"])
 StrLen(string)
 Tan(float)
 Tanh(float)
+TrimLeft(string)
+TrimRight(string)
+TrimAll(string)
 Time(string format)
 UCase(string)
-UDifferenceFromPrevious(clip)
-UDifferenceToNext(clip [, int "offset"=1])
-UPlaneMax(clip, float "threshold"=0 [, int "offset"=0])
-UPlaneMin(clip, float "threshold"=0 [, int "offset"=0])
-UPlaneMedian(clip [, int "offset"=0])
-UPlaneMinMaxDifference(clip, float "threshold"=0 [, int "offset"=0])
-Undefined()
-Value(string)
-VarExist(name)
-VDifferenceFromPrevious(clip)
-VDifferenceToNext(clip [, int "offset"=1])
-VersionNumber()
-VersionString()
-VPlaneMax(clip, float "threshold"=0 [, int "offset"=0])
-VPlaneMin(clip, float "threshold"=0 [, int "offset"=0])
-VPlaneMedian(clip [, int "offset"=0])
-VPlaneMinMaxDifference(clip, float "threshold"=0 [, int "offset"=0])
-YDifferenceFromPrevious(clip)
-YDifferenceToNext(clip [, int "offset"=1])
 YPlaneMax(clip, float "threshold"=0 [, int "offset"=0])
 YPlaneMin(clip, float "threshold"=0 [, int "offset"=0])
 YPlaneMedian(clip [, int "offset"=0])
 YPlaneMinMaxDifference(clip, float "threshold"=0 [, int "offset"=0])
+UPlaneMax(clip, float "threshold"=0 [, int "offset"=0])
+UPlaneMin(clip, float "threshold"=0 [, int "offset"=0])
+UPlaneMedian(clip [, int "offset"=0])
+UPlaneMinMaxDifference(clip, float "threshold"=0 [, int "offset"=0])
+VPlaneMax(clip, float "threshold"=0 [, int "offset"=0])
+VPlaneMin(clip, float "threshold"=0 [, int "offset"=0])
+VPlaneMedian(clip [, int "offset"=0])
+VPlaneMinMaxDifference(clip, float "threshold"=0 [, int "offset"=0])
+RPlaneMax(clip, float "threshold"=0 [, int "offset"=0])
+RPlaneMin(clip, float "threshold"=0 [, int "offset"=0])
+RPlaneMedian(clip [, int "offset"=0])
+RPlaneMinMaxDifference(clip, float "threshold"=0 [, int "offset"=0])
+GPlaneMax(clip, float "threshold"=0 [, int "offset"=0])
+GPlaneMin(clip, float "threshold"=0 [, int "offset"=0])
+GPlaneMedian(clip [, int "offset"=0])
+GPlaneMinMaxDifference(clip, float "threshold"=0 [, int "offset"=0])
+BPlaneMax(clip, float "threshold"=0 [, int "offset"=0])
+BPlaneMin(clip, float "threshold"=0 [, int "offset"=0])
+BPlaneMedian(clip [, int "offset"=0])
+BPlaneMinMaxDifference(clip, float "threshold"=0 [, int "offset"=0])
+Undefined()
+Value(string)
+VarExist(name)
+YDifferenceFromPrevious(clip)
+YDifferenceToNext(clip [, int "offset"=1])
+UDifferenceFromPrevious(clip)
+UDifferenceToNext(clip [, int "offset"=1])
+VDifferenceFromPrevious(clip)
+VDifferenceToNext(clip [, int "offset"=1])
+VersionNumber()
+VersionString()
 OnCPU(clip, int "num_prefetch"=0)
 OnCUDA(clip, int "num_prefetch"=0, int "device_index"=0)
 SetGraphAnalysis(bool)
@@ -570,6 +616,16 @@ ConvertToMono(
 clip
 )
 
+ConvertBits(
+clip,
+int bits,
+[bool truerange=true],
+[int "dither"=-1 (-1 to 1)],
+[int "dither_bits"],
+[bool "fulls"],
+[bool "fulld"]
+)
+
 ConvertToRGB(
 clip,
 string "matrix"="Rec709" ("Rec601"/ "PC.601"/ "Rec709"/ "PC.709"/ "Rec2020" / "PC.2020" / "AVERAGE"),
@@ -630,6 +686,11 @@ bool "interlaced"=false,
 [string "ChromaInPlacement"="MPEG2" ("MPEG2"/ "MPEG1"/ "DV")],
 [string "chromaresample"="bicubic" ("point"/ "bilinear"/ "bicubic"/ "lanczos"/ "lanczos4"/ "blackman"/ "spline16"/ "spline36"/ "spline64"/ "gauss"/ "sinc")]
 )
+ 
+ConvertToBackYUY2(
+clip,
+string "matrix"="Rec709" ("Rec601"/ "PC.601"/ "Rec709"/ "PC.709"/ "AVERAGE")
+)
 
 ConvertToYV12(
 clip,
@@ -686,6 +747,24 @@ string "matrix"="Rec709" ("Rec601"/ "PC.601"/ "Rec709"/ "PC.709"/ "Rec2020" / "P
 bool "interlaced"=false,
 [string "ChromaInPlacement"="MPEG2" ("MPEG2"/ "MPEG1"/ "DV")],
 [string "chromaresample"="bicubic" ("point"/ "bilinear"/ "bicubic"/ "lanczos"/ "lanczos4"/ "blackman"/ "spline16"/ "spline36"/ "spline64"/ "gauss"/ "sinc")]
+)
+
+ConvertToStacked(
+clip
+)
+
+ConvertToDoubleWidth(
+clip
+)
+
+ConvertFromStacked(
+clip,
+int bits=16
+)
+
+ConvertFromDoubleWidth(
+clip,
+int bits=16
 )
 
 Crop(
@@ -1724,6 +1803,11 @@ VToY8(
 clip
 )
 
+PlaneToY(
+clip,
+string plane
+)
+
 WAVSource(
 string filename="" (*.wav) [, ...],
 [bool "utf8"=false]
@@ -2114,6 +2198,22 @@ int "resize_w"=0,
 int "resize_h"=0,
 int "fieldop"=0 (0 / 1 / 2),
 bool "debug"=false
+)
+
+DGHDRToSDR_DGHDRToSDR(
+clip,
+int "white"=400 (1 to 10000),
+int "black"=0 (1 to 1000),
+float "gamma"=0.42 (0.01 to 1.00),
+float "hue"=0.00 (-1.00 to 1.00),
+float "r"=1.00 (0.00 to 2.00),
+float "g"=1.00 (0.00 to 2.00),
+float "b"=1.15 (0.00 to 2.00),
+float "tm"=0.90 (0.00 to 1.00),
+float "roll"=0.70 (0.00 to 1.00),
+bool "fulldepth"=false,
+string "impl"="255",
+string "mode"="pq" ("pq"/ "hq")
 )
 
 DirectShowSource_DirectShowSource(
@@ -4127,22 +4227,6 @@ int "z"=4 (0 to 20),
 int "ldmp"=1 (0 to 5),
 int "mode"=1 (0 to 1),
 bool "med"=false
-)
-
-DGHDRToSDR(
-clip,
-int "white"=400 (1 to 10000),
-int "black"=0 (1 to 1000),
-float "gamma"=0.42 (0.01 to 1.00),
-float "hue"=0.00 (-1.00 to 1.00),
-float "r"=1.00 (0.00 to 2.00),
-float "g"=1.00 (0.00 to 2.00),
-float "b"=1.15 (0.00 to 2.00),
-float "tm"=0.90 (0.00 to 1.00),
-float "roll"=0.70 (0.00 to 1.00),
-bool "fulldepth"=false,
-string "impl"="255",
-string "mode"="pq" ("pq"/ "hq")
 )
 
 Dither1Pre(
