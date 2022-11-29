@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 10.0 (19-09-2022)     ##
+###   Resizers Functions Pack 10.1 (29-11-2022)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -12,8 +12,13 @@
 ### Functions:                                      ##
 ###      deep_resize                                ##
 ###      nnedi3resize                               ##
+###      eedi3resize                                ##
+###      RAVUresize                                 ##
+###      FSRresize                                  ##
 ###      waifu2xresize                              ##
+###      RIFEwrap                                   ##
 ###      nnedi3wrap                                 ##
+###      EEDI3wrap                                  ##
 ###      RatioResize                                ##
 ###      PadResize                                  ##
 ###      PadBorders                                 ##
@@ -29,7 +34,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (26-08-2022)
+### deep_resize() - by Dogway (29-11-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -100,9 +105,9 @@
 ###    clip,
 ###    float width=1920.00 (0.00 to 3840.00),
 ###    float height=1080.00 (0.00 to 2160.00),
-###    string "edge"="nnedi3" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
-###    string "flat"="Lanczos" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
-###    string "chroma"="Blackman" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Krig"/ "FSRCC"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    string "edge"="nnedi3" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    string "flat"="Lanczos" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    string "chroma"="Blackman" ("nnedi3"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
 ###    int "e_taps"=6 (2 to 20),
 ###    int "f_taps"=8 (2 to 20),
 ###    int "c_taps"=6 (2 to 20),
@@ -138,16 +143,15 @@
 ###     deep_resize(1280)
 ###
 ###
-function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", int "deconv", float "sharpness", float "grain", float "th_rat", float "th", float "elast", int "qual", int "gpuid", bool "show") {
+function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", string "sspace", int "deconv", float "sharpness", float "grain", float "th_rat", float "th", float "elast", int "qual", int "gpuid", bool "show") {
 
     wu  = !Defined(width)
     hu  = !Defined(height)
     w   = width (a)
     h   = height(a)
     rgb = isRGB (a)
-    is4 = is444 (a)
     isy = isy   (a)
-    mod = rgb || is4 || isy ? 1 : 2
+    mod = is444 (a) || rgb || isy ? 1 : 2
     FC  = FrameCount(a)>1
     bi  = BitsPerComponent(a)
     fs  = propNumElements (a,"_ColorRange")     > 0 ? \
@@ -175,8 +179,9 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
     rw     = w2/float(w)
     rh     = h2/float(h)
-    factor =     max(rw,rh) < 3 ? 2 : 4
-    rat    = abs(max(rw,rh)-1)+1
+    mrat   = max(rw,rh)
+    factor =     mrat < 2.5 ? 2 : mrat < 6.0 ? 4 : 8
+    rat    = abs(mrat-1)+1
 
     rth    = Default(th_rat, 1.25)                                                          # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
     krn1   = Default(edge, rat<=rth*0.95 ?                       "Didee" :               /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti */
@@ -194,6 +199,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     thr    = Default(th,       1.0)                                                         # 0-255 (normally up to 10)
     ela    = Default(elast,    4.0)                                                         # 1-255 (normally up to 10)
     qual   = Default(qual,       1)
+    ssp    = Default(sspace, Undefined())                                                   # Scale space (won't work for edge="nnedi3"): "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog
     sh     = Default(show,  false)
     gpuid  = Default(gpuid,      0)                                                         # Set to -1 for "cpu" nnedi3
     ddec   = Defined(deconv)
@@ -219,7 +225,10 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     } else if (krn1 == krn2 && etp == ftp) {
 
         # Downscale/upscale with same edge/flat kernel
-        ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+        krn1=="nnedi3" && krn1c=="nnedi3" ? \
+                nnedi3resize (a, w2,h2,cshift="spline36",gpuid=gpuid,qual=qual,HBD=true) : \
+                ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,scale_space=ssp,gpuid=gpuid)
+
         mul>0 ? LSFplus(preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     } else {
@@ -228,7 +237,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
         if (krn1 == "nnedi3") {
 
             rfactor = rw<factor || rh<factor
-            krnn    = rfactor ? "Bicubic" : "Blackman" # hard coded nnedi3 final edge resize: 'Didée' for down 'Blackman6' for up
+            krnn    = rfactor ? "Bicubic" : "Blackman" # hard coded nnedi3 final edge resize: 'ZoptiN' for down 'Blackman6' for up
         }
 
             # Y8 for nnedi3
@@ -238,37 +247,37 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
             # nnedi3 one dimensional resize case
 
-            edge1   = krn1 == "nnedi3" ? oned ? nnedi3wrap(a8,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift="none",HBD=true,gpuid=gpuid) : \
-                                                nnedi3wrap(a8,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,cshift="none",HBD=true,gpuid=gpuid) : \
-                                                ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+            edge1   = krn1 == "nnedi3" ?   oned ? nnedi3wrap(a8,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift="spline36",HBD=true,gpuid=gpuid) : \
+                                                  nnedi3wrap(a8,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,cshift="spline36",HBD=true,gpuid=gpuid) : \
+                                                  ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0],scale_space=ssp,gpuid=gpuid)
 
         if (rat <= rth) {
 
-                      krn1 == "nnedi3" ? oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,gpuid=gpuid) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
+                      krn1 == "nnedi3" ?   oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift=krn1c,gpuid=gpuid) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
 
         } else {
-            # resizing to target when nnedi3 is used
-            edge1   = krn1 == "nnedi3" ? oned ? Eval(krnn+"resize(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(h==h2 ? ",src_left=cpl!=1 ? -float(w)/w2" : ",src_top=cpl!=1 ? -float(h)/h2")+" : 0)") : \
-                                                Eval(krnn+"resize(edge1,w2,h2,"+(rfactor ? "-0.5,0.25" : "taps=6")+(        ",src_left=cpl!=1 ? -float(w)/w2 : 0 ,src_top=cpl!=1 ? -float(h)/h2     : 0)")) : edge1
+
+            edge1   = krn1 == "nnedi3" && !oned ? ConvertFormat(edge1,w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=krn1c,tv_in=!fs,tv_out=!fs) : edge1
 
 
             # don't sharpen nnedi3 when one dimensional resize case
-            edge    = krn1 == "nnedi3" ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
-                      mul>0            ?        LSFplus(edge1,preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).ConvertBits(bi, fulls=fs, fulld=fs) : edge1 : edge1
+            edge    = krn1 == "nnedi3" ?   oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
+                      mul>0            ?          LSFplus(edge1,preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).\
+                                                  ConvertBits(bi, fulls=fs, fulld=fs) : edge1 : edge1
 
             # resizing flat area
-            flat    =                           ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0])
+            flat    =                             ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0],gpuid=gpuid)
 
             # edge/flat limiting
-            ex_limitdif(         !isy && oned ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
+            ex_limitdif(           !isy && oned ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
 
             # combine planes when oned + nnedi3 case
-                                 !isy && oned ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
+                                   !isy && oned ? CombinePlanes(last, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : last
             # deconvolution from source downscaling
             dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) } }
 
-    size = w2/2134.
-    gr > 0 ? GrainFactory3mod(g1str=6*gr,g2str=8*gr,g3str=5*gr,g1size=1.2*size,g2size=1.5*size,g3size=1.4*size,g1cstr=1.5*gr,g2cstr=1.5*gr,g3cstr=1.5*gr,temp_avg=0,tv_range=!fs) : last
+    size = w2/2133.
+    gr > 0 ? GrainFactory3mod(g1str=6*gr,g2str=8*gr,g3str=6.5*gr,g1size=1.2*size,g2size=1.5*size,g3size=1.4*size,g1cstr=0.5*gr,g2cstr=0.3*gr,g3cstr=0.1*gr,temp_avg=1,tv_range=!fs) : last
 
 
     if (sh) {
@@ -316,6 +325,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
 
 
+
 #
 # nnedi3resize()
 #
@@ -326,16 +336,13 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 # Dependencies:
 #       see nnedi3wrap() below
 #
-function nnedi3resize(clip a, val "width", val "height", bool "HBD", float "sharpness", int "qual", int "nns", int "nsize", int "etype", int "pscrn", int "gpuid") {
+function nnedi3resize(clip a, val "width", val "height", float "src_left", float "src_top", bool "HBD", float "sharpness", int "qual", int "nns", int "nsize", int "etype", int "pscrn", string "cshift", int_array "planes", int "gpuid") {
 
     wu      = !Defined(width)
     hu      = !Defined(height)
     w       = width (a)
     h       = height(a)
-    rgb     = isRGB (a)
-    is4     = is444 (a)
-    isy     = isy   (a)
-    mod     = rgb || is4 || isy ? 1 : 2
+    mod     = isRGB (a) || is444(a) || isy(a) ? 1 : 2
 
     w2      = Default(width,  w)
     h2      = Default(height, h)
@@ -358,13 +365,131 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", float "shar
 
     rw      = w2/float(w)
     rh      = h2/float(h)
+    factor  = max(rw,rh) < 2.5 ? 2 : max(rw,rh) < 6 ? 4 : 8
+    rfactor = rw<factor && rh<factor
+    krnn    = Default(cshift, rfactor ? "Bicubic" : "Blackman")
+
+    nnedi3wrap(a,ws?1:factor,hs?1:factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,src_left=src_left,src_top=src_top,sharpness=sharpness,cshift=krnn,HBD=HBD,planes=planes,gpuid=gpuid)
+    }
+
+
+function eedi3resize(clip a, val "width", val "height", float "src_left", float "src_top", bool "HBD", float "sharpness", float "alpha", float "beta", float "gamma", int "nrad", int "mdis", int "vcheck", bool "hp", bool "ucubic", bool "cost3", string "cshift", int_array "planes", int "gpuid") {
+
+    wu      = !Defined(width)
+    hu      = !Defined(height)
+    w       = width (a)
+    h       = height(a)
+    mod     = isRGB (a) || is444(a) || isy(a) ? 1 : 2
+
+    w2      = Default(width,  w)
+    h2      = Default(height, h)
+
+    Assert(IsVersionOrGreater(3,7,3),  "eedi3resize: Update AviSynth+ version")
+    Assert(isFloat(w2) || isFloat(h2), "eedi3resize: Width/Height type not supported")
+
+    w2      = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
+    h2      = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
+    w2      =  w2<=10. ? w*w2 : w2        w2 = nmod(w2,mod)
+    h2      =  h2<=10. ? h*h2 : h2        h2 = nmod(h2,mod)
+    w2      =  w2 == 0 || wu  ? nmod((w*(h2/float(h))),mod) : w2
+    h2      =  h2 == 0 || hu  ? nmod((h*(w2/float(w))),mod) : h2
+
+    hs      = h == h2
+    ws      = w == w2
+    oned    = hs || ws
+
+    rw      = w2/float(w)
+    rh      = h2/float(h)
+    factor  = max(rw,rh) < 2.5 ? 2 : max(rw,rh) < 6 ? 4 : 8 # maybe make the threshold higher? (so rpow is triggered before, like factor=4 for 2.5x)
+    rfactor = rw<factor && rh<factor
+    krnn    = Default(cshift, rfactor ? "Bicubic" : "Blackman")
+
+    eedi3wrap(a,ws?1:factor,hs?1:factor,src_left=src_left,src_top=src_top,alpha=alpha,beta=beta,gamma=gamma,nrad=nrad,mdis=mdis,hp=hp,ucubic=ucubic,cost3=cost3,fwidth=w2,fheight=h2,cshift=krnn,sharpness=sharpness,HBD=HBD,planes=planes,gpuid=gpuid)
+    }
+
+
+
+#
+# RAVUresize()
+#
+# Wrapper for libplacebo_Shader() with RAVU4 upscaler from avs_libplacebo by Asd-g.
+# RAVU (Rapid and Accurate Video Upscaling) is a set of prescalers inspired by RAISR (Rapid and Accurate Image Super Resolution).
+# Similar in quality to XBR and nnedi3. Accepts arbitrary dimension values, not only limited to powers of 2
+#
+# Dependencies:
+#       avs_libplacebo
+#       ExTools
+#       TransformsPack
+#       GrainFactory3mod (for grain>0)
+#
+function RAVUresize(clip a, val "width", val "height", float "grain", string "path", int "gpuid") {
+
+    wu      = !Defined(width)
+    hu      = !Defined(height)
+    w       = width (a)
+    h       = height(a)
+    isy     = isy   (a)
+    mod     = isRGB (a) || is444(a) || isy ? 1 : 2
+    bi      = BitsPerComponent(a)
+
+    w2      = Default(width,  w)
+    h2      = Default(height, h)
+    pt      = Default(path, "C:\Program Files\AviSynth+\plugins64+\Shaders\avslibplacebo\ravu-r4.hook")
+
+    Assert(IsVersionOrGreater(3,7,3),  "RAVUresize: Update AviSynth+ version")
+    Assert(isFloat(w2) || isFloat(h2), "RAVUresize: Width/Height type not supported")
+
+    w2      = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
+    h2      = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
+    w2      =  w2<=10. ? w*w2 : w2        w2 = nmod(w2,mod)
+    h2      =  h2<=10. ? h*h2 : h2        h2 = nmod(h2,mod)
+    w2      =  w2 == 0 || wu  ? nmod((w*(h2/float(h))),mod) : w2
+    h2      =  h2 == 0 || hu  ? nmod((h*(w2/float(w))),mod) : h2
+
+    rw      = w2/float(w)
+    rh      = h2/float(h)
+    gr      = Default(grain, rw>1.25 && rh>1.25 ? 0.3 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
+    gpuid   = Default(gpuid, 0)
+
     factor  = max(rw,rh) < 3 ? 2 : 4
     rfactor = rw<factor && rh<factor
-    krnn    = rfactor ? "Bicubic" : "Blackman"
+    krnn    = rfactor ? "ZoptiN" : "Blackman6" # hard coded final resize: 'ZoptiN' for down 'Blackman6' for up
 
-    nnedi3wrap(a,ws?1:factor,hs?1:factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,ep0=rfactor?-0.5:6,ep1=0.25,sharpness=sharpness,cshift=krnn,HBD=HBD,gpuid=gpuid)
+    a
+    isy ? mskY_to_YYY(ExtractY(), last, false, false, 0, bi) : last
+    ConvertBits(16)
 
-    }
+    libplacebo_Shader(pt,width()*factor,height()*factor,filter="lanczos",radius=2,device=max(0,gpuid))
+
+    isy ? ExtractY() : last
+
+    shf = factor==2 ? [-0.5] : [0]
+    ConvertFormat(w2,h2,fmt_out=isy?"":PixelType(a),cs_out="",EOTFi="",src_left=shf,src_top=shf,kernel=krnn,kernel_c=krnn,gpuid=-1) # cubics and sincs are slow in avs_libplacebo
+
+    size = w2/2133.
+    gr > 0 ? GrainFactory3mod(g1str=6*gr,g2str=8*gr,g3str=6.5*gr,g1size=1.2*size,g2size=1.5*size,g3size=1.4*size,g1cstr=0.5*gr,g2cstr=0.3*gr,g3cstr=0.1*gr,temp_avg=1) : last
+    ConvertBits(bi, dither=1) }
+
+
+
+#
+# FSRresize()
+#
+# Wrapper for libplacebo_Shader() with AMD's FSR upscaler (v1.0).
+#
+# Dependencies:
+#       avs_libplacebo
+#       ExTools
+#       TransformsPack
+#       GrainFactory3mod (for grain>0)
+#
+function FSRresize(clip a, val "width", val "height", float "grain", string "path", int "gpuid") {
+
+    pt  = Default(path, "C:\Program Files\AviSynth+\plugins64+\Shaders\avslibplacebo\FSR.glsl")
+    Assert(IsVersionOrGreater(3,7,3),         "FSRresize: Update AviSynth+ version")
+    Assert(isFloat(width) || isFloat(height), "FSRresize: Width/Height type not supported")
+
+    RAVUresize(a, width, height, grain, pt, gpuid) }
 
 
 
@@ -378,7 +503,8 @@ function nnedi3resize(clip a, val "width", val "height", bool "HBD", float "shar
 #       w2xncnnvk
 #       ExTools
 #       TransformsPack
-#       MasksPack (for model=1)
+#       GrainFactory3mod (for grain>0)
+#       MasksPack        (for model=1)
 #
 function waifu2xresize(clip a, val "width", val "height", int "model", int "noise", float "grain", bool "soothe", bool "tv_range", int "gpuid") {
 
@@ -392,20 +518,16 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     hu     = !Defined(height)
     w      = width (a)
     h      = height(a)
-    rgb    = isRGB (a)
-    rgbp   = isPlanarRGB(a)
-    is4    = is444 (a)
     isy    = isy   (a)
-    mod    = rgb || is4 || isy ? 1 : 2
-    cpl    = propNumElements (a,"_ChromaLocation") > 0 ? \
-             propGetInt      (a,"_ChromaLocation")     : 0
+    rgb    = isRGB (a)
+    rgbp   = isPlanarRGB (a)
+    mod    = rgb || is444(a) || isy ? 1 : 2
 
     w2     = Default(width,  w)
     h2     = Default(height, h)
 
-    ver = VersionString()
-    Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3689"),"waifu2xresize: Update AviSynth+ version")
-    Assert(isFloat(w2) || isFloat(h2),                           "waifu2xresize: Width/Height type not supported")
+    Assert(IsVersionOrGreater(3,7,3),  "waifu2xresize: Update AviSynth+ version")
+    Assert(isFloat(w2) || isFloat(h2), "waifu2xresize: Width/Height type not supported")
 
     w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
     h2     = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
@@ -418,11 +540,11 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     rh     = h2/float(h)
     factor = max(rw,rh) < 3 ? 2 : 4
     rfactor= rw<factor && rh<factor
-    krnn   = rfactor ? "Bicubic" : "Blackman" # hard coded final resize: 'Didée' for down 'Blackman6' for up
+    krnn   = rfactor ? "Didee" : "Blackman6" # hard coded final resize: 'Didée' for down 'Blackman6' for up
 
     isHD   = (w > 1099 || h >  599)
     isUHD  = (w > 2599 || h > 1499)
-    ti     = isUHD ? 512 : isHD ? 256 : 128
+    tile   = isUHD ? 512 : isHD ? 256 : 128
 
     md     = Default(model,      1)                        # model: 0 - for Anime or lineart, 1 - for photos or live action
     tv     = Default(tv_range,  pID[6])
@@ -435,18 +557,77 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertToPlanarRGB(matrix=mat,chromaresample="lanczos4")
 
     for (i = 1, factor/2, 1) {
-        w2xncnnvk(noise=ns-1, scale=2, tile_w=ti, tile_h=ti, model=md, tta=factor<4, fp32=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2) # 2: CUnet is too slow for video
+        w2xncnnvk(noise=ns-1, scale=2, tile_w=tile, tile_h=tile, model=md, tta=factor<4, fp32=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2) # 2: CUnet is too slow for video
         }
 
-    isy  ? ExtractR()                         : last
+    isy  ? ExtractR()                         : \
     !rgb ? MatchClip(a,matrix=pri,size=false) : last
 
     so && FC && rw>1.25 && rh>1.25 ? Soothe(a.nnedi3wrap(factor,gpuid=gid),tv_range=tv) : last
 
-    Eval(krnn+"resize(w2,h2"+(rfactor ? ",-0.5,0.25)" : ",taps=6)"))
+    ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=krnn,gpuid=gid)
 
-    size = w2/2134.
-    gr > 0 ? GrainFactory3mod(g1str=6*gr,g2str=8*gr,g3str=5*gr,g1size=1.2*size,g2size=1.5*size,g3size=1.4*size,g1cstr=1.5*gr,g2cstr=1.5*gr,g3cstr=1.5*gr,temp_avg=0,tv_range=tv) : last }
+    size = w2/2133.
+    gr > 0 ? GrainFactory3mod(g1str=6*gr,g2str=8*gr,g3str=6.5*gr,g1size=1.2*size,g2size=1.5*size,g3size=1.4*size,g1cstr=0.5*gr,g2cstr=0.3*gr,g3cstr=0.1*gr,temp_avg=1,tv_range=tv) : last }
+
+
+
+#
+# RIFEwrap()
+#
+# Wrapper around RIFE port by Asd-g
+#
+# Dependencies:
+#       RIFE
+#       ExTools
+#       TransformsPack
+#
+function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "FrameDouble", bool "Anime", int "gpuid") {
+
+    isy    = isy   (a)
+    rgb    = isRGB (a)
+    rgbp   = isPlanarRGB (a)
+
+    numD   = Defined(FrameNum)
+    denD   = Defined(FrameDen)
+
+    num    = propNumElements (a,"_DurationDen") > 0 ? \
+             propGetInt      (a,"_DurationDen") : FrameRateNumerator(a)
+    den    = propNumElements (a,"_DurationNum") > 0 ? \
+             propGetInt      (a,"_DurationNum") : FrameRateDenominator(a)
+    fs     = propNumElements (a,"_ColorRange" ) > 0 ? \
+             propGetInt      (a,"_ColorRange" ) == 0 : rgb
+
+    pID    = color_propGet(a)
+    bi     = pID[7]
+    pri    = pID[2]
+    mat    = "PC"+pri
+    isHD   = (width (a) > 1099 || height(a) > 599)
+
+    Assert(IsVersionOrGreater(3,7,3),"RIFEwrap: Update AviSynth+ version")
+
+/*  https://github.com/nihui/rife-ncnn-vulkan/issues/50#issuecomment-1229203013
+    The rife architecture has two parameters called ensembling and fastmode integrated.
+    You can't just export rife into one single model without such parameters.
+    Nihui always just exports the fastest model (ensemble False, Fast True), while the other ones can result in a better image.
+    Ensembling combines the flow of two different interpolations within the model and if fastmode is false it calls contextnet */
+    md     = Default(model,         22)                        # model: 3 - for Anime or lineart, 17,6,22 - for photos or live action (in ascending order of qual/speed)
+    num    = Default(FrameNum,     num)
+    den    = Default(FrameDen,     den)
+    fd     = Default(FrameDouble, !(numD || denD))
+    an     = Default(Anime,      false)
+    gid    = Default(gpuid,          0)
+
+    ConvertBits(a, 32, fulls=fs, fulld=true)
+    rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertToPlanarRGB(matrix=mat,chromaresample="lanczos4")
+
+    RIFE(model=fd ? md : max(md,9), sc=true, skip=an, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2)
+
+    isy  ? ExtractR()                                               : \
+    !rgb ? MatchClip(a,matrix=pri,size=false,props=false)           : last
+    fd   ? Interleave(a.propSet("_DurationDen",den*2), SelectOdd()) : last
+
+    propCopy(a,true,props=["_DurationNum","_DurationDen","_PictType"], exclude=true) }
 
 
 
@@ -455,7 +636,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 #
 # Replacement wrapper for nnedi3(), nnedi3_rpow2() and NNEDI3CL() based on 'field' and 'gpuid' values.
 # Adds "_rpow2" functionality and its arguments to NNEDI3CL().
-# Maintains frame props when nnedi3() or nnedi3_rpow2() is used.
+# Maintains frame properties when nnedi3() or nnedi3_rpow2() is used.
 # Decouples 'rfactor' into 'xfactor' and 'yfactor' and sets new reasonable defaults.
 # Finally it automatically fixes center shift for both plugins, set cshift="none" to disable.
 #
@@ -466,118 +647,286 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 #       nnedi3
 #         SysInfo
 #
-function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "ep0", float "ep1", int_array "planes", bool "HBD", float "sharpness", int "gpuid") {
+function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", int "gpuid") {
 
-    w       = width (a)
-    h       = height(a)
-    rgb     = isRGB (a)
-    FC      = FrameCount(a)>1
-    bi      = BitsPerComponent(a)
-    de      = Defined(dh) ? dh : false
-    fb      = GetParity(a) ? 2 : 1
-    fb      = propNumElements (a,"_FieldBased")     > 0 ? \
-              propGetInt      (a,"_FieldBased")         : de ? fb : IsFrameBased(a) ? 0 : fb
-    fs      = propNumElements (a,"_ColorRange")     > 0 ? \
-              propGetInt      (a,"_ColorRange")    == 0 : rgb
-    cpl     = propNumElements (a,"_ChromaLocation") > 0 ? \
-              propGetInt      (a,"_ChromaLocation")     : 0
+    a
+    w       = width ()
+    h       = height()
+    isy     = isY()
+    FC      = FrameCount()>1
+    bi      = BitsPerComponent()
+    fb      = GetParity() ? 2 : 1
+    fb      = propNumElements("_FieldBased")     > 0 ? \
+              propGetInt     ("_FieldBased")         : IsFrameBased() ? 0 : fb
+    fs      = propNumElements("_ColorRange")     > 0 ? \
+              propGetInt     ("_ColorRange")    == 0 : isRGB()
+    cpl     = propNumElements("_ChromaLocation") > 0 ? \
+              propGetInt     ("_ChromaLocation")     : 0
+    fmt     = isy ? 0 : isYV411() ? 1 : is420() ? 2 : is422() ? 3  : 4
 
 
-    dh      = Default(dh,     fb!=0)        # Set to true to switch to deinterlace mode
-    gpuid   = Default(gpuid,      0)        # Set to -1 for "cpu" nnedi3
-    fd      = Default(field,  !dh || fb==0 ? 1 : fb==1 ? 2 : 3)
-    fd      = gpuid>-1 && fd<0 ? fb : fd
+    fld     = Defined(field)
+    field   = Default(field,             -1)    /* -2 = interlaced (automatic order)    */  # Override source field order
+    fd      = field==-2 ?      max(1, fb)+1 :   /* -1 = auto                            */
+            \ field==-1 ? fb==0 ? 0 : fb +1 :   /*  0 = progressive bottom-field first  */
+            \ field                             /*  1 = progressive top-field first     */
+                                                /*  2 = interlaced  bottom-field first  */
+    in      = fd>1                              /*  3 = interlaced  top-field first     */
 
-          Assert(IsVersionOrGreater(3,7,2), "nnedi3wrap: Update AviSynth+ version")
-    !dh ? Assert(-2<fd<2,                   "nnedi3wrap: Field must be 0 or 1 for dh=False") : nop()
-
-    xf      = Default(xfactor, !dh ? 2 : 1)  # powers of 2; 2, 4, 8....
+    xf      = Default(xfactor, !in ? 2 : 1)     # powers of 2; 2, 4, 8....
     yf      = Default(yfactor,   xf)
+    xf      = int(xf>12?16:min(8,pow(2,xf/2)))  # force power steps
+    yf      = int(yf>12?16:min(8,pow(2,yf/2)))
+
+    xyf     = max(xf,yf)
+
+         Assert(IsVersionOrGreater(3,7,2), "nnedi3wrap: Update AviSynth+ version")
+    in ? Assert(xyf==1,                    "nnedi3wrap: Field must be 0 or 1 for scaling") : nop()
+
     ws      = xf == 1
     hs      = yf == 1
     w1      = w*xf
     h1      = h*yf
     oned    = ws || hs
-    xyf     = max(xf,yf)
 
-    nsize   = Default(nsize, dh ? 3 : oned ? 6 : 0)
-    nns     = Default(nns,   dh ||   !oned ? 3 : 1)
-    mul     = Default(sharpness,  0)
-    qual    = Default(qual,       1)
-    etype   = Default(etype,      0)
-    pscrn   = Default(pscrn,      2)
-    HBD     = Default(HBD,    false)        # Force source HBD (slower)
+    nsize   = Default(nsize, in ? 3 : oned ? 6 : 0)
+    nns     = Default(nns,   in ||   !oned ? 3 : 1)
+    mul     = Default(sharpness,   0)
+    qual    = Default(qual,        1)
+    etype   = Default(etype,       0)
+    pscrn   = Default(pscrn,       2)
+    HBD     = Default(HBD,     false)        # Force source HBD (slower)
+    src_l   = Default(src_left,    0)
+    src_t   = Default(src_top,     0)
     dfw     = Defined(fwidth)
     dfh     = Defined(fheight)
     w2      = Default(fwidth,     w1)
     h2      = Default(fheight,    h1)
+    gpuid   = Default(gpuid,       0)        # Set to -1 for "cpu" nnedi3
+    # Internal arg for signaling chroma Y planes from ConvertFormat()
+    pln     = Default(planes,isy  ? [3] : [3,fmt,fmt]) # [3,2] means process luma, and chroma as 420 (id 2 for 420, 3 for 422, 4 for 444 and 1 for 411. 0 for no chroma)
+    pln     = ArraySize(pln) == 1 ? [pln[0], fmt,fmt] : ArraySize(pln)==2 ? ArrayAdd(pln,pln[1]) : pln
 
-    sm      = w2 == w1 && h1 == h1
-    rw      = w2/float(w1)
-    rh      = h2/float(h1)
-    factor  = max(rw,rh) < 3 ? 2 : 4
+    sm      = w2 == w && h1 == h
+    rw      = w2/float(w)
+    rh      = h2/float(h)
+    factor  = max(rw,rh) < 2.5 ? 2 : max(rw,rh) < 6 ? 4 : 8
     rfactor = rw<factor && rh<factor
 
-    krnn    = Default(cshift, sm ? "spline16" : rfactor ? "Bicubic" : "Blackman") # kernel used for fwidth or fheight, otherwise only for pixel shift (set to "none" to disable shift fix)
-    ep0     = Default(ep0,                      rfactor ? -0.5 : 6)
-    ep1     = Default(ep1,                                 0.25)
+    krnn    = Default(cshift, sm ? "spline16" : rfactor ? "ZoptiN" : "Blackman") # kernel used for fwidth or fheight, otherwise only for pixel shift (set to "none" to disable shift fix)
+    coeffs  = bicubic_coeffs(krnn)
+    krnn    = coeffs[0]!=-2 && coeffs[1]!=-2 ? "Bicubic" : krnn
+    ep0     = krnn=="Bicubic" ? coeffs[0] : gpuid==-1 ? krnn=="Blackman" ? 6 : 4 : Undefined()  # NNEDI3 in CPU mode is limited in cshift modes, so hardcode some values here.
+    ep1     = krnn=="Bicubic" ? coeffs[1] :                                        Undefined()
 
-    !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
+
+    !HBD ? ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : last
 
     if (gpuid<0) {
 
         cores   = SI_PhysicalCores()
         threads = SI_LogicalCores()
 
-        if        (dh || oned) {
+        if        (in || oned) {
 
-            hs && !dh          ? TurnRight() : last
-            for (i = 1, dh?1:xyf/2, 1) {
-                nnedi3(field=fd, dh=!dh,              nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
+            hs && !in          ? TurnRight() : last
+            for (i = 1, in?1:xyf/2, 1) {
+                nnedi3(field=fd, dh=!in,              nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2)
             }
-            hs && !dh          ? TurnLeft () : last
+            hs && !in          ? TurnLeft () : last
 
         } else {
                 nnedi3_rpow2(rfactor=xyf,             nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,threads=cores,prefetch=(threads+cores)/2,range=fs?1:2,mpeg2=cpl!=1,fwidth=w2,fheight=h2,cshift=krnn=="none"?Undefined():krnn+"resize",ep0=ep0,ep1=ep1)
         }
 
     } else {
-        for (i = 1, dh?1:xyf/2, 1) {
-            NNEDI3CL(        fd, dh=!dh||!hs, dw=!ws, nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,device=gpuid,planes=planes)
+        for (i = 1, in?1:xyf/2, 1) {
+            NNEDI3CL(        fd, dh=!in||!hs, dw=!ws, nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,device=gpuid)
             }
     }
 
+    gpuid<0  ? propCopy(a)                                   : last
+    in       ? propSet("_FieldBased",0).propSet("_Combed",0) : \
+    fld      ? propSet("_FieldBased", fd)                    : last
+    mul>0    ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
-     mul>0 ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
+    # For final scaling and/or fix for pixel center shift
+    if (krnn!="none" && !in && (((dfw||dfh) && !(w2 == w && h2 == h) && !(src_l == 0 && src_t == 0)) || (oned || gpuid>-1))) {
 
-    # Fix for pixel center shift or for final scaling
-    if (krnn!="none" && !dh && (((dfw||dfh) && !sm) || (oned || gpuid>-1))) {
+        ym   = max(yf,min(rh,8))
+        xm   = max(xf,rw)
 
-        i20  = is420()  i22  = is422()
-        i44  = is444()  i11  = isYV411()
+        cht    = pln[1]==1       || pln[1]==3 ? 0.5            : 1
+        chl    = pln[1]==1 ? 0.58 : pln[1]==4 ? min(1,(4./xm)) : 1
 
-        # Default 0.5 because it's always halving (except for 411)
-        cpc  = cpl == 0 ? [-0.5, 0.0] : \
-               cpl == 1 ? [ 0.0, 0.0] : \
-               cpl == 2 ? [-0.5,-0.5] : \
-               cpl == 3 ? [ 0.0,-0.5] : \
-               cpl == 4 ? [-0.5, 0.5] : [0.0, 0.5]
+        cy     = isy && pln[1]>0
+        cslc   = xm == 16 ? 380   : 0.100*pow(xm,2.585)+0.9
+        cstc   = ym == 16 ? 270   : 0.067*pow(ym,2.585)+0.6
+        csl    = xm == 16 ? 127.5 : 0.034*pow(xm,2.585)+0.3
+        cst    = ym == 16 ? 127.5 : 0.034*pow(ym,2.585)+0.3
+        cslc   = (pln[1]==4 ? csl : cslc)*chl
+        cstc   = (pln[1]==4 ? cst : cstc)*cht
+        csl    = !cy ? csl+src_l : pln[1]==4 ?  cslc+src_l : pln[1]==1 ? 0.625-0.375*((cslc+src_l)*rw) : (cslc+src_l)*0.5
+        cst    = !cy ? cst+src_t : pln[1]==4 || pln[1]==1 || pln[1]==3 ? cstc+src_t : (cstc+src_t)*0.5
 
-        cpw  =  i44 ? 0 : i11 ? cpc[0]/2 : cpc[0]
-        cph  = !i20 ? 0 : cpc[1]
+        ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=krnn,tv_in=!fs, \
+            src_left=[csl,cslc+src_l],             \
+            src_top =[cst,cstc+src_t],gpuid=-1) # -1 because 'sincs' or 'cubics' in avs_libplacebo are slow
+    }
+    !HBD     ? ConvertBits(bi, fulls=fs, fulld=fs) : last
+    ws && hs && !in && sm ? a                      : last }
 
-        csl = cpl!=1 ?  cpw    * (xyf-1) : 0
-        cst = cpl!=1 ? -cph -1 * (xyf-1) : 0
-        krn = LCase(krnn)
-        krn = FindStr(krn, "bicubic") >0 ? 0 : FindStr( krn, "spline")>0 ? 1 : 2
-        Eval(krnn+"resize(w2,h2"+(krn==0 ? ",ep0,ep1" : krn==2 ? ",taps=round(ep0)" : "")+(hs ? ",src_left=csl)" : ws ? ",src_top=cst)" : ",src_left=csl,src_top=cst)"))
+
+
+
+#
+# EEDI3wrap()
+#
+# Replacement wrapper for eedi3(), eedi3_rpow2() and EEDI3CL() based on 'field' and 'gpuid' values.
+# Adds "_rpow2" functionality and its arguments to EEDI3CL().
+# Maintains frame properties when eedi3() or eedi3_rpow2() is used.
+# Decouples 'rfactor' into 'xfactor' and 'yfactor' and sets new reasonable defaults.
+# Finally it automatically fixes center shift for both plugins, set cshift="none" to disable.
+#
+# Dependencies:
+#       ExTools
+#       EEDI3CL / eedi3
+#
+function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alpha", float "beta", float "gamma", int "nrad", int "mdis", int "vcheck", bool "hp", bool "ucubic", bool "cost3", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", clip "sclip", int "gpuid") {
+
+    a
+    w       = width ()
+    h       = height()
+    isy     = isY()
+    FC      = FrameCount()>1
+    bi      = BitsPerComponent()
+    fb      = GetParity() ? 2 : 1
+    fb      = propNumElements("_FieldBased")     > 0 ? \
+              propGetInt     ("_FieldBased")         : IsFrameBased() ? 0 : fb
+    fs      = propNumElements("_ColorRange")     > 0 ? \
+              propGetInt     ("_ColorRange")    == 0 : isRGB()
+    cpl     = propNumElements("_ChromaLocation") > 0 ? \
+              propGetInt     ("_ChromaLocation")     : 0
+    fmt     = isy ? 0 : isYV411() ? 1 : is420() ? 2 : is422() ? 3  : 4
+
+
+    fld     = Defined(field)
+    field   = Default(field,             -1)    /* -2 = interlaced (automatic order)    */  # Override source field order
+    fd      = field==-2 ?      max(1, fb)+1 :   /* -1 = auto                            */
+            \ field==-1 ? fb==0 ? 0 : fb +1 :   /*  0 = progressive bottom-field first  */
+            \ field                             /*  1 = progressive top-field first     */
+                                                /*  2 = interlaced  bottom-field first  */
+    in      = fd>1                              /*  3 = interlaced  top-field first     */
+
+    xf      = Default(xfactor, !in ? 2 : 1)     # powers of 2; 2, 4, 8....
+    yf      = Default(yfactor,   xf)
+    xf      = int(xf>12?16:min(8,pow(2,xf/2)))  # force power steps
+    yf      = int(yf>12?16:min(8,pow(2,yf/2)))
+
+    xyf     = max(xf,yf)
+
+         Assert(IsVersionOrGreater(3,7,3), "EEDI3wrap: Update AviSynth+ version")
+    in ? Assert(xyf==1,                    "EEDI3wrap: Field must be 0 or 1 for scaling") : nop()
+
+    ws      = xf == 1
+    hs      = yf == 1
+    w1      = w*xf
+    h1      = h*yf
+    oned    = ws || hs
+
+    mul     = Default(sharpness,   0)
+    nrad    = Default(nrad,        2)
+    mdis    = Default(mdis,       20)
+    alpha   = Default(alpha,     0.2)
+    beta    = Default(beta,     0.25)
+    gamma   = Default(gamma,    20.0)
+    vcheck  = Default(vcheck,      2)
+    hp      = Default(hp,      false)
+    ucubic  = Default(ucubic,   true)
+    cost3   = Default(cost3,    true)
+    HBD     = Default(HBD,     false)        # Force source HBD (slower), only for EEDI3CL
+    src_l   = Default(src_left,    0)
+    src_t   = Default(src_top,     0)
+    dfw     = Defined(fwidth)
+    dfh     = Defined(fheight)
+    w2      = Default(fwidth,     w1)
+    h2      = Default(fheight,    h1)
+    gpuid   = Default(gpuid,       0)        # Set to -1 for "cpu" eedi3
+    # Internal arg for signaling chroma Y planes from ConvertFormat()
+    pln     = Default(planes,isy  ? [3] : [3,fmt,fmt]) # [3,2] means process luma, and chroma as 420 (id 2 for 420, 3 for 422, 4 for 444 and 1 for 411. 0 for no chroma)
+    pln     = ArraySize(pln) == 1 ? [pln[0], fmt,fmt] : ArraySize(pln)==2 ? ArrayAdd(pln,pln[1]) : pln
+
+    sm      = w2 == w && h1 == h
+    rw      = w2/float(w)
+    rh      = h2/float(h)
+    factor  = max(rw,rh) < 2.5 ? 2 : max(rw,rh) < 6 ? 4 : 8
+    rfactor = rw<factor && rh<factor
+
+    krnn    = Default(cshift, sm ? "spline16" : rfactor ? "ZoptiN" : "Blackman") # kernel used for fwidth or fheight, otherwise only for pixel shift (set to "none" to disable shift fix)
+    coeffs  = bicubic_coeffs(krnn)
+    krnn    = coeffs[0]!=-2 && coeffs[1]!=-2 ? "Bicubic" : krnn
+    ep0     = krnn=="Bicubic" ? coeffs[0] : gpuid==-1 ? krnn=="Blackman" ? 6 : 4 : Undefined()  # EEDI3 in CPU mode is limited in cshift modes, so hardcode some values here.
+    ep1     = krnn=="Bicubic" ? coeffs[1] :                                        Undefined()
+
+
+    !HBD || gpuid<0 ? ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : last
+
+    if (gpuid<0) {
+
+        if        (in || oned) {
+
+            hs && !in          ? TurnRight() : last
+            for (i = 1, in?1:xyf/2, 1) {
+                eedi3(field=fd, dh=!in,              alpha=alpha,beta=beta,gamma=gamma,nrad=nrad,mdis=mdis,hp=hp,ucubic=ucubic,cost3=cost3,threads=0,sclip=sclip)
+            }
+            hs && !in          ? TurnLeft () : last
+
+        } else {
+                eedi3_rpow2(rfactor=xyf,             alpha=alpha,beta=beta,gamma=gamma,nrad=nrad,mdis=mdis,hp=hp,ucubic=ucubic,cost3=cost3,threads=0,fwidth=w2,fheight=h2,cshift=krnn=="none"?Undefined():krnn+"resize",ep0=ep0,ep1=ep1)
+        }
+
+    } else {
+        if (!hs || in) {
+            for (i = 1, in?1:yf/2, 1) {
+                EEDI3CL(        fd, dh=!in||!hs, alpha=alpha,beta=beta,gamma=gamma,nrad=nrad,mdis=mdis,hp=hp,ucubic=ucubic,cost3=cost3,sclip=sclip,device=gpuid)
+            } }
+        if (!ws && !in) {
+                TurnRight()
+            for (i = 1, xf/2, 1) {
+                EEDI3CL(        fd, dh=true,     alpha=alpha,beta=beta,gamma=gamma,nrad=nrad,mdis=mdis,hp=hp,ucubic=ucubic,cost3=cost3,sclip=sclip,device=gpuid)
+            }   TurnLeft () }
     }
 
-    !HBD     ? ConvertBits(bi, fulls=fs, fulld=fs)           : last
     gpuid<0  ? propCopy(a)                                   : last
-    dh       ? propSet("_FieldBased",0).propSet("_Combed",0) : last
+    in       ? propSet("_FieldBased",0).propSet("_Combed",0) : \
+    fld      ? propSet("_FieldBased", fd)                    : last
+    mul>0    ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
-    ws && hs && !dh && sm ? a : last }
+    # For final scaling and/or fix for pixel center shift
+    if (krnn!="none" && !in && (((dfw||dfh) && !(w2 == w && h2 == h) && !(src_l == 0 && src_t == 0)) || (oned || gpuid>-1))) {
+
+        ym   = max(yf,min(rh,8))
+        xm   = max(xf,rw)
+
+        cht    = pln[1]==1       || pln[1]==3 ? 0.5            : 1
+        chl    = pln[1]==1 ? 0.58 : pln[1]==4 ? min(1,(4./xm)) : 1
+
+        cy     = isy && pln[1]>0
+        cslc   = xm == 16 ? 380   : 0.100*pow(xm,2.585)+0.9
+        cstc   = ym == 16 ? 270   : 0.067*pow(ym,2.585)+0.6
+        csl    = xm == 16 ? 127.5 : 0.034*pow(xm,2.585)+0.3
+        cst    = ym == 16 ? 127.5 : 0.034*pow(ym,2.585)+0.3
+        cslc   = (pln[1]==4 ? csl : cslc)*chl
+        cstc   = (pln[1]==4 ? cst : cstc)*cht
+        csl    = !cy ? csl+src_l : pln[1]==4 ?  cslc+src_l : pln[1]==1 ? 0.625-0.375*((cslc+src_l)*rw) : (cslc+src_l)*0.5
+        cst    = !cy ? cst+src_t : pln[1]==4 || pln[1]==1 || pln[1]==3 ? cstc+src_t : (cstc+src_t)*0.5
+
+        ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=krnn,tv_in=!fs, \
+            src_left=[csl,cslc+src_l],             \
+            src_top =[cst,cstc+src_t],gpuid=-1) # -1 because 'sincs' or 'cubics' in avs_libplacebo are slow
+    }
+    !HBD || gpuid<0 ? ConvertBits(bi, fulls=fs, fulld=fs) : last
+    ws && hs && !in && sm ? a                             : last }
 
 
 
@@ -586,7 +935,8 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
 ###
 ### RatioResize()
 ###
-### Resizer based on different ratios, like DAR, PAR, percentage, etc.
+### Simple resizer based on different ratios, like DAR, PAR, percentage, etc.
+### It isn't chroma placement aware to keep dependencies to a minimum.
 ### More like a useful resize calculator than a resizer per se.
 ### The Mode parameter accepts the next ones (in quotes):
 ###
@@ -639,10 +989,10 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", bool "dh"
 
 function RatioResize(clip s, float "ratio", string "mode", int "mod", string "kernel", float "b", float "c", float "p", float "src_left", float "src_top", int "PreW", int "PreH") {
 
-    rgb   = isRGB(s)
+    fch   = isy(s) || isRGB(s) || is444(s)
     r     = Default(ratio,      0.5)
     md    = Default(mode,       "%")
-    mod   = Default(mod, rgb ? 1 : 2)
+    mod   = Default(mod, fch ? 1 : 2)
     w     = Default(PreW,  s.width ())
     h     = Default(PreH,  s.height())
     b     = Default(b,       0.0)
@@ -707,20 +1057,25 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
 function PadResize(clip c, int "width", int "height", int "mod", string "mode", int "biasW", int "biasH") {
 
     c
-    rgb = isRGB()
     w   = width()
     h   = height()
-    fch = isy() || rgb || is444()
+    fch = isy() || isRGB() || is444()
+    in  = propNumElements("_FieldBased")  > 0 ? \
+          propGetInt     ("_FieldBased")  > 0 : !IsFrameBased()
+    m2  =      fch ? 1 : 2
+    m4  = in ? fch ? 2 : 4 : m2
 
     wt     = Default(width,  w)
     ht     = Default(height, h)
-    mod    = Default(mod,    fch ? 1 : 2)
+    mod    = Default(mod,   m4)
+    mdh    = nmod(mod,m2,m2)
+    mdv    = nmod(mod,m4,m4)
     bw     = Default(biasW,  0)
     bh     = Default(biasH,  0)
     # mode: 'Dilate', 'Mirror', 'Fill' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
-    wn  = nmod(wt,mod)  wa = wn-w
-    hn  = nmod(ht,mod)  ha = hn-h
+    wn  = nmod(wt,mdh)  wa = wn-w
+    hn  = nmod(ht,mdv)  ha = hn-h
 
     wh  = abs(wa)/2.
     hh  = abs(ha)/2.
@@ -773,11 +1128,14 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     w   = width()
     h   = height()
     rgb = isRGB()
-    isy = isy()
-    fch = isy || rgb || is444()
-    mod = fch ? 1 : 2
+    fch = isy() || rgb || is444()
     fs  = propNumElements("_ColorRange")  > 0 ? \
           propGetInt     ("_ColorRange") == 0 : rgb
+    in  = propNumElements("_FieldBased")  > 0 ? \
+          propGetInt     ("_FieldBased")  > 0 : !IsFrameBased()
+
+    mh  =      fch ? 1 : 2
+    mv  = in ? fch ? 2 : 4 : mh
 
     l  = Default( left,   0 )
     t  = Default( top,    0 )
@@ -788,10 +1146,10 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
 
     md = LeftStr(md,1)=="[" ? ColortoHex(md) : md
 
-    lc  = nmod(min(l,0),mod)    l  = nmod(max(l,0),mod)
-    tc  = nmod(min(t,0),mod)    t  = nmod(max(t,0),mod)
-    rc  = nmod(min(r,0),mod)    r  = nmod(max(r,0),mod)
-    bc  = nmod(min(b,0),mod)    b  = nmod(max(b,0),mod)
+    lc  = nmod(min(l,0),mh)    l  = nmod(max(l,0),mh)
+    tc  = nmod(min(t,0),mv)    t  = nmod(max(t,0),mv)
+    rc  = nmod(min(r,0),mh)    r  = nmod(max(r,0),mh)
+    bc  = nmod(min(b,0),mv)    b  = nmod(max(b,0),mv)
 
 
     if (max(l,t,r,b)==0) {
@@ -813,7 +1171,8 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     } else if (md=="dilate"||md=="fill") {
 
         PointResize(w+l+r+lc+rc, h+t+b+tc+bc, -l-lc, -t-tc, w+l+r+lc+rc, h+t+b+tc+bc)
-        md=="fill" ? FillBorders(l,t,r,b,mode=6) : last
+        md=="fill" ? rgb && !isPlanar() ? ConverttoPlanarRGB().FillBorders(l,t,r,b,mode=6) : \
+                                                               FillBorders(l,t,r,b,mode=6) : last
 
     } else if (LeftStr(md,1)=="$") {
 
@@ -894,11 +1253,19 @@ function mmod(clip c, int "modH", int "modV", string "mode", string "borders") {
     c
     w   = width()
     h   = height()
+    fch = isy() || isRGB() || is444()
+    in  = propNumElements("_FieldBased")  > 0 ? \
+          propGetInt     ("_FieldBased")  > 0 : !IsFrameBased()
+    m2  =      fch ? 1 : 2
+    m4  = in ? fch ? 2 : 4 : m2
 
-    mdh = Default(modH,         2)
-    mdv = Default(modV,       mdh)
-    md  = Default(mode,    "auto")
-    bd  = Default(borders, max(mdh,mdv)<3?"Fill":"Dilate")
+    mdh = Default(modH, m4 )
+    mdv = Default(modV, mdh)
+    mdh = nmod(mdh,m2,m2)
+    mdv = nmod(mdv,m4,m4)
+
+    md  = Default(mode,     "auto")
+    bd  = Default(borders, md=="crop" || max(mdh,mdv)>2 ? "Dilate" : "Fill")
     # borders: 'Dilate', 'Mirror', 'Fill' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
     # Ground truth for 'auto'
