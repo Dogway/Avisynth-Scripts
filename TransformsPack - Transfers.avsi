@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC59 (20-10-2022) ##
+###   Transforms Pack - Transfers v1.0 RC60 (29-11-2022) ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -96,7 +96,7 @@
 #  AgX
 
 
-### CCTF() or Color Component Transfer Function, comprehends EOTFs/OETFis (forward=true) and OETFs/EOTFis (forward=false).
+### CCTF() or Color Component Transfer Function, comprehends EOTF/OETFi (forward=true) and OETF/EOTFi (forward=false).
 ### Use this function as the main transfer function to use for different CCTFs that matches 'transfer' string.
 ###
 ### Function Definitions:
@@ -122,7 +122,8 @@ function CCTF (clip c, string "transfer", bool "fw", bool "tv_in", bool "tv_out"
     tv_out = Default(tv_out,    tv_in)
     sh     = Default(show,      false)
 
-    trans  = color_Fuzzy_Search(trans)[2]
+    TRC    = color_Fuzzy_Search(trans)
+    trans  = TRC[2]
     s_gam  = moncurve_coef(trans)
 
      (trans == "1886a"      ) ? fw ? EOTF_1886a (tv_in=tv_in,tv_out=tv_out)  :  EOTFi_1886a (tv_in=tv_in,tv_out=tv_out)
@@ -135,6 +136,9 @@ function CCTF (clip c, string "transfer", bool "fw", bool "tv_in", bool "tv_out"
                                      moncurve_r(s_gam[0],s_gam[1],tv_in,tv_out,3)
 #\ : (trans == "xvYCC"      ) ? fw ? EOTF_xvYCC  (tv_in=tv_in,tv_out=tv_out) :  EOTFi_xvYCC  (tv_in=tv_in,tv_out=tv_out)
 #\ : (trans == "PhotoCD"    ) ? fw ? EOTF_PhotoCD(tv_in=tv_in,tv_out=tv_out) :  EOTFi_PhotoCD(tv_in=tv_in,tv_out=tv_out)
+
+    trans != "linear" ? propSet("_Transfer",   fw ? 8 : TRC[6] ) : last
+                        propSet("_ColorRange", tv_out ? 1 : 0  )
 
     if (sh) {
         BitsPerComponent(c) > 8 ? ConvertBits(8,dither=1,fulls=!tv_out) : last
@@ -448,7 +452,7 @@ function EOTFi_Chrome (clip c, bool "tv_in", bool "tv_out") {
 
 
 
-# SMPTE ST 2084 Inverse (PQ to display-referred linear HDR)
+# SMPTE ST 2084 (PQ to display-referred linear HDR)
 # Requires planar RGB input (output is always 32-bit float)
 function EOTF_2084 (clip c, int "MasterLevel", bool "tv_in", bool "tv_out") {
     c
@@ -794,23 +798,24 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 
 
 # BT.2446 "Method C" tonemapper. Typically used for broadcast streams in HLG, although PQ is also allowed.
-# Input must be HDR PC range linear RGB, output is SDR gamma encoded RGB ('EOTFi' gamma encoded)
+# Input must be HDR PC range (or set 'tv_in') linear RGB, output is SDR gamma encoded RGB ('EOTFi' gamma encoded)
 # Achromatic highlights algorithm hasn't been implemented
 # * Keep in mind that peak luminance in nits (or cd/m^2) relates to float pixel values 100:1. ie. pixel value of 1.0 is 100 nits, 10.0 is 1000 nits and so on.
 function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", float "k1", float "k3", bool "tv_in", bool "tv_out", bool "show") {
     c
     isy    = isy()
+    bi     = BitsPerComponent()
     fs     = propNumElements("_ColorRange")  > 0 ? \
              propGetInt     ("_ColorRange") == 0 : true
     props  = color_propGet()
     cs_in  = Default (cs_in, props[2])
-    cs_out = Default (cs_out,   "709")
-    EOTF   = Default (EOTFi,   "1886")
+    cs_out = Default (cs_out,   cs_in)
+    EOTF   = Default (EOTFi, "linear")
     tv_in  = Default (tv_in,      !fs)
     tv_out = Default (tv_out,   tv_in)
     sh     = Default (show,     false)
     k1     = Default (k1,    1) # SDR white level to HDR reference white (diffuse white) ratio. Details on BT.2408 Annex 4
-    k3     = Default (k3, 0.52) # How much birght detail you want to keep in
+    k3     = Default (k3, 0.52) # How much bright detail you want to keep in
 
     cs_out = color_Fuzzy_Search (cs_out)[0]
     EOTF   = color_Fuzzy_Search (EOTF)[2]
@@ -820,32 +825,34 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
     Cross= [ 1-2*a,  a,  a, \
              a,  1-2*a,  a, \
              a,  a,  1-2*a]
-
     c
     if (!isy) {
-    MatrixClip(Cross)
-    RGB_to_XYZ(cs_in)
+    XYZ = RGB_to_XYZ(cs_in, list=true)
+    MatrixClip(MatrixDot(Cross, XYZ))
     XYZ_to_Yxy()
     }
 
+    rangePC = tv_in  ? "x ymin - ymax ymin - /" : "x"
+    cstr    = EOTF=="linear" ? UVRange_construct(tv_in,tv_out,bi,3) : ""
+
     k1  = k1
-    ip  = 58.5 / k1  / 100.  # Inflection point of the tonemapper, usually just above skin tones (80% SDR which maps to 58.5 nits over 100 nits SDR reference display)
-    ipr = 1.   / ip
-    k3  = k3
-    k2  = k1 * (1 - k3) * ip
+    ip  = (58.5 / k1)  / 100.  # Inflection point of the tonemapper, usually just above skin tones (80% SDR which maps to 58.5 nits over 100 nits SDR reference display)
+    ipr = 1.    / ip
+    k3  = min(0.99,k3)
+    k2  = k1 * ip *         (1 - k3)
     k4  = k1 * ip - k2 * log(1 - k3)
 
     # From BT.2446-0 Section 5 (Method C)
-    ex_lut(Format("x {ip} < x {k1} *  x {ipr} * {k3} - log {k2} * {k4} + ?"),UV=1)
+    ex_lut(Format(rangePC+" {ip} < x {k1} *  x {ipr} * {k3} - log {k2} * {k4} + ?"),cstr)
 
     if (!isy) {
     Yxy_to_XYZ()
-    XYZ_to_RGB(cs_out)
-    MatrixClip(MatrixInvert(Cross))
+    RGB = XYZ_to_RGB(cs_out, list=true)
+    MatrixClip(MatrixDot(RGB, MatrixInvert(Cross)))
     }
 
-    CCTF(EOTF,false,tv_in,tv_out)
-
+    EOTF!="linear" ? CCTF(EOTF,false,false, tv_out)     : \
+    tv_in!=tv_out  ? propSet("_ColorRange", tv_out?1:0) : last
 
     if (sh) {
         w   = c.width()
