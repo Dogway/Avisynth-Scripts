@@ -903,8 +903,9 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
     fd  = Default(fulld,   !fw)
     brd = Default(broadcast, false) # enable if you need to author broadcast safe Full Range (within Video Data range). Reverse conversion not implemented (broadcast full to legal).
     si  = ex_UVf(rgb, bi)
+    UVy = isy && Y!=3 && UV==3
 
-    if (fi && fs!=fd || brd) {
+    if (fi  && fs!=fd || brd || UVy) {
         scl  = fs!=fd && ( 8 < bi < 32) ? string(fd ? 257/256. : 256/257.)+" *" : ""
 
         LO   = ex_bs(  1,  8, bi, fulls=false)
@@ -918,7 +919,7 @@ function SMPTE_legal (clip a, bool "forward", int "Y", int "UV", bool "fulls", b
         cstr = fw ? "x cmax cmin - range_max / * cmin  + "+scl : \
                     "x cmin - range_max cmax cmin - / *  "+vd
 
-        str  =        ex_Yexpr(  str,  Y, bi, rgb, fs)
+        str  = UVy  ? ex_UVexpr(cstr,  3, bi, rgb, fs, si) : ex_Yexpr(  str,  Y, bi, rgb, fs)
         cstr = !rgb ? ex_UVexpr(cstr, UV, bi, rgb, fs, si) : str
 
         isy     ? Expr(a, str                       , lut=lut) : \
