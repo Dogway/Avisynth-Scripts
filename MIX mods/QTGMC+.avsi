@@ -409,7 +409,7 @@
 #
 # --- REQUIREMENTS ---
 #
-# Input colorspaces: YV12, YUY2, 8-bit and HBD
+# Input colorspaces: YUV, YUY2, 8-bit and HBD
 #
 # Core plugins:
 #   MVTools2   (2.7.45  or above)
@@ -424,7 +424,7 @@
 # Core scripts:
 #   ExTools      (9.3   or above)
 #   ResizersPack (10.1  or above) (for nnedi3wrap() )
-#   SMDegrain    (3.5.5 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   SMDegrain    (3.5.6 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins:
@@ -445,7 +445,7 @@
 # Install AviSynth and ensure you have at least the core plugins listed in the requirements section above. Put them in the plugins autoload folder.
 # To use QTGMC write a script like this:
 #   YourSource("yourfile")   # DGSource, FFVideoSource, LWLibavVideoSource, LSMASHVideoSource, etc, whatever your source requires
-#   QTGMC( Preset="Slow" )   # Add SourceMatch>0 if dealing with Anime to avoid ghosting artifacts
+#   QTGMCp( Preset="Slow" )  # Add SourceMatch>0 if dealing with Anime to avoid ghosting artifacts
 #   SelectEven()             # Add this line to keep original frame rate, leave it out for smoother doubled frame rate
 #
 # Save this script with an ".avs" extension. You can now use it as an AVI source for encoding.
@@ -457,7 +457,7 @@
 # For much faster speeds read the full documentation, the section on 'Multi-threading'
 #
 # There are many settings for tweaking the script, full details in the main documentation. You can display settings currently being used with 'Show':
-#   QTGMC( Preset="Slow", Show=true )
+#   QTGMCp( Preset="Slow", Show=true )
 #
 #
 # Function Definition:
