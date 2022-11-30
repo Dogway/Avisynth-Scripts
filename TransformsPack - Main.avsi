@@ -211,9 +211,9 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
         isScl ?         PadResize(w,h,mode="dilate",             mod=mod)                 : last
 
         # ConvertBackToYUY2 bug: https://forum.doom9.org/showthread.php?p=1038027#post1038027
-        isyb   ? rgba ? isUHDa ? DotClip([0.262404,0.678455,0.059141]) : /* Assumes Rec2020 for UHD */
-                      \  isHDa ? DotClip([0.212649,0.715169,0.072182]) : /* Assumes Rec709  for  HD */
-                      \          DotClip([0.298903,0.586620,0.114477]) : ConvertToY(mat)                                                                                : \
+        isyb   ? rgba ? isUHDa ? DotClip([0.262376,0.678449,0.059176]) : /* Assumes Rec2020 for UHD */
+                      \  isHDa ? DotClip([0.212605,0.715165,0.072230]) : /* Assumes Rec709  for  HD */
+                      \          DotClip([0.298912,0.586603,0.114485]) : ConvertToY(mat)                                                                                : \
         rgbb   ? rgbp ? Eval(  "ConvertToPlanarRGB            (mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn)"))  : \
                         Eval(  "ConvertTo"   +string(fmt[3])+"(mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn)"))  : \
         yv411         ? Eval(  "ConvertToYV411                (false,mat,"          +(not42 ? ""   :        """ChromaInPlacement=cplacea, """)+"chromaresample=krn)")   : \
