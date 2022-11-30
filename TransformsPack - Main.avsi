@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC60  (29-11-2022)     ##
+###   Transforms Pack - Main v1.0 RC60  (30-11-2022)     ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -608,9 +608,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     bc_c     = bc[0]>=-1.?bc[1]:1/3.             bch_c    = bch[0]>=-1.?bch[1]:1/3.
     kernel   = bc[0]>=-1.? "Bicubic" : kernel    kernel_c = bch[0]>=-1.? "Bicubic" : kernel_c
 
-    src_width  = Defined (src_width)  ? IsArray(src_width)  ? ArraySize(src_width)  > 1 ? src_width  : ArrayAdd(src_width, 0.0) : [src_width, 0.0] : [w,cow]
+    src_width  = Defined (src_width)  ? IsArray(src_width)  ? ArraySize(src_width)  > 1 ? src_width  : ArrayAdd(src_width, cow) : [src_width, cow] : [w,cow]
     src_widthc = src_width[1]      src_width  = src_width[0]
-    src_height = Defined (src_height) ? IsArray(src_height) ? ArraySize(src_height) > 1 ? src_height : ArrayAdd(src_height,0.0) : [src_height,0.0] : [h,coh]
+    src_height = Defined (src_height) ? IsArray(src_height) ? ArraySize(src_height) > 1 ? src_height : ArrayAdd(src_height,coh) : [src_height,coh] : [h,coh]
     src_heightc= src_height[1]     src_height = src_height[0]
 
     i_type1  || o_type1                  ? Assert(  bi==8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")         : nop()
@@ -827,15 +827,15 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
 
                         # Exclusion of additional resize arguments
-                        src_nul = FindStr(resampler,"grain")>0 || FindStr(UCase(resampler),"AIUPSCALE")>0 || FindStr(UCase(resampler),"SSIM")>0 || kernel == "DPID"
+                        src_nul = FindStr(resampler,"grain")>0  ||  FindStr(UCase(resampler),"AIUPSCALE")>0 || FindStr(UCase(resampler),"SSIM")>0 || kernel == "DPID"
                         src_box = FindStr(resampler,"fmtc_resample")>0 || FindStr(resampler,"libplacebo")>0
 
                         # Retrieving taps for 'show'
                         if (show) {
                             resampler = TrimAll(resampler)
                             taps = FindStr(resampler, "placebo") > 0 ? FindStr(resampler, "radius=")>0 ? MidStr(resampler,FindStr(resampler,"radius=")+7) : "0" : \
-                                   FindStr(resampler, "inPow")   > 0 ? MidStr(resampler,FindStr(resampler, "p=")+2)                                       : \
-                                   FindStr(resampler, "impulse") > 0 ? MidStr(resampler,StrLen(resampler)-1,1)                                            : \
+                                   FindStr(resampler, "inPow")   > 0 ? MidStr (resampler,FindStr(resampler, "p=")+2)                                      : \
+                                   FindStr(resampler, "impulse") > 0 ? MidStr (resampler,StrLen (resampler)-1,1)                                          : \
                                    FindStr(resampler, "tap")     > 0 ? FindStr(resampler, "Jinc") > 0 ?                                                     \
                                                                        kernel == "Jinc"               ? MidStr(resampler,FindStr(resampler, "tap=") +4)   : \
                                                                                                         MidStr(resampler,FindStr(resampler, "tap=") +4,1) : \
@@ -893,10 +893,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         cplace1   = chroma_placement(w,   h, nw, nh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
         Eval(CPB)
         cplaceC1  = (src_nulc ? "" : src_nnc ? Format(",planes=[2,{nnpln}]") : (cplaceH1 + cplaceV1 + src_whc)) + ")" + fmtcbc
+        cplace2   = cplace1
+        cplaceC2  = cplaceC1
     }
 
-        cplace2  = VarExist("cplace2")  ? cplace2  : cplace1
-        cplaceC2 = VarExist("cplaceC2") ? cplaceC2 : cplaceC1
 
 
     c_recon  = """c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
@@ -981,17 +981,16 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
         }
 
-        fcnw = isSpaIllu ? nw : cnw
-        fcnh = isSpaIllu ? nh : cnh
-
-
         if (recon && !i_type4) {
+
+            fcnw = isSpaIllu ? nw : cnw
+            fcnh = isSpaIllu ? nh : cnh
 
             Eval(c_recon)
 
         } else {
 
-            str  = ReplaceStr(ReplaceStr(ReplaceStr(resampler_c, " ", ""), "("+string(cnw), "("+string(fcnw)), ","+string(cnh), ","+string(fcnh))
+            str  = !isSpaIllu ? resampler_c : ReplaceStr(ReplaceStr(ReplaceStr(resampler_c, " ", ""), "("+string(cnw), "("+string(nw)), ","+string(cnh), ","+string(nh))
             Cb   = Eval("Cb." + str + cplaceC1)
             Cr   = Eval("Cr." + str + cplaceC1)
             }
@@ -1006,7 +1005,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                                 space == "sigmoid" ? Y.ex_contrast(1.15,1,191,false).CCTF(EOTF,   false, false, !(isRGBo || isSpaIllu || !tv_out)) : \
                                 space == "log"     ? Y.ACEScct_f(UV=1, false ,false).CCTF(EOTF,   false, false, !(isRGBo || isSpaIllu || !tv_out)) : \
                                 OETF  == "linear"  ?                                                                                                 \
-                                EOTF  != "linear"  ? Y                             : CCTF(Y,"470M",true, false, !(isRGBo || isSpaIllu || !tv_out)) : \
+                                EOTF  != "linear"  ? Y                             : CCTF(Y,"470M",true, false, false)                             : \
                                 isGamma            ? Y.                              CCTF(OETF,    true, tv_in, false ).                             \
                                                                                      CCTF(EOTF,   false, false, !(isRGBo || isSpaIllu || !tv_out)) : Y
             }
@@ -1021,31 +1020,62 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
         } else {
 
+            ArEx = "R = RGB[0]  G = RGB[1]  B = RGB[2]"
+            ArEx = i_fmt[0]!="YCbCr" ? ArEx : "RGB"
+
             if (i_fmt[0]=="YcCbcCrc" || cs_in == "2020CL") {
 
-                RGB = YcCbcCrc_to_RGB( Y, Cb, Cr, cs_in, coef_i, !(isScale || !tv_in), !(isSpace || !tv_out))
-
-                R = RGB[0]  G = RGB[1]  B = RGB[2]
+                RGB = YcCbcCrc_to_RGB( Y, Cb, Cr, cs_in, coef_i, !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
 
             } else if (i_fmt[0]=="YCoCg") {
 
+                RGB = YCoCg_to_RGB ( Y, Cb, Cr, !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
+
             } else if (i_fmt[0]=="YCoCgR") {
+
+                RGB = YCoCgR_to_RGB( Y, Cb, Cr, !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
 
             } else if (i_fmt[0]=="YUVr") {
 
+                RGB = YUVr_to_RGB  ( Y, Cb, Cr, !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
+
             } else if (i_fmt[0]=="OkLab") {
+
+                # Requires Range conversion
+                RGB = Oklab_to_RGB( Y, Cb, Cr, false, cs_in, isSpaIllu)
 
             } else if (i_fmt[0]=="HSV") {
 
+                # Requires Range conversion
+                RGB = HSV_to_RGB( Y, Cb, Cr, !(isScale || !tv_in), isSpaIllu)
+
+            } else if (i_fmt[0]=="CIELab") {
+
+                # Requires Range conversion
+                XYZ = Lab_to_XYZ( Y, Cb, Cr, false)
+                RGB = XYZ_to_RGB( XYZ, cs_in, D_in)
+                RGB = isSpaIllu ? ExtractClip(RGB) : RGB
+
+            } else if (i_fmt[0]=="Yxy") {
+
+                # Requires Range conversion
+                RGB = Yxy_to_RGB( Y, Cb, Cr, isSpaIllu)
+
             } else if (i_fmt[0]=="OPP") {
 
+                # Requires Range conversion
+                RGB = OPP_to_RGB( Y, Cb, Cr, isSpaIllu)
+
             } else if (i_fmt[0]=="ICtCp") {
+
+                # Requires Range conversion
+                RGB = ICtCp_to_RGB( Y, Cb, Cr, cs_in, isSpaIllu)
 
             } else if (i_fmt[0]=="YCbCr") {
 
                 ytvi       = propGetInt(Y, "_ColorRange")==1
                 ctvi       = propGetInt(Cb,"_ColorRange")==1
-                ytvo       = isSpaIllu ? false : tv_out
+                ytvo       = isSpaIllu || EOTF == "linear" ? false : tv_out
                 scale_y   = ytvi != ytvo ? ytvi ? 256/219. : 219/256. : 1.0
                 scale_uv  = ctvi != ytvo ? ctvi ? 256/112. : 224/128. : 2.0
 
@@ -1072,6 +1102,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                     B = Expr(Y, Cb,     Bs,     optSingleMode=false, lut=lut2)
             } }
 
+        Eval("ArEx")
         !isSpaIllu && EOTF == "linear" ? CCTF("470M", true, false, tv_out) : last } }  # Reverting gamma encoding needed for RGB<->YCbCr model conversion
 
 
@@ -1094,7 +1125,6 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         Ro = "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +"
         Go = "x "+string(mat[1])+" * y "+string(mat[4])+" * + z "+string(mat[7])+" * +"
         Bo = "x "+string(mat[2])+" * y "+string(mat[5])+" * + z "+string(mat[8])+" * +"
-
 
         if (!isRGBo && !Comp) {
 
@@ -1150,6 +1180,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     if (!isRGBo && isSpaIllu || isRGBi && isFrmt) {
 
+        ArEx = "Y  = YCbCr[0]  Cb = YCbCr[1]  Cr = YCbCr[2]"
+        ArEx = o_fmt0!="YCbCr" ? ArEx : "YCbCr"
+
         RGBlin    = (isRGBi && OETF=="linear" && !tv_in)
         isSpaIllu = RGBlin || isSpaIllu
         R = RGBlin || isRGBi ? ExtractR() : R
@@ -1162,30 +1195,60 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         G = isSpaIllu ? G.CCTF(EOTF2, false, tv_ir, false) : G    G = G.ConvertBits(bi,dither=bi==32?-1:1)
         B = isSpaIllu ? B.CCTF(EOTF2, false, tv_ir, false) : B    B = B.ConvertBits(bi,dither=bi==32?-1:1)
 
+        arc = isScale || isGamma || o_fmt[1]=="444" && isJab
+
         if (o_fmt0=="YcCbcCrc" || cs_out == "2020CL") {
 
-            YCbCr = RGB_to_YcCbcCrc( R, G, B, cs_out, coef_o, tv_ir, tv_out)
-
-            Y  = YCbCr[0]  Cb = YCbCr[1]  Cr = YCbCr[2]
+                YCbCr = RGB_to_YcCbcCrc( R, G, B, cs_out, coef_o, tv_ir, tv_out)
 
             } else if (o_fmt0=="YCoCg") {
 
+                YCbCr = RGB_to_YCoCg( R, G, B, tv_ir, tv_out, arc)
+
             } else if (o_fmt0=="YCoCgR") {
+
+                YCbCr = RGB_to_YCoCgR( R, G, B, tv_ir, tv_out, arc)
 
             } else if (o_fmt0=="YUVr") {
 
+                YCbCr = RGB_to_YUVr( R, G, B, tv_ir, tv_out, arc)
+
             } else if (o_fmt0=="OkLab") {
+
+                # Requires Range conversion
+                YCbCr = RGB_to_Oklab( R, G, B, false, cs_in, arc)
 
             } else if (o_fmt0=="HSV") {
 
+                # Requires Range conversion
+                YCbCr = RGB_to_HSV( R, G, B, tv_ir, arc)
+
+            } else if (i_fmt[0]=="CIELab") {
+
+                # Requires Range conversion
+                Lmat  = RGB_to_XYZ( R, cs_in, D_in, true)
+#                XYZ   = DotClip(Lmat
+                YCbCr = XYZ_to_Lab( XYZ, Array=arc)
+
+            } else if (i_fmt[0]=="Yxy") {
+
+                # Requires Range conversion
+                RGB = Yxy_to_RGB( Y, Cb, Cr, isSpaIllu, arc)
+
             } else if (o_fmt0=="OPP") {
 
+                # Requires Range conversion
+                YCbCr = RGB_to_OPP( R, G, B, arc)
+
             } else if (o_fmt0=="ICtCp") {
+
+                # Requires Range conversion
+                YCbCr = RGB_to_ICtCp( R, G, B, cs_in, arc)
 
             } else if (o_fmt0=="YCbCr") {
 
             scale_y   = isRGBi && (isScale || isGamma) ? isSpaIllu || !tv_ir ? 1.0 : 256/219. : tv_ir != tv_out ? tv_ir ? 256/219. : 219/256. : 1.0
-            scale_uv  =                                                            tv_ir != tv_out ? tv_ir ? 256/112. : 112/256. : 0.5
+            scale_uv  =                                                                         tv_ir != tv_out ? tv_ir ? 256/112. : 112/256. : 0.5
 
             Kr = 1. - coef_o[0]
             Kb = 1. - coef_o[2]
@@ -1203,6 +1266,8 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             Cr = Expr(R, G, B, ex_dlut("x "+string(m5)+" * y "+string(m7)+" * + z "+string(m8)+" * + "+rangeC_TV+"", bi, false), optSingleMode=true)
 
         }
+
+        Eval("ArEx")
 
         if (isRGBi && isScale) {
 
@@ -1772,10 +1837,15 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : FindStr(format,"YXY"     )>0 ? "444"
 \   : FindStr(format,"XYY"     )>0 ? "444"
 \   : FindStr(format,"XYZ"     )>0 ? "444"
+\   : FindStr(format,"XYB"     )>0 ? "444"
 \   : FindStr(format,"JZAZBZ"  )>0 ? "444"
 \   : FindStr(format,"JZCZHZ"  )>0 ? "444"
+\   : FindStr(format,"CIELAB"  )>0 ? "444"
+\   : FindStr(format,"CIELUV"  )>0 ? "444"
 \   : FindStr(format,"HSV"     )>0 ? "444"
-\   : FindStr(format,"Y"       )>0 ? "444"
+\   : FindStr(format,"ICTCP"   )>0 ? "444"
+\   : FindStr(format,"OKLAB"   )>0 ? "444"
+\   :        format=="Y"           ? "444"
 \   :                "4"+string(a)+string(b)
 
 
