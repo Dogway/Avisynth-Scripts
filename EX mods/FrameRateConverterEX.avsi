@@ -215,6 +215,12 @@ function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Prese
     rifeI         = Default(rife,  0)
     rife          = rifeI>0 || num>6
     rifeModel     = Default(rifeModel, rife ? num>8 ? 3 : num>7 ? 22 : 23 : 0)  # model=5 distorts more than 6 which does more blending (though pleasant)
+/*  https://github.com/nihui/rife-ncnn-vulkan/issues/50#issuecomment-1229203013
+    The rife architecture has two parameters called ensembling and fastmode integrated.
+    You can't just export rife into one single model without such parameters.
+    Nihui always just exports the fastest model (ensemble False, Fast True), while the other ones can result in a better image.
+    Ensembling combines the flow of two different interpolations within the model and if fastmode is false it calls contextnet */
+
     OutFps        = OPut < 4  # Whether output has altered frame rate
     wb            = w/BlkSize
     wb4           = round(wb/4.0)*4
@@ -235,16 +241,16 @@ function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Prese
     BlendOver   = Default(BlendOver, BlendOvern)
     SkipOver    = Default(SkipOver,  SkipOvern)
 
-    ver = VersionString()
-    RIFE ? Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3689"),"FrameRateConverterEX: RIFE requires AviSynth+ r3689 or above") : nop()
-    Assert(IsVersionOrGreater(3,7,2),                                   "FrameRateConverterEX: Update AviSynth+ version")
-    Assert(MaskThr >= 0   && MaskThr   <= 255, String(MaskThr,          "FrameRateConverterEX: MaskThr must be between 0 and 255 {%.f}"))
-    Assert(MaskOcc >= 0   && MaskOcc   <= 255, String(MaskOcc,          "FrameRateConverterEX: MaskOcc must be between 0 and 255 {%.f}"))
-    Assert(BlendOver >= 0 && BlendOver <= 255, String(BlendOver,        "FrameRateConverterEX: BlendOver must be between 0 and 255 {%.f}"))
-    Assert(SkipOver  >= 0 && SkipOver  <= 255, String(SkipOver,         "FrameRateConverterEX: SkipOver must be between 0 and 255 {%.f}"))
-    Assert(SkipThr < MaskThr,                                           "FrameRateConverterEX: SkipThr must be lower (stronger) than MaskThr")
-    Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver,         "FrameRateConverterEX: SkipOver must be greater than BlendOver")
-    Assert(CalcDiff || OPut!=7,                                         "FrameRateConverterEX: You can only use Output='Diff' when using Preset=slower or slowest")
+    RIFE ? \
+    Assert(IsVersionOrGreater(3,7,3),                            "FrameRateConverterEX: RIFE requires AviSynth+ v3.7.3 or above") : nop()
+    Assert(IsVersionOrGreater(3,7,2),                            "FrameRateConverterEX: Update AviSynth+ version")
+    Assert(MaskThr >= 0   && MaskThr   <= 255, String(MaskThr,   "FrameRateConverterEX: MaskThr must be between 0 and 255 {%.f}"))
+    Assert(MaskOcc >= 0   && MaskOcc   <= 255, String(MaskOcc,   "FrameRateConverterEX: MaskOcc must be between 0 and 255 {%.f}"))
+    Assert(BlendOver >= 0 && BlendOver <= 255, String(BlendOver, "FrameRateConverterEX: BlendOver must be between 0 and 255 {%.f}"))
+    Assert(SkipOver  >= 0 && SkipOver  <= 255, String(SkipOver,  "FrameRateConverterEX: SkipOver must be between 0 and 255 {%.f}"))
+    Assert(SkipThr < MaskThr,                                    "FrameRateConverterEX: SkipThr must be lower (stronger) than MaskThr")
+    Assert(BlendOver==0 || SkipOver==0 || SkipOver > BlendOver,  "FrameRateConverterEX: SkipOver must be greater than BlendOver")
+    Assert(CalcDiff || OPut!=7,                                  "FrameRateConverterEX: You can only use Output='Diff' when using Preset=slower or slowest")
 
     # "BSoft" - Blending, "BHard" - No blending, "B" = RIFE + Blending
     B     = C.ConvertFpsLimit(NewNum, NewDen, ratio=BlendRatio)
