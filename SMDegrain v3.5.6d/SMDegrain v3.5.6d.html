@@ -17,11 +17,11 @@
 
 <p>
 <b>Author: </b>Dogway<br/>
-<b>Version: </b>v3.5.5d<br/>
-<b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/SMDegrain v3.5.5d" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain v3.5.5d</a><br/>
+<b>Version: </b>v3.5.6d<br/>
+<b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain%20v3.5.6d" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain v3.5.6d</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?p=1972585" target="_blank">https://forum.doom9.org/showthread.php?p=1972585</a><br/>
 <b>Category: </b>Temporal Denoiser Script Function<br/>
-<b>Date:</b> 20-September-2022
+<b>Date:</b> 30-November-2022
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -40,9 +40,9 @@
 <ul>
 <table>
   <tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v9.0 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v9.3 or higher)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/MVTools" target="_blank">MVTools2</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v2.7.45 or higher)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.0 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.1 or higher)</td></tr>
   </tr>
 </table>
 </ul>
@@ -52,17 +52,17 @@
   <tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/LSFplus.avsi" target="_blank">LSFplus</a></b></li></td><td>&nbsp;&nbsp;(v5.5 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or LFR)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/SharpenersPack.avsi" target="_blank">SharpenersPack</a></b></li></td><td>&nbsp;&nbsp;(v4.4 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or LFR)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/GradePack.avsi" target="_blank">GradePack</a></b></li></td><td>&nbsp;&nbsp;(v7.6 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ or show)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/GradePack.avsi" target="_blank">GradePack</a></b></li></td><td>&nbsp;&nbsp;(v8.0 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ or show)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ScenesPack.avsi" target="_blank">ScenesPack</a></b></li></td><td>&nbsp;&nbsp;(v4.2 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ if '_SceneRange' frameprops exist)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MasksPack.avsi" target="_blank">MasksPack</a></b></li></td><td>&nbsp;&nbsp;(v6.6 or higher)</td><td>&nbsp;&nbsp;(for show)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/RgTools" target="_blank">RgTools</a></b></li></td><td>&nbsp;&nbsp;(v1.2 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or prefilter=0~3)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Dfttest" target="_blank">DFTTest</a></b></li></td><td>&nbsp;&nbsp;(v1.9.7 or higher)</td><td>&nbsp;&nbsp;(for prefilter=4)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/KNLMeansCL" target="_blank">KNLMeansCL</a></b></li></td><td>&nbsp;&nbsp;(v1.1.1e or higher)</td><td>&nbsp;&nbsp;(for prefilter=5)</td></tr>
-    <tr><td><li><b><a href="http://avisynth.nl/index.php/BM3DCUDA" target="_blank">BM3D</a></b></li></td><td>&nbsp;&nbsp;(test9 or higher)</td><td>&nbsp;&nbsp;(for prefilter=6)</td></tr>
-    <tr><td><li><b><a href="http://avisynth.nl/index.php/DGDecNV" target="_blank">DGDecNV</a></b></li></td><td>&nbsp;&nbsp;(v243 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.0 RC59 or higher)</td><td>&nbsp;&nbsp;(for prefilter=6 or prefilter=7)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/BM3DCUDA" target="_blank">BM3D</a></b></li></td><td>&nbsp;&nbsp;(test9 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/DGDecNV" target="_blank">DGDecNV</a></b></li></td><td>&nbsp;&nbsp;(v246 or higher)</td><td>&nbsp;&nbsp;(for prefilter=6)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.0 RC60 or higher)</td><td>&nbsp;&nbsp;(for prefilter=6 or prefilter=7)</td></tr>
     <tr><td><li><b><a href="https://github.com/HomeOfAviSynthPlusEvolution/neo_TMedian" target="_blank">neo_tmedian</a></b></li></td><td>&nbsp;&nbsp;(r2 or higher)</td><td>&nbsp;&nbsp;(for mode="medianT")</td></tr>
-    <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.4 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.5 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Average" target="_blank">Average</a></b></li></td><td>&nbsp;&nbsp;(v0.95 or higher)</td><td>&nbsp;&nbsp;(for mfilter + (Contrasharp or mode!=MDegrain) )</td></tr>
   </tr>
 </table>
@@ -93,7 +93,7 @@ SMDegrain is not a magic function, but rather a convenient one ("magic" if any c
 <b>Motion Vectors Globals Input/Output:</b> Reuse motion vectors <var>globals</var> for faster processing, or just use <var>SMDegrain()</var> as a shortcut for creating nice quality motion vectors.<br/>
 <b>RefineMotion Option (MRecalculate):</b> Performs finer block matching refinement, unless you are very performance deprived you should use this as default for a quality boost.<br/>
 <b>Show Panel:</b> Everything is off by default, but some settings change in context (i.e. when in HD). Check what is happening behind the scenes and have a fast look at all your settings.<br/>
-<b>Robust:</b> Everything listed above works together with each other indistinctly (interoperability). In the process some error proof, bugfixes and bug workarounds were implemented or at least warned so you know that most of what is done is reliable, bugs free, carefree and optimized. The general idea is to serve as an user friendly front end for vanilla mvtools2+mdegrain or as the original script creator entitled <i>"To make your scripts shorter and less geeky"</i>. Most parameters are turned off or defaulted to mvtools2 defaults or close. Features are based on popular general conceived good practices and time tested procedures.<br/>
+<b>Robust:</b> Everything listed above works together with each other indistinctly (interoperability). In the process some error proof, bugfixes and bug workarounds were implemented or at least warned so you know that most of what is done is reliable, bug free, carefree and optimized. The general idea is to serve as an user friendly front end for vanilla mvtools2+mdegrain or as the original script creator entitled <i>"To make your scripts shorter and less geeky"</i>. Most parameters are turned off or defaulted to mvtools2 defaults or close. Features are based on popular general conceived good practices and time tested procedures.<br/>
 <br/>
 Parameters are arranged in 2 blocks.<br/>
 <br/>
@@ -253,19 +253,20 @@ Remember how <var>interlaced</var> sources must be <var>prefilter</var>ed (when 
 For interlaced content use: <i>separatefields().spatial_prefilters_here()</i><br/>
 For temporal filters odd and even frames must be processed separately: <i>separatefields().interleave(selecteven().TempPrefilt(),selectodd().TempPrefilt())</i><br/>
 <br/>
-<var>SMDegrain()</var> (its core: mdegrain in fact) is likely to produce blending artifacts or oversmooth in dark areas specially on cartoons, to tackle this see <a href="#RefineMotion"><var>RefineMotion</var></a><br/>
+<var>SMDegrain()</var> (its core: mdegrain in fact) is likely to produce blending artifacts or oversmooth/smearing in dark areas specially on cartoons, to tackle this see <a href="#RefineMotion"><var>RefineMotion</var></a><br/>
 or expand the luma range in the darks. For this there are many options, you can use your preferred gamma enhancer and input it as the <var>prefilter</var>,<br/>
 or use the examples below for linear brightening (ExTools) and input it as a <var>prefilter</var> as well. Or at last and the recommended solution,<br/>
 to use the built-in <var>Str</var> (strength) and <var>Amp</var> (amplitude) parameters for a curve type dark enhancement, check the effects by enabling <var>Show</var><br/>
 and changing your previewing conditions to PC levels.<br/>
 <br/>
-For brightening dark values linearly (brighter parts less brightening)<br/>
-<pre>str=1
-ex_lut(Format("x x {str} 6 * - 255 - abs 255 / ^ x 1 - abs +"))</pre>
+For brightening dark values with a simple gamma function<br/>
+<pre>moncurve_r(1.4,0)</pre>
 <br/>
-Or for a more contrasty image (although not as much dark enhancing - not linear)<br/>
-<pre>str=40
-ex_lut(Format("x x {str} 6 * - 255 - abs 255 / ^ {str} / x 1 - abs +"))</pre>
+Or excluding brighter parts<br/>
+<pre>ex_contrast(-0.50, pivot=175)</pre>
+<br/>
+Which is similar to
+<pre>ex_Luma_Rebuild(3.5, 0.1, tv_out=true)</pre>
 <br/>
 <br/>
 Good resources for custom <var>prefilter</var> code:<br/>
@@ -448,7 +449,7 @@ and ask in the main Doom9 thread:<br/><br/>
 A basic yet very functional call for light grain (mvtools2+ExTools only needed)
 <pre>SMDegrain(tr=1,thSAD=300,contrasharp=true)</pre>
 <br/>
-A typical more worked call compatible with official mvtools2 (mvtools2+ExTools only needed)
+A typical more elaborated call compatible with official mvtools2 (mvtools2+ExTools only needed)
 <pre>SMDegrain(tr=2,thSAD=300,interlaced=true,prefilter=1,contrasharp=true)</pre>
 <br/>
 The next is a personal preference. Turned all chroma off for safeness (on SD chroma is rarely temporal-reliable enough) and speed.
@@ -478,12 +479,25 @@ dfttest(tbsize=1,sigma=10)
 
 SMDegrain(tr=3,thSAD=300,CClip=sharp_ref)</pre>
 <br/>
+<br/>
+How to degrain an HDR PQ encoded clip.
+<pre>pre=DGHDRtoSDR(mode="pq",white=ceil(59.49080238715383))
+pre=pre.ex_Luma_Rebuild(5, 0.03, tv_out=false)
+
+SMDegrain(tr=3,thSAD=300,prefilter=pre)</pre>
+<br/>
 (Re)using motion vectors <var>globals</var>
 <pre>SMDegrain(tr=1,thSAD=400,prefilter=3,str=1.4,globals=3)    # Output vectors only
 MFlowFps(Super, bv1, fv1, num=60,den=1)</pre>
 <br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
+<p><b>v3.5.6d</b> (30-11-2022)</p>
+    <ul>
+        <li>Fix pixel center shift deviation in nnedi3 (subpixel=4) for high pel</li>
+        <li>Swap prefilter 6 and 7 order for more coherence</li>
+        <li>Tweak mode="dfttest" internal 'tmode' arg to work with odd 'tr'</li>
+    </ul>
 <p><b>v3.5.5d</b> (20-09-2022)</p>
     <ul>
         <li>Add 'DFTTest' as mode</li>
@@ -749,6 +763,7 @@ MFlowFps(Super, bv1, fv1, num=60,den=1)</pre>
     </ul>
 <p><b>v3.2.0d</b> (11-06-2021)</p>
     <ul>
+        <li>Resume from v3.1.2.111s (continuation mod from real.finder)</li>
         <li>Code sanitation (remove old avisynth support -pre AVS+-, DitherTools support and YUY2 support)</li>
         <li>Ported masktools2 to ExTools</li>
         <li>Merged back prefilters from function based to SMDegrain¡s in-code</li>

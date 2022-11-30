@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.5.5d      by Dogway    - 20 Sep  2022                           ###
+###                       v3.5.6d      by Dogway    - 29 Nov  2022                           ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -39,8 +39,8 @@
 ###                                      or  prefilter=0~3)
 ###              DFTTest                (for prefilter=4)
 ###              KNLMeansCL             (for prefilter=5)
-###              BM3D                   (for prefilter=6) # Buggy when used along ffvideosource() or cropping within DGSource()
-###              DGDecNV                (for prefilter=7)
+###              DGDecNV                (for prefilter=6)
+###              BM3D                   (for prefilter=7) # Buggy when used along ffvideosource() or cropping within DGSource()
 ###                 TransformsPack      (for prefilter=6 or prefilter=7)
 ###              neo_tmedian            (for mode="medianT")
 ###              NNEDI3CL               (for subpixel=4)
@@ -258,8 +258,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                   (prefilter== 4) ?  ex_merge(dfttest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1,sbsize=12,sosize=6,swin=2),pref,          \
                                                      pref.ex_lut(Format("range_max range_max {Lthres} ymin - / x ymin - * -"),UV=1,clamp_float=true), luma=chroma, UV=Chr)                          : \
                                   (prefilter== 5) ?  pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=1,chroma=chroma,gpuid=gpuid,LFR=600*(nw/1920.)).ex_boxblur(0.5, mode="weighted", UV=Chr)            : \
-                                  (prefilter== 6) ?  pref.ex_BM3D(sigma=10,radius=1,UV=Chr,gpuid=gpuid,tv_range=!fsp)                                                                               : \
-                                  (prefilter== 7) ?  pref.ex_DGDenoise(str=0.10,LFR=nw/2.,UV=Chr).ex_boxblur(0.5, mode="weighted", UV=Chr)                                                          : \
+                                  (prefilter== 6) ?  pref.ex_DGDenoise(str=0.10,LFR=nw/2.,UV=Chr).                                              ex_boxblur(0.5, mode="weighted", UV=Chr)            : \
+                                  (prefilter== 7) ?  pref.ex_BM3D(10,1,"normal",UV=Chr,gpuid=gpuid,tv_range=!fsp)                                                                                   : \
                                                      Assert(false, "SMDegrain: Prefilter must be between -1~7: "+string(prefilter))                                                                 : \
                                    pref
 
@@ -276,12 +276,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         # Subpixel 3 and 4
         inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)   # nnedi3 is slower with HBD
-        pclip   = pelclip                ? subpixel==4 && prefilter==-1 ? pref8.  nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="none")                                       : \
-                                                                          Undefined()                                                                                                                    : nop() # Wiener filter is good enough for MAnalyse
-        pclip2  = pelclip && !GlobalR    ? subpixel==4 ?                  inputP8.nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="none").ConvertBits(bi, fulls=!tv, fulld=!tv) : \
-                                                                          inputP.blackmanresize(w*pel,h*pel/(isInter ? 2 : 1), taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25)                  : nop() # from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and
-                                                                                                                                                                                                                 # additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed).
-                                                                                                                                                                                                                 # nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
+        pclip   = pelclip                ? subpixel==4 && prefilter==-1 ? pref8.  nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift=pel>2&&gpuid!=-1?"spline16":"none")               : \
+                                                                          Undefined()                                                                                                                        : nop() # Wiener filter is good enough for MAnalyse
+        pclip2  = pelclip && !GlobalR    ? subpixel==4 ?                  inputP8.nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="spline16").ConvertBits(bi, fulls=!tv, fulld=!tv) : \
+                                                                          inputP.blackmanresize(w*pel,h*pel/(isInter ? 2 : 1), taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25)                      : nop() # Center shift, from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and
+                                                                                                                                                                                                                     # additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed).
+                                                                                                                                                                                                                     # nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
 
@@ -399,7 +399,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 output = TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                             : \
                          md == "medianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
-                         md == "dfttest"  ? inter.dfttest(sstring="0.0:4 0.5:8 1.0:16",U=plane0,V=plane0,dither=1,sbsize=nmod(blksize*0.75),sosize=nmod(blksize*0.75)/2,tbsize=tr,tosize=floor(tr/2.),swin=2,twin=tr>2?4:7) : \
+                         md == "dfttest"  ? inter.dfttest(sstring="0.0:4 0.5:8 1.0:16",U=plane0,V=plane0,dither=1,sbsize=nmod(blksize*0.75),sosize=nmod(blksize*0.75)/2,tbsize=tr,tmode=(tr-1)%2,tosize=floor(tr/2.),swin=2,twin=tr>2?4:7) : \
                          T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1)                                     : \
                                             inter.ex_median(mode=md, thres=limit, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1)
 
@@ -610,7 +610,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.5.5",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
+        Subtitle("SMDegrain Mod v3.5.6",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -923,7 +923,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
     w    = max(w,h)
 
-    a    = isy ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262404,0.678455,0.059141]) : isHD ? clp.DotClip([0.212649,0.715169,0.072182]) : clp.DotClip([0.298903,0.586620,0.114477])
+    a    = isy ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262376,0.678449,0.059176]) : isHD ? clp.DotClip([0.212605,0.715165,0.072230]) : clp.DotClip([0.298912,0.586603,0.114485])
     y    = a.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)
     b    = y.ex_GaussianBlur(w*0.015 * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
     c    = y.ex_GaussianBlur(w*0.05  * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
