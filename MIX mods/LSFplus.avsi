@@ -216,11 +216,11 @@
 ###
 ### -> MaskTools2     (v2.2.30 or up)
 ### -> RgTools        (v1.2    or up)
-### -> ExTools        (v9.0    or up)
-### -> ResizersPack   (v10.0   or up)
-### -> SMDegrain      (v3.5.5  or up)  [for preblur="ON"]
+### -> ExTools        (v9.3    or up)
+### -> ResizersPack   (v10.1   or up)
+### -> SMDegrain      (v3.5.6  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
-### -> SharpenersPack (v4.4 or up)     [for Smode=1, Smode=2 and Smode=3]
+### -> SharpenersPack (v4.4    or up)  [for Smode=1, Smode=2 and Smode=3]
 ### -> CAS                             [for Smode=6]
 ###
 ###
@@ -568,7 +568,7 @@
 ###
 ### Function Definitions:
 ###     (
-###     clip input,
+###     clip,
 ###     float "strength"=50.0 (1.0 to 300.0 by 1),
 ###     string "preset"="LSF" ("LSF"/ "fast"/ "medium"/ "slow"),
 ###     [int "Smode"=4 (1 / 2 / 3 / 4 / 5 / 6)],

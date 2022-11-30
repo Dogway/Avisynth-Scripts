@@ -220,11 +220,11 @@
 ### | DEPENDENCIES |
 ### +--------------+
 ###
-### -> ExTools        (v9.0    or up)
-### -> ResizersPack   (v10.0   or up)
-### -> SMDegrain      (v3.5.5  or up)  [for preblur="ON"]
+### -> ExTools        (v9.3    or up)
+### -> ResizersPack   (v10.1   or up)
+### -> SMDegrain      (v3.5.6  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
-### -> SharpenersPack (v4.4 or up)     [for Smode=1, Smode=2, Smode=3 and Smode=6]
+### -> SharpenersPack (v4.4    or up)  [for Smode=1, Smode=2, Smode=3 and Smode=6]
 ###
 ###
 ###
@@ -572,7 +572,7 @@
 ###
 ### Function Definitions:
 ###     (
-###     clip input,
+###     clip,
 ###     float "strength"=50.0 (1.0 to 300.0 by 1),
 ###     string "preset"="LSF" ("LSF"/ "fast"/ "medium"/ "slow"),
 ###     [int "Smode"=4 (1 / 2 / 3 / 4 / 5 / 6)],
@@ -712,10 +712,10 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
     edge  = tmp.ex_edge("kroon",12,110)
     edgei = edge.ex_inflate()
 
-    dark_limit    = pre.ex_inpand()                                                                                         # for 3x3 local neighbourhood min/max avg for SD
-    dark_limit2   = num==1 ?   dark_limit.ex_boxblur(1,mode="mean").ex_inpand() : pre.ex_inpand(2,mode="disk").ex_inflate() # for 5x5 local neighbourhood min/max avg for HD or ss_x/y > 1.0 ('slow' softens inbetween)
+    dark_limit    = pre.ex_inpand()                                                                                          # for 3x3 local neighbourhood min/max avg for SD
+    dark_limit2   = num==1  ?   dark_limit.ex_boxblur(1,mode="mean").ex_inpand() : pre.ex_inpand(2,mode="disk").ex_inflate() # for 5x5 local neighbourhood min/max avg for HD or ss_x/y > 1.0 ('slow' softens inbetween)
     bright_limit  = pre.ex_expand()
-    bright_limit2 = num==1 ? bright_limit.ex_boxblur(1,mode="mean").ex_expand() : pre.ex_expand(2,mode="disk").ex_deflate()
+    bright_limit2 = num==1  ? bright_limit.ex_boxblur(1,mode="mean").ex_expand() : pre.ex_expand(2,mode="disk").ex_deflate()
     minmaxavg     = Lmode<1 ? Smethod > 3 ? ex_luts(pre,mode="minmax", pixels = ex_shape(2,mode="disk")) : \
                                             ex_luts(pre,mode="minmax")                                   : \
                               Smethod > 3 ? Merge(dark_limit2, bright_limit2)                            : \

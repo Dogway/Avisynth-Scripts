@@ -12,7 +12,7 @@
 ###
 ### Luma adaptive grain generating filter. Y/YUV only.
 ###
-### Based on DidÃ©e's GrainFactory3 script
+### Based on Didée's GrainFactory3 script
 ###
 ###
 ### +-------------+
@@ -100,9 +100,9 @@
 ### +----------------+
 ###
 ### -> AddGrainC         [v1.8.4]
-### -> neo_f3kdb         [r6]       (Optional)
-### -> ExTools           [v9.0.0]
-### -> ResizersPack      [v10.0.0]
+### -> neo_f3kdb         [r8]       (Optional)
+### -> ExTools           [v9.3.0]
+### -> ResizersPack      [v10.1.0]
 ###
 
 function GrainFactory3mod(clip clp,
