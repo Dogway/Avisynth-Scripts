@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 10.1 (29-11-2022)     ##
+###   Resizers Functions Pack 10.1 (30-11-2022)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -34,7 +34,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (29-11-2022)
+### deep_resize() - by Dogway (30-11-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -245,20 +245,17 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             an      = oned && !isy ? a.ExtractY() : a
             a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
 
-            # nnedi3 one dimensional resize case
+           # nnedi3 one dimensional resize case
 
-            edge1   = krn1 == "nnedi3" ?   oned ? nnedi3wrap(a8,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift="spline36",HBD=true,gpuid=gpuid) : \
-                                                  nnedi3wrap(a8,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,cshift="spline36",HBD=true,gpuid=gpuid) : \
-                                                  ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0],scale_space=ssp,gpuid=gpuid)
+            edge1   = krn1 == "nnedi3" ?   oned ? nnedi3wrap(a8,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift="spline36",HBD=true,gpuid=gpuid) : \
+                                                  nnedi3wrap(a8,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift="spline36",HBD=true,gpuid=gpuid) : \
+                                                  ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,scale_space=ssp,gpuid=gpuid)
 
         if (rat <= rth) {
 
-                      krn1 == "nnedi3" ?   oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift=krn1c,gpuid=gpuid) : edge1.propCopy(a) : edge1  # up/downscaling below ratio threshold
+                      krn1 == "nnedi3" &&  oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift=krn1c,gpuid=gpuid) : edge1  # up/downscaling below ratio threshold
 
         } else {
-
-            edge1   = krn1 == "nnedi3" && !oned ? ConvertFormat(edge1,w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=krn1c,tv_in=!fs,tv_out=!fs) : edge1
-
 
             # don't sharpen nnedi3 when one dimensional resize case
             edge    = krn1 == "nnedi3" ?   oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
@@ -266,7 +263,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
                                                   ConvertBits(bi, fulls=fs, fulld=fs) : edge1 : edge1
 
             # resizing flat area
-            flat    =                             ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,src_left=[0.0,0.0],src_top=[0.0,0.0],gpuid=gpuid)
+            flat    =                             ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,gpuid=gpuid)
 
             # edge/flat limiting
             ex_limitdif(           !isy && oned ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
