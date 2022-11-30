@@ -676,9 +676,9 @@ function ex_binarize(clip a, float "thres", bool "invert", bool "smooth", string
 
 
     bs  =               a. ConvertBits(8,dither=-1,fulls=fs)     # Matrix assumed by dimensions
-    bs  = rgb ? isUHD ? bs.DotClip([0.262404,0.678455,0.059141]) : \
-                 isHD ? bs.DotClip([0.212649,0.715169,0.072182]) : \
-                        bs.DotClip([0.298903,0.586620,0.114477]) : \
+    bs  = rgb ? isUHD ? bs.DotClip([0.262376,0.678449,0.059176]) : \
+                 isHD ? bs.DotClip([0.212605,0.715165,0.072230]) : \
+                        bs.DotClip([0.298912,0.586603,0.114485]) : \
                         a. ConvertBits(8,dither=-1,fulls=fs)
     a   = rgb ?         bs.ConvertBits(bi,fulls=fs) : a
     br  = w > 720 ? bs.RatioResize(720., "adjust2w", kernel="bilinear") : bs
