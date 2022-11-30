@@ -229,8 +229,8 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
     down1 = down1.ConvertBits(bi, fulls=!downscl ? fs : true, fulld=true).ExtractClip()
     down2 = down2.ConvertBits(bi, fulls=!downscl ? fs : true, fulld=true).ExtractClip()
 
-    l1    = isUHD ? DotClipA(down1,[0.262404,0.678455,0.059141]) : isHD ? DotClipA(down1,[0.212649,0.715169,0.072182]) : DotClipA(down1,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
-    l2    = isUHD ? DotClipA(down2,[0.262404,0.678455,0.059141]) : isHD ? DotClipA(down2,[0.212649,0.715169,0.072182]) : DotClipA(down2,[0.298903,0.586620,0.114477])  # Consider converting properly in linear light with greyscale_rgb()
+    l1    = isUHD ? DotClipA(down1,[0.262376,0.678449,0.059176]) : isHD ? DotClipA(down1,[0.212605,0.715165,0.072230]) : DotClipA(down1,[0.298912,0.586603,0.114485])  # Correct coefs for Luma (/wiki/Luma_(video)#Use_of_relative_luminance), but consider converting properly in linear light with greyscale_rgb()
+    l2    = isUHD ? DotClipA(down2,[0.262376,0.678449,0.059176]) : isHD ? DotClipA(down2,[0.212605,0.715165,0.072230]) : DotClipA(down2,[0.298912,0.586603,0.114485])  # Correct coefs for Luma (/wiki/Luma_(video)#Use_of_relative_luminance), but consider converting properly in linear light with greyscale_rgb()
     l1l2  = Merge(l1, l2)
 
     # HVS (Human Visual System) based Gradient Similarity (GS)
