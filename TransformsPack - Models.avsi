@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC60  (29-11-2022)   ##
+###   Transforms Pack - Models v1.0 RC60  (30-11-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -413,7 +413,7 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", str
 
 
 # RGB' to YcCbcCrc function (for Rec.2020CL)
-function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", string "EOTFi", float_array "coef", bool "tv_in", bool "tv_out") {
+function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", string "EOTFi", float_array "coef", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy  = isy(RGB)
     bi   = BitsPerComponent(RGB)
@@ -425,6 +425,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
     coef = Default (coef, color_coef(mat=mat))
     tvi  = Default (tv_in,    !fs)
     tvo  = Default (tv_out, false)
+    arc  = Default (Array,    isy)
 
     mat       = color_Fuzzy_Search(mat)
     s_gam     = moncurve_coef(trc)      # some values are getting crushed in the Rec709 transfer
@@ -456,7 +457,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
     Crc = Expr(R, Yx, ex_dlut(Format("x "+rangeC_PC+" y - A@ 0 <= A {Nr} * A {Pr} * ? "+rangeC_TV+" "), bi, true), lut=lut)
     Yc  = !tvo ?  Yx : CCTF(Y, trc, false, false, true)
 
-    if (isy) {
+    if (arc) {
         [Yc, Cbc, Crc]
     } else {
         CombinePlanes(Yc, Cbc, Crc, planes="YUV")
@@ -464,7 +465,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
 
 
 # WIP. YcCbcCrc to RGB' function (for Rec.2020CL)
-function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", string "EOTFi", float_array "coef", string "kernel", bool "tv_in", bool "tv_out") {
+function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", string "EOTFi", float_array "coef", string "kernel", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy  = isy(YUV)
     bi   = BitsPerComponent(YUV)
@@ -477,6 +478,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
     coef = Default (coef, color_coef(mat=mat))
     tvi  = Default (tv_in,    !fs)
     tvo  = Default (tv_out, false)
+    arc  = Default (Array,    isy)
 
     mat  = color_Fuzzy_Search(mat)
     Y444 = ConvertFormat(YUV,1,1,fmt_out="444",kernel_c=knn,tv_in=tvi,tv_out=tvi)
@@ -506,7 +508,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
 
     Gx = Expr(Y, Bx, Rx, "x "+string(coef[2])+" y * - "+string(coef[0])+" z * - "+string(coef[1])+" / ", optSingleMode=true)
 
-    if (isy) {
+    if (arc) {
 
         B = CCTF(Bx,  trc, false, false, tvo)
         R = CCTF(Rx,  trc, false, false, tvo)
@@ -528,7 +530,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
 # Originally called YCoCg, was later renamed and standardized to YCgCo, since the Co channel corresponds better to Cr from YCbCr
 
 # RGB' to YCoCg/YCgCo function
-function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out") {
+function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
@@ -537,6 +539,7 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
     lut = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     tvi = Default (tv_in,    !fs)
     tvo = Default (tv_out, false) # The specification defines it with PC levels
+    arc = Default (Array,    isy)
 
     RGB =  tvi ? SMPTE_legal   (RGB,false) : RGB
     clp = !isy ? ExtractClip   (RGB)       : nop()
@@ -549,7 +552,7 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
     rangeTV   = tvo ? " ymax ymin - range_max / * ymin +"                    : ""
     rangeC_TV = tvo ? " cmax cmin - range_max / * "+(bi==32 ? "" : "cmin +") : ""
 
-    if (isy) {
+    if (arc) {
         Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "    +rangeTV,   bi, true), optSingleMode=true,  lut=  0)
         Cg = Expr(R, G, B, ex_dlut("y 0.5  * x z + 0.25 * - "+b32+rangeC_TV, bi, true), optSingleMode=true,  lut=  0)
         Co = Expr(R,    B, ex_dlut("x y - 0.5  *            "+b32+rangeC_TV, bi, true), optSingleMode=false, lut=lut)
@@ -568,7 +571,7 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
 
 
 # YCoCg to RGB' function
-function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_out") {
+function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(YCC)
     bi  = BitsPerComponent(YCC)
@@ -577,6 +580,7 @@ function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_ou
     lut = bi > 12 || isRunTime(YCC,false) ? 0 : 2
     tvi = Default (tv_in,    !fs)
     tvo = Default (tv_out, false)
+    arc = Default (Array,    isy)
 
     YCC =  tvi ? SMPTE_legal   (YCC,false) : YCC
     clp = !isy ? ExtractClip   (YCC)       : nop()
@@ -588,7 +592,7 @@ function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_ou
 
     rangeTV   = tvo ? " ymax ymin - range_max / * ymin +" : ""
 
-    if (isy) {
+    if (arc) {
 
         R = Expr(Y, Cg, Co, ex_dlut("x y "+b32+" - z "+b32+" + "+rangeTV, bi, true), optSingleMode=true,  lut=  0)
         G = Expr(Y, Cg,     ex_dlut("x y "+b32+" +"             +rangeTV, bi, true), optSingleMode=false, lut=lut)
@@ -608,7 +612,7 @@ function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_ou
 
 
 # RGB' to YCoCg RCT function
-function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out") {
+function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
@@ -617,6 +621,7 @@ function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out
     lut = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     tvi = Default (tv_in,    !fs)
     tvo = Default (tv_out, false) # The specification defines it with PC levels
+    arc = Default (Array,    isy)
 
     RGB =  tvi ? SMPTE_legal(RGB,false) : RGB
     clp = !isy ? ExtractClip(RGB)       : nop()
@@ -631,7 +636,7 @@ function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out
     Cg = Expr(Co, G,  B, ex_dlut("y z x "+b32f+" 0.5 * + - 0.5 * "+b32i, bi, true), optSingleMode=false, lut=  0)
     Y  = Expr(Co, Cg, B, ex_dlut("  z x "+b32f+" 0.5 * + y "+b32f+" +",  bi, true), optSingleMode=false, lut=  0)
 
-    if (isy) {
+    if (arc) {
         tvo ? CombinePlanes(Y, Cg, Co, planes="YUV").SMPTE_legal(true).ExtractClip() : [Y, Cg, Co]
     } else {
         tvo ? CombinePlanes(Y, Cg, Co, planes="YUV").SMPTE_legal(true)               : \
@@ -641,7 +646,7 @@ function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out
 
 
 #  YCoCg RCT to RGB' function
-function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_out") {
+function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(YCC)
     bi  = BitsPerComponent(YCC)
@@ -650,6 +655,7 @@ function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_o
     lut = bi > 12 || isRunTime(YCC,false) ? 0 : 2
     tvi = Default (tv_in,    !fs)
     tvo = Default (tv_out, false)
+    arc = Default (Array,    isy)
 
     YCC =  tvi ? SMPTE_legal   (YCC,false) : YCC
     clp = !isy ? ExtractClip   (YCC)       : nop()
@@ -662,7 +668,7 @@ function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_o
     rangeTV = tvo ? " ymax ymin - range_max / * ymin +" : ""
     rangePC = tvo ? " ymin - range_max ymax ymin - / *" : ""
 
-    if (isy) {
+    if (arc) {
 
         G = Expr(Y, Cg,     ex_dlut("y   "+b32+" Y@ 2 * x Y - +"     +rangeTV, bi, true), optSingleMode=false, lut=lut)
         B = Expr(Y, Cg, Co, ex_dlut("x y "+b32+" - z "+b32+" 0.5 * -"+rangeTV, bi, true), optSingleMode=true,  lut=  0)
@@ -682,7 +688,7 @@ function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_o
 
 
 # RGB' to YCbCr RCT function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
-function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out") {
+function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
@@ -691,6 +697,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out")
     lut = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     tvi = Default (tv_in,    !fs)
     tvo = Default (tv_out, false)
+    arc = Default (Array,    isy)
 
     RGB =  tvi ? SMPTE_legal   (RGB,false) : RGB
     clp = !isy ? ExtractClip   (RGB)       : nop()
@@ -703,7 +710,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out")
     rangeTV   = tvo ? " ymax ymin - range_max / * ymin +"                    : ""
     rangeC_TV = tvo ? " cmax cmin - range_max / * "+(bi==32 ? "" : "cmin +") : ""
 
-    if (isy) {
+    if (arc) {
         Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "+rangeTV, bi, true), optSingleMode=true,  lut=  0)
         Cb = Expr(   G, B, ex_dlut("y x - "+b32+rangeC_TV,             bi, true), optSingleMode=false, lut=lut)
         Cr = Expr(R, G,    ex_dlut("x y - "+b32+rangeC_TV,             bi, true), optSingleMode=false, lut=lut)
@@ -722,7 +729,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out")
 
 
 # YCbCr RCT to RGB' function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
-function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out") {
+function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(YUV)
     bi  = BitsPerComponent(YUV)
@@ -731,6 +738,7 @@ function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out
     lut = bi > 12 || isRunTime(YUV,false) ? 0 : 2
     tvi = Default (tv_in,    !fs)
     tvo = Default (tv_out, false)
+    arc = Default (Array,    isy)
 
     YUV =  tvi ? SMPTE_legal   (YUV,false) : YUV
     clp = !isy ? ExtractClip   (YUV)       : nop()
@@ -745,7 +753,7 @@ function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out
 
         G = Expr(Y, Cb, Cr, ex_dlut("x y z + 0.25 * - "+b32h, bi, true), optSingleMode=true,  lut=  0)
 
-    if (isy) {
+    if (arc) {
 
         R = Expr(G,     Cr, ex_dlut("x y + "+b32+rangeTV,     bi, true), optSingleMode=false, lut=lut)
         B = Expr(G, Cb,     ex_dlut("x y + "+b32+rangeTV,     bi, true), optSingleMode=false, lut=lut)
@@ -792,11 +800,12 @@ function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out
 #   [-0.34, -0.11,  0.93]]
 
 # https://github.com/HomeOfVapourSynthEvolution/VapourSynth-BM3D/blob/7b3d8dd32e4aa4d962cf15d75d191b465682ed42/include/Specification.h#L176
-function RGB_to_OPP (clip RGB, clip "G", clip "B") {
+function RGB_to_OPP (clip RGB, clip "G", clip "B", bool "Array") {
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
     lut = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
+    arc = Default (Array,  isy)
 
     clp = !isy ? ExtractClip(RGB) : nop()
     R   = !isy ? clp[0] :    RGB
@@ -809,7 +818,7 @@ function RGB_to_OPP (clip RGB, clip "G", clip "B") {
         P1s = ex_dlut(Format("x "+(isy?"y":"z")+" - 0.5 * "+b32), bi, true)
         P2s = ex_dlut(Format("x z + 0.25 * y 0.5 * - "     +b32), bi, true)
 
-    if (isy) {
+    if (arc) {
 
         O  = Expr(R, G, B, Os,  optSingleMode=false, lut=  0)
         P1 = Expr(R,    B, P1s, optSingleMode=false, lut=lut)
@@ -820,11 +829,12 @@ function RGB_to_OPP (clip RGB, clip "G", clip "B") {
 
 
 # https://github.com/HomeOfVapourSynthEvolution/VapourSynth-BM3D/blob/7b3d8dd32e4aa4d962cf15d75d191b465682ed42/include/Specification.h#L176
-function OPP_to_RGB (clip OPP, clip "P1", clip "P2") {
+function OPP_to_RGB (clip OPP, clip "P1", clip "P2", bool "Array") {
 
     isy = isy(OPP)
     bi  = BitsPerComponent(OPP)
     lut = bi > 12 || isRunTime(OPP,false) ? 0 : 2
+    arc = Default (Array,  isy)
 
     clp = !isy ? ExtractClip(OPP) : nop()
     O   = !isy ? clp[0] :    OPP
@@ -837,7 +847,7 @@ function OPP_to_RGB (clip OPP, clip "P1", clip "P2") {
         Gs = ex_dlut(Format("x "+(isy?"y":"z")+" "+b32+" 1.333333333 * -"), bi, true)
         Bs = ex_dlut(Format("x z "+b32+" 0.666666666 * + y "+b32+" -")    , bi, true)
 
-    if (isy) {
+    if (arc) {
 
         R = Expr(O, P1, P2, Rs, optSingleMode=false, lut=  0)
         G = Expr(O,     P2, Gs, optSingleMode=false, lut=lut)
@@ -848,11 +858,12 @@ function OPP_to_RGB (clip OPP, clip "P1", clip "P2") {
 
 
 # XYZ to YDzDx (applied on XYZ in SMPTE ST 2084 gamma space)
-function XYZ_to_YDzDx (clip XYZ, clip "Y", clip "Z") {
+function XYZ_to_YDzDx (clip XYZ, clip "Y", clip "Z", bool "Array") {
 
     isy = isy(XYZ)
     bi  = BitsPerComponent(XYZ)
     lut = bi > 12 || isRunTime(XYZ,!isy) ? 0 : 2
+    arc = Default (Array,  isy)
 
     clp = !isy ? ExtractClip(XYZ) : nop()
     X   = !isy ? clp[0] :    XYZ
@@ -864,7 +875,7 @@ function XYZ_to_YDzDx (clip XYZ, clip "Y", clip "Z") {
     cf1   = 2763/2800.
     cf2   = 2741/2763.
 
-    if (isy) {
+    if (arc) {
 
         Dz = Expr(   Y, Z, ex_dlut(Format("{cf1} y "+b32+" * x  - "), bi, true), optSingleMode=false, lut=lut)
         Dx = Expr(X, Y,    ex_dlut(Format("x "+b32+"  {cf2} y * - "), bi, true), optSingleMode=false, lut=lut)
@@ -877,11 +888,12 @@ function XYZ_to_YDzDx (clip XYZ, clip "Y", clip "Z") {
 
 
 # YDzDx to XYZ
-function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx") {
+function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx", bool "Array") {
 
     isy = isy(YDzDx)
     bi  = BitsPerComponent(YDzDx)
     lut = bi > 12 || isRunTime(YDzDx,!isy) ? 0 : 2
+    arc = Default (Array,    isy)
 
     clp = !isy ? ExtractClip(YDzDx) : nop()
     Y   = !isy ? clp[0] :    YDzDx
@@ -893,7 +905,7 @@ function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx") {
     cf1   = 2800/2763.
     cf2   = 2763/2741.
 
-    if (isy) {
+    if (arc) {
 
         X = Expr(Dx, Y, ex_dlut(Format("x "+b32+" y {cf2} * + "), bi, true), optSingleMode=false, lut=lut)
         Z = Expr(Dz, Y, ex_dlut(Format("x "+b32+" y {cf1} * + "), bi, true), optSingleMode=false, lut=lut)
@@ -907,7 +919,7 @@ function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx") {
 
 # XYZ to CIE Lab -D65 based- (process in linear space) (float bitdepth required as some values overflow)
 # CIELAB is perceptually uniform but only at low frequencies as it is based on 2 degrees of uniform color circles.
-function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch") {
+function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Array") {
 
     isy  = isy(XYZ)
     bi   = BitsPerComponent(XYZ)
@@ -915,6 +927,7 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch") {
     lut1 = bi == 32 || iRT ? 0 : 1
     lut2 = bi  > 12 || iRT ? 0 : 2
     cy   = Default (Jch,   false)
+    arc  = Default (Array,   isy)
 
     clp  = !isy ? ExtractClip(XYZ) : nop()
     X    = !isy ? clp[0] :    XYZ
@@ -936,7 +949,7 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch") {
 
 
 # CIE Lab to XYZ -D65 based- (float bitdepth required as some values overflow)
-function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch") {
+function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch", bool "Array") {
 
     isy  = isy(Lab)
     bi   = BitsPerComponent(Lab)
@@ -944,6 +957,7 @@ function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch") {
     lut1 = bi == 32 || iRT ? 0 : 1
     lut2 = bi  > 12 || iRT ? 0 : 2
     cy   = Default (Jch,    false)
+    arc  = Default (Array,    isy)
 
     clp  = !isy ? ExtractClip(Lab) : nop()
     L    = !isy ? clp[0] :    Lab
@@ -970,17 +984,18 @@ function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch") {
 
 
 # Only works in 32-bit float (for the time being)
-function XYZ_to_Yxy (clip XYZ, clip "Y", clip "Z") {
+function XYZ_to_Yxy (clip XYZ, clip "Y", clip "Z", bool "Array") {
 
     isy  = isy(XYZ)
     bi   = BitsPerComponent(XYZ)
+    arc  = Default (Array,  isy)
 
     clp  = !isy ? ExtractClip(XYZ) : nop()
     X    = !isy ? clp[0] :    XYZ
     Y    = !isy ? clp[1] :     Y
     Z    = !isy ? clp[2] :      Z
 
-    if (isy) {
+    if (arc) {
 
         xl = Expr(X, Y, Z, "x 0 <= 0.3805 x dup y z + + / ?",  optSingleMode=false)
         yl = Expr(X, Y, Z, "y 0 <= 0.3769 y dup x z + + / ?",  optSingleMode=false)
@@ -993,17 +1008,18 @@ function XYZ_to_Yxy (clip XYZ, clip "Y", clip "Z") {
 
 
 # Only works in 32-bit float
-function Yxy_to_XYZ (clip Yxy, clip "x", clip "y") {
+function Yxy_to_XYZ (clip Yxy, clip "x", clip "y", bool "Array") {
 
     isy  = isy(Yxy)
     bi   = BitsPerComponent(Yxy)
+    arc  = Default (Array,  isy)
 
     clp  = !isy ? ExtractClip(Yxy) : nop()
     Yb   = !isy ? clp[0] :    Yxy
     xl   = !isy ? clp[1] :     x
     yl   = !isy ? clp[2] :      y
 
-    if (isy) {
+    if (arc) {
 
         X = Expr(Yb, xl, yl, "y z / x *",                optSingleMode=false)
         Z = Expr(Yb, xl, yl, "y z / x * Y@ y / Y - x -", optSingleMode=false)
@@ -1018,7 +1034,7 @@ function Yxy_to_XYZ (clip Yxy, clip "x", clip "y") {
 
 
 # WIP. XYZ to Hunter Lab
-function XYZ_to_HLab (clip XYZ, clip "Y", clip "Z", bool "Jch") {
+function XYZ_to_HLab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Array") {
 
     isy  = isy(XYZ)
     bi   = BitsPerComponent(XYZ)
@@ -1026,6 +1042,7 @@ function XYZ_to_HLab (clip XYZ, clip "Y", clip "Z", bool "Jch") {
     lut1 = bi == 32 || iRT ? 0 : 1
     lut2 = bi  > 12 || iRT ? 0 : 2
     cy   = Default (Jch,   false)
+    arc  = Default (Array,   isy)
 
     clp  = !isy ? ExtractClip(XYZ) : nop()
     X    = !isy ? clp[0] :    XYZ
@@ -1038,19 +1055,20 @@ function XYZ_to_HLab (clip XYZ, clip "Y", clip "Z", bool "Jch") {
     a = Expr(X, Y,    ex_dlut(Format("x 1.02  * y - 17.5 * y sqrt /"), bi, true), optSingleMode=true,  lut=lut2)
     b = Expr(   Y, Z, ex_dlut(Format("y 0.847 * x -    7 * y sqrt /"), bi, true), optSingleMode=true,  lut=lut2)
 
-    isy ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
+    arc ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
 
 
 
 
 # XYZ to CIE Luv/Duv -D65 based- (process in linear space) (32-bit float recommended)
-function XYZ_to_Luv (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Duv") {
+function XYZ_to_Luv (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Duv", bool "Array") {
 
     isy = isy(XYZ)
     bi  = BitsPerComponent(XYZ)
     lut = bi == 32 || isRunTime(XYZ,!isy) ? 0 : 1
     cy  = Default (Jch,    false)
     uv  = Default (Duv,    false)
+    arc = Default (Array,    isy)
 
     clp = !isy ? ExtractClip(XYZ) : nop()
     X   = !isy ? clp[0] :    XYZ
@@ -1078,13 +1096,14 @@ function XYZ_to_Luv (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Duv") {
 
 #https://www.brucelindbloom.com/index.html?Eqn_Luv_to_XYZ.html
 # CIE Luv to XYZ (32-bit float recommended)
-function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv") {
+function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv", bool "Array") {
 
     isy = isy(Luv)
     bi  = BitsPerComponent(Luv)
     lut = bi == 32 || isRunTime(Luv,!isy) ? 0 : 1
     cy  = Default (Jch,    false)
     uv  = Default (Duv,    false)
+    arc = Default (Array,    isy)
 
     clp = !isy ? ExtractClip(Luv) : nop()
     L   = !isy ? clp[0] :    Luv
@@ -1113,10 +1132,11 @@ function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv") {
 
 # WIP. Only works in 32-bit float (correct? grey should output [0, 1, 0.935669])
 # Jyrki Alakuijala: "CIELAB is perceptually uniform but only at low frequencies as it is based on 2 degrees of uniform color circles. At high spatial frequencies something like JPEG XL's XYB space will be perceptually more meaningful"
-function XYZ_to_XYB (clip XYZ, clip "Y", clip "Z") {
+function XYZ_to_XYB (clip XYZ, clip "Y", clip "Z", bool "Array") {
 
     isy  = isy(XYZ)
     bi   = BitsPerComponent(XYZ)
+    arc  = Default (Array,  isy)
 
     clp  = !isy ? ExtractClip(XYZ) : nop()
     X    = !isy ? clp[0] :    XYZ
@@ -1136,14 +1156,15 @@ function XYZ_to_XYB (clip XYZ, clip "Y", clip "Z") {
     Y = DotClipA(XYZa,[M[1],M[4],M[7]])
     B = DotClipA(XYZa,[M[2],M[5],M[8]])
 
-    isy ? [X, Y, B] : MatrixClip(XYZ, M) }
+    arc ? [X, Y, B] : MatrixClip(XYZ, M) }
 
 
 # WIP. Only works in 32-bit float
-function XYB_to_XYZ (clip XYB, clip "Y", clip "B") {
+function XYB_to_XYZ (clip XYB, clip "Y", clip "B", bool "Array") {
 
     isy  = isy(XYB)
     bi   = BitsPerComponent(XYB)
+    arc  = Default (Array,  isy)
 
     clp  = !isy ? ExtractClip(XYB) : nop()
     X    = !isy ? clp[0] :    XYB
@@ -1163,16 +1184,17 @@ function XYB_to_XYZ (clip XYB, clip "Y", clip "B") {
     Y = DotClipA(XYBa,[M[1],M[4],M[7]])
     Z = DotClipA(XYBa,[M[2],M[5],M[8]])
 
-    isy ? [X, Y, Z] : MatrixClip(XYB, M) }
+    arc ? [X, Y, Z] : MatrixClip(XYB, M) }
 
 
 # RGB' to HSV
-function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range") {
+function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range", bool "Array") {
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
 
     tv  = Default (tv_range, false)
+    arc = Default (Array,      isy)
 
     clp = !isy ? ExtractClip(RGB) : nop()
     R   = !isy ? clp[0] :    RGB
@@ -1193,7 +1215,7 @@ function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range") {
     Ss = ex_dlut(Ss, bi, !tv)
     Hs = ex_dlut(Hs, bi, !tv)
 
-    if (isy) {
+    if (arc) {
 
         S = Expr(R, G, B, V, Ss, optSingleMode=false)
         H = Expr(R, G, B, V, Hs, optSingleMode=true)
@@ -1203,12 +1225,13 @@ function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range") {
 
 
 # HSV to RGB'
-function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range") {
+function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range", bool "Array") {
 
     isy = isy(HSV)
     bi  = BitsPerComponent(HSV)
 
     tv  = Default (tv_range, false)
+    arc = Default (Array,      isy)
 
     clp = !isy ? ExtractClip(HSV) : nop()
     H   = !isy ? clp[0] :    HSV
@@ -1227,7 +1250,7 @@ function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range") {
     Gs = ex_dlut(Gs, bi, !tv)
     Bs = ex_dlut(Bs, bi, !tv)
 
-    if (isy) {
+    if (arc) {
 
         R = Expr(H, S, V, Rs, optSingleMode=false)
         G = Expr(H, S, V, Gs, optSingleMode=false)
@@ -1240,7 +1263,7 @@ function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range") {
 
 # RGB linear to IPT -requires D65- (original PT range scaled from -1 +1 to 0 +1)
 # Fix some NaN in black areas
-function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "fulls") {
+function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "Array", bool "fulls") {
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
@@ -1248,6 +1271,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
     mat = Default (matrix, "709")
     cy  = Default (Jch,    false)    # enable to convert to JCh (cylindrical IPT) in the range 0 to 1.
     fs  = Default (fulls,   true)
+    arc = Default (Array,    isy)
 
     mat = color_Fuzzy_Search(mat)
     clp = !isy ? ExtractClip(RGB) : nop()
@@ -1278,7 +1302,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
         Ps  = " x "+b32d+" "+string(IPT[1])+" * y "+b32d+" "+string(IPT[4])+" * + z "+b32d+" "+string(IPT[7])+" * + 1 + 0.5 *"+b32m
         Ts  = " x "+b32d+" "+string(IPT[2])+" * y "+b32d+" "+string(IPT[5])+" * + z "+b32d+" "+string(IPT[8])+" * + 1 + 0.5 *"+b32m
 
-        if (isy) {
+        if (arc) {
 
             P  = Expr(L,M,S, Ps, optSingleMode=true)
             T  = Expr(L,M,S, Ts, optSingleMode=true)
@@ -1293,7 +1317,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
         hs  = " x "+b32d+" X@ "+string(IPT[1])+" * y "+b32d+" Y@ "+string(IPT[4])+" * + z "+b32d+" Z@ "+string(IPT[7])+" * +
                 X             "+string(IPT[2])+" * Y             "+string(IPT[5])+" * + Z             "+string(IPT[8])+" * + swap atan2 pi + pi 2 * /"+b32m
 
-        if (isy) {
+        if (arc) {
 
             C  = Expr(L,M,S, Cs, optSingleMode=true)  # maybe normalize with 4.956244 instead
             h  = Expr(L,M,S, hs, optSingleMode=true)
@@ -1303,7 +1327,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
 
 
 
-function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", bool "fulls") {
+function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", bool "Array", bool "fulls") {
 
     isy = isy(IPT)
     bi  = BitsPerComponent(IPT)
@@ -1311,6 +1335,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
     mat = Default (matrix, "709")
     cy  = Default (Jch,      false)   # enable to convert from Jch (cylindrical IPT) in the range 0 to 1.
     fs  = Default (fulls,     true)
+    arc = Default (Array,      isy)
 
     mat = color_Fuzzy_Search(mat)
     clp = !isy ? ExtractClip(IPT) : nop()
@@ -1350,7 +1375,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
         Gs = "x "+b32d+" "+string(RGB[1])+" * y "+b32d+" "+string(RGB[4])+" * + z "+b32d+" "+string(RGB[7])+" * + "+b32m
         Bs = "x "+b32d+" "+string(RGB[2])+" * y "+b32d+" "+string(RGB[5])+" * + z "+b32d+" "+string(RGB[8])+" * + "+b32m
 
-    if (isy) {
+    if (arc) {
 
         R = Expr(L,M,S, Rs, optSingleMode=false)
         G = Expr(L,M,S, Gs, optSingleMode=false)
@@ -1363,7 +1388,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
 
 # RGB linear to Oklab -requires D65- (original 'ab' range scaled from -1 +1 to 0 +1)
 # Fix some NaN in black areas
-function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "fulls") {
+function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "Array", bool "fulls") {
 
     isy = isy(RGB)
     bi  = BitsPerComponent(RGB)
@@ -1371,6 +1396,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
     mat = Default (matrix, "709")
     cy  = Default (Jch,      false)    # enable to convert to Oklch (cylindrical Oklab) in the range 0 to 1.
     fs  = Default (fulls,     true)
+    arc = Default (Array,      isy)
 
     mat = color_Fuzzy_Search(mat)
     clp = !isy ? ExtractClip(RGB) : nop()
@@ -1408,7 +1434,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
         as  = " x "+b32d+" "+string(M2[1])+" * y "+b32d+" "+string(M2[4])+" * + z "+b32d+" "+string(M2[7])+" * + 1 + 0.5 *"+b32m
         bs  = " x "+b32d+" "+string(M2[2])+" * y "+b32d+" "+string(M2[5])+" * + z "+b32d+" "+string(M2[8])+" * + 1 + 0.5 *"+b32m
 
-        if (isy) {
+        if (arc) {
 
             a   = Expr(L,M,S, as, optSingleMode=true)
             b   = Expr(L,M,S, bs, optSingleMode=true)
@@ -1423,7 +1449,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
         hs  = " x "+b32d+" X@ "+string(M2[1])+" * y "+b32d+" Y@ "+string(M2[4])+" * + z "+b32d+" Z@ "+string(M2[7])+" * +
                 X             "+string(M2[2])+" * Y             "+string(M2[5])+" * + Z             "+string(M2[8])+" * + swap atan2 pi + pi 2 * /"+b32m
 
-        if (isy) {
+        if (arc) {
 
             C  = Expr(L,M,S, Cs, optSingleMode=true)
             h  = Expr(L,M,S, hs, optSingleMode=true)
@@ -1433,7 +1459,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
 
 
 
-function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix", bool "fulls") {
+function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix", bool "Array", bool "fulls") {
 
     isy = isy(Lab)
     bi  = BitsPerComponent(Lab)
@@ -1441,6 +1467,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
     mat = Default (matrix, "709")
     cy  = Default (Jch,      false)   # enable to convert from OkLch (cylindrical OkLab) in the range 0 to 1.
     fs  = Default (fulls,     true)
+    arc = Default (Array,      isy)
 
     mat = color_Fuzzy_Search(mat)
     clp = !isy ? ExtractClip(Lab) : nop()
@@ -1486,7 +1513,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
         Gs = "x "+b32d+" "+string(RGB[1])+" * y "+b32d+" "+string(RGB[4])+" * + z "+b32d+" "+string(RGB[7])+" * + "+b32m
         Bs = "x "+b32d+" "+string(RGB[2])+" * y "+b32d+" "+string(RGB[5])+" * + z "+b32d+" "+string(RGB[8])+" * + "+b32m
 
-    if (isy) {
+    if (arc) {
 
         R = Expr(L,M,S, Rs, optSingleMode=true)
         G = Expr(L,M,S, Gs, optSingleMode=true)
