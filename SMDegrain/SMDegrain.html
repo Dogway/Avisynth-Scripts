@@ -17,11 +17,11 @@
 
 <p>
 <b>Author: </b>Dogway<br/>
-<b>Version: </b>v3.5.6d<br/>
+<b>Version: </b>v3.5.7d<br/>
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?p=1972585" target="_blank">https://forum.doom9.org/showthread.php?p=1972585</a><br/>
 <b>Category: </b>Temporal Denoiser Script Function<br/>
-<b>Date:</b> 30-November-2022
+<b>Date:</b> 02-December-2022
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -492,6 +492,12 @@ MFlowFps(Super, bv1, fv1, num=60,den=1)</pre>
 <br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
+<p><b>v3.5.7d</b> (02-12-2022)</p>
+    <ul>
+        <li>Fix logic for nnedi3 pixel center shift (subpixel=4)</li>
+        <li>Fix Globals output (Globals=3)</li>
+        <li>Fix super_render pelclip being set to nop() when reading Globals</li>
+    </ul>
 <p><b>v3.5.6d</b> (30-11-2022)</p>
     <ul>
         <li>Fix pixel center shift deviation in nnedi3 (subpixel=4) for high pel</li>
