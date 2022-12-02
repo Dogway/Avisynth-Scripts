@@ -436,7 +436,7 @@
 #       For FFT3DFilter & ddftest you also need the FFTW3 library (FFTW.org). On Windows the file needed for both is libfftw3f-3.dll. However, for FFT3DFilter
 #       the file needs to be called FFTW3.dll, so you will need two copies and rename one. On Windows put the files in your System32 or SysWow64 folder
 #   AddGrainC    (1.8.4 or above) - if NoiseDeint="Generate" selected for noise bypass
-#   BWDIF        (1.2.2 or above) - for EdiMode modes "BWDIF+NNEDI3" and "BWDIF+EEDI3"
+#   BWDIF        (1.2.4 or above) - for EdiMode modes "BWDIF+NNEDI3" and "BWDIF+EEDI3"
 #   chikuzen PlanarTools - if you work with YUY2 source (not necessarily required but may improve speed)
 
 
@@ -1171,22 +1171,22 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
                                                                                Input.EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2) : \
                 EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ?              Input.EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, sclip=NNEDI3clp ) : nop()
 
-    interp = (InputType == 1)            ? Input                                                                                     : \
-             (EdiMode == "NNEDI3")       ? NNEDI3clp                                                                                 : \
-             (EdiMode == "NNEDI2")       ? Input.NNEDI2( field=fb, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )    : \
-             (EdiMode == "NNEDI")        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                   : \
-             (EdiMode == "EEDI3+NNEDI3") ? EEDI3clp                                                                                  : \
-             (EdiMode == "EEDI3")        ? EEDI3clp                                                                                  : \
+    interp = (InputType == 1)            ? Input                                                                                       : \
+             (EdiMode == "NNEDI3")       ? NNEDI3clp                                                                                   : \
+             (EdiMode == "NNEDI2")       ? Input.NNEDI2( field=fb, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )      : \
+             (EdiMode == "NNEDI")        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                     : \
+             (EdiMode == "EEDI3+NNEDI3") ? EEDI3clp                                                                                    : \
+             (EdiMode == "EEDI3")        ? EEDI3clp                                                                                    : \
              (EdiMode == "EEDI2")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).SeparateFields().EEDI2( field=fb, maxd=EdiMaxD ).nonyuy2clipout(true) : Input.SeparateFields().EEDI2( field=fb, maxd=EdiMaxD ) : \
-             (EdiMode == "Yadif")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1).nonyuy2clipout(true) : Input.yadifmod2(mode=3,order=fb-1) : \
-             (EdiMode == "TDeint")       ? Input.TDeInt( mode=1 )                                                                    : \
+             (EdiMode == "Yadif")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1).nonyuy2clipout(true) : Input.yadifmod2(mode=3,order=fb-1)    : \
+             (EdiMode == "TDeint")       ? Input.TDeInt( mode=1 )                                                                      : \
              (EdiMode == "RepYadif")     ? isyuy2(Input) ? Repair( Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1), Default( Fallback, Input.ex_bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
                                                            Repair( Input.yadifmod2(mode=3,order=fb-1),                     Default( Fallback, Input.ex_bob( 0,0.5 ) ), 2, -1 ) : \
-             (EdiMode == "BWDIF+NNEDI3") ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint=NNEDI3clp.nonyuy2clipin(true)) : Input.BWDIF(fb,edeint=NNEDI3clp) : \
-             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint= EEDI3clp.nonyuy2clipin(true)) : Input.BWDIF(fb,edeint=EEDI3clp)  : \
+             (EdiMode == "BWDIF+NNEDI3") ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint=NNEDI3clp.nonyuy2clipin(true))    : Input.BWDIF(fb,edeint=NNEDI3clp)      : \
+             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint= EEDI3clp.nonyuy2clipin(true))    : Input.BWDIF(fb,edeint=EEDI3clp)       : \
                                            Default( Fallback, Input.ex_bob( 0,0.5 ) )
 
-    interp = (InputType == 1)            ? Input                                                                                     : \
+    interp = (InputType == 1)            ? Input                                                                                       : \
              (EdiMode == "BWDIF+NNEDI3") || \
              (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2).nonyuy2clipout(true) : interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2) : interp
 
