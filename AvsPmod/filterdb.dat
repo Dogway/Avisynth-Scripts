@@ -394,8 +394,8 @@ BicubicResize(
 clip,
 int target_width,
 int target_height,
-float "b"=0.3333 (-10.00 to 10.00),
-float "c"=0.3333 (-10.00 to 10.00),
+float "b"=0.26 (-1.00 to 1.00),
+float "c"=0.37 (-1.00 to 1.00),
 float "src_left"=0,
 float "src_top"=0,
 float "src_width"=0,
@@ -420,7 +420,7 @@ float "src_left"=0,
 float "src_top"=0,
 float "src_width"=0,
 float "src_height"=0,
-int "taps"=4 (1 to 100)
+int "taps"=4 (2 to 16)
 )
 
 BlankClip(
@@ -1079,7 +1079,7 @@ float "src_left"=0,
 float "src_top"=0,
 float "src_width"=0,
 float "src_height"=0,
-int "taps"=3 (1 to 16)
+int "taps"=3 (2 to 16)
 )
 
 Layer(
@@ -1609,7 +1609,7 @@ float "src_left"=0,
 float "src_top"=0,
 float "src_width"=0,
 float "src_height"=0,
-int "taps"=4 (1 to 30)
+int "taps"=4 (2 to 30)
 )
 
 SkewRows(
@@ -1945,6 +1945,15 @@ float "thresh"=0.5 (0.0 to 1.0),
 int "cm"=2 (0 / 1 / 2 / 3)
 )
 
+aWarpSharp_aWarpSharp2(
+clip,
+int "thresh"=128 (0 to 255),
+int "blur"=2 (0 to 100),
+int "type"=0 (0 to 1),
+int "depth"=16 (-128 to 127),
+int "chroma"=4 (0 to 6),
+)
+
 bifrost_Bifrost(
 clip,
 [clip "altclip"],
@@ -1952,6 +1961,13 @@ float "scenelumathresh"=3.0 (0.0 to 255.0),
 int "variation"=5 (0 to 255),
 bool "conservativemask"=false,
 bool "interlaced"=false
+)
+
+Checkmate_Checkmate(
+clip,
+int "thr"=12 (0 to 50),
+int "max"=12 (1 to 255),
+int "tthr2"=0 (0 to 50)
 )
 
 ColorMatrix_ColorMatrix(
@@ -2903,7 +2919,11 @@ float "ls"=4.0 (0 to 255),
 float "cs"=3.0 (0 to 255),
 float "lt"=6.0 (0 to 255),
 float "ct"=4.5 (0 to 255),
-int "restart"=7.0 (0 to 255)
+int "restart"=7 (0 to 255),
+int "y"=3 (1 / 2 / 3),
+int "u"=3 (1 / 2 / 3),
+int "v"=3 (1 / 2 / 3),
+bool "mt"=false,
 )
 
 JpegSource_JpegSource(
@@ -3254,6 +3274,14 @@ bool "highq"=true,
 bool "chroma"=false,
 bool "mask"=false,
 bool "show"=false
+)
+
+Spectrogram
+(
+clip,
+int "width"=512,
+int "height"=256,
+bool "transpose"=false
 )
 
 resamplehq-x86_ResampleHQ(
@@ -4020,7 +4048,7 @@ int "index"=0
 vinverse_Vinverse(
 clip,
 float "sstr"=2.7,
-int "amnt"=255 (0 to 255),
+int "amnt"=255 (1 to 255),
 int "uv"=3 (1 / 2 / 3),
 float "scl"=0.25,
 [int "opt"=2 (0 / 1 / 2)]
@@ -4744,6 +4772,11 @@ int r=1 (0 to 3),
 [bool "old"=false]
 )
 
+ex_sbr(
+clip,
+int r=1 (0 to 3),
+)
+
 ex_posterize(
 clip,
 int "bits"=3 (0 to 7),
@@ -4837,6 +4870,18 @@ int "dark"=255 (0 to 255),
 int "rad"=64 (8 to 255),
 int "mode"=0 (0 / 1 / 2),
 float "gamma1_2"=0.6 (0.05 to 1.00)
+)
+
+ex_ReduceFlicker(
+clip,
+int "strength"=2 (1 to 3),
+bool "aggressive"=false
+)
+
+ex_vinverse(
+clip,
+float "sstr"=2.7,
+int "amnt"=255 (0 to 255),
 )
 
 FastLineDarken(
@@ -5803,7 +5848,7 @@ int tr=1 (1 to 9),
 int thSAD=300 (100 to 1000),
 [int "blksize"=16 (4 to 64 by 4)],
 [int "overlap"=8 (2 to 32 by 4)],
-string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "FluxSmoothT"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussT5"/ "GaussST5"/ "--"/ "rMDegrain"/ "rMedianST"/ "rMedianSTS"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT" /"rGaussT5"/ "rGaussST5"),
+string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "FluxSmoothT"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussT5"/ "GaussST5"/ "DFTTest"/ "--"/ "rMDegrain"/ "rMedianST"/ "rMedianSTS"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT" /"rGaussT5"/ "rGaussST5"),
 int "prefilter"=-1 (-1 to 7),
 bool "ContraSharp"=false,
 [clip "CClip"],
