@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 10.2 (04-12-2022)     ##
+###   Resizers Functions Pack 10.3 (06-12-2022)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -34,7 +34,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (04-12-2022)
+### deep_resize() - by Dogway (06-12-2022)
 ###
 ### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -214,6 +214,16 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     etype  = 0
     pscrn  = 2
     und    = Undefined()
+    # gpuid=[0,-2,-1] means gpu for 'edge', auto for 'flat' and cpu for 'chroma'. If using int as gpuid=0, only 'edge' will run on gpu or the indicated value, the rest as auto (-2)
+    gpu    = Defined(gpuid) ? isArray(gpuid) ? ArraySize(gpuid)==2 ? ArrayAdd(gpuid,-2) : ArraySize(gpuid)==1 ? [gpuid[0],-2,-2] : gpuid : [gpuid,-2,-2] : [-2,-2,-2]
+    egpu   = gpu[0]
+    fgpu   = gpu[1]
+    cgpu   = gpu[2]
+    ecgpu  = egpu!=-2 && cgpu!=-2 ? [egpu,cgpu] : egpu!=-2 && cgpu==-2 ? [egpu] : und # cannot specify chroma without specifying luma, so fallback to auto
+    fcgpu  = fgpu!=-2 && cgpu!=-2 ? [fgpu,cgpu] : fgpu!=-2 && cgpu==-2 ? [fgpu] : und
+    egpu   = egpu!=-2  ? egpu : und
+    fgpu   = fgpu!=-2  ? fgpu : und
+    cgpu   = cgpu!=-2  ? cgpu : und
 
     Assert(IsVersionOrGreater(3,7,2), "deep_resize: Update AviSynth+ version")
 
@@ -225,8 +235,8 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
         # Downscale/upscale with same edge/flat kernel
         krn1=="nnedi3" && krn1c=="nnedi3" ? \
-                nnedi3resize (a, w2,h2,cshift="spline36",gpuid=gpuid,qual=qual,HBD=true) : \
-                ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,scale_space=ssp,gpuid=gpuid)
+                nnedi3resize (a, w2,h2,qual=qual,cshift=krn1c,HBD=true,gpuid=egpu) : \
+                ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,scale_space=ssp,gpuid=ecgpu)
 
         mul>0 ? LSFplus(preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
@@ -242,27 +252,26 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             # Y8 for nnedi3
             oned    = krn1 == "nnedi3" && (h == h2 || w == w2)
             an      = oned && !isy ? a.ExtractY() : a
-            a8      = ConvertBits(an, 8, dither=-1, fulls=fs, fulld=fs)
 
            # nnedi3 one dimensional resize case
 
-            edge1   = krn1 == "nnedi3" ?   oned ? nnedi3wrap(a8,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift="spline36",HBD=true,gpuid=gpuid) : \
-                                                  nnedi3wrap(a8,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift="spline36",HBD=true,gpuid=gpuid) : \
-                                                  ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,scale_space=ssp,gpuid=gpuid)
+            edge1   = krn1 == "nnedi3" ?   oned ? nnedi3wrap(an,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift=krn1c,HBD=false,gpuid=egpu) : \
+                                                  nnedi3wrap(an,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift=krn1c,HBD=false,gpuid=egpu) : \
+                                                  ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,scale_space=ssp,gpuid=ecgpu)
 
         if (rat <= rth) {
 
-                      krn1 == "nnedi3" &&  oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift=krn1c,gpuid=gpuid) : edge1  # up/downscaling below ratio threshold
+                      krn1 == "nnedi3" &&  oned ? nnedi3resize(a,w2,h2,qual=qual,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,cshift=krn1c,gpuid=egpu) : edge1  # up/downscaling below ratio threshold
 
         } else {
 
             # don't sharpen nnedi3 when one dimensional resize case
             edge    = krn1 == "nnedi3" ?   oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
-                      mul>0            ?          LSFplus(edge1,preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).\
+                      mul>0            ?          LSFplus    (edge1,preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).\
                                                   ConvertBits(bi, fulls=fs, fulld=fs) : edge1 : edge1
 
             # resizing flat area
-            flat    =                             ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,gpuid=gpuid)
+            flat    =                             ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,gpuid=fcgpu)
 
             # edge/flat limiting
             ex_limitdif(           !isy && oned ? flat.ExtractY() : flat, edge, thr=thr, elast=ela, UV=1)
@@ -549,7 +558,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     gr     = Default(grain, rw>1.25 && rh>1.25 ? 0.3 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
 
     !isy ? a : ConvertBits(a, 32, fulls=!tv, fulld=true)
-    rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="spline36")
+    rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="lanczos3")
     !isy ? ConvertBits(32, fulls=true, fulld=true) : last
 
     for (i = 1, factor/2, 1) {
@@ -614,7 +623,7 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     gid    = Default(gpuid,          0)
 
     !isy ? a    : ConvertBits(a, 32, fulls=!tv,  fulld=true)
-    rgb  ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="spline36")
+    rgb  ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="lanczos3")
      isy ? last : ConvertBits(   32, fulls=true, fulld=true)
 
     RIFE(model=fd ? md : max(md,9), sc=true, skip=an, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2)
@@ -752,18 +761,18 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
         ym   = max(yf,min(rh,8))
         xm   = max(xf,rw)
 
-        cht    = pln[1]==1       || pln[1]==3 ? 0.5            : 1
-        chl    = pln[1]==1 ? 0.58 : pln[1]==4 ? min(1,(4./xm)) : 1
+        cht  = pln[1]==1       || pln[1]==3 ? 0.5            : 1
+        chl  = pln[1]==1 ? 0.58 : pln[1]==4 ? min(1,(4./xm)) : 1
 
-        cy     = isy && pln[1]>0
-        cslc   = xm == 16 ? 380   : 0.100*pow(xm,2.585)+0.9
-        cstc   = ym == 16 ? 270   : 0.067*pow(ym,2.585)+0.6
-        csl    = xm == 16 ? 127.5 : 0.034*pow(xm,2.585)+0.3
-        cst    = ym == 16 ? 127.5 : 0.034*pow(ym,2.585)+0.3
-        cslc   = (pln[1]==4 ? csl : cslc)*chl
-        cstc   = (pln[1]==4 ? cst : cstc)*cht
-        csl    = !cy ? csl+src_l : pln[1]==4 ?  cslc+src_l : pln[1]==1 ? 0.625-0.375*((cslc+src_l)*rw) : (cslc+src_l)*0.5
-        cst    = !cy ? cst+src_t : pln[1]==4 || pln[1]==1 || pln[1]==3 ? cstc+src_t : (cstc+src_t)*0.5
+        cy   = isy && pln[1]>0
+        cslc = xm == 16 ? 380   : 0.100*pow(xm,2.585)+0.9
+        cstc = ym == 16 ? 270   : 0.067*pow(ym,2.585)+0.6
+        csl  = xm == 16 ? 127.5 : 0.034*pow(xm,2.585)+0.3
+        cst  = ym == 16 ? 127.5 : 0.034*pow(ym,2.585)+0.3
+        cslc = (pln[1]==4 ? csl : cslc)*chl
+        cstc = (pln[1]==4 ? cst : cstc)*cht
+        csl  = !cy ? csl+src_l : pln[1]==4 ?  cslc+src_l : pln[1]==1 ? 0.625-0.375*((cslc+src_l)*rw) : (cslc+src_l)*0.5
+        cst  = !cy ? cst+src_t : pln[1]==4 || pln[1]==1 || pln[1]==3 ? cstc+src_t : (cstc+src_t)*0.5
 
         ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=krnn,tv_in=!fs, \
             src_left=[csl,cslc+src_l],             \
@@ -904,18 +913,18 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
         ym   = max(yf,min(rh,8))
         xm   = max(xf,rw)
 
-        cht    = pln[1]==1       || pln[1]==3 ? 0.5            : 1
-        chl    = pln[1]==1 ? 0.58 : pln[1]==4 ? min(1,(4./xm)) : 1
+        cht  = pln[1]==1       || pln[1]==3 ? 0.5            : 1
+        chl  = pln[1]==1 ? 0.58 : pln[1]==4 ? min(1,(4./xm)) : 1
 
-        cy     = isy && pln[1]>0
-        cslc   = xm == 16 ? 380   : 0.100*pow(xm,2.585)+0.9
-        cstc   = ym == 16 ? 270   : 0.067*pow(ym,2.585)+0.6
-        csl    = xm == 16 ? 127.5 : 0.034*pow(xm,2.585)+0.3
-        cst    = ym == 16 ? 127.5 : 0.034*pow(ym,2.585)+0.3
-        cslc   = (pln[1]==4 ? csl : cslc)*chl
-        cstc   = (pln[1]==4 ? cst : cstc)*cht
-        csl    = !cy ? csl+src_l : pln[1]==4 ?  cslc+src_l : pln[1]==1 ? 0.625-0.375*((cslc+src_l)*rw) : (cslc+src_l)*0.5
-        cst    = !cy ? cst+src_t : pln[1]==4 || pln[1]==1 || pln[1]==3 ? cstc+src_t : (cstc+src_t)*0.5
+        cy   = isy && pln[1]>0
+        cslc = xm == 16 ? 380   : 0.100*pow(xm,2.585)+0.9
+        cstc = ym == 16 ? 270   : 0.067*pow(ym,2.585)+0.6
+        csl  = xm == 16 ? 127.5 : 0.034*pow(xm,2.585)+0.3
+        cst  = ym == 16 ? 127.5 : 0.034*pow(ym,2.585)+0.3
+        cslc = (pln[1]==4 ? csl : cslc)*chl
+        cstc = (pln[1]==4 ? cst : cstc)*cht
+        csl  = !cy ? csl+src_l : pln[1]==4 ?  cslc+src_l : pln[1]==1 ? 0.625-0.375*((cslc+src_l)*rw) : (cslc+src_l)*0.5
+        cst  = !cy ? cst+src_t : pln[1]==4 || pln[1]==1 || pln[1]==3 ? cstc+src_t : (cstc+src_t)*0.5
 
         ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=krnn,tv_in=!fs, \
             src_left=[csl,cslc+src_l],             \
