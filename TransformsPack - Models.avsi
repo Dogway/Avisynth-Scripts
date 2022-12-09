@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0 RC60  (30-11-2022)   ##
+###   Transforms Pack - Models v1.0       (09-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -22,9 +22,9 @@
 ###     XYZ_to_XYB      /    XYB_to_XYZ                  ##
 ###     RGB_to_HSV      /    HSV_to_RGB                  ##
 ###     RGB_to_IPT      /    IPT_to_RGB                  ##
+###     RGB_to_ICtCp    /    ICtCp_to_RGB                ##
 ###     RGB_to_Oklab    /    Oklab_to_RGB                ##
 ###     RGB_to_XYZ      /    XYZ_to_RGB                  ##
-###     RGB_to_ICtCp    /    ICtCp_to_RGB                ##
 ###     XYZ_to_LMS      /    LMS_to_XYZ                  ##
 ### ADAPTATION:                                          ##
 ###     CAT                                              ##
@@ -54,14 +54,14 @@
 # Finally working spaces don't need to be attached to any physical constraints so they can be as big as the CIE 1931 color space (some actually bigger than that), so they are suited for heavy color transformations without much degradation in the process. They can also be geared towards certain effects like getting more color resolution in certain HUEs for exposing better shades in color grading tasks. Ultimately everything is being transformed into your viewing transform color space in real time so use any working space that suits your job.
 #
 #-470M                   - (Historical) ITU-R Rec. BT.470 M. Also known as FCC or NTSC (1953) with C illuminant and 170M OETF.
+#-470BG                  - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (625-line = PAL, SECAM).
 #-170M                   - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (525-line = NTSC, SMPTE-C) (originally defined in "CCIR Recommendation 601-1 (1982-1986)").
 #-240M                   - SMPTE 240M.
-#-470BG                  - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (625-line = PAL, SECAM).
 #-NTSC-J                 - ARIB TR-B9. Phosphor primaries used in Japan's consumer CRTs along 9300K + 27 MPCD illuminant.
 #-sRGB                   - IEC 61966-2. Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users. Comprises Primaries -derived from phosphors of calibrated consumer CRTs of the 90s-, Illuminant and Transfer Characteristics.
 #-2020                   - ITU-R Rec. BT.2020.
 #-AdobeRGB               - IEC 61966-2-5:1999. Also known as opRGB (optional RGB). Designed to encompass most printers' gamuts and to be used as a working space in Photoshop, ideally at 16-bit. It's basically the 470BG primaries with greens from 470M allegedly after a sucessions of mistakes.
-#-Adobe Wide Gamut       -
+#-Adobe Wide Gamut       - Adobe second and final wide gamut version of AdobeRGB with same transfer but in D50 illuminant.
 #-DCI-P3                 - SMPTE RP 432-2. Digital Cinema.
 #-Display-P3             - SMPTE RP 432-1.
 #-AP0                    - ACES AP0 coefficients used for ACES2065 color space.
@@ -156,13 +156,13 @@
 # c1c2c4       - Biologically Inspired Color Image Descriptor.
 # o1o2         - For Robust Image Detection in Scenes under Cast Shadows. https://digital.csic.es/bitstream/10261/30099/1/Combining%20color-based.pdf
 #-YCbCr        - Color format roughly based on human perception of luma and chroma contribution (approximately perceptually uniform). Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green. It's a 45º skewed parallelogram relative to the square RGB box, therefore only 23.6% of its color volume matches RGB and 76.4% is out of RGB gamut.
-# YPbPr        - A model for analogue signals. It's basically the same as YCbCr but with no definition for the SMPTE range.
+#-YPbPr        - A model for analogue signals. It's basically the same as YCbCr but with no definition for the SMPTE range.
 # YIQ          - YCbCr with (YCbCr) UV axes rotated 33º, used for NTSC TV analogue system. Quote from avisynth.nl/index.php/Tweak: "In YIQ, orange and teal are along the in-phase (I) axis, while green and magenta are along the quadrature (Q) axis. The eye is far more sensitive to detail along the I axis than along the Q axis, and NTSC allocated more bandwidth for I than for Q."
 # YDbDr        - PAL-N and SECAM TV analogue format.
 #-YUVr         - "YUV RCT". Same as YUV but fully reversible to RGB.
 # sYUV         - "Sharp YUV". Same as YUV but luma-weighted chroma subsampling, retaining chroma fidelity.
 #-YcCbcCrc     - YCbCr Constant Luminance (CL). Better decorrelation than YCbCr.
-# xvYCC        - Expanded Gamut YCbCr. For newer TV systems it was/is a model that allowed the color gamut (typically Rec709) to be stored in the full range while luma in the narrow range.
+# xvYCC        - Expanded Gamut YCbCr. For newer TV systems it is/was a model that allowed the color gamut (typically Rec709) to be stored in the full range while luma in the narrow range.
 #-YCoCg        - Better luma/chroma decorrelation and compression efficiency than YCbCr.
 #-YCoCgR       - Same as YCoCg but losslessly reversible to RGB.
 # YFbFr        - Similar to YCoCg, employs Karhunen-Loève transform (KLT) to design an integer reversible transform.
@@ -170,7 +170,7 @@
 # LSY          - Reads lambda-SY. Spectral color space. Representation based on brightness, dominant wavelength and saturation attributes. LSY color coordinates are defined from xyY color coordinates.
 #-YDzDx+       - HDR version of XYZ. Requires at least 10-bit for no visible quantization.
 # YCxCz        - Color Space for image fidelity metrics. It's a first step space, you have to "filter" it and then convert to Lab to retrieve error delta.
-# DCI XYZ      - XYZ space in DCI illuminant. In effect it's just a container for DCI-P3 in XYZ coordinates for delivery to theaters.
+#-DCI XYZ      - XYZ space in DCI illuminant. In effect it's just a container for DCI-P3 in XYZ coordinates for delivery to theaters.
 #-Yxy/xyY      - Chroma normalized XYZ space which gives full luma/chroma decorrelation. Not apt for HDR, use YDzDx+ instead.
 #-HSV          - Cylindrical representation of RGB. Not recommended as it doesn't take into account human luminance perception.
 #-Duv*         - Perceptual based model which measures the closest distance from the Planckian locus on the CIE 1976 (u', 2/3 v') diagram. Some color spaces and Delta metrics are computed in this model which is an update of the CIE 1960 UCS chromaticity diagram. A white point defined in Duv coordinates is called a "color tint".
@@ -195,7 +195,7 @@
 # ICaCb+       - Precursor and arguably better color model than ICtCp which based on this.
 #-ICtCp+       - BT.2100 (HDR + Rec.2020) version of IPT. HDR version of YcCbcCrc but with Constant Intensity this time.
 # ITP*+        - Perceptually uniform color space version of ICtCp, used extensively in error metrics by scaling Ct by 0.5. This transformation is the basis of the Rec.2124 wide gamut color difference metric D.itp (simple scaled Euclidean distance: 720*sqrt(Di^2+D(t*0.5)^2+Dp^2) )
-# IPTPQc2*+    - Improved HDR10 version of ICtCp. Since it's a propietary model not much information is known.
+#-IPTPQc2*+    - Improved HDR10 version of ICtCp. Since it's a propietary model not much information is known.
 # CIECAM02*    - Improves on CIECAM97s and can be made uniform with CAM02-UCS. CIECAM02Jch is its cylindrical version.
 # OSA*         -
 # CIECAM16*    - Improves on CIECAM02 and can be made uniform with CAM16-UCS, which works "out-of-the-box" for Euclidean distance metrics.
@@ -204,7 +204,7 @@
 # iCAM06       - An image (not only color) appearance metric model to not only compute perceived difference in lightness, hue or chroma, but also contrast, sharpness or graininess. Involves converting to IPT, low-pass filtering in linear space, convert to non-linearity, then to Jch model and QM if necessary for the metrics.
 
 
-# YCbCr to RGB' standalone function (recommended at least 10-bit precision)
+# YCbCr to RGB' standalone function (at least 10-bit precision recommended)
 function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", string "kernel", float "b", float "c", float "p", string "cplace", bool "UVrecon") {
 
     matrix     = Default (matrix, "709")
@@ -213,12 +213,12 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
     fs         = propNumElements (yuv,"_ColorRange")  > 0 ? \
                  propGetInt      (yuv,"_ColorRange") == 0 : (matrix=="JPEG" || matrix=="JPG")
 
-    kernel     = Default (kernel, "Bicubic")
-    tv_in      = Default (tv_in,    !fs)
-    tv_out     = Default (tv_out, false)
-    cplace     = Default (cplace, "")
+    kernel     = Default (kernel, "Bicubic")     # Precise Bicubic. A better alternative although slower is lanczos3
+    tv_in      = Default (tv_in,     !fs)
+    tv_out     = Default (tv_out,  false)
+    cplace     = Default (cplace,     "")
     recon      = Default (UVrecon, false)
-    b          = Default (b, 0.0)
+    b          = Default (b,  0.0)               # Bicubic 'b' coefficient, or 'taps' for sinc kernels
     c          = Default (c, 0.75)               # Precise Bicubic
     p          = Default (p,    9)
 
@@ -229,9 +229,9 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
     matrix   = color_Fuzzy_Search (matrix)
     coef     = color_coef(mat=matrix[0])
     bc       = bicubic_coeffs(kernel)
-    bc_b     = string(bc[1]>=0.?bc[0]:b)
-    bc_c     = string(bc[1]>=0.?bc[1]:c)
-    kernel   = bc[1]>=0. ? "Bicubic" : kernel
+    bc_b     = string(bc[1]>=-1?bc[0]:b)
+    bc_c     = string(bc[1]>=-1?bc[1]:c)
+    kernel   = bc[1]>=-1 ? "Bicubic" : LCase(kernel)
 
     p_type4  = p_type[1] == "444"
     p_type2  = p_type[1] == "422"
@@ -252,7 +252,9 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
     cplaceH = ",src_left="+string(cplace[0])
     cplaceV = ",src_top ="+string(cplace[1])
 
-    resampler = kernel == "nnedi3" ?    "nnedi3resize(" + String(w) + "," + String(h)                     + ")"                      : \
+    resampler = FindStr(kernel, "lanczos")>0 || FindStr(kernel, "blackman")>0 || FindStr(kernel, "sinc")>0                           ? \
+                                     kernel + "Resize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",taps=    int("+bc_b+"))": \
+                kernel == "nnedi3" ?    "nnedi3resize(" + String(w) + "," + String(h)                     + ")"                      : \
                 kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",b="+bc_b+",c="+bc_c+")" : \
                 kernel == "gauss"  ?     "GaussResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",p=p)"                   : \
                                      kernel + "Resize(" + String(w) + "," + String(h) + cplaceH + cplaceV +")"
@@ -311,23 +313,24 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
     }
 
     tv_in!=tv_out ? propSet("_ColorRange", tv_out ? 1 : 0) : last
-                    propSet("_Matrix",      0)                  }
+                    propSet("_Matrix",     0)
+                    propSet("_Model",      1) }
 
 
 
-# RGB' to YCbCr standalone function (recommended at least 10-bit precision)
+# RGB' to YCbCr standalone function (at least 10-bit precision recommended)
 function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", string "pixel_type", string "kernel", float "b", float "c", float "p", string "cplace") {
 
     bi         = BitsPerComponent(rgb)
     fs         = propNumElements (rgb,"_ColorRange")  > 0 ? \
                  propGetInt      (rgb,"_ColorRange") == 0 : true
 
-    matrix     = Default (matrix, "sRGB")
+    matrix     = Default (matrix,     "709")
     p_type     = Default (pixel_type, "420")     # target YUV pixel_type
     kernel     = Default (kernel, "Bicubic")
-    tv_in      = Default (tv_in,  !fs)
+    tv_in      = Default (tv_in,   !fs)
     tv_out     = Default (tv_out, true)
-    cplace     = Default (cplace, "")
+    cplace     = Default (cplace,   "")
     b          = Default (b, -0.5)
     c          = Default (c, 0.25)               # Didée's Bicubic
     p          = Default (p,    9)
@@ -339,9 +342,9 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", str
     matrix   = color_Fuzzy_Search (matrix)
     coef     = color_coef(mat=matrix[0])
     bc       = bicubic_coeffs(kernel)
-    bc_b     = string(bc[1]>=0.?bc[0]:b)
-    bc_c     = string(bc[1]>=0.?bc[1]:c)
-    kernel   = bc[1]>=0. ? "Bicubic" : kernel
+    bc_b     = string(bc[1]>=-1?bc[0]:b)
+    bc_c     = string(bc[1]>=-1?bc[1]:c)
+    kernel   = bc[1]>=-1 ? "Bicubic" : LCase(kernel)
 
     p_type4  = p_type[1] == "444"
     p_type2  = p_type[1] == "422"
@@ -367,12 +370,9 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", str
     Gx = ExtractG(rgb)
     Bx = ExtractB(rgb)
 
-
     if (matrix[0]=="2020CL" || matrix[0]=="DCI-P3" || matrix[0]=="Display-P3") {
 
-        YCbCr = RGB_to_YcCbcCrc( Rx, Gx, Bx, matrix[0], coef, tv_in, tv_out)
-
-        Y  = YCbCr[0]  Cb = YCbCr[1]  Cr = YCbCr[2]
+        Assert(false, "RGB_to_YUV: Use RGB_to_YcCbcCrc() function")
 
     } else {
 
@@ -400,16 +400,20 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", str
     cplaceV = ",src_top ="+string(cplace[1])
 
     # Although not optimal, technically YUV420 accepts odd size chroma planes
-    resampler = kernel == "nnedi3" ?    "nnedi3resize(" + String(nw) + "," + String(nh)                     + ")"         : \
-                kernel == "bicubic"?   "BicubicResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ",b="+bc_b+",c="+bc_c+")" : \
-                kernel == "gauss"  ?     "GaussResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ",p=p)"     : \
-                                     kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV + ")"
+    resampler = FindStr(kernel, "lanczos")>0 || FindStr(kernel, "blackman")>0 || FindStr(kernel, "sinc")>0                           ? \
+                                     kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",taps=    int("+bc_b+"))": \
+                kernel == "nnedi3" ?    "nnedi3resize(" + String(nw) + "," + String(nh)                     + ")"                      : \
+                kernel == "bicubic"?   "BicubicResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",b="+bc_b+",c="+bc_c+")" : \
+                kernel == "gauss"  ?     "GaussResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",p=p)"                   : \
+                                     kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +")"
 
     Cb = p_type4 ? Cb : Eval("Cb." + resampler)
     Cr = p_type4 ? Cr : Eval("Cr." + resampler)
 
     CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+p_type[1]+p_type[2])
-    tv_in!=tv_out ? propSet("_ColorRange", tv_out ? 1 : 0) : last              }
+    tv_in!=tv_out ? propSet("_ColorRange", tv_out ? 1 : 0) : last
+                    propSet("_Matrix", matrix[3])
+                    propSet("_Model",          5) }
 
 
 # RGB' to YcCbcCrc function (for Rec.2020CL)
@@ -451,17 +455,13 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
     Nr  = 1 / (-2. * (ca*(1.0 - pow(coef[1] + coef[2], cb)) - 1.0))
 
     Y   = Expr(Rln, Gln, Bln, "x "+string(coef[0])+" * y "+string(coef[1])+" * + z "+string(coef[2])+" * + ")
-    Yx  = CCTF(Y,  trc, false, false, false)
+    Yx  = CCTF(Y,  trc, false, false, false).propSet("_Matrix", mat[3]).propSet("_Model", 11)
 
     Cbc = Expr(B, Yx, ex_dlut(Format("x "+rangeC_PC+" y - A@ 0 <= A {Nb} * A {Pb} * ? "+rangeC_TV+" "), bi, true), lut=lut)
     Crc = Expr(R, Yx, ex_dlut(Format("x "+rangeC_PC+" y - A@ 0 <= A {Nr} * A {Pr} * ? "+rangeC_TV+" "), bi, true), lut=lut)
     Yc  = !tvo ?  Yx : CCTF(Y, trc, false, false, true)
 
-    if (arc) {
-        [Yc, Cbc, Crc]
-    } else {
-        CombinePlanes(Yc, Cbc, Crc, planes="YUV")
-        mat[0] == "2020CL" ? propSet("_Matrix", 10) : last } }
+    arc ? [Yc, Cbc, Crc] : CombinePlanes(Yc, Cbc, Crc, planes="YUV") }
 
 
 # WIP. YcCbcCrc to RGB' function (for Rec.2020CL)
@@ -510,8 +510,8 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
 
     if (arc) {
 
+        R = CCTF(Rx,  trc, false, false, tvo).propSet("_Matrix", 0).propSet("_Model", 1)
         B = CCTF(Bx,  trc, false, false, tvo)
-        R = CCTF(Rx,  trc, false, false, tvo)
         G = CCTF(Gx,  trc, false, false, tvo)
         [R, G, B]
 
@@ -519,14 +519,13 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
 
         CombinePlanes(Rx, Gx, Bx, planes="RGB")
         CCTF(trc, false, false, tvo)
-
-        tvi!=tvo ? propSet("_ColorRange", tvo ? 1 : 0) : last
-                   propSet("_Matrix",               0)      } }
+        propSet("_Matrix",     0)
+        propSet("_Model",      1)      } }
 
 
 
 # YCoCg, YCoCgR and YUVr compress better than plain YUV. YCoCg variants a tiny bit over YUVr, and YUVr and YCoCgR being losslessly reversible (RCT) with RGB
-# These formats are ColorSpace and Chroma Subsampling independent, as well as signal range (full or legal)
+# These formats are ColorSpace and Chroma Subsampling independent, as well as signal range (full or legal), although specification defines it as full range.
 # Originally called YCoCg, was later renamed and standardized to YCgCo, since the Co channel corresponds better to Cr from YCbCr
 
 # RGB' to YCoCg/YCgCo function
@@ -553,7 +552,7 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
     rangeC_TV = tvo ? " cmax cmin - range_max / * "+(bi==32 ? "" : "cmin +") : ""
 
     if (arc) {
-        Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "    +rangeTV,   bi, true), optSingleMode=true,  lut=  0)
+        Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "    +rangeTV,   bi, true), optSingleMode=true,  lut=  0).propSet("_Matrix", 2).propSet("_Model", 9)
         Cg = Expr(R, G, B, ex_dlut("y 0.5  * x z + 0.25 * - "+b32+rangeC_TV, bi, true), optSingleMode=true,  lut=  0)
         Co = Expr(R,    B, ex_dlut("x y - 0.5  *            "+b32+rangeC_TV, bi, true), optSingleMode=false, lut=lut)
         [Y, Cg, Co]
@@ -594,7 +593,7 @@ function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_ou
 
     if (arc) {
 
-        R = Expr(Y, Cg, Co, ex_dlut("x y "+b32+" - z "+b32+" + "+rangeTV, bi, true), optSingleMode=true,  lut=  0)
+        R = Expr(Y, Cg, Co, ex_dlut("x y "+b32+" - z "+b32+" + "+rangeTV, bi, true), optSingleMode=true,  lut=  0).propSet("_Matrix", 0).propSet("_Model", 1)
         G = Expr(Y, Cg,     ex_dlut("x y "+b32+" +"             +rangeTV, bi, true), optSingleMode=false, lut=lut)
         B = Expr(Y, Cg, Co, ex_dlut("x y "+b32+" - z "+b32+" - "+rangeTV, bi, true), optSingleMode=true,  lut=  0)
         [R, G, B]
@@ -634,13 +633,13 @@ function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out
 
     Co = Expr(R,      B, ex_dlut("x 0.5  * y 0.5  * - "+b32i,            bi, true), optSingleMode=false, lut=lut)
     Cg = Expr(Co, G,  B, ex_dlut("y z x "+b32f+" 0.5 * + - 0.5 * "+b32i, bi, true), optSingleMode=false, lut=  0)
-    Y  = Expr(Co, Cg, B, ex_dlut("  z x "+b32f+" 0.5 * + y "+b32f+" +",  bi, true), optSingleMode=false, lut=  0)
+    Y  = Expr(Co, Cg, B, ex_dlut("  z x "+b32f+" 0.5 * + y "+b32f+" +",  bi, true), optSingleMode=false, lut=  0).propSet("_Matrix", 2).propSet("_Model", 10)
 
     if (arc) {
         tvo ? CombinePlanes(Y, Cg, Co, planes="YUV").SMPTE_legal(true).ExtractClip() : [Y, Cg, Co]
     } else {
-        tvo ? CombinePlanes(Y, Cg, Co, planes="YUV").SMPTE_legal(true)               : \
               CombinePlanes(Y, Cg, Co, planes="YUV")
+        tvo ? SMPTE_legal(true) : last
               propSet("_Matrix",     2)
               propSet("_Model",     10)  } }
 
@@ -672,7 +671,7 @@ function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_o
 
         G = Expr(Y, Cg,     ex_dlut("y   "+b32+" Y@ 2 * x Y - +"     +rangeTV, bi, true), optSingleMode=false, lut=lut)
         B = Expr(Y, Cg, Co, ex_dlut("x y "+b32+" - z "+b32+" 0.5 * -"+rangeTV, bi, true), optSingleMode=true,  lut=  0)
-        R = Expr(Co, B,     ex_dlut("y "+rangePC+" x "+b32+" 2 * +"  +rangeTV, bi, true), optSingleMode=false, lut=lut)
+        R = Expr(Co, B,     ex_dlut("y "+rangePC+" x "+b32+" 2 * +"  +rangeTV, bi, true), optSingleMode=false, lut=lut).propSet("_Matrix", 0).propSet("_Model", 1)
         [R, G, B]
 
     } else {
@@ -711,7 +710,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out",
     rangeC_TV = tvo ? " cmax cmin - range_max / * "+(bi==32 ? "" : "cmin +") : ""
 
     if (arc) {
-        Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "+rangeTV, bi, true), optSingleMode=true,  lut=  0)
+        Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "+rangeTV, bi, true), optSingleMode=true,  lut=  0).propSet("_Matrix", 2).propSet("_Model", 6)
         Cb = Expr(   G, B, ex_dlut("y x - "+b32+rangeC_TV,             bi, true), optSingleMode=false, lut=lut)
         Cr = Expr(R, G,    ex_dlut("x y - "+b32+rangeC_TV,             bi, true), optSingleMode=false, lut=lut)
         [Y, Cb, Cr]
@@ -755,7 +754,7 @@ function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out
 
     if (arc) {
 
-        R = Expr(G,     Cr, ex_dlut("x y + "+b32+rangeTV,     bi, true), optSingleMode=false, lut=lut)
+        R = Expr(G,     Cr, ex_dlut("x y + "+b32+rangeTV,     bi, true), optSingleMode=false, lut=lut).propSet("_Matrix", 0).propSet("_Model", 1)
         B = Expr(G, Cb,     ex_dlut("x y + "+b32+rangeTV,     bi, true), optSingleMode=false, lut=lut)
         G = ex_lut(G,"x "+rangeTV)
         [R, G, B]
@@ -820,12 +819,14 @@ function RGB_to_OPP (clip RGB, clip "G", clip "B", bool "Array") {
 
     if (arc) {
 
-        O  = Expr(R, G, B, Os,  optSingleMode=false, lut=  0)
+        O  = Expr(R, G, B, Os,  optSingleMode=false, lut=  0).propSet("_Matrix",2).propSet("_Model",12)
         P1 = Expr(R,    B, P1s, optSingleMode=false, lut=lut)
         P2 = Expr(R, G, B, P2s, optSingleMode=false, lut=  0)
         [O, P1, P2]
 
-    } else { Expr(R, G, B, Os, P1s, P2s, format="YUV444"+format_Fuzzy_Search(RGB,"YUV",bi)[2], optSingleMode=true) } }
+    } else { Expr(R, G, B, Os, P1s, P2s, format="YUV444"+format_Fuzzy_Search(RGB,"YUV",bi)[2], optSingleMode=true)
+             propSet("_Matrix",      2)
+             propSet("_Model",      12) } }
 
 
 # https://github.com/HomeOfVapourSynthEvolution/VapourSynth-BM3D/blob/7b3d8dd32e4aa4d962cf15d75d191b465682ed42/include/Specification.h#L176
@@ -849,12 +850,14 @@ function OPP_to_RGB (clip OPP, clip "P1", clip "P2", bool "Array") {
 
     if (arc) {
 
-        R = Expr(O, P1, P2, Rs, optSingleMode=false, lut=  0)
+        R = Expr(O, P1, P2, Rs, optSingleMode=false, lut=  0).propSet("_Matrix", 0).propSet("_Model", 1)
         G = Expr(O,     P2, Gs, optSingleMode=false, lut=lut)
         B = Expr(O, P1, P2, Bs, optSingleMode=false, lut=  0)
         [R, G, B]
 
-    } else { Expr(O, P1, P2, Rs, Gs, Bs, format="RGB"+format_Fuzzy_Search(OPP,"RGB",bi)[2], optSingleMode=true) } }
+    } else { Expr(O, P1, P2, Rs, Gs, Bs, format="RGB"+format_Fuzzy_Search(OPP,"RGB",bi)[2], optSingleMode=true)
+             propSet("_Matrix",     0)
+             propSet("_Model",      1) } }
 
 
 # XYZ to YDzDx (applied on XYZ in SMPTE ST 2084 gamma space)
@@ -879,12 +882,15 @@ function XYZ_to_YDzDx (clip XYZ, clip "Y", clip "Z", bool "Array") {
 
         Dz = Expr(   Y, Z, ex_dlut(Format("{cf1} y "+b32+" * x  - "), bi, true), optSingleMode=false, lut=lut)
         Dx = Expr(X, Y,    ex_dlut(Format("x "+b32+"  {cf2} y * - "), bi, true), optSingleMode=false, lut=lut)
+        Y  = Y.propSet("_Matrix", 13).propSet("_Model", 15)
         [Y, Dz, Dx]
 
     } else {
 
         Expr(Y, X, Z, "", ex_dlut(Format("{cf1} z "+b32+" * x  - "), bi, true),  \
-                          ex_dlut(Format("y "+b32+"  {cf2} x * - "), bi, true), format=PixelType(XYZ)) } }
+                          ex_dlut(Format("y "+b32+"  {cf2} x * - "), bi, true), format=PixelType(XYZ))
+        propSet("_Matrix",     13)
+        propSet("_Model",      15) } }
 
 
 # YDzDx to XYZ
@@ -907,14 +913,16 @@ function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx", bool "Array") {
 
     if (arc) {
 
-        X = Expr(Dx, Y, ex_dlut(Format("x "+b32+" y {cf2} * + "), bi, true), optSingleMode=false, lut=lut)
+        X = Expr(Dx, Y, ex_dlut(Format("x "+b32+" y {cf2} * + "), bi, true), optSingleMode=false, lut=lut).propSet("_Matrix", 0).propSet("_Model", 0)
         Z = Expr(Dz, Y, ex_dlut(Format("x "+b32+" y {cf1} * + "), bi, true), optSingleMode=false, lut=lut)
         [X, Y, Z]
 
     } else {
 
         Expr(Dx, Y, Dz, ex_dlut(Format("x "+b32+" y {cf1} * + "), bi, true), "",  \
-                        ex_dlut(Format("z "+b32+" y {cf2} * + "), bi, true), format=PixelType(YDzDx)) } }
+                        ex_dlut(Format("z "+b32+" y {cf2} * + "), bi, true), format=PixelType(YDzDx))
+        propSet("_Matrix",     0)
+        propSet("_Model",      0) } }
 
 
 # XYZ to CIE Lab -D65 based- (process in linear space) (float bitdepth required as some values overflow)
@@ -939,7 +947,7 @@ function XYZ_to_Lab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Array") {
     coefr = pow(6. / 29, -2) * (1/3.)               # 7.78703703703703703703703703703703 (or 841 / 108)  reciprocal of above
     rW    = [1.052134065421009,1,0.918343935177561] # Reference White (Tristimulus Values): Normalization to Y=100 of reciprocal of illuminant -D65- (and divided by 100)
 
-    L = Expr(Y,               Format("x                        {ep} > x 0.333333333 ^ x {coefr} * 4 29 / + ? 1.16 * 0.16 -"),     optSingleMode=false, lut=lut1)
+    L = Expr(Y,               Format("x                        {ep} > x 0.333333333 ^ x {coefr} * 4 29 / + ? 1.16 * 0.16 -"),     optSingleMode=false, lut=lut1).propSet("_Matrix", 2).propSet("_Model", 27)
     a = Expr(X, Y,    ex_dlut(Format("x "+string(rW[0])+" * X@ {ep} > X 0.333333333 ^ X {coefr} * 4 29 / + ?
                                       y                        {ep} > y 0.333333333 ^ y {coefr} * 4 29 / + ? - 5 * "), bi, true), optSingleMode=true,  lut=lut2)
     b = Expr(   Y, Z, ex_dlut(Format("x                        {ep} > x 0.333333333 ^ x {coefr} * 4 29 / + ?
@@ -975,8 +983,8 @@ function Lab_to_XYZ (clip Lab, clip "a", clip "b", bool "Jch", bool "Array") {
 #    X = Expr( L, a, Format("x 100 * 16 + 116 / y 100 * 500 / + X@ {ep} > X 3 ^ X 16 116 / - {coef} * ? "+string(rW[0])+" *"))
 #    Z = Expr( L, b, Format("x 100 * 16 + 116 / y 100 * 200 / - Z@ {ep} > Z 3 ^ Z 16 116 / - {coef} * ? "+string(rW[2])+" *"))
 
+    X = Expr( L, a, Format("x 0.16 + 0.8620689656 * y 0.2 * + X@ {ep} > X 3 ^ X 4 29 / - {coef} * ? "+string(rW[0])+" *"), optSingleMode=false, lut=lut2).propSet("_Matrix", 0).propSet("_Model", 0)
     Y = Expr( L,    Format("x 0.16 + 0.8620689656 *           Y@ {ep} > Y 3 ^ Y 4 29 / - {coef} * ?                    "), optSingleMode=false, lut=lut1)
-    X = Expr( L, a, Format("x 0.16 + 0.8620689656 * y 0.2 * + X@ {ep} > X 3 ^ X 4 29 / - {coef} * ? "+string(rW[0])+" *"), optSingleMode=false, lut=lut2)
     Z = Expr( L, b, Format("x 0.16 + 0.8620689656 * y 0.5 * - Z@ {ep} > Z 3 ^ Z 4 29 / - {coef} * ? "+string(rW[2])+" *"), optSingleMode=false, lut=lut2)
 
     isy ? [X, Y, Z] : CombinePlanes(X, Y, Z, planes="RGB") }
@@ -996,15 +1004,17 @@ function XYZ_to_Yxy (clip XYZ, clip "Y", clip "Z", bool "Array") {
     Z    = !isy ? clp[2] :      Z
 
     if (arc) {
-
         xl = Expr(X, Y, Z, "x 0 <= 0.3805 x dup y z + + / ?",  optSingleMode=false)
         yl = Expr(X, Y, Z, "y 0 <= 0.3769 y dup x z + + / ?",  optSingleMode=false)
+        Y  = Y.propSet("_Matrix", 0).propSet("_Model", 23)
         [Y, xl, yl]
 
     } else {
 
         Expr(X, Y, Z, "y", "x 0 <= 0.3805 x dup y z + + / ?",\
-                           "y 0 <= 0.3769 y dup x z + + / ?",  optSingleMode=true, format=PixelType(XYZ)) } }
+                           "y 0 <= 0.3769 y dup x z + + / ?",  optSingleMode=true, format=PixelType(XYZ))
+        propSet("_Matrix", 2)
+        propSet("_Model",  23) } }
 
 
 # Only works in 32-bit float
@@ -1021,7 +1031,7 @@ function Yxy_to_XYZ (clip Yxy, clip "x", clip "y", bool "Array") {
 
     if (arc) {
 
-        X = Expr(Yb, xl, yl, "y z / x *",                optSingleMode=false)
+        X = Expr(Yb, xl, yl, "y z / x *",                optSingleMode=false).propSet("_Matrix", 0).propSet("_Model", 0)
         Z = Expr(Yb, xl, yl, "y z / x * Y@ y / Y - x -", optSingleMode=false)
         [X, Yb, Z]
 
@@ -1029,34 +1039,9 @@ function Yxy_to_XYZ (clip Yxy, clip "x", clip "y", bool "Array") {
 
             Expr(Yb, xl, yl, "y z / x *               ", \
                              "      x                 ", \
-                             "y z / x * Y@ y / Y - x -", optSingleMode=true, format=PixelType(Yxy)) } }
-
-
-
-# WIP. XYZ to Hunter Lab
-function XYZ_to_HLab (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Array") {
-
-    isy  = isy(XYZ)
-    bi   = BitsPerComponent(XYZ)
-    iRT  = isRunTime(XYZ,!isy)
-    lut1 = bi == 32 || iRT ? 0 : 1
-    lut2 = bi  > 12 || iRT ? 0 : 2
-    cy   = Default (Jch,   false)
-    arc  = Default (Array,   isy)
-
-    clp  = !isy ? ExtractClip(XYZ) : nop()
-    X    = !isy ? clp[0] :    XYZ
-    Y    = !isy ? clp[1] :     Y
-    Z    = !isy ? clp[2] :      Z
-
-    rW   = [95.0449218275099, 100., 108.8916648430471] # Reference White: Normalization to Y=100 of illuminant
-
-    L = Expr(Y,               Format("x sqrt 10 *"),                              optSingleMode=false, lut=lut1)
-    a = Expr(X, Y,    ex_dlut(Format("x 1.02  * y - 17.5 * y sqrt /"), bi, true), optSingleMode=true,  lut=lut2)
-    b = Expr(   Y, Z, ex_dlut(Format("y 0.847 * x -    7 * y sqrt /"), bi, true), optSingleMode=true,  lut=lut2)
-
-    arc ? [L, a, b] : CombinePlanes(L, a, b, planes="RGB") }
-
+                             "y z / x * Y@ y / Y - x -", optSingleMode=true, format=PixelType(Yxy))
+            propSet("_Matrix", 0)
+            propSet("_Model",  0) } }
 
 
 
@@ -1087,14 +1072,14 @@ function XYZ_to_Luv (clip XYZ, clip "Y", clip "Z", bool "Jch", bool "Duv", bool 
     detv  = (9 * rW[1] / (rW[0] + 15 * rW[1] + 3 * rW[2]))
     duv   = uv ? Format(" {c} * ") : ""
 
-    L = Expr(Y,                  Format("x {ep} > x 0.333333333 ^ 116 * 16 - x {kappa} * ? "),               optSingleMode=false, lut=lut)
+    L = Expr(Y,                  Format("x {ep} > x 0.333333333 ^ 116 * 16 - x {kappa} * ? "),               optSingleMode=false, lut=lut).propSet("_Matrix", 2).propSet("_Model", cy ? 30 : 29)
     u = Expr(X, Y, Z, L, ex_dlut(Format("x 4 * x y 15 * + z 3 * + / {detu} - a 13 * * "+duv+b32), bi, true), optSingleMode=true,  lut=  0)
     v = Expr(X, Y, Z, L, ex_dlut(Format("x 9 * x y 15 * + z 3 * + / {detv} - a 13 * * "+duv+b32), bi, true), optSingleMode=true,  lut=  0)
 
     isy ? [L, u, v] : CombinePlanes(L, u, v, planes="RGB") }
 
 
-#https://www.brucelindbloom.com/index.html?Eqn_Luv_to_XYZ.html
+# https://www.brucelindbloom.com/index.html?Eqn_Luv_to_XYZ.html
 # CIE Luv to XYZ (32-bit float recommended)
 function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv", bool "Array") {
 
@@ -1124,14 +1109,15 @@ function Luv_to_XYZ (clip Luv, clip "u", clip "v", bool "Jch", bool "Duv", bool 
 
     Y = Expr(      L,       Format("x {exk} > x 16 + 116 / 3 ^ x {kappa} / ?"),                                optSingleMode=false, lut=lut)
     X = Expr(   Y, L, u, v, Format("y 39 * y 13 * A@ {detv} * a "+duv+b32+" + / 5 - x * x 5 * +
-                                    y 52 * A {detu} * z "+duv+b32+" + / 1 - 0.333333333 * 0.333333333 + / "),  optSingleMode=true,  lut=  0)
+                                    y 52 * A {detu} * z "+duv+b32+" + / 1 - 0.333333333 * 0.333333333 + / "),  optSingleMode=true,  lut=  0).propSet("_Matrix", 0).propSet("_Model", 0)
     Z = Expr(X, Y, L, u,    Format("z 52 * z 13 * {detu} * a "+duv+b32+" + / 1 - 0.333333333 * x * y 5 * - "), optSingleMode=true,  lut=  0)
 
     isy ? [X, Y, Z] : CombinePlanes(X, Y, Z, planes="RGB") }
 
 
 # WIP. Only works in 32-bit float (correct? grey should output [0, 1, 0.935669])
-# Jyrki Alakuijala: "CIELAB is perceptually uniform but only at low frequencies as it is based on 2 degrees of uniform color circles. At high spatial frequencies something like JPEG XL's XYB space will be perceptually more meaningful"
+# Jyrki Alakuijala: "CIELAB is perceptually uniform but only at low frequencies as it is based on 2 degrees of uniform color circles.
+# ...At high spatial frequencies something like JPEG XL's XYB space will be perceptually more meaningful"
 function XYZ_to_XYB (clip XYZ, clip "Y", clip "Z", bool "Array") {
 
     isy  = isy(XYZ)
@@ -1152,11 +1138,15 @@ function XYZ_to_XYB (clip XYZ, clip "Y", clip "Z", bool "Array") {
 
     M = MatrixDot(T, LMS)
 
-    X = DotClipA(XYZa,[M[0],M[3],M[6]])
+    X = DotClipA(XYZa,[M[0],M[3],M[6]]).propSet("_Matrix", 2).propSet("_Model", 40)
     Y = DotClipA(XYZa,[M[1],M[4],M[7]])
     B = DotClipA(XYZa,[M[2],M[5],M[8]])
 
-    arc ? [X, Y, B] : MatrixClip(XYZ, M) }
+    if (arc) { [X, Y, B] } else {
+
+        MatrixClip(XYZ, M)
+        propSet("_Matrix", 2)
+        propSet("_Model",  40) } }
 
 
 # WIP. Only works in 32-bit float
@@ -1180,11 +1170,15 @@ function XYB_to_XYZ (clip XYB, clip "Y", clip "B", bool "Array") {
 
     M = MatrixInvert(MatrixDot(T, LMS))
 
-    X = DotClipA(XYBa,[M[0],M[3],M[6]])
+    X = DotClipA(XYBa,[M[0],M[3],M[6]]).propSet("_Matrix", 0).propSet("_Model", 0)
     Y = DotClipA(XYBa,[M[1],M[4],M[7]])
     Z = DotClipA(XYBa,[M[2],M[5],M[8]])
 
-    arc ? [X, Y, Z] : MatrixClip(XYB, M) }
+    if (arc) { [X, Y, Z] } else {
+
+        MatrixClip(XYB, M)
+        propSet("_Matrix", 0)
+        propSet("_Model",  0) } }
 
 
 # RGB' to HSV
@@ -1218,10 +1212,12 @@ function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range", bool "Array"
     if (arc) {
 
         S = Expr(R, G, B, V, Ss, optSingleMode=false)
-        H = Expr(R, G, B, V, Hs, optSingleMode=true)
+        H = Expr(R, G, B, V, Hs, optSingleMode=true).propSet("_Matrix", 2).propSet("_Model", 25)
         [H, S, V]
 
-    } else { Expr(R, G, B, V, Hs, Ss, "a", format=PixelType(RGB), optSingleMode=true) } }
+    } else { Expr(R, G, B, V, Hs, Ss, "a", format=PixelType(RGB), optSingleMode=true)
+             propSet("_Matrix",     2)
+             propSet("_Model",      25) } }
 
 
 # HSV to RGB'
@@ -1252,17 +1248,17 @@ function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range", bool "Array"
 
     if (arc) {
 
-        R = Expr(H, S, V, Rs, optSingleMode=false)
+        R = Expr(H, S, V, Rs, optSingleMode=false).propSet("_Matrix", 0).propSet("_Model", 1)
         G = Expr(H, S, V, Gs, optSingleMode=false)
         B = Expr(H, S, V, Bs, optSingleMode=false)
         [R, G, B]
 
-    } else { Expr(H, S, V, Rs, Gs, Bs, format=PixelType(HSV), optSingleMode=true) } }
-
+    } else { Expr(H, S, V, Rs, Gs, Bs, format=PixelType(HSV), optSingleMode=true)
+             propSet("_Matrix",     0)
+             propSet("_Model",      1) } }
 
 
 # RGB linear to IPT -requires D65- (original PT range scaled from -1 +1 to 0 +1)
-# Fix some NaN in black areas
 function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "Array", bool "fulls") {
 
     isy = isy(RGB)
@@ -1295,7 +1291,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
     S = Expr(R,G,B, "x "+b32d+" "+string(LMS[2])+" * y "+b32d+" "+string(LMS[5])+" * + z "+b32d+" "+string(LMS[8])+" * + dup dup 0 >= swap 0.43 ^ swap neg 0.43 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
 
         Is  = " x "+b32d+" "+string(IPT[0])+" * y "+b32d+" "+string(IPT[3])+" * + z "+b32d+" "+string(IPT[6])+" * +"+b32m
-        I   = isy ? Expr(L,M,S, Is, optSingleMode=true) : nop()
+        I   = isy ? Expr(L,M,S, Is, optSingleMode=true).propSet("_Matrix", 2).propSet("_Model", cy ? 18 : 17) : nop()
 
     if (!cy) {
 
@@ -1308,7 +1304,9 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
             T  = Expr(L,M,S, Ts, optSingleMode=true)
             [I, P, T]
 
-        } else { Expr(L,M,S, Is, Ps, Ts, format=PixelType(RGB), optSingleMode=true) }
+        } else { Expr(L,M,S, Is, Ps, Ts, format=PixelType(RGB), optSingleMode=true)
+                 propSet("_Matrix",     2)
+                 propSet("_Model",      17) }
 
     } else {
 
@@ -1323,7 +1321,9 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
             h  = Expr(L,M,S, hs, optSingleMode=true)
             [I, C, h]
 
-        } else { Expr(L,M,S, Is, Cs, hs, format=PixelType(RGB), optSingleMode=true) } } }
+        } else { Expr(L,M,S, Is, Cs, hs, format=PixelType(RGB), optSingleMode=true)
+                 propSet("_Matrix",     2)
+                 propSet("_Model",      18) } } }
 
 
 
@@ -1377,17 +1377,18 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
 
     if (arc) {
 
-        R = Expr(L,M,S, Rs, optSingleMode=false)
+        R = Expr(L,M,S, Rs, optSingleMode=false).propSet("_Matrix", 0).propSet("_Model", 1)
         G = Expr(L,M,S, Gs, optSingleMode=false)
         B = Expr(L,M,S, Bs, optSingleMode=false)
         [R, G, B]
 
-    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(IPT), optSingleMode=true) } }
+    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(IPT), optSingleMode=true)
+             propSet("_Matrix",     0)
+             propSet("_Model",      1) } }
 
 
 
 # RGB linear to Oklab -requires D65- (original 'ab' range scaled from -1 +1 to 0 +1)
-# Fix some NaN in black areas
 function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "Array", bool "fulls") {
 
     isy = isy(RGB)
@@ -1404,15 +1405,13 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
     G   = !isy ? clp[1] :     G
     B   = !isy ? clp[2] :      B
 
-    # LMS version matrix of Oklab
-    M1 = [0.8189330101, 0.3618667424, -0.1288597137, \
-          0.0329845436, 0.9293118715,  0.0361456387, \
-          0.0482003018, 0.2643662691,  0.6338517070]
+    # Oklab's LMS matrix
+    M1  =  XYZ_to_LMS(RGB,"Oklab",true,false)
 
     # From Oklab's LMS to Lab
-    M2 = [0.2104542553,  0.7936177850, -0.0040720468, \
-          1.9779984951, -2.4285922050,  0.4505937099, \
-          0.0259040371,  0.7827717662, -0.8086757660]
+    M2  = [0.2104542553,  0.7936177850, -0.0040720468, \
+           1.9779984951, -2.4285922050,  0.4505937099, \
+           0.0259040371,  0.7827717662, -0.8086757660]
 
     mata = RGB_to_XYZ (R, mat[0], list=true)
     M1   = MatrixTranspose(M1)
@@ -1427,7 +1426,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
     S = Expr(R,G,B, "x "+b32d+" "+string(LMS[2])+" * y "+b32d+" "+string(LMS[5])+" * + z "+b32d+" "+string(LMS[8])+" * + dup dup 0 >= swap 0.333333333 ^ swap neg 0.333333333 ^ neg ?"+b32m, optSingleMode=true,scale_inputs="none")
 
         Ls  = " x "+b32d+" "+string(M2[0])+" * y "+b32d+" "+string(M2[3])+" * + z "+b32d+" "+string(M2[6])+" * +"+b32m
-        Lk  = isy ? Expr(L,M,S, Ls, optSingleMode=true) : nop()
+        Lk  = isy ? Expr(L,M,S, Ls, optSingleMode=true).propSet("_Matrix",2).propSet("_Model", cy ? 38 : 37) : nop()
 
     if (!cy) {
 
@@ -1440,7 +1439,9 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
             b   = Expr(L,M,S, bs, optSingleMode=true)
             [Lk, a, b]
 
-        } else { Expr(L,M,S, Ls, as, bs, format=PixelType(RGB), optSingleMode=true) }
+        } else { Expr(L,M,S, Ls, as, bs, format=PixelType(RGB), optSingleMode=true)
+                 propSet("_Matrix",      2)
+                 propSet("_Model",      37) }
 
     } else {
 
@@ -1455,7 +1456,9 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
             h  = Expr(L,M,S, hs, optSingleMode=true)
             [Lk, C, h]
 
-        } else { Expr(L,M,S, Ls, Cs, hs, format=PixelType(RGB), optSingleMode=true) } } }
+        } else { Expr(L,M,S, Ls, Cs, hs, format=PixelType(RGB), optSingleMode=true)
+                 propSet("_Matrix",      2)
+                 propSet("_Model",      38) } } }
 
 
 
@@ -1475,14 +1478,12 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
     a   = !isy ? clp[1] :     a
     b   = !isy ? clp[2] :      b
 
-    # LMS matrix version of Oklab
-    M1 = [0.8189330101, 0.3618667424, -0.1288597137, \
-          0.0329845436, 0.9293118715,  0.0361456387, \
-          0.0482003018, 0.2643662691,  0.6338517070]
+    # Oklab's LMS matrix
+    M1  =  XYZ_to_LMS(Lab,"Oklab",true,false)
 
-    M2 = [0.2104542553,  0.7936177850, -0.0040720468, \
-          1.9779984951, -2.4285922050,  0.4505937099, \
-          0.0259040371,  0.7827717662, -0.8086757660]
+    M2  = [0.2104542553,  0.7936177850, -0.0040720468, \
+           1.9779984951, -2.4285922050,  0.4505937099, \
+           0.0259040371,  0.7827717662, -0.8086757660]
 
     M2   = MatrixTranspose(M2)
     Labc = MatrixInvert(M2)
@@ -1515,12 +1516,14 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 
     if (arc) {
 
-        R = Expr(L,M,S, Rs, optSingleMode=true)
+        R = Expr(L,M,S, Rs, optSingleMode=true).propSet("_Matrix", 0).propSet("_Model", 1)
         G = Expr(L,M,S, Gs, optSingleMode=true)
         B = Expr(L,M,S, Bs, optSingleMode=true)
         [R, G, B]
 
-    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(Lab), optSingleMode=true) } }
+    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(Lab), optSingleMode=true)
+             propSet("_Matrix",     0)
+             propSet("_Model",      1) } }
 
 
 
@@ -1585,7 +1588,9 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     skin  = MatrixDot(rot, IPT)
     fit   = ArrayOp  (skin, sca, "*")
 
-    MatrixClip(LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true) }
+    MatrixClip(LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true)
+    propSet("_Matrix",     14)
+    propSet("_Model",      22) }
 
 
 # ICtCp to RGB
@@ -1625,75 +1630,35 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     RGB = XYZ_to_RGB(mat,props[3],list=true)
     LtR = MatrixDot(MatrixTranspose(MatrixInvert(LMX)), RGB) # LMS to RGB joint matrix
 
-    MatrixClip(LMS_gam, LtR, switch=false)  }
+    MatrixClip(LMS_gam, LtR, switch=false)
+    propSet("_Matrix",     0)
+    propSet("_Model",      1) }
 
 
 
 # RGB linear to XYZ
-function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bool "list") {
+function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bool "list", bool "adaptXYZ") {
 
     illu  = illuminant
     isIllu= isArray(illu)
     Assert(!isFloat(illu) && !isFloat(illu), "RGB_to_XYZ: Illuminant only supports string or array type.")
 
     cs    = color_Fuzzy_Search(cspace)
-    list  = Default(list, false)        # Enable to output the Normalised Primary Matrix
-    LMS   = Default(LMS, "CAT02B")
+    list  = Default(list, false)        # Enable to output the Normalized Primary Matrix
+    LMS   = Default(LMS, "CAT16")
     illu  = Defined(illuminant) ? isIllu ? ArraySize(illu)>2 ? illu : [illu[0],illu[1],1-illu[0]-illu[1]] : illu : color_propGet(rgb,cs[4])[3]
+    adpt  = Default(adaptXYZ, true)  # By default adapt Transformation Matrix to defined Illuminant when it differs from Illuminant of the Gamut Primaries
+                                     # Only 'false' required for a joint matrix transformations where Illuminants differ (the conversion is then handled by CAT() )
 
     # Properties:
     # Summing columns yields Reference White in Y=1.0 scale
-    # Summing column in the middle yields 1.0
-    # Middle  column represents luminance coefficients
+    # Summing column in the middle yields 1.0 (this column represents luminance coefficients)
     # Rows are proportional to color primaries rows
     #
     # matrix = cspace == "sRGB" || cspace == "709" ?  \
-    #         [ 0.41241079568862915, 0.21264933049678802, 0.01933175697922707,    \
-    #           0.35758456587791443, 0.71516913175582890, 0.11919485777616501,    \
-    #           0.18045382201671600, 0.07218152284622192, 0.95039016008377080]  : 0
-
-    p1    =                 color_coef(cs[0])
-    p2    = isIllu ? illu : color_coef(cs[0], illu=illu)
-
-    # White Point
-    wp1   =                 [p1[3],p1[4],p1[5]]
-    wp2   = isIllu ? illu : [p2[3],p2[4],p2[5]]
-
-    # Primaries Flat Array
-    prims = [p1[6][0],p1[6][1],p1[6][2],\
-             p1[7][0],p1[7][1],p1[7][2],\
-             p1[8][0],p1[8][1],p1[8][2]]
-
-    # Reference White
-    RW = ArrayOp(wp1, wp1[1], "/")
-
-    iP = MatrixInvert(prims)
-
-    T  = MatrixDot(RW,MatrixTranspose(iP))
-    M  = MatrixDot(Broadcast(T),prims)
-
-    # Chromacity Adapted Transformation matrix
-    if (wp1[2]!=wp2[2]) {
-
-    D  = CAT(rgb, wp1, wp2, LMS=LMS, list=true)
-    M  = MatrixDot(M,MatrixTranspose(D))
-    }
-
-    list ? M : MatrixClip(rgb, M) }
-
-
-
-function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bool "list") {
-
-
-    illu  = illuminant
-    isIllu= isArray(illu)
-    Assert(!isFloat(illu) && !isFloat(illu), "XYZ_to_RGB: Illuminant only supports string or array type.")
-
-    cs    = color_Fuzzy_Search(cspace)
-    list  = Default(list, false)
-    LMS   = Default(LMS, "CAT02B")
-    illu  = Defined(illuminant) ? isIllu ? ArraySize(illu)>2 ? illu : [illu[0],illu[1],1-illu[0]-illu[1]] : illu : color_propGet(xyz,cs[4])[3]
+    #              [ 0.4123218, 0.2126034, 0.0193276, \
+    #                0.3575833, 0.7151666, 0.1191944, \
+    #                0.1805749, 0.0722300, 0.9510280] : 0
 
     # Checking discrepancies
     p1    =                 color_coef(cs[0])
@@ -1703,29 +1668,50 @@ function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bo
     wp1   =                 [p1[3],p1[4],p1[5]]
     wp2   = isIllu ? illu : [p2[3],p2[4],p2[5]]
 
-    # Reference White
-    RW    = ArrayOp(wp1, wp1[1], "/")
-
     # Primaries Flat Array
     prims = [p1[6][0],p1[6][1],p1[6][2],\
              p1[7][0],p1[7][1],p1[7][2],\
              p1[8][0],p1[8][1],p1[8][2]]
 
+    # Reference White
+    RW = wp1[2]!=wp2[2] && adpt ? ArrayOp(wp1, wp1[1], "/") : \
+                                  ArrayOp(wp2, wp2[1], "/")
+
     iP = MatrixInvert(prims)
-    T  = MatrixDot(MatrixTranspose(iP),RW)
-    M  = MatrixDot(iP,MatrixInvert(Broadcast(T)))
 
-    # Chromacity Adapted Transformation matrix
-    if (wp1[2]!=wp2[2]) {
+    T  = MatrixDot(RW,MatrixTranspose(iP))
+    M  = MatrixDot(Broadcast(T),prims)
 
-    # Doesn't match RGB_to_XYZ()^-1 so I had to invert it explicitly
-#   D  = CAT(xyz, wp1, wp2, LMS=LMS, list=true)
-#   M  = MatrixDot(D,M)
-    M  = MatrixInvert(RGB_to_XYZ(xyz, cspace,illuminant,LMS,list=true))
+    # Chromaticity Adapted Transform matrix
+    if (wp1[2]!=wp2[2] && adpt) {
 
+        D  = CAT(rgb, wp1, wp2, LMS=LMS, list=true)
+        M  = MatrixDot(M, MatrixTranspose(D))
     }
 
-    list ? M : MatrixClip(xyz, M) }
+    if (list) { M } else {
+
+        MatrixClip(rgb, M)
+        propSet("_Matrix", 0)
+        propSet("_Model",  0) } }
+
+
+# XYZ to RGB linear
+function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bool "list", bool "adaptXYZ") {
+
+    illu  = illuminant
+    Assert(!isFloat(illu) && !isFloat(illu), "XYZ_to_RGB: Illuminant only supports string or array type.")
+
+    M = MatrixInvert(RGB_to_XYZ(xyz, cspace, illu, LMS, true, adaptXYZ))
+
+    if (list) { M } else {
+
+        MatrixClip(xyz, M)
+        propSet("_Matrix", 0)
+        propSet("_Model",  1) } }
+
+
+
 
 
 # LMS space for linear Chromatic Adaptation Transform.
@@ -1741,7 +1727,9 @@ function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bo
 #    CAT00
 #    CAT02
 #    CAT02 Brill 2008
+#    CAT02 CRA
 #    CAT16
+#    OkLab
 #    CIE 2015 - Stockman & Sharpe (2000) 2º and 10º Standard Observer (aims to be the defacto CIE standard for the forthcoming future)
 #    Cat.5 from Abhijit Sarkar 10º Observer tests
 #    Cat.9 from Abhijit Sarkar 10º Observer tests
@@ -1755,7 +1743,7 @@ function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bo
 
 function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
-    md    = Default (mode,    "CAT02B")
+    md    = Default (mode,    "CAT16")
     list  = Default (list,      false)
     trans = Default (transpose, false)
 
@@ -1815,10 +1803,15 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
               -0.318061,1.314589, 0.003471, \
                0.0000,  0.0000,   1.0000]
 
-    # From CIECAM16 model. CAT16 is an improvement over CAT02 (grey with zero chroma)
+    # From CIECAM16 model. CAT16 is an improvement over CAT02 (grey with zero chroma). Resembles HPEIPT.
     CAT16 = [0.401288, 0.650173, -0.051461, \
             -0.250268, 1.204414,  0.045854, \
             -0.002079, 0.048952,  0.953127]
+
+    # Oklab's cone response LMS matrix (derived from IPT and CAM16 models with some constraints, read: https://bottosson.github.io/posts/oklab/#how-oklab-was-derived)
+    OK    = [0.8189330101, 0.3618667424, -0.1288597137, \
+             0.0329845436, 0.9293118715,  0.0361456387, \
+             0.0482003018, 0.2643662691,  0.6338517070]
 
     # Sharp Adaptation Transform (performs similar to CAT02)
     Shp   = [1.2694, -0.0988, -0.1706, \
@@ -1870,49 +1863,30 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
             -0.3910,  1.1650,  0.0870, \
              0.0100, -0.0080,  0.5630]
 
+
     # Fuzzy aliases
     mdL = LCase(md)
-    LMS = md == "XYZ"       ? XYZvk         : \
-          md == "Scale"     ? XYZvk         : \
-          md == "Scaling"   ? XYZvk         : \
-          md == "Kries"     ? HPE65         : \
-          md == "von Kries" ? HPE65         : \
-          md == "vonKries"  ? HPE65         : \
-          md == "HPE"       ? HPE65         : \
-          FindStr(mdL,"hunt")>0?HPE65       : \
-          md == "E"         ? HPEE          : \
-          md == "EE"        ? HPEE          : \
-          md == "HPEE"      ? HPEE          : \
-          md == "HPEDV"     ? HPEDV         : \
-          md == "IPT"       ? HPEIPT        : \
-          md == "HPEIPT"    ? HPEIPT        : \
-          md == "Bradford"  ? Brad          : \
-          md == "Brad"      ? Brad          : \
-          md == "CAT97"     ? Brad          : \
-          md == "Fairchild" ? Fair          : \
-          md == "Cat5"      ? Cat5          : \
-          md == "Cat9"      ? Cat9          : \
-          md == "CAT00"     ? CAT00         : \
-          md == "CAT02"     ? CAT02         : \
-          md == "CAT02B"    ? CAT02B        : \
-          md == "CAT02CRA"  ? CAT02CRA      : \
-          md == "CAT16"     ? CAT16         : \
-          md == "Sharp"     ? Shp           : \
-          md == "Sphere"    ? Sph           : \
-          md == "SharpSphere"?Sph           : \
-          md == "Sharp2"    ? Sph           : \
-          md == "Sphere2"   ? b20           : \
-          md == "Sharp3"    ? b20           : \
-          FindStr(mdL,"hue")>0?b20          : \
-          md == "OPP"       ? OPP           : \
-          md == "170-2"     ? STK           : \
-          FindStr(md,"2006")   >0 ? STK     : \
-          FindStr(md,"2012")   >0 ? STK     : \
-          FindStr(md,"2015")   >0 ? STK     : \
-          FindStr(md,"tockman")>0 ? STK     : \
-          FindStr(mdL,"bianco")>0 ? BIA     : \
-          FindStr(md,"PC")>0? BIAPC         : \
-          Assert(false,"XYZ_to_LMS: Unsupported LMS mode.")
+    LMS = md == "XYZ"           ? XYZvk   :  md == "CAT00"           ? CAT00    : \
+          md == "Scale"         ? XYZvk   :  md == "CAT02"           ? CAT02    : \
+          md == "Scaling"       ? XYZvk   :  md == "CAT02B"          ? CAT02B   : \
+          md == "Kries"         ? HPE65   :  md == "CAT02CRA"        ? CAT02CRA : \
+          md == "von Kries"     ? HPE65   :  md == "CAT16"           ? CAT16    : \
+          md == "vonKries"      ? HPE65   :  md == "Sharp"           ? Shp      : \
+          md == "HPE"           ? HPE65   :  md == "Sphere"          ? Sph      : \
+          FindStr(mdL,"hunt")>0 ? HPE65   :  md == "SharpSphere"     ? Sph      : \
+          md == "E"             ? HPEE    :  md == "Sharp2"          ? Sph      : \
+          md == "EE"            ? HPEE    :  md == "Sphere2"         ? b20      : \
+          md == "HPEE"          ? HPEE    :  md == "Sharp3"          ? b20      : \
+          md == "HPEDV"         ? HPEDV   :  FindStr(mdL,"hue")>0    ? b20      : \
+          md == "IPT"           ? HPEIPT  :  md == "OPP"             ? OPP      : \
+          md == "HPEIPT"        ? HPEIPT  :  md == "170-2"           ? STK      : \
+          md == "Oklab"         ? OK      :  FindStr(md,"2006")   >0 ? STK      : \
+          md == "Bradford"      ? Brad    :  FindStr(md,"2012")   >0 ? STK      : \
+          md == "Brad"          ? Brad    :  FindStr(md,"2015")   >0 ? STK      : \
+          md == "CAT97"         ? Brad    :  FindStr(md,"tockman")>0 ? STK      : \
+          md == "Fairchild"     ? Fair    :  FindStr(mdL,"bianco")>0 ? BIA      : \
+          md == "Cat5"          ? Cat5    :  FindStr(md,"PC"     )>0 ? BIAPC    : \
+          md == "Cat9"          ? Cat9    :  Assert(false,"XYZ_to_LMS: Unsupported LMS mode.")
 
     LMS = trans ? MatrixTranspose(LMS) : LMS
     list  ? LMS : MatrixClip(xyz, LMS) }
@@ -1926,7 +1900,11 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 
     XYZ  = MatrixInvert(XYZ_to_LMS(lms,md,true,tran))
 
-    list ? XYZ : MatrixClip(lms, XYZ) }
+    if (list) { XYZ } else {
+
+        MatrixClip(lms, XYZ)
+        propSet("_Matrix", 0)
+        propSet("_Model",  0) } }
 
 
 
@@ -1942,7 +1920,7 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 
 # Linear CAT (Chromatic Adaptation Transform):
 # Adapts colors (HUEs) to match those viewed under a different target illuminant.
-# To also match white point (aka White Balance or "Simulation") set adaptXYZ=true.
+# To also match white point (aka White Balance or "Simulation") set adaptXYZ=false.
 #
 # Transformation Method:
 #   Strong von Kries (von Kries-Ives) (used in ICC)
@@ -1956,9 +1934,10 @@ function CAT (clip c, val "source", val "target", string "LMS", bool "adaptXYZ",
 
     src   = Default (source,   propIDs[3]) # Source illuminant
     tgt   = Default (target,        "D65") # Target illuminant
-    LMS   = Default (LMS,        "CAT02B")
+    LMS   = Default (LMS,         "CAT16")
     tv    = Default (tv_range, propIDs[6])
     list  = Default (list,          false)
+    adpt  = Default (adaptXYZ,       true)
 
     Assert(!isFloat(src)&&!isFloat(src), "CAT: Only string or array type supported")
 
@@ -1998,18 +1977,19 @@ function CAT (clip c, val "source", val "target", string "LMS", bool "adaptXYZ",
         RGBpln = rgb ? IsPlanar() : false
 
         rgb ? RGBpln ? last : ConvertToPlanarRGB() : \
-        YUV_to_RGB(c, s_pri, tv_range_in=tv, tv_range_out=false, kernel="Point")
+        YUV_to_RGB(c, s_pri, tv_in=tv, tv_out=false, kernel="lanczos3")
 
-        CCTF(s_gam, true,  false, false)
+        CCTF(s_gam, true, false, false)
 
-        mata = RGB_to_XYZ (s_pri, src[1], LMS=LMS, list=true)
-        matb = XYZ_to_RGB (s_pri, tgt[1], LMS=LMS, list=true)
-        MatrixClip( MatrixDot(MatrixDot(mata, CAM), matb) )
+        mata = RGB_to_XYZ (s_pri, src[1], LMS=LMS, list=true, adaptXYZ=false)
+        matb = XYZ_to_RGB (s_pri, tgt[1], LMS=LMS, list=true, adaptXYZ=false)
+        scl  = src[1]!=tgt[1] && adpt ? MatrixDot(mata, MatrixTranspose(CAM)) : mata
+        MatrixClip(MatrixDot(scl, matb))
 
         CCTF(s_gam, false, false, false)
 
         rgb ? RGBpln ? last : MatchClip(c) : \
-        RGB_to_YUV( s_pri, tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c))
+        RGB_to_YUV( s_pri, tv_in=false, tv_out=tv, kernel="lanczos3", pixel_type=PixelType(c))
         propCopy(c,true,props="_ChromaLocation")
         isString(target) ? propSet("_Illuminant", color_Fuzzy_Search(target)[5]) : last
         same ? c : last
