@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.0 RC60 (29-11-2022) ##
+###   Transforms Pack - Transfers v1.0    (09-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -388,7 +388,7 @@ function EOTF_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_in", bo
 
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
-    ex_lut(Format(""+rangePC+" X@ 0.03125 < X 0.0622829 * {bl} + X {gm} ^ 0.996527 * {bl} + ? "+rangeTV+""),cstr)
+    ex_lut(Format(""+rangePC+" X@ 0.03125 < X 0.0622829 * X {gm} ^ 0.996527 * ? {bl} + "+rangeTV+""),cstr)
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -612,7 +612,7 @@ function LMTi_EMoR (clip c, bool "tv_range") {
 #        crt        (80,  1,   2, 60, "sRGB"  )
 #               CRT monitor seen in dim environment
 
-function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround", string "transfer") {
+function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround", string "transfer", string "EOTF") {
     a
     fs = propNumElements("_ColorRange")  > 0 ? \
          propGetInt     ("_ColorRange") == 0 : isRGB()
@@ -621,17 +621,16 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
     Lb = Default(Lb,       0.3)    # Display black level given in nits, lux or cd/m2
     k  = Default(k,          1)    # Panel reflectivity given in %
     s  = Default(Surround,  50)    # Surround viewing conditions given in nits, lux or cd/m2 (50 for dim, 400 for bright office, 32000 sunny outdoors)
-    tr = Default(transfer, "sRGB") # EOTF
+    tr = Default(transfer, "sRGB") # Simulated EOTF
+    tro= Default(EOTF,     "1886") # Viewing display EOTF
 
     Lrfl = ((k*0.01)/pi)*s
 
-    CCTF(   tr, true)
+    CCTF(   tr, true, !fs, false)
 
-    rangePC = !fs ? "x ymin - ymax ymin - /" : "x range_max /"
-    rangeTV = !fs ? "ymax ymin - * ymin +"   : "range_max *"
-    ex_lut(Format("{Lw} {Lb} - "+rangePC+" * {Lb} {Lrfl} + + 0.01 * "+rangeTV))
+    ex_lut(Format("{Lw} {Lb} - x * {Lb} {Lrfl} + + 0.01 *"))
 
-    CCTF( "sRGB", false)  } # Gamma encode back for display purposes
+    CCTF( tro, false, false, !fs)  } # Gamma encode back for display purposes
 
 
 
@@ -851,8 +850,8 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
     MatrixClip(MatrixDot(RGB, MatrixInvert(Cross)))
     }
 
-    EOTF!="linear" ? CCTF(EOTF,false,false, tv_out)     : \
-    tv_in!=tv_out  ? propSet("_ColorRange", tv_out?1:0) : last
+    EOTF!="linear" ? CCTF(EOTF, false, false, tv_out)     : \
+    tv_in!=tv_out  ? propSet("_ColorRange",   tv_out?1:0) : last
 
     if (sh) {
         w   = c.width()
