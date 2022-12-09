@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0 RC60  (30-11-2022)     ##
+###   Transforms Pack - Main v1.0         (09-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -43,10 +43,10 @@
 ### All-In-One (AIO) filter to scale, convert and transform colors.
 ###
 ### ConvertFormat() supports color space, color model, transfer function, color range,
-### chroma placement and chroma subsampling conversions among other features
+### CAT, chroma placement and chroma subsampling conversions among other features
 ### like chroma reconstruction, 'no ring' scaling, luma space scaling, and no-moirée scaling.
 ###
-### ConvertFormat() replaces my old filter LinearResizer() (Dither Tools based)
+### ConvertFormat() is the spiritual successor of LinearResizer()
 ### and is clearly inspired by cretindesalpes' fmtconv and avsresize's z_ConvertFormat().
 ### For a "no-fuss" high quality resizer you can use deep_resize() from ResizersPack.
 ###
@@ -55,13 +55,15 @@
 ###
 ### Main features (not available in other color management AVS+ solutions):
 ###     - About three times more scaling kernels to choose from
+###     - GPU support for all scalers
 ###     - Many more color model conversion functions
 ###     - Convert from any illuminant to any illuminant (ie. sRGB at D50 to NTSC at D93)
 ###     - Full coefficients derivations
 ###     - Ratio resize (ie. 0.5 to halve size instead of absolute dimensions)
+###     - Relative resize (ie. 1920 to resize to 1920 width, keeping height ratio)
 ###     - Aliases and fuzzy search for any given string argument
 ###     - Preset support
-###     - Scale space (ie. linear scaling, sigmoid scaling...)
+###     - Scale spaces (ie. linear scaling, sigmoid scaling...)
 ###     - Filtering extras: noring, nomoiree, chroma reconstruction
 ###     - Show panel
 ###
@@ -149,11 +151,11 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 # Matches 'a' to 'b' clip format (size, length, color model, Jab, bitdepth)
 function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size", bool "props", bool "length", bool "fast") {
 
-    krn    = Default (kernel, "Spline16")
     fst    = Default (fast,         true)
     fp     = Default (props,        true) # Assign frame properties
     sz     = Default (size,         true) # Match dimensions
     mfc    = Default (length,      false) # Match also framecount
+    krn    = Default (kernel, fst ? "spline36" : "lanczos3")
 
     Assert(IsVersionOrGreater(3,7,2), "MatchClip: Update AviSynth+ version")
 
@@ -199,7 +201,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
         fmt    = format_Fuzzy_Search(b, p_type,  bib)
         fmta   = format_Fuzzy_Search(a, p_typea, bia)
         bc     = bicubic_coeffs(krn)
-        krn    = bc[1]>=0. ? "Bicubic" : krn
+        krn    = bc[1]>=-1 ? "Bicubic" : krn
 
         cplace  = rgbb || yv444  || yv411  ? "MPEG1" : isUHD  ? "top_left" : "MPEG2"
         cplacea = rgba || yv444a || yv411a ? "MPEG1" : isUHDa ? "top_left" : "MPEG2"
@@ -443,7 +445,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     o_fmt      = format_Fuzzy_Search (Default (fmt_out, p_type), bi)
     isRGBi     = i_fmt[0]=="RGB"
     isRGBo     = o_fmt[0]=="RGB"
-    RT         = isRunTime(clp,isRGBi)
+    RT         = isRunTime(clp,i_fmt[3]=="RGB")
     isyv       = !isy && !isRGBi
     fch        =  isy ||  isRGBo || o_fmt[1]=="444"
     lut1       = bi == 32 || RT ? 0 : 1
@@ -476,9 +478,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
       cs_outFA = color_Fuzzy_Search (cs_out)
       cs_outF  = cs_outFA[0]
 
-    OETFd      = Defined(OETF) ? OETF=="" ? false : true : false
+    OETFd      = Defined(OETF)  ? OETF =="" ? false : true : false
     OETFid     = propIDs[5]!="linear" ? cs_inF =="709" || cs_inF =="170M" && !fc || cs_inF =="240M" || cs_inF =="Display-P3" || FindStr(cs_inF, "470")>0 && !fc || FindStr(cs_inF, "2020")>0 ? "1886" : fc ? "sRGB" : propIDs[5] : propIDs[5]
-    OETFi      = Defined(OETFi) ? OETFi =="" ? OETFid : OETFi : OETFid # By default undoes encoded display referred transfer (1886 EOTFi) for consumer media instead of scene-referred camera transfer (OETFi)
+    OETFi      = Defined(OETFi) ? OETFi=="" ? OETFid : OETFi : OETFid # By default undoes encoded display referred transfer (1886 EOTFi) for consumer media instead of scene-referred camera transfer (OETFi)
     EOTFid     =                        cs_outF=="709" || cs_outF=="170M" && !fc || cs_outF=="240M" || cs_outF=="Display-P3" || FindStr(cs_outF,"470")>0 && !fc || FindStr(cs_outF,"2020")>0 ? "1886" : fc ? "sRGB" : cs_outF
     EOTFi      = OETFd ? OETF : Defined(EOTFi) ? EOTFi =="" ? OETFi : EOTFi : EOTFid
        OETFi_i = color_Fuzzy_Search (OETFi)
@@ -490,7 +492,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     tv_out     = Default (tv_out,  (isRGBo || cs_outF=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") ? false : tv_in )
     kernel     = Default (kernel,   (w>nw||h>nh)?"Didee":"Precise")
     kernel_c   = Default (kernel_c,       kernel)
-    D_in       = Defined(D_in)  ? D_in  =="" ? propIDs[2]  : D_in  : cs_in_d  ? cs_in ==""  ? propIDs[2] : cs_in : propIDs[2]
+    D_in       = Defined(D_in)  ? D_in  =="" ? propIDs[2]  : D_in  : cs_in_d  ? cs_in =="" ? propIDs[2] : cs_in : propIDs[2]
     D_out      = Defined(D_out) ? D_out =="" ?               D_in : D_out : D_in # By default same as input, change based on space?
         D_inA  = color_Fuzzy_Search (D_in )
         D_outA = color_Fuzzy_Search (D_out)
@@ -504,8 +506,8 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         cs_out = cs_outF
         D_in   = prp[3]
         OETF   = prp[5]
-    CAT        = Default (CAT,            true         )                # Perform CAT (Chromatic Adaptation Transform) or illuminant simulation (full conversion)
-    LMS        = Default (LMS,            "CAT02B"     )                # Eventually until I fix for CAT16 and vonKries (HPE)
+    LMS        = Default (LMS,            "CAT16"      )
+    CAT        = Default (CAT,             true        )                # Perform CAT (Chromatic Adaptation Transform) or illuminant simulation (full White Point conversion)
     space      = Default (scale_space, OETF=="linear"?"linear":"gamma") # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog -log(x+a)-. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (https://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
     cplace_in  = Default (cplace_in, fc ? "center" : "")                # Assumes default from format
     cplace_out = Default (cplace_out,  cplace_in)                       # Assumes default from format
@@ -521,9 +523,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     Comp       = Default (GC,      false)  # Gamut compression
     dg         = Default (show,    false)
     Lkrn       = LCase(kernel)    Lkrnc = LCase(kernel_c)
-    gpu        = FindStr(Lkrn,  "jinc")>0 || FindStr(Lkrn,  "ewa")>0 || FindStr(Lkrn,  "deep")>0 || FindStr(Lkrn,  "nnedi3")>0
-    gpuc       = FindStr(Lkrnc, "jinc")>0 || FindStr(Lkrnc, "ewa")>0 || FindStr(Lkrnc, "deep")>0 || FindStr(Lkrnc, "nnedi3")>0
-    gpu        = Defined(gpuid) ? IsInt(gpuid) ? [gpuid,gpuid] : ArraySize(gpuid)==1 ? ArrayAdd(gpuid,gpuid[0]) : gpuid : [gpu?0:-1,gpuc?0:-1]
+    gpu        = FindStr(Lkrn,  "jinc")>0 || FindStr(Lkrn,  "ewa")>0 || FindStr(Lkrn,  "deep")>0 || FindStr(Lkrn,  "nnedi3")>0 ? 0 : -1
+    gpuc       = FindStr(Lkrnc, "jinc")>0 || FindStr(Lkrnc, "ewa")>0 || FindStr(Lkrnc, "deep")>0 || FindStr(Lkrnc, "nnedi3")>0 ? 0 : -1
+    gpu        = Defined(gpuid) ? IsInt(gpuid) ? [gpuid,gpuc] : ArraySize(gpuid)==1 ? ArrayAdd(gpuid,gpuc) : gpuid : [gpu,gpuc]
     # Set gpuid to 0 or above to run scalers over the GPU. Supported kernels are nnedi3 and those supported by avslibplacebo (bicubics, splines, sincs, and some jincs).
     # Waifu, RAVU, SSIM, FSRCNN, Krig, SuperResXBR, FCBI and Tukey are GPU only. GPU scaling for anything other than jincs is surprisingly slower though.
 
@@ -631,10 +633,8 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                  num} } # Checks if string is a number between 1 and 16
 
     # Exclusion list
-    nope = (kernel   == "spline16" || kernel   == "spline36" || kernel   == "spline64" || kernel   == "spline100" || kernel   == "spline144" || kernel   == "spline196" || kernel   == "spline256") && Lkrn  !="spline" || \
-            FindStr(Lkrn, "jinc") > 0   && Lkrn  !="jinc" || FindStr(Lkrn, "ewasharp") > 0 || FindStr(Lkrn, "nnedi3") > 0 || FindStr(Lkrn, "ssim2") > 0 || FindStr(Lkrn, "ewas") > 0
-    nopc = (kernel_c == "spline16" || kernel_c == "spline36" || kernel_c == "spline64" || kernel_c == "spline100" || kernel_c == "spline144" || kernel_c == "spline196" || kernel_c == "spline256") && Lkrnc !="spline" || \
-            FindStr(Lkrnc, "jinc") > 0  && Lkrnc !="jinc" || FindStr(Lkrnc,"ewasharp") > 0 || FindStr(Lkrnc,"nnedi3") > 0 || FindStr(Lkrn, "ssim2") > 0 || FindStr(Lkrn, "ewas") > 0
+    nope = FindStr(Lkrn,  "spline") > 0 && Lkrn  !="spline" && kernel  !="Bicubic" || FindStr(Lkrn,  "jinc") > 0 && Lkrn  !="jinc" || FindStr(Lkrn, "ewasharp") > 0 || FindStr(Lkrn, "nnedi3") > 0 || FindStr(Lkrn, "ssim2") > 0 || FindStr(Lkrn, "ewas") > 0
+    nopc = FindStr(Lkrnc, "spline") > 0 && Lkrnc !="spline" && kernel_c!="Bicubic" || FindStr(Lkrnc, "jinc") > 0 && Lkrnc !="jinc" || FindStr(Lkrnc,"ewasharp") > 0 || FindStr(Lkrnc,"nnedi3") > 0 || FindStr(Lkrn, "ssim2") > 0 || FindStr(Lkrn, "ewas") > 0
 
     tapFinder1 = RightStr(kernel,1)  StrN1 = StrNumber(tapFinder1) && !nope
     tapFinder2 = RightStr(kernel,2)  StrN2 = StrNumber(tapFinder2) && !nope
@@ -678,7 +678,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     function KernStr(string kernel, int nw, int nh, float bc_b, float bc_c, float p, bool pd, bool show, int gpuid) {
 
-    shpath = "C:\Program Files (x86)\AviSynth+\plugins64+\Shaders\avslibplacebo\"
+    shpath = "C:\Program Files\AviSynth+\plugins64+\Shaders\avslibplacebo\"
     ewarad = pd ? int(p)==2 ? 2.2331305943815286 : int(p)==4 ? 4.2410628637960699 : 3.2383154841662362 : 3.2383154841662362
 
     resampler = Format( kernel == "nnedi3" || kernel == "nnedi"                                              ? \
@@ -871,7 +871,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
         nnpln     = o_fmt1=="420" ? 2 : o_type2 ? 3 : o_type4 || isy ? 4 : 1
         CPB       = """src_leftc = i_type4 ?  src_leftc : i_type1 || i_type10 ? 0.625-0.375*(src_leftc*float(cow)/cnw) : src_leftc*0.5
-                       src_topc  = i_type4 || i_type1 || i_type2  ? src_topc : src_topc*0.5
+                       src_topc  = i_type4 || i_type1  || i_type2  ? src_topc : src_topc*0.5
 
                        cplaceH1  = (src_boxc ? ",sx=" : ",src_left=")+string(cplace1[0]+src_leftc)
                        cplaceV1  = (src_boxc ? ",sy=" : ",src_top =")+string(cplace1[1]+src_topc)"""
@@ -1029,25 +1029,25 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
             } else if (i_fmt[0]=="YCoCg") {
 
-                RGB = YCoCg_to_RGB ( Y, Cb, Cr, !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
+                RGB = YCoCg_to_RGB   ( Y, Cb, Cr,                !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
 
             } else if (i_fmt[0]=="YCoCgR") {
 
-                RGB = YCoCgR_to_RGB( Y, Cb, Cr, !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
+                RGB = YCoCgR_to_RGB  ( Y, Cb, Cr,                !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
 
             } else if (i_fmt[0]=="YUVr") {
 
-                RGB = YUVr_to_RGB  ( Y, Cb, Cr, !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
+                RGB = YUVr_to_RGB    ( Y, Cb, Cr,                !(isScale || !tv_in), !(isSpace || !tv_out), isSpaIllu)
 
             } else if (i_fmt[0]=="OkLab") {
 
                 # Requires Range conversion
-                RGB = Oklab_to_RGB( Y, Cb, Cr, false, cs_in, isSpaIllu)
+                RGB = Oklab_to_RGB   ( Y, Cb, Cr, false, cs_in, isSpaIllu)
 
             } else if (i_fmt[0]=="HSV") {
 
                 # Requires Range conversion
-                RGB = HSV_to_RGB( Y, Cb, Cr, !(isScale || !tv_in), isSpaIllu)
+                RGB = HSV_to_RGB     ( Y, Cb, Cr,                !(isScale || !tv_in), isSpaIllu)
 
             } else if (i_fmt[0]=="CIELab") {
 
@@ -1059,12 +1059,12 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             } else if (i_fmt[0]=="Yxy") {
 
                 # Requires Range conversion
-                RGB = Yxy_to_RGB( Y, Cb, Cr, isSpaIllu)
+                RGB = Yxy_to_RGB  ( Y, Cb, Cr, isSpaIllu)
 
             } else if (i_fmt[0]=="OPP") {
 
                 # Requires Range conversion
-                RGB = OPP_to_RGB( Y, Cb, Cr, isSpaIllu)
+                RGB = OPP_to_RGB  ( Y, Cb, Cr, isSpaIllu)
 
             } else if (i_fmt[0]=="ICtCp") {
 
@@ -1117,10 +1117,11 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         B = isRGBi ? ExtractB() : B.ConvertBits(32, fulls=true,  fulld=true).CCTF(d_gam, true, false, false)
 
 
-        mata = RGB_to_XYZ (cs_in,  D_in,  LMS=LMS, list=true)
+
+        mata = RGB_to_XYZ (cs_in,  D_in,  LMS=LMS, list=true, adaptXYZ=false)
         matw = CAT        (D_in,   D_out, LMS=LMS, list=true)
-        matb = XYZ_to_RGB (cs_out, D_out, LMS=LMS, list=true)
-        mat  = MatrixDot(isIllu ? MatrixDot(mata, matw) : mata, matb)
+        matb = XYZ_to_RGB (cs_out, D_out, LMS=LMS, list=true, adaptXYZ=false)
+        mat  = MatrixDot(isIllu && CAT ? MatrixDot(mata, MatrixTranspose(matw)) : mata, matb)
 
         Ro = "x "+string(mat[0])+" * y "+string(mat[3])+" * + z "+string(mat[6])+" * +"
         Go = "x "+string(mat[1])+" * y "+string(mat[4])+" * + z "+string(mat[7])+" * +"
@@ -1189,7 +1190,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         G = RGBlin || isRGBi ? ExtractG() : G
         B = RGBlin || isRGBi ? ExtractB() : B
 
-        tv_ir =  propGetInt(G,"_ColorRange")==1
+        tv_ir =  propGetInt(R,"_ColorRange")==1
 
         R = isSpaIllu ? R.CCTF(EOTF2, false, tv_ir, false) : R    R = R.ConvertBits(bi,dither=bi==32?-1:1)
         G = isSpaIllu ? G.CCTF(EOTF2, false, tv_ir, false) : G    G = G.ConvertBits(bi,dither=bi==32?-1:1)
@@ -1203,25 +1204,25 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
             } else if (o_fmt0=="YCoCg") {
 
-                YCbCr = RGB_to_YCoCg( R, G, B, tv_ir, tv_out, arc)
+                YCbCr = RGB_to_YCoCg   ( R, G, B, tv_ir, tv_out, arc)
 
             } else if (o_fmt0=="YCoCgR") {
 
-                YCbCr = RGB_to_YCoCgR( R, G, B, tv_ir, tv_out, arc)
+                YCbCr = RGB_to_YCoCgR  ( R, G, B, tv_ir, tv_out, arc)
 
             } else if (o_fmt0=="YUVr") {
 
-                YCbCr = RGB_to_YUVr( R, G, B, tv_ir, tv_out, arc)
+                YCbCr = RGB_to_YUVr    ( R, G, B, tv_ir, tv_out, arc)
 
             } else if (o_fmt0=="OkLab") {
 
                 # Requires Range conversion
-                YCbCr = RGB_to_Oklab( R, G, B, false, cs_in, arc)
+                YCbCr = RGB_to_Oklab   ( R, G, B, false, cs_in, arc)
 
             } else if (o_fmt0=="HSV") {
 
                 # Requires Range conversion
-                YCbCr = RGB_to_HSV( R, G, B, tv_ir, arc)
+                YCbCr = RGB_to_HSV     ( R, G, B, tv_ir, arc)
 
             } else if (i_fmt[0]=="CIELab") {
 
@@ -1301,7 +1302,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
         } }
 
-        # Frame Properties
+        # Frame Properties (fix this when using presets)
         mat_i   = isRGBo ? 0 : cs_outFA[3]
         prim_i  = cs_outFA[4]
         illu_i  = D_outA[5]
@@ -1309,9 +1310,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
         # Populating frameprops
         if (!isy) {
-        !isRGBo             ? propSet("_Matrix",      mat_i)        : last # Yes, again, hardcoding matrix for RGB to 0
+        !isRGBo             ? propSet("_Matrix",      mat_i)       : last # Yes, again, hardcoding matrix for RGB to 0
                               propSet("_Primaries",  prim_i)
-        isIllu              ? propSet("_Illuminant", illu_i)        : last
+        isIllu              ? propSet("_Illuminant", illu_i)       : last
         fch || o_type1 || o_type10 ? last : !isChP ? propCopy(clp,true,props="_ChromaLocation") : propSet("_ChromaLocation", cplace2[4]) } # 1/4 subsampling formats don't support '_ChromaLocation' frameprop
                               propSet("_Transfer",      t_i)
                               propSet("_ColorRange",    tv_out ? 1 : 0)
@@ -1350,7 +1351,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.0 RC60",                size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.0",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1415,11 +1416,12 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 ###                                     ##
 ##########################################
 
-# color_Fuzzy_Search: Input a Primaries, Standard Illuminant or Transfer string, and get a tuple array with standardized name -string- of it with its property ID -int-.
-# format_Fuzzy_Search: Second pass of above. Will search for input model and Jab and their IDs and override primaries and matrix IDs based on model.
 # color_propGet: Reads Model, Primaries, Matrix, Standard Illuminant and Transfer frame properties from input, or infer them.
+# color_Fuzzy_Search: Input a Primaries, Standard Illuminant or Transfer string, and get an array with inferred standardized names -strings- and their property ID -int- for the different space characteristics.
+# format_Fuzzy_Search: Second pass of above. Will search for input model and Jab and their IDs and override primaries and matrix IDs based on model.
 #
 # xxx_Fuzzy_Search family infers input/output properties from input string, while color_propGet() infers them directly from frame properties or clip characteristics.
+
 
 # Matrix, Primaries, Standard Illuminant and Transfer strings fuzzy search. Input: string, Output: [string,string,string,ID,ID,ID,ID]
 function color_Fuzzy_Search (string matrix) {
@@ -1490,7 +1492,7 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrixn== "BestRGB"    ? "AdobeRGB" :         matrixn== "RussellRGB" ? "AdobeRGB"
 \   :         matrixn== "DonRGB4"    ? "AdobeRGB" :         matrixn== "BruceRGB"   ? "AdobeRGB"
 \   :         matrixn== "ECI-RGB"    ? "CIELab"   :         matrixn== "BetaRGB"    ? "AdobeRGB"
-\   :         matrixn== "ColorMatch" ? "AppleRGB" :         matrixn== "CIE RGB"    ? "linear"
+\   :         matrixn== "ColorMatch" ? "AppleRGB" :         matrixn== "CIE RGB"    ? "AdobeRGB"
 \   :         matrixn== "NTSC-J"     ? "1886"     :         matrixn== "WideGamut"  ? "AdobeRGB"
 \   :         matrixn== "XYZ"        ? "linear"   :         matrixn== "ProPhoto"   ? "AppleRGB"
 \   :         matrixn== "YDzDx"      ? "PQ"       :         matrixn=="AllColorsRGB"? "linear"
@@ -1501,7 +1503,7 @@ function color_Fuzzy_Search (string matrix) {
 \             matrix == "50"         ? "D50"      :         matrix == "A"          ? "A"
 \   :         matrix == "55"         ? "D55"      :         matrix == "D50"        ? "D50"
 \   : FindStr(matrixn,  "ACES"   )>0 ? "ACES"     :         matrix == "D55"        ? "D55"
-\   :         matrix == "60"         ? "D60"      :         matrix == "65"         ? "D65"
+\   :         matrix == "60"         ? "D60"      :         matrix == "D65"        ? "D65"
 \   :         matrix == "65"         ? "D65"      :         matrix == "B"          ? "B"
 \   :         matrix == "D"          ? "D65"      :         matrix == "C"          ? "C"
 \   :         matrix == "75"         ? "D75"      :         matrix == "D75"        ? "D75"
@@ -1532,27 +1534,26 @@ function color_Fuzzy_Search (string matrix) {
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     idm =
-\     (matrixn == "XYZ"            ) ? 0    : (matrixn == "AdobeRGB"       ) ? 17
-\   : (matrixn == "RGB"            ) ? 0    : (matrixn == "AWG"            ) ? 18
-\   : (matrixn == "sRGB"           ) ? 1    : (matrixn == "WideGamut"      ) ? 19
-\   : (matrixn == "709"            ) ? 1    : (matrixn == "AppleRGB"       ) ? 20
-\   : (matrixn == "470M"           ) ? 4    : (matrixn == "ProPhoto"       ) ? 21
-\   : (matrixn == "470BG"          ) ? 5    : (matrixn == "AllColorsRGB"   ) ? 22
-\   : (matrixn == "170M"           ) ? 6    : (matrixn == "ColorMatch"     ) ? 23
-\   : (matrixn == "240M"           ) ? 7    : (matrixn == "RussellRGB"     ) ? 24
-\   : (matrixn == "2020NCL"        ) ? 9    : (matrixn == "BestRGB"        ) ? 25
-\   : (matrixn == "2020CL"         ) ? 10   : (matrixn == "BruceRGB"       ) ? 26
-\   : (matrixn == "YDzDx"          ) ? 11   : (matrixn == "DonRGB4"        ) ? 27
-\   : (matrixn == "DCI-P3"         ) ? 12   : (matrixn == "BetaRGB"        ) ? 28
-\   : (matrixn == "Display-P3"     ) ? 12   : (matrixn == "ECI-RGB"        ) ? 29
-\   : (matrixn == "NTSC-J"         ) ? 13   : (matrixn == "EktaSpacePS5"   ) ? 30
-\   : (matrixn == "ACEScg"         ) ? 14   : (matrixn == "CIE RGB"        ) ? 31
-\   : (matrixn == "ACES2065"       ) ? 15   : (matrixn == "xTremeRGB"      ) ? 32
-\   : (matrixn == "ACESCCt"        ) ? 16   : (matrixn == "MaxRGB"         ) ? 33
-\   : (matrixn == "ChromeSpace100" ) ? 34   : -1
-
-
+\             matrixn == "XYZ"             ? 0    :         matrixn == "AdobeRGB"        ? 17
+\   :         matrixn == "RGB"             ? 0    :         matrixn == "AWG"             ? 18
+\   :         matrixn == "sRGB"            ? 1    :         matrixn == "WideGamut"       ? 19
+\   :         matrixn == "709"             ? 1    :         matrixn == "AppleRGB"        ? 20
+\   :         matrixn == "470M"            ? 4    :         matrixn == "ProPhoto"        ? 21
+\   :         matrixn == "470BG"           ? 5    :         matrixn == "AllColorsRGB"    ? 22
+\   :         matrixn == "170M"            ? 6    :         matrixn == "ColorMatch"      ? 23
+\   :         matrixn == "240M"            ? 7    :         matrixn == "RussellRGB"      ? 24
+\   :         matrixn == "2020NCL"         ? 9    :         matrixn == "BestRGB"         ? 25
+\   :         matrixn == "2020CL"          ? 10   :         matrixn == "BruceRGB"        ? 26
+\   :         matrixn == "YDzDx"           ? 11   :         matrixn == "DonRGB4"         ? 27
+\   :         matrixn == "DCI-P3"          ? 12   :         matrixn == "BetaRGB"         ? 28
+\   :         matrixn == "Display-P3"      ? 12   :         matrixn == "ECI-RGB"         ? 29
+\   :         matrixn == "NTSC-J"          ? 13   :         matrixn == "EktaSpacePS5"    ? 30
+\   :         matrixn == "ACEScg"          ? 14   :         matrixn == "CIE RGB"         ? 31
+\   :         matrixn == "ACES2065"        ? 15   :         matrixn == "xTremeRGB"       ? 32
+\   :         matrixn == "ACESCCt"         ? 16   :         matrixn == "MaxRGB"          ? 33
+\   :         matrixn == "ChromeSpace100"  ? 34   :         -1
 # * YDzDx is defined in SMPTE 2085
+
 
     # ID for _Primaries frame properties (BT.2380-2. Table 2.6)
     ids =
@@ -1629,17 +1630,26 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 
     # Input Defaults
     cm_i     = cm_i   != -1 ? cm_i   : fmt[4]
-    prim_i   = prim_i !=  2 ? prim_i : fmt[6] != -1 ? fmt[6] : isUHD ? 9 : isHD ? 1 : FR==25 ? 5 : 6
-    illu_i   = illu_i != -1 ? illu_i :                             prim_i == 17 || cm_i == 2 ? 0 : prim_i == 11 ? 3 : prim_i == 13 || prim_i == 14 ? 2 : 4
-    mat_i    = mat_i  !=  2 ? mat_i  : fmt[5] != -1 ? fmt[5] : 3 < prim_i  < 10 ?  prim_i : cm_i == 15 ? 11 : prim_i == 11 || prim_i == 12  ? 12 : 1
+    prim_i   = prim_i !=  2 ? prim_i : fmt[6] != -1 ? fmt[6] : 2
+    mat_i    = mat_i  !=  2 ? mat_i  : fmt[5] != -1 ? fmt[5] : 3 < prim_i  < 10 ?  prim_i : cm_i == 15 || prim_i == 11 ? 11 : prim_i == 12 ? 12 : 2
+    prim_i   = prim_i !=  2 ? prim_i : 0 > mat_i > 8 || 10 > mat_i > 13 ? mat_i : isUHD ? 9 : isHD ? 1 : FR==25 ? 5 : FR==29.970 ? 6 : 2
+    mat_i    = mat_i  !=  2 ? mat_i  :                         3 < prim_i  < 10 ?  prim_i : cm_i == 15 || prim_i == 11 ? 11 : prim_i == 12 ? 12 : 1
+    prim_i   = prim_i !=  2 ? prim_i : 0 > mat_i > 8 || 10 > mat_i > 13 ? mat_i : 1
+
+    illu_i   = illu_i != -1 ? illu_i :                             20 > prim_i > 34 || cm_i == 2 ? 0 : prim_i == 11 || mat_i == 11 ? 3 : 13 > prim_i > 17 ? 2 : \
+                                                                   prim_i == 20 ? 1 : prim_i == 13 ? 7 : prim_i == 10 || prim_i == 34 || mat_i == 0 ? 8 : \
+                                                                   prim_i == 4 || mat_i == 4 ? 5 : 4
     t_i      = t_i    !=  2 ? t_i    :                             cm_i == 0 || cm_i == 23 ? 8 : \
                                                                    cm_i == 24 ? 11 : \
                                                                3 < prim_i  < 8  ?  prim_i : \
-                                                                   prim_i == 13 || prim_i == 14 || prim_i == 10 ? 8 : \
-                                                                   prim_i == 15 ? 21 : \
-                                                                   prim_i == 16 || prim_i == 17 ? 20 : \
+                                                                   prim_i == 18 || prim_i == 23 || prim_i == 25 ? 18 : \
+                                                                   prim_i == 29 ? 23 : \
+                                                                   prim_i == 33 ? 24 : \
+                                                              16 > prim_i  > 35 ? 20 : \
+                                                                   prim_i == 10 || prim_i == 13 || prim_i == 15 ? 8 : \
+                                                                   prim_i == 16 ? 21 : \
                                                                    prim_i == 9  ? 16 : \
-                                                                   prim_i == 11 ? 21 : \
+                                                                   prim_i == 11 ? 17 : \
                                                                    prim_i == 12 ? 13 : 1
     cm_id =
 \     (cm_i == 0      ) ? ["XYZ",      "RGB"  ]
@@ -1654,7 +1664,7 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (cm_i == 8      ) ? ["sYCC",     "YCbCr"]
 \   : (cm_i == 9      ) ? ["YCoCg",    "YCbCr"]
 \   : (cm_i == 10     ) ? ["YCoCgR",   "YCbCr"]
-\   : (cm_i == 11     ) ? ["YcCbcCr",  "YCbCr"]
+\   : (cm_i == 11     ) ? ["YcCbcCrc", "YCbCr"]
 \   : (cm_i == 12     ) ? ["OPP",      "RGB"  ]
 \   : (cm_i == 13     ) ? ["Jzazbz",   "YCbCr"]
 \   : (cm_i == 14     ) ? ["JzCzhz",   "YCbCr"]
@@ -1683,6 +1693,7 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (cm_i == 37     ) ? ["OkLab",    "YCbCr"]
 \   : (cm_i == 38     ) ? ["OkLch",    "RGB"  ]
 \   : (cm_i == 39     ) ? ["iCAM",     "RGB"  ]
+\   : (cm_i == 40     ) ? ["XYB",      "YCbCr"]
 \   : Assert (false, "color_propGet: Unknown _Model ID.")
 # * YDbDr is for PAL-N and SECAM
 # * xvYCC is defined in IEC61966-2-4
@@ -1705,23 +1716,23 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (prim_i == 15   ) ? "ACES2065"
 \   : (prim_i == 16   ) ? "ACESCCt"
 \   : (prim_i == 17   ) ? "AdobeRGB"
-\   : (prim_i == 18   ) ? "AWG"
-\   : (prim_i == 19   ) ? "WideGamut"
-\   : (prim_i == 20   ) ? "AppleRGB"
-\   : (prim_i == 21   ) ? "ProPhoto"
-\   : (prim_i == 22   ) ? "AllColorsRGB"
-\   : (prim_i == 23   ) ? "ColorMatch"
-\   : (prim_i == 24   ) ? "RussellRGB"
-\   : (prim_i == 25   ) ? "BestRGB"
-\   : (prim_i == 26   ) ? "BruceRGB"
+\   : (prim_i == 18   ) ? "AppleRGB"
+\   : (prim_i == 19   ) ? "BruceRGB"
+\   : (prim_i == 20   ) ? "RussellRGB"
+\   : (prim_i == 21   ) ? "AWG"
+\   : (prim_i == 22   ) ? "WideGamut"
+\   : (prim_i == 23   ) ? "ProPhoto"
+\   : (prim_i == 24   ) ? "AllColorsRGB"
+\   : (prim_i == 25   ) ? "ColorMatch"
+\   : (prim_i == 26   ) ? "BestRGB"
 \   : (prim_i == 27   ) ? "DonRGB4"
 \   : (prim_i == 28   ) ? "BetaRGB"
 \   : (prim_i == 29   ) ? "ECI-RGB"
-\   : (prim_i == 30   ) ? "EktaSpacePS5"
-\   : (prim_i == 31   ) ? "CIE RGB"
-\   : (prim_i == 32   ) ? "xTremeRGB"
-\   : (prim_i == 33   ) ? "MaxRGB"
-\   : (prim_i == 34   ) ? "ChromeSpace100"
+\   : (prim_i == 30   ) ? "MaxRGB"
+\   : (prim_i == 31   ) ? "xTremeRGB"
+\   : (prim_i == 32   ) ? "EktaSpacePS5"
+\   : (prim_i == 33   ) ? "ChromeSpace100"
+\   : (prim_i == 34   ) ? "CIE RGB"
 \   : Assert (false, "color_propGet: Unknown _Primaries ID.")
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
@@ -1735,9 +1746,9 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (cm_i  == 8     ) ? "YCoCg"
 \   : (mat_i == 9     ) ? "2020NCL"
 \   : (mat_i == 10    ) ? "2020CL"
-\   : (mat_i == 11    ) ? "YDzDx"
-\   : (mat_i == 12    ) ? "DCI-P3"
+\   : (mat_i == 11    ) ? "DCI-P3"
 \   : (mat_i == 12    ) ? "Display-P3"
+\   : (mat_i == 13    ) ? "YDzDx"
 \   : (mat_i == 14    ) ? "ICtCp"
 \   : prim_i
 
@@ -1799,15 +1810,15 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 
     # Block not evaluated unless Jab enum fails the search
     rgb  = isRGB(c)
-    isy  = isy(c)
+    isy  = isy  (c)
     Up   = rgb || isy ? c : ExtractU(c)
     rw   = width (Up) / float(width (c))
     rh   = height(Up) / float(height(c))
-    a    = int(rw * 4.)
+    a    = int  (rw * 4.)
     b    = round(rh-0.01)*a
 
-    str    = ReplaceStr(format, "P8", "", true)
-    str    = ReplaceStr(format, "PS", "", true)
+    str    = ReplaceStr(format+" ", "P8 ", "", true)
+    str    = ReplaceStr(str,        "PS ", "", true)
     trhbd  = FindStr   (format, "P1")
     format = trhbd>0 ? LeftStr(format,trhbd-1) : str
 
@@ -1845,7 +1856,7 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : FindStr(format,"HSV"     )>0 ? "444"
 \   : FindStr(format,"ICTCP"   )>0 ? "444"
 \   : FindStr(format,"OKLAB"   )>0 ? "444"
-\   :        format=="Y"           ? "444"
+\   :         isy                  ? "444"
 \   :                "4"+string(a)+string(b)
 
 
@@ -1923,7 +1934,7 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 
     bdpth = isy ? string(bits) : bits < 32 ? "P" + string(bits) : "PS"
 
-    #model, jab, bitdepth type, packing, model ID, matrix ID override, prim ID override
+    #model, jab, bitdepth string, packing, model ID, matrix ID override, prim ID override
     [cm[0], jab, bdpth, cm[1], cm[2], ma, pr] }
 
 
@@ -2194,6 +2205,8 @@ function color_coef (string "prims", string "mat", string "illu") {
 # Correlated Color Temperatures (CCT) in K (Kelvin) are derived from 'CIE 1931 2º Degree Standard Observer' CMF with 'native' isotherms.
 
 # Note: The Illuminants chromacity coordinates have been calculated from 'Sprague' interpolated SPD of the original datasets with updated (2022) SI constants.
+# Note: For ICC compliant coefficients you need to round them to hexadecimal after 16-bit allocation. Revert the process and round to 8 significant decimal figures
+#       ( HEX2DEC ( DEC2HEX ( number-to-be-converted * 65536; 9 ) ) ) / 65536  # From: https://ninedegreesbelow.com
 ######################################################################################
 ###                                                                                 ##
 ### Illuminant 'C' family color spaces (6757.739K) (shade/indirect sunlight) Legacy ##  Originally 6740K
@@ -2231,10 +2244,10 @@ function color_coef (string "prims", string "mat", string "illu") {
     cs = mat_i==4 ? [0.640,   0.330, \
                      0.290,   0.600, \
                      0.150,   0.060  ] : cs
-    # BT-2020/BT-2100
-    cs = mat_i==5 ? [0.70792, 0.29203, \
-                     0.17024, 0.79652, \
-                     0.13137, 0.04588] : cs
+    # BT-2020/BT-2100 (for 630nm, 532nm and 467nm)
+    cs = mat_i==5 ? [0.707917792, 0.292027109, \
+                     0.170237195, 0.796518542, \
+                     0.131370635, 0.045875975] : cs
     # Adobe RGB (1998) (ClayRGB in Elle Stone's profiles)
     cs = mat_i==6 ? [0.640,   0.330, \
                      0.210,   0.710, \
@@ -2285,10 +2298,10 @@ function color_coef (string "prims", string "mat", string "illu") {
 ###                                                         ##
 ##############################################################
 
-    # CIE RGB
-    cs = mat_i==25? [0.7346900230, 0.2653099770, \
-                     0.2736747378, 0.7174284409, \
-                     0.1665361196, 0.0088826412] : cs
+    # CIE RGB (from 700.0nm, 546.1nm and 435.8nm)
+    cs = mat_i==25? [0.7346900232, 0.2653099767, \
+                     0.2736751797, 0.7174317825, \
+                     0.1665376306, 0.0088803172] : cs
     # XYZ
     cs = mat_i==13? [1.0, 0.0, \
                      0.0, 1.0, \
@@ -2322,7 +2335,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 ###                                                      ##
 ###########################################################
 # Most of these come from: http://www.brucelindbloom.com/index.html?WorkingSpaceInfo.html
-
+#                     and: http://www.russellcottrell.com/photo/matrixCalculator.htm
     # Don RGB 4
     cs = mat_i==20? [0.6960, 0.3000, \
                      0.2150, 0.7650, \
@@ -2347,7 +2360,7 @@ function color_coef (string "prims", string "mat", string "illu") {
     cs = mat_i==24? [0.6950, 0.3050, \
                      0.2600, 0.7000, \
                      0.1100, 0.0050] : cs
-    # Wide Gamut RGB (Adobe's first attempt at a Wide Gamut)
+    # Wide Gamut RGB (Adobe's first attempt at a Wide Gamut). Danny Pascale's primaries.
     cs = mat_i==13? [0.7347, 0.2653, \
                      0.1152, 0.8264, \
                      0.1566, 0.0177] : cs
@@ -2356,9 +2369,9 @@ function color_coef (string "prims", string "mat", string "illu") {
                      0.11416, 0.82621, \
                      0.15664, 0.01770] : cs
     # ProPhotoRGB (LargeRGB in RawTherapee and Elle Stone's profiles)
-    cs = mat_i==15? [0.7347, 0.2653, \
-                     0.1596, 0.8404, \
-                     0.0366, 0.0001] : cs
+    cs = mat_i==15? [0.734699, 0.265301, \
+                     0.159597, 0.840403, \
+                     0.036598, 0.000105] : cs
     # AllColorsRGB (includes illegal values)
     cs = mat_i==23? [0.734690265,  0.26530973500000000000, \
                      0.000000000,  1.00000000000000000000, \
@@ -2432,9 +2445,8 @@ function color_coef (string "prims", string "mat", string "illu") {
 ###                                                                       ##
 ############################################################################
 
-    # Hard-coded constants for the Kr, Kg, Kb derivations
+    # Hard-coded white-point constant for the Kr, Kg, Kb derivations
     pw = mat == "170M" || mat == "470BG" ? [0.31005847,0.31614971] : wp
-
 
     pr = [cs[0], cs[1], 1 - cs[0] - cs[1]]    pw = [pw[0], pw[1], 1 - pw[0] - pw[1]]
     pg = [cs[2], cs[3], 1 - cs[2] - cs[3]]    wp = [wp[0], wp[1], 1 - wp[0] - wp[1]]
@@ -2461,6 +2473,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 function moncurve_coef (string transfer) {
 
     # Normalized transfer strings (601, 709, 2020, AWG and Display-P3 are duplicates but kept as reference)
+    # The assignations here are OETF related.
     t_num =
 \     (transfer == "1886"         ) ? 5
 \   : (transfer == "470M"         ) ? 0
@@ -2485,7 +2498,7 @@ function moncurve_coef (string transfer) {
 # Use CCTF() or the dedicated functions in "TransformsPack - Transfers" for the below transfers
 #\  : (transfer == "Chrome"       ) ? x
 #\  : (transfer == "AppleRGB"     ) ? x
-#\  : (transfer == "ColorMatch"   ) ? x # same as AppleRGB
+#\  : (transfer == "ColorMatch"   ) ? x # same as AppleRGB and ProPhotoRGB
 #\  : (transfer == "1886a"        ) ? x
 #\  : (transfer == "xvYCC"        ) ? -1
 #\  : (transfer == "PhotoCD"      ) ? -1 (same as xvYCC, a variant of '1' with negative fix)
@@ -2501,35 +2514,36 @@ function moncurve_coef (string transfer) {
         #   beta  = transition (y coord)= K0/Phi
         #   phi   = slope                (k0/beta)
         #   k0    = beta * phi or alpha / (gam-1)
-                                                                      #  SMPTE 240M
-        #   BT.2020/SMPTE 170M                                        #  piece+slope match
-        #   phi*y = a*b^igam-x+1                                      #  k0  = a / (gam-1)
-        #   phi   = igam*a*b^(igam-1)                                 #  phi = (((1+a)^gam)*(gam-1)^(gam-1))/((a^(gam-1))*gam^gam)
-            gamma = 1/0.45                                               gamma = 1/0.45 = 2.2222
-            alpha = 0.099296826809442940347282759                        alpha = 0.1115
-            beta  = 0.018053968510807807335869592                        beta  = 0.02280681818181818182
-            k0    = 0.081242858298635133011413164                        k0    = 0.09122727272727272727
-            phi   = 4.5                                                  phi   = 4.0
 
-        #   sRGB                                                      #  sRGB
-        #   piece+slope match                                         #  piece match
-        #   k0  = a / (gam-1)                                         #  phi*b = a*b^igam-a+1
-        #   phi = (((1+a)^gam)*(gam-1)^(gam-1))/((a^(gam-1))*gam^gam) #  phi   = igam*a*b^(igam-1)
-            gamma = 2.40                                                 gamma = 2.40
-            alpha = 0.055                                                alpha = 0.05501071894758659721
-            beta  = 0.00303993463977843                                  beta  = 0.00304128256012752085
-            k0    = 0.03928571428571428571                               k0    = 0.039293370676847569382
-            phi   = 12.92321018078786109464                              phi   = 12.92
+        #   BT.2020/SMPTE 170M                                #  SMPTE 240M
+        #   piece match                                       #  piece+slope match
+        #   phi*y = a*b^igam-x+1                              #  k0  = a / (gam-1)
+        #   phi   = igam*a*b^(igam-1)                         #  phi = (((1+a)^gam)*(gam-1)^(gam-1))/((a^(gam-1))*gam^gam)
+            gamma = 1/0.45                                       gamma = 1/0.45 = 2.2222
+            alpha = 0.099296826809442940347282759                alpha = 0.1115
+            beta  = 0.018053968510807807335869592                beta  = 0.02280681818181818182
+            k0    = 0.081242858298635133011413164                k0    = 0.09122727272727272727
+            phi   = 4.5                                          phi   = 4.0
+
+        #   sRGB                                              #  sRGB
+        #   piece match                                       #  piece+slope match
+        #   phi*b = a*b^igam-a+1                              #  k0  = a / (gam-1)
+        #   phi   = igam*a*b^(igam-1)                         #  phi = (((1+a)^gam)*(gam-1)^(gam-1))/((a^(gam-1))*gam^gam)
+            gamma = 2.40                                         gamma = 2.40
+            alpha = 0.05501071894758659721                       alpha = 0.055
+            beta  = 0.00304128256012752085                       beta  = 0.00303993463977843
+            k0    = 0.039293370676847569382                      k0    = 0.03928571428571428571
+            phi   = 12.92                                        phi   = 12.92321018078786109464
             */
 
-    #                        NTSC 1953/YCbCr                          SMPTE-C    / BT-2020           Y’PbPr 601              PAL/SECAM                      Rec.709  AdobeRGB   DCI-P3      AP1/AP0    CIE L*ab
-    #                        BT-470M/FCC     sRGB                     SMPTE 170M / BT-2020           SMPTE 240M (historical) BT-470BG (historical)          BT-1886  AdobeRGB** DCI-P3/XYZ  ACES/LIN
-    t_gamma = Select(t_num,  2.2           , 2.40                   , 1/0.45                       , 1/0.45                , 2.80                         , 2.40   , 563/256.,  2.60       , 1.0      , 3.0       )
-    t_alpha = Select(t_num,  0             , 0.055                  , 0.099296826809442940347282759, 0.1115                , 0.099296826809442940347282759, 0      , 0       ,  0          , 0        , 0.16      )
-    t_beta  = Select(t_num,  0             , 0.00303993463977843    , 0.018053968510807807335869592, 0.02280681818181818182, 0.00410749063249639977       , 0      , 0       ,  0          , 0        , 0.00885645167903563082)
-    t_k0    = Select(t_num,  0             , 0.03928571428571428571 , 0.081242858298635133011413164, 0.09122727272727272727, 0.05516490378302385575       , 0      , 0       ,  0          , 0        , 0.08      )
-    t_phi   = Select(t_num,  0             , 12.92321018078786109464, 4.5                          , 4.0                   , 13.43031761206876179575      , 4.5    , 0       ,  0          , 0        , (24389/27.)/100) # 9.032963
-    p_approx= Select(t_num,  2.2           , 2.220000               , 1.943333                     , 1.916666              , 2.460000                     , 2.40   , 2.199219,  2.60       , 1.0      , 2.48      )
+    #                        NTSC 1953/YCbCr                          SMPTE-C    / BT-2020           Y’PbPr 601              PAL/SECAM                      Rec.709  AdobeRGB     DCI-P3      AP1/AP0    CIE L*ab
+    #                        BT-470M/FCC     sRGB                     SMPTE 170M / BT-2020           SMPTE 240M (historical) BT-470BG (historical)          BT-1886  AdobeRGB**   DCI-P3/XYZ  ACES/LIN
+    t_gamma = Select(t_num,  2.2           , 2.40                   , 1/0.45                       , 1/0.45                , 2.80                         , 2.40   , 563/256.  ,  2.60       , 1.0      , 3.0       )
+    t_alpha = Select(t_num,  0             , 0.055                  , 0.099296826809442940347282759, 0.1115                , 0.099296826809442940347282759, 0      , 0         ,  0          , 0        , 0.16      )
+    t_beta  = Select(t_num,  0             , 0.00303993463977843    , 0.018053968510807807335869592, 0.02280681818181818182, 0.00410749063249639977       , 0      , 0         ,  0          , 0        , 0.00885645167903563082)
+    t_k0    = Select(t_num,  0             , 0.03928571428571428571 , 0.081242858298635133011413164, 0.09122727272727272727, 0.05516490378302385575       , 0      , 0         ,  0          , 0        , 0.08      )
+    t_phi   = Select(t_num,  0             , 12.92321018078786109464, 4.5                          , 4.0                   , 13.43031761206876179575      , 4.5    , 0         ,  0          , 0        , (24389/27.)/100) # 9.032963
+    p_approx= Select(t_num,  2.2           , 2.220000               , 1.943333                     , 1.916666              , 2.460000                     , 2.40   , 2.19921875,  2.60       , 1.0      , 2.48      )
   # *  Approximated matching power law gamma value
   # ** An hexadecimal rounded value of the ideal 2.2 power gamma.
 
@@ -2718,9 +2732,12 @@ function Dot (float_array vec1, \
 
 function Cross (float_array vec1, \
                 float_array vec2) {
+
     # 1x3 X 1x3
-    cr1 = vec1[1] * vec2[2] - vec1[2] * vec2[1]
-    cr2 = vec1[2] * vec2[0] - vec1[0] * vec2[2]
-    cr3 = vec1[0] * vec2[1] - vec1[1] * vec2[0]
+    vec10=vec1[0]  vec11=vec1[1]   vec12=vec1[2]
+    vec20=vec2[0]  vec21=vec2[1]   vec22=vec2[2]
+    cr1 = vec11 *  vec22 - vec12 * vec21
+    cr2 = vec12 *  vec20 - vec10 * vec22
+    cr3 = vec10 *  vec21 - vec11 * vec20
 
     [cr1, cr2, cr3] }
