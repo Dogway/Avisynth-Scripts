@@ -862,10 +862,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     src_wh  = src_boxy && !src_lbp  ? Format(",sw={src_width},  sh={src_height}")  : src_nn  ? "" : Format(",src_width={src_width}, src_height={src_height}")
     src_whc = src_boxc && !src_lbpc ? Format(",sw={src_widthc}, sh={src_heightc}") : src_nnc ? "" : Format(",src_width={src_widthc},src_height={src_heightc}")
     src_whc4= src_boxc && !src_lbpc ? Format(",sw={nw}, sh={nh}")                  : src_nnc ? "" : Format(",src_width={nw},src_height={nh}")
-    fmtcb   = src_lbp  ? ""  : src_boxy ?      Format(".ConvertBits({bi})") : ""
-    fmtcbc  = src_lbpc ? ""  : src_boxc ?      Format(".ConvertBits({bi})") : ""
-    src_nr  = src_nuly ? ")" : src_boxy ? "" : Format(",src_left={src_left},src_top={src_top}"+src_wh+")")
-    cplaceY = src_nuly ? ")" : src_boxy ?      Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr
+    fmtcb   = src_lbp  ? ""  : src_boxy ?       Format(".ConvertBits({bi})") : ""
+    fmtcbc  = src_lbpc ? ""  : src_boxc ?       Format(".ConvertBits({bi})") : ""
+    src_nr  = src_nuly ? ")" : src_boxy ? ")" : Format(",src_left={src_left},src_top={src_top}"+src_wh+")")
+    cplaceY = src_nuly ? ")" : src_boxy ?       Format(",sx={src_left},sy={src_top}"+src_wh+")"+fmtcb) : src_nr
     Ynr     = Format(".Repair(BicubicResize(Y,{nw},{nh},0,0"+src_nr+",1)")
 
 
