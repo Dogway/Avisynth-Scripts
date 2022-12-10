@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.0       (10-12-2022)   ##
+###   Transforms Pack - Models v1.1       (10-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -710,7 +710,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out",
     rangeC_TV = tvo ? " cmax cmin - range_max / * "+(bi==32 ? "" : "cmin +") : ""
 
     if (arc) {
-        Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "+rangeTV, bi, true), optSingleMode=true,  lut=  0).propSet("_Matrix", 2).propSet("_Model", 6)
+        Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "+rangeTV, bi, true), optSingleMode=true,  lut=  0).propSet("_Matrix", 2).propSet("_Model", 5)
         Cb = Expr(   G, B, ex_dlut("y x - "+b32+rangeC_TV,             bi, true), optSingleMode=false, lut=lut)
         Cr = Expr(R, G,    ex_dlut("x y - "+b32+rangeC_TV,             bi, true), optSingleMode=false, lut=lut)
         [Y, Cb, Cr]
@@ -724,7 +724,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out",
 
         tvo ? propSet("_ColorRange", 1) : last
               propSet("_Matrix",     2)
-              propSet("_Model",      6)      } }
+              propSet("_Model",      5)      } }
 
 
 # YCbCr RCT to RGB' function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
@@ -1589,8 +1589,8 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     fit   = ArrayOp  (skin, sca, "*")
 
     MatrixClip(LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true)
-    propSet("_Matrix",     14)
-    propSet("_Model",      22) }
+    propSet("_Matrix", DoVi ?  2 : 14)
+    propSet("_Model",  DoVi ? 22 : 21) }
 
 
 # ICtCp to RGB
@@ -1747,7 +1747,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
     list  = Default (list,      false)
     trans = Default (transpose, false)
 
-    # XYZ Scaling (known as "wrong von Kries"). Equals to RGB (D_in) to XYZ to CIELab (D_in) and CIELab (D_out) to XYZ to RGB (D_out)
+    # XYZ Scaling (known as "wrong von Kries")
     XYZvk = [1.000000, 0.000000,  0.000000, \
              0.000000, 1.000000,  0.000000, \
              0.000000, 0.000000,  1.000000]
