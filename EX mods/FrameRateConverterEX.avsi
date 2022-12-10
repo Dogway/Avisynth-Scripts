@@ -258,7 +258,7 @@ function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Prese
 
     if (RIFE) {
         matA = (isUHD ? "2020" : isHD ? "709" : "170m") + (tv ? ":l" : ":f")
-        B = is444(C) ? C.ConvertToPlanarRGB(matrix=matA) : C.ConvertToPlanarRGB(matrix=matA,chromaresample="spline16")
+        B = is444(C) ? C.ConvertToPlanarRGB(matrix=matA) : C.ConvertToPlanarRGB(matrix=matA,chromaresample="spline36")
         B = B.ConvertBits(32,fulls=true)
         for (i=1, frameDouble ? 1 : min(rifeI,2), 1) {
             B = B.RIFE(uhd=isUHD, model=rifeModel, tta=false, gpu_id=gpuid)
