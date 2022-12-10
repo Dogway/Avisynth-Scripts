@@ -439,7 +439,7 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
 
     w2      = Default(width,  w)
     h2      = Default(height, h)
-    pt      = Default(path, "C:\Program Files\AviSynth+\plugins64+\Shaders\avslibplacebo\ravu-r4.hook")
+    pt      = Default(path, "C:\Program Files (x86)\AviSynth+\plugins64+\Shaders\avslibplacebo\ravu-r4.hook")
 
     Assert(IsVersionOrGreater(3,7,3),  "RAVUresize: Update AviSynth+ version")
     Assert(isFloat(w2) || isFloat(h2), "RAVUresize: Width/Height type not supported")
@@ -490,7 +490,7 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
 #
 function FSRresize(clip a, val "width", val "height", float "grain", string "path", int "gpuid") {
 
-    pt  = Default(path, "C:\Program Files\AviSynth+\plugins64+\Shaders\avslibplacebo\FSR.glsl")
+    pt  = Default(path, "C:\Program Files (x86)\AviSynth+\plugins64+\Shaders\avslibplacebo\FSR.glsl")
     Assert(IsVersionOrGreater(3,7,3),         "FSRresize: Update AviSynth+ version")
     Assert(isFloat(width) || isFloat(height), "FSRresize: Width/Height type not supported")
 
@@ -1081,9 +1081,11 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
     bh     = Default(biasH,  0)
     # mode: 'Dilate', 'Mirror', 'Fill' or color code (ie. "$108080" for YUV TV black or "$008080" for YUV PC black)
 
+    # Ground truth for 'auto'
     wn  = nmod(wt,mdh)  wa = wn-w
     hn  = nmod(ht,mdv)  ha = hn-h
 
+    # Rounding
     wh  = abs(wa)/2.
     hh  = abs(ha)/2.
     wf  = floor(wh)      wd = Frac (wh)
