@@ -1084,8 +1084,8 @@ function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "OPP
 
     a
     ch = !(isy || UV!=3)
-    ch && !rgb && !OPP ? ConverttoYUV444   (matrix=mat,chromaresample="spline16") : last
-          !rgb &&  OPP ? ConvertToPlanarRGB(matrix=mat,chromaresample="spline16") : last
+    ch && !rgb && !OPP ? ConverttoYUV444   (matrix=mat,chromaresample="spline36") : last
+          !rgb &&  OPP ? ConvertToPlanarRGB(matrix=mat,chromaresample="spline36") : last
            rgb ||  OPP ? RGB_to_OPP().ConvertBits(32, fulls=true, fulld=true)     : ConvertBits(32, fulls=!tv, fulld=!tv)
 
     cs = rgb || OPP ? s : ch ? s/2.0 : 0
@@ -1146,7 +1146,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
     mat  = (!tv?"PC":"Rec")+pri
 
     a
-    !is42 ? ConverttoYUV420(matrix=mat,chromaresample=UV==3?"spline16":"point") : last
+    !is42 ? ConverttoYUV420(matrix=mat,chromaresample=UV==3?"spline36":"point") : last
     bi>8 && bi!= 16 ? ConvertBits(16, fulls=!tv, fulld=!tv)                     : last
 
     DGDenoise(str,strc,bl,blc,srch)
