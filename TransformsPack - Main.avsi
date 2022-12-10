@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0         (10-12-2022)   ##
+###   Transforms Pack - Main v1.1         (10-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -489,7 +489,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
        tv_in_d = Defined (tv_in)
     tv_in      = Default (tv_in,  !(isRGBi || cs_inF =="sRGB" || cs_in =="jpeg" || cs_in =="jpg") && propIDs[6]   )
-    tv_out     = Default (tv_out,  (isRGBo || cs_outF=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") ? false : tv_in )
+    tv_out     = Default (tv_out,  (isRGBo || cs_outF=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") ? false : i_fmt[0]!=o_fmt[0] && o_fmt[1]!="444" ? true : tv_in )
     kernel     = Default (kernel,   (w>nw||h>nh)?"Didee":"Precise")
     kernel_c   = Default (kernel_c,       kernel)
     D_out_d    = color_propGet(cs_outFA[4])[3]
@@ -1314,7 +1314,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         !isRGBo             ? propSet("_Matrix",      mat_i)       : last # Yes, again, hardcoding matrix for RGB to 0
                               propSet("_Primaries",  prim_i)
         isIllu              ? propSet("_Illuminant", illu_i)       : last
-        fch || o_type1 || o_type10 ? last : !isChP ? propCopy(clp,true,props="_ChromaLocation") : propSet("_ChromaLocation", cplace2[4]) } # 1/4 subsampling formats don't support '_ChromaLocation' frameprop
+        o_type1 || o_type10 ? last : !isChP ? propCopy(clp,true,props="_ChromaLocation") : propSet("_ChromaLocation", cplace2[4]) } # 1/4 subsampling formats don't support '_ChromaLocation' frameprop
                               propSet("_Transfer",      t_i)
                               propSet("_ColorRange",    tv_out ? 1 : 0)
 
@@ -1352,7 +1352,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.0",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.1",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1637,8 +1637,8 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
     mat_i    = mat_i  !=  2 ? mat_i  :                         3 < prim_i  < 10 ?  prim_i : cm_i == 15 || prim_i == 11 ? 11 : prim_i == 12 ? 12 : 1
     prim_i   = prim_i !=  2 ? prim_i : 0 > mat_i > 8 || 10 > mat_i > 13 ? mat_i : 1
 
-    illu_i   = illu_i != -1 ? illu_i :                             20 > prim_i > 34 || cm_i == 2 ? 0 : prim_i == 11 || mat_i == 11 ? 3 : 13 > prim_i > 17 ? 2 : \
-                                                                   prim_i == 20 ? 1 : prim_i == 13 ? 7 : prim_i == 10 || prim_i == 34 || mat_i == 0 ? 8 : \
+    illu_i   = illu_i != -1 ? illu_i :                             20 > prim_i > 34 ? 0 : prim_i == 11 || mat_i == 11 ? 3 : 13 > prim_i > 17 ? 2 : \
+                                                                   prim_i == 20 ? 1 : prim_i == 13 ? 7 : prim_i == 10 || prim_i == 34 ? 8 : \
                                                                    prim_i == 4 || mat_i == 4 ? 5 : 4
     t_i      = t_i    !=  2 ? t_i    :                             cm_i == 0 || cm_i == 23 ? 8 : \
                                                                    cm_i == 24 ? 11 : \
@@ -1657,11 +1657,10 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (cm_i == 1      ) ? ["RGB",      "RGB"  ]
 \   : (cm_i == 2      ) ? ["CMYK",     "RGBA" ]
 \   : (cm_i == 3      ) ? ["YIQ",      "YCbCr"]
-\   : (cm_i == 4      ) ? ["YDbDr",    "YCbCr"]
-\   : (cm_i == 5      ) ? ["YCbCr",    "YCbCr"]
-\   : (cm_i == 6      ) ? ["YUVr",     "YCbCr"]
-\   : (cm_i == 7      ) ? ["sYUV",     "YCbCr"]
-\   : (cm_i == 8      ) ? ["YUVJ",     "YCbCr"]
+\   : (cm_i == 4      ) ? ["YCbCr",    "YCbCr"]
+\   : (cm_i == 5      ) ? ["YUVr",     "YCbCr"]
+\   : (cm_i == 6      ) ? ["sYUV",     "YCbCr"]
+\   : (cm_i == 7      ) ? ["YUVJ",     "YCbCr"]
 \   : (cm_i == 8      ) ? ["sYCC",     "YCbCr"]
 \   : (cm_i == 9      ) ? ["YCoCg",    "YCbCr"]
 \   : (cm_i == 10     ) ? ["YCoCgR",   "YCbCr"]
@@ -1695,6 +1694,8 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (cm_i == 38     ) ? ["OkLch",    "RGB"  ]
 \   : (cm_i == 39     ) ? ["iCAM",     "RGB"  ]
 \   : (cm_i == 40     ) ? ["XYB",      "YCbCr"]
+\   : (cm_i == 41     ) ? ["YDbDr",    "YCbCr"]
+\   : (cm_i == 42     ) ? ["YUV",      "YCbCr"]
 \   : Assert (false, "color_propGet: Unknown _Model ID.")
 # * YDbDr is for PAL-N and SECAM
 # * xvYCC is defined in IEC61966-2-4
@@ -1823,7 +1824,7 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
     trhbd  = FindStr   (format, "P1")
     format = trhbd>0 ? LeftStr(format,trhbd-1) : str
 
-    format = UCase(format)
+    format = TrimAll(UCase(format))
 
     jab =
 \     FindStr(format,"422"     )>0 ? "422"
@@ -1856,32 +1857,33 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : FindStr(format,"CIELUV"  )>0 ? "444"
 \   : FindStr(format,"HSV"     )>0 ? "444"
 \   : FindStr(format,"ICTCP"   )>0 ? "444"
-\   : FindStr(format,"OKLAB"   )>0 ? "444"
-\   :         isy                  ? "444"
-\   :                "4"+string(a)+string(b)
+\   : FindStr(format,"OKLAB"   )>0 ? "444" : "none"
 
 
-    model  = UCase(ReplaceStr(format, jab, ""))
+    model  = ReplaceStr(format, jab, "")
 
     # Store all opposing models in YUV format, otherwise (correlated) as RGB
     # Input Model, Name Normalizing, Packing format, model ID
     cm =
 \     (FindStr(model, "RGB"    )>0) ? ["RGB",      "RGB", 1]
-\   : (        model=="JPEG"      ) ? ["YCbCr",    "YUV", 5]
-\   : (        model=="JPG"       ) ? ["YCbCr",    "YUV", 5]
-\   : (        model=="YUVJ"      ) ? ["YUVJ",     "YUV", 5]
-\   : (        model=="YCbCr"     ) ? ["YCbCr",    "YUV", 5]
-\   : (        model=="YUV"       ) ? ["YCbCr",    "YUV", 5]
-\   : (FindStr(model, "YV"     )>0) ? ["YCbCr",    "YUV", 5]
-\   : (FindStr(model, "DV"     )>0) ? ["YCbCr",    "YUV", 5]
-\   : (        model=="YCC"       ) ? ["YCbCr",    "YUV", 5]
+\   : (        model=="JPEG"      ) ? ["YCbCr",    "YUV", 4]
+\   : (        model=="JPG"       ) ? ["YCbCr",    "YUV", 4]
+\   : (        model=="YUVJ"      ) ? ["YUVJ",     "YUV", 7]
+\   : (        model=="YCbCr"     ) ? ["YCbCr",    "YUV", 4]
+\   : (        model=="YUV"       ) ? ["YCbCr",    "YUV", 4]
+\   : (FindStr(model, "YV"     )>0) ? ["YCbCr",    "YUV", 4]
+\   : (FindStr(model, "DV"     )>0) ? ["YCbCr",    "YUV", 4]
+\   : (        model=="YCC"       ) ? ["YCbCr",    "YUV", 4]
 \   : (        model=="sYCC"      ) ? ["sYCC",     "YUV", 8]
-\   : (        model=="YPbPr"     ) ? ["YCbCr",    "YUV", 5]
+\   : (        model=="YPbPr"     ) ? ["YCbCr",    "YUV", 4]
+\   : (        model=="DVD"       ) ? ["YCbCr",    "YUV", 4]
+\   : (        model=="NTSC"      ) ? ["YCbCr",    "YUV", 4]
 \   : (        model=="YIQ"       ) ? ["YIQ",      "YUV", 3]
-\   : (        model=="YDbDr"     ) ? ["YDbDr",    "YUV", 4]
-\   : (        model=="YUVr"      ) ? ["YUVr",     "YUV", 6]
-\   : (        model=="sYUV"      ) ? ["sYUV",     "YUV", 7]
-\   : (FindStr(model, "SHARP"  )>0) ? ["sYUV",     "YUV", 7]
+\   : (        model=="CRT"       ) ? ["YIQ",      "YUV", 3]
+\   : (        model=="YDbDr"     ) ? ["YDbDr",    "YUV",41]
+\   : (        model=="YUVr"      ) ? ["YUVr",     "YUV", 5]
+\   : (        model=="sYUV"      ) ? ["sYUV",     "YUV", 6]
+\   : (FindStr(model, "SHARP"  )>0) ? ["sYUV",     "YUV", 6]
 \   : (        model=="YcCbcCr"   ) ? ["YcCbcCrc", "YUV",11]
 \   : (FindStr(model, "YCCBC"  )>0) ? ["YcCbcCrc", "YUV",11]
 \   : (        model=="YCgCo"     ) ? ["YCoCg",    "YUV", 9]
@@ -1890,7 +1892,12 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : (        model=="YCoCgR"    ) ? ["YCoCgR",   "YUV",10]
 \   : (        model=="ICaCb"     ) ? ["ICaCb",    "YUV",19]
 \   : (        model=="ICtCp"     ) ? ["ICtCp",    "YUV",21]
-\   : (        model=="IPT"       ) ? ["ICtCp",    "YUV",21]
+\   : (        model=="IPT"       ) ? ["IPT",      "YUV",17]
+\   : (        model=="IPTJch"    ) ? ["IPTJch",   "YUV",18]
+\   : (        model=="Dolby"     ) ? ["IPTPQc2",  "YUV",22]
+\   : (        model=="Vision"    ) ? ["IPTPQc2",  "YUV",22]
+\   : (        model=="DoVi"      ) ? ["IPTPQc2",  "YUV",22]
+\   : (FindStr(model, "DVP"    )>0) ? ["IPTPQc2",  "YUV",22]
 \   : (        model=="YDzDx"     ) ? ["YDzDx",    "YUV",15]
 \   : (        model=="YCxCz"     ) ? ["YCxCz",    "YUV",16]
 \   : (        model=="xvYCC"     ) ? ["xvYCC",    "YUV",24]
@@ -1907,6 +1914,9 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : (        model=="CIEDuv"    ) ? ["Duv",      "YUV",35]
 \   : (        model=="Duv"       ) ? ["Duv",      "YUV",35]
 \   : (        model=="OSA"       ) ? ["OSA",      "YUV",36]
+\   : (        model=="XYB"       ) ? ["XYB",      "YUV",40]
+\   : (FindStr(model, "PAL"    )>0) ? ["YUV",      "YUV",42]
+\   : (FindStr(model, "625"    )>0) ? ["YUV",      "YUV",42]
 \   : (FindStr(model, "CAM97"  )>0) ? ["CIECAM97s","YUV",32]
 \   : (FindStr(model, "CAM02"  )>0) ? ["CIECAM02", "YUV",33]
 \   : (FindStr(model, "CAM16"  )>0) ? ["CAM16",    "YUV",34]
@@ -1914,10 +1924,33 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : (FindStr(model, "OK"     )>0) ? ["OkLab",    "YUV",37]
 \   : (FindStr(model, "LUV"    )>0) ? ["CIELuv",   "YUV",29]
 \   : (FindStr(model, "LAB"    )>0) ? ["CIELab",   "YUV",27]
-\   : (        jab  =="420"       ) ? ["YCbCr",    "YUV", 5]
-\   : (        jab  =="422"       ) ? ["YCbCr",    "YUV", 5]
-\   : (        format=="444"      ) ? ["YCbCr",    "YUV", 5]
-\   :                           rgb ? ["RGB","RGB",1] : ["YCbCr","YUV",5]
+\   : (FindStr(model, "2000"   )>0) ? ["YUVr",     "YUV", 5]
+\   : (FindStr(model, "GXL"    )>0) ? ["XYB",      "YUV",40]
+\   : (FindStr(model, "-XL"    )>0) ? ["XYB",      "YUV",40]
+\   : (        jab  =="420"       ) ? ["YCbCr",    "YUV", 4]
+\   : (        jab  =="422"       ) ? ["YCbCr",    "YUV", 4]
+\   : (        format=="444"      ) ? ["YCbCr",    "YUV", 4]
+\   :                           rgb ? ["RGB","RGB",1] : ["YCbCr","YUV",4]
+
+    cm0 = cm[0]
+    jab = jab=="none"               ?
+\     (        cm0=="YCbCr"       ) ? "420"
+\   : (        cm0=="YcCbcCrc"    ) ? "420"
+\   : (        cm0=="YUVJ"        ) ? "420"
+\   : (        cm0=="YCoCg"       ) ? "420"
+\   : (        cm0=="YCoCgR"      ) ? "420"
+\   : (        cm0=="sYUV"        ) ? "420"
+\   : (        cm0=="YUVr"        ) ? "444"
+\   : (        cm0=="YDbDr"       ) ? "411"
+\   : (        cm0=="YIQ"         ) ? "411"
+\   : (        cm0=="YUV"         ) ? "411"
+\   : (        cm0=="sYCC"        ) ? "422"
+\   : (        cm0=="ICtCp"       ) ? "420"
+\   : (        cm0=="IPT"         ) ? "420"
+\   : (        cm0=="IPTPQc2"     ) ? "420"
+\   :         isy                   ? "444"
+\   :                "4"+string(a)+string(b) : jab
+
 
     # Color Model based Matrix constants (for frameprops)
     ma =
@@ -1936,7 +1969,7 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
     bdpth = isy ? string(bits) : bits < 32 ? "P" + string(bits) : "PS"
 
     #model, jab, bitdepth string, packing, model ID, matrix ID override, prim ID override
-    [cm[0], jab, bdpth, cm[1], cm[2], ma, pr] }
+    [cm0, jab, bdpth, cm[1], cm[2], ma, pr] }
 
 
 
