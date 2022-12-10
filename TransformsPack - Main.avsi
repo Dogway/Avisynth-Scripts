@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.0         (09-12-2022)   ##
+###   Transforms Pack - Main v1.0         (10-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -507,7 +507,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         D_in   = prp[3]
         OETF   = prp[5]
     LMS        = Default (LMS,            "CAT16"      )
-    CAT        = Default (CAT,             true        )                # Perform CAT (Chromatic Adaptation Transform) or illuminant simulation (full White Point conversion)
+    CAT        = Default (CAT,             true        )                # Perform CAT (Chromatic Adaptation Transform) with true or illuminant compensation (full White Point conversion) with false
     space      = Default (scale_space, OETF=="linear"?"linear":"gamma") # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog -log(x+a)-. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (https://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
     cplace_in  = Default (cplace_in, fc ? "center" : "")                # Assumes default from format
     cplace_out = Default (cplace_out,  cplace_in)                       # Assumes default from format
@@ -678,7 +678,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     function KernStr(string kernel, int nw, int nh, float bc_b, float bc_c, float p, bool pd, bool show, int gpuid) {
 
-    shpath = "C:\Program Files\AviSynth+\plugins64+\Shaders\avslibplacebo\"
+    shpath = "C:\Program Files (x86)\AviSynth+\plugins64+\Shaders\avslibplacebo\"
     ewarad = pd ? int(p)==2 ? 2.2331305943815286 : int(p)==4 ? 4.2410628637960699 : 3.2383154841662362 : 3.2383154841662362
 
     resampler = Format( kernel == "nnedi3" || kernel == "nnedi"                                              ? \
