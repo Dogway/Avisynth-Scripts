@@ -492,8 +492,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     tv_out     = Default (tv_out,  (isRGBo || cs_outF=="sRGB" || cs_out=="jpeg" || cs_out=="jpg") ? false : tv_in )
     kernel     = Default (kernel,   (w>nw||h>nh)?"Didee":"Precise")
     kernel_c   = Default (kernel_c,       kernel)
+    D_out_d    = color_propGet(cs_outFA[4])[3]
     D_in       = Defined(D_in)  ? D_in  =="" ? propIDs[2]  : D_in  : cs_in_d  ? cs_in =="" ? propIDs[2] : cs_in : propIDs[2]
-    D_out      = Defined(D_out) ? D_out =="" ?               D_in : D_out : D_in # By default same as input, change based on space?
+    D_out      = Defined(D_out) ? D_out =="" ? D_in : D_out : D_out_d
         D_inA  = color_Fuzzy_Search (D_in )
         D_outA = color_Fuzzy_Search (D_out)
         D_out  = D_outA[1]
