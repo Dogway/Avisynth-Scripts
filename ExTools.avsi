@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.3   (09-11-2022)                   ##
+###        ExTools v9.4   (12-12-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -165,7 +165,7 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 #    (
 #    clip a,
 #    clip b,
-#    string "metric"="none" ("none"/ "ALL"/ "--"/ "ME"/ "MAE"/ "SMAE"/ "MAD"/ "MAD2"/ "MSE"/ "MSLE"/ "RMSE"/ "CHAR"/ "--"/ "OkMSE"/ "RedMe"/ "CIEDE2000"/ "R2"/ "ZTest"/ "CAMBI"/ "--"/ "PSNR"/ "SSIM"/ "MS_SSIM"/ "BSSIM"/ "GMSD"/ "MDSI"/ "BUTT"),
+#    string "metric"="none" ("none"/ "ALL"/ "--"/ "ME"/ "MAE"/ "SMAE"/ "MAD"/ "MAD2"/ "MSE"/ "MSLE"/ "RMSE"/ "CHAR"/ "--"/ "OkMSE"/ "RedMe"/ "CIEDE2000"/ "R2"/ "ZTest"/ "CAMBI"/ "--"/ "PSNR"/ "SSIM"/ "MS_SSIM"/ "BSSIM"/ "SSIMU"/ "SSIMU2"/ "GMSD"/ "MDSI"/ "BUTT"),
 #    bool "aug"=false,
 #    bool "dif"=false,
 #    int "show"=2 (0 to 3)
@@ -191,6 +191,8 @@ function ex_lutxyza(clip a, clip b, clip c, clip d, string str, string "cstr", i
 # ZTest   - Two Sample Z-Test / Z-Score -Difference of Means of Distributions-
 # SSIM    - Structural SIMilarity
 # MS-SSIM - Structural SIMilarity for Multi-Scale
+# SSIMU   - SSIMULACRA  - Structural SIMilarity Unveiling Local And Compression Related Artifacts
+# SSIMU2  - SSIMULACRA2 - Structural SIMilarity Unveiling Local And Compression Related Artifacts, Version 2 (https://github.com/cloudinary/ssimulacra2)
 # BSSIM   - Structural SIMilarity for Blurred
 # GMSD    - Gradient Magnitude Similarity Deviation
 # BUTT    - Butteraugli psychovisual similarity index for DCT compression. Google's open source image metric tool tuned to high quality content (mainly between -q 90 to 95 in JPEG scale)
@@ -243,14 +245,17 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     # Cost Functions for Similarity Index Metric Distances (Residuals)
     if (mcf != "none") {
 
-        mcf = mcf == "Butteraugli" ? "BUTT" : \
-              mcf == "Charbonnier" ? "CHAR" : \
-              mcf == "stderr"      ? "RMSE" : \
-              mcf == "L1"          ? "MAE"  : \
-              mcf == "L2"          ? "MSE"  : \
-              mcf == "SSR"         ? "MSE"  : \
-              mcf == "RedMean"     ? "rMEA" : \
-              mcf == "OkLab"       ? "OkMSE": UCase(mcf)
+        fc  = FrameCount() < 2
+        mcf = mcf == "Butteraugli" ? "BUTT"   : \
+              mcf == "Charbonnier" ? "CHAR"   : \
+              mcf == "stderr"      ? "RMSE"   : \
+              mcf == "L1"          ? "MAE"    : \
+              mcf == "L2"          ? "MSE"    : \
+              mcf == "SSR"         ? "MSE"    : \
+              mcf == "RedMean"     ? "rMEA"   : \
+              mcf == "SSIMULACRA"  ? "SSIMU"  : \
+              mcf == "SSIMULACRA2" ? "SSIMU2" : \
+              mcf == "OkLab"       ? "OkMSE"  : UCase(mcf)
 
         mcfa  =  mcf == "ALL"
         mPLUG = (mcf == "BSSIM"   || mcf == "GMSD" || mcf == "MDSI" || mcf == "SSIM")
@@ -288,9 +293,10 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                                         vsSSIM(b1, y, show=1, fulls=true) : y
         y    = mcfa || mcf == "BSSIM" ? BSSIM (b1, y, show=1, fulls=true) : y
         y    = mcfa                   ? rgb || isy ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) :      is444(b1) ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) : GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA,chromaresample="spline36") : \
-                       mcf == "GMSD"  ?              GMSD(b1, y, show=1, fulls=true) : mcf == "MDSI" || mcf == "BUTT" || mcf == "rMEA" || mcf == "OkMSE" ? is444(y) ? y.ConvertToPlanarRGB(matrix=matA) :                               y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline36") : y
-        y    = mcfa || mcf == "MDSI"  ? !isy ? MDSI  (b2, y, show=1, fulls=true) : y : y
-        b3   = mcfa || mcf == "BUTT"  ? !isy ? Butteraugli(y, b2)                : y : y  # Very slow filter ~3fps
+                       mcf == "GMSD"  ?              GMSD(b1, y, show=1, fulls=true) : mcf=="SSIMU" || mcf=="SSIMU2" || mcf=="MDSI" || mcf=="BUTT" || mcf=="rMEA" || mcf=="OkMSE" ? is444(y) ? y.ConvertToPlanarRGB(matrix=matA) :      y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline36") : y
+        y    = mcfa || mcf == "MDSI"  ? !isy ? MDSI  (b2, y, show=1, fulls=true)                                 : y : y
+        y    = mcfa || FindStr(UCase(mcf),"SSIMU")>0 ? !isy ? ssimulacra(y, b2, feature=mcfa?2:mcf=="SSIMU"?0:1) : y : y
+        b3   = mcfa || mcf == "BUTT"  ? !isy ? Butteraugli(y, b2)                                                : y : y  # Very slow filter ~3fps
 
         z1   = mcfa || mcf == "ME"  || mcf == "MAE"  || mcf == "SMAE"                  ? ex_lutxy(a1,b1,"x y -"                      ,UV=1,fulls=true) : nop()
         z2   = mcfa || mcf == "MSE" || mcf == "CHAR" || mcf == "RMSE" || mcf == "PSNR" ? ex_lutxy(a1,b1,"x y - dup *"                ,UV=1,fulls=true) : nop()
@@ -302,8 +308,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         z4   = mcfa || mcf == "rMEA"  ? !isy ? Expr(yA[0],yA[1],yA[2],bA[0],bA[1],bA[2],"x a + 0.5 * R@ 0.00390625 * 2 + x a - dup * *   y b - dup * 4 * +   255 R - 0.00390625 * 2 + z c - dup * * + sqrt") : nop() : nop()
 
         # OkLab
-        oky  = mcfa || mcf == "OkMSE" ? !isy ?  y.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() : nop() # Assumes sRGB gamma input
-        okb  = mcfa || mcf == "OkMSE" ? !isy ? b2.moncurve_f(2.40,0.055,false,false,3).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() : nop()
+        oky  = mcfa || mcf == "OkMSE" ? !isy ?  y.CCTF(fc?"sRGB":"1886",true,false,false).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() : nop()
+        okb  = mcfa || mcf == "OkMSE" ? !isy ? b2.CCTF(fc?"sRGB":"1886",true,false,false).RGB_to_Oklab(matrix=matA).ExtractClip() : nop() : nop()
         OkD  = mcfa || mcf == "OkMSE" ? !isy ? Expr(oky[0],oky[1],oky[2],okb[0],okb[1],okb[2],"x a - dup * y b - dup * z c - dup * + + sqrt") : nop() : nop() # RMSE (Euclidean Distance) over OkLab
 
         ScriptClip  (sh>1?last:sh==1?b:a, function [y,a,b,z1,z2,z3,z4,a1,b1,b3,OkD,pd,mcf,mcfa,mPLUG,isy,sh,fs] () {
@@ -337,6 +343,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
             R2   = mcfa || mcf == "R2"    ? AverageLuma(ex_lutxy(a1,b1,Format("{Ava} dup x - swap dup * swap y - swap dup * swap / 1 swap -"),UV=1,fulls=true)) : nop()
             OkMSE= mcfa || mcf == "OkMSE" ?  !isy ? AverageLuma(OkD)                      : nop() : nop()
             BUTT = mcfa || mcf == "BUTT"  ?  !isy ?  propGetFloat(b3,"_FrameButteraugli") : nop() : nop()
+            SSIMU= mcfa || FindStr(UCase(mcf),"SSIMU") >0? !isy ? mcfa ? [propGetFloat(y,"SSIMULACRA"),propGetFloat(y,"SSIMULACRA2")] : propGetFloat(y,mcf=="SSIMU"?"SSIMULACRA":"SSIMULACRA2") : "" : ""
+            SSIMU2= SSIMU
             CAMBI= mcfa || mcf == "CAMBI" ?          propGetFloat(y,"cambi")              : nop()
             MS_SSIM= mcfa||mcf == "MS_SSIM"?         propGetFloat(y,"float_ms_ssim")      : nop()
             CIEDe2000=mcfa||mcf=="CIEDE2000"?!isy ?  propGetFloat(y,"ciede2000")          : nop() : nop()
@@ -371,6 +379,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                 y   = propSet(y,"_PlaneOkMSE",    OkMSE, 0)
                 y   = propSet(y,"_PlaneRedMean",RedMean, 0)
                 y   = propSet(y,"_PlaneR2"  ,       R2 , 0)
+                y   = propSet(y,"_PlaneSSIMU", SSIMU[0], 0)
+                y   = propSet(y,"_PlaneSSIMU2",SSIMU[1], 0)
                 y   = propSet(y,"_PlaneZTest",    ZTest, 0)
                 y   = propSet(y,"_PlaneBUTT",      BUTT, 0)
                 y   = propSet(y,"_PlanePSNR",      PSNR, 0)
@@ -405,6 +415,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                          +"PlaneR2:\n"     \
                          +"PlaneZTest:\n"  \
                          +"PlaneSSIM:\n"   \
+                         +"PlaneSSIMU:\n"  \
+                         +"PlaneSSIMU2:\n" \
                          +"PlaneBSSIM:\n"  \
                          +"PlaneGMSD:\n"   \
                          +"PlaneBUTT:\n"   \
@@ -427,6 +439,8 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                          + String(        propGetFloat(y,"_PlaneR2"   ))  +"   (Coefficient of determination)\n"                   \
                          + String(        propGetFloat(y,"_PlaneZTest"))  +"   (Two Sample Z-Test / Z-Score -Difference of Means of Distributions-)\n"\
                          + String(        propGetFloat(y,"_PlaneSSIM" ))  +"   (Structural SIMilarity)\n"                          \
+                         + String(isy?NaN:propGetFloat(y,"_PlaneSSIMU" )) +       "   (Structural SIMilarity Unveiling Local And Compression Related Artifacts)\n"    \
+                         + String(isy?NaN:propGetFloat(y,"_PlaneSSIMU2"),"%3.5f")+"   (Structural SIMilarity Unveiling Local And Compression Related Artifacts v2)\n" \
                          + String(        propGetFloat(y,"_PlaneBSSIM"))  +"   (Structural SIMilarity for Blurred)\n"              \
                          + String(        propGetFloat(y,"_PlaneGMSD" ))  +"   (Gradient Magnitude Similarity Deviation)\n"        \
                          + String(isy?NaN:propGetFloat(y,"_PlaneBUTT" ))+"   (Butteraugli psychovisual similarity index for DCT compression)\n"\
@@ -7358,10 +7372,11 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     return str }
 
 
-function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits") {
+function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits", string "Jab") {
 
     bi   = BitsPerComponent(a)
     bi   = Default(bits,   bi)
+    isy  = isy(a)
 
     w    = width (a)    wm = width (msk)
     h    = height(a)    hm = height(msk)
@@ -7369,10 +7384,12 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     cp   = propNumElements(a,"_ChromaLocation") > 0 ? \
            propGetInt     (a,"_ChromaLocation") : 0
 
-    i11  = isYV411(a)
-    i20  = is420(a)
-    i22  = is422(a)
-    i44  = is444(a)
+    Jabd = Defined(Jab)
+
+    i11  = Jabd ? Jab=="411" : isYV411(a)
+    i20  = Jabd ? Jab=="420" : is420(a)
+    i22  = Jabd ? Jab=="422" : is422(a)
+    i44  = Jabd ? Jab=="444" : is444(a) || isy
 
     # Default 0.5 because it's always halving (except for 411)
     cpc  = cp == 0 ? [-0.5, 0.0] : \
@@ -7402,7 +7419,7 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     mskC    = luma && UV==3    ? mskC.ConvertBits(bi,fulls=true)                         : \
                                  BlankClip(a,1,w,h,"Y"+string(bi),colors=[clr],channels=0)
 
-    msk     = isy(a) ? mskYr : CombinePlanes(mskYr, mskC, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(a))
+    msk     = CombinePlanes(mskYr, mskC, isy ? mskC : Undefined(), planes=rgb ? "RGB" : "YUV", pixel_type=!isy ? PixelType(a) : "YUV"+(Jabd?Jab:"444")+"P"+(bi==32?"S":string(bi)))
 
     return luma && UV==3 && !(i44 || rgb) ? msk.propSet("_ChromaLocation",cp) : msk }
 
