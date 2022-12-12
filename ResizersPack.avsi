@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 10.3 (06-12-2022)     ##
+###   Resizers Functions Pack 10.4 (12-12-2022)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -87,8 +87,8 @@
 ###
 ###
 ### Benchmark (1080p to 2160p):
-###   100.0% deep_resize()      (22.0fps)
-###    16.8% nnedi3_resize16()  (3.7fps)
+###   100.0% deep_resize()      (12.0fps)
+###    30.8% nnedi3_resize16()  (3.7fps)
 ###
 ### General guidelines:
 ### -Avoid bicubics for highly compressed images as it will amplify DCT blocks
@@ -143,7 +143,7 @@
 ###     deep_resize(1280)
 ###
 ###
-function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", string "sspace", int "deconv", float "sharpness", float "grain", float "th_rat", float "th", float "elast", int "qual", val "gpuid", bool "show") {
+function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", string "sspace", int "deconv", float "sharpness", float "grain", bool "HBD", float "th_rat", float "th", float "elast", int "qual", val "gpuid", bool "show") {
 
     wu  = !Defined(width)
     hu  = !Defined(height)
@@ -201,6 +201,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     qual   = Default(qual,       1)
     ssp    = Default(sspace, Undefined())                                                   # Scale space (won't work for edge="nnedi3"): "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog
     sh     = Default(show,  false)
+    HBD    = Defined(HBD, false)
     ddec   = Defined(deconv)
     dec    = Default(deconv,     0)                                                         # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
     gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
@@ -235,7 +236,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
         # Downscale/upscale with same edge/flat kernel
         krn1=="nnedi3" && krn1c=="nnedi3" ? \
-                nnedi3resize (a, w2,h2,qual=qual,cshift=krn1c,HBD=true,gpuid=egpu) : \
+                nnedi3resize (a, w2,h2,qual=qual,cshift=krn1c,HBD=HBD,gpuid=egpu) : \
                 ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,scale_space=ssp,gpuid=ecgpu)
 
         mul>0 ? LSFplus(preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
@@ -255,8 +256,8 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
            # nnedi3 one dimensional resize case
 
-            edge1   = krn1 == "nnedi3" ?   oned ? nnedi3wrap(an,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift=krn1c,HBD=false,gpuid=egpu) : \
-                                                  nnedi3wrap(an,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift=krn1c,HBD=false,gpuid=egpu) : \
+            edge1   = krn1 == "nnedi3" ?   oned ? nnedi3wrap(an,w!=w2?factor:1,h!=h2?factor:1,nns=nns3,nsize=nsize3,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift=krn1c,HBD=HBD,gpuid=egpu) : \
+                                                  nnedi3wrap(an,factor                       ,nns=nns ,nsize=nsize ,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,cshift=krn1c,HBD=HBD,gpuid=egpu) : \
                                                   ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,scale_space=ssp,gpuid=ecgpu)
 
         if (rat <= rth) {
@@ -461,7 +462,7 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
     krnn    = rfactor ? "ZoptiN" : "Blackman6" # hard coded final resize: 'ZoptiN' for down 'Blackman6' for up
 
     a
-    isy ? mskY_to_YYY(ExtractY(), last, false, false, 0, bi) : last
+    isy ? mskY_to_YYY(last, last, false, false, 128, bi) : last
     ConvertBits(16)
 
     libplacebo_Shader(pt,width()*factor,height()*factor,filter="lanczos",radius=2,device=max(0,gpuid))
@@ -548,7 +549,8 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 
     isHD   = (w > 1099 || h >  599)
     isUHD  = (w > 2599 || h > 1499)
-    tile   = isUHD ? 512 : isHD ? 256 : 128
+    tilew  = isUHD ? w/4 : isHD ? w/2 : Undefined()
+    tileh  = isUHD ? h/3 : isHD ? h/2 : Undefined()
 
     md     = Default(model,      1)                        # model: 0 - for Anime or lineart, 1 - for photos or live action
     tv     = Default(tv_range,  pID[6])
@@ -558,17 +560,17 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     gr     = Default(grain, rw>1.25 && rh>1.25 ? 0.3 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
 
     !isy ? a : ConvertBits(a, 32, fulls=!tv, fulld=true)
-    rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="lanczos3")
+    rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="Precise")
     !isy ? ConvertBits(32, fulls=true, fulld=true) : last
 
     for (i = 1, factor/2, 1) {
-        w2xncnnvk(noise=ns-1, scale=2, tile_w=tile, tile_h=tile, model=md, tta=factor<4, fp32=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2) # 2: CUnet is too slow for video
+        w2xncnnvk(noise=ns-1, scale=2, tile_w=tilew, tile_h=tileh, model=md, tta=factor<4, fp32=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2) # 2: CUnet is too slow for video
         }
 
     isy  ? ExtractR().ConvertBits(bi, dither=1, fulls=true, fulld=!tv) : \
     !rgb ? MatchClip(a,matrix=pri,size=false)                          : last
 
-    so && FC && rw>1.25 && rh>1.25 ? Soothe(a.nnedi3wrap(factor,gpuid=gid),tv_range=tv) : last
+#    so && FC && rw>1.25 && rh>1.25 ? Soothe(a.nnedi3wrap(factor,gpuid=gid),tv_range=tv) : last  # Disabled due to low speed
 
     ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=krnn,gpuid=-1)
 
@@ -1029,12 +1031,12 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
     \  :  Assert(false, "RatioResize: Wrong Ratio mode")
 
 
-    FindStr(kernel, "lanczos")>0 || FindStr(kernel, "blackman")>0 || FindStr(kernel, "sinc")>0                  ? \
-                         Eval(kernel + "Resize(s," + String(op) + ",taps=int(b),src_left=src_l,src_top=src_t)") : \
-    kernel == "deep"   ? Eval(    "deep_resize(s," + String(op) + ")"                                         ) : \
-    kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p,        src_left=src_l,src_top=src_t)") : \
-    kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c,        src_left=src_l,src_top=src_t)") : \
-                         Eval(kernel + "Resize(s," + String(op) + ",            src_left=src_l,src_top=src_t)") }
+    FindStr(kernel,"lanczos")>0 && kernel!="lanczos4" || FindStr(kernel,"blackman")>0 || FindStr(kernel,"sinc")>0 ? \
+                         Eval(kernel + "Resize(s," + String(op) + ",taps=int(b),src_left=src_l,src_top=src_t)")   : \
+    kernel == "deep"   ? Eval(    "deep_resize(s," + String(op) + ")"                                         )   : \
+    kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p,        src_left=src_l,src_top=src_t)")   : \
+    kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c,        src_left=src_l,src_top=src_t)")   : \
+                         Eval(kernel + "Resize(s," + String(op) + ",            src_left=src_l,src_top=src_t)")   }
 
 
 
