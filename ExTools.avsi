@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.4   (12-12-2022)                   ##
+###        ExTools v9.5   (17-12-2022)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -33,7 +33,83 @@
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
-####################################
+###########################################################
+###                                                      ##
+### EXPRESSIONS:                                         ##
+###     ex_lut                                           ##
+###     ex_lutxy                                         ##
+###     ex_lutxyz                                        ##
+###     ex_lutxyza                                       ##
+###     ex_makediff                                      ##
+###     ex_adddiff                                       ##
+###     ex_makeadddiff                                   ##
+###     ex_logic                                         ##
+###     ex_merge                                         ##
+###     ex_clamp                                         ##
+###     ex_binarize                                      ##
+###     ex_athres                                        ##
+###     ex_invert                                        ##
+###     ex_lutspa                                        ##
+###     ex_motion                                        ##
+### BLURS:                                               ##
+###     ex_boxblur                                       ##
+###     ex_blur                                          ##
+###     ex_blur3D                                        ##
+###     ex_bilateral                                     ##
+###     ex_smartblur                                     ##
+###     ex_smooth                                        ##
+###     ex_kawase                                        ##
+###     ex_GaussianBlur                                  ##
+###     ex_LFR                                           ##
+###     ex_MFR                                           ##
+###     ex_FluxSmoothT                                   ##
+###     ex_FluxSmoothST                                  ##
+###     STTWM                                            ##
+###     ex_median                                        ##
+###     ex_repair                                        ##
+### MORPHOLOGICAL:                                       ##
+###     ex_expand                                        ##
+###     ex_inpand                                        ##
+###     ex_deflate                                       ##
+###     ex_inflate                                       ##
+###     ex_hitormiss                                     ##
+###     ex_edge                                          ##
+###     ex_luts                                          ##
+###     ex_shape                                         ##
+### HELPERS:                                             ##
+###     clamp                                            ##
+###     isRunTime                                        ##
+###     DivideStr                                        ##
+###     FindStrInstance                                  ##
+###     pixel_parser                                     ##
+###     ex_UVexpr                                        ##
+###     ex_Yexpr                                         ##
+###     ex_UVf                                           ##
+###     ex_bs                                            ##
+###     ex_dlut                                          ##
+###     mskY_to_YYY                                      ##
+### ARRAY HELPERS:                                       ##
+###     ArrayOp                                          ##
+###     ArrayInv                                         ##
+###     ArrayZip                                         ##
+###     ArraySym                                         ##
+###     ArrayAppend                                      ##
+###     ArrayDelVal                                      ##
+###     ArrayFind                                        ##
+###     ArrayPrint                                       ##
+###     ArrayEval                                        ##
+###     ArrayMedian                                      ##
+###     ArrayIQM                                         ##
+### FUNCTION APPROXIMATIONS:                             ##
+###     atanT                                            ##
+###     atan2T                                           ##
+###     tanhT                                            ##
+###     atanhT                                           ##
+###     expT                                             ##
+###     cosT                                             ##
+###     sinT                                             ##
+###                                                      ##
+###########################################################
 
 
 function ex_lut(clip a, string "str", string "cstr", int "Y", int "UV", string "scale_inputs", bool "clamp_float", bool "fulls") {
@@ -514,10 +590,10 @@ function ex_makeadddiff(clip a, clip b, clip "c", int "Y", int "UV", string "sca
 
 # mt_logic(mode="and") is 6% slower
 #
-# AND  : if both pixels in a pair have the value of 255, you値l get 255 in a result clip, otherwise 0.
-# OR   : if any of pixels in a pair has the value of 255, you値l get 255, otherwise 0.
-# XOR  : if both pixels have the value of 255 or 0, you値l get 0, otherwise (if only one of the pixels is 255) 255.
-# ANDN : you値l get 255 if and only if the first pixel is 255 and the second is 0.
+# AND  : if both pixels in a pair have the value of 255, you'll get 255 in a result clip, otherwise 0.
+# OR   : if any of pixels in a pair has the value of 255, you'l get 255, otherwise 0.
+# XOR  : if both pixels have the value of 255 or 0, you'l get 0, otherwise (if only one of the pixels is 255) 255.
+# ANDN : you'll get 255 if and only if the first pixel is 255 and the second is 0.
 #
 #
 # Function Definition:
@@ -942,10 +1018,10 @@ function ex_lutspa(clip a, string "expr", string "cexpr", string "mode", int "Y"
     bi   = BitsPerComponent(a)
     isc  = Defined(cexpr)
 
-    str  = Default(expr,  "")
-    Lstr = LCase(" "+str)
+    str  = Default( expr,  "")
+    Lstr = LCase(     " "+str)
     cstr = Default(cexpr, str)
-    Lcst = LCase(" "+cstr)
+    Lcst = LCase(    " "+cstr)
     mix  = FindStr(Lstr, " sx") > 0 || FindStr(Lstr, " sy") > 0 || FindStr(Lcst, " sx") > 0 || FindStr(Lcst, " sy") > 0
     md   = Default(mode, mix ? "mix" : "absolute")
     Y    = Default(Y,          3)
@@ -1422,7 +1498,7 @@ function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV") {
     for (i=1, min(z,7), 1) {
         clps = (i==1 ? "last," : clps) + Format("last.selectevery(1,-{i}), last.selectevery(1,{i}),") }
 
-    z  == 0 || md!="weighted" ? last                                                                                                                   : \
+    z  == 0 || md!="weighted" ? last                                                                                                          : \
     isy                       ? Eval("""Expr("""+clps+""" TG,                                 optSingleMode = false                     )""") : \
     UV == 1                   ? Eval("""Expr("""+clps+""" TG, "",                             optSingleMode = false                     )""") : \
                                 Eval("""Expr("""+clps+""" TG, ex_UVexpr(TG, UV, bi, rgb, un), optSingleMode = false, scale_inputs="none")""")
@@ -1644,16 +1720,16 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limi
                           X          x[0,1]  B@ - abs X x[0,-1]  G@ - abs + N@ min
                           X          x[1,1]  C@ - abs X x[-1,-1] F@ - abs + O@ min
                           X          x[-1,0] D@ - abs X x[1,0]   E@ - abs +    min W^
-                          W M == A H + W N == B G + W O == C F + D E + ? ? ? 0.5 *"   : strv
+                          W M == A H + W N == B G + W O == C F + D E + ? ? ? 0.5 *"    : strv
 
-    rv == 0 ?      a                                                                  : \
-    isy     ? Expr(a,    strv                                                       ) : \
-    UV == 1 ? Expr(a,    strv, ""                                                   ) : \
-              Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, un), scale_inputs="none")
-    rd == 0 || md == "SNN" ? last                                                     : \
-    isy     ? Expr(last, strh                                                       ) : \
-    UV == 1 ? Expr(last, strh, ""                                                   ) : \
-              Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, un), scale_inputs="none")
+    rv == 0  ?      a                                                                  : \
+    isy      ? Expr(a,    strv                                                       ) : \
+    UV == 1  ? Expr(a,    strv, ""                                                   ) : \
+               Expr(a,    strv, ex_UVexpr(strv, UV, bi, rgb, un), scale_inputs="none")
+    rd == 0  || md == "SNN" ? last                                                     : \
+    isy      ? Expr(last, strh                                                       ) : \
+    UV == 1  ? Expr(last, strh, ""                                                   ) : \
+               Expr(last, strh, ex_UVexpr(strh, UV, bi, rgb, un), scale_inputs="none")
 
     lm && sh ? ex_luts(last,a,mode="clamp",pixels=ex_shape(min(1,rd),min(1,rv)),UV=uv) : last }
 
@@ -1792,8 +1868,8 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
     au  = smc ? a.ExtractU() : a
     av  = smc ? a.ExtractV() : a
 
-    w2  = smc ? au.Width () : w0
-    h2  = smc ? au.Height() : h0
+    w2  = smc ? au.Width ()  : w0
+    h2  = smc ? au.Height()  : h0
 
 
     if (rad<0.01 && radv<0.01) {
@@ -1829,8 +1905,8 @@ function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool
                    B. GaussResize(w0+p2, h0+p2, p=9)
         Bu = !sm ? Bu.GaussResize(w2+p2, h2+p2, p=9) : nop()
         Bv = !sm ? Bv.GaussResize(w2+p2, h2+p2, p=9) : nop()
-        Bu = !sm ? pad ? Bu.crop (p, p, -p, -p) : Bu   : nop()
-        Bv = !sm ? pad ? Bv.crop (p, p, -p, -p) : Bv   : nop()
+        Bu = !sm ? pad ? Bu.crop (p, p, -p, -p) : Bu : nop()
+        Bv = !sm ? pad ? Bv.crop (p, p, -p, -p) : Bv : nop()
                    pad ?    crop (p, p, -p, -p) : last
 
         Y  == 3 && UV < 3 ? mergeluma(a,last) : \
@@ -1945,7 +2021,7 @@ function ex_MFR (clip c, clip ref, float "lo", float "hi", int "UV") {
   # mpc   =   c.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
   # mpr   = ref.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
 
-    # vsTCanny() shows slight better performance than ex_gaussianblur() when called multiple times (@ mid sigmas only)
+    # vsTCanny() shows slight better performance than ex_gaussianblur() when called multiple times (at mid sigmas only)
     mpc   =   c.vsTCanny(HI, mode=-1, u=UV2, v=UV2)
     mpc2  =   c.vsTCanny(LO, mode=-1, u=UV2, v=UV2)
     mpr   = ref.vsTCanny(HI, mode=-1, u=UV2, v=UV2)
@@ -2254,7 +2330,7 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 # undot2     - Same as undot but clip up to the second closest minimum values. Prune 1x2 pixels       -removegrain(2)-
 # undot3     - Same as undot but clip up to the third  closest minimum values. Prune 3 pixel clusters -removegrain(3)-
 # undot4     - Same as undot but clip up to the fourth closest minimum values. Prune 2x2 pixels       -removegrain(4)- *Same as 'median'
-# undot6     - Median of 2x3 -upper and lower rows- (alike vsDegrainMedian(norows=true). Useful for 'ghosting' like artifacts after deblending field blends. Port from @Colours' source: https://gist.github.com/torchlight/5b5df916c5a7a7b00204
+# undot6     - Median of 2x3 -upper and lower rows- (akin vsDegrainMedian(norows=true). Useful for 'ghosting' like artifacts after deblending field blends. Port from @Colours' source: https://gist.github.com/torchlight/5b5df916c5a7a7b00204
 #*unblob3    - Same as undot3 but over a 5x5   kernel matrix.                                                          *Maybe suited for HD/UHD sources
 #*unblob3D   - Same as undot3 but over a 3x3x3 kernel matrix.                      (Spatio-Temporal, Motion Protected) *Similar output to 'unblob3'
 # median     - True median. Replace with kernel middle value (3x3 kernel)                             -removegrain(4)- *Same as 'undot4'
@@ -2335,7 +2411,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
 
-    mode = Default(mode,     "median")
+    mode = Default(mode,        "median")
     mode = ReplaceStr(UCase(mode)," ","")
     rc   = Default(recursion,      false)                       # Use recursion for temporal modes. Performance penalty for little improvement though
     Y    = Default( Y,          3)
@@ -5695,7 +5771,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 ## undot3    - repair(3)
 ## undot4    - repair(4)
 ## undot4c   - repair(14)
-## edgeSP    - repair(16). Edge sensitive with line pairs. Fair edge repair. (analogue to removegrain(6))
+## edgeSP    - repair(16). Edge sensitive with line pairs. Fair edge repair. (analogous to removegrain(6))
 ## edgeS     - repair(17)
 ## edgeW     - repair(18)
 ## cartoon   - repair(22)
@@ -6099,10 +6175,10 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 ## MORPHOLOGICAL #
 ##################
 ##
-## Opening: To clean small blotches
+## Opening: To clean small blotches in binary images
 ##   ex_inpand(n).ex_expand(n)
 ##
-## Closing: To close gaps
+## Closing: To close gaps in binary images
 ##   ex_expand(n).ex_inpand(n)
 ##
 ## Smooth: Opening & Closing, effectively cleaning binary images
@@ -6122,7 +6198,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 ##   or
 ##   ex_hitormiss(mode="inline")               # binary only
 ##
-## Gradient Magnitude: To reveal the boundary of elements in a binary image
+## Gradient Magnitude: To reveal the boundary/edges of elements
 ##   ex_makediff(ex_expand(n), ex_inpand(n), dif=false)
 ##   or
 ##   ex_edge("min/max")                        # faster
@@ -6146,6 +6222,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 ##                                                             a)
 ##   or
 ##   ex_lutxyz(a, ex_inpand(n).ex_expand(n), ex_expand(n).ex_inpand(n), "x y -  z x -  -  x +") # faster
+##   ex_lutxyz(a, ex_inpand(n).ex_expand(n), ex_expand(n).ex_inpand(n), "x 3 * y z + -")        # prolly faster
 ##
 ## Limiting: ( max(min(a, expand), inpand) )  Limits the source to be within expand+inpand limits. Good for under/overshoots/ringing.
 ##   ex_logic(a,    a.ex_expand(n),"min")
@@ -6167,6 +6244,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 # 'disk'   + radius=2 is like calling mode="square",  then mode="plus" but faster
 # 'disk'   + radius=3 is like calling mode="square",  then mode="plus" twice but faster
 # 'disk'   + radius=3 is like calling mode="square",  then mode="circle" + radius=2 but faster
+#
 function ex_expand(clip a, int "radius", string "mode", int "thres", int "UV") {
 
     rgb  = isRGB(a)
@@ -6304,9 +6382,9 @@ function ex_deflate(clip a, int "radius", int "UV") {
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    rd = Default(radius, 1)
-    UV = Default(UV,    rgb ? 3 : 1)
-    un = Undefined()
+    rd  = Default(radius, 1)
+    UV  = Default(UV,    rgb ? 3 : 1)
+    un  = Undefined()
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -6334,9 +6412,9 @@ function ex_inflate(clip a, int "radius", int "UV") {
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    rd = Default(radius, 1)
-    UV = Default(UV,    rgb ? 3 : 1)
-    un = Undefined()
+    rd  = Default(radius, 1)
+    UV  = Default(UV,    rgb ? 3 : 1)
+    un  = Undefined()
 
     krnlsz = 2 * rd + 1
     krnlrd = krnlsz/2
@@ -6395,10 +6473,10 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    rd = Default(iter,        1)
-    md = Default(mode,   "thin")
-    UV = Default(UV,    rgb ? 3 : 1)
-    un = Undefined()
+    rd  = Default(iter,        1)
+    md  = Default(mode,   "thin")
+    UV  = Default(UV,    rgb ? 3 : 1)
+    un  = Undefined()
 
     Assert(IsVersionOrGreater(3,7,2), "ex_hitormiss: Update AviSynth+ version")
 
@@ -6610,7 +6688,7 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 #
 # 31 modes:
 # tritical  - (2d) Plain and simple orthogonal first order derivative
-# hotdog    - (2d) Plain and simple cross      first order derivative. Very fast yet high quality edge detection. (own derivative)
+#*hotdog    - (2d) Plain and simple cross      first order derivative. Very fast yet high quality edge detection. (own derivative)
 # prewitt   - (4d) Technically, a discrete differentiation operator, an approximation of the gradient magnitude in 45ｺ increments. Optimized with partial derivatives like in all modes.
 # hprewitt  - (2d) Half Prewitt
 # qprewitt  - (2d) Quarter Prewitt. Same as 'hprewitt' but using Euclidean distance output. Very similar to 'prewitt' but much faster
@@ -6835,7 +6913,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 ###   px=ex_shape(3,mode="disk",type="array")
 ###   ex_luts(mode="avg",pixels=px[0], exprf=" X^ "+sel_med(px[1])) -> Trimmed mean with custom kernel shape
 ###
-### For more check Morphological examples above at line: 6085
+### For more check Morphological examples above at line: 6175
 ###
 ### Function Definition:
 ###    (
@@ -6858,12 +6936,12 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
     fs   = propNumElements (a,"_ColorRange")  > 0 ? \
            propGetInt      (a,"_ColorRange") == 0 : rgb
 
-    str  = Default(expr,     " y ")
-    exprf= Default(exprf,     "")
+    str  = Default(expr,       " y ")
+    exprf= Default(exprf,         "")
     px   = Default(pixels,ex_shape())
-    md   = Default(mode,     "avg")
-    md   = ReplaceStr(md, " ",  "")
-    Y    = Default(Y,            3)
+    md   = Default(mode,       "avg")
+    md   = ReplaceStr(md, " ",    "")
+    Y    = Default(Y,              3)
     fs   = Default(fulls,  fs)
     opt  = Default(optSingleMode,false)
     cf   = Default(clamp_float,  false)
@@ -7291,8 +7369,8 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
 
     v   = float(var)*pow(2, obi-ibi)
 
-    fsc = fs && !fd ? -v/257.  : \
-                 fd ?  v/256.  : 0
+    fsc = fs  && !fd ? -v/257.  : \
+                  fd ?  v/256.  : 0
 
     vif = ib32 ? ob8 ? var*255. :     var*( 255*pow(2, obi-8)+(fd ? 255*pow(2, obi-8)/256. : 0) )     : nop()
     vof = ob32 ? ib8 ? var/255. : min(var/( 255*pow(2, ibi-8)+(fs ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
@@ -7525,15 +7603,32 @@ function ArrayAppend( val arr1, val arr2) {
 
 
 # Delete array item by value
-function ArrayDelVal(float_array arr, float val) {
+function ArrayDelVal(val arr, val vl) {
+
+    Assert(isArray(arr), "ArrayDelVal: First argument should be an array")
 
     sz   = ArraySize(arr)-1
     arrn = []
     for (i = 0, sz, 1) {
         arri = arr[i]
-        arrn = arri == val ? arrn : ArrayAdd(arrn,arri)
+        arrn = string(arri)==string(vl) ? arrn : ArrayAdd(arrn,arri)
     }
     return arrn }
+
+
+# Find item in an array. Outputs [bool,index]
+function ArrayFind(val arr, val vl) {
+
+    Assert(isArray(arr), "ArrayFind: First argument should be an array")
+
+    sz   = ArraySize(arr)-1
+    out  = [false,-1]
+    for (i = 0, sz, 1) {
+        if (string(arr[i]) == string(vl)) {
+            out = [true,i]
+            i   = sz
+        } }
+    return out }
 
 
 # Casts a flat array to a string and prints it (for debug purposes)
@@ -7567,7 +7662,10 @@ function ArrayEval (string arr1, bool "brackets", string "separator") {
 
 
 # Calculate the median from an array of values
-function ArrayMedian (float_array arr, int "pos", bool "list") {
+function ArrayMedian (val arr, int "pos", bool "list") {
+
+    isAr = isArray(arr)
+    Assert(isAr ? isFloat(arr[0]) : false, "ArrayMedian: First argument should be an array of numbers")
 
     pos  = Default(pos,     50) # Default 50% for median
     lis  = Default(list, false) # Return the sorted array instead of median
@@ -7601,7 +7699,7 @@ function ArrayMedian (float_array arr, int "pos", bool "list") {
 
 # Return the IQM (Inter Quartile Mean) value from an array of values
 # Useful for moving windows (not as as a global estimator)
-function ArrayIQM(float_array arr) {
+function ArrayIQM(val arr) {
 
     sz   = ArraySize(arr)
     Assert((sz+1)%2==0, "ArrayIQM: Array size should be odd")
