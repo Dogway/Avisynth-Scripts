@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.1       (10-12-2022)   ##
+###   Transforms Pack - Models v1.2       (20-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -423,6 +423,8 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
     bi   = BitsPerComponent(RGB)
     fs   = propNumElements (RGB,"_ColorRange")  > 0 ? \
            propGetInt      (RGB,"_ColorRange") == 0 : true
+    tr   = propNumElements (RGB,"_Transfer")    > 0 ? \
+           propGetInt      (RGB,"_Transfer")   == 8 : false
     lut  = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
     mat  = Default (matrix, "709")
     trc  = Default (EOTFi, "1886")
@@ -430,6 +432,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
     tvi  = Default (tv_in,    !fs)
     tvo  = Default (tv_out, false)
     arc  = Default (Array,    isy)
+    trcl = tr ? "linear" : trc
 
     mat       = color_Fuzzy_Search(mat)
     s_gam     = moncurve_coef(trc)      # some values are getting crushed in the Rec709 transfer
@@ -441,10 +444,10 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
     R   = !isy ? clp[0] :    RGB
     B   = !isy ? clp[2] :      Bx
 
-    clp = !isy ?          CCTF(RGB, trc, true, tvi, false).ExtractClip() : nop()
-    Rln = !isy ? clp[0] : CCTF(RGB, trc, true, tvi, false)
-    Gln = !isy ? clp[1] : CCTF(Gx,  trc, true, tvi, false)
-    Bln = !isy ? clp[2] : CCTF(Bx,  trc, true, tvi, false)
+    clp = !isy ?          CCTF(RGB, trcl, true, tvi, false).ExtractClip() : nop()
+    Rln = !isy ? clp[0] : CCTF(RGB, trcl, true, tvi, false)
+    Gln = !isy ? clp[1] : CCTF(Gx,  trcl, true, tvi, false)
+    Bln = !isy ? clp[2] : CCTF(Bx,  trcl, true, tvi, false)
 
     ca  = 1.0 + s_gam[1]
     cb  = 1.0 / s_gam[0]
@@ -471,6 +474,8 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
     bi   = BitsPerComponent(YUV)
     fs   = propNumElements (YUV,"_ColorRange")  > 0 ? \
            propGetInt      (YUV,"_ColorRange") == 0 : false
+    tr   = propNumElements (YUV,"_Transfer")    > 0 ? \
+           propGetInt      (YUV,"_Transfer")   == 8 : false
     lut  = bi > 12 || isRunTime(YUV,false) ? 0 : 2
     mat  = Default (matrix, "709")
     trc  = Default (EOTFi, "1886")
@@ -479,6 +484,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
     tvi  = Default (tv_in,    !fs)
     tvo  = Default (tv_out, false)
     arc  = Default (Array,    isy)
+    trcl = tr ? "linear" : trc
 
     mat  = color_Fuzzy_Search(mat)
     Y444 = ConvertFormat(YUV,1,1,fmt_out="444",kernel_c=knn,tv_in=tvi,tv_out=tvi)
@@ -501,7 +507,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
     Nb = -2. * (a*(1.0 - pow(coef[0] + coef[1], b)) - 1.0)
     Nr = -2. * (a*(1.0 - pow(coef[1] + coef[2], b)) - 1.0)
 
-    Y  = CCTF(Y,  trc, true, tvi, false)
+    Y  = CCTF(Y,  trcl, true, tvi, false)
 
     Bx = Expr(Cb, Y, ex_dlut(Format("x "+rangeC_PC+" A@ 0 <= A {Nb} * y "+bi32m+" B@ + A {Pb} * B + ? "+bi32p), bi, true), lut=lut)
     Rx = Expr(Cr, Y, ex_dlut(Format("x "+rangeC_PC+" A@ 0 <= A {Nr} * y "+bi32m+" B@ + A {Pr} * B + ? "+bi32p), bi, true), lut=lut)
@@ -1527,7 +1533,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 
 
 
-# RGB to ICtCp. HDR version of YcCbcCrc (aka YCbCr Constant Luminance)
+# RGB linear to ICtCp PQ. HDR version of YcCbcCrc (aka YCbCr Constant Luminance)
 # Used mainly for DV Profile 5 [BL+RPU]
 # Requires 32-bit float
 #
@@ -1542,6 +1548,9 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 #     EOTFi_2084(10000)                     # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi") {
 
+    fs     = propNumElements (rgb,"_ColorRange")  > 0 ? \
+             propGetInt      (rgb,"_ColorRange") == 0 : true
+    bi     = BitsPerComponent(rgb)
     mat    = Default (matrix, "709")
     mat    = color_Fuzzy_Search(mat)
     props  = color_propGet(rgb,mat[4])
@@ -1561,6 +1570,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     XYZ = RGB_to_XYZ(mat,props[3],list=true)
     RtL = MatrixDot(LMX, MatrixTranspose(XYZ)) # RGB to LMS joint matrix
 
+    rgb = rgb.ConvertBits(32,fulls=fs,fulld=true)
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
     LMS_gam = EOTFi_2084(LMS,PL)
@@ -1588,14 +1598,19 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     skin  = MatrixDot(rot, IPT)
     fit   = ArrayOp  (skin, sca, "*")
 
-    MatrixClip(LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true)
+    MatrixClip (LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true)
+    ConvertBits(bi,dither=1,fulls=true,fulld=fs)
+    propSet("_Transfer",           16)
     propSet("_Matrix", DoVi ?  2 : 14)
     propSet("_Model",  DoVi ? 22 : 21) }
 
 
-# ICtCp to RGB
+# ICtCp PQ to RGB linear
 function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi") {
 
+    fs     = propNumElements (ictcp,"_ColorRange")  > 0 ? \
+             propGetInt      (ictcp,"_ColorRange") == 0 : true
+    bi     = BitsPerComponent(ictcp)
     mat    = Default (matrix, "709")
     mat    = color_Fuzzy_Search(mat)
     props  = color_propGet(ictcp,mat[4])
@@ -1616,8 +1631,9 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
              1,  mul*-0.113900, mul* 0.133200, \
              1,  mul* 0.032600, mul*-0.676900]
 
-    LMS  = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
-    LMS_gam = EOTF_2084(LMS,PL)
+    ictcp     = ictcp.ConvertBits(32,fulls=fs,fulld=true)
+    LMS       = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
+    LMS_gam   = EOTF_2084(LMS,PL)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1631,6 +1647,8 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     LtR = MatrixDot(MatrixTranspose(MatrixInvert(LMX)), RGB) # LMS to RGB joint matrix
 
     MatrixClip(LMS_gam, LtR, switch=false)
+    ConvertBits(bi,dither=1,fulls=true,fulld=fs)
+    propSet("_Transfer",   8)
     propSet("_Matrix",     0)
     propSet("_Model",      1) }
 
@@ -1644,16 +1662,16 @@ function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bo
     Assert(!isFloat(illu) && !isFloat(illu), "RGB_to_XYZ: Illuminant only supports string or array type.")
 
     cs    = color_Fuzzy_Search(cspace)
-    list  = Default(list, false)        # Enable to output the Normalized Primary Matrix
+    list  = Default(list, false)     # Enable to output the Normalized Primary Matrix
     LMS   = Default(LMS, "CAT16")
     illu  = Defined(illuminant) ? isIllu ? ArraySize(illu)>2 ? illu : [illu[0],illu[1],1-illu[0]-illu[1]] : illu : color_propGet(rgb,cs[4])[3]
     adpt  = Default(adaptXYZ, true)  # By default adapt Transformation Matrix to defined Illuminant when it differs from Illuminant of the Gamut Primaries
                                      # Only 'false' required for a joint matrix transformations where Illuminants differ (the conversion is then handled by CAT() )
 
     # Properties:
-    # Summing columns yields Reference White in Y=1.0 scale
+    # Summing columns yields XYZ tristimulus values or Reference White in Y=1.0 scale [0.95048, 1, 1.08955]. From where you can extract the white point (ie. x = X/(X+Y+Z)...)
     # Summing column in the middle yields 1.0 (this column represents luminance coefficients)
-    # Rows are proportional to color primaries rows
+    # Summing rows are proportional to summing rows with the color primaries. Extract primaries by pr1 = x[0]/(x[0]+x[1]+x[2]), pr2 = x[1]/(x[0]+x[1]+x[2]), etc
     #
     # matrix = cspace == "sRGB" || cspace == "709" ?  \
     #              [ 0.4123218, 0.2126034, 0.0193276, \
@@ -1677,9 +1695,7 @@ function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bo
     RW = wp1[2]!=wp2[2] && adpt ? ArrayOp(wp1, wp1[1], "/") : \
                                   ArrayOp(wp2, wp2[1], "/")
 
-    iP = MatrixInvert(prims)
-
-    T  = MatrixDot(RW,MatrixTranspose(iP))
+    T  = MatrixDot(RW,MatrixTranspose(MatrixInvert(prims)))
     M  = MatrixDot(Broadcast(T),prims)
 
     # Chromaticity Adapted Transform matrix
@@ -1920,14 +1936,14 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 
 # Linear CAT (Chromatic Adaptation Transform):
 # Adapts colors (HUEs) to match those viewed under a different target illuminant.
-# To also match white point (aka White Balance or "Simulation") set adaptXYZ=false.
+# To also match white point (aka White Balance or "Simulation") set mode="Simulation".
 #
 # Transformation Method:
 #   Strong von Kries (von Kries-Ives) (used in ICC)
 #   Weak   von Kries (default in CAT() )
 #
 # 'source' and/or 'target' can be Primaries (Color Space ie. "sRGB"), Standard Illuminant (ie: "D65") or a white point tuplet [x,y]
-function CAT (clip c, val "source", val "target", string "LMS", bool "adaptXYZ", bool "tv_range", bool "list") {
+function CAT (clip c, val "source", val "target", string "LMS", string "mode", bool "tv_range", bool "list") {
 
     rgb     = IsRGB(c)
     propIDs = color_propGet(c)
@@ -1937,7 +1953,7 @@ function CAT (clip c, val "source", val "target", string "LMS", bool "adaptXYZ",
     LMS   = Default (LMS,         "CAT16")
     tv    = Default (tv_range, propIDs[6])
     list  = Default (list,          false)
-    adpt  = Default (adaptXYZ,       true)
+    md    = Default (mode,          "CAT") # 'CAT', 'Simulation' or 'Compensation'
 
     Assert(!isFloat(src)&&!isFloat(src), "CAT: Only string or array type supported")
 
@@ -1977,20 +1993,21 @@ function CAT (clip c, val "source", val "target", string "LMS", bool "adaptXYZ",
         RGBpln = rgb ? IsPlanar() : false
 
         rgb ? RGBpln ? last : ConvertToPlanarRGB() : \
-        YUV_to_RGB(c, s_pri, tv_in=tv, tv_out=false, kernel="lanczos3")
+        YUV_to_RGB(c, s_pri, tv_in=tv, tv_out=false, kernel="lanczos", b=3)
 
         CCTF(s_gam, true, false, false)
 
         mata = RGB_to_XYZ (s_pri, src[1], LMS=LMS, list=true, adaptXYZ=false)
         matb = XYZ_to_RGB (s_pri, tgt[1], LMS=LMS, list=true, adaptXYZ=false)
-        scl  = src[1]!=tgt[1] && adpt ? MatrixDot(mata, MatrixTranspose(CAM)) : mata
+        scl  = src[1]!=tgt[1] && md=="CAT" ? MatrixDot(mata, MatrixTranspose(CAM)) : mata
         MatrixClip(MatrixDot(scl, matb))
 
         CCTF(s_gam, false, false, false)
 
         rgb ? RGBpln ? last : MatchClip(c) : \
-        RGB_to_YUV( s_pri, tv_in=false, tv_out=tv, kernel="lanczos3", pixel_type=PixelType(c))
-        propCopy(c,true,props="_ChromaLocation")
+        RGB_to_YUV( s_pri, tv_in=false, tv_out=tv, kernel="lanczos", b=3, pixel_type=PixelType(c))
+
+                           propCopy(c,true,props="_ChromaLocation")
         isString(target) ? propSet("_Illuminant", color_Fuzzy_Search(target)[5]) : last
         same ? c : last
 
@@ -2187,8 +2204,9 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
         }
     }
 
-
+# Add Spectral Luminous Efficiency functions (Photopic, Mesopic and Scotopic)
 # WIP
+# Calculate the Chromaticity Coordinates for the given temperature and Color Matching Function
 function Chromaticity_xy(clip a, int "Temp", string "CMF") {
 
     T   = Default(temp, 6504)
@@ -2222,8 +2240,8 @@ function Chromaticity_xy(clip a, int "Temp", string "CMF") {
 
 # CIE Standard Illuminant D Series SPD (Spectral Power Distribution) dataset
 # https://en.wikipedia.org/wiki/Illuminant_D65#External_links
-# Original precision of 10nm, Sprague interpolated to 5nm and further cubic spline interpolated with spline() (as recommended in "Reevaluation of daylight spectral distributions" 2000)
-# Currently CIE recommends "Sprague (1880)" interpolation (a 5th degree polynomial), in cases where intervals are constant
+# Original precision of 10nm, Sprague interpolated* to 5nm and further cubic spline interpolated with spline() (as recommended in "Reevaluation of daylight spectral distributions" 2000)
+#   *Currently CIE recommends "Sprague (1880)" interpolation (a 5th degree polynomial), in cases where intervals are constant
 function SPD_D(int i) {
 
     S0 = spline(i, 300,0.04, 305,1.38, 310,6.0, 315,16.0, 320,29.6, 325,44.29, 330,55.3, 335,57.84, 340,57.3, 345,59.53, 350,61.8, 355,61.32, 360,61.5, 365,65.56, 370,68.8, 375,66.86, 380,63.4, 385,61.68, 390,65.8, 395,79.72, 400,94.8, 405,102.06, 410,104.8, 415,106.85, 420,105.9, 425,99.99, 430,96.8, 435,103.55, 440,113.9, 445,121.29, 450,125.6, 455,126.72, 460,125.5, 465,123.16, 470,121.3, 475,121.61, 480,121.3, 485,117.46, 490,113.5, 495,112.78, 500,113.1, 505,112.4, 510,110.8, 515,108.22, 520,106.5, 525,107.6, 530,108.8, 535,107.32, 540,105.3, 545,104.85, 550,104.4, 555,102.5, \
@@ -2232,5 +2250,4 @@ function SPD_D(int i) {
                     575,-2.69, 580,-3.5, 585,-3.46, 590,-3.5, 595,-4.52, 600,-5.8, 605,-6.59, 610,-7.2, 615,-7.93, 620,-8.6, 625,-9.03, 630,-9.5, 635,-10.29, 640,-10.9, 645,-10.82, 650,-10.7, 655,-11.14, 660,-12.0, 665,-13.13, 670,-14.0, 675,-14.11, 680,-13.6, 685,-12.63, 690,-12.0, 695,-12.52, 700,-13.3, 705,-13.44, 710,-12.9, 715,-11.62, 720,-10.6, 725,-10.83, 730,-11.6, 735,-12.16, 740,-12.2, 745,-11.49, 750,-10.2, 755,-8.52, 760,-7.8, 765,-9.39, 770,-11.2, 775,-11.09, 780,-10.4, 785,-10.45, 790,-10.6, 795,-10.31, 800,-9.7, 805,-8.84, 810,-8.3, 815,-8.63, 820,-9.3, 825,-9.66, 830,-9.8)
     S2 = spline(i, 300,0.0, 305,1.08, 310,2.0, 315,2.7, 320,4.0, 325,6.45, 330,8.5, 335,8.59, 340,7.8, 345,7.27, 350,6.7, 355,5.81, 360,5.3, 365,5.84, 370,6.1, 375,4.76, 380,3.0, 385,2.03, 390,1.2, 395,-0.12, 400,-1.1, 405,-0.97, 410,-0.5, 415,-0.49, 420,-0.7, 425,-0.86, 430,-1.2, 435,-1.91, 440,-2.6, 445,-2.87, 450,-2.9, 455,-2.88, 460,-2.8, 465,-2.68, 470,-2.6, 475,-2.65, 480,-2.6, 485,-2.23, 490,-1.8, 495,-1.6, 500,-1.5, 505,-1.39, 510,-1.3, 515,-1.25, 520,-1.2, 525,-1.13, 530,-1.0, 535,-0.75, 540,-0.5, 545,-0.38, 550,-0.3, 555,-0.15, \
                    560,0.0, 565,0.12, 570,0.2, 575,0.24, 580,0.5, 585,1.24, 590,2.1, 595,2.71, 600,3.2, 605,3.68, 610,4.1, 615,4.45, 620,4.7, 625,4.81, 630,5.1, 635,5.89, 640,6.7, 645,7.04, 650,7.3, 655,7.88, 660,8.6, 665,9.25, 670,9.8, 675,10.27, 680,10.2, 685,9.15, 690,8.3, 695,8.86, 700,9.6, 705,9.32, 710,8.5, 715,7.59, 720,7.0, 725,7.13, 730,7.6, 735,7.96, 740,8.0, 745,7.53, 750,6.7, 755,5.64, 760,5.2, 765,6.24, 770,7.4, 775,7.28, 780,6.8, 785,6.86, 790,7.0, 795,6.81, 800,6.4, 805,5.85, 810,5.5, 815,5.69, 820,6.1, 825,6.36, 830,6.5)
-
     [S0,S1,S2] }
