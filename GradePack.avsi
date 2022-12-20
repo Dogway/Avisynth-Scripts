@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.0 (09-11-2022)               ##
+###           Grade Pack v8.1 (20-12-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -812,8 +812,8 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 
     rgb ? IsPlanar(c) ? c : ConvertToPlanarRGB(c) : c
 
-    bi < 14 ? ConvertBits(14, fulls=fs)                                : last
-    !rgb    ? ConvertToPlanarRGB(matrix=mat[0])                        : last
+    bi < 14 ? ConvertBits(14, fulls=fs)                                   : last
+    !rgb    ? ConvertToPlanarRGB(matrix=mat[0],chromaresample="spline36") : last
               CCTF(mat[2], true, !rgb ? false : !fs, false)
 
     RGB_to_Oklab(matrix=mat[0], Jch=true, fulls=true)
@@ -895,7 +895,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     V   = ExtractV(c)
     Yf  = ExtractY(c)
     Ys  = is444(c) ? Yf : Yf.BicubicResize(U.width(),U.height(),-0.5,0.25)
-    c4  = is444(c) ?  c : c.ConverttoYUV444(matrix=ID[2],chromaresample="spline16")
+    c4  = is444(c) ?  c : c.ConverttoYUV444(matrix=ID[2],chromaresample="spline36")
     c4U = ExtractU(c4)
     c4V = ExtractV(c4)
     Uc  = YtoUV(U,U,c4U)
@@ -1279,7 +1279,7 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
 
     rgb
     matrix = Color_fuzzy_search(matrix)
-    coeffs = RGB_to_XYZ   (matrix[0], list=true)
+    coeffs = RGB_to_XYZ        (matrix[0], list=true, adaptXYZ=false) # non-conformant illuminants not supported
 
     ConvertToPlanarRGB()
 
@@ -1469,7 +1469,7 @@ function WhitePoint (clip c, float "temperature", string "matrix", string "locus
     rgbp = rgb ? isPlanar(c) : false
     ID   = color_propGet (c)
 
-    temp = Default(temperature, 6504)  # 1900K (sRGB limit) to 25000K. Target temperature in Kelvin units (Default: D65 == nop())
+    temp = Default(temperature, 6504)  # 1900K ('Rec709' limit) to 25000K. Target temperature in Kelvin units (Default: D65 == nop())
     mat  = Default(matrix,   ID[2] )
     loc  = Default(locus, temp<5000?"Planckian":"Daylight")
     ob   = Default(observer,  1931 )   # Standard Observer 1931 or 2 for 2º Standard Observer. 1964 or 10 for 10º Standard Observer
@@ -1481,7 +1481,7 @@ function WhitePoint (clip c, float "temperature", string "matrix", string "locus
     mat  = Color_fuzzy_search(mat)
 
     rgb ? rgbp ? c : ConvertToPlanarRGB(c) : \
-    YUV_to_RGB(c, mat[0], tv_range_in=tv, tv_range_out=false, kernel="Point", cplace="")
+    YUV_to_RGB(c, mat[0], tv_in=tv, tv_out=false, kernel="lanczos", b=3)
 
 
     temp3 = 1000.       /     temp
@@ -1546,24 +1546,42 @@ function WhitePoint (clip c, float "temperature", string "matrix", string "locus
 
     } else {
 
-        LMS      = XYZ_to_LMS("CAT02B",true)
+        LMS      = XYZ_to_LMS("CAT16",true)
 
-        fw1      = MatrixDot([0.950450,1.,1.088917],LMS) # CIE 1931 D65 Daylight Reference White
-        fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy] ,LMS)
+                  # CIE 1931 or 1964 Daylight D65 Daylight Reference White
+        RFW      = ob==1931 || ob==2 ? [0.950457,1.,1.089436] : [0.948112,1.,1.073046]
+        fw1      = MatrixDot(RFW,LMS)
+        fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy], LMS)
         vonKries = Broadcast(ArrayOp(fw2,fw1,"/"), "vonKries")
 
         CAM      = MatrixDot(LMS, MatrixDot(vonKries, MatrixInvert(LMS)))
 
-        CCTF(mat[2], true, false, false)
+        CCTF(mat[2],  true, false, false)
 
-        mata = RGB_to_XYZ (mat[0], list=true)
-        matb = XYZ_to_RGB (mat[0], list=true)
+        mata = RGB_to_XYZ (mat[0], list=true, adaptXYZ=false)
+        matb = XYZ_to_RGB (mat[0], list=true, adaptXYZ=false)
+
         MatrixClip( MatrixDot(MatrixDot(mata, CAM), matb) )
 
         CCTF(mat[2], false, false, false)
 
+
+        2850 <= temp <= 2860 ? propSet("_Illuminant", 13) : \
+        5000 <= temp <= 5005 ? propSet("_Illuminant",  0) : \
+        5450 <= temp <= 5460 ? propSet("_Illuminant",  8) : \
+        5500 <= temp <= 5505 ? propSet("_Illuminant",  1) : \
+        6000 <= temp <= 6005 ? propSet("_Illuminant",  2) : \
+        6300 <= temp <= 6305 ? propSet("_Illuminant",  3) : \
+        6500 <= temp <= 6505 ? propSet("_Illuminant",  4) : \
+        6755 <= temp <= 6760 ? propSet("_Illuminant",  5) : \
+        7500 <= temp <= 7505 ? propSet("_Illuminant",  6) : \
+        5095 <= temp <= 5105 ? propSet("_Illuminant", 15) : \
+        6600 <= temp <= 6610 ? propSet("_Illuminant", 16) : \
+        8940 <= temp <= 8950 ? propSet("_Illuminant",  7) : last
+
         rgb ? rgbp ? last : MatchClip(c) : \
-        RGB_to_YUV( mat[0], tv_range_in=false, tv_range_out=tv, kernel="Point", pixel_type=PixelType(c), cplace="") } }
+        RGB_to_YUV( mat[0], tv_in=false, tv_out=tv, kernel="lanczos", b=3, pixel_type=PixelType(c))
+    } }
 
 
 
