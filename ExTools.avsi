@@ -7698,7 +7698,7 @@ function ArrayMedian (val arr, int "pos", bool "list") {
 
 
 # Return the IQM (Inter Quartile Mean) value from an array of values
-# Useful for moving windows (not as as a global estimator)
+# Useful for moving windows (not as a global estimator)
 function ArrayIQM(val arr) {
 
     sz   = ArraySize(arr)
