@@ -21,6 +21,7 @@
 # v1.80 updated in 2021-12-23 (Dogway) Replace SangNom with SangNom2, and nnedi2 with nnedi3. Some cosmetics and better U/V plane handling
 # v1.81 updated in 2022-03-05 (Dogway) Rebase with latest LSFplus
 # v1.90 updated in 2022-06-24 (Dogway) Saturate default SangNom2 to 128. Update scaling kernels in LSharpAAF()
+# v1.91 updated in 2022-12-20 (Dogway) Remove SantiagMod, now as an indepedent script.
 #
 #
 # Requirements (Plugins):
@@ -45,7 +46,7 @@
 #    UnFilter (for AAA() )
 #
 #
-# All AA Scripts are in this script, so there's no need to download them separately.
+# All AA Scripts are in this script, so there's no need to download them separately (except of Santiag and SantiagMod)
 #
 # This is an Anti-Aliasing Combo with some Extras like FastLineDarkenMOD, Presharpening, Postsharpening and Postsmoothing
 #
@@ -569,46 +570,8 @@ function NediAA(clip c) {
  #          #
  ############
 
-#Antialiasing function by Archimedes,
-function SantiagMod(clip input, int "strh", int "strv", string "type") {
-
-    type = Default(type, "NNEDI3")
-    strh = Default(strh, 1)
-    strv = Default(strv, strh)
-
-    input
-
-    strh > 0 ? SantiagMod_helper(type=type, strength=strh) : nop()
-    TurnLeft()
-    strv > 0 ? SantiagMod_helper(type=type, strength=strv) : nop()
-    TurnRight() }
-
-function SantiagMod_helper(clip input, string "type", int "strength") {
-
-    input
-    w = width()
-    h = height()
-
-    if (type == "EEDI3") {
-      EEDI3(dh=True, field=0)
-      for (i = 2, strength) {
-        EEDI3(dh=False, field=(i + 1) % 2)
-      }
-    }
-    else if (type == "NNEDI2") {
-      NNEDI2(dh=True, field=0)
-      for (i = 2, strength) {
-        NNEDI2(dh=False, field=(i + 1) % 2)
-      }
-    }
-    else {
-      NNEDI3(dh=True, field=0,qual=2)
-      for (i = 2, strength) {
-        NNEDI3(qual=2,dh=False, field=(i + 1) % 2)
-      }
-    }
-
-  Spline36Resize(w, h, 0, 0.5, w, h * 2) }
+# Archimedes mod of cretindesalpes' Santiag.
+# Download from: https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/SantiagMod.avsi
 
 
  ##########
