@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.1    (10-12-2022)   ##
+###   Transforms Pack - Transfers v1.2    (20-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -133,12 +133,11 @@ function CCTF (clip c, string "transfer", bool "fw", bool "tv_in", bool "tv_out"
 \  : (trans == "HLG"        ) ? fw ? EOTF_HLG   (tv_in=tv_in,tv_out=tv_out)  :  EOTFi_HLG   (tv_in=tv_in,tv_out=tv_out)
 \  : (trans == "ACESCCt"    ) ? fw ? ACEScct_f  (tv_in,tv_out,3)             :  ACEScct_r   (tv_in,tv_out,3)
 \  :                            fw ? moncurve_f(s_gam[0],s_gam[1],tv_in,tv_out,3) : \
-                                     moncurve_r(s_gam[0],s_gam[1],tv_in,tv_out,3)
+                                     moncurve_r(s_gam[0],s_gam[1],tv_in,tv_out,3).propSet("_Transfer",TRC[6])
 #\ : (trans == "xvYCC"      ) ? fw ? EOTF_xvYCC  (tv_in=tv_in,tv_out=tv_out) :  EOTFi_xvYCC  (tv_in=tv_in,tv_out=tv_out)
 #\ : (trans == "PhotoCD"    ) ? fw ? EOTF_PhotoCD(tv_in=tv_in,tv_out=tv_out) :  EOTFi_PhotoCD(tv_in=tv_in,tv_out=tv_out)
 
-    trans != "linear" ? propSet("_Transfer",   fw ? 8 : TRC[6] ) : last
-                        propSet("_ColorRange", tv_out ? 1 : 0  )
+    propSet("_ColorRange", tv_out ? 1 : 0  )
 
     if (sh) {
         BitsPerComponent(c) > 8 ? ConvertBits(8,dither=1,fulls=!tv_out) : last
@@ -191,6 +190,7 @@ function moncurve_f (clip c, float "gamma", float "alpha", bool "tv_range_in", b
     isy          ? Expr(str                       , lut=lut) : \
     UV == 1      ? Expr(str, ""                   , lut=lut) : \
                    Expr(str, cstr, scale_inputs=si, lut=lut)
+                                  propSet("_Transfer",           8 )
     gamma >  1.0 ? tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0) : last : last }
 
 
@@ -262,6 +262,7 @@ function ACEScct_f (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     isy     ?      Expr(str                       , lut=lut) : \
     UV == 1 ?      Expr(str, ""                   , lut=lut) : \
                    Expr(str, cstr, scale_inputs=si, lut=lut)
+                   propSet("_Transfer",           8 )
     tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0)        : last }
 
 
@@ -296,6 +297,7 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
     isy     ?      Expr(str                       , lut=lut) : \
     UV == 1 ?      Expr(str, ""                   , lut=lut) : \
                    Expr(str, cstr, scale_inputs=si, lut=lut)
+                   propSet("_Transfer",          21 )
     tv_in!=tv_out? propSet("_ColorRange", tv_out?1:0)        : last }
 
 
@@ -338,6 +340,7 @@ function EOTF_1886a (clip c, float "BlackLevel", bool "tv_in", bool "tv_out") {
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
     ex_lut(Format(""+rangePC+" 0 max dup {Vc} >= swap {Lb} + XP@ {a1} ^ {k} * XP {a2} ^ {sl} * ? "+rangeTV+""),cstr)
+                    propSet("_Transfer",           8 )
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -366,6 +369,7 @@ function EOTFi_1886a (clip c, float "BlackLevel", bool "tv_in", bool "tv_out") {
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
     ex_lut(Format(""+rangePC+" 0 max X@ dup {beta} >= swap {k} * {a1i} ^ {Lb} - X {sl} * {a2i} ^ {Lb} - ? 0 max "+rangeTV+""),cstr)
+                    propSet("_Transfer",            0)
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -389,6 +393,7 @@ function EOTF_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_in", bo
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
     ex_lut(Format(""+rangePC+" X@ 0.03125 < X 0.0622829 * X {gm} ^ 0.996527 * ? {bl} + "+rangeTV+""),cstr)
+                    propSet("_Transfer",           8 )
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -409,6 +414,7 @@ function EOTFi_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_in", b
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
     ex_lut(Format(""+rangePC+" X@ 0.03125 < X {bl} - 0 max {gm} ^ X2@ X2 0.996527 * ? {bl} + "+rangeTV+""),cstr)
+                    propSet("_Transfer",          22 )
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -430,6 +436,7 @@ function EOTF_Chrome (clip c, bool "tv_in", bool "tv_out") {
 
     ex_lut(Format(""+rangePC+" X@ 0.08458 < 0 X 0.24126 < X 1.84    ^ 0.519421 * X 0.0652292 * -
                                                           X 3.18399 ^ 11482.5  * X 3.18408 ^ 11481.5 * - 0.00454195 - ? ? "+rangeTV+""),cstr)
+                    propSet("_Transfer",           8 )
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -448,6 +455,7 @@ function EOTFi_Chrome (clip c, bool "tv_in", bool "tv_out") {
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
     ex_lut(Format(""+rangePC+" 0 max X@ 0.32413793 ^ 0.808642 * X 0.19582 * + 0.00349985 - "+rangeTV+""),cstr)
+                    propSet("_Transfer",           24)
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -479,6 +487,7 @@ function EOTF_2084 (clip c, int "MasterLevel", bool "tv_in", bool "tv_out") {
     str     = Format(""+rangePC+" 1 {M1} / ^ A@ {C1} - 0 max   {C2} {C3} A * - /    1 {N1} / ^ {PL} * "+rangeTV+"")
 
     Expr(ex_dlut(str, bi, !tv_in), format=isy() ? "Y32" : "RGBPS")
+                    propSet("_Transfer",           8 )
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -508,6 +517,7 @@ function EOTFi_2084 (clip c, int "MasterLevel", bool "tv_in", bool "tv_out") {
     rangeTV = tv_out ? "ymax ymin - * ymin +"   : ""
 
     ex_lut(Format(""+rangePC+" {PL} * {N1} ^ X@ {C2} * {C1} + X {C3} * 1 + / {M1} ^ "+rangeTV+""))
+                    propSet("_Transfer",           16)
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -851,7 +861,7 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
     }
 
     EOTF!="linear" ? CCTF(EOTF, false, false, tv_out)     : \
-    tv_in!=tv_out  ? propSet("_ColorRange",   tv_out?1:0) : last
+    tv_in!=tv_out  ? EOTF=="linear" && tv_out ? SMPTE_legal(true) : propSet("_ColorRange", tv_out?1:0) : last
 
     if (sh) {
         w   = c.width()
