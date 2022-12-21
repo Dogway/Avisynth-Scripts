@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.2       (20-12-2022)   ##
+###   Transforms Pack - Models v1.2       (21-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1716,6 +1716,7 @@ function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bo
 function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bool "list", bool "adaptXYZ") {
 
     illu  = illuminant
+    list  = Default(list, false)     # Enable to output the Normalized Primary Matrix
     Assert(!isFloat(illu) && !isFloat(illu), "XYZ_to_RGB: Illuminant only supports string or array type.")
 
     M = MatrixInvert(RGB_to_XYZ(xyz, cspace, illu, LMS, true, adaptXYZ))
@@ -1997,9 +1998,9 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
 
         CCTF(s_gam, true, false, false)
 
-        mata = RGB_to_XYZ (s_pri, src[1], LMS=LMS, list=true, adaptXYZ=false)
-        matb = XYZ_to_RGB (s_pri, tgt[1], LMS=LMS, list=true, adaptXYZ=false)
-        scl  = src[1]!=tgt[1] && md=="CAT" ? MatrixDot(mata, MatrixTranspose(CAM)) : mata
+        mata = RGB_to_XYZ (s_pri, md=="Simulation" ? tgt[1] : src[1], LMS=LMS, list=true, adaptXYZ=md!="CAT")
+        matb = XYZ_to_RGB (s_pri, md=="Simulation" ? src[1] : tgt[1], LMS=LMS, list=true, adaptXYZ=md!="CAT")
+        scl  = src[1]!=tgt[1]  && md=="CAT"        ? MatrixDot(mata, MatrixTranspose(CAM)) : mata
         MatrixClip(MatrixDot(scl, matb))
 
         CCTF(s_gam, false, false, false)
