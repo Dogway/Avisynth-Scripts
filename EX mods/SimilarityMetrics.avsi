@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.5  (27-08-2022)                     ###
+###        Similarity Metrics Pack v3.6  (21-12-2022)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -229,8 +229,8 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
     down1 = down1.ConvertBits(bi, fulls=!downscl ? fs : true, fulld=true).ExtractClip()
     down2 = down2.ConvertBits(bi, fulls=!downscl ? fs : true, fulld=true).ExtractClip()
 
-    l1    = isUHD ? DotClipA(down1,[0.262376,0.678449,0.059176]) : isHD ? DotClipA(down1,[0.212605,0.715165,0.072230]) : DotClipA(down1,[0.298912,0.586603,0.114485])  # Correct coefs for Luma (/wiki/Luma_(video)#Use_of_relative_luminance), but consider converting properly in linear light with greyscale_rgb()
-    l2    = isUHD ? DotClipA(down2,[0.262376,0.678449,0.059176]) : isHD ? DotClipA(down2,[0.212605,0.715165,0.072230]) : DotClipA(down2,[0.298912,0.586603,0.114485])  # Correct coefs for Luma (/wiki/Luma_(video)#Use_of_relative_luminance), but consider converting properly in linear light with greyscale_rgb()
+    l1    = isUHD ? DotClipA(down1,[0.262372,0.678464,0.059164]) : isHD ? DotClipA(down1,[0.212600,0.715179,0.072221]) : DotClipA(down1,[0.298912,0.586603,0.114485])  # Correct coefs for Luma (/wiki/Luma_(video)#Use_of_relative_luminance), but consider converting properly in linear light with greyscale_rgb()
+    l2    = isUHD ? DotClipA(down2,[0.262372,0.678464,0.059164]) : isHD ? DotClipA(down2,[0.212600,0.715179,0.072221]) : DotClipA(down2,[0.298912,0.586603,0.114485])  # Correct coefs for Luma (/wiki/Luma_(video)#Use_of_relative_luminance), but consider converting properly in linear light with greyscale_rgb()
     l1l2  = Merge(l1, l2)
 
     # HVS (Human Visual System) based Gradient Similarity (GS)
@@ -511,7 +511,7 @@ function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", boo
     mn = ex_luts(clp, mode="min", pixels=px)
     av = ex_luts(clp, mode="avg", pixels=px)
 
-    var = ex_lutxyz(av,mn,mx,(ep ? "y sqrt x sqrt X@ - dup * z sqrt X" : "y x - dup * z x") +  " - dup * + 0.5 *")
+    var = ex_lutxyz(av,mn,mx,(ep ? "y sqrt x sqrt X@ - dup * z sqrt X" : "y x - dup * z x") +  " - dup * + 0.5 *").ex_deflate()
 
     ScriptClip(show == 1 ? a : var, function [var] () {
         propSet(last,"_PlaneSharpness", AverageLuma(var), 0) } )
