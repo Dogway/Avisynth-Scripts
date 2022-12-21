@@ -201,7 +201,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     qual   = Default(qual,       1)
     ssp    = Default(sspace, Undefined())                                                   # Scale space (won't work for edge="nnedi3"): "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog
     sh     = Default(show,  false)
-    HBD    = Defined(HBD, false)
+    HBD    = Default(HBD,   false)
     ddec   = Defined(deconv)
     dec    = Default(deconv,     0)                                                         # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
     gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
