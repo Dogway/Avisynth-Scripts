@@ -140,12 +140,11 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     std = (all || FindSTr(md, "stderr") > 0) && wr==""  # stderr are not written to log
     sr  = sr && !rn
 
-          ver = VersionString()
-          Assert(Eval(MidStr(ver,FindStr(ver,"(r")+2,4))>=Eval("3667"),"SceneStats: Update AviSynth+ version")
-    !rn ? Assert(sr,                                                   "SceneStats: '_SceneRange' frameprops required when 'Range' mode is not enabled") : nop()
-          Assert(!rgb,                                                 "SceneStats: Only YUV formats supported")
-          Assert(dFactor >= 1.0,                                       "SceneStats: dFactor should be 1.0 or above")
-          Assert(Mindif  >= 0.0,                                       "SceneStats: MinDif should be 0.0 or above")
+          Assert(IsVersionOrGreater(3,7,3), "SceneStats: Update AviSynth+ version")
+    !rn ? Assert(sr,                        "SceneStats: '_SceneRange' frameprops required when 'Range' mode is not enabled") : nop()
+          Assert(!rgb,                      "SceneStats: Only YUV formats supported")
+          Assert(dFactor >= 1.0,            "SceneStats: dFactor should be 1.0 or above")
+          Assert(Mindif  >= 0.0,            "SceneStats: MinDif should be 0.0 or above")
 
     dClip = Defined(dClip) ? dClip : a
     uClip =  UV ? dClip.ExtractU().ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : nop()
@@ -322,9 +321,9 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 
         } else {
 
-            srn = propGetAsArray("_SceneRange")
-            SS  = srn[0]
-            of  = SS-n
+             srn = propGetAsArray("_SceneRange")
+             SS  = srn[0]
+             of  = SS-n
         }
 
         mo ? propSet("_SceneMotion",  propGetFloat("_SceneMotion", offset=of)) : last
