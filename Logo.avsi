@@ -1,7 +1,7 @@
 ###
-### Logo v15.0  (https://forum.doom9.org/showthread.php?t=182881)
+### Logo v16.0  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (30-07-2022) by Dogway
+###  (21-12-2022) by Dogway
 ###
 ### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
 ### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465#post525465)
@@ -22,7 +22,6 @@
 ###   -Add interlaced support
 ###   -Fix Chroma in Blending Modes
 ###   -Fix FadeOut problem when end=Framecount-1
-###   -Use dissolve and masktools2 to avoid using Blackness in FadeX()(?)
 ###   -Wiser trim logic(?)
 ###   -Add a loop option (repeat every n frames)
 ###   -Replace frames with seconds (or add option)
@@ -32,6 +31,9 @@
 ###   -Better matte workaround
 ###
 ### Changelog:
+###
+### 16.0 -Optimize logo padding by turning it in one call
+###      -Remove alpha after extraction to fix error in ex_blend()
 ###
 ### 15.0 -Updating mmod() call and checking for Alpha in RGB
 ###      -Drop MaskTools2 dependency
@@ -166,11 +168,12 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     lw = logo0.Width ()    mw = mat ? lw : nop()
     lh = logo0.Height()    mh = mat ? lh : nop()
 
-    logo0 = logo0.addborders(0,0,w,h).PadResize(w,h,2,"$108080",x+lw/2,y+lh/2).ex_blur(Sblur/par,Sblur,UV=Ch?3:2)
+    logo0 = logo0.PadResize(w,h,2,"$108080",x+(lw-w)/2,y+(lh-h)/2).ex_blur(Sblur/par,Sblur,UV=Ch?3:2)
 
-    msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(mw*2,mh*2).ex_inpand(2,mode="plus").BicubicResize(mw,mh,-0.5,0.25).MatchClip(c)
-    \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).MatchClip(c)
+    msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(mw*2,mh*2).ex_inpand(2,mode="plus").BicubicResize(mw,mh,-0.5,0.25).AssumeFPS(fps)
+    \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).AssumeFPS(fps)
     logo0 = logo0.MatchClip(c).AssumeFPS(fps)
+    logo0 = HasAlpha(logo0) ? logo0.RemoveAlphaPlane() : logo0
 
 
     V = c.trim(start,end)
