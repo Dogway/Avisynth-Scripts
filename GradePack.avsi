@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.1 (20-12-2022)               ##
+###           Grade Pack v8.1 (21-12-2022)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -1447,6 +1447,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ###
 ###
 ### Accurately adjust the color temperature of the image. Assumes input matrix primaries are D65 based.
+### YUV or RGB and HBD recommended.
 ###
 ### Dependencies: > ExTools
 ###                 TransformsPack
@@ -1565,7 +1566,6 @@ function WhitePoint (clip c, float "temperature", string "matrix", string "locus
 
         CCTF(mat[2], false, false, false)
 
-
         2850 <= temp <= 2860 ? propSet("_Illuminant", 13) : \
         5000 <= temp <= 5005 ? propSet("_Illuminant",  0) : \
         5450 <= temp <= 5460 ? propSet("_Illuminant",  8) : \
@@ -1579,8 +1579,8 @@ function WhitePoint (clip c, float "temperature", string "matrix", string "locus
         6600 <= temp <= 6610 ? propSet("_Illuminant", 16) : \
         8940 <= temp <= 8950 ? propSet("_Illuminant",  7) : last
 
-        rgb ? rgbp ? last : MatchClip(c) : \
-        RGB_to_YUV( mat[0], tv_in=false, tv_out=tv, kernel="lanczos", b=3, pixel_type=PixelType(c))
+        rgb ? rgbp ? last : MatchClip(c,internal=true) : \
+        RGB_to_YUV( mat[0], tv_in=false, tv_out=tv, kernel="bicubic", b=-0.5, c=0.25, Jab=PixelType(c))
     } }
 
 
@@ -1615,7 +1615,7 @@ function GradientLinear(clip "a", int "zoom", int "x", int "y", bool "positive",
 
     Da  = Defined (a)
     isy = Da ? isy(a)     : false
-    sm  = Default(smooth,   true)            # Enabled for most filters. Disable is you want to test 'blur' filters.
+    sm  = Default(smooth,   true)            # Enabled for most filters. Disable if you want to test 'blur' filters.
     tv  = Default(tv_range, false)
     global bt = Da ? BitsPerComponent(a) : 0
     global zm = Default(zoom, 2)             # Zoom out factor of the graph
