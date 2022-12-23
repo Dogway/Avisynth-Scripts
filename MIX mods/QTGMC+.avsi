@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.91 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.92 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -25,6 +25,9 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.92p
+# - Typo on neo_fft3d() chroma index
 #
 # v3.91p
 # - Remove 'device_type'
@@ -421,13 +424,13 @@
 #   MaskTools2 (2.2.30  or above)
 #   RgTools    (1.2     or above)
 #   vsTCanny   (1.1.8 for gaussian blur or above)
-#   NNEDI3CL   (1.0.5   or above)
+#   NNEDI3CL   (1.0.6   or above)
 #   SysInfo    (0.1.2.9 or above)
 #   Vinverse   (0.9.4   or above)
 #
 # Core scripts:
-#   ExTools      (9.3   or above)
-#   ResizersPack (10.3  or above) (for nnedi3wrap() )
+#   ExTools      (9.5   or above)
+#   ResizersPack (10.5  or above) (for nnedi3wrap() )
 #   SMDegrain    (3.5.7 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
@@ -919,7 +922,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     dnWindow    = (NoiseProcess == 0)         ? nop() : \
                   (Denoiser == "DFTTest")     ? noiseWindow.DFTTest( Y=true, U=ChromaNoise, V=ChromaNoise, sigma=Sigma*4, tbsize=noiseTD, threads=1, Dither=1 ) : \
                   (Denoiser == "KNLMeansCL")  ? noiseWindow.ex_KNLMeansCL(Chroma=ChromaNoise, a=2, d=NoiseTR, h=Sigma, gpuid=id )                               : \
-                                                noiseWindow.neo_fft3d( sigma=Sigma, bt=noiseTD, mt=bomt, ncpu=min(4,Threads), u=CMmt, v=CMmt)
+                                                noiseWindow.neo_fft3d( sigma=Sigma, bt=noiseTD, mt=bomt, ncpu=min(4,Threads), u=max(2,CMmt), v=max(2,CMmt))
     dnwindow    = (Denoiser == "KNLMeansCL" || Denoiser == "DFTTest") && (NoiseProcess != 0) && yuy2 ? dnWindow.nonyuy2clipout(true) : dnWindow
     dnwindow    = (NoiseProcess != 0) && n16d ? dnwindow.ConvertBits(bi,dither=-1,fulls=!tv) : dnwindow
 
