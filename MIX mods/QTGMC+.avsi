@@ -430,7 +430,7 @@
 #
 # Core scripts:
 #   ExTools      (9.5   or above)
-#   ResizersPack (10.5  or above) (for nnedi3wrap() )
+#   ResizersPack (10.6  or above) (for nnedi3wrap() )
 #   SMDegrain    (3.5.7 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #

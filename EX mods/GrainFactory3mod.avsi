@@ -100,9 +100,9 @@
 ### +----------------+
 ###
 ### -> AddGrainC         [v1.8.4]
-### -> neo_f3kdb         [r8]       (Optional)
-### -> ExTools           [v9.3.0]
-### -> ResizersPack      [v10.1.0]
+### -> neo_f3kdb         [r9]       (Optional)
+### -> ExTools           [v9.5.0]
+### -> ResizersPack      [v10.6.0]
 ###
 
 function GrainFactory3mod(clip clp,
