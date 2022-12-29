@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.2       (21-12-2022)   ##
+###   Transforms Pack - Models v1.3       (29-12-2022)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -179,7 +179,7 @@
 # CIEsLab*     - CIE simple Lab.
 # R-Lab*       - Ruderman Lab space, using log luma and different weights for ab.
 # L-Lab*       -
-# SRLab2*      - A 2009 modification of CIELab in the spirit of RLAB. Uses CIECAM02 chromatic adaptation matrix to fix the blue hue issue.
+# SRLab2*      - A 2009 modification of CIELab by Jan Behrens in the spirit of RLAB. Uses CIECAM02 chromatic adaptation matrix to fix the blue hue issue but keeps CIELab transfer.
 #-CIELuv*      - CIE 1976. Derived from CIE 1964 UVW, a competing perceptually uniform color model of CIELab around the same time the latter appeared. CIELuv uses a Judd-type CAT, while CIELab uses "wrong" von-Kries (XYZ Scaling).
 #   CIELch(uv)*- HCL (polar coordinates or cylindrical) version of CIELuv.
 #   HSLuv*     - A cylindrical HSL type adaptation of CIELuv. It extends CIELuv with a new saturation component that allows you to span all the available chroma as a neat percentage.
@@ -187,8 +187,8 @@
 # Y''U''V''*+  - HDR version of CIELuv by Charles Poynton. Improves on LogLuv by using a PQ transfer which just needs 12-bits.
 # CIEDuDv*+    - or YDuDv. HDR version of CIE Luv. Requires only 8-bit for no visible quantization.
 # CIECAM97s*   -
-#-XYB*         - Uniform (UCS) space used in Guetzli's butteraugli metric and JPEG-XL, with a main goal in compression. Better uniformity than CIE Lab.
-# DIN99o*      -
+#-XYB*         - Uniform (UCS) space used in Guetzli's butteraugli metric and JPEG-XL, with a main goal in compression. Better uniformity than CIE Lab but not as good as IPT.
+# DIN99o*      - Color space based on CIE Lab for which main characteristic is to show comparable accuracy to CIEDE2000 but with a simple Euclidean distance.
 # JzAzBz*+     - A 2017 uniform (UCS) space designed for HDR color. Has J (lightness) and two chromaticities. JzCzhz is the HCL (polar coordinates or cylindrical) version of JzAzBz.
 #-IPT*         - Intensity Protanope Tritanope. A more uniform color space in SDR colors. There's a version called hdrIPT.
 # IgPgTg       - Based on IPT but optimized using gaussian spectra to derive a hue-linear color space.
@@ -199,6 +199,7 @@
 # CIECAM02*    - Improves on CIECAM97s and can be made uniform with CAM02-UCS. CIECAM02Jch is its cylindrical version.
 # OSA*         -
 # CIECAM16*    - Improves on CIECAM02 and can be made uniform with CAM16-UCS, which works "out-of-the-box" for Euclidean distance metrics.
+# CAM20u       - Improvement over CIECAM16 for predicting the color appearance of unrelated colors.
 # ZCAM*+       - A uniform (UCS) space for HDR color.
 #-Oklab*       - A uniform (UCS) space for SDR color. Simple to compute yet powerful. Takes CAM16 lightness and chroma, and IPT for hue. OkLch is the cylindrical form of Oklab.
 # iCAM06       - An image (not only color) appearance metric model to not only compute perceived difference in lightness, hue or chroma, but also contrast, sharpness or graininess. Involves converting to IPT, low-pass filtering in linear space, convert to non-linearity, then to Jch model and QM if necessary for the metrics.
@@ -213,11 +214,11 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
     fs         = propNumElements (yuv,"_ColorRange")  > 0 ? \
                  propGetInt      (yuv,"_ColorRange") == 0 : (matrix=="JPEG" || matrix=="JPG")
 
-    kernel     = Default (kernel, "Bicubic")     # Precise Bicubic. A better alternative although slower is lanczos3
-    tv_in      = Default (tv_in,     !fs)
-    tv_out     = Default (tv_out,  false)
-    cplace     = Default (cplace,     "")
-    recon      = Default (UVrecon, false)
+    kernel     = Default (kernel,"Precise")      # Precise Bicubic. A better alternative although slower is lanczos3
+    tv_in      = Default (tv_in,       !fs)
+    tv_out     = Default (tv_out,    false)
+    cplace     = Default (cplace,       "")
+    recon      = Default (UVrecon,   false)
     b          = Default (b,  0.0)               # Bicubic 'b' coefficient, or 'taps' for sinc kernels
     c          = Default (c, 0.75)               # Precise Bicubic
     p          = Default (p,    9)
@@ -252,7 +253,7 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
     cplaceH = ",src_left="+string(cplace[0])
     cplaceV = ",src_top ="+string(cplace[1])
 
-    resampler = FindStr(kernel, "lanczos")>0 || FindStr(kernel, "blackman")>0 || FindStr(kernel, "sinc")>0                           ? \
+    resampler = FindStr(kernel, "lanczos")>0 && kernel!="lanczos4" || FindStr(kernel, "blackman")>0 || FindStr(kernel, "sinc")>0     ? \
                                      kernel + "Resize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",taps=    int("+bc_b+"))": \
                 kernel == "nnedi3" ?    "nnedi3resize(" + String(w) + "," + String(h)                     + ")"                      : \
                 kernel == "bicubic"?   "BicubicResize(" + String(w) + "," + String(h) + cplaceH + cplaceV +",b="+bc_b+",c="+bc_c+")" : \
@@ -267,13 +268,10 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
 
     if (recon && !p_type4) {
 
-        cores   = SI_PhysicalCores()
-        threads = SI_LogicalCores()
-
         ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
-        Luma    = ref.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2,range=fs?1:2, cshift="spline16resize").ConvertBits(bi,fulls=!tv_in)
-        Uu      = Uor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
-        Vu      = Vor.ConvertBits(8,dither=-1,fulls=!tv_in).nnedi3_rpow2(rfactor=2, nns=1, qual=1, etype=1, nsize=0, threads=cores, prefetch=(threads+cores)/2, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackmanresize", mpeg2=false,range=fs?1:2).ConvertBits(bi,fulls=!tv_in)
+        Luma    = ref.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0)
+        Uu      = Uor.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0, fwidth=w*2, fheight=h*2)
+        Vu      = Vor.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0, fwidth=w*2, fheight=h*2)
         Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
         Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
         U       = ex_LFR(Unew, Uu.BicubicResize(w, h, b=0.0, c=0.5), LFR=w/1.1)
@@ -319,20 +317,20 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
 
 
 # RGB' to YCbCr standalone function (at least 10-bit precision recommended)
-function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", string "pixel_type", string "kernel", float "b", float "c", float "p", string "cplace") {
+function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", string "Jab", string "kernel", float "b", float "c", float "p", string "cplace") {
 
     bi         = BitsPerComponent(rgb)
     fs         = propNumElements (rgb,"_ColorRange")  > 0 ? \
                  propGetInt      (rgb,"_ColorRange") == 0 : true
 
-    matrix     = Default (matrix,     "709")
-    p_type     = Default (pixel_type, "420")     # target YUV pixel_type
-    kernel     = Default (kernel, "Bicubic")
-    tv_in      = Default (tv_in,   !fs)
-    tv_out     = Default (tv_out, true)
-    cplace     = Default (cplace,   "")
+    matrix     = Default (matrix,   "709")
+    p_type     = Default (Jab,      "420")     # target YUV chroma subsampling
+    kernel     = Default (kernel, "Didee")
+    tv_in      = Default (tv_in,      !fs)
+    tv_out     = Default (tv_out,    true)
+    cplace     = Default (cplace,      "")
     b          = Default (b, -0.5)
-    c          = Default (c, 0.25)               # Didée's Bicubic
+    c          = Default (c, 0.25)             # Didée's Bicubic
     p          = Default (p,    9)
 
     Assert(IsVersionOrGreater(3,7,2),   "RGB_to_YUV: Update AviSynth+ version")
@@ -390,33 +388,45 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", str
                         scale_y ==256/219. ? "ymin -" : ""
             rangeC_TV = bi < 32            ? "range_half +" : ""
 
-        Y  = Expr(Rx, Gx, Bx, ex_dlut("x "+string(m0)+" * y "+string(m1)+" * + z "+string(m2)+" * + "+rangeY_TV+"", bi, false), optSingleMode=true)
-        Cb = Expr(Rx, Gx, Bx, ex_dlut("x "+string(m3)+" * y "+string(m4)+" * + z "+string(m5)+" * + "+rangeC_TV+"", bi, false), optSingleMode=true)
-        Cr = Expr(Rx, Gx, Bx, ex_dlut("x "+string(m5)+" * y "+string(m7)+" * + z "+string(m8)+" * + "+rangeC_TV+"", bi, false), optSingleMode=true)
+        Y  = ex_dlut("x "+string(m0)+" * y "+string(m1)+" * + z "+string(m2)+" * + "+rangeY_TV+"", bi, false)
+        Cb = ex_dlut("x "+string(m3)+" * y "+string(m4)+" * + z "+string(m5)+" * + "+rangeC_TV+"", bi, false)
+        Cr = ex_dlut("x "+string(m5)+" * y "+string(m7)+" * + z "+string(m8)+" * + "+rangeC_TV+"", bi, false)
 
     }
 
-    cplaceH = ",src_left="+string(cplace[0])
-    cplaceV = ",src_top ="+string(cplace[1])
+    if (p_type4) {
 
-    # Although not optimal, technically YUV420 accepts odd size chroma planes
-    resampler = FindStr(kernel, "lanczos")>0 || FindStr(kernel, "blackman")>0 || FindStr(kernel, "sinc")>0                           ? \
-                                     kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",taps=    int("+bc_b+"))": \
-                kernel == "nnedi3" ?    "nnedi3resize(" + String(nw) + "," + String(nh)                     + ")"                      : \
-                kernel == "bicubic"?   "BicubicResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",b="+bc_b+",c="+bc_c+")" : \
-                kernel == "gauss"  ?     "GaussResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",p=p)"                   : \
-                                     kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +")"
+        Expr(Rx, Gx, Bx, Y, Cb, Cr, optSingleMode=true, format=bi>16?"YUV444PS":"YUV444P"+string(bi))
 
-    Cb = p_type4 ? Cb : Eval("Cb." + resampler)
-    Cr = p_type4 ? Cr : Eval("Cr." + resampler)
+    } else {
 
-    CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+p_type[1]+p_type[2])
+        Y  = Expr(Rx, Gx, Bx, Y,  optSingleMode=true)
+        Cb = Expr(Rx, Gx, Bx, Cb, optSingleMode=true)
+        Cr = Expr(Rx, Gx, Bx, Cr, optSingleMode=true)
+
+        cplaceH = ",src_left="+string(cplace[0])
+        cplaceV = ",src_top ="+string(cplace[1])
+
+        # Although not optimal, technically YUV420 accepts odd size chroma planes
+        resampler = FindStr(kernel, "lanczos")>0 && kernel!="lanczos4" || FindStr(kernel, "blackman")>0 || FindStr(kernel, "sinc")>0       ? \
+                                         kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",taps=    int("+bc_b+"))": \
+                    kernel == "nnedi3" ?    "nnedi3resize(" + String(nw) + "," + String(nh)                     + ")"                      : \
+                    kernel == "bicubic"?   "BicubicResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",b="+bc_b+",c="+bc_c+")" : \
+                    kernel == "gauss"  ?     "GaussResize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +",p=p)"                   : \
+                                         kernel + "Resize(" + String(nw) + "," + String(nh) + cplaceH + cplaceV +")"
+
+        Cb = p_type4 ? Cb : Eval("Cb." + resampler)
+        Cr = p_type4 ? Cr : Eval("Cr." + resampler)
+
+        CombinePlanes(Y, Cb, Cr, planes="YUV", pixel_type="YUV"+p_type[1]+p_type[2])
+    }
+
     tv_in!=tv_out ? propSet("_ColorRange", tv_out ? 1 : 0) : last
                     propSet("_Matrix", matrix[3])
-                    propSet("_Model",          5) }
+                    propSet("_Model",         5 ) }
 
 
-# RGB' to YcCbcCrc function (for Rec.2020CL)
+# RGB' to YcCbcCrc 444 function (for Rec.2020CL)
 function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", string "EOTFi", float_array "coef", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy  = isy(RGB)
@@ -467,7 +477,7 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
     arc ? [Yc, Cbc, Crc] : CombinePlanes(Yc, Cbc, Crc, planes="YUV") }
 
 
-# WIP. YcCbcCrc to RGB' function (for Rec.2020CL)
+# WIP. YcCbcCrc 444 to RGB' function (for Rec.2020CL)
 function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", string "EOTFi", float_array "coef", string "kernel", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy  = isy(YUV)
@@ -525,8 +535,8 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
 
         CombinePlanes(Rx, Gx, Bx, planes="RGB")
         CCTF(trc, false, false, tvo)
-        propSet("_Matrix",     0)
-        propSet("_Model",      1)      } }
+        propSet("_Matrix",        0)
+        propSet("_Model",         1)          } }
 
 
 
@@ -534,7 +544,7 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
 # These formats are ColorSpace and Chroma Subsampling independent, as well as signal range (full or legal), although specification defines it as full range.
 # Originally called YCoCg, was later renamed and standardized to YCgCo, since the Co channel corresponds better to Cr from YCbCr
 
-# RGB' to YCoCg/YCgCo function
+# RGB' to YCoCg/YCgCo 444 function
 function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(RGB)
@@ -575,14 +585,14 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
               propSet("_Model",      9)      } }
 
 
-# YCoCg to RGB' function
+# YCoCg 444 to RGB' function
 function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(YCC)
     bi  = BitsPerComponent(YCC)
     fs  = propNumElements (YCC,"_ColorRange")  > 0 ? \
           propGetInt      (YCC,"_ColorRange") == 0 : true
-    lut = bi > 12 || isRunTime(YCC,false) ? 0 : 2
+    lut = bi > 12 || isRunTime(YCC,false) ? 0  : 2
     tvi = Default (tv_in,    !fs)
     tvo = Default (tv_out, false)
     arc = Default (Array,    isy)
@@ -616,7 +626,7 @@ function YCoCg_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_ou
               propSet("_Model",      1)      } }
 
 
-# RGB' to YCoCg RCT function
+# RGB' to YCoCg RCT 444 function
 function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(RGB)
@@ -650,7 +660,7 @@ function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out
               propSet("_Model",     10)  } }
 
 
-#  YCoCg RCT to RGB' function
+#  YCoCg RCT 444 to RGB' function
 function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(YCC)
@@ -692,7 +702,7 @@ function YCoCgR_to_RGB (clip YCC, clip "Cg", clip "Co", bool "tv_in", bool "tv_o
               propSet("_Model",      1)      } }
 
 
-# RGB' to YCbCr RCT function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
+# RGB' to YCbCr RCT 444 function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
 function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(RGB)
@@ -733,7 +743,7 @@ function RGB_to_YUVr (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out",
               propSet("_Model",      5)      } }
 
 
-# YCbCr RCT to RGB' function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
+# YCbCr RCT 444 to RGB' function (Reversible Color Transform, from JPEG 2000, similar to YCoCg)
 function YUVr_to_RGB (clip YUV, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out", bool "Array") {
 
     isy = isy(YUV)
@@ -1395,6 +1405,8 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
 
 
 # RGB linear to Oklab -requires D65- (original 'ab' range scaled from -1 +1 to 0 +1)
+# By the spec, OkLab can be gamma encoded with a cube root (ie. OkLab^1/3)
+# OkLab Delta is simply the Euclidean distance.
 function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", bool "Array", bool "fulls") {
 
     isy = isy(RGB)
@@ -1545,7 +1557,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 # Example for IPTPQc2:
 #     YUV444PS IPTPQc2 source
 #     ICtCp_to_RGB("709",10000,DoVi=true)   # Decode to 709
-#     EOTFi_2084(10000)                     # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
+#     EOTFi_PQ(10000)                       # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi") {
 
     fs     = propNumElements (rgb,"_ColorRange")  > 0 ? \
@@ -1573,7 +1585,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     rgb = rgb.ConvertBits(32,fulls=fs,fulld=true)
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
-    LMS_gam = EOTFi_2084(LMS,PL)
+    LMS_gam = EOTFi_PQ(LMS,PL)
 
     # Skin tones alignment
     alpha = 1.134464
@@ -1633,7 +1645,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
 
     ictcp     = ictcp.ConvertBits(32,fulls=fs,fulld=true)
     LMS       = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
-    LMS_gam   = EOTF_2084(LMS,PL)
+    LMS_gam   = EOTF_PQ(LMS,PL)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1674,9 +1686,9 @@ function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bo
     # Summing rows are proportional to summing rows with the color primaries. Extract primaries by pr1 = x[0]/(x[0]+x[1]+x[2]), pr2 = x[1]/(x[0]+x[1]+x[2]), etc
     #
     # matrix = cspace == "sRGB" || cspace == "709" ?  \
-    #              [ 0.4123218, 0.2126034, 0.0193276, \
-    #                0.3575833, 0.7151666, 0.1191944, \
-    #                0.1805749, 0.0722300, 0.9510280] : 0
+    #              [ 0.412313, 0.212599, 0.019327, \
+    #                0.357590, 0.715180, 0.119197, \
+    #                0.180553, 0.072221, 0.950913] : 0
 
     # Checking discrepancies
     p1    =                 color_coef(cs[0])
@@ -1740,9 +1752,9 @@ function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bo
 #    von Kries (Hunt-Pointer-Estevez adjusted for D65)
 #    von Kries (Hunt-Pointer-Estevez D65 modification for IPT model)
 #    CAT97 (Bradford) (Spectral-sharpened)
-#    Fairchild
-#    CAT00
-#    CAT02
+#    Fairchild - by Mark D. Fairchild
+#    CAT00 - by Li Changjun
+#    CAT02 - by Li Changjun
 #    CAT02 Brill 2008
 #    CAT02 CRA
 #    CAT16
@@ -1752,7 +1764,7 @@ function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bo
 #    Cat.9 from Abhijit Sarkar 10º Observer tests
 #    Bianco BS    2010
 #    Bianco BS PC 2010
-#    Sharp
+#    Sharp - by Sabine Susstrunk
 #    Sharp Spherical
 #    Sharp Spherical with HUE uniformity
 #
@@ -2005,8 +2017,8 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
 
         CCTF(s_gam, false, false, false)
 
-        rgb ? RGBpln ? last : MatchClip(c) : \
-        RGB_to_YUV( s_pri, tv_in=false, tv_out=tv, kernel="lanczos", b=3, pixel_type=PixelType(c))
+        rgb ? RGBpln ? last : MatchClip(c,internal=true) : \
+        RGB_to_YUV( s_pri, tv_in=false, tv_out=tv, kernel="bicubic", b=-0.5, c=0.25, Jab=PixelType(c))
 
                            propCopy(c,true,props="_ChromaLocation")
         isString(target) ? propSet("_Illuminant", color_Fuzzy_Search(target)[5]) : last
