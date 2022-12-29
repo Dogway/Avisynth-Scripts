@@ -71,7 +71,7 @@
 #      -BT.2100
 # -HLG - Hybrid Log-Gamma
 #       ARIB STD-B67
-#      -BT.2100 (from BBC/NHK)
+#      -BT.2100
 #  ACESCC
 # -ACESCCt
 #  Arri LogC
@@ -601,7 +601,7 @@ function EOTFi_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
-# WIP: HLG BT.2100 (Reference White at 0.5)
+# WIP: HLG BT.2100 (Reference White at 0.75)
 function EOTF_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
     c
     bi      = BitsPerComponent()
@@ -630,7 +630,7 @@ function EOTF_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
-# WIP: HLG BT.2100 (Reference White at 0.5)
+# WIP: HLG BT.2100 (Reference White at 0.75)
 function EOTFi_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
     c
     bi      = BitsPerComponent()
