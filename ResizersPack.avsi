@@ -615,7 +615,7 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
 
     isy  ? ExtractR().ConvertBits(bi, dither=1, fulls=true, fulld=!tv) : \
     !rgb ? MatchClip (a,matrix=pri,size=false,props=false)             : last
-    fd   ? Interleave(a.propSet("_DurationDen",den*2), SelectOdd())    : last
+    fd   ? Interleave(a.propSet("_DurationDen",num*2), SelectOdd())    : last
 
     propCopy(a,true,props=["_DurationNum","_DurationDen","_PictType"], exclude=true) }
 
