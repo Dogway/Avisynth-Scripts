@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 10.6 (24-12-2022)     ##
+###   Resizers Functions Pack 10.7 (29-12-2022)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -646,12 +646,16 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
     FC      = FrameCount()>1
     bi      = BitsPerComponent()
     fb      = GetParity() ? 2 : 1
-    fb      = propNumElements("_FieldBased")     > 0 ? \
-              propGetInt     ("_FieldBased")         : IsFrameBased() ? 0 : fb
-    fs      = propNumElements("_ColorRange")     > 0 ? \
-              propGetInt     ("_ColorRange")    == 0 : isRGB()
-    cpl     = propNumElements("_ChromaLocation") > 0 ? \
-              propGetInt     ("_ChromaLocation")     : 0
+    fb      = propNumElements(  "_FieldBased")     > 0 ?     \
+              propGetInt     (  "_FieldBased")         : IsFrameBased() ? 0 : fb
+    fs      = propNumElements(  "_ColorRange")     > 0 ?     \
+              propGetInt     (  "_ColorRange")    == 0 : isRGB()
+    cpl     = propNumElements(  "_ChromaLocation") > 0 ?     \
+              propGetInt     (  "_ChromaLocation") : 0
+    a       = propNumElements(a,"_DurationNum")    > 0 ? a : \
+              propSet        (a,"_DurationNum", FrameRateDenominator())
+    a       = propNumElements(a,"_DurationDen")    > 0 ? a : \
+              propSet        (a,"_DurationDen", FrameRateNumerator  ())
     fmt     = isy ? 0 : isYV411() ? 1 : is420()  ? 2 : is422() ? 3  : 4
 
 
@@ -710,7 +714,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
     ep1     = krnn2=="Bicubic" ? coeffs[1] :                                         Undefined()
 
 
-    !HBD ? ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : last
+    !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
 
     if (gpuid<0) {
 
@@ -735,9 +739,10 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
             }
     }
 
-    gpuid<0  ? propCopy(a)                                   : last
-    in       ? propSet("_FieldBased",0).propSet("_Combed",0) : \
-    fld      ? propSet("_FieldBased", fd)                    : last
+    gpuid<0  ? propCopy(a)                                            : last
+    in       ? propSet("_FieldBased",0).propSet("_Combed",0).           \
+               propSet("_DurationDen",propGetInt(a,"_DurationDen")*2) : \
+    fld      ? propSet("_FieldBased", fd)                             : last
     mul>0    ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # For final scaling and/or fix for pixel center shift
@@ -792,12 +797,16 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
     FC      = FrameCount()>1
     bi      = BitsPerComponent()
     fb      = GetParity() ? 2 : 1
-    fb      = propNumElements("_FieldBased")     > 0 ? \
-              propGetInt     ("_FieldBased")         : IsFrameBased() ? 0 : fb
-    fs      = propNumElements("_ColorRange")     > 0 ? \
-              propGetInt     ("_ColorRange")    == 0 : isRGB()
-    cpl     = propNumElements("_ChromaLocation") > 0 ? \
-              propGetInt     ("_ChromaLocation")     : 0
+    fb      = propNumElements(  "_FieldBased")     > 0 ?     \
+              propGetInt     (  "_FieldBased")         : IsFrameBased() ? 0 : fb
+    fs      = propNumElements(  "_ColorRange")     > 0 ?     \
+              propGetInt     (  "_ColorRange")    == 0 : isRGB()
+    cpl     = propNumElements(  "_ChromaLocation") > 0 ?     \
+              propGetInt     (  "_ChromaLocation") : 0
+    a       = propNumElements(a,"_DurationNum")    > 0 ? a : \
+              propSet        (a,"_DurationNum", FrameRateDenominator())
+    a       = propNumElements(a,"_DurationDen")    > 0 ? a : \
+              propSet        (a,"_DurationDen", FrameRateNumerator  ())
     fmt     = isy ? 0 : isYV411() ? 1 : is420()  ? 2 : is422() ? 3  : 4
 
 
@@ -860,7 +869,7 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
     ep1     = krnn2=="Bicubic" ? coeffs[1] :                                         Undefined()
 
 
-    !HBD || gpuid<0 ? ConvertBits(8, dither=-1, fulls=fs, fulld=fs) : last
+    !HBD || gpuid<0 ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
 
     if (gpuid<0) {
 
@@ -888,9 +897,10 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
             }   TurnLeft () }
     }
 
-    gpuid<0  ? propCopy(a)                                   : last
-    in       ? propSet("_FieldBased",0).propSet("_Combed",0) : \
-    fld      ? propSet("_FieldBased", fd)                    : last
+    gpuid<0  ? propCopy(a)                                            : last
+    in       ? propSet("_FieldBased",0).propSet("_Combed",0).           \
+               propSet("_DurationDen",propGetInt(a,"_DurationDen")*2) : \
+    fld      ? propSet("_FieldBased", fd)                             : last
     mul>0    ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # For final scaling and/or fix for pixel center shift
