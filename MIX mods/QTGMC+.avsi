@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.92 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.93 + mod by Dogway 2022, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -25,6 +25,9 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.93p
+# - Fix for missing "_Durationxxx" frameprops
 #
 # v3.92p
 # - Typo on neo_fft3d() chroma index
@@ -430,7 +433,7 @@
 #
 # Core scripts:
 #   ExTools      (9.5   or above)
-#   ResizersPack (10.6  or above) (for nnedi3wrap() )
+#   ResizersPack (10.7  or above) (for nnedi3wrap() )
 #   SMDegrain    (3.5.7 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
@@ -497,7 +500,7 @@
 #     )
 #
 # Preset call:
-# QTGMCp(thSAD1=640, thSAD2=256, Preset="very slow", SourceMatch=0, MatchPreset="very slow", MatchPreset2="very slow", MatchEnhance=0.5, Lossless=0, EZDenoise=0.0, EZKeepGrain=1.0, NoisePreset="Faster", show=false, threads=4)
+# QTGMCp(thSAD1=640, thSAD2=256, Preset="very slow", SourceMatch=0, MatchPreset="very slow", MatchPreset2="very slow", MatchEnhance=0.5, Lossless=0, EZDenoise=0.0, EZKeepGrain=1.0, NoisePreset="Faster", FPSDivisor=1, show=false, threads=4)
 #
 function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
                     int "NNSize", int "NNeurons", int "EdiQual", int "EdiMaxD", string "ChromaEdi", clip "EdiExt", float "Sharpness", \
@@ -520,6 +523,10 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     bi32p   = bi == 32 ? "" : "range_half +"
     fs      = propNumElements(Input, "_ColorRange")  > 0 ? \
               propGetInt     (Input, "_ColorRange") == 0 : rgb
+    input   = propNumElements(Input, "_DurationNum") > 0 ? input : \
+              propSet        (Input, "_DurationNum", FrameRateDenominator(input))
+    input   = propNumElements(Input, "_DurationDen") > 0 ? input : \
+              propSet        (Input, "_DurationDen", FrameRateNumerator(input))
 
     #---------------------------------------
     # Presets
@@ -1489,10 +1496,14 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 #
 function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int "gpuid") {
 
-    fs    = propNumElements(cp, "_ColorRange") > 0 ? \
-            propGetInt     (cp, "_ColorRange")     : 1
-    fb    = propNumElements(cp, "_FieldBased") > 0 ? \
-            propGetInt     (cp, "_FieldBased")     : 0
+    fs    = propNumElements(cp, "_ColorRange")  > 0 ? \
+            propGetInt     (cp, "_ColorRange")      : 1
+    fb    = propNumElements(cp, "_FieldBased")  > 0 ? \
+            propGetInt     (cp, "_FieldBased")      : 0
+    cp    = propNumElements(cp, "_DurationNum") > 0 ? cp : \
+            propSet        (cp, "_DurationNum", FrameRateDenominator(cp))
+    cp    = propNumElements(cp, "_DurationDen") > 0 ? cp : \
+            propSet        (cp, "_DurationDen", FrameRateNumerator  (cp))
     fb    = fb==0 ? GetParity(cp) ? 2 : 1 : fb
 
     w     = cp.Width()
