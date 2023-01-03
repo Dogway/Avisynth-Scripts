@@ -2,10 +2,15 @@
 ###                                                        #
 ###                          2.1   by Dogway  (16-09-2015) #
 ###                      mod 2.533 by A.SONY  (29-11-2020) #
-###                          3.0b3 by Dogway  (20-05-2021) # Updated Stab() and FillBorder()
-### Stabilization Tools Pack 3.1   by Dogway  (17-11-2021) # Cosmetics and update a few functions
+### Stabilization Tools Pack 3.3   by Dogway  (03-01-2023) #
 ###                                                        #
 ###   https://forum.doom9.org/showthread.php?t=182881      #
+###                                                        #
+### Functions:                                             #
+###      FilmGateFix                                       #
+###      FillBorder                                        #
+###      FindBlackBorders                                  #
+###      StabPlus                                          #
 ###                                                        #
 ############################################################
 ###
@@ -13,7 +18,7 @@
 ### Set of tools to work with common stabilization issues, mainly from telecine process.
 ### For aggressive handheld camera shaking I still recommend vdub's Deshaker.
 ###
-### Required: AviSynth+ 3.5+
+### Required: AviSynth+ 3.7.2+
 ###           ExTools
 ###
 ###
@@ -25,15 +30,15 @@
 ### This is aimed at animation, for live footage frame interpolation should be desired.
 ###
 ### Rationale:
-### Film Gate is about non-linear vertical stretching, thus we compare
-### current and next frames in two blocks, a 1/5 block of top and bottom.
-### The difference in both should be very high for film gate artifacts
-### between the 2nd and 3rd frame after a Scene Change (also 1st and 2nd are compared).
-### We mask this through a Scene Detection filter, motion masks, etc.
+###   Film Gate is about non-linear vertical stretching, thus we compare
+###   current and next frames in two blocks, a 1/5 block of top and bottom.
+###   The difference in both should be very high for film gate artifacts
+###   between the 2nd and 3rd frame after a Scene Change (also 1st and 2nd are compared).
+###   We mask this through a Scene Detection filter, motion masks, etc.
 ###
-###  EXPERIMENTAL:
-###  It still grabs too many false-positives, and leaves many positives-positives undone
-###  a better approach would be to automatically bookmark every scene change and manually freezeframe them
+### EXPERIMENTAL:
+###   It still grabs too many false-positives, and leaves many positives-positives undone
+###   a better approach would be to automatically bookmark every scene change and manually freezeframe them
 ###
 ###
 ### Dependencies:
@@ -42,16 +47,16 @@
 ### ------------
 ###
 ###   MVTools       (v2.7.45 or higher)                 (https://avisynth.nl/index.php/MVTools)
-###   MaskTools2    (v2.2.29 or higher)                 (https://avisynth.nl/index.php/MaskTools2)
+###   MaskTools2    (v2.2.30 or higher)                 (https://avisynth.nl/index.php/MaskTools2)
 ###   Average       (v0.95 or higher)                   (https://avisynth.nl/index.php/Average)
-###   GRunT         (v1.0.2 or higher)                  (https://avisynth.nl/index.php/GRunT)
+###   ResizersPack
 ###
 ####################################
 
 function FilmGateFix(clip c,  float "thr", int "window", int "thSCD1", int "thSCD2", bool "debug") {
 
-    thr     = Default(thr,1.2)      # Main tweak setting, use debug and tweak according 2nd frame after Scene Change
-    window  = Default(window,5)     # Enlarges/reduces detection area, "height()/window"
+    thr     = Default(thr,   1.2)   # Main tweak setting, use debug and tweak according 2nd frame after Scene Change
+    window  = Default(window,  5)   # Enlarges/reduces detection area, "height()/window"
     thSCD1  = Default(thSCD1,500)   # Increase to reduce number of scenes detected
     thSCD2  = Default(thSCD2,145)   # Increase to reduce number of scenes detected
     Debug   = Default(Debug,false)  # Check what frames will be fixed and the difference value of frames for tweaking "thr"
@@ -61,7 +66,7 @@ function FilmGateFix(clip c,  float "thr", int "window", int "thSCD1", int "thSC
     w=width()
     h=height()
 
-    # change with StainlessS SceneSC()
+    # Change to SceneStats()
     # Codeblock for Scene Change detection and Motion Mask
     kind   = 0
     gam    = 1.2 # Could probably be exposed
@@ -73,7 +78,7 @@ function FilmGateFix(clip c,  float "thr", int "window", int "thSCD1", int "thSC
     SADfv1 = MMask   (f1v,kind=kind,gamma=gam,thSCD1=thSCD1,thSCD2=thSCD2)
 
     SceneChange = MSCDetection (f1v,thSCD1=thSCD1,thSCD2=thSCD2)
-    mvmask      = Average(SADbv1,1./2,SADfv1,1./2)
+    mvmask      = Merge(SADbv1,SADfv1)
 
 
     # Film Gate happens commonly between 2nd and 3rd frame after SC
@@ -90,32 +95,39 @@ function FilmGateFix(clip c,  float "thr", int "window", int "thSCD1", int "thSC
 
     SC2  = ex_logic(SceneChange,selectevery(SceneChange,1,-1),"max",UV=3)
 
-# Here, if after SC top area changes more than "thr" compared to bottom area
-# then apply one FreezeFrame() for first SC frame, and another FreezeFrame() for the 2nd one,
-# they (1st and 2nd) compute individually. There is a motionmask on top to rule out false positives.
-scriptclip("""(abs(YDifferenceToNext(T)-YDifferenceToNext(B))>"""+string(thr)+""" && abs(YDifferenceToNext(CTB))<"""+
-            \ string(thr2)+""") || (abs(YDifferenceToNext(L)-YDifferenceToNext(R))>"""+string(thr)+
-            \ """ && abs(YDifferenceToNext(CLR))<"""+string(thr2)+""") ?"""+
-            \ """(YplaneMax(SC2)>254?(YDifferenceFromPrevious(SC2)>250?(AverageLuma(mvmask)<"""+string(mvthr)+
-            \ """?(LumaDifference(c,d)<3.7?freezeframe(current_frame,current_frame,current_frame+2):(YDifferenceToNext()<8.0?freezeframe(current_frame,current_frame,current_frame+1):c)):c):"""+
-            \ """(AverageLuma(mvmask)<"""+string(mvthr)+"""?freezeframe(current_frame,current_frame,current_frame+1):c)):c):c""",
-            \ args="T,B,L,R,c,SC2,CTB,CLR,mvmask,d=Trim(2,0)")
+    d = Trim(2,0)
 
-# Debug block
-debug ? +\
-eval("""stackhorizontal(scriptclip("Subtitle(c,"+Chr(34)+" Top & Bottom:"+Chr(34)+"+String(YDifferenceToNext(T)-YDifferenceToNext(B))+
-       \ "+Chr(34)+"\n Left & Right:  "+Chr(34)+"+String(YDifferenceToNext(L)-YDifferenceToNext(R))+
-       \ "+Chr(34)+"\n Center Horiz:  "+Chr(34)+"+String(YDifferenceToNext(CTB))+
-       \ "+Chr(34)+"\n Center Vert:    "+Chr(34)+"+String(YDifferenceToNext(CLR))+
-       \ "+Chr(34)+"\n AvgLuma:    "+Chr(34)+"+String(LumaDifference(c,d)),
-       \ align=7,size=30,lsp=10)",args="T,B,L,R,c,CTB,CLR,d=Trim(2,0)"),
-       \ scriptclip("AverageLuma(mvmask)<"""+string(mvthr)+"""?((abs(YDifferenceToNext(T)-YDifferenceToNext(B))>"+string(thr)+
-           \ " && abs(YDifferenceToNext(CTB))<"+string(thr2)+") || (abs(YDifferenceToNext(L)-YDifferenceToNext(R))>"+
-           \ string(thr)+" && abs(YDifferenceToNext(CLR))<"+string(thr2)+") ? "+
-           \ "(YplaneMax(SC2)>254?(LumaDifference(c,d)<3.7?mt_lut(c,"+Chr(34)+"255"+Chr(34)+",U=128,V=128):(YDifferenceToNext()<8.0?mt_lut(c,"+Chr(34)+"255"+Chr(34)+",U=128,V=128):mt_lut(c,"+Chr(34)+"0"+Chr(34)+
-           \ ",U=128,V=128))):mt_lut(c,"+Chr(34)+"0"+Chr(34)+",U=128,V=128)):mt_lut(c,"+Chr(34)+"0"+Chr(34)+",U=128,V=128)):mt_lut(c,"+Chr(34)+"0"+
-           \ Chr(34)+",U=128,V=128)",args="T,B,L,R,c,CTB,CLR,SC2,mvmask,d=Trim(2,0)"))
-           \ crop(0,0,-nmod(w/1.1,2),0,true).Subtitle("Frame to Freeze",align=9,size=40)""") : last }
+    # Here, if after SC top area changes more than "thr" compared to bottom area
+    # then apply one FreezeFrame() for first SC frame, and another FreezeFrame() for the 2nd one,
+    # they (1st and 2nd) compute individually. There is a motionmask on top to rule out false positives.
+    ScriptClip( function[c,d,T,B,L,R,c,SC2,CTB,CLR,mvmask,thr,thr2,mvthr] () {
+
+         curf = current_frame
+         YPlaneMax(SC2)>254                                 &&                                     \
+        (abs(YDifferenceToNext(T)-YDifferenceToNext(B))>thr && abs(YDifferenceToNext(CTB))<thr2 || \
+         abs(YDifferenceToNext(L)-YDifferenceToNext(R))>thr && abs(YDifferenceToNext(CLR))<thr2) ? \
+             YDifferenceFromPrevious(SC2)<=250 ?                                                   \
+                AverageLuma(mvmask)<mvthr ?     FreezeFrame(curf,curf,curf+1) : c :                \
+                AverageLuma(mvmask)<mvthr ?                                                        \
+                    LumaDifference(c,d) < 3.7 ? FreezeFrame(curf,curf,curf+2) :                    \
+                    YDifferenceToNext() < 8.0 ? FreezeFrame(curf,curf,curf+1) : c : c : c
+                } )
+
+    # Debug block
+    debug ? +\
+    Eval("""stackhorizontal(scriptclip("Subtitle(c,"+Chr(34)+" Top & Bottom:"+Chr(34)+"+String(YDifferenceToNext(T)-YDifferenceToNext(B))+
+           \ "+Chr(34)+"\n Left & Right:  "+Chr(34)+"+String(YDifferenceToNext(L)-YDifferenceToNext(R))+
+           \ "+Chr(34)+"\n Center Horiz:  "+Chr(34)+"+String(YDifferenceToNext(CTB))+
+           \ "+Chr(34)+"\n Center Vert:    "+Chr(34)+"+String(YDifferenceToNext(CLR))+
+           \ "+Chr(34)+"\n AvgLuma:    "+Chr(34)+"+String(LumaDifference(c,d)),
+           \ align=7,size=30,lsp=10)",args="T,B,L,R,c,CTB,CLR,d=Trim(2,0)"),
+           \ scriptclip("AverageLuma(mvmask)<"""+string(mvthr)+"""?((abs(YDifferenceToNext(T)-YDifferenceToNext(B))>"+string(thr)+
+               \ " && abs(YDifferenceToNext(CTB))<"+string(thr2)+") || (abs(YDifferenceToNext(L)-YDifferenceToNext(R))>"+
+               \ string(thr)+" && abs(YDifferenceToNext(CLR))<"+string(thr2)+") ? "+
+               \ "(YplaneMax(SC2)>254?(LumaDifference(c,d)<3.7?ex_lut(c,"+Chr(34)+"255"+Chr(34)+",UV=128):(YDifferenceToNext()<8.0?ex_lut(c,"+Chr(34)+"255"+Chr(34)+",UV=128):ex_lut(c,"+Chr(34)+"0"+Chr(34)+
+               \ ",UV=128))):ex_lut(c,"+Chr(34)+"0"+Chr(34)+",UV=128)):ex_lut(c,"+Chr(34)+"0"+Chr(34)+",UV=128)):ex_lut(c,"+Chr(34)+"0"+
+               \ Chr(34)+",UV=128)",args="T,B,L,R,c,CTB,CLR,SC2,mvmask,d=Trim(2,0)"))
+               \ crop(0,0,-nmod(w/1.1,2),0,true).Subtitle("Frame to Freeze",align=9,size=40)""") : last }
 
 
 
@@ -129,16 +141,16 @@ eval("""stackhorizontal(scriptclip("Subtitle(c,"+Chr(34)+" Top & Bottom:"+Chr(34
 ### Function to fill dark (use threshold) borders, in the vein of old FillMargins() function.
 ### But instead of mirroring or other approaches like resizing, this function fills/interpolates
 ### missing data from surrounding pixels.
-### Useful to use as a clean pass after stab() and crop(x1,y1,x2,y2)
+### Useful to use as a clean pass after StabPlus() and crop(x1,y1,x2,y2)
 ### for the remaining thin black borders (up to 3px)
 ###
 ### For borders of 4px and more you can enable FixFalPos, there you supply a clip
-### without black borders (ie. before stab() ). It automatically replaces the offended frames.
+### without black borders (ie. before StabPlus() ). It automatically replaces the offended frames.
 ### Some thick black borders aren't "0" black at all, they show garbage and the 3+1 pixel border
 ### may not average to 0, so a "thr2" setting is added as threshold, default 7 should be enough.
 ###
 ### Below you can still use the the FindBlackBorders() function for manual handling of thick black borders.
-### Use ClipClop() for the stab() results according to the statistics file of FindBlackBorders()
+### Use ClipClop() for the StabPlus() results according to the statistics file of FindBlackBorders()
 ###
 ###
 ###  EXPERIMENTAL:
@@ -150,12 +162,15 @@ eval("""stackhorizontal(scriptclip("Subtitle(c,"+Chr(34)+" Top & Bottom:"+Chr(34
 ###
 ### Dependencies:
 ###
-###   GRunT         (v1.0.2 or higher)                  (https://avisynth.nl/index.php/GRunT)
-###   AVSInpaint    (v1.3 or higher)                    (https://avisynth.nl/index.php/AvsInpaint)
+###   AVSInpaint    (v1.3 or higher)    (https://avisynth.nl/index.php/AvsInpaint)
+###   ResizersPack
 ###
 ####################################
 
 function FillBorder(clip c, int "thr", int "pad", bool "blur", bool "debug", clip "FixFalPos", clip "FillBordersc", int "thr2", bool "mirror", float "PAR", bool "subsample", bool "maskonly") {
+
+    isy      = isy(c)
+    bi       = BitsPerComponent(c)
 
     thr      = Default(thr, 1)       # Threshold, pixel values below this will be considered borders
     pad      = Default(pad, 0)       # Pixels, you can expand the replacement area adding more pixels
@@ -168,14 +183,13 @@ function FillBorder(clip c, int "thr", int "pad", bool "blur", bool "debug", cli
     thr2     = Default(thr2, 7)      # Threshold for FalPos, FalPos frames sometimes have garbage borders so you need to increase threshold
     mskonly  = Default(maskonly, false) # Show the border mask
     subsampl = Default(subsample,false)
-                                    # FillBordersc, replacement clip, even for 1 or 2 pixel borders
+                                     # FillBordersc, replacement clip, even for 1 or 2 pixel borders
 
-    c
-    contoy = !isy()
-    contoy ? ExtractY() : last
+    !isy ? c.ExtractY() : c
+
     yclip=last
-    w=width()
-    h=height()
+    w    = width()
+    h    = height()
 
     # 4px or greater
     L4=FalPos ? crop(0,0,-w+4,0,true) : nop()
@@ -184,7 +198,7 @@ function FillBorder(clip c, int "thr", int "pad", bool "blur", bool "debug", cli
     B4=FalPos ? crop(0,h-4,0 ,0,true) : nop()
 
     c
-    Fill = ScriptClip("""
+    Fill = ScriptClip( function[yclip,c,w,h,isy,thr,thr2,L4,R4,T4,B4,pad,blur,debug,FalPos,FixFalPos,mirror,subsampl,PAR,mskonly,FillBordersc] () {
 
         yclip
         pad = blur ? pad+2 : pad
@@ -239,35 +253,35 @@ function FillBorder(clip c, int "thr", int "pad", bool "blur", bool "debug", cli
         y2inp=cropnpad && subsampl ? nmod(y2o,2) : y2
 
 
-        PaCl = mskonly ? nop() : mirror && !ter ? c.crop(x1inp,y1inp,-x2inp,-y2inp,true).PadBorders(x1inp,y1inp,x2inp,y2inp) : c
-
-        msk  = LetterBox(BlankClip(last,1,pixel_type="Y8",color_yuv=$ffffff),y1,y2,x1,x2,color_yuv=$000000).killaudio()
-        msk  = !mirror ?         msk.expr("x range_half > range_max x ?")            : msk
-        msk  = !mirror && blur ? msk.ex_boxblur(2)                                   : msk
-        msk  = contoy ?          CombinePlanes(msk,c,planes="YUV",sample_clip=c)     : msk
+        PaCl = mskonly ? nop() : mirror && !ter ? c.PadBorders(x1inp,y1inp,-x2inp,-y2inp,"Mirror") : c
+		# change this to BoxMask
+        msk  = LetterBox(BlankClip(last,1,pixel_type="Y8",color_yuv=$ffffff),y1,y2,x1,x2,color_yuv=$000000,channels=0)
+        msk  = !mirror ?         msk.ex_lut("x range_half > range_max x ?")          : msk
+        msk  = !mirror && blur ? msk.ex_boxblur(2,mode="mean")                       : msk
+        msk  = isy             ? CombinePlanes(msk,c,planes="YUV",sample_clip=c)     : msk
 
         fill = mskonly ? msk : FalPos ? trim(c,0,current_frame-1)++trim(FixFalPos,current_frame,-1)++trim(c,current_frame+1,0)    : \
-                               (ter   ? Defined(FillBordersc) ? ex_merge(c,FillBordersc,msk)                                      : \
-                                                                InpaintLogo(c, radius=max(x1,y1,x2,y2)+max(2,pad), mask=msk,ChromaTensor=subsampl,PixelAspect=PAR,PreBlur=mirror && blur ? 2.5 : Undefined) : \
+                               (ter   ? Defined(FillBordersc) ? mt_merge(c,FillBordersc,msk)                                      : \
+                                                                InpaintLogo(c, radius=max(x1,y1,x2,y2)+max(2,pad), mask=msk,ChromaTensor=subsampl,PixelAspect=PAR,PreBlur=mirror && blur ? 2.5 : Undefined()) : \
                                          PaCl)
-
 
         debug ? ter ? subtitle(msk,"Bordered",align=3,size=round(h/20.0)) : msk : fill
 
-
-        """,args="yclip,c,w,h,contoy,thr,thr2,L4,R4,T4,B4,pad,blur,debug,FalPos,FixFalPos,mirror,subsampl,PAR,mskonly,FillBordersc",local=true)
+        } )
 
     !debug ? Fill : \
-    eval("""
+    Eval("""
         box    = h/4.0
         m      = 2
 
-        corner = crop(Expr("range_max"),nmod(w-box,m),nmod(h-box,m),0,0,true)
-        corner = corner.addborders(0,0,nmod(w/2.0-box,m),nmod(box,m)).expr("x range_max < range_min range_max ?")
+        corner = crop(ex_lut("range_max"),nmod(w-box,m),nmod(h-box,m),0,0,true)
+        corner = corner.PadBorders(0,0,nmod(w/2.0-box,m),nmod(box,m)).ex_lut("x range_max < 0 range_max ?")
 
         horiz  = stackhorizontal(corner,corner.fliphorizontal())
         verti  = stackvertical(horiz,horiz.flipvertical())
         ex_merge(c,Fill.PointResize(w,h),verti,luma=true)""") }
+
+
 
 
 ####################################
@@ -284,14 +298,6 @@ function FillBorder(clip c, int "thr", int "pad", bool "blur", bool "debug", cli
 ### "path" is the path to store the statistics file, with end backslash. Default is "C:"
 ### "filename" is the statistics file name. In case you don't want to overwrite old ones
 ###
-### Dependencies:
-###
-### Required:
-### ------------
-###
-###   MaskTools2    (v2.2.29 or higher)                 (https://avisynth.nl/index.php/MaskTools2)
-###   Dither        (v1.28.1 or higher)                 (https://avisynth.nl/index.php/Dither)
-###
 ####################################
 
 function FindBlackBorders(clip c, int "width", int "thr", string "path", string "filename") {
@@ -301,8 +307,8 @@ function FindBlackBorders(clip c, int "width", int "thr", string "path", string 
     path     = Default(path, "C:")  # This is the path to store the statistics file
     filename = Default(filename, "FindBlackBorders - Statistics.log") # Filename of the statistics file
 
-    c
-    ExtractY()
+    c.ExtractY()
+
     w=width()
     h=height()
 
@@ -311,30 +317,26 @@ function FindBlackBorders(clip c, int "width", int "thr", string "path", string 
     T1=crop(0,0,0,-h+add,true)
     B1=crop(0,h-add,0 ,0,true)
 
-    ScriptClip("""
-    x1 = AverageLuma(L1) < thr
-    x2 = AverageLuma(R1) < thr
-    y1 = AverageLuma(T1) < thr
-    y2 = AverageLuma(B1) < thr
-    function IsBorder(clip c, bool x1, bool x2, bool y1, bool y2) {return (x1||y1||x2||y2)}
+    ScriptClip( function[thr,L1,R1,T1,B1,path,filename] () {
 
-    q = chr(34)chr(34)chr(34)
-    WriteFileIf(""+path+"\"+filename+"", " "+string(IsBorder(x1,y1,x2,y2))+" ", q+"CHAPTER00="+q,
-            \ "FFFormatTime_stabi(round((current_frame * 1000) / framerate()))", "", "")
-    """,args="thr,L1,R1,T1,B1,path,filename")
+        x1 = AverageLuma(L1) < thr
+        x2 = AverageLuma(R1) < thr
+        y1 = AverageLuma(T1) < thr
+        y2 = AverageLuma(B1) < thr
 
-    converttoyv12()
+        WriteFileIf(""+path+"\"+filename+"", " "+string(IsBorder(x1,y1,x2,y2))+" ", "CHAPTER00=",
+                \ "stab_FFFormatTime(round((current_frame * 1000) / framerate()))", "", "")
+    } )
 
-    # Bug or limitations of 8-bit masktools with Overlay or...
-    # mt_merge (masking PC Range masks) so use Dither tools
-    Dither_merge16_8(Dither_convert_8_to_16(),Dither_convert_8_to_16(c),mt_lut("255"),luma=true)
-    ditherpost(mode=-1) }
+    # Here I need to retrieve the clip passed through WriteFileIf, so it is evaluated (or use Echo() ?)
+    return last }
 
+function IsBorder(clip c, bool x1, bool x2, bool y1, bool y2) {return (x1||y1||x2||y2)}
 
 
 ####################################
 ###
-### Stab() v4.0
+### StabPlus() v4.0
 ###
 ###
 ### For completeness I'm going to list all the shortcomings of Depan plugin
@@ -355,67 +357,68 @@ function FindBlackBorders(clip c, int "width", int "thr", string "path", string 
 ### Finally a few more things were introduced by testing and checking other script versions.
 ###
 ###
-### Required (* Optional):
+### Required:
 ### ------------
 ###   Depan         (v2.13.1.6 or higher)               (https://avisynth.nl/index.php/DePan)
 ###   DePanEstimate (v2.10.0.4 or higher)               (https://avisynth.nl/index.php/DePanEstimate)
-###   GRunT         (v1.0.2 or higher)                  (https://avisynth.nl/index.php/GRunT)
 ###   RgTools       (v1.2)                              (https://avisynth.nl/index.php/RgTools)
-###   AVSInpaint*   (v1.3 or higher)                    (https://avisynth.nl/index.php/AvsInpaint)
-###   Autolevels*   (v0.12b3 or higher)                 (https://avisynth.nl/index.php/Autolevels)
+###   ResizersPack  (v10.7  or higher)
+###   AVSInpaint*   (v1.3   or higher for fill=3)       (https://avisynth.nl/index.php/AvsInpaint)
+###   SMDegrain     (v3.5.7 or higher for Luma_Exp=1)   (https://avisynth.nl/index.php/SMDegrain)
+###   GradePack     (v8.1   or higher for Luma_Exp=2)   (https://avisynth.nl/index.php/SMDegrain)
 ###
 ### Example:
 ###
-### Stab(dxmax=20, fill=3, FixFalPos=true)
+### StabPlus(dxmax=20, fill=3, FixFalPos=true)
 ###
 ####################################
 # demote subpixel when UHD or even HD
 # Add feedback.dll filling option (use fixed previous frame)
-function Stab(clip clp, int "ts", int "range", int "dxmax", int "dymax", bool "FixFalPos", clip "FalPosclip", float "zoom", int "fill", float "PAR", clip "Prefilter", int "Luma_Exp") {
+function StabPlus(clip clp, int "ts", int "range", int "dxmax", int "dymax", bool "FixFalPos", clip "FalPosclip", float "zoom", int "fill", float "PAR", clip "Prefilter", int "Luma_Exp") {
 
-    ts     = Default(ts, 7)                           # frames to temporal average for better motion estimation (max. 7)
-    range  = Default(range, 3)                        # frames before/after to estimate motion
-    dxmax  = Default(dxmax, Round(width(clp)/120.0))  # maximum deviation in pixels
-    dymax  = Default(dymax, dxmax)                    # x, and y should be the same
-    zoom   = Default(zoom, 1)                         # maximum zoom factor (1 disabled)
-    fill   = Default(fill, 2)                         # Border filling. -1: off  0: extend  1: mirror 2: copy from source 3: process with inpaint
-    PAR    = Default(PAR, 1.0)                        # PAR of your source
-    FixFalPos = Default(FixFalPos, true)              # Fixes borders of 3 or more pixels wide. Use along crop(2,2,-2,-2)...
-                                                      # ...after stab3() to get rid of border issues entirely
-    Lumae  = Default(Luma_Exp, 1)                     # Luma Expansion for better accuracy
-                                                      # 0: disabled  1: TV to PC levels  2: Auto Contrast
+    ts        = Default(ts,    7)                      # frames to temporal average for better motion estimation (max. 7)
+    range     = Default(range, 3)                      # frames before/after to estimate motion
+    dxmax     = Default(dxmax, round(width(clp)/120.)) # maximum deviation in pixels
+    dymax     = Default(dymax, dxmax)                  # x, and y should be the same
+    zoom      = Default(zoom,  1)                      # maximum zoom factor (1 disabled)
+    fill      = Default(fill,  2)                      # Border filling. -1: off  0: extend  1: mirror 2: copy from source 3: process with inpaint
+    PAR       = Default(PAR, 1.0)                      # PAR of your source
+    FixFalPos = Default(FixFalPos, true)               # Fixes borders of 3 or more pixels wide. Use along crop(2,2,-2,-2)...
+                                                       # ...after StabPlus() to get rid of border issues entirely
+    Lumae  = Default(Luma_Exp, 1)                      # Luma Expansion for better accuracy
+                                                       # 0: disabled  1: TV to PC levels  2: Auto Contrast
 
     Source = Defined(Prefilter) ? Prefilter : clp
-    Pref   = Source.ExtractY()
+    Pref   = Source.isy() ? Source : Source.ExtractY()
 
 
     temp   =             Pref.TemporalSoften(ts,255,0,25,2)   # SC thr to 25 otherwise pans will stutter
     rep    = temp.Repair(Pref.TemporalSoften(1, 255,0,25,2))
-    repc   = CombinePlanes(rep, Source, planes="YUV", source_planes="YUV", sample_clip = Source)
+    repc   = CombinePlanes(rep, Source, planes="YUV", source_planes="YUV", sample_clip=Source)
     inter  = Interleave(rep,Pref)
 
     # temporal stable auto-contrast (better subpixel detection)
-    Luma_Expa = Lumae==2 ? Autolevels(inter, filterRadius=10, output_low=0, output_high=255, ignore=0.05, sceneChgThresh=16) : \
-                Lumae==1 ? inter.SMPTE_legal(false)                                                                 : \
+    Luma_Expa = Lumae==2 ? ex_autolevels(th=0.13)                                  : \
+                Lumae==1 ? inter.ex_Luma_Rebuild(S0=5, c=1.0/32, UV=2, tv_in=true) : \
                            inter
 
-    mdata = DePanEstimate(Luma_Expa,range=range,pixaspect=PAR,trust=0.0,dxmax=dxmax,dymax=dymax,zoommax=zoom)
-            DePan(Interleave(repc,Source),data=mdata,offset=-1,mirror=fill==1?15:0,pixaspect=PAR,matchfields=false,subpixel=2)
-            SelectEvery(2,0)
+    mdata     = DePanEstimate(Luma_Expa,range=range,pixaspect=PAR,trust=0.0,dxmax=dxmax,dymax=dymax,zoommax=zoom)
+                DePan(Interleave(repc,Source),data=mdata,offset=-1,mirror=fill==1?15:0,pixaspect=PAR,matchfields=false,subpixel=2)
+                SelectEven()
 
-    subsampl = !(clp.is444() || clp.isy())
+    subsampl  = !(clp.is444() || clp.isy())
 
-    abs(fill) != 1 ? FillBorder(pad=subsampl ? 1 : 0,subsample=subsampl,FixFalPos=Defined(FalPosclip) ? FalPosclip : FixFalPos ? clp : Undefined, mirror=fill==0, FillBordersc=fill==2 ? clp : Undefined, PAR=PAR) : last }
+    abs(fill) != 1 ? FillBorder(pad=subsampl ? 1 : 0,subsample=subsampl,FixFalPos=Defined(FalPosclip) ? FalPosclip : FixFalPos ? clp : Undefined(), mirror=fill==0, FillBordersc=fill==2 ? clp : Undefined(), PAR=PAR) : last }
 
 
 ######### HELPER FUNCTIONS #########
 
 # Helper function for FindBlackBorders() from FFMS2.avsi
-function FFFormatTime_stabi(int ms) {
-    s = ms / 1000
+function stab_FFFormatTime(int ms) {
+    s  = ms / 1000
     ms = ms % 1000
-    m = s / 60
-    s = s % 60
-    h = m / 60
-    m = m % 60
+    m  = s / 60
+    s  = s % 60
+    h  = m / 60
+    m  = m % 60
     return string(h) + ":" + string(m,"%02.0f") + ":" + string(s,"%02.0f") + "." + string(ms,"%03.0f")}
