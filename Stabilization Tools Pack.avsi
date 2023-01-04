@@ -253,7 +253,7 @@ function FillBorder(clip c, int "thr", int "pad", bool "blur", bool "debug", cli
         y2inp=cropnpad && subsampl ? nmod(y2o,2) : y2
 
 
-        PaCl = mskonly ? nop() : mirror && !ter ? c.PadBorders(x1inp,y1inp,-x2inp,-y2inp,"Mirror") : c
+        PaCl = mskonly ? nop() : mirror && !ter ? c.crop(x1inp,y1inp,-x2inp,-y2inp,true).PadBorders(x1inp,y1inp,x2inp,y2inp,"Mirror") : c
 		# change this to BoxMask
         msk  = LetterBox(BlankClip(last,1,pixel_type="Y8",color_yuv=$ffffff),y1,y2,x1,x2,color_yuv=$000000,channels=0)
         msk  = !mirror ?         msk.ex_lut("x range_half > range_max x ?")          : msk
