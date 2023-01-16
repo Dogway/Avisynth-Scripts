@@ -36,7 +36,7 @@
 ###
 ### deep_resize() - by Dogway (24-12-2022)
 ###
-### Convenient and high performance function to resize natural images in high quality (different kernel for edge/flat areas).
+### Convenient and high performance function to resize natural images (not cartoons) in high quality with different kernels for edge/flat areas.
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
 ### At 8-bits performs 6% faster than nnedi3_resize16(), but with higher quality and frame properties support.
 ### If you want more control (ColorSpaces, UVRecon, nomoiree, etc) use directly ConvertFormat().
@@ -79,7 +79,7 @@
 ###   GrainFactory3mod   (for grain > 0)
 ###   GradePack          (for show=true)
 ###   Resizer of choice
-###       NNEDI3CL          (for default "nnedi3" upscale)
+###       NNEDI3CL          (for default "nnedi3" upscale) (requires at least AVS+ v3.7.3)
 ###       LSFplus           (for default "nnedi3" upscale) (and its dependencies)
 ###       SharpenersPack    (for default "nnedi3" upscale)
 ###       SimilarityMetrics (for 'SSIM2' downscaling)
@@ -91,15 +91,15 @@
 ###   100.0% 100.0% deep_resize()      (8-bit 20.6fps, 16-bit 18.0fps)
 ###    94.7%  16.7% nnedi3_resize16()  (8-bit 19.5fps, 16-bit  3.0fps)
 ###
-### General guidelines:
-### -Avoid bicubics for highly compressed images as it will amplify DCT blocks
-### -For downscaling use a 2-lobes sinc function (aka not bicubics)
-### -For downscaling while preventing moiree use a 4-lobes sinc filter (ie. Lanczos4)
-### -For sharp images (upscaling) use 3-lobes, for blurry ones 4 or more
-### -More tappered (rolled-off) kernel bell shapes require higher taps (4 or above; Hann, Bohman, Blackman, Parzen, etc)
-### -Use even number of taps (taps=lobes in AviSynth) to avoid a final positive lobe ("ringing") before cutoff of the window support. Negative lobes "ringing" are rarely created in gamma light resizing.
+### General resampling guidelines:
+###   -Avoid bicubics for highly compressed images as it will amplify DCT blocks
+###   -For downscaling use a 2-lobes sinc function (aka not bicubics)
+###   -For downscaling while preventing moiree use a 4-lobes sinc filter (ie. Lanczos4)
+###   -For sharp images (upscaling) use 3-lobes, for blurry ones 4 or more
+###   -More tappered (rolled-off) kernel bell shapes require higher taps (4 or above; Hann, Bohman, Blackman, Parzen, etc)
+###   -Use even number of taps (taps=lobes in AviSynth) to avoid a final positive lobe ("ringing") before cutoff of the window support. Negative lobes "ringing" are rarely created in gamma light resizing.
 ###
-### More info: https://avisynth.nl/index.php/Resampling
+###    More info: https://avisynth.nl/index.php/Resampling
 ###
 ### Function Definition:
 ###    (
@@ -163,7 +163,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     w2     = Default(width,  w)
     h2     = Default(height, h)
 
-    Assert(IsVersionOrGreater(3,7,2),  "deep_resize: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),  "deep_resize: Update AviSynth+ version")
     Assert(isFloat(w2) || isFloat(h2), "deep_resize: Width/Height type not supported")
 
     w2     = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
@@ -632,10 +632,10 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
 #
 # Dependencies:
 #       ExTools
-#       NNEDI3CL
+#       NNEDI3CL (requires at least AVS+ v3.7.3)
 #       or
 #       nnedi3
-#         SysInfo
+#         SysInfo (for nnedi3 CPU: Requires "Microsoft Visual C++ 2010 x64 Redistributable")
 #
 function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", int "gpuid") {
 
@@ -674,7 +674,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
 
     xyf     = max(xf,yf)
 
-         Assert(IsVersionOrGreater(3,7,2), "nnedi3wrap: Update AviSynth+ version")
+         Assert(IsVersionOrGreater(3,7,3), "nnedi3wrap: Update AviSynth+ version")
     in ? Assert(xyf==1,                    "nnedi3wrap: Field must be 0 or 1 for scaling") : nop()
 
     ws      = xf == 1
@@ -786,7 +786,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
 #
 # Dependencies:
 #       ExTools
-#       EEDI3CL / eedi3
+#       EEDI3CL / eedi3 (requires at least AVS+ v3.7.3 for EEDI3CL)
 #
 function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alpha", float "beta", float "gamma", int "nrad", int "mdis", int "vcheck", bool "hp", bool "ucubic", bool "cost3", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", clip "sclip", int "gpuid") {
 
