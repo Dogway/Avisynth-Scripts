@@ -222,7 +222,7 @@ function MCDeblockFFT3D(clip a, int "UV", bool "fulls") {
 ### The author designed it against video from a Canon MD160 camera (320x240 12.5fps interlaced).
 ###
 ### https://github.com/dnjulek/jvsfunc/blob/main/jvsfunc/expr.py
-### http://acobw.narod.ru/
+### https://acobw.narod.ru/
 ###
 function CCD (clip a, float "thres", bool "interlaced", int "U", int "V") {
 
@@ -745,7 +745,7 @@ function MSUDeCor(clip a, int "UV") {
     mat = color_propGet(a)
 
     #d=t.ConvertToRGB32(matrix="rec709").MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).ConvertBackToYUY2(matrix="rec709").ConvertToYV12() #use if MPEG2
-    d  = a.ConvertToPlanarRGB(matrix=mat[4]).MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).MatchClip(a)
+    d  = a.ConvertToPlanarRGB(matrix=mat[4]).MSU_Smart_Deblocking(1, 1, 1, 1, 0, 50, 50).MatchClip(a,internal=true)
 
     s1 = ex_makediff(d, a, UV=uv).ex_boxblur(1, mode="mean", UV=uv)
 
