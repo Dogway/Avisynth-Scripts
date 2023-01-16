@@ -482,8 +482,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 global cb1             = !isMult ? (isInter ? bv2 : bv1) : vmulti.SelectEvery (tr2, 0)
                 global cf1             = !isMult ? (isInter ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)""") : nop()
 
-                CClip = isCClip  ? (isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip) : inputP
-                CClip = mfilterB && SLimit  ?  ex_merge(  CClip, mfilter, Mavg, luma=true, UV=plane0?3:1)                          : CClip
+                CClip = isCClip       ? (isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip) : inputP
+                CClip = isYUY2(CClip) ? ConverttoYUV422(CClip)                                                                          : CClip
+                CClip = mfilterB && SLimit  ?  ex_merge(  CClip, mfilter, Mavg, luma=true, UV=plane0?3:1)                               : CClip
 
         }
 
