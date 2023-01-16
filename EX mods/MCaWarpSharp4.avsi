@@ -99,7 +99,7 @@ function MCaWarpSharp4(clip source, int "supsamp",int "post", float "PPstr", boo
     forward_vectors = MAnalyse(super, blksize=4,             levels=1, search=3, searchparam=5, isb=true)
                       MFlow   (super2,forward_vectors)
 
-    SelectEvery(2,0)
+    SelectEven()
     LanczosResize(w, h, taps=taps)
 
     # Replacing 'bad' edges with 'good' edges on the original image
