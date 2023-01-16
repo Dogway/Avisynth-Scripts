@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.5   (17-12-2022)                   ##
+###        ExTools v9.6   (16-01-2023)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -519,7 +519,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
                          + String(isy?NaN:propGetFloat(y,"_PlaneSSIMU2"),"%3.5f")+"   (Structural SIMilarity Unveiling Local And Compression Related Artifacts v2)\n" \
                          + String(        propGetFloat(y,"_PlaneBSSIM"))  +"   (Structural SIMilarity for Blurred)\n"              \
                          + String(        propGetFloat(y,"_PlaneGMSD" ))  +"   (Gradient Magnitude Similarity Deviation)\n"        \
-                         + String(isy?NaN:propGetFloat(y,"_PlaneBUTT" ))+"   (Butteraugli psychovisual similarity index for DCT compression)\n"\
+                         + String(isy?NaN:propGetFloat(y,"_PlaneBUTT" ))  +"   (Butteraugli psychovisual similarity index for DCT compression)\n"\
                          + String(isy?NaN:propGetFloat(y,"_PlaneMDSI" ))  +"   (Mean Deviation Similarity Index)\n"                \
                          + String(        propGetFloat(y,"_PlaneMS_SSIM"))+"   (Multi-Scale SSIM)\n"                               \
                          + String(isy?NaN:propGetFloat(y,"_PlaneCIEDE2000"),"%3.5f")+"   (CIE Delta-E 2000)\n"                     \
@@ -2038,7 +2038,7 @@ function ex_MFR (clip c, clip ref, float "lo", float "hi", int "UV") {
 # Based on Didée's concept: https://forum.doom9.org/showthread.php?p=1471858#post1471858
 # 6% faster than FluxSmoothT() (AVX2), also allows higer temporal radii
 #
-function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
+function ex_FluxSmoothT(clip a, int "rad", int "th", bool "LFR", bool "DCTFlicker", int "UV") {
 
     rgb = isRGB(a)
     isy = isy(a)
@@ -2046,9 +2046,12 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
 
-    rd  = Default(rad,  1)                                     # radius can be 1, 2 or 3 (original FluxSMoothT only does rad=1)
-    th  = Default(th,   1)                                     # Soft threshold 0-255 (Default: 1 to respond similar to original "Default=7")
-    UV  = Default(UV, rgb ? 3 : 1)
+    rd  = Default( rad,  1)                                   # radius can be 1, 2 or 3 (original FluxSMoothT only does rad=1)
+    th  = Default( th,   1)                                   # Soft threshold 0-255 (Default: 1 to respond similar to original "Default=7")
+    UV  = Default( UV, rgb ? 3 : 1)
+    LFR = Default( LFR, false)                                # Enable LFR to recover low frequency detail ('smearing')
+    LFR = LFR ? 300*(width(a)/1920.) : 0                      # Default 300 for 1080p
+    DCT = Default( DCTFlicker,  false)                        # Clean up remaining blotches of the reference lowpass
     si  = ex_UVf(rgb, bi)
 
     Assert (rd < 4, "ex_FluxSmoothT: radii > 3 is not supported")
@@ -2111,7 +2114,9 @@ function ex_FluxSmoothT(clip a, int "rad", int "th", int "UV") {
     rd == 0 ?              a                                                                                            : \
     isy     ? Eval("""Expr(a, """+clips+""", str                                                                  )""") : \
     UV == 1 ? Eval("""Expr(a, """+clips+""", str, ""                                                              )""") : \
-              Eval("""Expr(a, """+clips+""", str, ex_UVexpr(FL, UV, bi, rgb, !(UV!=3 && !fs), si), scale_inputs=si)""") }
+              Eval("""Expr(a, """+clips+""", str, ex_UVexpr(FL, UV, bi, rgb, !(UV!=3 && !fs), si), scale_inputs=si)""")
+
+    LFR > 0 ? ex_lfr(a,LFR,DCT) : last }
 
 
 
@@ -2150,7 +2155,7 @@ function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", boo
 
     a
     rd > 0 ? ex_MinBlur    (rd,UV,"median",sh,th) : last
-    rt > 0 ? ex_FluxSmoothT(rt,Tth,UV)            : last }
+    rt > 0 ? ex_FluxSmoothT(rt,Tth,true,UV=UV)    : last }
 
 
 
@@ -7449,7 +7454,7 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 
     return str }
 
-
+# When isY or no reference clip is supplied, a good alternative is: ConverttoYUV444(chromaresample="point")
 function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits", string "Jab") {
 
     bi   = BitsPerComponent(a)
