@@ -406,7 +406,7 @@ function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", 
 ### Ported from slimit_dif() and HQDeringmod_limit_dif(). Description from Dither_limit_dif16
 ###
 ### Compare a filtered clip with its original version, and keeps the filtered pixels only if the difference between the filtered pixel and the reference pixel is below the given threshold.
-### This is a building block of SmoothGrad, GradFun3, nnedi3_resize16() and deep_resize().
+### This is a building block of SmoothGrad, GradFun3plus and deep_resize().
 ###
 ### flt:   Filtered clip.
 ### src:   Original clip.
@@ -434,7 +434,7 @@ function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast",
     Y      = Default( Y,       3 )
     UV     = Default( UV,      3 )
 
-    sm     = elast==1.0 ? False : sm
+    sm     = elast == 1.0 ? false : sm
 
     thrc   = ex_bs(  thrc, 8, bi, true, flt=true)
     celast = elast * thrc
@@ -468,7 +468,6 @@ function ex_limitdif(clip flt, clip src, clip "ref", float "thr", float "elast",
 
     dref ? ex_lutxyz(flt,src,ref, exprYref, Format("x z -     abs D@  {thrc} <= x D  {celast} >= y dup x y - {celast} D  - * {thcela} * + ? ?"), Y=Y,UV=UV) : \
            ex_lutxy (flt,src,     exprY,    Format("x y - D1@ abs DA@ {thrc} <= x DA {celast} >= y dup D1    {celast} DA - * {thcela} * + ? ?"), Y=Y,UV=UV) }
-
 
 
 
