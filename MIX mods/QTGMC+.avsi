@@ -427,14 +427,14 @@
 #   MaskTools2 (2.2.30  or above)
 #   RgTools    (1.2     or above)
 #   vsTCanny   (1.1.8 for gaussian blur or above)
-#   NNEDI3CL   (1.0.6   or above)
-#   SysInfo    (0.1.2.9 or above)
+#   NNEDI3CL   (1.0.6   or above) (for gpuid=0, requires at least AVS+ v3.7.3)
+#   SysInfo    (0.1.2.9 or above) (requires "Microsoft Visual C++ 2010 x64 Redistributable")
 #   Vinverse   (0.9.4   or above)
 #
 # Core scripts:
-#   ExTools      (9.5   or above)
+#   ExTools      (9.6   or above)
 #   ResizersPack (10.7  or above) (for nnedi3wrap() )
-#   SMDegrain    (3.5.7 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   SMDegrain    (3.5.8 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins:
@@ -500,7 +500,7 @@
 #     )
 #
 # Preset call:
-# QTGMCp(thSAD1=640, thSAD2=256, Preset="very slow", SourceMatch=0, MatchPreset="very slow", MatchPreset2="very slow", MatchEnhance=0.5, Lossless=0, EZDenoise=0.0, EZKeepGrain=1.0, NoisePreset="Faster", FPSDivisor=1, show=false, threads=4)
+#     QTGMCp(thSAD1=640, thSAD2=256, Preset="very slow", SourceMatch=0, MatchPreset="very slow", MatchPreset2="very slow", MatchEnhance=0.5, Lossless=0, EZDenoise=0.0, EZKeepGrain=1.0, NoisePreset="Faster", FPSDivisor=1, threads=4, show=false)
 #
 function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
                     int "NNSize", int "NNeurons", int "EdiQual", int "EdiMaxD", string "ChromaEdi", clip "EdiExt", float "Sharpness", \
@@ -537,7 +537,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     Amp           = Default( Amp,     0.0312 )
     tv            = Default( TV_range,    !fs)
 
-    Assert(IsVersionOrGreater(3,7,2),            "QTGMCp: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),            "QTGMCp: Update AviSynth+ version")      # NNEDI3CL -and others- minimum requirement
     Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "QTGMCp: UseEdiExt need EdiExt to work")
 
     # Select presets / tuning
@@ -751,11 +751,11 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     ThSCD2       = Default( ThSCD2,      round( 1.53 * 8*8)  )
 
     # Motion blur settings
-    FPSDivisor      = Default( FPSDivisor,        1 )
-    ShutterBlur     = Default( ShutterBlur,       0 )
-    ShutterAngleSrc = Default( ShutterAngleSrc, 180 )
-    ShutterAngleOut = Default( ShutterAngleOut, 180 )
-    SBlurLimit      = Default( SBlurLimit,        4 )
+    FPSDivisor      = Default( FPSDivisor,          1 )
+    ShutterBlur     = Default( ShutterBlur,         0 )
+    ShutterAngleSrc = Default( ShutterAngleSrc,   180 )
+    ShutterAngleOut = Default( ShutterAngleOut,   180 )
+    SBlurLimit      = Default( SBlurLimit,          4 )
     ShutterBlur     = (ShutterAngleOut * FPSDivisor == ShutterAngleSrc) ? 0 : ShutterBlur  # If motion blur output is same as input
 
     # Miscellaneous
@@ -950,9 +950,9 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     planarDenoised = (NoiseProcess == 0) ? nop() : yuy2 ? denoised.nonyuy2clipin(true) : denoised
     noise          = (totalRestore >  0) ? ex_makediff( planarClip, planarDenoised, UV=CNmt1, fulls=!tv ) : nop()
     deintNoise     = (NoiseProcess == 0 || totalRestore == 0.0) ? nop()                                                           : \
-                     (InputType != 0)                           ? noise                                                           : \
-                     (NoiseDeint == "Bob")                      ? noise.ex_bob( 0,0.5 )                                           : \
-                     (NoiseDeint == "Generate")                 ? noise.QTGMCp_Generate2ndFieldNoise( denoised, ChromaNoise, !tv) : \
+                     (InputType    != 0)                        ? noise                                                           : \
+                     (NoiseDeint   == "Bob")                    ? noise.ex_bob( 0,0.5 )                                           : \
+                     (NoiseDeint   == "Generate")               ? noise.QTGMCp_Generate2ndFieldNoise( denoised, ChromaNoise, !tv) : \
                                                                   noise.DoubleWeave()
     # Motion-compensated stabilization of generated noise
     noiseSuper = (StabilizeNoise) ? deintNoise.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, mt=bomt )    : nop()
@@ -979,10 +979,10 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
     # InputType=2,3: use motion mask to blend luma between original clip & reweaved clip based on ProgSADMask setting. Use chroma from original clip in any case
     inputTypeBlend = (ProgSADMask  > 0.0) ? MMask( srchClip, bVec1, kind=1, ml=ProgSADMask ).ConvertBits(bi,fulls=true)                               : nop()
-    edi            = (InputType != 2 && InputType != 3) ? (!yuy2 ? edi1 : edi1.nonyuy2clipin(true))                                                   : \
-                     (ProgSADMask <= 0.0)               ? (!yuy2 ? edi1.MergeChroma( innerClip ) : edi1.MergeChroma( innerClip ).nonyuy2clipin(true)) : \
-                                                          (!yuy2 ? mt_merge( innerClip, edi1, inputTypeBlend, U=2,V=2 )                               : \
-                                                                   mt_merge( innerClip.nonyuy2clipin(true), edi1.nonyuy2clipin(true), inputTypeBlend, U=2,V=2 ))
+    edi            = (InputType   != 2 && InputType != 3) ? (!yuy2 ? edi1 : edi1.nonyuy2clipin(true))                                                   : \
+                     (ProgSADMask <= 0.0)                 ? (!yuy2 ? edi1.MergeChroma( innerClip ) : edi1.MergeChroma( innerClip ).nonyuy2clipin(true)) : \
+                                                            (!yuy2 ? mt_merge( innerClip, edi1, inputTypeBlend, U=2,V=2 )                               : \
+                                                                     mt_merge( innerClip.nonyuy2clipin(true), edi1.nonyuy2clipin(true), inputTypeBlend, U=2,V=2 ))
 
     # Get the max/min value for each pixel over neighboring motion-compensated frames - used for temporal sharpness limiting
     ediSuper = (TR1 > 0 || temporalSL)   ? edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
@@ -1444,6 +1444,7 @@ function QTGMCp_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
 # (LEGACY for 8-16-bit since vinverse v0.9.2)
 # Vinverse: a small, but effective function against (residual) combing, by Didée (24-10-2006)
 # https://forum.doom9.org/showthread.php?p=891788#post891788
+#
 # Optimization and port to EX mod from real.finder's HBD mod. by Dogway (15-09-2021)
 
 # Vinverse_avsi() is 70% slower with Prefetch(physical cores) and 60% slower with Prefetch(logical cores)
@@ -1482,7 +1483,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 #
 # Core plugins:
 #   ResizersPack  (for nnedi3=true)
-#   NNEDI3CL      (for nnedi3=true and gpuid=0)
+#   NNEDI3CL      (for nnedi3=true and gpuid=0) (requires at least AVS+ v3.7.3)
 #   nnedi3        (for nnedi3=true and gpuid=-1)
 #
 # Function Definition:
