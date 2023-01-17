@@ -244,8 +244,8 @@ function FrameRateConverterEX (clip C, int "NewNum", int "NewDen", string "Prese
     RIFE ? \
     Assert(IsVersionOrGreater(3,7,3),                            "FrameRateConverterEX: RIFE requires AviSynth+ v3.7.3 or above") : nop()
     Assert(IsVersionOrGreater(3,7,2),                            "FrameRateConverterEX: Update AviSynth+ version")
-    Assert(MaskThr >= 0   && MaskThr   <= 255, String(MaskThr,   "FrameRateConverterEX: MaskThr must be between 0 and 255 {%.f}"))
-    Assert(MaskOcc >= 0   && MaskOcc   <= 255, String(MaskOcc,   "FrameRateConverterEX: MaskOcc must be between 0 and 255 {%.f}"))
+    Assert(MaskThr   >= 0 && MaskThr   <= 255, String(MaskThr,   "FrameRateConverterEX: MaskThr must be between 0 and 255 {%.f}"))
+    Assert(MaskOcc   >= 0 && MaskOcc   <= 255, String(MaskOcc,   "FrameRateConverterEX: MaskOcc must be between 0 and 255 {%.f}"))
     Assert(BlendOver >= 0 && BlendOver <= 255, String(BlendOver, "FrameRateConverterEX: BlendOver must be between 0 and 255 {%.f}"))
     Assert(SkipOver  >= 0 && SkipOver  <= 255, String(SkipOver,  "FrameRateConverterEX: SkipOver must be between 0 and 255 {%.f}"))
     Assert(SkipThr < MaskThr,                                    "FrameRateConverterEX: SkipThr must be lower (stronger) than MaskThr")
