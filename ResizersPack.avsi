@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 10.7 (29-12-2022)     ##
+###   Resizers Functions Pack 10.8 (18-01-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -36,7 +36,7 @@
 ###
 ### deep_resize() - by Dogway (24-12-2022)
 ###
-### Convenient and high performance function to resize natural images (not cartoons) in high quality with different kernels for edge/flat areas.
+### Convenient and high performance function to resize natural images (not cartoons) in high quality (different kernels for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
 ### At 8-bits performs 6% faster than nnedi3_resize16(), but with higher quality and frame properties support.
 ### If you want more control (ColorSpaces, UVRecon, nomoiree, etc) use directly ConvertFormat().
@@ -659,7 +659,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
     fmt     = isy ? 0 : isYV411() ? 1 : is420()  ? 2 : is422() ? 3  : 4
 
 
-    fld     = Defined(field)
+    fld     = Defined(field) ? -1 < field < 2 : false
     field   = Default(field,             -1)    /* -2 = interlaced (automatic order)    */  # Override source field order
     fd      = field==-2 ?      max(1, fb)+1 :   /* -1 = auto                            */
             \ field==-1 ? fb==0 ? 0 : fb +1 :   /*  0 = progressive bottom-field first  */
@@ -739,11 +739,10 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
             }
     }
 
-    gpuid<0  ? propCopy(a)                                            : last
-    in       ? propSet("_FieldBased",0).propSet("_Combed",0).           \
-               propSet("_DurationDen",propGetInt(a,"_DurationDen")*2) : \
-    fld      ? propSet("_FieldBased", fd)                             : last
-    mul>0    ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
+    gpuid<0   ? in ? propCopy(a,true,props=["_AbsoluteTime"],exclude=true) : propCopy(a)    : last
+    in || fld ? propSet("_FieldBased",0).propSet("_Field",fd%2)                             : last
+    in        ? propSet("_Combed",0).propSet("_DurationDen",propGetInt(a,"_DurationDen")*2) : \
+    mul>0     ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # For final scaling and/or fix for pixel center shift
     if (krnn!="none" && !in && (((dfw||dfh) && !(w2 == w && h2 == h) && !(src_l == 0 && src_t == 0)) || (oned || gpuid>-1))) {
@@ -810,7 +809,7 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
     fmt     = isy ? 0 : isYV411() ? 1 : is420()  ? 2 : is422() ? 3  : 4
 
 
-    fld     = Defined(field)
+    fld     = Defined(field) ? -1 < field < 2 : false
     field   = Default(field,             -1)    /* -2 = interlaced (automatic order)    */  # Override source field order
     fd      = field==-2 ?      max(1, fb)+1 :   /* -1 = auto                            */
             \ field==-1 ? fb==0 ? 0 : fb +1 :   /*  0 = progressive bottom-field first  */
@@ -897,11 +896,10 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
             }   TurnLeft () }
     }
 
-    gpuid<0  ? propCopy(a)                                            : last
-    in       ? propSet("_FieldBased",0).propSet("_Combed",0).           \
-               propSet("_DurationDen",propGetInt(a,"_DurationDen")*2) : \
-    fld      ? propSet("_FieldBased", fd)                             : last
-    mul>0    ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
+    gpuid<0   ? in ? propCopy(a,true,props=["_AbsoluteTime"],exclude=true) : propCopy(a)    : last
+    in || fld ? propSet("_FieldBased",0).propSet("_Field",fd%2)                             : last
+    in        ? propSet("_Combed",0).propSet("_DurationDen",propGetInt(a,"_DurationDen")*2) : \
+    mul>0     ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # For final scaling and/or fix for pixel center shift
     if (krnn!="none" && !in && (((dfw||dfh) && !(w2 == w && h2 == h) && !(src_l == 0 && src_t == 0)) || (oned || gpuid>-1))) {
