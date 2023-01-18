@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.93 + mod by Dogway 2022, based on 3.382s              #
+#     QTGMC 3.94 + mod by Dogway 2023, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -25,6 +25,9 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.94p
+# - Populate with "_Field" frameprop where appropiate
 #
 # v3.93p
 # - Fix for missing "_Durationxxx" frameprops
@@ -427,14 +430,14 @@
 #   MaskTools2 (2.2.30  or above)
 #   RgTools    (1.2     or above)
 #   vsTCanny   (1.1.8 for gaussian blur or above)
-#   NNEDI3CL   (1.0.6   or above) (for gpuid=0, requires at least AVS+ v3.7.3)
+#   NNEDI3CL   (1.0.6   or above) (for gpuid=0)
 #   SysInfo    (0.1.2.9 or above) (requires "Microsoft Visual C++ 2010 x64 Redistributable")
 #   Vinverse   (0.9.4   or above)
 #
 # Core scripts:
 #   ExTools      (9.6   or above)
-#   ResizersPack (10.7  or above) (for nnedi3wrap() )
-#   SMDegrain    (3.5.8 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   ResizersPack (10.8  or above) (for nnedi3wrap() )
+#   SMDegrain    (3.5.9 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
 #
 # Additional plugins:
@@ -790,7 +793,8 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     eps  = 0.0001
 
     # Reverse "field" dominance for progressive repair mode 3 (only difference from mode 2)
-    compl = (InputType == 3) ? Input.ComplementParity() : Input
+    compl = InputType == 2 ? Input.                   propSet("_Field", GetParity(Input) ? 1 : 0) : \
+            InputType == 3 ? Input.ComplementParity().propSet("_Field", GetParity(Input) ? 0 : 1) : Input
 
     # Pad vertically during processing (to prevent artefacts at top & bottom edges)
     clip = (Border) ? compl.PointResize( w,h+8, 0,-4,0,h+8+eps ) : compl  # Same as PadBorders(0,4,0,4,"Dilate")
@@ -972,13 +976,13 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     ediInput = (InputType == 2 || InputType == 3) ? innerClip.SeparateFields().SelectEvery(4,0,3).Weave() : innerClip
 
     # Create interpolated image as starting point for output. Below same as but in one step: PadBorders(0,0,0,(EdiExt.Height()-h)/2,"Dilate").crop(0,(EdiExt.Height()-h)/2,0,0)
-    edi1 = Defined(EdiExt) ? EdiExt.PointResize( w,h, 0,(EdiExt.Height()-h)/2, -0,h+eps )                                                              : \
+    edi1 = Defined(EdiExt) ? EdiExt.PointResize( w,h, 0,(EdiExt.Height()-h)/2, -0,h+eps )                                                               : \
                              QTGMCp_Interpolate( ediInput.ConvertBits(8,dither=-1,fulls=!tv), InputType, EdiMode, NNSize, NNeurons, EdiQual, EdiMaxD, Threads, bobbed, ChromaEdi, fulls=!tv, gpuid=gpuid ).ConvertBits(bi,fulls=!tv)
 
     # >>>> Switch to planar YUY2 during next step - remains planar until very end of script except blurring for back blending & SVThin
 
     # InputType=2,3: use motion mask to blend luma between original clip & reweaved clip based on ProgSADMask setting. Use chroma from original clip in any case
-    inputTypeBlend = (ProgSADMask  > 0.0) ? MMask( srchClip, bVec1, kind=1, ml=ProgSADMask ).ConvertBits(bi,fulls=true)                               : nop()
+    inputTypeBlend = (ProgSADMask  > 0.0) ? MMask( srchClip, bVec1, kind=1, ml=ProgSADMask ).ConvertBits(bi,fulls=true)                                 : nop()
     edi            = (InputType   != 2 && InputType != 3) ? (!yuy2 ? edi1 : edi1.nonyuy2clipin(true))                                                   : \
                      (ProgSADMask <= 0.0)                 ? (!yuy2 ? edi1.MergeChroma( innerClip ) : edi1.MergeChroma( innerClip ).nonyuy2clipin(true)) : \
                                                             (!yuy2 ? mt_merge( innerClip, edi1, inputTypeBlend, U=2,V=2 )                               : \
@@ -1116,11 +1120,11 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                                                           truemotion=TrueMotion, lambda=Lambda, pnew=PNew, DCT=DCT, chroma=ChromaMotion, mt=bomt  ) : fVec1
 
     # Shutter motion blur - use MFlowBlur to blur along motion vectors
-    sblurSuper = (ShutterBlur > 0) ? addNoise2.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt )      : nop()
-    sblur =      (ShutterBlur > 0) ? addNoise2.MFlowBlur( sblurSuper, sbBVec1, sbFVec1, blur=blurLevel, thSCD1=ThSCD1,thSCD2=ThSCD2 ) : nop()
+    sblurSuper   = (ShutterBlur >  0) ? addNoise2.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt )       : nop()
+    sblur        = (ShutterBlur >  0) ? addNoise2.MFlowBlur( sblurSuper, sbBVec1, sbFVec1, blur=blurLevel, thSCD1=ThSCD1, thSCD2=ThSCD2 ) : nop()
 
     # Shutter motion blur - use motion mask to reduce blurring in areas of low motion - also helps reduce blur "bleeding" into static areas, then select blur type
-    sbMotionMask = (ShutterBlur  > 0 && SBlurLimit > 0) ? MMask( srchClip, bVec1, kind=0, ml=SBlurLimit ).ConvertBits(bi,fulls=true)  : nop()
+    sbMotionMask = (ShutterBlur  > 0 && SBlurLimit > 0) ? MMask( srchClip, bVec1, kind=0, ml=SBlurLimit ).ConvertBits(bi,fulls=true)      : nop()
     sblurred     = (ShutterBlur == 0) ? addNoise2                                         : \
                    (SBlurLimit  == 0) ? sblur                                             : \
                                         mt_merge( addNoise2, sblur, sbMotionMask, U=3,V=3 )
@@ -1184,32 +1188,33 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
                                                                                Input.EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, sclip=NNEDI3clp ).slimit_dif2(NNEDI3clp,thr=4,U=CEed?3:2,V=CEed?3:2) : \
                 EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3" ?              Input.EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, sclip=NNEDI3clp ) : nop()
 
-    interp = (InputType == 1)            ? Input                                                                                       : \
-             (EdiMode == "NNEDI3")       ? NNEDI3clp                                                                                   : \
-             (EdiMode == "NNEDI2")       ? Input.NNEDI2( field=fb, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )      : \
-             (EdiMode == "NNEDI")        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                     : \
-             (EdiMode == "EEDI3+NNEDI3") ? EEDI3clp                                                                                    : \
-             (EdiMode == "EEDI3")        ? EEDI3clp                                                                                    : \
-             (EdiMode == "EEDI2")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).SeparateFields().EEDI2( field=fb, maxd=EdiMaxD ).nonyuy2clipout(true) : Input.SeparateFields().EEDI2( field=fb, maxd=EdiMaxD ) : \
-             (EdiMode == "Yadif")        ? isyuy2(Input) ? Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1).nonyuy2clipout(true) : Input.yadifmod2(mode=3,order=fb-1)    : \
-             (EdiMode == "TDeint")       ? Input.TDeInt( mode=1 )                                                                      : \
-             (EdiMode == "RepYadif")     ? isyuy2(Input) ? Repair( Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1), Default( Fallback, Input.ex_bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
-                                                           Repair( Input.yadifmod2(mode=3,order=fb-1),                     Default( Fallback, Input.ex_bob( 0,0.5 ) ), 2, -1 ) : \
-             (EdiMode == "BWDIF+NNEDI3") ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint=NNEDI3clp.nonyuy2clipin(true))    : Input.BWDIF(fb,edeint=NNEDI3clp)      : \
-             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint= EEDI3clp.nonyuy2clipin(true))    : Input.BWDIF(fb,edeint=EEDI3clp)       : \
-                                           Default( Fallback, Input.ex_bob( 0,0.5 ) )
+    interp    = InputType == 1            ? Input                                                                                       : \
+                EdiMode == "NNEDI3"       ? NNEDI3clp                                                                                   : \
+                EdiMode == "NNEDI2"       ? Input.NNEDI2( field=fb, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )      : \
+                EdiMode == "NNEDI"        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                     : \
+                EdiMode == "EEDI3+NNEDI3" ? EEDI3clp                                                                                    : \
+                EdiMode == "EEDI3"        ? EEDI3clp                                                                                    : \
+                EdiMode == "EEDI2"        ? isyuy2(Input) ? Input.nonyuy2clipin(true).SeparateFields().EEDI2( field=fb, maxd=EdiMaxD ).nonyuy2clipout(true) : Input.SeparateFields().EEDI2( field=fb, maxd=EdiMaxD ) : \
+                EdiMode == "Yadif"        ? isyuy2(Input) ? Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1).nonyuy2clipout(true) : Input.yadifmod2(mode=3,order=fb-1)    : \
+                EdiMode == "TDeint"       ? Input.TDeInt( mode=1 )                                                                      : \
+                EdiMode == "RepYadif"     ? isyuy2(Input) ? Repair( Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1), Default( Fallback, Input.ex_bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
+                                                            Repair( Input.yadifmod2(mode=3,order=fb-1),                     Default( Fallback, Input.ex_bob( 0,0.5 ) ), 2, -1 ) : \
+                EdiMode == "BWDIF+NNEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint=NNEDI3clp.nonyuy2clipin(true))    : Input.BWDIF(fb,edeint=NNEDI3clp)      : \
+                EdiMode == "BWDIF+EEDI3"  ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint= EEDI3clp.nonyuy2clipin(true))    : Input.BWDIF(fb,edeint=EEDI3clp)       : \
+                                            Default( Fallback, Input.ex_bob( 0,0.5 ) )
 
-    interp = (InputType == 1)            ? Input                                                                                       : \
-             (EdiMode == "BWDIF+NNEDI3") || \
-             (EdiMode == "BWDIF+EEDI3")  ? isyuy2(Input) ? interp.vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2).nonyuy2clipout(true) : interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2) : interp
+    interp    = InputType == 1            ? Input                                                                                       : \
+                EdiMode == "BWDIF+NNEDI3" || \
+                EdiMode == "BWDIF+EEDI3"  ? isyuy2(Input) ? interp.vinverse(clip2=NNEDI3clp.nonyuy2clipin(true),UV=CEed?3:2).nonyuy2clipout(true) : interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2) : interp
 
-    interpuv = (InputType == 1)          ? nop()                                                                                                                            : \
-               (ChromaEdi == "NNEDI3")   ? Input.nnedi3wrap(field=fb, nsize=4, nns=0, qual=1, planes=[1,2], gpuid=id)                                                       : \
-               (ChromaEdi == "Yadif")    ? isyuy2(Input) ? Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1).nonyuy2clipout(true) : Input.yadifmod2(mode=3,order=fb-1) : \
-               (ChromaEdi == "Bob")      ? Input.ex_bob( 0,0.5 )                                                                                                            : \
-                                           nop()
+    interpuv  = InputType == 1            ? nop()                                                                                                                               : \
+                ChromaEdi == "NNEDI3"     ? Input.nnedi3wrap(field=fb, nsize=4, nns=0, qual=1, planes=[1,2], gpuid=id)                                                          : \
+                ChromaEdi == "Yadif"      ? isyuy2(Input) ? Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1).nonyuy2clipout(true) : Input.yadifmod2(mode=3,order=fb-1)    : \
+                ChromaEdi == "Bob"        ? Input.ex_bob( 0,0.5 )                                                                                                               : \
+                                            nop()
 
-    return (!IsClip(interpuv)) ? interp : interp.MergeChroma( interpuv ) }
+    !IsClip(interpuv) ? interp : interp.MergeChroma( interpuv )
+    return propSet("_FieldBased",0).propSet("_Field",fb-2) }
 
 
 
@@ -1545,13 +1550,13 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
     } else {
 
         !nn ? Bob(cp, b, c, h ) : \
-              nnedi3wrap(cp, field=par ? 3 : 2,nsize=3,nns=3,qual=2,gpuid=gp)
+              nnedi3wrap(cp, field=fb+1,nsize=3,nns=3,qual=2,gpuid=gp)
     }
 
     par ? AssumeTFF() : AssumeBFF()
     propCopy(cp,true,props=["_DurationNum","_FieldBased","_PictType"],exclude=true)
     propSet("_DurationDen",propGetInt(cp,"_DurationDen")*2)
-    propSet("_FieldBased",0).propSet("_Combed",0) }
+    propSet("_FieldBased",0).propSet("_Field",fb-1).propSet("_Combed",0) }
 
 
 
