@@ -252,7 +252,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     inputP  = !isInter ? (pel      >= 2 ? input.AssumeFrameBased()                               : input) : \
                          (InterPar == 2 ? input.AssumeTFF().SeparateFields().propSet("_Field",1) :          \
                           InterPar == 1 ? input.AssumeBFF().SeparateFields().propSet("_Field",0) : input)
-    inputP  =  isInter ?                  inputP.propSet("_FieldBased", 0)                       : inputP
+    inputP  =                             inputP.propSet("_FieldBased", 0)
 
     Mfilter = MFilterB ? isYUY2(MFilter) ? ConverttoYUV422(MFilter) : MFilter : inputP
 
@@ -550,7 +550,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                     SLimit ? LSFplus(output,source=CClip,preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=0,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : \
                                              LSFplus(output,             preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=6,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : output
 
-                 !GlobalO ? (isInter ? output.weave().propSet("_FieldBased",InterPar+1).propDelete("_Field") : output) : output
+                 !GlobalO ? (isInter ? output.propSet("_FieldBased",InterPar+1).weave().propDelete("_Field") : output) : output
 
 
 
