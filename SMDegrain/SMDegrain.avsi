@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.5.8d      by Dogway    - 16 Jan  2023                           ###
+###                       v3.5.9d      by Dogway    - 18 Jan  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -94,7 +94,11 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,  \
                       int "gpuid", int  "rfilter", bool "UHDhalf" ) {
 
-    isInter      = Default( Interlaced,  false)
+    fb           = GetParity(input) ? 2 : 1
+    InterPar     = propNumElements(input,"_FieldBased") > 0 ?     \
+                   propGetInt     (input,"_FieldBased") : IsFrameBased(input) ? 0 : fb
+    isInter      = Default( Interlaced,  InterPar!=0  )
+
     isyuy        = isYUY2(input)
     input        = isyuy ? ConverttoYUV422(input,interlaced=isInter) : input
     bi           = BitsPerComponent(input)
@@ -155,7 +159,6 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     SLimit       = Default( limitS,      true )                # Limit type for the contrasharpening   True: Spatial  False: Temporal (ignores CClip)
     isCntr       = IsBool (   Contrasharp )
     isShrp       = !isCntr ? (Contrasharp > 0.0) : Contrasharp
-    InterPar     = isInter ? GetParity(input) : nop()
 
 
     preclip      = IsClip ( prefilter )
@@ -244,13 +247,15 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
 
 
-
     # Input preparation for: Interlacing, Motion Filter and MSuper optimization when pel=2
 
-    inputP  = !isInter ? (pel >= 2 ? input.AssumeFrameBased()           : input)                             : \
-                         (InterPar ? input.AssumeTFF().SeparateFields() : input.AssumeBFF().SeparateFields())
+    inputP  = !isInter ? (pel      >= 2 ? input.AssumeFrameBased()                               : input) : \
+                         (InterPar == 2 ? input.AssumeTFF().SeparateFields().propSet("_Field",1) :          \
+                          InterPar == 1 ? input.AssumeBFF().SeparateFields().propSet("_Field",0) : input)
+    inputP  =  isInter ?                  inputP.propSet("_FieldBased", 0)                       : inputP
 
     Mfilter = MFilterB ? isYUY2(MFilter) ? ConverttoYUV422(MFilter) : MFilter : inputP
+
 
     # Prefilter
 
@@ -279,7 +284,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                   (prefilter== 6) ?  pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=1,chroma=chroma,gpuid=gpuid,LFR=600*(nw/1920.)).ex_boxblur(0.5, mode="weighted", UV=Chr)             : \
                                   (prefilter== 7) ?  pref.ex_DGDenoise(str=0.10,LFR=nw/2.,UV=Chr).                                              ex_boxblur(0.5, mode="weighted", UV=Chr)             : \
                                   (prefilter== 8) ?  pref.ex_BM3D(10,1,"normal",UV=Chr,gpuid=gpuid,tv_range=!fsp)                                                                                    : \
-                                                     Assert(false, "SMDegrain: Prefilter must be between -1~7: "+string(prefilter))                                                                  : \
+                                                     Assert(false, "SMDegrain: Prefilter must be between -1~8: "+string(prefilter))                                                                  : \
                                    pref
 
 
@@ -298,7 +303,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         pclip   = pelclip ? subpixel==4 && prefilter==-1 ?  pref8.  nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift=pel>1&&gpuid!=-1?"spline16":"none")               : \
                                                             Undefined()                                                                                                                        : nop() # Wiener filter is good enough for MAnalyse
         pclip2  = pelclip ? subpixel==4 ?                   inputP8.nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="spline16").ConvertBits(bi, fulls=!tv, fulld=!tv) : \
-                                                            inputP.blackmanresize(w*pel,h*pel/(isInter ? 2 : 1), taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25)                      : nop() # Center shift, from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and
+                                                            inputP. blackmanresize(w*pel,h*pel/(isInter ? 2 : 1), taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25)                     : nop() # Center shift, from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and
                                                                                                                                                                                                        # additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed).
                                                                                                                                                                                                        # nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
 
@@ -482,9 +487,11 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 global cb1             = !isMult ? (isInter ? bv2 : bv1) : vmulti.SelectEvery (tr2, 0)
                 global cf1             = !isMult ? (isInter ? fv2 : fv1) : vmulti.SelectEvery (tr2, 1)""") : nop()
 
-                CClip = isCClip       ? (isInter ? (InterPar ? CClip.AssumeTFF().SeparateFields() : CClip.AssumeBFF().SeparateFields()) : CClip) : inputP
-                CClip = isYUY2(CClip) ? ConverttoYUV422(CClip)                                                                          : CClip
-                CClip = mfilterB && SLimit  ?  ex_merge(  CClip, mfilter, Mavg, luma=true, UV=plane0?3:1)                               : CClip
+                CClip = isCClip       ? (isInter ? (InterPar == 2 ? CClip.AssumeTFF().SeparateFields().propSet("_Field",1) : \
+                                                    InterPar == 1 ? CClip.AssumeBFF().SeparateFields().propSet("_Field",0) : CClip) : CClip) : inputP
+                CClip = isCClip       && isInter ?                  CClip.propSet("_FieldBased", 0)                                          : inputP
+                CClip = isYUY2(CClip) ? ConverttoYUV422(CClip)                                                                               : CClip
+                CClip = mfilterB && SLimit  ?  ex_merge(  CClip, mfilter, Mavg, luma=true, UV=plane0?3:1)                                    : CClip
 
         }
 
@@ -543,7 +550,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                     SLimit ? LSFplus(output,source=CClip,preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=0,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : \
                                              LSFplus(output,             preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=6,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : output
 
-                 !GlobalO ? (isInter ? output.weave() : output) : output
+                 !GlobalO ? (isInter ? output.weave().propSet("_FieldBased",InterPar+1).propDelete("_Field") : output) : output
 
 
 
@@ -630,7 +637,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.5.8",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
+        Subtitle("SMDegrain Mod v3.5.9",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
