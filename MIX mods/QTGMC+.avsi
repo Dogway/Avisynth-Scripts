@@ -28,6 +28,7 @@
 #
 # v3.94p
 # - Populate with "_Field" frameprop where appropiate
+# - Fix "_AbsoluteTime" frameprop
 #
 # v3.93p
 # - Fix for missing "_Durationxxx" frameprops
@@ -1214,7 +1215,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
                                             nop()
 
     !IsClip(interpuv) ? interp : interp.MergeChroma( interpuv )
-    return propSet("_FieldBased",0).propSet("_Field",fb-2) }
+    return propSet("_FieldBased",0).propSet("_Field",fb%2) }
 
 
 
@@ -1554,7 +1555,7 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
     }
 
     par ? AssumeTFF() : AssumeBFF()
-    propCopy(cp,true,props=["_DurationNum","_FieldBased","_PictType"],exclude=true)
+    propCopy(cp,true,props=["_DurationNum","_FieldBased","_PictType","_AbsoluteTime"],exclude=true)
     propSet("_DurationDen",propGetInt(cp,"_DurationDen")*2)
     propSet("_FieldBased",0).propSet("_Field",fb-1).propSet("_Combed",0) }
 
