@@ -550,7 +550,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                     SLimit ? LSFplus(output,source=CClip,preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=0,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : \
                                              LSFplus(output,             preset="LSF",strength=Contrasharp,Smode=isHD?4:5,Lmode=6,edgemode=0,soothe=false,overshoot=0,soft=-2,keep=0) : output
 
-                 !GlobalO ? (isInter ? output.propSet("_FieldBased",InterPar+1).weave().propDelete("_Field") : output) : output
+                 !GlobalO ? (isInter ? output.propSet("_FieldBased",InterPar).weave().propDelete("_Field") : output) : output
 
 
 
