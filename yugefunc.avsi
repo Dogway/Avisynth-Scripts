@@ -1,8 +1,8 @@
 /*
 
 IMPLEMENT:
+getnative: https://github.com/Infiziert90/getnative
 CheckMatrix: https://github.com/HomeOfVapourSynthEvolution/mvsfunc/blob/7948c8be129bc9cb282cf24e25b3c4b77328a9e0/mvsfunc.py#L1999
-PlaneStatistics: https://github.com/HomeOfVapourSynthEvolution/mvsfunc/blob/7948c8be129bc9cb282cf24e25b3c4b77328a9e0/mvsfunc.py#L1228
 detail_enhancement https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L107
 Defilter (https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L1945)
 firniture https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/muvsfunc.py#L1688
@@ -19,6 +19,7 @@ BernsteinFilter https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1
 GPA https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L315
 sbr_detail https://github.com/WolframRhodium/muvsfunc/blob/80e99100c78b96b1c925a5989259ef22c1bc6173/Collections/muvsfunc_misc.py#L453
 chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/bffb6fa6b9f78f2e02e309b6e8fb606b471b0958/lvsfunc/recon.py#L22
+
 */
 
 
@@ -26,7 +27,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 
 #######################################################################
 ###                                                                 ###
-###    yugefunc  v0.9 (15-03-2022)                                  ###
+###    yugefunc  v1.0 (26-01-2023)                                  ###
 ###                                                                 ###
 ###    Collection of VapourSynth functions ported to AviSynth+      ###
 ###                                                                 ###
@@ -132,11 +133,11 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     eps = Default(regulation, 0.01)
     rm  = Default(regulation_mode, 0)     # 0: Original Guided Filter, 1: Weighted Guided Image Filter, 2: Gradient Domain Guided Image Filter
     ga  = Default(use_gauss,   true)
-    fa  = Default(fast,       false)
+    fa  = Default(fast,       false)      # Might need to readjust 'radius' to match when fast=false
     sh  = Default(show,       false)
-    s   = Default(subsampling_ratio, 4)
-    kn1 = Default(kernel1,   "Point")
-    kn2 = Default(kernel2,   "Bilinear")
+    s   = Default(subsampling_ratio, 2)
+    kn1 = Default(kernel1,   "Precise")
+    kn2 = Default(kernel2,   "Precise")
     UV  = Default(UV,    rgb ? 3 : 2)
 
     epr = eps < 0 ? "range_max swap -" : ""
