@@ -525,22 +525,22 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "h", float "si
             n == -1 ? fnl : oy_loop(fnl, init, src, n, strength0, strength1, color) }
 
 
-    ref     = FreqMerge2(src, ref, nmod(block_size,2) + 1, lowpass, 0.003)
-    dif     = ex_makediff(src, ref)
+    ref     = FreqMerge2(src, ref, nmod(block_size,2) + 1, lowpass, 0.003, color)
+    dif     = ex_makediff(src, ref, UV=UV)
 #    dif     = BM3D_CUDA(dif, ref, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
 #                         block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                         ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
 #    dif     = BM3D_CPU(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif     = BM3D_CUDA(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif     = BM3D_VAggregate(dif, radius)
-    ref     = ex_adddiff(ref, dif)
+    ref     = ex_adddiff(ref, dif, UV=UV)
     refined = oy_loop(ref, ref, src, 2, strength0, strength1, color)       # changed from a loop of 4 to 2 (won't work unless you lower it to 1, but then the filter loses its purpose)
 #    bm3d    = BM3D_CUDA(refined, ref, radius=radius, th_mse=mse1, sigma=sigma, \
 #                         block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                         ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
     bm3d    = BM3D_CUDA(refined, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     bm3d    = BM3D_VAggregate(bm3d, radius)
-    bm3d    = FreqMerge2(refined, bm3d, nmod(block_size,2) + 1, lowpass, 0.003)
+    bm3d    = FreqMerge2(refined, bm3d, nmod(block_size,2) + 1, lowpass, 0.003, color)
     clp     = oy_loop(bm3d, bm3d, refined, 2, strength0, strength1, color) # changed from a loop of 4 to 2 (won't work unless you lower it to 1, but then the filter loses its purpose)
 
     clp     = rgb ? OPP_to_RGB(clp).SMPTE_legal(true) : clp
@@ -568,25 +568,26 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     elast       = Default(elast, 0.015625)
     lowpass     = Default(lowpass, Format("0.0:{sigma} 0.48:1024.0 1.0:1024.0"))
     color       = !isy(src)
+    UV          = color ? 3 : 2
 
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
     bir = BitsPerComponent(ref)
 
-    Assert(isclip(src),                    "oyster_Destaircase: src has to be a video clip!")
-    Assert(bi == 32,                       "oyster_Destaircase: the sample type of src has to be single precision!")
-    Assert(is444(src) || rgb,              "oyster_Destaircase: subsampled stuff not supported!")
-    Assert(isclip(ref),                    "oyster_Destaircase: ref has to be a video clip!")
-    Assert(bir == 32,                      "oyster_Destaircase: the sample type of ref has to be single precision!")
-    Assert(is444(ref) || isrgb(ref),       "oyster_Destaircase: subsampled stuff not supported!")
-    Assert(isint(radius),                  "oyster_Destaircase: radius has to be an integer!")
-    Assert(radius>1,                       "oyster_Destaircase: radius has to be greater than 0!")
-    Assert(isfloat(thr),                   "oyster_Destaircase: thr has to be a real number!")
-    Assert(thr>=0 && thr<= 1,              "oyster_Destaircase: thr has to fall in [0, 1]!")
-    Assert(isfloat(elast),                 "oyster_Destaircase: elast has to be a real number!")
-    Assert(elast>=0 && elast<=thr,         "oyster_Destaircase: elast has to fall in [0, thr]!")
-#   Assert(isfloat(mse0),                  "oyster_Destaircase: sad has to be a real number or None!")
-#   Assert(isfloat(mse1),                  "oyster_Destaircase: sad has to be a real number or None!")
+    Assert(isclip(src),              "oyster_Destaircase: src has to be a video clip!")
+    Assert(bi == 32,                 "oyster_Destaircase: the sample type of src has to be single precision!")
+    Assert(is444(src) || rgb,        "oyster_Destaircase: subsampled stuff not supported!")
+    Assert(isclip(ref),              "oyster_Destaircase: ref has to be a video clip!")
+    Assert(bir == 32,                "oyster_Destaircase: the sample type of ref has to be single precision!")
+    Assert(is444(ref) || isrgb(ref), "oyster_Destaircase: subsampled stuff not supported!")
+    Assert(isint(radius),            "oyster_Destaircase: radius has to be an integer!")
+    Assert(radius>1,                 "oyster_Destaircase: radius has to be greater than 0!")
+    Assert(isfloat(thr),             "oyster_Destaircase: thr has to be a real number!")
+    Assert(thr>=0 && thr<= 1,        "oyster_Destaircase: thr has to fall in [0, 1]!")
+    Assert(isfloat(elast),           "oyster_Destaircase: elast has to be a real number!")
+    Assert(elast>=0 && elast<=thr,   "oyster_Destaircase: elast has to fall in [0, thr]!")
+#   Assert(isfloat(mse0),            "oyster_Destaircase: sad has to be a real number or None!")
+#   Assert(isfloat(mse1),            "oyster_Destaircase: sad has to be a real number or None!")
 
     if (rgb) {
        src    = !fs ? src.SMPTE_legal(false).RGB_to_OPP() : src.RGB_to_OPP()
@@ -596,23 +597,23 @@ function oyster_Destaircase(clip src, clip ref, int "radius", float "sigma", flo
     ref       = AssumeFrameBased(ref)
 
     msk       = ex_lutspa(ExtractY(src),mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?")
-    ref       = FreqMerge2(src, ref, nmod(block_size,2) + 1, lowpass, 0.006).SantiagMod(strh=2)
-    ref       = ThrMerge(src, ref, thr=thr, elast=elast)
-    dif       = ex_makediff(src, ref)
+    ref       = FreqMerge2(src, ref, nmod(block_size,2) + 1, lowpass, 0.006, color).SantiagMod(strh=2)
+    ref       = ThrMerge(src, ref, thr=thr, elast=elast, UV=UV)
+    dif       = ex_makediff(src, ref, UV=UV)
 #    dif       = BM3D_CUDA(dif, ref, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
 #                           block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                           ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
     dif       = BM3D_CUDA(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif       = BM3D_VAggregate(dif, radius)
-    ref       = ex_adddiff(ref, dif)
-    dif       = ex_makediff(src, ref)
+    ref       = ex_adddiff (ref, dif, UV=UV)
+    dif       = ex_makediff(src, ref, UV=UV)
 #    dif       = BM3D_CUDA(dif, ref, radius=radius, th_mse=mse1, sigma=sigma, \
 #                           block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                           ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
     dif       = BM3D_CUDA(dif, ref, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif       = BM3D_VAggregate(dif, radius)
-    ref       = ex_adddiff(ref, dif)
-    clp       = ex_merge(src, ref, msk, luma=true)
+    ref       = ex_adddiff(ref, dif, UV=UV)
+    clp       = ex_merge(src, ref, msk, luma=true, UV=UV)
 
     clp       = rgb ? OPP_to_RGB(clp).SMPTE_legal(true) : clp
     return clp }
@@ -637,6 +638,7 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
 #    ps_step     = Default(ps_step,     1)
     lowpass     = Default(lowpass, "0.0:0.0 0.12:1024.0 1.0:1024.0")
     color       = !isy(src)
+    UV          = color ? 3 : 2
 
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
@@ -662,24 +664,24 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
 
     msk      = ex_lutspa(ExtractY(src),mode="absolute",expr="x 1 + 8 % 1 < x 8 % 1 < y 1 + 8 % 1 < y 8 % 1 < | | | range_max 0 ?")
     cleansed = NLMeans(ref, radius, block_size, ceil(block_size / 2.), h, ref, color)
-    dif      = ex_makediff(ref, cleansed)
+    dif      = ex_makediff(ref, cleansed, UV=UV)
 #    dif      = BM3D_CUDA(dif, cleansed, radius=radius, th_mse=mse0, hard_thr=hard_thr, sigma=sigma, \
 #                          block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                          ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
     dif      = BM3D_CUDA(dif, cleansed, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif      = BM3D_VAggregate(dif, radius)
-    cleansed = ex_adddiff (cleansed, dif)
-    dif      = ex_makediff(ref, cleansed)
+    cleansed = ex_adddiff (cleansed, dif, UV=UV)
+    dif      = ex_makediff(ref, cleansed, UV=UV)
 #    dif      = BM3D_CUDA(dif, cleansed, radius=radius, th_mse=mse1, sigma=sigma, \
 #                          block_size=block_size, block_step=block_step, group_size=group_size, bm_range=bm_range, bm_step=bm_step, \
 #                          ps_num=ps_num, ps_range=ps_range, ps_step=ps_step, matrix=matrix, fast=true, extractor_exp=6)
     dif      = BM3D_CUDA(dif, cleansed, radius=radius, sigma=sigma, block_step=block_step, bm_range=bm_range/3, ps_num=ps_num, ps_range=ps_range)
     dif      = BM3D_VAggregate(dif, radius)
-    cleansed = ex_adddiff(cleansed, dif)
+    cleansed = ex_adddiff(cleansed, dif, UV=UV)
     sbsize   = nmod(block_size,2) + 1
-    ref      = FreqMerge2(cleansed, ref, sbsize, lowpass, sbsize/1000.)
-    src      = FreqMerge2(cleansed, src, sbsize, lowpass, sbsize/1000.)
-    clp      = ex_merge(src, ref, msk, luma=true)
+    ref      = FreqMerge2(cleansed, ref, sbsize, lowpass, sbsize/1000., color)
+    src      = FreqMerge2(cleansed, src, sbsize, lowpass, sbsize/1000., color)
+    clp      = ex_merge(src, ref, msk, luma=true, UV=UV)
 
     clp      = rgb ? OPP_to_RGB(clp).SMPTE_legal(true) : clp
     return clp }
@@ -695,14 +697,15 @@ function oyster_Deblocking(clip src, clip ref, int "radius", float "h", float "s
 #####################################
 
 # Optimized FreqMerge()
-function FreqMerge2(clip low, clip hi, int sbsize, string slocation, float reg) {
+function FreqMerge2(clip low, clip hi, int sbsize, string slocation, float reg, bool UV) {
+    UV = UV ? 3 : 2
     sst = FindStr(slocation,"0.12:")>0
     sbs = sst        ? sbsize*0.0750+0.8250 : \
           reg==0.006 ? sbsize*0.0625+1.0375 : \
                        sbsize*0.0875+0.8710
-    hif = ex_guidedblur ( hi, sbs, fast=true, regulation=reg)
-    lof = ex_guidedblur (low, sbs, fast=true, regulation=reg)
-    clp = ex_makeadddiff( hi, hif, lof)
+    hif = ex_guidedblur ( hi, sbs, fast=true, regulation=reg, UV=UV)
+    lof = ex_guidedblur (low, sbs, fast=true, regulation=reg, UV=UV)
+    clp = ex_makeadddiff( hi, hif, lof, UV=UV)
     return clp }
 
 function FreqMerge(clip low, clip hi, int sbsize, string slocation) {
