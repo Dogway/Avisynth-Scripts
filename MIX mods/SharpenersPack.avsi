@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.5  (11-01-2023)                             ###
+###        Sharpeners Pack v4.6  (26-01-2023)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -2221,7 +2221,7 @@ function YAHR(clip clp) {
 ################################
 
 # Note: Most of feisty2's filters (these or Plum, Oyster, Vine, etc) are benchmarked against SD 4:3 clips (namely old music clips)
-#       So keep that in mind when evaluating quality on HD or performance.
+#       So keep that in mind when evaluating performance on HD or its quality.
 #
 # Dependencies:
 #              ExTools
@@ -2311,8 +2311,8 @@ function RegularSharp (clip src, bool "median", int "lowpass", int "a", float "h
 # Example:
 #     soft = last
 #     RegularSharp()
-#     dif = ex_makediff(soft, dif=true)
-#     lcl = Merge(ex_expand(soft), ex_inpand(soft)) # or ex_luts(mode="minmax")
+#     dif  = ex_makediff(soft, dif=true)
+#     lcl  = Merge(ex_expand(soft), ex_inpand(soft)) # or ex_luts(mode="minmax")
 #     SharpFinal(last,soft,lcl)
 
 function SharpFinal (clip soft, clip dif, clip limit, clip "peldif", clip "pellimit", int "pel", int "tr", int "thsad", int "thscd1", int "thscd2", float "str", int "lowpass", int "a", float "h", float "thr", float "elast") {
@@ -2415,8 +2415,8 @@ function HaloNR (clip src, int "a", float "h", float "thr", float "elast", int "
 ##                  RgTools
 ##                  ResizersPack
 ##                  NNEDI3CL
-##                  manyPlus
 ##                  KNLMeansCL
+##                  manyPlus
 ##
 
 function plum_Super(clip src, int "pel") {
@@ -2677,7 +2677,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 
         return clp }
 
-    # Strange filter, blurs mid-freqs of 'low' and replace its hi-freqs with those of 'hi'
+    # Strange filter; blurs mid-freqs of 'low' and replace its hi-freqs with those of 'hi'
     function CutOff(clip low, clip hi, int p, int margin) {
 
         clp1          = gauss(hi,  p+margin)
@@ -2751,7 +2751,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         return clp }
 
 
-    function ThrMerge(clip flt, clip src, clip "ref", float "thr", float "elast") {
+    function ThrMerge(clip flt, clip src, clip "ref", float "thr", float "elast", int "UV") {
 
         bi    = BitsPerComponent(flt)
         rgb   = isRGB(flt)
@@ -2761,15 +2761,16 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
         thr   = Default(thr, 0.0009765625)
         ref   = Default(ref,   src)
         elast = Default(elast, thr / 2.)
+        UV    = Default(UV,      2)
 
         elast = ex_bs(elast, 32, bi, true, flt=true)
         thr   = ex_bs(thr,   32, bi, true, flt=true)
 
-        BDif  = ex_lut(src, "0", scale_inputs="none")
-        PBLD  = ex_lutxyza(src, BDif, flt, ref, Format("z x - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), scale_inputs="none")
-        NBLD  = ex_lutxyza(src, BDif, flt, ref, Format("x z - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), scale_inputs="none")
-        BLD   = ex_makeadddiff(PBLD, NBLD, src)
-        clp   = ex_lutxyza(flt, ref, BLD, src, Format("x y - abs X@ {thr} {elast} + < X {thr} {elast} - > z x ? a ?"), scale_inputs="none")
+        BDif  = ex_lut(src, "0", scale_inputs="none", UV=UV)
+        PBLD  = ex_lutxyza(src, BDif, flt, ref, Format("z x - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), UV=UV, scale_inputs="none")
+        NBLD  = ex_lutxyza(src, BDif, flt, ref, Format("x z - 0 max {thr} {elast} + a z - 0 max Z@ - 2 {elast} * / * y {elast} Z + {thr} - 2 {elast} * / * +"), UV=UV, scale_inputs="none")
+        BLD   = ex_makeadddiff(PBLD, NBLD, src, UV=UV)
+        clp   = ex_lutxyza(flt, ref, BLD, src, Format("x y - abs X@ {thr} {elast} + < X {thr} {elast} - > z x ? a ?"), UV=UV, scale_inputs="none")
 
         return clp }
 
