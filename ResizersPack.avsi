@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 10.9 (26-01-2023)     ##
+###   Resizers Functions Pack 10.9 (31-01-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -197,16 +197,16 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     ftp    = Default(f_taps,   krn2 =="Blackman" ? 16 : krn2 =="Lanczos" ? 8 : 0)             # taps for flat   kernel (0 for undefined)
     ctp    = Default(c_taps,   krn1c=="Blackman" ?  5 : krn1c=="Lanczos" ? 3 : 0)             # taps for chroma kernel (0 for undefined)
     mul    = Default(sharpness,krn1 =="nnedi3"   ?  1 : 0)                                    # Add sharpness (only to nnedi3 based upscaling)
-    thr    = Default(th,        1.0)                                                          # 0-255 (normally up to 10)
-    ela    = Default(elast,     4.0)                                                          # 1-255 (normally up to 10)
-    qual   = Default(qual,        1)                                                          # nnedi3 qual argument
-    ssp    = Default(sspace,"Gamma")                                                          # Scale space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog
-    nr     = Default(noring,  false)
-    sh     = Default(show,    false)
+    thr    = Default(th,           1.0)                                                       # 0-255 (normally up to 10)
+    ela    = Default(elast,        4.0)                                                       # 1-255 (normally up to 10)
+    qual   = Default(qual,           1)                                                       # nnedi3 qual argument
+    ssp    = Default(sspace,   "Gamma")                                                       # Scale space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog
+    nr     = Default(noring,     false)
+    sh     = Default(show,       false)
     HBD    = Default(HBD, ssp!="Gamma" && krn1!="nnedi3")
     ddec   = Defined(deconv)
     dec    = Default(deconv,     0)                                                         # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
-    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.6 : 0 )                             # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
+    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.4 : 0 )                             # Grain strength. >0 Add grain to big upscales as a mean of cheap detail hallucination
     decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
     dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                     # higher deconvolution the higher the upscale
     dec    = dec == 0.095 ? 0 : dec
@@ -220,7 +220,6 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     fcgpu  = fgpu!=-2 && cgpu!=-2 ? [fgpu,cgpu] : fgpu!=-2 && cgpu==-2 ? [fgpu] : und
     egpu   = egpu!=-2  ? egpu : und
 
-    Assert(IsVersionOrGreater(3,7,2), "deep_resize: Update AviSynth+ version")
 
     if (rw==1 && rh==1) {
 
@@ -330,7 +329,7 @@ function nnedi3resize(clip a, val "width", val "height", float "src_left", float
     w2      = Default(width,  w)
     h2      = Default(height, h)
 
-    Assert(IsVersionOrGreater(3,7,2),  "nnedi3resize: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),  "nnedi3resize: Update AviSynth+ version")
     Assert(isFloat(w2) || isFloat(h2), "nnedi3resize: Width/Height type not supported")
 
     w2      = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
@@ -1323,7 +1322,7 @@ function ColortoHex(string color) {
 
 ##############################
 ###
-### MatteCrop() - by Dogway (15-10-2021)
+### MatteCrop() - by Dogway (15-10-2021) (WIP)
 ###
 ### https://forum.doom9.org/showthread.php?t=182678
 ###
