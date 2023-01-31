@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.1 (21-12-2022)               ##
+###           Grade Pack v8.1 (31-01-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -211,7 +211,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
     UV    = Default(UV, Defined(sat) && sat!=1 || rgb ? 3 : 1)
     cont  = Default(cont, 0.0)                     # [-1.0 to +1.0] can set further though
-    sat   = Default(sat,  (cont+3)/3)              # [ 0.0 to +inf] By default can't be disabled in RGB
+    sat   = Default(sat,  (cont+3)/3)              # [ 0.0 to +inf] 1.0 is noop. By default can't be disabled in RGB
     sh    = Default(show,      false)              # Show the contrast curve
     tv    = Default(tv_range, !fs)                 # TV or PC. Color range of your source
     pivot = Default(pivot,    !tv ? 127.5 : 125.5) # Pivot: 64 to 192 (roughly)
@@ -836,7 +836,7 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 ###
 ### HSVxHSV() - (11-01-2022)
 ###
-### 3x3 operator matrix. Adjust Hue, Saturation or Value based on Hue, Saturation or Value.
+### 3x3 operator matrix. Adjust Hue, Saturation or Value (modeB) based on Hue, Saturation or Value (modeA).
 ### This is similar to internal Tweak(), but double the speed, easier to use and more modes (+5 modes involving 'VAL')
 ### RGB not supported.
 ###
@@ -878,11 +878,11 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     bi32= bi==32
 
     str = Default (str,     1.0)   # Strength of 'modeB' operator. 0-360 for 'V' and 'H' and 0.0-4.0 for 'S'
-    mA  = Default (modeA, "HUE")   # 'modeA' (HUE or H, SAT or S, VAL or L or V)
-    mB  = Default (modeB, "SAT")   # 'modeB' (HUE or H, SAT or S, VAL or L or V)
+    mA  = Default (modeA, "HUE")   # 'modeA' (HUE or H, SAT or S, VAL or L or V). Mask of the operator.
+    mB  = Default (modeB, "SAT")   # 'modeB' (HUE or H, SAT or S, VAL or L or V). Mode of the operator.
     dA  = Default (Delta, 180.0)   # Degrees of 'modeA' (isolate this area. 0-255 for 'L', 0-360 for for 'H' and 0.0-100.0 for 'S')
-    bA  = Default (Q,       0.2)   # Q-factor (Bandwidth) of 'modeA' Spread of the isolated area. 0.0-1.0
-    sA  = Default (opacity, 1.0)   # Scale   of 'modeA' Scale  of the isolated area (typical to scale down since by default it's white). 0.0-1.0
+    bA  = Default (Q,       0.2)   # Q-factor (Bandwidth) of 'modeA'. Spread of the isolated area. 0.0-1.0
+    sA  = Default (opacity, 1.0)   # Scale   of 'modeA'. Scale of the isolated area (typically to scale down since by default it's white). 0.0-1.0
     tv  = Default (tv_range, ID[6])
     sh  = Default (show,      0)   # 0: disabled, 1: show histogram, 2: show mask (resized to luma dimensions) 3: show mask at original size
     sm  = sh > 1
@@ -902,14 +902,16 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     Vc  = YtoUV(V,V,c4V)
     Y   = YtoUV(Ys,Ys,Yf)
 
-    mA  = mA=="H" ? "HUE" : \
-          mA=="S" ? "SAT" : \
-          mA=="V" ? "VAL" : \
-          mA=="L" ? "VAL" : mA
-    mB  = mB=="H" ? "HUE" : \
-          mB=="S" ? "SAT" : \
-          mB=="V" ? "VAL" : \
-          mB=="L" ? "VAL" : mB
+    mA  = mA=="H"   ? "HUE" : \
+          mA=="S"   ? "SAT" : \
+          mA=="V"   ? "VAL" : \
+          mA=="L"   ? "VAL" : \
+          mA=="LUM" ? "VAL" : mA
+    mB  = mB=="H"   ? "HUE" : \
+          mB=="S"   ? "SAT" : \
+          mB=="V"   ? "VAL" : \
+          mB=="L"   ? "VAL" : \
+          mB=="LUM" ? "VAL" : mB
     nul = mB=="SAT" ? str==1.0 : mB=="VAL" ? str==180. : str==0.0 || str==360.0
 
     dA  = mA=="HUE" ? clamp(dA,0,360)/360. : \
@@ -1019,7 +1021,7 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
 ### GamutWarning() - (01-03-2022)
 ###
 ###
-### Shows pixels that fall out-of-gamut when converting YUV to RGB PC range.
+### Shows pixels that would fall out-of-gamut when converting YUV to RGB PC range (ie. for display presentation)
 ### Supported color spaces are "Rec709", "170M", "470M", "470BG/Rec601" and "2020NCL".
 ### Enable 'EBUR103' for relaxed thresholds based on the normative and write to '_OutGamut' frameprops.
 ###
@@ -1674,7 +1676,6 @@ function HistoCurve(clip a, float "size", bool "gradient") {
 
 
 function Vectorscope(clip a) {
-
     a
     Histogram(mode="color2",keepsource=false)
     ex_lutspa("sx 128 == sy 128 == or range_max x - 0.5 * x ?",UV=2) # axis
@@ -1682,4 +1683,4 @@ function Vectorscope(clip a) {
     subtitle("V+\n90º" ,lsp=1,align=2,text_color=$FFFFFF,size=12,x=128+3,y=256-20)
     subtitle("U-\n180º",lsp=1,align=4,text_color=$FFFFFF,size=12)
     subtitle("V-\n270º",lsp=1,align=8,text_color=$FFFFFF,size=12,x=128+3,y=+6)
-}
+    }
