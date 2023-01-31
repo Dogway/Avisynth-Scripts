@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 10.9 (31-01-2023)     ##
+###   Resizers Functions Pack 11.0 (31-01-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -580,12 +580,12 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     numD   = Defined(FrameNum)
     denD   = Defined(FrameDen)
 
-    num    = propNumElements (a,"_DurationDen") > 0 ? \
-             propGetInt      (a,"_DurationDen") : FrameRateNumerator(a)
-    den    = propNumElements (a,"_DurationNum") > 0 ? \
-             propGetInt      (a,"_DurationNum") : FrameRateDenominator(a)
-    fs     = propNumElements (a,"_ColorRange" ) > 0 ? \
-             propGetInt      (a,"_ColorRange" )== 0 : rgb
+    numFD  = propNumElements     (a,"_DurationDen") > 0
+    num    = FrameRateNumerator  (a)
+    den    = FrameRateDenominator(a)
+    fps    = num/float(den)
+    fs     = propNumElements     (a,"_ColorRange" ) > 0 ? \
+             propGetInt          (a,"_ColorRange" )== 0 : rgb
 
     pID    = color_propGet(a)
     bi     = pID[7]
@@ -605,6 +605,8 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     fd     = Default(FrameDouble, !(numD || denD))
     an     = Default(Anime,      false)
     gid    = Default(gpuid,          0)
+    nfps   = (float(num)/den)/fps
+    fd     = fd || string(nfps,"%.1f")=="2.0"
 
     !isy ? a    : ConvertBits(a, 32, fulls=!tv,  fulld=true)
     rgb  ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="Precise")
@@ -612,11 +614,14 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
 
     RIFE(model=fd ? md : max(md,9), sc=true, skip=an, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2)
 
-    isy  ? ExtractR().ConvertBits(bi, dither=1, fulls=true, fulld=!tv) : \
-    !rgb ? MatchClip (a,matrix=pri,size=false,props=false)             : last
-    fd   ? Interleave(a.propSet("_DurationDen",num*2), SelectOdd())    : last
+    isy   ? ExtractR().ConvertBits(bi, dither=1, fulls=true, fulld=!tv) : \
+    !rgb  ? MatchClip (a,matrix=pri,size=false,props=false)             : last
+    fd    ? numFD ? Interleave(a.ScriptClip(function[]() {
+                    propSet("_DurationDen" ,propGetInt("_DurationDen") * 2 )
+                    propSet("_DurationNum" ,propGetInt("_DurationNum")     )
+                    } ), SelectOdd()) : Interleave(a, SelectOdd()) : last
 
-    propCopy(a,true,props=["_DurationNum","_DurationDen","_PictType"], exclude=true) }
+    propCopy(a,true,props=["_AbsoluteTime","_DurationNum","_DurationDen","_PictType"], exclude=true) }
 
 
 
@@ -651,10 +656,6 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
               propGetInt     (  "_ColorRange")    == 0 : isRGB()
     cpl     = propNumElements(  "_ChromaLocation") > 0 ?     \
               propGetInt     (  "_ChromaLocation") : 0
-    a       = propNumElements(a,"_DurationNum")    > 0 ? a : \
-              propSet        (a,"_DurationNum", FrameRateDenominator())
-    a       = propNumElements(a,"_DurationDen")    > 0 ? a : \
-              propSet        (a,"_DurationDen", FrameRateNumerator  ())
     fmt     = isy ? 0 : isYV411() ? 1 : is420()  ? 2 : is422() ? 3  : 4
 
 
@@ -740,7 +741,10 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
 
     gpuid<0   ? in ? propCopy(a,true,props=["_AbsoluteTime"],exclude=true) : propCopy(a)    : last
     in || fld ? propSet("_FieldBased",0).propSet("_Field",fd%2)                             : last
-    in        ? propSet("_Combed",0).propSet("_DurationDen",propGetInt(a,"_DurationDen")*2) : \
+    in        ? propSet("_Combed",0).ScriptClip(function[a]() {
+                                     propSet("_DurationDen",propGetInt(a,"_DurationDen")*2)
+                                     propSet("_DurationNum",propGetInt(a,"_DurationNum")  )
+                                     } ) : \
     mul>0     ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # For final scaling and/or fix for pixel center shift
@@ -801,10 +805,6 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
               propGetInt     (  "_ColorRange")    == 0 : isRGB()
     cpl     = propNumElements(  "_ChromaLocation") > 0 ?     \
               propGetInt     (  "_ChromaLocation") : 0
-    a       = propNumElements(a,"_DurationNum")    > 0 ? a : \
-              propSet        (a,"_DurationNum", FrameRateDenominator())
-    a       = propNumElements(a,"_DurationDen")    > 0 ? a : \
-              propSet        (a,"_DurationDen", FrameRateNumerator  ())
     fmt     = isy ? 0 : isYV411() ? 1 : is420()  ? 2 : is422() ? 3  : 4
 
 
@@ -897,7 +897,10 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
 
     gpuid<0   ? in ? propCopy(a,true,props=["_AbsoluteTime"],exclude=true) : propCopy(a)    : last
     in || fld ? propSet("_FieldBased",0).propSet("_Field",fd%2)                             : last
-    in        ? propSet("_Combed",0).propSet("_DurationDen",propGetInt(a,"_DurationDen")*2) : \
+    in        ? propSet("_Combed",0).ScriptClip(function[a]() {
+                                     propSet("_DurationDen",propGetInt(a,"_DurationDen")*2)
+                                     propSet("_DurationNum",propGetInt(a,"_DurationNum")  )
+                                     } ) : \
     mul>0     ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # For final scaling and/or fix for pixel center shift
