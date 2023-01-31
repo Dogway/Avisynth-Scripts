@@ -443,7 +443,7 @@
 #
 # Core scripts:
 #   ExTools      (9.6    or above)
-#   ResizersPack (10.9   or above) (for nnedi3wrap() )
+#   ResizersPack (11.0   or above) (for nnedi3wrap() )
 #   SMDegrain    (3.5.9  or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #
 # Optional:
