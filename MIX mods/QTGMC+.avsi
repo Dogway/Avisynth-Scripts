@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.94 + mod by Dogway 2023, based on 3.382s              #
+#     QTGMC 3.95 + mod by Dogway 2023, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -25,6 +25,11 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.95p
+# - Fix typo on KNLMeansCL call for 'gpuid'
+# - Update dependencies versions
+# - Update show panel
 #
 # v3.94p
 # - Populate with "_Field" frameprop where appropiate
@@ -424,42 +429,42 @@
 #
 # --- REQUIREMENTS ---
 #
-# Input formats: YUV, YUY2, 8-bit and HBD
+# Input formats: YUV, YUY2, 8-bit and HBD (sans 32-bit float)
 #
 # Core plugins:
-#   MVTools2   (2.7.45  or above)
-#   MaskTools2 (2.2.30  or above)
-#   RgTools    (1.2     or above)
-#   vsTCanny   (1.1.8 for gaussian blur or above)
-#   NNEDI3CL   (1.0.6   or above) (for gpuid=0)
-#   SysInfo    (0.1.2.9 or above) (requires "Microsoft Visual C++ 2010 x64 Redistributable")
-#   Vinverse   (0.9.4   or above)
+#   MVTools2   (2.7.45   or above)
+#   MaskTools2 (2.2.30   or above)
+#   RgTools    (1.2      or above)
+#   vsTCanny   (1.1.8   for gaussian blur or above)
+#   NNEDI3CL   (1.0.6    or above) (for gpuid=0)
+#   SysInfo    (0.1.2.9  or above) (requires "Microsoft Visual C++ 2010 x64 Redistributable")
+#   Vinverse   (0.9.4    or above)
 #
 # Core scripts:
-#   ExTools      (9.6   or above)
-#   ResizersPack (10.8  or above) (for nnedi3wrap() )
-#   SMDegrain    (3.5.9 or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
-#   Zs_RF_Shared (1.159 or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
+#   ExTools      (9.6    or above)
+#   ResizersPack (10.8   or above) (for nnedi3wrap() )
+#   SMDegrain    (3.5.9  or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #
-# Additional plugins:
+# Optional:
 #   NNEDI2, NNEDI, EEDI3CL, EEDI2, TDeInt - if selected directly or via a source-match preset
-#   yadifmod2    (0.2.7 or above) - for Preset="Ultra Fast" or if selected directly
-#   neo_FFT3D    (r11   or above) - if selected for noise processing
-#   KNLMeansCL   (0.7.5 or above) - if selected for noise processing
-#   DFTTest      (1.9.6 or above) - if selected for noise processing
+#   yadifmod2    (0.2.7  or above) - for Preset="Ultra Fast" or if selected directly
+#   KNLMeansCL   (1.1.1e or above) - if selected for noise processing
+#   DFTTest      (1.9.6  or above) - if selected for noise processing
+#   neo_FFT3D    (r11    or above) - if selected for noise processing
 #       For neo_FFT3D & DFTTest you also need the FFTW3 library (FFTW.org). On Windows the file needed for both is libfftw3f-3.dll and placed in your System32 or SysWow64 folder
-#   AddGrainC    (1.8.4 or above) - if NoiseDeint="Generate" selected for noise bypass
-#   BWDIF        (1.2.4 or above) - for EdiMode modes "BWDIF+NNEDI3" and "BWDIF+EEDI3"
-#   chikuzen PlanarTools - if you work with YUY2 source (not necessarily required but may improve speed)
+#   AddGrainC    (1.8.4  or above) - if NoiseDeint="Generate" selected for noise bypass
+#   BWDIF        (1.2.5  or above) - for EdiMode modes "BWDIF+NNEDI3" and "BWDIF+EEDI3"
+#   Zs_RF_Shared (1.159  or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
+#   chikuzen's PlanarTools - if you work with YUY2 source (not necessarily required but may improve speed)
 
 
 # --- GETTING STARTED ---
 #
 # Install AviSynth and ensure you have at least the core plugins listed in the requirements section above. Put them in the plugins autoload folder.
-# To use QTGMC write a script like this:
-#   YourSource("yourfile")   # DGSource, FFVideoSource, LWLibavVideoSource, LSMASHVideoSource, etc, whatever your source requires
-#   QTGMCp( Preset="Slow" )  # Add SourceMatch>0 if dealing with Anime to avoid ghosting artifacts
-#   SelectEven()             # Add this line to keep original frame rate, leave it out for smoother doubled frame rate
+# To use QTGMC+ write a script like this:
+#   YourSource("yourfile")                 # Mainly DGSource or FFVideoSource
+#   QTGMCp( Preset="Slow", FPSDivisor=1 )  # FPSDivisor=1 for double (frame)rate, =2 for half-rate
+#                                          # Add SourceMatch>0 if dealing with Anime to avoid ghosting artifacts
 #
 # Save this script with an ".avs" extension. You can now use it as an AVI source for encoding.
 #
@@ -537,7 +542,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     n16           = Default( n16,       false)
     n16d          = Default( n16d,      false)
     UseEdiExt     = Default( useEdiExt,    0 )
-    Str           = Default( Str,        5.0 )
+    St            = Default( Str,        5.0 )
     Amp           = Default( Amp,     0.0312 )
     tv            = Default( TV_range,    !fs)
 
@@ -869,7 +874,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                   (SrchClipPP == 0) ? repair0             : \
                   (SrchClipPP  < 3) ? spatialBlur         : \
                   (SrchClipPP  > 1) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - Y x - 0.49 * x + ? ?", UV=CMmt, fulls=!tv ) : nop()
-    srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=Str, c=Amp, uv=CMmt, tv_in=tv, tv_out=false, bits=8) : srchClip.ConvertBits(8,dither=-1)
+    srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=St, c=Amp, uv=CMmt, tv_in=tv, tv_out=false, bits=8) : srchClip.ConvertBits(8,dither=-1)
 
     # Calculate forward and backward motion vectors from motion search clip
     srchSuper = IsClip(srchSuper) ? srchSuper                                                                                             : \
@@ -933,7 +938,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     noiseWindow = (NoiseProcess != 0) && n16d ? noiseWindow.ConvertBits(16,fulls=!tv)              : noiseWindow
     dnWindow    = (NoiseProcess == 0)         ? nop() : \
                   (Denoiser == "DFTTest")     ? noiseWindow.DFTTest( Y=true, U=ChromaNoise, V=ChromaNoise, sigma=Sigma*4, tbsize=noiseTD, threads=1, Dither=1 ) : \
-                  (Denoiser == "KNLMeansCL")  ? noiseWindow.ex_KNLMeansCL(Chroma=ChromaNoise, a=2, d=NoiseTR, h=Sigma, gpuid=id )                               : \
+                  (Denoiser == "KNLMeansCL")  ? noiseWindow.ex_KNLMeansCL(Chroma=ChromaNoise, a=2, d=NoiseTR, h=Sigma, gpuid=gpuid )                            : \
                                                 noiseWindow.neo_fft3d( sigma=Sigma, bt=noiseTD, mt=bomt, ncpu=min(4,Threads), u=max(2,CMmt), v=max(2,CMmt))
     dnwindow    = (Denoiser == "KNLMeansCL" || Denoiser == "DFTTest") && (NoiseProcess != 0) && yuy2 ? dnWindow.nonyuy2clipout(true) : dnWindow
     dnwindow    = (NoiseProcess != 0) && n16d ? dnwindow.ConvertBits(bi,dither=-1,fulls=!tv) : dnwindow
@@ -1160,8 +1165,9 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
         string(StabilizeNoise) + " | InputType=" + string(InputType) + " | ProgSADMask=" + string(ProgSADMask, "%.2f") + "\nFPSDivisor=" + \
         string(FPSDivisor) + " | ShutterBlur=" + string(ShutterBlur) + " | ShutterAngleSrc=" + string(ShutterAngleSrc, "%.2f") + " | ShutterAngleOut=" + \
         string(ShutterAngleOut, "%.2f") + " | SBlurLimit=" + string(SBlurLimit) + "\nBorder=" + string(Border) + " | Precise=" + string(Precise) + \
-        "\nPreset='" + Preset + "' | Tuning='" + Tuning + "' | GlobalNames='" + GlobalNames + "' | PrevGlobals='" + PrevGlobals + "' | ForceTR=" + \
-        string(ForceTR), font="Lucida Console", size=0.014*w+1.84, lsp=12 )
+        "\nPreset='" + Preset + "' | Tuning='" + Tuning + "' | GlobalNames='" + GlobalNames + "' | PrevGlobals='" + PrevGlobals + "' | ForceTR=" + string(ForceTR) + \
+        "\nStr='" + string(St, "%.1f") + "' | Amp='" + string(Amp, "%.3f") + "' | tv_range='" + string(tv) + "' | gpuid='" + string(gpuid) + "' | Threads=" + string(Threads) + "' | RefineMotion=" + string(RefineMotion), \
+        font="Lucida Console", size=0.014*w+1.84, lsp=12 )
 }
 
 
