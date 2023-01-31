@@ -30,6 +30,7 @@
 # - Fix typo on KNLMeansCL call for 'gpuid'
 # - Update dependencies versions
 # - Update show panel
+# - Make '_Durationxxx' dynamic, also in ex_bob()
 #
 # v3.94p
 # - Populate with "_Field" frameprop where appropiate
@@ -1135,8 +1136,10 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                    (SBlurLimit  == 0) ? sblur                                             : \
                                         mt_merge( addNoise2, sblur, sbMotionMask, U=3,V=3 )
     # Reduce frame rate
-    decimated = (FPSDivisor != 1) ? sblurred.SelectEvery( FPSDivisor, 0 ).propSet("_DurationDen",propGetInt(sblurred,"_DurationDen")/FPSDivisor) : sblurred
-
+    decimated = (FPSDivisor != 1) ? sblurred.SelectEvery( FPSDivisor, 0 ) : sblurred
+    decimated = (FPSDivisor != 1) ? ScriptClip(decimated,function[FPSDivisor]() {
+                                    propSet("_DurationDen",propGetInt("_DurationDen")/FPSDivisor)
+                                    } ) : sblurred
     # Crop off temporary vertical padding
     cropped = Border ? decimated.Crop( 0, 4, -0, -4, true ) : decimated
     h       = Border ? h-8 : h
@@ -1562,7 +1565,10 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
 
     par ? AssumeTFF() : AssumeBFF()
     propCopy(cp,true,props=["_DurationNum","_FieldBased","_PictType","_AbsoluteTime"],exclude=true)
+    ScriptClip(function[cp]() {
     propSet("_DurationDen",propGetInt(cp,"_DurationDen")*2)
+    propSet("_DurationNum",propGetInt(cp,"_DurationNum")  )
+    } )
     propSet("_FieldBased",0).propSet("_Field",fb-1).propSet("_Combed",0) }
 
 
