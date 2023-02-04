@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.1 (31-01-2023)               ##
+###           Grade Pack v8.2 (04-02-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -282,7 +282,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###
 ### Example: ex_levels(23, 1.200, 255, 0, 255, tv_range=true)
 ###
-### Formula = (input - input_low) / (input_high - input_low)] ^ (1/gamma) * (output_high - output_low) + output_low
+### Formula = ((input - input_low) / (input_high - input_low)) ^ (1/gamma) * (output_high - output_low) + output_low
 ###
 ### Function Definition:
 ###    (
@@ -380,13 +380,12 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ### ex_autolevels()
 ###
 ### Wrapper for ex_levels() with SceneStats().
-### Performs auto-levels on a per-frame or per-scene basis.
+### Performs auto-levels on a per-scene basis.
 ###
-function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
+function ex_autolevels (clip c, float "interval", float "th", bool "tv_range", bool "gamma") {
 
     c
     rgb  = isRGB()
-    isy  = isy()
     bi   = BitsPerComponent()
     rn   = propNumElements ("_SceneRange")  > 0
     st   = propNumElements ("_SceneStats")  > 0
@@ -396,17 +395,23 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range") {
     in   = Default(interval,  0.5)      # Interval in seconds for fetching frames
     th   = Default(th,        0.1)      # 1/1000 threshold (0.1% or 1‰ -one per-mille-)
     tv   = Default(tv_range,  !fs)
+    gm   = Default(gamma,    true)
 
-    Assert(rn, "ex_autolevels: '_SceneRange' frame properties are required")
+    Assert(IsVersionOrGreater(3,7,3), "ex_autolevels: Update AviSynth+ version")
+    Assert(rn,                        "ex_autolevels: '_SceneRange' frame properties are required")
     !st ? SceneStats("Stats",in,th) : last
 
-    ScriptClip(function [tv,rgb] () {
+    ScriptClip(function [tv,rgb,th,gm] () {
 
         sts  = propGetAsArray("_SceneStats")
+        cst  = PlaneMinMaxStats(last,th,0,0,false)
         pmin = sts[2]
         pmax = sts[1]
+        scn  = (sts[6] -   pmin) / (pmax   - pmin)          # New scene average after normalization
+        cur  = (cst[5] - cst[2]) / (cst[1] - cst[2])        # New frame average after normalization
+        pavg = scn/cur                                      # Divide to keep gamma to scene's IQM average
 
-        pmin > 0 || pmax < 255 ? ex_levels(pmin,1.0,pmax,0,255,tv,rgb?3:1) : last
+        ex_levels(pmin,gm?pavg:1.,pmax,0,255,tv,rgb?3:1)
     } )
  }
 
@@ -805,7 +810,7 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 
     Assert(IsVersionOrGreater(3,7,2), "Skin_Qualifier: Update AviSynth+ version")
 
-    dg  = (-1 * dg) * (pi / 180)        # IPT HUE goes reverse so "-1 *"
+    dg  = (-1 * dg) * (pi / 180)       # IPT HUE goes reverse so "-1 *"
     LO  = 1-bw
     HI  = 1-bw/(3.01-min(str,1))
     mat = Color_fuzzy_search(ID[2])
