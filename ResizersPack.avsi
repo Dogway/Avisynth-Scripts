@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.0 (31-01-2023)     ##
+###   Resizers Functions Pack 11.1 (05-02-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -38,7 +38,7 @@
 ###
 ### Convenient and high performance function to resize natural images (not cartoons) in high quality (different kernels for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
-### At 8-bits performs 6% faster than nnedi3_resize16(), but with higher quality and frame properties support.
+### At 8-bits performs 6% faster than nnedi3_resize16(), but with much higher quality and frame properties support.
 ### If you want more control (ColorSpaces, UVRecon, nomoiree, etc) use directly ConvertFormat().
 ### Supports all YUV formats at any given bitdepth (not RGB).
 ###
@@ -552,7 +552,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     isy  ? ExtractR().ConvertBits(bi, dither=1, fulls=true, fulld=!tv) : \
     !rgb ? MatchClip(a,matrix=pri,size=false)                          : last
 
-#    so && FC && rw>1.25 && rh>1.25 ? Soothe(a.nnedi3wrap(factor,gpuid=gid),tv_range=tv) : last  # Disabled due to low speed
+  # so && FC && rw>1.25 && rh>1.25 ? Soothe(a.nnedi3wrap(factor,gpuid=gid),tv_range=tv) : last  # Disabled due to low speed
 
     ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=is4?"Precise":"Didee",tv_in=tv,tv_out=tv,gpuid=-1)
 
@@ -595,11 +595,12 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     Assert(IsVersionOrGreater(3,7,3),"RIFEwrap: Update AviSynth+ version")
 
 /*  https://github.com/nihui/rife-ncnn-vulkan/issues/50#issuecomment-1229203013
-    The rife architecture has two parameters called ensembling and fastmode integrated.
-    You can't just export rife into one single model without such parameters.
-    Nihui always just exports the fastest model (ensemble False, Fast True), while the other ones can result in a better image.
-    Ensembling combines the flow of two different interpolations within the model and if fastmode is false it calls contextnet */
-    md     = Default(model,         22)                        # model: 3 - for Anime or lineart, 17,6,22 - for photos or live action (in ascending order of qual/speed)
+    "The rife architecture has two parameters called ensembling and fastmode integrated.
+     You can't just export rife into one single model without such parameters.
+     Nihui always just exports the fastest model (ensemble False, Fast True), while the other ones can result in a better image.
+     Ensembling combines the flow of two different interpolations within the model and if fastmode is false it calls contextnet" */
+
+    md     = Default(model,         22) # model: 3 - for Anime or lineart, 17,6,22 - for photos or live action (in ascending order of qual/speed)
     num    = Default(FrameNum,     num)
     den    = Default(FrameDen,     den)
     fd     = Default(FrameDouble, !(numD || denD))
@@ -656,6 +657,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
               propGetInt     (  "_ColorRange")    == 0 : isRGB()
     cpl     = propNumElements(  "_ChromaLocation") > 0 ?     \
               propGetInt     (  "_ChromaLocation") : 0
+    dd      = propNumElements(  "_DurationDen")    > 0
     fmt     = isy ? 0 : isYV411() ? 1 : is420()  ? 2 : is422() ? 3  : 4
 
 
@@ -741,10 +743,10 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
 
     gpuid<0   ? in ? propCopy(a,true,props=["_AbsoluteTime"],exclude=true) : propCopy(a)    : last
     in || fld ? propSet("_FieldBased",0).propSet("_Field",fd%2)                             : last
-    in        ? propSet("_Combed",0).ScriptClip(function[a]() {
+    in ? dd   ? propSet("_Combed",0).ScriptClip(function[a]() {
                                      propSet("_DurationDen",propGetInt(a,"_DurationDen")*2)
                                      propSet("_DurationNum",propGetInt(a,"_DurationNum")  )
-                                     } ) : \
+                               } ) : propSet("_Combed",0) : \
     mul>0     ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # For final scaling and/or fix for pixel center shift
@@ -805,6 +807,7 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
               propGetInt     (  "_ColorRange")    == 0 : isRGB()
     cpl     = propNumElements(  "_ChromaLocation") > 0 ?     \
               propGetInt     (  "_ChromaLocation") : 0
+    dd      = propNumElements(  "_DurationDen")    > 0
     fmt     = isy ? 0 : isYV411() ? 1 : is420()  ? 2 : is422() ? 3  : 4
 
 
@@ -897,10 +900,10 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
 
     gpuid<0   ? in ? propCopy(a,true,props=["_AbsoluteTime"],exclude=true) : propCopy(a)    : last
     in || fld ? propSet("_FieldBased",0).propSet("_Field",fd%2)                             : last
-    in        ? propSet("_Combed",0).ScriptClip(function[a]() {
+    in ? dd   ? propSet("_Combed",0).ScriptClip(function[a]() {
                                      propSet("_DurationDen",propGetInt(a,"_DurationDen")*2)
                                      propSet("_DurationNum",propGetInt(a,"_DurationNum")  )
-                                     } ) : \
+                               } ) : propSet("_Combed",0) : \
     mul>0     ? LSFplus(preset="LSF",strength=2*mul,Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
     # For final scaling and/or fix for pixel center shift
