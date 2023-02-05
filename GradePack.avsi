@@ -412,8 +412,7 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range", b
         pavg = scn/cur                                      # Divide to keep gamma to scene's IQM average
 
         ex_levels(pmin,gm?pavg:1.,pmax,0,255,tv,rgb?3:1)
-    } )
- }
+    } ) }
 
 
 
