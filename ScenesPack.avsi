@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Scenes Pack v4.5   (04-02-2023)               ##
+###   Scenes Pack v4.5   (05-02-2023)               ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -283,6 +283,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                 stdev = sqrt(sum*div)
             }
 
+            if (sze>5) {
             if (sze%2==1) {
                 srt   = ArrayMedian(aarr,list=true)
                 vl    = abs(srt[0]-med) >= abs(srt[sze]-med) ? 0 : sze
@@ -290,7 +291,9 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
                 IQM   = ArrayIQM(aarr, true)
             } else {
                 IQM   = ArrayIQM(aarr, false)
-        } }
+            } } else {
+                IQM   = mea
+            } }
 
         rn ?       propSet("_SceneChangePrev",   1 )                          : last
         rn ?       propSet("_SceneRange" , [n,min(SE+1,FC)])                  : last
