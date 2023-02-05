@@ -6973,20 +6973,20 @@ function ex_luts(clip a, clip "b", string "expr", string "exprc", string "exprf"
          md == "standard deviation" ? "std" : \
          md == "median"    ? "med"          : md
 
-    op = md == "avg"   ? " + "              : \
-         md == "max"   ? " max "            : \
-         md == "min"   ? " min "            : \
-         md == "clp"   ? " max "            : \
-         md == "minmax"? " max "            : \
-         md == "rng"   ? " max "            : \
-         md == "rngmin"? " min "            : \
-         md == "rngmax"? " max "            : \
-         md == "std"   ? " XX - dup * "     : \
-         md == "med"   ? ""                 : \
+    op = md == "avg"       ? " + "          : \
+         md == "max"       ? " max "        : \
+         md == "min"       ? " min "        : \
+         md == "clp"       ? " max "        : \
+         md == "minmax"    ? " max "        : \
+         md == "rng"       ? " max "        : \
+         md == "rngmin"    ? " min "        : \
+         md == "rngmax"    ? " max "        : \
+         md == "std"       ? " XX - dup * " : \
+         md == "med"       ? ""             : \
          Assert(false, "ex_luts: '"+md+"', unsupported mode.")
 
     msk  = FindStr(md, "rng") > 0 || md == "std"
-    UV   = Default(UV,     rgb ? 3 : isc ? 3 : msk ? 128 : 1)
+    UV   = Default(UV, rgb ? 3 : isc ? 3 : msk ? 128 : 1)
 
     nul = px == ""
     px  = FindStr(px,"[") != 0 ? px : nul ? "" : pixel_parser(px)
