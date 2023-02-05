@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.6   (16-01-2023)                   ##
+###        ExTools v9.7   (04-02-2023)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -1531,7 +1531,7 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
     fs  = propNumElements (a,"_ColorRange")  > 0 ? \
           propGetInt      (a,"_ColorRange") == 0 : rgb
 
-    sm = Default(radius,   1)           # from 0 to 6. More doesn't bring more denoising.
+    sm = Default(radius,   2)           # from 0 to 6. More doesn't bring more denoising.
     sv = Default(radiusv, sm)           # from 0 to 6
     it = Default(ithres,   4)           # 0.1 to 10. Intensity standard deviation target used to compute coefficients for the intensity Gaussian filter. Keep low for more edge preservation.
     st = Default(sthres,   4)           # 0.1 to 10. Spatial   standard deviation target used to compute coefficients for the spatial   Gaussian filter. Higher values spread the weights further away.
@@ -6918,7 +6918,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 ###   px=ex_shape(3,mode="disk",type="array")
 ###   ex_luts(mode="avg",pixels=px[0], exprf=" X^ "+sel_med(px[1])) -> Trimmed mean with custom kernel shape
 ###
-### For more check Morphological examples above at line: 6175
+### For more check Morphological examples above at line: 6180
 ###
 ### Function Definition:
 ###    (
@@ -7416,20 +7416,20 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 \   :  Assert (false, "ex_dlut: '"+string(bits)+"', unsupported bit depth.")
 
 
-    #                            8-bit UINT      10-bit UINT       12-bit UINT       14-bit UINT         16-bit UINT         24-bit UINT               32-bit Ufloat (by default AVS+ constants are signed)
-    range_min   = Select (bitd,  [  0.,  0.],    [   0.,   0.],    [   0.,   0.],    [    0.,    0.],    [    0.,    0.],    [       0.,       0.],    [       0.,       0.])
-    ymin        = Select (bitd,  [ 16., 16.],    [  64.,  64.],    [ 256., 257.],    [ 1024., 1028.],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
-    cmin        = Select (bitd,  [ 16., 16.],    [  64.,  64.],    [ 256., 257.],    [ 1024., 1028.],    [ 4096., 4112.],    [ 1048576., 1052672.],    [  16/255.,  16/255.])
-    ygrey       = Select (bitd,  [126.,126.],    [ 502., 504.],    [2008.,2016.],    [ 8032., 8063.],    [32128.,32254.],    [ 8224768., 8256896.],    [ 125.5/255.,125.5/255.])
-    range_half  = Select (bitd,  [128.,128.],    [ 512., 514.],    [2048.,2056.],    [ 8192., 8224.],    [32768.,32896.],    [ 8388608., 8421376.],    [ 128/255., 128/255.])
-    yrange      = Select (bitd,  [219.,219.],    [ 876., 879.],    [3504.,3517.],    [14016.,14070.],    [56064.,56283.],    [14352384.,14408448.],    [ 219/255., 219/255.])
-    crange      = Select (bitd,  [224.,224.],    [ 896., 899.],    [3584.,3598.],    [14336.,14392.],    [57344.,57568.],    [14680064.,14737408.],    [ 224/255., 224/255.])
-    ymax        = Select (bitd,  [235.,235.],    [ 940., 943.],    [3760.,3774.],    [15040.,15098.],    [60160.,60395.],    [15400960.,15461120.],    [ 235/255., 235/255.])
-    cmax        = Select (bitd,  [240.,240.],    [ 960., 963.],    [3840.,3855.],    [15360.,15420.],    [61440.,61680.],    [15728640.,15790080.],    [ 240/255., 240/255.])
-    range_max   = Select (bitd,  [255.,255.],    [1023.,1023.],    [4095.,4095.],    [16383.,16383.],    [65535.,65535.],    [16776960.,16776960.],    [       1.,       1.])
-    range_size  = Select (bitd,  [256.,256.],    [1024.,1024.],    [4096.,4096.],    [16384.,16384.],    [65536.,65536.],    [16777216.,16777216.],    [       1.,       1.])
-#   data_max    = Select (bitd,  [254.,255.],    [1019.,1023.],    [4079.,4095.],    [16319.,16383.],    [65279.,65535.],    [16711679.,16776960.],    [ 254/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in [legal range, full range -not SDI broadcast-]
-#   data_min    = Select (bitd,  [  1.,  0.],    [   4.,   0.],    [ 16.,    0.],    [   64.,    0.],    [  256.,    0.],    [   65536.,       0.],    [   1/255.,       0.]) # Legal lower bound for video signal (luma and chroma) in [legal range, full range -not SDI broadcast-]
+    #                            8-bit UINT    10-bit UINT     12-bit UINT     14-bit UINT       16-bit UINT       24-bit UINT             32-bit Ufloat (by default AVS+ constants are signed)
+    range_min   = Select (bitd,  [  0.,  0.],  [   0.,   0.],  [   0.,   0.],  [    0.,    0.],  [    0.,    0.],  [       0.,       0.],  [       0.,       0.])
+    ymin        = Select (bitd,  [ 16., 16.],  [  64.,  64.],  [ 256., 257.],  [ 1024., 1028.],  [ 4096., 4112.],  [ 1048576., 1052672.],  [  16/255.,  16/255.])
+    cmin        = Select (bitd,  [ 16., 16.],  [  64.,  64.],  [ 256., 257.],  [ 1024., 1028.],  [ 4096., 4112.],  [ 1048576., 1052672.],  [  16/255.,  16/255.])
+    ygrey       = Select (bitd,  [126.,126.],  [ 502., 504.],  [2008.,2016.],  [ 8032., 8063.],  [32128.,32254.],  [ 8224768., 8256896.],  [ 125.5/255.,125.5/255.])
+    range_half  = Select (bitd,  [128.,128.],  [ 512., 514.],  [2048.,2056.],  [ 8192., 8224.],  [32768.,32896.],  [ 8388608., 8421376.],  [ 128/255., 128/255.])
+    yrange      = Select (bitd,  [219.,219.],  [ 876., 879.],  [3504.,3517.],  [14016.,14070.],  [56064.,56283.],  [14352384.,14408448.],  [ 219/255., 219/255.])
+    crange      = Select (bitd,  [224.,224.],  [ 896., 899.],  [3584.,3598.],  [14336.,14392.],  [57344.,57568.],  [14680064.,14737408.],  [ 224/255., 224/255.])
+    ymax        = Select (bitd,  [235.,235.],  [ 940., 943.],  [3760.,3774.],  [15040.,15098.],  [60160.,60395.],  [15400960.,15461120.],  [ 235/255., 235/255.])
+    cmax        = Select (bitd,  [240.,240.],  [ 960., 963.],  [3840.,3855.],  [15360.,15420.],  [61440.,61680.],  [15728640.,15790080.],  [ 240/255., 240/255.])
+    range_max   = Select (bitd,  [255.,255.],  [1023.,1023.],  [4095.,4095.],  [16383.,16383.],  [65535.,65535.],  [16776960.,16776960.],  [       1.,       1.])
+    range_size  = Select (bitd,  [256.,256.],  [1024.,1024.],  [4096.,4096.],  [16384.,16384.],  [65536.,65536.],  [16777216.,16777216.],  [       1.,       1.])
+#   data_max    = Select (bitd,  [254.,255.],  [1019.,1023.],  [4079.,4095.],  [16319.,16383.],  [65279.,65535.],  [16711679.,16776960.],  [ 254/255.,       1.]) # Legal upper bound for video signal (luma and chroma) in [legal range, full range -not SDI broadcast-]
+#   data_min    = Select (bitd,  [  1.,  0.],  [   4.,   0.],  [ 16.,    0.],  [   64.,    0.],  [  256.,    0.],  [   65536.,       0.],  [   1/255.,       0.]) # Legal lower bound for video signal (luma and chroma) in [legal range, full range -not SDI broadcast-]
 
     fs  = fs ? 1 : 0
     str = ReplaceStr(str, "ymax ymin - range_max /", string(yrange[fs]/range_max[fs]))
@@ -7453,6 +7453,7 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
     str = ReplaceStr(str, "range_size",              string(range_size[fs]))
 
     return str }
+
 
 # When isY or no reference clip is supplied, a good alternative is: ConverttoYUV444(chromaresample="point")
 function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits", string "Jab") {
@@ -7704,14 +7705,15 @@ function ArrayMedian (val arr, int "pos", bool "list") {
 
 # Return the IQM (Inter Quartile Mean) value from an array of values
 # Useful for moving windows (not as a global estimator)
-function ArrayIQM(val arr) {
+function ArrayIQM(val arr, bool "sorted") {
 
     sz   = ArraySize(arr)
+    srt  = Default(sorted, false)
     Assert((sz+1)%2==0, "ArrayIQM: Array size should be odd")
 
     qt   = sz*0.25
     qti  = ceil(qt)
-    srtd = ArrayMedian(arr,list=true)
+    srtd = !srt ? ArrayMedian(arr,list=true) : arr
     trm  = srtd
     for (i = sz-1, sz-qti, -1) {
         trm = ArrayDel(trm,i) }
