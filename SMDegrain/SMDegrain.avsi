@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 July 2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Febr 2021                           ###
-###                       v3.5.9d      by Dogway    - 18 Jan  2023                           ###
+###                       v3.6.0d      by Dogway    - 06 Feb  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -36,7 +36,7 @@
 ### with some added common related options. Goal is accessibility and quality but not targeted to any specific kind of source.
 ### The reason behind is to keep it simple so for basic usage you will only need ExTools, ResizersPack and MVTools2.
 ###
-### Supports all Y or YUV clips between 8-16 bits.
+### Supports all Y, YUV and YUY2 clips between 8-16 bits.
 ### For HDR use as input (or at least as prefilter) the decoded and tonemapped PQ clip (ie. DGHDRtoSDR(mode="pq",white=ceil(59.49080238715383)))
 ###
 ### Check documentation for deep explanation on settings and defaults:
@@ -56,7 +56,7 @@
 ###              DFTTest                (for prefilter=5)
 ###              KNLMeansCL             (for prefilter=6)
 ###              DGDecNV                (for prefilter=7)
-###              BM3D                   (for prefilter=8) # Buggy when used along ffvideosource() or cropping within DGSource()
+###              BM3D                   (for prefilter=8)
 ###                 TransformsPack      (for prefilter=7 or prefilter=8)
 ###              neo_tmedian            (for mode="medianT")
 ###              NNEDI3CL               (for subpixel=4)
@@ -637,7 +637,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v3.5.9",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
+        Subtitle("SMDegrain Mod v3.6.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(tr)                                                                              + \
@@ -659,7 +659,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                  varn+             "search     = " + string( GlobalR?"bypass":search)                                                        ,lsp=lsp,text_color=yellow&&!GlobalR        ?Color:$7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
         Subtitle(varn+varn+        "blksize    = " + string( GlobalR?"bypass":blksize)                                                       + \
                                  "\noverlap    = " + string( GlobalR?"bypass":overlap)                                                       ,lsp=lsp,text_color=(red||blue)&&!GlobalR   ?Color:$7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
-        Subtitle(varn+           "\nprefilter  = " + (GlobalR?string("bypass"):(preclip?"Clip"+sp+" Variable":(prefilter==0?"0"+sp+"    MinBlur(0)":prefilter==1?"1"+sp+"    MinBlur(1)":prefilter==2?"2"+sp+"    MinBlur(2)":prefilter==3?"3"+sp+"    IQMV":prefilter==4?"4"+sp+"    FluxSmoothST":prefilter==5?"5"+sp+"    DFTTest":prefilter==6?"6"+sp+"    KNLmeans":prefilter==7?"7"+sp+"    BM3D":prefilter==8?"8"+sp+"    DGDenoise":"OFF"+sp+"    (-1)"))) + \
+        Subtitle(varn+           "\nprefilter  = " + (GlobalR?string("bypass"):(preclip?"Clip"+sp+" Variable":(prefilter==0?"0"+sp+"    MinBlur(0)":prefilter==1?"1"+sp+"    MinBlur(1)":prefilter==2?"2"+sp+"    MinBlur(2)":prefilter==3?"3"+sp+"    IQMV":prefilter==4?"4"+sp+"    FluxSmoothST":prefilter==5?"5"+sp+"    DFTTest":prefilter==6?"6"+sp+"    KNLmeans":prefilter==7?"7"+sp+"    DGDenoise":prefilter==8?"8"+sp+"    BM3D":"OFF"+sp+"    (-1)"))) + \
                                "\n\nAmp        = " + (GlobalR||str==1.0?string("bypass"):string(Amp,"%1.2f"))+" Amplitude"                   + \
                  varn+           "\nlimit(C)   = " + (GlobalO?string("bypass"):string(limit)     + "(" + string(limitc) + ")")               ,lsp=lsp,text_color=                               $7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
 
@@ -803,8 +803,8 @@ function ex_sbr(clip c, int "r", int "Y", int "UV") {
 
 
 ## Dither_Luma_Rebuild()  by cretindesalpes (02-01-2012)
-## https://forum.doom9.org/showthread.php?p=1548318
-## Converts luma (and chroma) to PC levels, and optionally allows tweaking for pumping up the darks. (for the clip to be fed to motion search only)
+##  https://forum.doom9.org/showthread.php?p=1548318
+##  Converts luma (and chroma) to PC levels, and optionally allows tweaking for pumping up the darks. (for the clip to be fed to motion search only)
 ##
 ## Function Definition:
 ##    (
@@ -815,13 +815,15 @@ function ex_sbr(clip c, int "r", int "Y", int "UV") {
 ##    [bool "show"=false]
 ##    )
 ##
-function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bool "tv_in", bool "tv_out", int "bits", bool "show") {
+function ex_Luma_Rebuild (clip src, float "s0", float "c", int "lo", int "hi", int "Y", int "UV", bool "tv_in", bool "tv_out", int "bits", bool "show") {
 
     rgb   = isrgb(src)
     bi    = BitsPerComponent(src)
     fs    = propNumElements (src,"_ColorRange")  > 0 ? \
             propGetInt      (src,"_ColorRange") == 0 : rgb
 
+    lod   = Defined(lo)
+    hid   = Defined(hi)
     Y     = Default(Y,       3)
     UV    = Default(UV,      3)
     s0    = Default(s0,    5.0)
@@ -829,15 +831,32 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     bit   = Default(bits,   bi)
     tv    = Default(tv_in, !fs)
     tvo   = Default(tv_out, false)
+    lop   = Default(lo, !tv ?   0 :  16)
+    hip   = Default(hi, !tv ? 255 : 235)
     sh    = Default(show,   false)
     bi32  = bi == 32
     si    = bi32 && UV==3 ? "floatUV" : tv ? "none" : "intf"
+
+  # RATIONALE (TV to PC and lerp in one shot)
+    lox   = (tv ? lop-16       : lop    ) + 1
+    rn    = (tv ? hip+20 - lox : hip-lop) - 1
+    mn    = (lox*rn+16*rn)-(lox*16)
+    mul   = bi==32 ? 1 : BitLShift(1, bi-8)
+    mn    = ex_bs(mn,   8, bi, tv_in=false, tv_out=false, clamp=false)
+    lob   = ex_bs(lox-1,8, bi, tv_in=false, tv_out=false)
+    div1  = ex_bs(rn,   8, bi, tv_in=false, tv_out=false)
+    div2  = ex_bs(219,  8, bi, tv_in=false, tv_out=false)
+    mx    = ex_bs(255,  8, bi, tv_in=false, tv_out=false)
+
 
     k  = (s0 - 1) * c
     l  = 1 - k
     d  = 1 + c
     f  = d * c
     t  = tv  ? "ymin - 0 max ymax ymin - /" : ""
+    t  = lod || hid ? tv ? bi==32 ? Format("{mn} 255 / - 0 max {div1} {div2} * / ")               : \
+                                    Format("range_max * {mn} {mul} * - 0 max {div1} {div2} * / ") : \
+                                    Format("{lob} - 0 max {div1} / ")                             : t
     o  = tvo ? " ymax ymin - * ymin +"      : ""
     e  = Format("f32 {k} {d} {f} x "+t+" A@ {c} + / - * A {l} * +") + (!tvo && !bi32 && !rgb ? " range_max *" : tvo ? o : "")
     ec = tv==tvo ? "" : !tvo ? "x cmin - range_max cmax cmin - / *" : "x cmax cmin - range_max / * cmin +"
@@ -849,6 +868,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
     } else {
         ConvertBits(src, bit, dither=-1, fulls=!tv, fulld=!tvo)  # dither=-1 because ex_Luma_Rebuild() typically used for prefiltering
     }
+    propNumElements("_SceneStats") > 0 ? propDelete("_SceneStats") : last
 
     if (sh) {
 
@@ -856,8 +876,8 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
         w   = src.width()
         h   = src.height()
         sw  = nmod(w/5.)   sh = sw
-        plt = GradientLinear(last, zoom=1, precision=2, positive=true, smooth=true, tv_range=tv)
-        plt = ex_Luma_Rebuild(plt,s0,c,tv_in=tv,tv_out=tvo)
+        plt = GradientLinear(last, zoom=1, precision=4, positive=true, smooth=true, tv_range=tv)
+        plt = ex_Luma_Rebuild(plt,s0,c,lop,hip,tv_in=tv,tv_out=tvo)
         plt = HistoCurve(plt,size=2,gradient=false).BicubicResize(sw,sh,-0.5,0.25)
         plt = PadBorders(plt,w-sw,0,0,h-sh)
         plt = Merge(last,rgb ? plt.ConverttoPlanarRGB() : plt)
@@ -866,9 +886,9 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 
 
 
-## ex_retinex()   by Dogway (02-08-2022)
-##
+## ex_retinex()   by Dogway (06-02-2023)
 ## Multi-Scale Retinex
+##
 ## Optimized MSR for only Luma channel, akin to MSRCP but without going through RGB.
 ## Output is PC range.  Performance is by default 50% of ex_Luma_Rebuild() although still fast and quality isn't comparable.
 ## lvl=2 uses auto-levels so performance drops to 25% of ex_Luma_Rebuild(), and prone to some "smooth flicker".
@@ -876,9 +896,9 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "Y", int "UV", bo
 ## Gamma aware + PC levels blurring didn't yield better results, actually worse. RGB isn't supported yet despite code reference.
 ##
 ## "Contrast enhancement is a classic image restoration technique that traditionally has been performed using forms of histogram equalization.
-## While effective these techniques often introduce unrealistic tonal rendition in real-world scenes. This paper explores the use of Retinex theory to perform
-## contrast enhancement of real-world scenes. We propose an improvement to the Multi-Scale Retinex algorithm which enhances its ability to perform
-## dynamic range compression while not introducing halo artifacts and greying."
+##  While effective these techniques often introduce unrealistic tonal rendition in real-world scenes. This paper explores the use of Retinex theory to perform
+##  contrast enhancement of real-world scenes. We propose an improvement to the Multi-Scale Retinex algorithm which enhances its ability to perform
+##  dynamic range compression while not introducing halo artifacts and greying."
 ##
 ## [2] P. Robinson, Y. Roodt and A. Nel. "Adaptive Multi-Scale Retinex algorithm for contrast enhancement of real world scenes".
 ##     In the Proceedings of Twenty - Third Annual Symposium of the Pattern Recognition Association of South Africa, Pretoria, South Africa,
@@ -919,15 +939,15 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
     w    = width (clp)
     h    = height(clp)
-    rgb  = isRGB(clp)
-    isy  = isy(clp)
+    rgb  = isRGB (clp)
+    isy  = isy   (clp)
     bi   = BitsPerComponent(clp)
     fs   = propNumElements (clp,"_ColorRange")  > 0 ? \
            propGetInt      (clp,"_ColorRange") == 0 : rgb
     isHD = (w > 1099 || h > 599 )
     isUHD= (w > 2599 || h > 1499)
 
-    lvl  = Default(lvl,          1)         # 0: MSR output   1: Fixed levels output  2: auto-levels  3: scene's levels (requires '_SceneRange')
+    lvl  = Default(lvl,          1)         # 0: MSR output   1: Fixed levels output  2: auto-levels  3: scene's levels (requires '_SceneRange' frame properties present)
     hl   = Default(highlights, true)        # Set to false to only recover shadows. For lvl=3 it might cause mid-range expansion (loss of shading) so in this case probably ex_luma_rebuild() should be more indicated as it spreads the expansion through the rest of the range.
     lo   = Default(lo, lvl==1?40:4)         # value in PC levels of low  level for normalization in lvl=1. For lvl=2 the divisor for the low level percentile (Reminder: crop black borders)
     hi   = Default(hi,!hl?255:255-lo/3.)    # value in PC levels of high level for normalization in lvl=1.
@@ -952,7 +972,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
     w    = max(w,h)
 
-    a    = isy ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262376,0.678449,0.059176]) : isHD ? clp.DotClip([0.212605,0.715165,0.072230]) : clp.DotClip([0.298912,0.586603,0.114485])
+    a    = isy ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262372,0.678464,0.059164]) : isHD ? clp.DotClip([0.212600,0.715179,0.072221]) : clp.DotClip([0.298912,0.586603,0.114485])
     y    = a.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)
     b    = y.ex_GaussianBlur(w*0.015 * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
     c    = y.ex_GaussianBlur(w*0.05  * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
@@ -970,7 +990,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
     if        (lvl==0) {
 
-        MSR
+             MSR
 
     } else if (lvl==1) {
 
@@ -994,13 +1014,13 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
         TS  = Expr(TS,b2,b,f,f2,"x y z a b + + + + 0.2 *")
 
-        ScriptClip(MSR, function [MSR,TS,rgb,lo,mn,mx,hl] () {
+        ScriptClip(MSR, function [TS,rgb,lo,mn,mx,hl] () {
 
             sts  = PlaneMinMaxStats(TS, 1./lo, 0, 0, false)
             pmin = sts[2]
             pmax = sts[1]
 
-            pmin > 0 || (hl && pmax < 255) ? MSR.ex_levels(max(0,pmin-mn),1.0,!hl ? 255 : min(255,pmax+mx),0,255,false,rgb?3:1) : MSR
+            pmin > 0 || (hl && pmax < 255) ? ex_levels(max(0,pmin-mn),1.0,!hl ? 255 : min(255,pmax+mx),0,255,false,rgb?3:1) : last
         } )
 
     } else {
@@ -1020,6 +1040,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
             pmin > 0 || (hl && pmax < 255) ? ex_levels(max(0,pmin-mn),1.0,!hl ? 255 : min(255,pmax+mx),0,255,false,rgb?3:1) : last
         } )
 
+        propDelete("_SceneStats")
     }
 
     UV == 3 ? !isy ? CombinePlanes(last, clp, planes=rgb ? "RGB" : "YUV", pixel_type=PixelType(clp)).\
@@ -1032,11 +1053,12 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 
 
 # Wrapper for BM3D CUDA by WolframRhodium for AviSynth+
+#   https://github.com/WolframRhodium/VapourSynth-BM3DCUDA/issues/7
+#   test10 for Win10, test10-cuda118 for Win7
+#
 # Requires TransformsPack for OPP=true, RGB clips or processing chroma
 #
-# Disclaimer: ffvideosource() causes issues with BM3D for UV=1 or r>3
-#             BM3D() causes issues when gpuid >= 0 (CUDA) and you crop with DGSource()
-#             BM3D() causes issues when gpuid >= 0 (CUDA) and a high combination of radius + sigma unless you fine tune 'block_step' argument
+# Disclaimer: BM3D() causes issues when gpuid >= 0 (CUDA) and a high combination of radius + sigma unless you fine tune 'block_step' argument
 #
 #   # Some of the following arguments aren't available on the BM3D AVS+ port but included here for reference (namely group_size, block_size, bm_step and ps_step)
 #
@@ -1108,7 +1130,6 @@ function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "OPP
     bm_range   =                  Select(pr, [9,9,7,7], [9,9,9,9], [16,16,12,12], [16,16,16,16], [16,16,12,12] )
     ps_range   =                  Select(pr, [4,5] ,    [4,5] ,    [5,6],         [7,8],         [5,6]         )
 
-    r          = cd ? min(r,3) : r # Buggy when r > 3
     block_step = cd && (pr==0 || pr==2) ? ArrayOp(block_step,1,"-") : block_step
 
     a
