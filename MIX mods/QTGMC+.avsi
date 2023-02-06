@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.95 + mod by Dogway 2023, based on 3.382s              #
+#     QTGMC 3.96 + mod by Dogway 2023, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -25,6 +25,9 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.96p
+# - Add support for EEDI2CUDA
 #
 # v3.95p
 # - Fix typo on KNLMeansCL call for 'gpuid'
@@ -442,12 +445,12 @@
 #   Vinverse   (0.9.4    or above)
 #
 # Core scripts:
-#   ExTools      (9.6    or above)
-#   ResizersPack (11.0   or above) (for nnedi3wrap() )
-#   SMDegrain    (3.5.9  or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   ExTools      (9.8    or above)
+#   ResizersPack (11.1   or above) (for nnedi3wrap() )
+#   SMDegrain    (3.6.0  or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #
 # Optional:
-#   NNEDI2, NNEDI, EEDI3CL, EEDI2, TDeInt - if selected directly or via a source-match preset
+#   NNEDI2, NNEDI, EEDI3CL, EEDI2, EEDI2CUDA (requires recent drivers), TDeInt - if selected directly or via a source-match preset
 #   yadifmod2    (0.2.7  or above) - for Preset="Ultra Fast" or if selected directly
 #   KNLMeansCL   (1.1.1e or above) - if selected for noise processing
 #   DFTTest      (1.9.6  or above) - if selected for noise processing
@@ -1204,10 +1207,12 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
                 EdiMode == "NNEDI"        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                     : \
                 EdiMode == "EEDI3+NNEDI3" ? EEDI3clp                                                                                    : \
                 EdiMode == "EEDI3"        ? EEDI3clp                                                                                    : \
-                EdiMode == "EEDI2"        ? isyuy2(Input) ? Input.nonyuy2clipin(true).SeparateFields().EEDI2( field=fb, maxd=EdiMaxD ).nonyuy2clipout(true) : Input.SeparateFields().EEDI2( field=fb, maxd=EdiMaxD ) : \
+                EdiMode == "EEDI2"&&id>-1 ? isyuy2(Input) ? Input.nonyuy2clipin(true).SeparateFields().EEDI2_CUDA(       fb, maxd=EdiMaxD, device_id=id, num_streams=8).nonyuy2clipout(true) : \
+                                                                                Input.SeparateFields().EEDI2_CUDA(       fb, maxd=EdiMaxD, device_id=id, num_streams=8)                      : \
+                EdiMode == "EEDI2"        ? isyuy2(Input) ? Input.nonyuy2clipin(true).SeparateFields().EEDI2(      field=fb, maxd=EdiMaxD ).nonyuy2clipout(true) : Input.SeparateFields().EEDI2(field=fb, maxd=EdiMaxD )  : \
                 EdiMode == "Yadif"        ? isyuy2(Input) ? Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1).nonyuy2clipout(true) : Input.yadifmod2(mode=3,order=fb-1)    : \
                 EdiMode == "TDeint"       ? Input.TDeInt( mode=1 )                                                                      : \
-                EdiMode == "RepYadif"     ? isyuy2(Input) ? Repair( Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1), Default( Fallback, Input.ex_bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true) : \
+                EdiMode == "RepYadif"     ? isyuy2(Input) ? Repair( Input.nonyuy2clipin(true).yadifmod2(mode=3,order=fb-1), Default( Fallback, Input.ex_bob( 0,0.5 ) ).nonyuy2clipin(true), 2, -1 ).nonyuy2clipout(true)  : \
                                                             Repair( Input.yadifmod2(mode=3,order=fb-1),                     Default( Fallback, Input.ex_bob( 0,0.5 ) ), 2, -1 ) : \
                 EdiMode == "BWDIF+NNEDI3" ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint=NNEDI3clp.nonyuy2clipin(true))    : Input.BWDIF(fb,edeint=NNEDI3clp)      : \
                 EdiMode == "BWDIF+EEDI3"  ? isyuy2(Input) ? Input.nonyuy2clipin(true).BWDIF(fb,edeint= EEDI3clp.nonyuy2clipin(true))    : Input.BWDIF(fb,edeint=EEDI3clp)       : \
