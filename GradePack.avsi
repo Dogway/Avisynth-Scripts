@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.2 (04-02-2023)               ##
+###           Grade Pack v8.3 (06-02-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -165,7 +165,9 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
             ExtractU()
             propDelete(["_Matrix","_Primaries","_Transfer","_PictType"])
             propSet("_ColorRange", 0)
-            sh==2 ? BicubicResize(w,h,0.679623,0.160189) : last } } } }
+            sh==2 ? BicubicResize(w,h,0.679623,0.160189) : last } } }
+
+    propNumElements("_SceneStatsU") > 0 ? propDelete(["_SceneStatsU","_SceneStatsV"]) : last }
 
 
 
@@ -251,6 +253,8 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
     UV == 1 ? Expr(c, str, ""  , lut=lut, scale_inputs=si) : \
               Expr(c, str, cstr, lut=lut, scale_inputs=si)
 
+    propNumElements("_SceneStats") > 0 ? propDelete("_SceneStats") : last
+
     if (sh) {
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
         w   = c.width()
@@ -311,7 +315,8 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     fs   = propNumElements (c,"_ColorRange")  > 0 ? \
            propGetInt      (c,"_ColorRange") == 0 : rgb
     bi32 = bi == 32
-    lut  = isRunTime(c,rgb) || bi32 ? 0 : 1
+    isrn = isRunTime(c,rgb)
+    lut  = isrn || bi32 ? 0 : 1
 
     ilo  = Default(input_low,      0)
     gam  = Default(gamma,        1.0)
@@ -326,7 +331,6 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 
     # Storing for 'show'
     silo = ilo
-    sgam = gam
     sihi = ihi
     solo = olo
     sohi = ohi
@@ -334,10 +338,10 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 
     Assert(IsVersionOrGreater(3,7,2), "ex_levels: Update AviSynth+ version")
 
-    rangePC  = tv ? "x ymin - range_max ymax ymin - / * "        : "x "
-    rangeTV  = tv ? " ymax ymin - range_max / * ymin + "         : ""
-    rangePCc = tv ? "x range_half - range_max cmax cmin - / * "  : "x range_half - "
-    rangeTVc = tv ? " cmax cmin - range_max / * range_half + "   : "  range_half + "
+    rangePC  = tv ? "x ymin - range_max ymax ymin - / * "       : "x "
+    rangeTV  = tv ? " ymax ymin - range_max / * ymin + "        : ""
+    rangePCc = tv ? "x range_half - range_max cmax cmin - / * " : "x range_half - "
+    rangeTVc = tv ? " cmax cmin - range_max / * range_half + "  : "  range_half + "
 
     ilo = ex_bs( ilo, 8, bi, tv_in=tv, tv_out=false, flt=true)
     ihi = ex_bs( ihi, 8, bi, tv_in=tv, tv_out=false, flt=true)
@@ -362,13 +366,39 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     UV == 1 ? Expr(c, str, ""  ,                  lut=lut, clamp_float=bi32) : \
               Expr(c, str, cstr, scale_inputs=si, lut=lut, clamp_float=bi32)
 
+    ST = """ sts  = propGetAsArray("_SceneStats")
+             sts  = ArrayOp(sts,1,Format("ex_bs(x,{bi},8,tv_in={tv},tv_out=false,fulls=true,flt=true)"))
+             rng  = (sihi   -   silo)
+             rngn = (sohi   -   solo)
+             mea  = (sts[4] -   silo) / rng                             # New scene average after normalization
+             med  = (sts[5] -   silo) / rng
+             iqm  = (sts[6] -   silo) / rng
+             gm1  = (log(sts[4]/255)/log(mea))/gam                      # Find exponent to keep gamma to scene's average
+
+           # New Metrics (workaround to avoid calling SceneStats() again)
+             pmnn = pow(max(0,(sts[0] - silo)) / rng, gm1)
+             pmxn = pow(      (sts[1] - silo)  / rng, gm1)
+             pmnt = pow(max(0,(sts[2] - silo)) / rng, gm1)
+             pmxt = pow(      (sts[3] - silo)  / rng, gm1)
+             nmea = pow(       mea,                   gm1)
+             nmed = pow(       med,                   gm1)
+             nIQM = pow(       iqm,                   gm1)
+             stsn = [pmnn,pmxn,pmnt,pmxt,nmea,nmed,nIQM]
+             stsn = ArrayOp(stsn,1,Format("ex_bs(x * {rngn} + {solo},8,{bi},tv_in=false,tv_out={tv},fulls=true,flt=true)"))
+             propSet("_SceneStats",stsn) """
+
+    propNumElements("_SceneStats") > 0 ? isrn ? Eval(ST) : \
+        ScriptClip(function [silo,gam,sihi,solo,sohi,bi,tv,ST] () {
+            Eval(ST)
+        } ) : last
+
     if (sh) {
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
         w   = c.width()
         h   = c.height()
         lvl = Histogram(mode="levels",keepsource=false)
         plt = GradientLinear(last,zoom=1, positive=true, precision=2, smooth=true, tv_range=tv)
-        plt = ex_levels (plt,silo,sgam,sihi,solo,sohi,tv,128)
+        plt = ex_levels (plt,silo,gam,sihi,solo,sohi,tv,128)
         plt = HistoCurve(plt,size=1,gradient=false)
         pls = StackVertical(rgb ? plt.ConverttoPlanarRGB() : plt,lvl).RatioResize(h/512.,"%",b=-0.5,c=0.25)
         plt = PadBorders(tv?pls.SMPTE_Legal(false):pls,w-width(pls),0,0,0)
@@ -380,9 +410,9 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ### ex_autolevels()
 ###
 ### Wrapper for ex_levels() with SceneStats().
-### Performs auto-levels on a per-scene basis.
+### Performs global auto-levels on a per-scene basis.
 ###
-function ex_autolevels (clip c, float "interval", float "th", bool "tv_range", bool "gamma") {
+function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", float "interval", float "th", bool "tv_in", bool "tv_out") {
 
     c
     rgb  = isRGB()
@@ -392,27 +422,45 @@ function ex_autolevels (clip c, float "interval", float "th", bool "tv_range", b
     fs   = propNumElements ("_ColorRange")  > 0 ? \
            propGetInt      ("_ColorRange") == 0 : rgb
 
+    lo   = Default(lo,    true)
+    gm   = Default(gamma, true)
+    hi   = Default(hi,    false)
     in   = Default(interval,  0.5)      # Interval in seconds for fetching frames
     th   = Default(th,        0.1)      # 1/1000 threshold (0.1% or 1‰ -one per-mille-)
-    tv   = Default(tv_range,  !fs)
-    gm   = Default(gamma,    true)
+    tv   = Default(tv_in,   !fs)
+    tvo  = Default(tv_out,   tv)
 
     Assert(IsVersionOrGreater(3,7,3), "ex_autolevels: Update AviSynth+ version")
     Assert(rn,                        "ex_autolevels: '_SceneRange' frame properties are required")
     !st ? SceneStats("Stats",in,th) : last
 
-    ScriptClip(function [tv,rgb,th,gm] () {
+    ScriptClip(function [lo,gm,hi,tv,tvo,rgb,bi,th] () {
 
         sts  = propGetAsArray("_SceneStats")
+        sts  = bi>8 ? ArrayOp(sts,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : sts
         cst  = PlaneMinMaxStats(last,th,0,0,false)
-        pmin = sts[2]
-        pmax = sts[1]
-        scn  = (sts[6] -   pmin) / (pmax   - pmin)          # New scene average after normalization
-        cur  = (cst[5] - cst[2]) / (cst[1] - cst[2])        # New frame average after normalization
-        pavg = scn/cur                                      # Divide to keep gamma to scene's IQM average
+        cst  = bi>8 ? ArrayOp(cst,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : cst
+        pmin = lo ? sts[2] : tv ?  16 : 0
+        pmax = hi ? sts[3] : sts[1]
 
-        ex_levels(pmin,gm?pavg:1.,pmax,0,255,tv,rgb?3:1)
-    } ) }
+        if (gm) {
+            rng  = (pmax   -   pmin)
+            scn  = (sts[6] -   pmin) / rng                            # New scene average after normalization
+            cur  = (cst[5] - cst[2]) / (cst[1] - cst[2])              # New frame average after normalization
+
+            # Keep gamma stable to new normalization
+            pavg1 = log(scn)/log(sts[6]/255)
+            # Keep original IQM gamma (removes flicker gamma)
+            pavg2 = log(scn)/log(cur)
+            # Lower the effect on extreme gammas
+            pavg2 = pavg2*clamp(1.1*sin(-pi*(0.56*pavg2-1.06)),0.7,1)
+            pavg  = pavg1/pavg2                                       # Exponent to keep gamma to scene's IQM average
+        } else { pavg = 1 }
+
+        ex_levels(pmin,pavg,pmax,0,255,tvo,rgb?3:1)
+    } )
+    tv!=tvo ? tvo ? SMPTE_Legal(true,Y=1) : SMPTE_Legal(false,Y=1) : last
+    tv!=tvo ?       propSet("_ColorRange",tvo?1:0)                 : last }
 
 
 
