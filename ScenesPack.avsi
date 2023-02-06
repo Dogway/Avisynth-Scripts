@@ -16,7 +16,7 @@
 ######################################################
 ###
 ###
-### SceneStats() by Dogway (24-09-2022)
+### SceneStats() by Dogway (05-02-2023)
 ###
 ### SceneStats does a robust Scene Change Detection and calculates scene's statistics.
 ### Therefore it allows to work or apply filters on a per-scene ("per-shot" in film terms) basis,
@@ -42,22 +42,22 @@
 ###
 ###
 ### Stats arguments:
-### mode:      Set the frame properties to write, almost* any combinations is possible (ie. "Range+Stats"): "Range" / "Stats" / "Motion" / "Detail" / "EV" / "Stats+StdErr"
-###            *'Range' is mandatory if no '_SceneRange' frameprops exist. 'StdErr' requires 'Stats' and 'Y=true', also "Detail" and "EV" require 'Y=true'
-### interval:  Interval of frames to calculate statistics from. The lower the more precise but slower.
-###            A value of 0.0 will only look into 'I' frames (aside start and end scene frames). Good for long shots in old movies.
-### th:        Threshold in percentage of pixels to ignore for 'th_min' and 'th_max' stats.
+###   mode:      Set the frame properties to write, almost* any combinations is possible (ie. "Range+Stats"): "Range" / "Stats" / "Motion" / "Detail" / "EV" / "Stats+StdErr"
+###              *'Range' is mandatory if no '_SceneRange' frameprops exist. 'StdErr' requires 'Stats' and 'Y=true', also "Detail" and "EV" require 'Y=true'
+###   interval:  Interval of frames to calculate statistics from. The lower the more precise but slower.
+###              A value of 0.0 will only look into 'I' frames (aside start and end scene frames). Good for long shots in old movies.
+###   th:        Threshold in percentage of pixels to ignore for 'th_min' and 'th_max' stats.
 ###
 ### Scene Change arguments:
-### dFactor:   Detection factor, a multiplier applied to frame difference metrics to decide if a scene changes.
-### Mindif:    Supply MinDif as if in 8 bit range (0.0 - 255.0). An additional component part (a bias) of scene change detection. Not very important when iFactor=true
-### iFactor:   If true (Default) it will give half weights to dFactor for 'I' type frames. This increases succesful detection rates for scene changes.
-### Anime:     Scene Change Detection for anime should be handled differently, therefore this bool arg. Hard-codes 'iFactor=true' internally.
+###   dFactor:   Detection factor, a multiplier applied to frame difference metrics to decide if a scene changes.
+###   Mindif:    Supply MinDif as if in 8 bit range (0.0 - 255.0). An additional component part (a bias) of scene change detection. Not very important when iFactor=true
+###   iFactor:   If true (Default) it will give half weights to dFactor for 'I' type frames. This increases succesful detection rates for scene changes.
+###   Anime:     Scene Change Detection for anime should be handled differently, therefore this bool arg. Hard-codes 'iFactor=true' internally.
 ###
 ### Other:
-### path:      Define a path (anything other than "") to write stats to a file.
-### dClip:     You can supply an external clip to compute scene change and stats from. For SC the clip should be grain free, if not supply a 'dClip' prefiltered with ex_minblur() or some kind of median or temporal denoiser.
-### show:      Enable to output frame properties, Prev frame diff factor, next frame diff factor and a scene change vertical bar.
+###   path:      Define a path (anything other than "") to write stats to a file.
+###   dClip:     You can supply an external clip to compute scene change and stats from. For SC the clip should be grain free, if not supply a 'dClip' prefiltered with ex_minblur() or some kind of median or temporal denoiser.
+###   show:      Enable to output frame properties, Prev frame diff factor, next frame diff factor and a scene change vertical bar.
 ###
 ###
 ### Function Definition:
@@ -157,7 +157,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     dClip =  an ? dClip.Limiter(0,100)   : dClip       # AntiFlash & Anti-BiModal for Anime
     oClip =       dClip.SelectEvery(1,-1)
     dClip =       dClip.SelectEvery(1, 1)
-    tClip =  dt ? sClip.ex_edge("tritical",0) : nop()  # Replace with SVM()?
+    tClip =  dt ? sClip.ex_edge("tritical",0) : nop()  # Sub with SVM()? Should be lightweight though since we're looking back-ahead
 
     ScriptClip(a, function [oClip,dClip,sClip,tClip,uClip,vClip,Y,UV,stp,stp0,la,th,dfactor,ib,iFactor,MinDif,FC,an,rn,mo,ev,dt,st,std,sr,ZN,PSA,sh] () {
 
