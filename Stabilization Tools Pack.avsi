@@ -2,7 +2,7 @@
 ###                                                        #
 ###                          2.1   by Dogway  (16-09-2015) #
 ###                      mod 2.533 by A.SONY  (29-11-2020) #
-### Stabilization Tools Pack 3.3   by Dogway  (03-01-2023) #
+### Stabilization Tools Pack 3.4   by Dogway  (06-02-2023) #
 ###                                                        #
 ###   https://forum.doom9.org/showthread.php?t=182881      #
 ###                                                        #
@@ -255,7 +255,7 @@ function FillBorder(clip c, int "thr", int "pad", bool "blur", bool "debug", cli
 
         PaCl = mskonly ? nop() : mirror && !ter ? c.crop(x1inp,y1inp,-x2inp,-y2inp,true).PadBorders(x1inp,y1inp,x2inp,y2inp,"Mirror") : c
 		# change this to BoxMask
-        msk  = LetterBox(BlankClip(last,1,pixel_type="Y8",color_yuv=$ffffff),y1,y2,x1,x2,color_yuv=$000000,channels=0)
+        msk  = LetterBox(BlankClip(last,1,pixel_type="Y8",color_yuv=$ffffff),y1,y2,x1,x2,color_yuv=$000000)
         msk  = !mirror ?         msk.ex_lut("x range_half > range_max x ?")          : msk
         msk  = !mirror && blur ? msk.ex_boxblur(2,mode="mean")                       : msk
         msk  = isy             ? CombinePlanes(msk,c,planes="YUV",sample_clip=c)     : msk
@@ -336,7 +336,7 @@ function IsBorder(clip c, bool x1, bool x2, bool y1, bool y2) {return (x1||y1||x
 
 ####################################
 ###
-### StabPlus() v4.0
+### StabPlus() v4.1
 ###
 ###
 ### For completeness I'm going to list all the shortcomings of Depan plugin
@@ -362,18 +362,17 @@ function IsBorder(clip c, bool x1, bool x2, bool y1, bool y2) {return (x1||y1||x
 ###   Depan         (v2.13.1.6 or higher)               (https://avisynth.nl/index.php/DePan)
 ###   DePanEstimate (v2.10.0.4 or higher)               (https://avisynth.nl/index.php/DePanEstimate)
 ###   RgTools       (v1.2)                              (https://avisynth.nl/index.php/RgTools)
-###   ResizersPack  (v10.7  or higher)
+###   ResizersPack  (v11.1  or higher)
 ###   AVSInpaint*   (v1.3   or higher for fill=3)       (https://avisynth.nl/index.php/AvsInpaint)
-###   SMDegrain     (v3.5.7 or higher for Luma_Exp=1)   (https://avisynth.nl/index.php/SMDegrain)
-###   GradePack     (v8.1   or higher for Luma_Exp=2)   (https://avisynth.nl/index.php/SMDegrain)
+###   SMDegrain     (v3.6.0 or higher for Luma_Exp=1)   (https://avisynth.nl/index.php/SMDegrain)
+###   GradePack     (v8.3   or higher for Luma_Exp=2)
 ###
 ### Example:
 ###
 ### StabPlus(dxmax=20, fill=3, FixFalPos=true)
 ###
 ####################################
-# demote subpixel when UHD or even HD
-# Add feedback.dll filling option (use fixed previous frame)
+
 function StabPlus(clip clp, int "ts", int "range", int "dxmax", int "dymax", bool "FixFalPos", clip "FalPosclip", float "zoom", int "fill", float "PAR", clip "Prefilter", int "Luma_Exp") {
 
     ts        = Default(ts,    7)                      # frames to temporal average for better motion estimation (max. 7)
@@ -398,8 +397,8 @@ function StabPlus(clip clp, int "ts", int "range", int "dxmax", int "dymax", boo
     inter  = Interleave(rep,Pref)
 
     # temporal stable auto-contrast (better subpixel detection)
-    Luma_Expa = Lumae==2 ? ex_autolevels(th=0.13)                                  : \
-                Lumae==1 ? inter.ex_Luma_Rebuild(S0=5, c=1.0/32, UV=2, tv_in=true) : \
+    Luma_Expa = Lumae==2 ? ex_autolevels(inter, hi=true, th=0.13,      tv_out=false) : \
+                Lumae==1 ? inter.ex_Luma_Rebuild(S0=5, c=1.0/32, UV=2, tv_out=false) : \
                            inter
 
     mdata     = DePanEstimate(Luma_Expa,range=range,pixaspect=PAR,trust=0.0,dxmax=dxmax,dymax=dymax,zoommax=zoom)
