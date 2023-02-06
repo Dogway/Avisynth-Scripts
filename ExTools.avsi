@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.7   (04-02-2023)                   ##
+###        ExTools v9.8   (06-02-2023)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -7529,7 +7529,7 @@ function ArrayOp ( val arr1, \
     Op = Default(Op, "+")
 
     isUn = OP=="+" || OP=="-" || OP=="*" || OP=="/"
-    Op   = isUn ? Op : ReplaceStr(Op, "max", "ma|").ReplaceStr("exp", "e|p")
+    Op   = isUn ? Op : ReplaceStr(Op, "max", "ma|").ReplaceStr("exp", "e|p").ReplaceStr("ex_", "e|_")
 
     isa1 = IsArray(arr1)
     isa2 = IsArray(arr2) # At least one operand must be an array
@@ -7550,7 +7550,7 @@ function ArrayOp ( val arr1, \
         X1  = mx1 ? "" : string(arr1[min(a1size-1,i)])
         X   = ReplaceStr(op, "x", X1)
         Y1  = mx2 ? "" : string(arr2[min(a2size-1,i)])
-        Y   = ReplaceStr(X,  "y", Y1).ReplaceStr("ma|", "max").ReplaceStr("e|p", "exp")
+        Y   = ReplaceStr(X,  "y", Y1).ReplaceStr("ma|", "max").ReplaceStr("e|p", "exp").ReplaceStr("e|_", "ex_")
 
         a1  = asize == i+1
         cm  = a1 ? "" : ","
