@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.3 (06-02-2023)               ##
+###           Grade Pack v8.4 (08-02-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -273,7 +273,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
 ###
 ###
-### ex_levels() - v4.2 (14-04-2022)
+### ex_levels() - v4.3 (08-02-2023)
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
@@ -307,26 +307,28 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 ###
 ####################################
 
-function ex_levels (clip c, float "input_low", float "gamma", float "input_high", float "output_low", float "output_high", bool "tv_range", int "UV", bool "show", bool "clamp_float") {
+function ex_levels (clip c, float "input_low", float "gamma", float "input_high", float "output_low", float "output_high", bool "tv_range", int "UV", bool "show", bool "reStats", bool "clamp_float") {
 
     rgb  = isRGB(c)
     isy  = isy(c)
     bi   = BitsPerComponent(c)
+    ist  = propNumElements (c,"_SceneStats")  > 0
     fs   = propNumElements (c,"_ColorRange")  > 0 ? \
            propGetInt      (c,"_ColorRange") == 0 : rgb
     bi32 = bi == 32
     isrn = isRunTime(c,rgb)
     lut  = isrn || bi32 ? 0 : 1
 
-    ilo  = Default(input_low,      0)
-    gam  = Default(gamma,        1.0)
-    ihi  = Default(input_high,   255)
-    olo  = Default(output_low,     0)
-    ohi  = Default(output_high,  255)
-    tv   = Default(tv_range,     !fs)
-    sh   = Default(show,       false)
-    cf   = Default(clamp_float, bi32)
-    UV   = Default(UV,   rgb ? 3 : 2)
+    ilo  = Default(input_low,       0)
+    gam  = Default(gamma,         1.0)
+    ihi  = Default(input_high,    255)
+    olo  = Default(output_low,      0)
+    ohi  = Default(output_high,   255)
+    tv   = Default(tv_range,      !fs)
+    sh   = Default(show,        false)
+    rs   = Default(reStats,ist&&!isrn) # Recalculate Stats from input args (could save from re-running SceneStats() at the cost of accuracy)
+    cf   = Default(clamp_float,  bi32)
+    UV   = Default(UV,    rgb ? 3 : 2)
     si   = ex_UVf(rgb, bi)
 
     # Storing for 'show'
@@ -385,20 +387,21 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
              nIQM = pow(       iqm,                   gm1)
              stsn = [pmnn,pmxn,pmnt,pmxt,nmea,nmed,nIQM]
              stsn = ArrayOp(stsn,1,Format("ex_bs(x * {rngn} + {solo},8,{bi},tv_in=false,tv_out={tv},fulls=true,flt=true)"))
+
              propSet("_SceneStats",stsn) """
 
-    propNumElements("_SceneStats") > 0 ? isrn ? Eval(ST) : \
+    ist ? rs ? isrn ? Eval(ST)    : \
         ScriptClip(function [silo,gam,sihi,solo,sohi,bi,tv,ST] () {
             Eval(ST)
-        } ) : last
+        } ) : propDelete("_SceneStats") : last
 
     if (sh) {
         bi > 8 ? ConvertBits(8,dither=1,fulls=!tv) : last
         w   = c.width()
         h   = c.height()
         lvl = Histogram(mode="levels",keepsource=false)
-        plt = GradientLinear(last,zoom=1, positive=true, precision=2, smooth=true, tv_range=tv)
-        plt = ex_levels (plt,silo,gam,sihi,solo,sohi,tv,128)
+        plt = GradientLinear(last, zoom=1, positive=true, precision=2, smooth=true, tv_range=tv)
+        plt = ex_levels (plt,silo,gam,sihi,solo,sohi,tv,128,false,false)
         plt = HistoCurve(plt,size=1,gradient=false)
         pls = StackVertical(rgb ? plt.ConverttoPlanarRGB() : plt,lvl).RatioResize(h/512.,"%",b=-0.5,c=0.25)
         plt = PadBorders(tv?pls.SMPTE_Legal(false):pls,w-width(pls),0,0,0)
@@ -409,10 +412,15 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ###
 ### ex_autolevels()
 ###
-### Wrapper for ex_levels() with SceneStats().
-### Performs global auto-levels on a per-scene basis.
+### Performs luma levels normalization on a per-scene basis (requires '_SceneStats' or at least '_SceneRange' frameprops)
+### With 'Deflicker' you can remove luma flicker (see example below).
+### 'Deflicker' performs global auto-levels on a per-frame and per-scene basis.
 ###
-function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", float "interval", float "th", bool "tv_in", bool "tv_out") {
+### Example for a robust deflicker (double call):
+###     ex_autolevels(true ,true, true, Deflicker=true)
+###     ex_autolevels(false,true,false, Deflicker=true) # Second pass (recomputes '_SceneStats') to refine gamma deflicker
+###
+function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflicker", float "interval", float "th", bool "tv_in", bool "tv_out", bool "reStats") {
 
     c
     rgb  = isRGB()
@@ -422,26 +430,28 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", float "inter
     fs   = propNumElements ("_ColorRange")  > 0 ? \
            propGetInt      ("_ColorRange") == 0 : rgb
 
-    lo   = Default(lo,    true)
-    gm   = Default(gamma, true)
-    hi   = Default(hi,    false)
-    in   = Default(interval,  0.5)      # Interval in seconds for fetching frames
-    th   = Default(th,        0.1)      # 1/1000 threshold (0.1% or 1‰ -one per-mille-)
-    tv   = Default(tv_in,   !fs)
-    tvo  = Default(tv_out,   tv)
+    lo   = Default(lo,         true)
+    gm   = Default(gamma,      true)
+    hi   = Default(hi,        false)
+    in   = Default(interval,    0.5)      # Interval in seconds for fetching frames
+    th   = Default(th,          0.1)      # 1/1000 threshold (0.1% or 1‰ -one per-mille-)
+    tv   = Default(tv_in,       !fs)
+    tvo  = Default(tv_out,       tv)
+    df   = Default(Deflicker, false)
+    rs   = Default(reStats,     !df)      # Hard-coded off when deflicker is used
 
     Assert(IsVersionOrGreater(3,7,3), "ex_autolevels: Update AviSynth+ version")
     Assert(rn,                        "ex_autolevels: '_SceneRange' frame properties are required")
     !st ? SceneStats("Stats",in,th) : last
 
-    ScriptClip(function [lo,gm,hi,tv,tvo,rgb,bi,th] () {
+    ScriptClip(function [lo,gm,hi,df,tv,tvo,rgb,bi,th,rs] () {
 
         sts  = propGetAsArray("_SceneStats")
         sts  = bi>8 ? ArrayOp(sts,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : sts
         cst  = PlaneMinMaxStats(last,th,0,0,false)
         cst  = bi>8 ? ArrayOp(cst,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : cst
-        pmin = lo ? sts[2] : tv ?  16 : 0
-        pmax = hi ? sts[3] : sts[1]
+        pmin = lo ? df ? cst[2] : sts[2] : tv ?  16 : 0
+        pmax = hi ? df ? cst[3] : sts[3] : df ? cst[1] : sts[1]
 
         if (gm) {
             rng  = (pmax   -   pmin)
@@ -454,10 +464,10 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", float "inter
             pavg2 = log(scn)/log(cur)
             # Lower the effect on extreme gammas
             pavg2 = pavg2*clamp(1.1*sin(-pi*(0.56*pavg2-1.06)),0.7,1)
-            pavg  = pavg1/pavg2                                       # Exponent to keep gamma to scene's IQM average
+            pavg  = df ? pavg1/pavg2 : pavg1                          # Exponent to keep gamma to scene's IQM average
         } else { pavg = 1 }
 
-        ex_levels(pmin,pavg,pmax,0,255,tvo,rgb?3:1)
+        ex_levels(pmin,pavg,pmax,0,255,tvo,rgb?3:1,false,df?false:rs)
     } )
     tv!=tvo ? tvo ? SMPTE_Legal(true,Y=1) : SMPTE_Legal(false,Y=1) : last
     tv!=tvo ?       propSet("_ColorRange",tvo?1:0)                 : last }
