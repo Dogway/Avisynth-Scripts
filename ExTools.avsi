@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.8   (06-02-2023)                   ##
+###        ExTools v9.9   (08-02-2023)                   ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -1697,22 +1697,22 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limi
     if (!sh) {
 
     # Quadratic/Cubic (2nd and 3rd degree polynomials)
-    strv = rv == 1 ? "x[0,1] x[0,-1] + 4 * x[0,0] 5.666666666 * + x[0,-2] x[0,2] + - 0.085714286 *"                                                                 : \
-           rv == 2 ? "x[0,1] x[0,-1] + 2 * x[0,0] 2.333333333 * x[0,-2] x[0,2] + + + x[0,-3] x[0,3] + 0.666666666 * - 0.142857143 *"                                : \
-           rv == 3 ? "x[0,3] x[0,-3] + 4.666666666 * x[0,2] x[0,-2] + 13 * x[0,1] x[0,-1] + 18 * x[0,0] 19.666666666 * + + + x[0,-4] x[0,4] + 7 * - 0.012987013 *"  : ""
+    strv = rv == 1 ? "x[0,1] x[0,-1] + 4 * x[0,0] 5.666666666 * + x[0,-2] x[0,2] + - 0.085714286 *"                                                                : \
+           rv == 2 ? "x[0,1] x[0,-1] + 2 * x[0,0] 2.333333333 * x[0,-2] x[0,2] + + + x[0,-3] x[0,3] + 0.666666666 * - 0.142857143 *"                               : \
+           rv == 3 ? "x[0,3] x[0,-3] + 4.666666666 * x[0,2] x[0,-2] + 13 * x[0,1] x[0,-1] + 18 * x[0,0] 19.666666666 * + + + x[0,-4] x[0,4] + 7 * - 0.012987013 *" : ""
 
-    strh = rd == 1 ? "x[-1,0] x[1,0] + 4 * x[0,0] 5.666666666 * + x[2,0] x[-2,0] + - 0.085714286 *"                                                                 : \
-           rd == 2 ? "x[-1,0] x[1,0] + 2 * x[0,0] 2.333333333 * x[2,0] x[-2,0] + + + x[3,0] x[-3,0] + 0.666666666 * - 0.142857143 *"                                : \
-           rd == 3 ? "x[3,0] x[-3,0] + 4.666666666 * x[2,0] x[-2,0] + 13 * x[1,0] x[-1,0] + 18 * x[0,0] 19.666666666 * + + + x[-4,0] x[4,0] + 7 * - 0.012987013 *"  : ""
+    strh = rd == 1 ? "x[-1,0] x[1,0] + 4 * x[0,0] 5.666666666 * + x[2,0] x[-2,0] + - 0.085714286 *"                                                                : \
+           rd == 2 ? "x[-1,0] x[1,0] + 2 * x[0,0] 2.333333333 * x[2,0] x[-2,0] + + + x[3,0] x[-3,0] + 0.666666666 * - 0.142857143 *"                               : \
+           rd == 3 ? "x[3,0] x[-3,0] + 4.666666666 * x[2,0] x[-2,0] + 13 * x[1,0] x[-1,0] + 18 * x[0,0] 19.666666666 * + + + x[-4,0] x[4,0] + 7 * - 0.012987013 *" : ""
 
     } else {
 
     # Quartic/Quintic (4th and 5th degree polynomials) (sharper)
-    strv = rv == 1 ? "x[0,1] x[0,-1] + 15 * x[0,0] 26.2 * x[0,3] x[0,-3] + + + x[0,-2] x[0,2] + 6 * - 0.021645022 *"                                                : \
-           rv == 2 ? "x[0,2] x[0,-2] + 2 * x[0,1] x[0,-1] + 9 * x[0,0] 11.933333333 * x[0,4] x[0,-4] + + + + x[0,-3] x[0,3] + 3.666666666 * - 0.034965035 *"        : ""
+    strv = rv == 1 ? "x[0,1] x[0,-1] + 15 * x[0,0] 26.2 * x[0,3] x[0,-3] + + + x[0,-2] x[0,2] + 6 * - 0.021645022 *"                                               : \
+           rv == 2 ? "x[0,2] x[0,-2] + 2 * x[0,1] x[0,-1] + 9 * x[0,0] 11.933333333 * x[0,4] x[0,-4] + + + + x[0,-3] x[0,3] + 3.666666666 * - 0.034965035 *"       : ""
 
-    strh = rd == 1 ? "x[1,0] x[-1,0] + 15 * x[0,0] 26.2 * x[3,0] x[-3,0] + + + x[-2,0] x[2,0] + 6 * - 0.021645022 *"                                                : \
-           rd == 2 ? "x[2,0] x[-2,0] + 2 * x[1,0] x[-1,0] + 9 * x[0,0] 11.933333333 * x[4,0] x[-4,0] + + + + x[-3,0] x[3,0] + 3.666666666 * - 0.034965035 *"        : ""
+    strh = rd == 1 ? "x[1,0] x[-1,0] + 15 * x[0,0] 26.2 * x[3,0] x[-3,0] + + + x[-2,0] x[2,0] + 6 * - 0.021645022 *"                                               : \
+           rd == 2 ? "x[2,0] x[-2,0] + 2 * x[1,0] x[-1,0] + 9 * x[0,0] 11.933333333 * x[4,0] x[-4,0] + + + + x[-3,0] x[3,0] + 3.666666666 * - 0.034965035 *"       : ""
 
     }
 
@@ -1747,7 +1747,7 @@ function ex_smooth(clip a, int "radius", int "radiusV", bool "sharp", bool "limi
 # Benchmark (max blur):
 # 100% ex_gaussianblur(156,UV=2)  (302fps)
 #  37% ex_kawase(9,"trib" ,UV=2)  (111fps)
-# 1.3% vsTCanny(156, mode=-1,u=2,v=2)
+# 1.3% vsTCanny(156,mode=-1,U=2,V=2)
 #
 # modes:
 # lin  - linear     multipass: 1,2,3,4,5...
@@ -1806,7 +1806,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ## 2021-09-22 Added padding to protect borders and fallback to ex_blur() for low sigma
 ## 2021-10-12 Reparametrized. Changed to bilinear downscale, faster and more accurate. Change to mod2
 ## 2021-10-31 Reparametrized. Optimal 'p' value and linear regressed when pad=true
-## 2021-12-15 Reparametrized. Correct UV blurring. Further fit fine tuning and fallback to vsTcanny for erratic fit in pad=false + high radii (>21) + small source
+## 2021-12-15 Reparametrized. Correct UV blurring. Further fit fine-tuning and fallback to vsTcanny for erratic fit in pad=false + high radii (>21) + small source
 ##
 ##
 ## Function Definition:
@@ -1821,8 +1821,8 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ##
 ## Benchmarks:
 ##    100% ex_gaussianblur(6,UV=2)  (396fps)      (gaussian approximation, fastest for large sigma)
-##     47% vsTCanny(6,mode=-1,u=1,v=1)            (true gaussian, fastest for mid sigma)
-##     21% ex_blur(6,mode="gaussian",UV=1)        (true gaussian, best for low sigma)
+##     47% vsTCanny(6,mode=-1,u=1,v=1)            (true gaussian,          fastest for mid   sigma)
+##     21% ex_blur(6,mode="gaussian",UV=1)        (true gaussian,          best    for low   sigma)
 
 function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool "mblur", int "Y", int "UV") {
 
@@ -1940,7 +1940,7 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
     lpr = ref.ex_gaussianblur(LFR, UV=UV==4?2:UV)
 
     DCT = DCT ? Format("y z == swap dup y z - sgn {sec} * + ?") : "" # "shift-back-by-one": https://forum.doom9.org/showthread.php?p=1539241
-    ex_lutxyz(c, lpc, lpr, "x y - z + "+DCT, UV=UV) # ex_makeadddiff()
+    ex_lutxyz(c, lpc, lpr, "x y - z + "+DCT, UV=UV)                  # ex_makeadddiff()
 
     UV==4 ? MergeChroma(ref) : last }
 
@@ -1953,7 +1953,7 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
 #
 # ex_MFR() workflow diagram (shaded '/' means deleted by lowpassing):
 #
-#          HIPASS                      HIPASS   + LOWPASS           BANDSTOP
+#          A  -  LOWPASS               HIPASS   +  LOWPASS          BANDSTOP
 #     A               A                  A            A                 A
 #  _______         _______            _______      _______           _______
 # |       |       |/ / / /|          |       |    |/ / / /|         |       |
@@ -1966,7 +1966,7 @@ function ex_LFR (clip c, clip ref, float "LFR", bool "DCTFlicker", int "UV") {
 # |       |       |       |                       |       |         |       |
 #  -------         -------                         -------           -------
 #
-#          BANDPASS                                         A
+#    LOWPASS  -  LOWPASS             BANDPASS               A
 #     B               B                  B                 /           A+B
 #  _______         _______                                /          _______
 # |/ / / /|       |/ / / /|                              /\ +       |       |
@@ -2021,7 +2021,7 @@ function ex_MFR (clip c, clip ref, float "lo", float "hi", int "UV") {
   # mpc   =   c.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
   # mpr   = ref.ex_blur(HI+0.5, mode="butterworth",n=300,UV=UV2)
 
-    # vsTCanny() shows slight better performance than ex_gaussianblur() when called multiple times (at mid sigmas only)
+    # vsTCanny() shows slightly better performance than ex_gaussianblur() when called multiple times (at mid sigmas only)
     mpc   =   c.vsTCanny(HI, mode=-1, u=UV2, v=UV2)
     mpc2  =   c.vsTCanny(LO, mode=-1, u=UV2, v=UV2)
     mpr   = ref.vsTCanny(HI, mode=-1, u=UV2, v=UV2)
@@ -6462,7 +6462,7 @@ function ex_inflate(clip a, int "radius", int "UV") {
 # junction     - Extracts junction pixels (to be used after skeleton). Also known as branched points
 # 4-connected  - Extracts connected components by shared edges
 # 8-connected  - Extracts connected components by a Chebyshev distance of 1
-# 4x4          - Prunes everything under a 4x4 square kernel. Useful as a (binary) mask cleaner. Iterate for iterative cleaning
+#*4x4          - Prunes everything under a 4x4 square kernel. Useful as a (binary) mask cleaner. Iterate for iterative cleaning (own code)
 # fill         - (Boundary) fill element bodies (not implemented)
 #
 # Function Definition:
@@ -7609,15 +7609,19 @@ function ArrayAppend( val arr1, val arr2) {
 
 
 # Delete array item by value
-function ArrayDelVal(val arr, val vl) {
+function ArrayDelVal(val arr, val vl, bool "all") {
 
     Assert(isArray(arr), "ArrayDelVal: First argument should be an array")
+    all  = Default(all, false) # Change to true to remove all instances of the value
 
+    vl   = isString(vl) ? vl : float(vl)
     sz   = ArraySize(arr)-1
-    arrn = []
+    arrn = []  ac = 0
     for (i = 0, sz, 1) {
         arri = arr[i]
-        arrn = string(arri)==string(vl) ? arrn : ArrayAdd(arrn,arri)
+        del  = isString(arri) ? arri : float(arri) == vl
+        ac   = del  ?  ac+1 : ac
+        arrn = del && (all || ac==1) ? arrn : ArrayAdd(arrn,arri)
     }
     return arrn }
 
@@ -7627,10 +7631,11 @@ function ArrayFind(val arr, val vl) {
 
     Assert(isArray(arr), "ArrayFind: First argument should be an array")
 
+    vl   = isString(vl) ? vl : float(vl)
     sz   = ArraySize(arr)-1
     out  = [false,-1]
     for (i = 0, sz, 1) {
-        if (string(arr[i]) == string(vl)) {
+        if (isString(arr[i]) ? arr[i] : float(arr[i]) == vl) {
             out = [true,i]
             i   = sz
         } }
