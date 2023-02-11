@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.4 (08-02-2023)               ##
+###           Grade Pack v8.5 (11-02-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -450,7 +450,7 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
         sts  = bi>8 ? ArrayOp(sts,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : sts
         cst  = PlaneMinMaxStats(last,th,0,0,false)
         cst  = bi>8 ? ArrayOp(cst,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : cst
-        pmin = lo ? df ? cst[2] : sts[2] : tv ?  16 : 0
+        pmin = lo ? df ? cst[2] : sts[2] : tv ?     16 :     0
         pmax = hi ? df ? cst[3] : sts[3] : df ? cst[1] : sts[1]
 
         if (gm) {
@@ -458,10 +458,14 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
             scn  = (sts[6] -   pmin) / rng                            # New scene average after normalization
             cur  = (cst[5] - cst[2]) / (cst[1] - cst[2])              # New frame average after normalization
 
+            lscn  = log(scn)
+            lcur  = log(cur)
             # Keep gamma stable to new normalization
-            pavg1 = log(scn)/log(sts[6]/255)
+            pavg1 = lscn/log(sts[6]/255)
             # Keep original IQM gamma (removes flicker gamma)
-            pavg2 = log(scn)/log(cur)
+            pavg2 = lscn/lcur
+            # Second pass refinement ( 1/(pavg2+1) is the new frame average value using integrals with limits(0,1) )
+            pavg2 = log((1/(pavg2+1)))/lcur
             # Lower the effect on extreme gammas
             pavg2 = pavg2*clamp(1.1*sin(-pi*(0.56*pavg2-1.06)),0.7,1)
             pavg  = df ? pavg1/pavg2 : pavg1                          # Exponent to keep gamma to scene's IQM average
@@ -686,11 +690,11 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
         md == "linearsubtract"? "x "+srcmx+" "+V+" dup * y "+srcmx+" dup * - sqrt "                                                                                              : \
         md == "from"          ? "x "+srcmx+" "+V+"  y "+srcmx+" swap               - 0 max "                                                                                     : \
         md == "divide"        ? ""+rngmx+" x "+srcmx+" "+V+" * y "+srcmx+" 0 max / "+rngmx+" min "                                                                               : \
-        md == "andn"          ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" * "+rngmx+" / "                                                                                : \
-        md == "extremity"     ? ""+rngmx+"        x "+srcmx+" "+V+" - y "+srcmx+" - abs   "                                                                                      : \
-        md == "bleach"        ? ""+rngmx+" 2 *    x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" - 0 max "                                                                        : \
-        md == "stain"         ? ""+rngmx+" 2 *    x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" %     "                                                                          : \
-        md == "phoenix"       ? "x "+srcmx+" "+V+" y "+srcmx+" dup1 dup1 min swap2 max - "+rngmx+" + "                                                                           : \
+        md == "andn"          ? ""+rngmx+"          x "+srcmx+" "+V+" - y "+srcmx+" * "+rngmx+" / "                                                                              : \
+        md == "extremity"     ? ""+rngmx+"          x "+srcmx+" "+V+" - y "+srcmx+" - abs   "                                                                                    : \
+        md == "bleach"        ? ""+rngmx+" 2 *      x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" - 0 max "                                                                      : \
+        md == "stain"         ? ""+rngmx+" 2 *      x "+srcmx+" "+V+"   y "+srcmx+" + - "+rngmx+" %     "                                                                        : \
+        md == "phoenix"       ? "x "+srcmx+" "+V+"  y "+srcmx+" dup1 dup1 min swap2 max - "+rngmx+" + "                                                                          : \
                               \
         md == "hue"           ? "see footer "                                                                                                                                    : \
         md == "saturation"    ? "see footer "                                                                                                                                    : \
