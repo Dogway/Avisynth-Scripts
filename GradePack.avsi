@@ -465,7 +465,7 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
             # Keep original IQM gamma (removes flicker gamma)
             pavg2 = lscn/lcur
             # Second pass refinement ( 1/(pavg2+1) is the new frame average value using integrals with limits(0,1) )
-            pavg2 = log((1/(pavg2+1)))/lcur
+          # pavg2 = log((1/(pavg2+1)))/lcur  # Commented as only worked on synthetic tests
             # Lower the effect on extreme gammas
             pavg2 = pavg2*clamp(1.1*sin(-pi*(0.56*pavg2-1.06)),0.7,1)
             pavg  = df ? pavg1/pavg2 : pavg1                          # Exponent to keep gamma to scene's IQM average
