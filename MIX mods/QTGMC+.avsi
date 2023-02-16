@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.96 + mod by Dogway 2023, based on 3.382s              #
+#     QTGMC 3.97 + mod by Dogway 2023, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -25,6 +25,12 @@
 #
 #
 # --- LATEST CHANGES ---
+#
+# v3.97p
+# - Change a few defaults on the slower presets for increased quality
+# - Set rfilter=3 for all MSuper instances for extra accuracy
+# - Enable for HD sources scaled chroma for MV sampling
+# - Disable ex_bob() frameprops assignment when using nnedi3 which already does it
 #
 # v3.96p
 # - Add support for EEDI2CUDA
@@ -445,7 +451,7 @@
 #   Vinverse   (0.9.4    or above)
 #
 # Core scripts:
-#   ExTools      (9.8    or above)
+#   ExTools      (9.9    or above)
 #   ResizersPack (11.1   or above) (for nnedi3wrap() )
 #   SMDegrain    (3.6.0  or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #
@@ -485,7 +491,7 @@
 # Function Definition:
 #     (
 #     clip yuv,
-#     string "Preset"="Very Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+#     string "Preset"="Slower" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
 #     [int "TR0"=2 (0 to 4)],
 #     [int "TR1"=2 (0 to 4)],
 #     [int "TR2"=1 (0 to 4)],
@@ -642,21 +648,23 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     bs = Blocksize
     sr = max(1,bs / 8)
     Overlap      = Default( Overlap,      Select( pNum,  bs/2,      bs/2,     bs/2,     bs/2,     bs/2,     bs/2,     bs/2,     bs/4,     bs/4,      bs/4,      bs/4       ) )
-    Search       = Default( Search,       Select( pNum,     5,         4,        4,        4,        4,        4,        4,        4,        0,         0,         0       ) )
+#   Search       = Default( Search,       Select( pNum,     5,         4,        4,        4,        4,        4,        4,        4,        0,         0,         0       ) )
+    Search       = Default( Search,       Select( pNum,     4,         4,        4,        4,        2,        2,        2,        2,        0,         0,         0       ) )
+    SearchR      = Default( Search,       Select( pNum,     4,         0,        0,        0,        0,        0,        0,        0,        0,         0,         0       ) )
     SearchParam  = Default( SearchParam,  Select( pNum,    sr,        sr,       sr,       sr,       sr,       sr,       sr,       sr,       sr,        sr,        sr       ) )
-    PelSearch    = Default( PelSearch,    Select( pNum,  bs<16?6:1,   15,        2,        2,        2,        2,        2,        2,        2,         2,         2       ) )
+    PelSearch    = Default( PelSearch,    Select( pNum,     1,         1,        1,        2,        2,        2,        2,        2,        2,         2,         2       ) )
     ChromaMotion = Default( ChromaMotion, Select( pNum,  true,      true,     true,     false,    false,    false,    false,    false,    false,     false,     false      ) )
     Precise      = Default( Precise,      Select( pNum,  true,      true,    false,     false,    false,    false,    false,    false,    false,     false,     false      ) )
     ProgSADMask  = Default( ProgSADMask,  Select( pNum,  10.0,      10.0,     10.0,      10.0,     10.0,      0.0,      0.0,      0.0,      0.0,       0.0,       0.0      ) )
 #   Refinemotion = Default( Refinemotion, Select( pNum,  true,      true,    false,     false,    false,    false,    false,    false,    false,     false,     false      ) )
     Refinemotion = Default( Refinemotion, false) #https://github.com/Dogway/Avisynth-Scripts/pull/23#issuecomment-918586163
 
-    # Noise presets                                           Slower     Slow       Medium     Fast       Faster
-    Denoiser       = Default( Denoiser,       Select( npNum,  "DFTTest", "DFTTest", "DFTTest", "fft3df",  "fft3df" ) )
-    DenoiseMC      = Default( DenoiseMC,      Select( npNum,       true,      true,     false,    false,     false ) )
-    NoiseTR        = Default( NoiseTR,        Select( npNum,          2,         1,         1,        1,         0 ) )
-    NoiseDeint     = Default( NoiseDeint,     Select( npNum, "Generate",     "Bob",        "",       "",        "" ) )
-    StabilizeNoise = Default( StabilizeNoise, Select( npNum,       true,      true,      true,    false,     false ) )
+    # Noise presets                                                               Slower     Slow       Medium     Fast       Faster
+    Denoiser       = Default( Denoiser,                           Select( npNum,  "DFTTest", "DFTTest", "DFTTest", "fft3df",  "fft3df" ) )
+    DenoiseMC      = Default( DenoiseMC,                          Select( npNum,       true,      true,     false,    false,     false ) )
+    NoiseTR        = Default( NoiseTR,                            Select( npNum,          2,         1,         1,        1,         0 ) )
+    NoiseDeint     = Default( NoiseDeint,                         Select( npNum, "Generate",     "Bob",        "",       "",        "" ) )
+    StabilizeNoise = Default( StabilizeNoise,                     Select( npNum,       true,      true,      true,    false,     false ) )
 
     # The basic source-match step corrects and re-runs the interpolation of the input clip. So it initialy uses same interpolation settings as the main preset
     SourceMatch   = Default( SourceMatch, 0 )
@@ -667,23 +675,23 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
     # However, can use a faster initial interpolation when using source-match allowing the basic source-match step to "correct" it with higher quality settings
     Assert( SourceMatch == 0 || mpNum1 >= pNum, "QTGMCp: 'MatchPreset' cannot use a slower setting than 'Preset'" )
-    #                                                                    Very                                                        Very      Super     Ultra
-    # Basic source-match presets                                Placebo  Slow      Slower    Slow      Medium    Fast      Faster    Fast      Fast      Fast
-    NNSize   = (SourceMatch == 0) ? NNSize   : Select( mpNum1,  1,       1,        1,        1,        5,        5,        4,        4,        4,        4     )
-    NNeurons = (SourceMatch == 0) ? NNeurons : Select( mpNum1,  2,       2,        1,        1,        1,        0,        0,        0,        0,        0     )
-    EdiMaxD  = (SourceMatch == 0) ? EdiMaxD  : Select( mpNum1,  12,      10,       8,        7,        7,        6,        6,        5,        4,        4     )
-    EdiQual  = (SourceMatch == 0) ? EdiQual  : Select( mpNum1,  2,       1,        1,        1,        1,        1,        1,        1,        1,        1     )
+    #                                                                    Very                                                         Very      Super     Ultra
+    # Basic source-match presets                                Placebo  Slow       Slower    Slow      Medium    Fast      Faster    Fast      Fast      Fast
+    NNSize   = (SourceMatch == 0) ? NNSize   : Select( mpNum1,  1,       1,         1,        1,        5,        5,        4,        4,        4,        4     )
+    NNeurons = (SourceMatch == 0) ? NNeurons : Select( mpNum1,  2,       2,         1,        1,        1,        0,        0,        0,        0,        0     )
+    EdiMaxD  = (SourceMatch == 0) ? EdiMaxD  : Select( mpNum1,  12,      10,        8,        7,        7,        6,        6,        5,        4,        4     )
+    EdiQual  = (SourceMatch == 0) ? EdiQual  : Select( mpNum1,  2,       1,         1,        1,        1,        1,        1,        1,        1,        1     )
     TempEdi  = EdiMode # Main interpolation is actually done by basic-source match step when enabled, so a little swap and wriggle is needed
     EdiMode  = (SourceMatch == 0) ? EdiMode  : Default( MatchEdi, ((mpNum1 < 9) ?  EdiMode : "Yadif") ) # Force Yadif for "Ultra Fast" basic source match
     MatchEdi = TempEdi
 
-    #                                                          Very                                                        Very      Super     Ultra
-    # Refined source-match presets                   Placebo   Slow      Slower    Slow      Medium    Fast      Faster    Fast      Fast      Fast
-    MatchEdi2 = Default( MatchEdi2, Select( mpNum2, "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "TDeint",  ""    ) )
-    MatchNNSize2                  = Select( mpNum2,  1,        1,        1,        1,        5,        5,        4,        4,        4,        4     )
-    MatchNNeurons2                = Select( mpNum2,  2,        2,        1,        1,        1,        0,        0,        0,        0,        0     )
-    MatchEdiMaxD2                 = Select( mpNum2,  12,       10,       8,        7,        7,        6,        6,        5,        4,        4     )
-    MatchEdiQual2                 = Select( mpNum2,  2,        1,        1,        1,        1,        1,        1,        1,        1,        1     )
+    #                                                                     Very                                                        Very      Super     Ultra
+    # Refined source-match presets                              Placebo   Slow      Slower    Slow      Medium    Fast      Faster    Fast      Fast      Fast
+    MatchEdi2 = Default( MatchEdi2,            Select( mpNum2, "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "TDeint",  ""    ) )
+    MatchNNSize2                             = Select( mpNum2,  1,        1,        1,        1,        5,        5,        4,        4,        4,        4     )
+    MatchNNeurons2                           = Select( mpNum2,  2,        2,        1,        1,        1,        0,        0,        0,        0,        0     )
+    MatchEdiMaxD2                            = Select( mpNum2,  12,       10,       8,        7,        7,        6,        6,        5,        4,        4     )
+    MatchEdiQual2                            = Select( mpNum2,  2,        1,        1,        1,        1,        1,        1,        1,        1,        1     )
 
 
     #---------------------------------------
@@ -800,7 +808,9 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     w    = Input.Width()
     h    = Input.Height()
     yuy2 = Input.IsYUY2()
+    isHD = (w > 1099 || h > 599)
     eps  = 0.0001
+    scUV = isHD ? 2 : 0
 
     # Reverse "field" dominance for progressive repair mode 3 (only difference from mode 2)
     compl = InputType == 2 ? Input.                   propSet("_Field", GetParity(Input) ? 1 : 0) : \
@@ -837,7 +847,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     srchClip  = QTGMCp_GetUserGlobal( GlobalNames, "srchClip",  ReuseGlobals )
     srchSuper = QTGMCp_GetUserGlobal( GlobalNames, "srchSuper", ReuseGlobals )
 
-    for (i=1, 6, 1) {
+    for (i=1, maxTR, 1) {
 
         Eval(Format("""bVec{i} = QTGMCp_GetUserGlobal( GlobalNames, "bVec{i}", ReuseGlobals )"""))
         Eval(Format("""fVec{i} = QTGMCp_GetUserGlobal( GlobalNames, "fVec{i}", ReuseGlobals )"""))
@@ -881,11 +891,11 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=St, c=Amp, uv=CMmt, tv_in=tv, tv_out=false, bits=8) : srchClip.ConvertBits(8,dither=-1)
 
     # Calculate forward and backward motion vectors from motion search clip
-    srchSuper = IsClip(srchSuper) ? srchSuper                                                                                             : \
-                (maxTR > 0)       ? srchClip.MSuper( pel=SubPel, sharp=SubPelInterp, hpad=hpad, vpad=vpad, chroma=ChromaMotion, mt=bomt ) : nop()
+    srchSuper = IsClip(srchSuper) ? srchSuper                                                                                                        : \
+                (maxTR > 0)       ? srchClip.MSuper( pel=SubPel, sharp=SubPelInterp, hpad=hpad, vpad=vpad, chroma=ChromaMotion, rfilter=3, mt=bomt ) : nop()
 
 
-    for (i=-6, 6, 1) {
+    for (i=-maxTR, maxTR, 1) {
 
         if (i!=0) {
 
@@ -895,10 +905,10 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
             Eval(Format(str+"c = IsClip("+str+")
             "+str+" = "+str+"c ? "+str+" : (maxTR > {ia}-1) ? srchSuper.MAnalyse( isb={i}<0,  delta={ia}, blksize=BlockSize, overlap=Overlap, search=Search, searchparam=SearchParam, \
                                                                                   pelsearch=PelSearch, truemotion=TrueMotion, lambda=Lambda, lsad=LSAD, pnew=PNew, plevel=PLevel,     \
-                                                                                  global=GlobalMotion, DCT=DCT, chroma=ChromaMotion, badSAD=3200, mt=bomt ) : nop()
+                                                                                  global=GlobalMotion, DCT=DCT, chroma=ChromaMotion, badSAD=3200, mt=bomt, scaleCSAD=scUV ) : nop()
 
             "+str+" = "+str+"c || !RefineMotion || !(maxTR > {ia}-1) ? "+str+" : srchSuper.MRecalculate("+str+", overlap=halfoverlap, blksize=halfblksize, thSAD=halfthSAD, DCT=DCT, \
-                                                                                                         chroma=ChromaMotion, truemotion=TrueMotion, search=Search,                  \
+                                                                                                         chroma=ChromaMotion, truemotion=TrueMotion, search=Search, scaleCSAD=scUV,  \
                                                                                                          searchparam=SearchParam, lambda=Lambda, pnew=PNew, mt=bomt)"))
     } }
 
@@ -906,7 +916,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     QTGMCp_SetUserGlobal( GlobalNames, "srchClip",  srchClip,  ReplaceGlobals )
     QTGMCp_SetUserGlobal( GlobalNames, "srchSuper", srchSuper, ReplaceGlobals )
 
-    for (i=1, 6, 1) {
+    for (i=1, maxTR, 1) {
 
         QTGMCp_SetUserGlobal( GlobalNames, Format("bVec{i}"), Eval(Format("bVec{i}")), ReplaceGlobals )
         QTGMCp_SetUserGlobal( GlobalNames, Format("fVec{i}"), Eval(Format("fVec{i}")), ReplaceGlobals )
@@ -924,7 +934,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                 (InputType > 0)       ? clip                         : \
                                         clip.ex_bob( 0, 1.0 )
     fullClip  = (yuy2 && NoiseTR > 0) ? fullClip.nonyuy2clipin(true) : fullClip
-    fullSuper = (NoiseTR > 0)         ? fullClip.MSuper( pel=SubPel, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, mt=bomt ) : nop() #TEST chroma OK?
+    fullSuper = (NoiseTR > 0)         ? fullClip.MSuper( pel=SubPel, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, rfilter=3, mt=bomt ) : nop() #TEST chroma OK?
 
     # Create a motion compensated temporal window around current frame and use to guide denoisers
     noiseWindow = (NoiseProcess == 0) ? nop()    : \
@@ -951,7 +961,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     # Also reweave to get interlaced noise if source was interlaced (could keep the full frame of noise, but it will be poor quality from the point resize)
     denoised = (NoiseProcess == 0) ? nop()                                                                                  : \
                (!DenoiseMC)        ? ((InputType > 0) ? dnWindow : dnWindow.SeparateFields().SelectEvery( 4, 0,3 ).Weave()) : \
-               (InputType > 0)     ? ((NoiseTR  == 0) ? dnWindow : dnWindow.SelectEvery( noiseTD, NoiseTR ))                : \
+               (InputType     > 0) ? ((NoiseTR  == 0) ? dnWindow : dnWindow.SelectEvery( noiseTD, NoiseTR ))                : \
                                      dnWindow.SeparateFields().SelectEvery( noiseTD*4, NoiseTR*2,NoiseTR*6+3 ).Weave()
 
     # >>>> Switch to planar YUY2 for noise bypass
@@ -969,9 +979,9 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                      (NoiseDeint   == "Generate")               ? noise.QTGMCp_Generate2ndFieldNoise( denoised, ChromaNoise, !tv) : \
                                                                   noise.DoubleWeave()
     # Motion-compensated stabilization of generated noise
-    noiseSuper = (StabilizeNoise) ? deintNoise.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, mt=bomt )    : nop()
-    mcNoise    = (StabilizeNoise) ? deintNoise.MCompensate( noiseSuper, bVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt )                                  : nop()
-    finalNoise = (StabilizeNoise) ? ex_lutxy( deintNoise, mcNoise, "x "+bi32m+" abs y "+bi32m+" abs > x y ? 0.6 * x y + 0.2 * +", UV=CNmt1, fulls=!tv ) : deintNoise
+    noiseSuper = (StabilizeNoise) ? deintNoise.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, rfilter=3, mt=bomt ) : nop()
+    mcNoise    = (StabilizeNoise) ? deintNoise.MCompensate( noiseSuper, bVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt )                                          : nop()
+    finalNoise = (StabilizeNoise) ? ex_lutxy( deintNoise, mcNoise, "x "+bi32m+" abs y "+bi32m+" abs > x y ? 0.6 * x y + 0.2 * +", UV=CNmt1, fulls=!tv )         : deintNoise
 
     # If NoiseProcess=1 denoise input clip. If NoiseProcess=2 leave noise in the clip and let the temporal blurs "denoise" it for a stronger effect
     innerClip = (NoiseProcess == 1) ? denoised : clip
@@ -999,15 +1009,15 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                                                                      mt_merge( innerClip.nonyuy2clipin(true), edi1.nonyuy2clipin(true), inputTypeBlend, U=2,V=2 ))
 
     # Get the max/min value for each pixel over neighboring motion-compensated frames - used for temporal sharpness limiting
-    ediSuper = (TR1 > 0 || temporalSL)   ? edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
-    bComp1   = (temporalSL)              ? edi.MCompensate( ediSuper, bVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt             ) : nop()
-    fComp1   = (temporalSL)              ? edi.MCompensate( ediSuper, fVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt             ) : nop()
-    tMax     = (temporalSL)              ? edi.ex_lutxyz  ( fComp1, bComp1, "x y max z max", UV=3, fulls=!tv                   ) : nop()
-    tMin     = (temporalSL)              ? edi.ex_lutxyz  ( fComp1, bComp1, "x y min z min", UV=3, fulls=!tv                   ) : nop()
-    bComp3   = (SLRad > 1 && temporalSL) ? edi.MCompensate( ediSuper, bVec3, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt             ) : nop()
-    fComp3   = (SLRad > 1 && temporalSL) ? edi.MCompensate( ediSuper, fVec3, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt             ) : nop()
-    tMax     = (SLRad > 1 && temporalSL) ? tMax.ex_lutxyz ( fComp3, bComp3, "x y max z max", UV=3, fulls=!tv                   ) : tMax
-    tMin     = (SLRad > 1 && temporalSL) ? tMin.ex_lutxyz ( fComp3, bComp3, "x y min z min", UV=3, fulls=!tv                   ) : tMin
+    ediSuper = (TR1 > 0 || temporalSL)   ? edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, rfilter=3, mt=bomt ) : nop()
+    bComp1   = (temporalSL)              ? edi.MCompensate( ediSuper, bVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt                        ) : nop()
+    fComp1   = (temporalSL)              ? edi.MCompensate( ediSuper, fVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt                        ) : nop()
+    tMax     = (temporalSL)              ? edi.ex_lutxyz  ( fComp1, bComp1, "x y max z max", UV=3, fulls=!tv                              ) : nop()
+    tMin     = (temporalSL)              ? edi.ex_lutxyz  ( fComp1, bComp1, "x y min z min", UV=3, fulls=!tv                              ) : nop()
+    bComp3   = (SLRad > 1 && temporalSL) ? edi.MCompensate( ediSuper, bVec3, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt                        ) : nop()
+    fComp3   = (SLRad > 1 && temporalSL) ? edi.MCompensate( ediSuper, fVec3, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt                        ) : nop()
+    tMax     = (SLRad > 1 && temporalSL) ? tMax.ex_lutxyz ( fComp3, bComp3, "x y max z max", UV=3, fulls=!tv                              ) : tMax
+    tMin     = (SLRad > 1 && temporalSL) ? tMin.ex_lutxyz ( fComp3, bComp3, "x y min z min", UV=3, fulls=!tv                              ) : tMin
     sMDegnl  = n16 ? ", out16=n16" : ""
 
 
@@ -1080,7 +1090,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                                         backBlend2.ex_lutxy( finalNoise, Format("y {noiseCentre} - {GrainRestore} * range_half neg range_half clip x +"), UV=CNmt2, fulls=!tv )
 
     # Final light linear temporal smooth for denoising
-    stableSuper = (TR2  > 0) ? addNoise1.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
+    stableSuper = (TR2  > 0) ? addNoise1.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, rfilter=3, mt=bomt ) : nop()
     stable      = (TR2 == 0) ? addNoise1 : \
                   (TR2 == 1) ? Eval("addNoise1.MDegrain1( stableSuper, bVec1,fVec1,                                                                  thSAD=ThSAD2, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : \
                   (TR2 == 2) ? Eval("addNoise1.MDegrain2( stableSuper, bVec1,fVec1, bVec2,fVec2,                                                     thSAD=ThSAD2, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : \
@@ -1125,16 +1135,16 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     rBlockDivide =     BlockSize / rBlockSize
     rLambda      =        Lambda /(rBlockDivide * rBlockDivide)
     sbBVec1 = (ShutterBlur > 1) ? srchSuper.MRecalculate( bVec1, thSAD=ThSAD1, blksize=rBlockSize, overlap=rOverlap, search=Search, searchparam=SearchParam, \
-                                                          truemotion=TrueMotion, lambda=Lambda, pnew=PNew, DCT=DCT, chroma=ChromaMotion, mt=bomt  ) : bVec1
+                                                          truemotion=TrueMotion, lambda=Lambda, pnew=PNew, DCT=DCT, chroma=ChromaMotion, scaleCSAD=scUV, mt=bomt  ) : bVec1
     sbFVec1 = (ShutterBlur > 1) ? srchSuper.MRecalculate( fVec1, thSAD=ThSAD1, blksize=rBlockSize, overlap=rOverlap, search=Search, searchparam=SearchParam, \
-                                                          truemotion=TrueMotion, lambda=Lambda, pnew=PNew, DCT=DCT, chroma=ChromaMotion, mt=bomt  ) : fVec1
+                                                          truemotion=TrueMotion, lambda=Lambda, pnew=PNew, DCT=DCT, chroma=ChromaMotion, scaleCSAD=scUV, mt=bomt  ) : fVec1
 
     # Shutter motion blur - use MFlowBlur to blur along motion vectors
-    sblurSuper   = (ShutterBlur >  0) ? addNoise2.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt )       : nop()
-    sblur        = (ShutterBlur >  0) ? addNoise2.MFlowBlur( sblurSuper, sbBVec1, sbFVec1, blur=blurLevel, thSCD1=ThSCD1, thSCD2=ThSCD2 ) : nop()
+    sblurSuper   = (ShutterBlur >  0) ? addNoise2.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, rfilter=3, mt=bomt ) : nop()
+    sblur        = (ShutterBlur >  0) ? addNoise2.MFlowBlur( sblurSuper, sbBVec1, sbFVec1, blur=blurLevel, thSCD1=ThSCD1, thSCD2=ThSCD2 )      : nop()
 
     # Shutter motion blur - use motion mask to reduce blurring in areas of low motion - also helps reduce blur "bleeding" into static areas, then select blur type
-    sbMotionMask = (ShutterBlur  > 0 && SBlurLimit > 0) ? MMask( srchClip, bVec1, kind=0, ml=SBlurLimit ).ConvertBits(bi,fulls=true)      : nop()
+    sbMotionMask = (ShutterBlur  > 0 && SBlurLimit > 0) ? MMask( srchClip, bVec1, kind=0, ml=SBlurLimit ).ConvertBits(bi,fulls=true)           : nop()
     sblurred     = (ShutterBlur == 0) ? addNoise2                                         : \
                    (SBlurLimit  == 0) ? sblur                                             : \
                                         mt_merge( addNoise2, sblur, sbMotionMask, U=3,V=3 )
@@ -1382,7 +1392,7 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
                              match1Update.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                           \
                                                                            .QTGMCp_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs, gpuid=id ) \
                                                                            .nonyuy2clipin(true).ConvertBits(bi,fulls=fs)
-    match1Super    = (SourceMatch > 0 && MatchTR1 > 0) ? match1Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
+    match1Super    = (SourceMatch > 0 && MatchTR1 > 0) ? match1Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, rfilter=3,   mt=bomt )                 : nop()
     match1Degrain1 = (SourceMatch > 0 && MatchTR1 > 0) ? Eval("match1Edi.MDegrain1( match1Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match1Degrain2 = (SourceMatch > 0 && MatchTR1 > 1) ? Eval("match1Edi.MDegrain1( match1Super, bVec2,fVec2, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match1Degrain1 = (SourceMatch > 0 && MatchTR1 > 0) ? n16 ? match1Degrain1.ConvertBits(8,dither=-1,fulls=fs) : match1Degrain1 : match1Degrain1
@@ -1406,7 +1416,7 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
                              match2Diff.ConvertBits(8,dither=-1,fulls=fs).nonyuy2clipout(true)                                                                                                                \
                                                                          .QTGMCp_Interpolate( InputType, MatchEdi2, MatchNNSize2, MatchNNeurons2, MatchEdiQual2, MatchEdiMaxD2, Threads, fulls=fs, gpuid=id ) \
                                                                          .nonyuy2clipin(true).ConvertBits(bi,fulls=fs)
-    match2Super    = (SourceMatch > 1 && MatchTR2 > 0) ? match2Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
+    match2Super    = (SourceMatch > 1 && MatchTR2 > 0) ? match2Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, rfilter=3,   mt=bomt )                 : nop()
     match2Degrain1 = (SourceMatch > 1 && MatchTR2 > 0) ? Eval("match2Edi.MDegrain1( match2Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match2Degrain2 = (SourceMatch > 1 && MatchTR2 > 1) ? Eval("match2Edi.MDegrain1( match2Super, bVec2,fVec2, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match2Degrain1 = (SourceMatch > 1 && MatchTR2 > 0) ? n16 ? match2Degrain1.ConvertBits(8,dither=-1,fulls=fs) : match2Degrain1 : match2Degrain1
@@ -1420,7 +1430,7 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
     errorAdjust2   = Select( MatchTR2, 1.0, 2.0 / (1.0 + errorTemporalSimilarity), 8.0 / (3.0 + 5.0 * errorTemporalSimilarity) )
     match3Update   = (SourceMatch < 3 || MatchTR2 == 0) \
                          ? match2Edi : ex_lutxy( match2Edi, match2, Format("x dup y - {errorAdjust2} * +"), clamp_float=true, UV=3, fulls=fs )
-    match3Super    = (SourceMatch > 2 && MatchTR2 > 0) ? match3Update.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, mt=bomt ) : nop()
+    match3Super    = (SourceMatch > 2 && MatchTR2 > 0) ? match3Update.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, rfilter=3,   mt=bomt )                 : nop()
     match3Degrain1 = (SourceMatch > 2 && MatchTR2 > 0) ? Eval("match3Update.MDegrain1( match3Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match3Degrain2 = (SourceMatch > 2 && MatchTR2 > 1) ? Eval("match3Update.MDegrain1( match3Super, bVec2,fVec2, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
     match3Degrain1 = (SourceMatch > 2 && MatchTR2 > 0) ? n16 ? match3Degrain1.ConvertBits(8,dither=-1,fulls=fs) : match3Degrain1 : match3Degrain1
@@ -1551,9 +1561,9 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
         Yodd  = eY.SelectOdd()   Uodd  = eU.SelectOdd()   Vodd  = eV.SelectOdd()
 
         yeven = !nn ? Yeven.BicubicResize(w, h, b, c, 0,  shift, w, fh) : \
-                      Yeven.nnedi3wrap(1,2,par ? 1 : 0,nsize=3,nns=3,qual=2,cshift="none",gpuid=gp)
+                      Yeven.nnedi3wrap(1,2, par ? 1 : 0,nsize=3,nns=3,qual=2,cshift="none",gpuid=gp)
         yodd  = !nn ?  Yodd.BicubicResize(w, h, b, c, 0, -shift, w, fh) : \
-                       Yodd.nnedi3wrap(1,2,par ? 0 : 1,nsize=3,nns=3,qual=2,cshift="none",gpuid=gp)
+                       Yodd.nnedi3wrap(1,2, par ? 0 : 1,nsize=3,nns=3,qual=2,cshift="none",gpuid=gp)
 
         ceven = Interleave( Ueven, Veven).BicubicResize(w2, h/2, b, c, 0,  shift, w2, fh/2)
         codd  = Interleave(  Uodd, Vodd ).BicubicResize(w2, h/2, b, c, 0, -shift, w2, fh/2)
@@ -1570,11 +1580,12 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
 
     par ? AssumeTFF() : AssumeBFF()
     propCopy(cp,true,props=["_DurationNum","_FieldBased","_PictType","_AbsoluteTime"],exclude=true)
+    if (!nn) {
     ScriptClip(function[cp]() {
     propSet("_DurationDen",propGetInt(cp,"_DurationDen")*2)
     propSet("_DurationNum",propGetInt(cp,"_DurationNum")  )
     } )
-    propSet("_FieldBased",0).propSet("_Field",fb-1).propSet("_Combed",0) }
+    propSet("_FieldBased",0).propSet("_Field",fb-1).propSet("_Combed",0) } }
 
 
 
@@ -1600,8 +1611,8 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
 #
 function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 
-    str = max(1,Default(strength, 2))
-    agg = Default(aggressive, false) # Avoid with strength=3
+    str = max(1,Default(strength, 2)) # 1, 2, or 3
+    agg = Default(aggressive, false)  # Avoid with strength=3
     UV  = Default(UV,             3)
     UV2 = !isy(a) && UV==3 ? Undefined() : ""
 
