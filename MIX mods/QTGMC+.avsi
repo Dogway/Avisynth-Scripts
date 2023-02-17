@@ -451,8 +451,8 @@
 #   Vinverse   (0.9.4    or above)
 #
 # Core scripts:
-#   ExTools      (9.9    or above)
-#   ResizersPack (11.1   or above) (for nnedi3wrap() )
+#   ExTools      (10.0   or above)
+#   ResizersPack (11.2   or above) (for nnedi3wrap() )
 #   SMDegrain    (3.6.0  or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
 #
 # Optional:
@@ -465,7 +465,6 @@
 #   AddGrainC    (1.8.4  or above) - if NoiseDeint="Generate" selected for noise bypass
 #   BWDIF        (1.2.5  or above) - for EdiMode modes "BWDIF+NNEDI3" and "BWDIF+EEDI3"
 #   Zs_RF_Shared (1.159  or above) (for YUY2: nonyuy2clipin() and nonyuy2clipout() and for EdiMode=="BWDIF+EEDI3": slimit_dif2() )
-#   chikuzen's PlanarTools - if you work with YUY2 source (not necessarily required but may improve speed)
 
 
 # --- GETTING STARTED ---
@@ -500,8 +499,8 @@
 #     int "thSAD1"=640 (100 to 1000),
 #     int "thSAD2"=256 (100 to 1000),
 #     int "SourceMatch"=0 (0 to 3),
-#     string "MatchPreset"="Very Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
-#     string "MatchPreset2"="Very Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+#     string "MatchPreset"="Slower" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+#     string "MatchPreset2"="Slower" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
 #     [int "MatchTR2"=1 (0 to 2)],
 #     float "MatchEnhance"=0.5 (0.0 to 1.0 by 0.05),
 #     int "Lossless"=0 (0 to 2),
