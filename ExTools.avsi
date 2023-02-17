@@ -1802,7 +1802,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ## 2013-10-23 raffriff42
 ## 2014-05-31 discrete hor. and vert. args
 ## 2017-05-21 bugfix: blockiness
-## 2021-09-05 Optimized (~38% gain) and profiled against ex_blur(), also Y+UV args
+## 2021-09-05 Optimized (~38% gain) and profiled after ex_blur(), also Y+UV args
 ## 2021-09-22 Added padding to protect borders and fallback to ex_blur() for low sigma
 ## 2021-10-12 Reparametrized. Changed to bilinear downscale, faster and more accurate. Change to mod2
 ## 2021-10-31 Reparametrized. Optimal 'p' value and linear regressed when pad=true
