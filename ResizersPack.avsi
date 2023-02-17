@@ -1034,7 +1034,7 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
 
     FindStr(kernel,"lanczos")>0 && kernel!="lanczos4" || FindStr(kernel,"blackman")>0 || FindStr(kernel,"sinc")>0 ? \
                          Eval(kernel + "Resize(s," + String(op) + ",taps=int(b),src_left=src_l,src_top=src_t)")   : \
-    kernel == "deep"   ? Eval(    "deep_resize(s," + String(op) + ")"                                         )   : \
+    kernel == "deep"   ? Eval(    "deep_resize(s," + String(op) + ",grain=0)"                                 )   : \
     kernel == "gauss"  ? Eval(    "GaussResize(s," + String(op) + ",p=p,        src_left=src_l,src_top=src_t)")   : \
     kernel == "bicubic"? Eval(  "BicubicResize(s," + String(op) + ",b,c,        src_left=src_l,src_top=src_t)")   : \
                          Eval(kernel + "Resize(s," + String(op) + ",            src_left=src_l,src_top=src_t)")   }
