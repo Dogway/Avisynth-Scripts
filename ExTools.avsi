@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v9.9   (08-02-2023)                   ##
+###        ExTools v10.0    (16-02-2023)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -6715,7 +6715,7 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
 # FDoG      - (2d) Flow-based Difference of Gaussians. Good for noisy sources
 # DoG       - zero-cross (of the 2nd derivative) of a Difference of Gaussians. Good for noisy sources
 # DoB       - zero-cross (of the 2nd derivative) of a Difference of Boxes. Good for noisy sources
-# LoG       - zero-cross (of the 2nd derivative) of a Laplacian of Gaussian
+# LoG       - zero-cross (of the 2nd derivative) of a Laplacian of Gaussian. Also called Marr-Hildreth detector
 # laplace   - Laplace
 # Std       - Standard Deviation
 # min/max   - Gradient magnitude. zero-cross (of the 2nd derivative) of: (dilation - erosion)
@@ -7377,8 +7377,8 @@ function ex_bs(float var, int "ibits", int "obits", bool "fulls", bool "fulld", 
     fsc = fs  && !fd ? -v/257.  : \
                   fd ?  v/256.  : 0
 
-    vif = ib32 ? ob8 ? var*255. :     var*( 255*pow(2, obi-8)+(fd ? 255*pow(2, obi-8)/256. : 0) )     : nop()
-    vof = ob32 ? ib8 ? var/255. : min(var/( 255*pow(2, ibi-8)+(fs ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
+    vif = ib32 ? ob8  ? var*255.  :     var*( 255*pow(2, obi-8)+(fd ? 255*pow(2, obi-8)/256. : 0) )     : nop()
+    vof = ob32 ? ib8  ? var/255.  : min(var/( 255*pow(2, ibi-8)+(fs ? 255*pow(2, ibi-8)/256. : 0) ),1.) : nop()
 
     out = ob32 ? ib32 ? var : vof : ib32 ? vif : v+fsc
 
@@ -7458,9 +7458,12 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 # When isY or no reference clip is supplied, a good alternative is: ConverttoYUV444(chromaresample="point")
 function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "bits", string "Jab") {
 
+    isy  = isy(a)
     bi   = BitsPerComponent(a)
     bi   = Default(bits,   bi)
-    isy  = isy(a)
+    UV   = Default(UV,      3)
+    luma = Default(luma, true)
+    rgb  = Default(rgb, isRGB(a))
 
     w    = width (a)    wm = width (msk)
     h    = height(a)    hm = height(msk)
@@ -7574,7 +7577,7 @@ function ArrayInv( val arr1 ) {
     return arr }
 
 
-# Combines or mixes two arrays in pairs
+# Combines or mixes two arrays in pairs (still as flat array)
 function ArrayZip( val arr1, val arr2) {
 
     bs  = ArraySize(arr2)-1
