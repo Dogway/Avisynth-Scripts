@@ -557,7 +557,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=is4?"Precise":"Didee",tv_in=tv,tv_out=tv,gpuid=-1)
 
     size = max(w2/1920.,h2/1080.)
-    gr > 0 ? GrainFactory3mod(size=size,str=(size*gr)*2.5,temp_avg=1,preblur=false,tv_range=!fs) : last
+    gr > 0 ? GrainFactory3mod(size=size,str=(size*gr)*2.5,temp_avg=1,preblur=false,tv_range=tv) : last
     }
 
 
