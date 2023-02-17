@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.5 (11-02-2023)               ##
+###           Grade Pack v8.6 (17-02-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -1514,8 +1514,8 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ### WhitePoint()
 ###
 ###
-### Accurately adjust the color temperature of the image. Assumes input matrix primaries are D65 based.
-### YUV or RGB and HBD recommended.
+### Accurately adjust the color temperature of the image.
+### YUV or RGB, HBD recommended.
 ###
 ### Dependencies: > ExTools
 ###                 TransformsPack
@@ -1524,6 +1524,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ###    (
 ###    clip,
 ###    float temperature=6504 (1704 to 14016 by 24),
+###    [float temp_source=6504 (1704 to 14016 by 24)],
 ###    [string "matrix"="709" ("470M"/ "470BG"/ "170M"/ "709"/ "2020CL"/ "2020NCL"/ "Display-P3"/ "ACEScg")],
 ###    [int "observer"=1931 (1931/ 1964)],
 ###    [string "locus"="Daylight" ("Daylight"/ "Planckian")],
@@ -1532,95 +1533,98 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ###
 ####################################
 
-function WhitePoint (clip c, float "temperature", string "matrix", string "locus", int "observer", bool "list", bool "tv_range") {
+function WhitePoint (clip c, float "temperature", float "temp_source", string "matrix", string "locus", int "observer", bool "list", bool "tv_range") {
 
-    rgb  = isRGB(c)
-    rgbp = rgb ? isPlanar(c) : false
-    ID   = color_propGet (c)
+    rgb   = isRGB(c)
+    rgbp  = rgb ? isPlanar(c) : false
+    ID    = color_propGet (c)
 
-    temp = Default(temperature, 6504)  # 1900K ('Rec709' limit) to 25000K. Target temperature in Kelvin units (Default: D65 == nop())
-    mat  = Default(matrix,   ID[2] )
-    loc  = Default(locus, temp<5000?"Planckian":"Daylight")
-    ob   = Default(observer,  1931 )   # Standard Observer 1931 or 2 for 2º Standard Observer. 1964 or 10 for 10º Standard Observer
-    tv   = Default(tv_range, ID[6] )
-    lis  = Default(list,     false )   # Set to True to output [x,y,z] coordinates of the CCT (correlated color temperature)
+    temp1 = Default(temperature, 6504)  # 1900K ('Rec709' limit) to 25000K. Target temperature in Kelvin units (Default: D65 == nop())
+    temp2 = Default(temp_source, 6504)  # 1900K ('Rec709' limit) to 25000K. Source temperature in Kelvin units (Default: D65 == nop())
+    mat   = Default(matrix,    ID[2] )
+    loc   = Default(locus, temp1<5000?"Planckian":"Daylight")
+    ob    = Default(observer,   1931 )  # Standard Observer 1931 or 2 for 2º Standard Observer. 1964 or 10 for 10º Standard Observer
+    tv    = Default(tv_range,  ID[6] )
+    lis   = Default(list,      false )  # Set to True to output [x,y,z] coordinates of the CCT (correlated color temperature)
 
     Assert(IsVersionOrGreater(3,7,2), "WhitePoint: Update AviSynth+ version")
 
-    mat  = Color_fuzzy_search(mat)
+    mat   = Color_fuzzy_search(mat)
 
     rgb ? rgbp ? c : ConvertToPlanarRGB(c) : \
     YUV_to_RGB(c, mat[0], tv_in=tv, tv_out=false, kernel="lanczos", b=3)
 
 
-    temp3 = 1000.       /     temp
-    temp6 = 1000000.    / pow(temp, 2)
-    temp9 = 1000000000. / pow(temp, 3)
+    function TemperatureXYZ(float temp, int ob, string loc) {
 
-    # CIE 1931 2º Standard Observer
-    if (ob==1931||ob==2) {
+        temp3 = 1000.       /     temp
+        temp6 = 1000000.    / pow(temp, 2)
+        temp9 = 1000000000. / pow(temp, 3)
 
-        if (loc=="Planckian"||loc=="Blackbody") {
+        # CIE 1931 2º Standard Observer
+        if (ob==1931||ob==2) {
 
-            wpx = temp <= 2900 ? 0.142148 + 1.16453   * temp3 - 0.926236  * temp6 + 0.267565  * temp9 : \
-                  temp <= 4000 ? 0.17991  + 0.8776956 * temp3 - 0.2343589 * temp6 - 0.2661239 * temp9 : \
-                                 0.24039  + 0.2226347 * temp3 + 2.1070379 * temp6 - 3.0258469 * temp9
+            if (loc=="Planckian"||loc=="Blackbody") {
+
+                wpx = temp <= 2900 ? 0.142148 + 1.16453   * temp3 - 0.926236  * temp6 + 0.267565  * temp9 : \
+                      temp <= 4000 ? 0.17991  + 0.8776956 * temp3 - 0.2343589 * temp6 - 0.2661239 * temp9 : \
+                                     0.24039  + 0.2226347 * temp3 + 2.1070379 * temp6 - 3.0258469 * temp9
+
+                wpx2 = pow(wpx, 2)
+                wpx3 = pow(wpx, 3)
+
+                wpy = temp <= 2222 ? -1.1063814 * wpx3 - 1.34811020 * wpx2 + 2.18555832 * wpx - 0.20219683 : \
+                      temp <= 2900 ? -2.7749800 * wpx3 + 1.10334000 * wpx2 + 0.97248300 * wpx              : \
+                      temp <= 4000 ? -0.9549476 * wpx3 - 1.37418593 * wpx2 + 2.09137015 * wpx - 0.16748867 : \
+                                     +3.0817580 * wpx3 - 5.87338670 * wpx2 + 3.75112997 * wpx - 0.37001483
+
+            } else {
+
+                # Valid in the range [0.250, 0.380] (>=4000K) (3000K-3200K range also works as it coincides with Planckian)
+                wpx = temp < 5500 ? 0.244058 + 0.0989971 * temp3 + 2.96545 * temp6 - 4.59673 * temp9 : \
+                      temp < 8000 ? 0.200033 + 0.9545630 * temp3 - 2.53169 * temp6 + 7.08578 * temp9 : \
+                                    0.237045 + 0.2437440 * temp3 + 1.94062 * temp6 - 2.11004 * temp9 # there's a dip around 7000K though
+
+                wpy = -0.275275 + 2.87396 * wpx - 3.02034 * pow(wpx,2) + 0.0297408 * pow(wpx,3)
+
+        # CIE 1964 10º Standard Observer
+        } } else {
+
+            if (loc=="Planckian"||loc=="Blackbody") {
+
+            wpx = temp <= 4000 ? 0.132123 + 1.245000 * temp3 - 1.06779 * temp6 + 0.335515 * temp9 : \
+                                 0.240094 + 0.199403 * temp3 + 2.36932 * temp6 - 3.541520 * temp9
 
             wpx2 = pow(wpx, 2)
             wpx3 = pow(wpx, 3)
 
-            wpy = temp <= 2222 ? -1.1063814 * wpx3 - 1.34811020 * wpx2 + 2.18555832 * wpx - 0.20219683 : \
-                  temp <= 2900 ? -2.7749800 * wpx3 + 1.10334000 * wpx2 + 0.97248300 * wpx              : \
-                  temp <= 4000 ? -0.9549476 * wpx3 - 1.37418593 * wpx2 + 2.09137015 * wpx - 0.16748867 : \
-                                 +3.0817580 * wpx3 - 5.87338670 * wpx2 + 3.75112997 * wpx - 0.37001483
+            wpy = temp <= 2900 ? -2.885940 * wpx3 + 1.55652 * wpx2 + 0.640988 * wpx + 0.0649384 : \
+                  temp <= 4000 ? -0.813915 * wpx3 - 1.23629 * wpx2 + 1.89435  * wpx - 0.122346  : \
+                                  3.482430 * wpx3 - 5.92925 * wpx2 + 3.60717  * wpx - 0.331274
 
-        } else {
+            } else {
 
-            # Valid in the range [0.250, 0.380] (>=4000K) (3000K-3200K range also works as it coincides with Planckian)
-            wpx = temp < 5500 ? 0.244058 + 0.0989971 * temp3 + 2.96545 * temp6 - 4.59673 * temp9 : \
-                  temp < 8000 ? 0.200033 + 0.9545630 * temp3 - 2.53169 * temp6 + 7.08578 * temp9 : \
-                                0.237045 + 0.2437440 * temp3 + 1.94062 * temp6 - 2.11004 * temp9 # there's a dip around 7000K though
+                # Should not be used for < 4000K but technically it might be fine down to 2855.496K (Illuminant A)
+                wpx = -3.14504 * temp9 + 2.27982 * temp6 + 0.226414 * temp3 + 0.236388
 
-            wpy = -0.275275 + 2.87396 * wpx - 3.02034 * pow(wpx,2) + 0.0297408 * pow(wpx,3)
+                wpy = -0.176938 + 2.22673 * wpx - 1.67187 * pow(wpx,2) - 0.848624 * pow(wpx, 3)
+        } }
 
-    # CIE 1964 10º Standard Observer
-    } } else {
+       [wpx,wpy,1 - wpx - wpy] }
 
-        if (loc=="Planckian"||loc=="Blackbody") {
-
-        wpx = temp <= 4000 ? 0.132123 + 1.245000 * temp3 - 1.06779 * temp6 + 0.335515 * temp9 : \
-                             0.240094 + 0.199403 * temp3 + 2.36932 * temp6 - 3.541520 * temp9
-
-        wpx2 = pow(wpx, 2)
-        wpx3 = pow(wpx, 3)
-
-        wpy = temp <= 2900 ? -2.885940 * wpx3 + 1.55652 * wpx2 + 0.640988 * wpx + 0.0649384 : \
-              temp <= 4000 ? -0.813915 * wpx3 - 1.23629 * wpx2 + 1.89435  * wpx - 0.122346  : \
-                              3.482430 * wpx3 - 5.92925 * wpx2 + 3.60717  * wpx - 0.331274
-
-        } else {
-
-            # Should not be used for < 4000K but technically it might be fine down to 2855.496K (Illuminant A)
-            wpx = -3.14504 * temp9 + 2.27982 * temp6 + 0.226414 * temp3 + 0.236388
-
-            wpy = -0.176938 + 2.22673 * wpx - 1.67187 * pow(wpx,2) - 0.848624 * pow(wpx, 3)
-    } }
-
-    wpz =  1 - wpx - wpy
-
+    TXYZs = TemperatureXYZ(temp2, ob, temp2<5000?"Planckian":"Daylight")
+    TXYZt = TemperatureXYZ(temp1, ob, loc)
 
     if (lis) {
 
-        [wpx,wpy,wpz]
+        TXYZt
 
     } else {
 
         LMS      = XYZ_to_LMS("CAT16",true)
 
-                  # CIE 1931 or 1964 Daylight D65 Daylight Reference White
-        RFW      = ob==1931 || ob==2 ? [0.950457,1.,1.089436] : [0.948112,1.,1.073046]
-        fw1      = MatrixDot(RFW,LMS)
-        fw2      = MatrixDot([wpx/wpy, 1.,wpz/wpy], LMS)
+        fw1      = MatrixDot(ArrayOp(TXYZs,TXYZs[1],"/"),LMS)
+        fw2      = MatrixDot(ArrayOp(TXYZt,TXYZt[1],"/"),LMS)
         vonKries = Broadcast(ArrayOp(fw2,fw1,"/"), "vonKries")
 
         CAM      = MatrixDot(LMS, MatrixDot(vonKries, MatrixInvert(LMS)))
@@ -1634,18 +1638,18 @@ function WhitePoint (clip c, float "temperature", string "matrix", string "locus
 
         CCTF(mat[2], false, false, false)
 
-        2850 <= temp <= 2860 ? propSet("_Illuminant", 13) : \
-        5000 <= temp <= 5005 ? propSet("_Illuminant",  0) : \
-        5450 <= temp <= 5460 ? propSet("_Illuminant",  8) : \
-        5500 <= temp <= 5505 ? propSet("_Illuminant",  1) : \
-        6000 <= temp <= 6005 ? propSet("_Illuminant",  2) : \
-        6300 <= temp <= 6305 ? propSet("_Illuminant",  3) : \
-        6500 <= temp <= 6505 ? propSet("_Illuminant",  4) : \
-        6755 <= temp <= 6760 ? propSet("_Illuminant",  5) : \
-        7500 <= temp <= 7505 ? propSet("_Illuminant",  6) : \
-        5095 <= temp <= 5105 ? propSet("_Illuminant", 15) : \
-        6600 <= temp <= 6610 ? propSet("_Illuminant", 16) : \
-        8940 <= temp <= 8950 ? propSet("_Illuminant",  7) : last
+        2850 <= temp1 <= 2860 ? propSet("_Illuminant", 13) : \
+        5000 <= temp1 <= 5005 ? propSet("_Illuminant",  0) : \
+        5450 <= temp1 <= 5460 ? propSet("_Illuminant",  8) : \
+        5500 <= temp1 <= 5505 ? propSet("_Illuminant",  1) : \
+        6000 <= temp1 <= 6005 ? propSet("_Illuminant",  2) : \
+        6300 <= temp1 <= 6305 ? propSet("_Illuminant",  3) : \
+        6500 <= temp1 <= 6505 ? propSet("_Illuminant",  4) : \
+        6755 <= temp1 <= 6760 ? propSet("_Illuminant",  5) : \
+        7500 <= temp1 <= 7505 ? propSet("_Illuminant",  6) : \
+        5095 <= temp1 <= 5105 ? propSet("_Illuminant", 15) : \
+        6600 <= temp1 <= 6610 ? propSet("_Illuminant", 16) : \
+        8940 <= temp1 <= 8950 ? propSet("_Illuminant",  7) : last
 
         rgb ? rgbp ? last : MatchClip(c,internal=true) : \
         RGB_to_YUV( mat[0], tv_in=false, tv_out=tv, kernel="bicubic", b=-0.5, c=0.25, Jab=PixelType(c))
