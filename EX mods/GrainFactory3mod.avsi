@@ -6,18 +6,26 @@
 ###                                            ###
 ###            2012.04.06 v1.2 by 06_taro      ###
 ###            2020.04.06      by A.SONY.      ###
-###            2022.03.05 ex   by Dogway       ###
+###            2023.02.17 ex   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
 ### Luma adaptive grain generating filter. Y/YUV only.
 ###
-### Based on Didée's GrainFactory3 script
+### Based on DidÃ©e's GrainFactory3 script
 ###
 ###
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2023.02.17 ex
+###      - Added global settings as multipliers
+###      - Parameter fit between global 'size' and 'gnstr' arguments
+###      - Tuned defaults for more realistic starting point
+###      - 'preblur' option
+###      - Performance optimizations
+###      - Reduced dependencies
 ###
 ### 2022.03.05 ex
 ###      - Update requirements
@@ -101,19 +109,20 @@
 ###
 ### -> AddGrainC         [v1.8.4]
 ### -> neo_f3kdb         [r9]       (Optional)
-### -> ExTools           [v9.6.0]
-### -> ResizersPack      [v10.7.0]
+### -> ExTools           [v10.0.0]
+### -> ResizersPack      [v11.1.0]
 ###
 
 function GrainFactory3mod(clip clp,
+ \                        float "str",     float "cstr",    float "size",
  \                        float "g1str",   float "g2str",   float "g3str",
  \                        float "g1cstr",  float "g2cstr",  float "g3cstr",
  \                        int   "g1shrp",  int   "g2shrp",  int   "g3shrp",
  \                        float "g1size",  float "g2size",  float "g3size",
  \                        int   "g1tex",   int   "g2tex",   int   "g3tex",
  \                        bool  "g1const", bool  "g2const", bool  "g3const",
- \                        int   "th1",     int   "th2",     int   "th3",     int "th4",
- \                        int   "temp_avg",
+ \                        int   "th1",     int   "th2",     int   "th3",    int "th4",
+ \                        int   "temp_avg",  bool "preblur",
  \                        float "ontop_grain",
  \                        float "ontop_cgrain",
  \                        bool  "ontop_const",
@@ -121,179 +130,200 @@ function GrainFactory3mod(clip clp,
  \                        bool  "use_sAverageLumaMask" )
 {
 
-
 Assert(IsVersionOrGreater(3,7,2), "GrainFactory3mod: Update AviSynth+ version")
 
+    w            = width (clp)
+    h            = height(clp)
+    isHD         = w > 1099 || h >  599
+    isUHD        = w > 2599 || h > 1499
+    sz           = (isHD ? 1920 : isUHD ? 3840 : 1280)/1920.
 
-g1str        = Default( g1str,         13 )  # [ 0 - ???] strength of luma grain / for dark areas
-                                             # positive value for AddGrainC strength, negative value for f3kdb grain strength
-g2str        = Default( g2str,         15 )  # [ 0 - ???] strength of luma grain / for midtone areas
-                                             # positive value for AddGrainC strength, negative value for f3kdb grain strength
-g3str        = Default( g3str,         25 )  # [ 0 - ???] strength of luma grain / for bright areas
-                                             # positive value for AddGrainC strength, negative value for f3kdb grain strength
-g1cstr       = Default( g1cstr,         0 )  # [ 0 - ???] strength of chroma grain / for dark areas
-                                             # positive value for AddGrainC strength, negative value for f3kdb grain strength
-g2cstr       = Default( g2cstr,         0 )  # [ 0 - ???] strength of chroma grain / for midtone areas
-                                             # positive value for AddGrainC strength, negative value for f3kdb grain strength
-g3cstr       = Default( g3cstr,         0 )  # [ 0 - ???] strength of chroma grain / for bright areas
-                                             # positive value for AddGrainC strength, negative value for f3kdb grain strength
-g1shrp       = Default( g1shrp,        60 )  # [ 0 - 100] sharpness of grain / for dark areas (NO EFFECT when g1size=1.0 !!)
-g2shrp       = Default( g2shrp,        66 )  # [ 0 - 100] sharpness of grain / for midtone areas (NO EFFECT when g2size=1.0 !!)
-g3shrp       = Default( g3shrp,        80 )  # [ 0 - 100] sharpness of grain / for bright areas (NO EFFECT when g3size=1.0 !!)
-g1size       = Default( g1size,      1.50 )  # [0.5 - 4.0] size of grain / for dark areas
-g2size       = Default( g2size,      1.20 )  # [0.5 - 4.0] size of grain / for mid-tone areas
-g3size       = Default( g3size,      0.90 )  # [0.5 - 4.0] size of grain / for bright areas
-g1tex        = Default( g1tex,          0 )  # [ 0 - 100] strength of "material texture" appearance
-g2tex        = Default( g2tex,          0 )  # [ 0 - 100] (in fact: 'bump' effect)
-g3tex        = Default( g3tex,          0 )  # [ 0 - 100] for dark / midtone / bright grain
-g1const      = Default( g1const,    false )  # AddGrainC "constant" parameter of grain / for dark areas
-g2const      = Default( g2const,    false )  # AddGrainC "constant" parameter of grain / for midtone areas
-g3const      = Default( g3const,    false )  # AddGrainC "constant" parameter of grain / for bright areas
-temp_avg     = Default( temp_avg,       0 )  # [ 0 - 100] percentage of noise's temporal averaging (NO EFFECT when g1const=g2const=g3const=true !!)
-th1          = Default( th1,           24 )  # start of dark->midtone  mixing zone
-th2          = Default( th2,           56 )  # end  of  dark->midtone  mixing zone
-th3          = Default( th3,          128 )  # start of midtone->bright  mixing zone
-th4          = Default( th4,          160 )  # end  of  midtone->bright  mixing zone
-ontop_grain  = Default( ontop_grain,    0 )  # [ 0 - ???] additional luma grain to put on top of prev. generated grain
-                                             # positive value for AddGrainC strength, negative value for f3kdb grain strength
-ontop_cgrain = Default( ontop_cgrain,   0 )  # [ 0 - ???] additional chroma grain to put on top of prev. generated grain
-                                             # positive value for AddGrainC strength, negative value for f3kdb grain strength
-ontop_const  = Default( ontop_const, false)  # AddGrainC "constant" parameter of ontop clip
-use_ALMask   = Default( use_sAverageLumaMask, false)
+    #  Global multipliers for dark/mid/bright parameters
+    #  By default 1.0, 1.0, 1.0, 1.0 is designed for 1080p content
+    #  But scales by default from source dimensions when not defined explicitly
 
-rgb = isRGB(clp)
-fs  = propNumElements (clp,"_ColorRange")  > 0 ? \
-      propGetInt      (clp,"_ColorRange") == 0 : rgb
-tv  = Default( tv_range, !fs)
+    sz           = Default(   size,     sz )
 
+    st           = Default(    str,    1.0 )*0.63*pow(sz,-2.3)+0.37
 
-#-----------------------------------------------------------------------------------
+    cs           = Defined(   cstr ) ? cstr *0.63*pow(sz,-2.3)+0.37 : st
 
-bi   = BitsPerComponent(clp)
-o    = clp
-ox   = o.width()
-oy   = o.height()
-oblr = o.ex_boxblur(1,mode="rg19",UV=1)
-sx1  = nmod(ox/float(g1size),4)
-sy1  = nmod(oy/float(g1size),4)
-sx1a = nmod((ox+sx1)/2.0,    4)
-sy1a = nmod((oy+sy1)/2.0,    4)
-sx2  = nmod(ox/float(g2size),4)
-sy2  = nmod(oy/float(g2size),4)
-sx2a = nmod((ox+sx2)/2.0,    4)
-sy2a = nmod((oy+sy2)/2.0,    4)
-sx3  = nmod(ox/float(g3size),4)
-sy3  = nmod(oy/float(g3size),4)
-sx3a = nmod((ox+sx3)/2.0,    4)
-sy3a = nmod((oy+sy3)/2.0,    4)
+    #-----------------------------------------------------------------------------------
 
-b1   = g1shrp/(-50.0) + 1.0
-b2   = g2shrp/(-50.0) + 1.0
-b3   = g3shrp/(-50.0) + 1.0
-b1a  = b1/2.0
-b2a  = b2/2.0
-b3a  = b3/2.0
-c1   = (1.0-b1)/2.0
-c2   = (1.0-b2)/2.0
-c3   = (1.0-b3)/2.0
-c1a  = (1.0-b1a)/2.0
-c2a  = (1.0-b2a)/2.0
-c3a  = (1.0-b3a)/2.0
+    g1str        = Default( g1str,     3.5 )*st  # [ 0 - ???] strength of luma grain / for dark areas
+                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
+    g2str        = Default( g2str,     4.0 )*st  # [ 0 - ???] strength of luma grain / for midtone areas
+                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
+    g3str        = Default( g3str,     3.0 )*st  # [ 0 - ???] strength of luma grain / for bright areas
+                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
+    g1cstr       = Default( g1cstr,    2.0 )*cs  # [ 0 - ???] strength of chroma grain / for dark areas
+                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
+    g2cstr       = Default( g2cstr,    1.0 )*cs  # [ 0 - ???] strength of chroma grain / for midtone areas
+                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
+    g3cstr       = Default( g3cstr,    0.5 )*cs  # [ 0 - ???] strength of chroma grain / for bright areas
+                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
+    g1shrp       = Default( g1shrp,     60 )     # [ 0 - 100] sharpness of grain / for dark areas (NO EFFECT when g1size=1.0 !!)
+    g2shrp       = Default( g2shrp,     80 )     # [ 0 - 100] sharpness of grain / for midtone areas (NO EFFECT when g2size=1.0 !!)
+    g3shrp       = Default( g3shrp,     90 )     # [ 0 - 100] sharpness of grain / for bright areas (NO EFFECT when g3size=1.0 !!)
+    g1size       = Default( g1size,   0.90 )*sz  # [0.5 - 4.0] size of grain / for dark areas
+    g2size       = Default( g2size,   1.17 )*sz  # [0.5 - 4.0] size of grain / for mid-tone areas
+    g3size       = Default( g3size,   1.05 )*sz  # [0.5 - 4.0] size of grain / for bright areas
+    g1tex        = Default( g1tex,       0 )     # [ 0 - 100] strength of "material texture" appearance
+    g2tex        = Default( g2tex,       0 )     # [ 0 - 100] (in fact: 'bump' effect)
+    g3tex        = Default( g3tex,       0 )     # [ 0 - 100] for dark / midtone / bright grain
+    g1const      = Default( g1const, false )     # AddGrainC "constant" parameter of grain / for dark areas
+    g2const      = Default( g2const, false )     # AddGrainC "constant" parameter of grain / for midtone areas
+    g3const      = Default( g3const, false )     # AddGrainC "constant" parameter of grain / for bright areas
+    tmpavg       = Default( temp_avg,    1 )/100.# [ 0 - 100] percentage of noise's temporal averaging (NO EFFECT when g1const=g2const=g3const=true !!)
+    th1          = Default( th1,        45 )     # start of dark->midtone  mixing zone
+    th2          = Default( th2,        85 )     # end  of  dark->midtone  mixing zone
+    th3          = Default( th3,       135 )     # start of midtone->bright  mixing zone
+    th4          = Default( th4,       195 )     # end  of  midtone->bright  mixing zone
+    ontop_grain  = Default( ontop_grain, 0 )     # [ 0 - ???] additional luma grain to put on top of prev. generated grain
+                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
+    ontop_cgrain = Default( ontop_cgrain,0 )     # [ 0 - ???] additional chroma grain to put on top of prev. generated grain
+                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
+    ontop_const  = Default( ontop_const, false)  # AddGrainC "constant" parameter of ontop clip
+    use_ALMask   = Default( use_sAverageLumaMask, false)
+    pb           = Default( preblur,st>=1.0 )
 
-hlf  = ex_bs(128,             8, bi, fulls=!tv)
-T1a  = ex_bs(int(g1tex*1.28), 8, bi, fulls=!tv)
-T2a  = ex_bs(int(g2tex*1.28), 8, bi, fulls=!tv)
-T3a  = ex_bs(int(g3tex*1.28), 8, bi, fulls=!tv)
+    rgb = isRGB(clp)
+    fs  = propNumElements (clp,"_ColorRange")  > 0 ? \
+          propGetInt      (clp,"_ColorRange") == 0 : rgb
+    tv  = Default( tv_range, !fs)
 
-hlfr = 1. / hlf
-T1ah = hlf-T1a
-T2ah = hlf-T2a
-T3ah = hlf-T3a
+    #-----------------------------------------------------------------------------------
 
-th1str = ex_bs(th1, 8, bi, tv_in=true, tv_out=tv)
-th2str = ex_bs(th2, 8, bi, tv_in=true, tv_out=tv)
-th3str = ex_bs(th3, 8, bi, tv_in=true, tv_out=tv)
-th4str = ex_bs(th4, 8, bi, tv_in=true, tv_out=tv)
+    bi   = BitsPerComponent(clp)
+    o    = pb ? clp.ex_boxblur(0.15,mode="weighted",UV=1) : clp
 
-tmpavg = temp_avg/100.0
-
-chroma  = !( (g1cstr + g2cstr + g3cstr) == 0 )
-ochroma = ( ontop_cgrain != 0 ) || chroma ? 3 : 2
-cchroma = chroma ? 3 : 1
-
-#-----------------------------------------------------------------------------------
-
-BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] {T1ah} * - {hlfr} *")
-BUMPKERNEL2 = Format("x[-1,1] {T2a} * x[0,0] {T2ah} * - {hlfr} *")
-BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] {T3ah} * - {hlfr} *")
-
-#-----------------------------------------------------------------------------------
-
-grainlayer1 = blankclip(o, width=sx1, height=sy1, color_yuv=$808080, channels=0)
-grainlayer1 = (g1str>0   || g1cstr>0)   ? grainlayer1.AddGrainC(g1str>0?g1str:0, g1cstr>0?g1cstr:0, 0, 0, constant=g1const)
-\           : grainLayer1
-grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g1str<=-1?Int(-g1str):0, grainC=g1cstr<=-1?Int(-g1cstr):0, dynamic_grain=!g1const, random_algo_grain=1)
-\           : grainLayer1
-
-grainlayer1 = (g1tex==0)
-\           ? grainlayer1
-\           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
-
-grainlayer1 = (g1size == 1.0 || sx1==ox && sy1==oy) ? grainlayer1
-\           : (g1size > 1.5) ? grainlayer1.bicubicresize(sx1a,sy1a, b1a,c1a).bicubicresize(ox,oy, b1a,c1a)
-\                            : grainlayer1.bicubicresize(ox,oy, b1,c1)
+    sx1  = nmod(w/float(g1size),4)
+    sy1  = nmod(h/float(g1size),4)
+    sx1a = nmod((w+sx1)/2.0,    4)
+    sy1a = nmod((h+sy1)/2.0,    4)
+    sx2  = nmod(w/float(g2size),4)
+    sy2  = nmod(h/float(g2size),4)
+    sx2a = nmod((w+sx2)/2.0,    4)
+    sy2a = nmod((h+sy2)/2.0,    4)
+    sx3  = nmod(w/float(g3size),4)
+    sy3  = nmod(h/float(g3size),4)
+    sx3a = nmod((w+sx3)/2.0,    4)
+    sy3a = nmod((h+sy3)/2.0,    4)
 
 
-#-----------------------------------------------------------------------------------
+    c1   = clamp(g1shrp,0,100) / 100.
+    c2   = clamp(g2shrp,0,100) / 100.
+    c3   = clamp(g3shrp,0,100) / 100.
+    b1   = 1.0-2*c1
+    b2   = 1.0-2*c2
+    b3   = 1.0-2*c3
+    c1a  = 0.5*c1+0.25
+    c2a  = 0.5*c2+0.25
+    c3a  = 0.5*c3+0.25
+    b1a  = 0.5-c1
+    b2a  = 0.5-c2
+    b3a  = 0.5-c3
 
-grainlayer2 = blankclip(o, width=sx2, height=sy2, color_yuv=$808080, channels=0)
-grainlayer2 = (g2str>0   || g2cstr>0)   ? grainlayer2.AddGrainC(g2str>0?g2str:0, g2cstr>0?g2cstr:0, 0, 0, constant=g2const)
-\           : grainLayer2
-grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g2str<=-1?Int(-g2str):0, grainC=g2cstr<=-1?Int(-g2cstr):0, dynamic_grain=!g2const, random_algo_grain=1)
-\           : grainLayer2
+    hlf  = ex_bs(128,             8, bi, fulls=!tv)
+    T1a  = ex_bs(int(g1tex*1.28), 8, bi, fulls=!tv)
+    T2a  = ex_bs(int(g2tex*1.28), 8, bi, fulls=!tv)
+    T3a  = ex_bs(int(g3tex*1.28), 8, bi, fulls=!tv)
 
-grainlayer2 = (g2tex==0)
-\           ? grainlayer2
-\           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
+    hlfr = 1. / hlf
+    T1ah = hlf-T1a
+    T2ah = hlf-T2a
+    T3ah = hlf-T3a
 
-grainlayer2 = (g2size==1.0 || sx2==ox && sy2==oy) ? grainlayer2
-\           : (g2size > 1.5) ? grainlayer2.bicubicresize(sx2a,sy2a, b2a,c2a).bicubicresize(ox,oy, b2a,c2a)
-\                            : grainlayer2.bicubicresize(ox,oy, b2,c2)
+    th1str = ex_bs(th1, 8, bi, tv_in=true, tv_out=tv)
+    th2str = ex_bs(th2, 8, bi, tv_in=true, tv_out=tv)
+    th3str = ex_bs(th3, 8, bi, tv_in=true, tv_out=tv)
+    th4str = ex_bs(th4, 8, bi, tv_in=true, tv_out=tv)
+    MX     = ex_bs(255, 8, bi, fulls=true, flt=true)
 
-#-----------------------------------------------------------------------------------
+    chroma  = !( (g1cstr + g2cstr + g3cstr) == 0 )
+    ochroma = ( ontop_cgrain != 0 ) || chroma ? 3 : 2
+    cchroma = chroma ? 3 : 1
 
-grainlayer3 = blankclip(o, width=sx3, height=sy3, color_yuv=$808080, channels=0)
-grainlayer3 = (g3str>0   || g3cstr>0)   ? grainlayer3.AddGrainC(g3str>0?g3str:0, g3cstr>0?g3cstr:0, 0, 0, constant=g3const)
-\           : grainLayer3
-grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g3str<=-1?Int(-g3str):0, grainC=g3cstr<=-1?Int(-g3cstr):0, dynamic_grain=!g3const, random_algo_grain=1)
-\           : grainLayer3
+    #-----------------------------------------------------------------------------------
 
-grainlayer3 = (g3tex==0)
-\           ? grainlayer3
-\           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
+    BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] {T1ah} * - {hlfr} *")
+    BUMPKERNEL2 = Format("x[-1,1] {T2a} * x[0,0] {T2ah} * - {hlfr} *")
+    BUMPKERNEL3 = Format("x[-1,1] {T3a} * x[0,0] {T3ah} * - {hlfr} *")
 
-grainlayer3 = (g3size==1.0 || sx3==ox && sy3==oy) ? grainlayer3
-\           : (g3size > 1.5) ? grainlayer3.bicubicresize(sx3a,sy3a, b3a,c3a).bicubicresize(ox,oy, b3a,c3a)
-\                            : grainlayer3.bicubicresize(ox,oy, b3,c3)
+    #-----------------------------------------------------------------------------------
 
-#-----------------------------------------------------------------------------------
+    grainlayer1 = blankclip(o, width=sx1, height=sy1, color_yuv=$808080, channels=0)
+    grainlayer1 = (g1str>0   || g1cstr>0)   ? grainlayer1.AddGrainC(g1str>0?g1str:0, g1cstr>0?g1cstr:0, 0, 0, constant=g1const)
+    \           : grainLayer1
+    grainLayer1 = (g1str<=-1 || g1cstr<=-1) ? grainLayer1.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g1str<=-1?Int(-g1str):0, grainC=g1cstr<=-1?Int(-g1cstr):0, dynamic_grain=!g1const, random_algo_grain=1)
+    \           : grainLayer1
 
-th21str = th2str - th1str
-th43str = th4str - th3str
-grainlayer = grainlayer1.ex_merge(grainlayer2, oblr.ex_lut(Format("x {th1str} < 0 x {th2str} > range_max range_max {th21str} / x {th1str} - * ? ?"), fulls=!tv), luma=chroma, UV=cchroma)
- \                      .ex_merge(grainlayer3, oblr.ex_lut(Format("x {th3str} < 0 x {th4str} > range_max range_max {th43str} / x {th3str} - * ? ?"), fulls=!tv), luma=chroma, UV=cchroma)
+    grainlayer1 = (g1tex==0)
+    \           ? grainlayer1
+    \           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
 
-grainlayer = (temp_avg==0 || ( g1const && g2const && g3const ) ) ? grainlayer
-\          : chroma ? grainlayer.merge(    grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
-\          :          grainlayer.mergeluma(grainlayer.temporalsoften(1,255,  0,255,2), tmpavg)
-grainlayer = ( ontop_grain>0  ||  ontop_cgrain>0  )  ? grainlayer.AddGrainC(ontop_grain>0?ontop_grain:0, ontop_cgrain>0?ontop_cgrain:0, 0, 0, constant=ontop_const)
-\          : grainLayer
-grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=ontop_grain<=-1?Int(-ontop_grain):0, grainC=ontop_cgrain<=-1?Int(-ontop_cgrain):0, dynamic_grain=!ontop_const, random_algo_grain=1)
-\          : grainLayer
+    grainlayer1 = (g1size == 1.0 || sx1==w && sy1==h) ? grainlayer1
+    \           : (g1size > 1.5) ? grainlayer1.bicubicresize(sx1a,sy1a, b1a,c1a).bicubicresize(w,h, b1a,c1a)
+    \                            : grainlayer1.bicubicresize(w,h, b1,c1)
 
-#-----------------------------------------------------------------------------------
 
-result = ex_lutxy(o, grainlayer, "x y - range_half +", UV=ochroma, fulls=!tv)
-msk    = o.ScriptClip( function[] () { ex_lut(string(AverageLuma(last)),UV=1) } )
+    #-----------------------------------------------------------------------------------
 
-use_ALMask ? ex_merge(result, o, msk, luma=chroma, UV=ochroma) : result }
+    grainlayer2 = blankclip(o, width=sx2, height=sy2, color_yuv=$808080, channels=0)
+    grainlayer2 = (g2str>0   || g2cstr>0)   ? grainlayer2.AddGrainC(g2str>0?g2str:0, g2cstr>0?g2cstr:0, 0, 0, constant=g2const)
+    \           : grainLayer2
+    grainLayer2 = (g2str<=-1 || g2cstr<=-1) ? grainLayer2.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g2str<=-1?Int(-g2str):0, grainC=g2cstr<=-1?Int(-g2cstr):0, dynamic_grain=!g2const, random_algo_grain=1)
+    \           : grainLayer2
+
+    grainlayer2 = (g2tex==0)
+    \           ? grainlayer2
+    \           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
+
+    grainlayer2 = (g2size==1.0 || sx2==w && sy2==h) ? grainlayer2
+    \           : (g2size > 1.5) ? grainlayer2.bicubicresize(sx2a,sy2a, b2a,c2a).bicubicresize(w,h, b2a,c2a)
+    \                            : grainlayer2.bicubicresize(w,h, b2,c2)
+
+    #-----------------------------------------------------------------------------------
+
+    grainlayer3 = blankclip(o, width=sx3, height=sy3, color_yuv=$808080, channels=0)
+    grainlayer3 = (g3str>0   || g3cstr>0)   ? grainlayer3.AddGrainC(g3str>0?g3str:0, g3cstr>0?g3cstr:0, 0, 0, constant=g3const)
+    \           : grainLayer3
+    grainLayer3 = (g3str<=-1 || g3cstr<=-1) ? grainLayer3.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=g3str<=-1?Int(-g3str):0, grainC=g3cstr<=-1?Int(-g3cstr):0, dynamic_grain=!g3const, random_algo_grain=1)
+    \           : grainLayer3
+
+    grainlayer3 = (g3tex==0)
+    \           ? grainlayer3
+    \           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
+
+    grainlayer3 = (g3size==1.0 || sx3==w && sy3==h) ? grainlayer3
+    \           : (g3size > 1.5) ? grainlayer3.bicubicresize(sx3a,sy3a, b3a,c3a).bicubicresize(w,h, b3a,c3a)
+    \                            : grainlayer3.bicubicresize(w,h, b3,c3)
+
+    #-----------------------------------------------------------------------------------
+
+    th21str = MX / (th1str - th2str)
+    th43str = MX / (th3str - th4str)
+
+    one  = temp_avg == 0  || ( g1const && g2const && g3const )
+    two  = ontop_grain>0  ||  ontop_cgrain>0
+    thre = !one || two
+    ex   = ex_dlut(Format("x dup y - a {th1str} - {th21str} * neg range_max / 0 1 clip * -
+                             dup z - a {th3str} - {th43str} * neg range_max / 0 1 clip * - ") \
+       +(thre ? (chroma ? "b" : "a")+" swap - range_half +" : ""), bi, !tv)
+
+    grainlayer = Expr(grainlayer1, grainlayer2, grainlayer3, chroma ? mskY_to_YYY(o,o) : o, chroma ? o : Undefined(), ex, chroma ? ex : Undefined())
+
+    grainlayer = one    ? grainlayer
+    \          : chroma ? grainlayer.merge(    grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
+    \          :          grainlayer.mergeluma(grainlayer.temporalsoften(1,255,  0,255,2), tmpavg)
+    grainlayer = two    ? grainlayer.AddGrainC(ontop_grain>0?ontop_grain:0, ontop_cgrain>0?ontop_cgrain:0, 0, 0, constant=ontop_const)
+    \          :          grainLayer
+    grainLayer = ( ontop_grain<=-1 || ontop_cgrain<=-1 ) ? grainLayer.neo_f3kdb(Y=0, Cb=0, Cr=0, grainY=ontop_grain<=-1?Int(-ontop_grain):0, grainC=ontop_cgrain<=-1?Int(-ontop_cgrain):0, dynamic_grain=!ontop_const, random_algo_grain=1)
+    \          : grainLayer
+
+    #-----------------------------------------------------------------------------------
+
+    result = thre ? grainlayer : ex_lutxy(o, grainlayer, "x y - range_half +", UV=ochroma, fulls=!tv)
+    msk    = o.ScriptClip( function[] () { ex_lut(string(AverageLuma(last)),UV=1) } )
+
+    use_ALMask ? ex_merge(result, o, msk, luma=chroma, UV=ochroma) : result }
