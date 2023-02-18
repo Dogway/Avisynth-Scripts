@@ -1525,7 +1525,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ###     one of the examples would be for photographs shot with a
 ###     wrong white balance setting.
 ###
-###     AWB:         Typically any value between 3000K and 7000K
+###     AWB:             Typically any value between 3000K and 7000K
 ###     Daylight:        ~5200K or ~5600K
 ###     Shade:           ~7000K
 ###     Cloudy:          ~6000K
@@ -1537,6 +1537,8 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ### So if you shot a tungsten lit room at night with Tungsten WB and decide
 ### it looks too pale/cool compared to what you experienced, try the next call:
 ###     WhitePoint(3200,6504)
+###     or simply
+###     WhitePoint(3200)
 ###
 ### In the contrary if you shot a sunny day with Cloudy WB, being the image a little too warm:
 ###     WhitePoint(6000,5200)
