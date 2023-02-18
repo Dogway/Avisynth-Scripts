@@ -1,5 +1,8 @@
 # Based on script created by Didée
-# Modified by John Meyer on June 29, 2011/2013 (https://forum.doom9.org/showpost.php?p=1619555&postcount=3)
+# Based on script created by Didée
+# Modified by John Meyer on June 29, 2011
+# Further modification on June 8, 2013
+# Tdecimate modifications on October 26, 2021
 # v1.10 - Updated and Sanitized                      by Dogway on   Mar 05, 2019
 # v1.21 - Updated and Sanitized                      by Dogway on   May 18, 2021
 # v1.30 - Further optimized (dcycle from DeJump)     by Dogway on   Jul 15, 2021
@@ -7,7 +10,7 @@
 # v1.32 - Remove GrunT dependency                    by Dogway on   Oct 02, 2021
 # v1.40 - BWmask bugfixes                            by Dogway on   Oct 28, 2021
 # v1.41 - Rebase with latest FrameRateConverter      by Dogway on   Jan 10, 2022
-# v2.00 - Replace with RIFEwrap and hence an EX mod  by Dogway on   Feb 17, 2023
+# v2.00 - Replace with RIFEwrap and hence an EX mod  by Dogway on   Feb 18, 2023
 #
 #
 # Dependencies:
@@ -49,8 +52,8 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
     test   = ShowMetrics(src8)
 
     # Generate a white or black frame, depending on frame difference
-    Black  = BlankClip( source, Color_yuv=$000000, channels=0 )
-    White  = BlankClip( source, Color_yuv=$FFFFFF, channels=0 )
+    Black  = BlankClip( src8, Color_yuv=$000000, channels=0 )
+    White  = BlankClip( src8, Color_yuv=$FFFFFF, channels=0 )
 
     # This function returns a white clip whenever a big jump is detected; otherwise a black clip is returned
     # Each YDiff must eliminate Ydiff=0 (duplicate) from moving average
@@ -75,12 +78,12 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
 
     # Merge double framerate from original with motion-esimated frames, but only where there are jumps
     # (i.e., original frames are used except at jump points)
-    ex_merge(Interleave(source,source), double, themask, UV=3)
+    ex_merge(Interleave(source,source), double, themask, luma=false, UV=3)
 
-    # Decimate
+    # Decimate half of all frames (set to twice the length of "normal" dup/drop cycle)
     RequestLinear(clim=100)
     dcycle = dcycle+dcycle%2
-    final  = TDecimate(display=false, mode=1, cycleR=dcycle/2, cycle=dcycle) # Decimate half of all frames (set to twice the length of "normal" dup/drop cycle)
+    final  = TDecimate(display=false, mode=1, cycleR=dcycle/2, cycle=dcycle, vfrDec=1, sdlim=0 )
 
 
     return debug ? test : final }
