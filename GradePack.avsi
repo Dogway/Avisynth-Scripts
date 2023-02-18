@@ -1520,6 +1520,28 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ### Dependencies: > ExTools
 ###                 TransformsPack
 ###
+### Examples:
+###     Among the many uses either for artistic or technical reasons,
+###     one of the examples would be for photographs shot with a
+###     wrong white balance setting.
+###
+###     AWB:         Typically any value between 3000K and 7000K
+###     Daylight:        ~5200K or ~5600K
+###     Shade:           ~7000K
+###     Cloudy:          ~6000K
+###     Tungsten/Halogen:~3200K
+###     Incandescent:    ~2700K or ~2856K
+###     Fluorescent:     ~4000K
+###     Flash:           ~5500K or ~6000K
+###
+### So if you shot a tungsten lit room at night with Tungsten WB and decide
+### it looks too pale/cool compared to what you experienced, try the next call:
+###     WhitePoint(3200,6504)
+###
+### In the contrary if you shot a sunny day with Cloudy WB, being the image a little too warm:
+###     WhitePoint(6000,5200)
+###
+###
 ### Function Definition:
 ###    (
 ###    clip,
@@ -1528,12 +1550,13 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
 ###    [string "matrix"="709" ("470M"/ "470BG"/ "170M"/ "709"/ "2020CL"/ "2020NCL"/ "Display-P3"/ "ACEScg")],
 ###    [int "observer"=1931 (1931/ 1964)],
 ###    [string "locus"="Daylight" ("Daylight"/ "Planckian")],
+###    [string "LMS"="CAT16" ("XYZ"/ "HPE -Hunt-Pointer-Estevez-"/ "HPE-E"/ "HPE-IPT"/ "HPE-DV"/ "CAT97/Bradford"/ "CAT00"/ "CAT00 Fairchild"/ "CAT02"/ "CAT02B"/ "CAT02CRA"/ "CAT16"/ "OkLab"/ "Sharp"/ "SharpSphere"/ "SharpSphereHUE"/ "Stockman"/ "Stockman10"/ "Cat5"/ "Cat9"/ "Bianco"/ "BiancoPC"/ "OPP")],
 ###    [bool "tv_range"=true]
 ###    )
 ###
 ####################################
 
-function WhitePoint (clip c, float "temperature", float "temp_source", string "matrix", string "locus", int "observer", bool "list", bool "tv_range") {
+function WhitePoint (clip c, float "temperature", float "temp_source", string "matrix", string "locus", int "observer", string "LMS", bool "list", bool "tv_range") {
 
     rgb   = isRGB(c)
     rgbp  = rgb ? isPlanar(c) : false
@@ -1543,6 +1566,7 @@ function WhitePoint (clip c, float "temperature", float "temp_source", string "m
     temp2 = Default(temp_source, 6504)  # 1900K ('Rec709' limit) to 25000K. Source temperature in Kelvin units (Default: D65 == nop())
     mat   = Default(matrix,    ID[2] )
     loc   = Default(locus, temp1<5000?"Planckian":"Daylight")
+    LMS   = Default(LMS,   temp2<5000?"Cat5"     :"CAT16")
     ob    = Default(observer,   1931 )  # Standard Observer 1931 or 2 for 2º Standard Observer. 1964 or 10 for 10º Standard Observer
     tv    = Default(tv_range,  ID[6] )
     lis   = Default(list,      false )  # Set to True to output [x,y,z] coordinates of the CCT (correlated color temperature)
@@ -1621,10 +1645,10 @@ function WhitePoint (clip c, float "temperature", float "temp_source", string "m
 
     } else {
 
-        LMS      = XYZ_to_LMS("CAT16",true)
+        LMS      = XYZ_to_LMS(LMS,true)
 
-        fw1      = MatrixDot(ArrayOp(TXYZs,TXYZs[1],"/"),LMS)
-        fw2      = MatrixDot(ArrayOp(TXYZt,TXYZt[1],"/"),LMS)
+        fw1      = MatrixDot([TXYZs[0]/TXYZs[1],1.,TXYZs[2]/TXYZs[1]],LMS)
+        fw2      = MatrixDot([TXYZt[0]/TXYZt[1],1.,TXYZt[2]/TXYZt[1]],LMS)
         vonKries = Broadcast(ArrayOp(fw2,fw1,"/"), "vonKries")
 
         CAM      = MatrixDot(LMS, MatrixDot(vonKries, MatrixInvert(LMS)))
