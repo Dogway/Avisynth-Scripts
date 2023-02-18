@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.3    (29-12-2022)   ##
+###   Transforms Pack - Transfers v1.4    (18-02-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -70,8 +70,8 @@
 #       ST.2084
 #      -BT.2100
 # -HLG - Hybrid Log-Gamma
-#       ARIB STD-B67
-#      -BT.2100
+#       ARIB STD-B67 (by BBC/NHK. RefWhite @ 0.50)
+#      -BT.2100      (by ITU.     RefWhite @ 0.75)
 #  ACESCC
 # -ACESCCt
 #  Arri LogC
@@ -111,7 +111,7 @@
 ### Function Definitions:
 ###     (
 ###     clip,
-###     string "transfer"="sRGB" ("linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ "170M"/ "709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG NHK"/ "ACESCCt"/ "log100"/ "log316"/ "1361"),
+###     string "transfer"="sRGB" ("linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ "170M"/ "709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG ARIB"/ "ACESCCt"/ "log100"/ "log316"/ "1361"),
 ###     [bool "fw"=true],
 ###     [bool "tv_in"=false],
 ###     [bool "tv_out"=false],
@@ -344,7 +344,7 @@ function EOTF_1886a (clip c, float "BlackLevel", bool "tv_in", bool "tv_out") {
     a1 = 2.6     # Shoulder gamma
     a2 = 3.0     # Knee gamma
     Vc = 0.35    # Offset
-    k  = Lw /pow(1  + Lb, a1)
+    k  = Lw /pow(1  + Lb,    a1)
     sl = k * pow(Vc + Lb, a1-a2) # Slope for knee gamma
 
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
@@ -373,8 +373,8 @@ function EOTFi_1886a (clip c, float "BlackLevel", bool "tv_in", bool "tv_out") {
     a2   = 3.0  a2i = 1 / a2  # Knee gamma
     Vc   = 0.35               # Offset
     k    = 1 / (Lw /pow(1  + Lb, a1))
-    sl   = k * pow(Vc - Lb, a2-a1)
-    beta =     pow(Vc - Lb, a1)
+    sl   = k * pow(Vc - Lb,   a2-a1)
+    beta =     pow(Vc - Lb,      a1)
 
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
@@ -471,19 +471,19 @@ function EOTFi_Chrome (clip c, bool "tv_in", bool "tv_out") {
 
 /*
 // MIT  LICENSE
-// 
+//
 // Copyright 2021 Matt DesLauriers
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -530,7 +530,7 @@ function EOTFi_XYB (clip c, float "gamma", float "bias", bool "tv_in", bool "tv_
 
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
-    ex_lut(Format(""+rangePC+" {kB0} + 1 3 / ^ "+rangeTV+""),cstr)
+    ex_lut(Format(""+rangePC+" {kB0} + 0.333333333 ^ "+rangeTV+" "),cstr)
                     propSet("_Transfer",          25 )
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
@@ -623,7 +623,7 @@ function EOTF_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
     rangeTV = tv_out ? "ymax ymin - * ymin +"   : bi==32 ? " " : "  range_max *"
 
     # From BT.2124-0 Annex 2 Conversion 4
-    str     = Format(""+rangePC+" X@ 0.5 <= X dup * 0.333333333 *  X {HLG_C} - {HLG_A} * exp {HLG_B} + {PW} * ? "+rangeTV+"")
+    str     = Format(""+rangePC+" X@ 0.5 <= X dup * 0.333333333 * X {HLG_C} - {HLG_A} * exp {HLG_B} + {PW} * ? "+rangeTV+"")
 
     Expr(ex_dlut(str, bi, !tv_in), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi))
                     propSet("_Transfer",           8 )
@@ -659,21 +659,22 @@ function EOTFi_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
 
 
 # WIP: Apply as follows: EOTF_HLG().OOTF_HLG()
+#      Reference monitor for HLG is 300nits
 function OOTF_HLG (clip c, float "Lb", float "Lw", int "surround", string "matrix") {
     c
     ID   = color_propGet()
     bi   = ID[7]
     mat  = Default (matrix, ID[2])
-    Lb   = Default (Lb,       0.0)
-    Lw   = Default (Lw,    1000.0) # Peak Display White in nits
-    sr   = Default (surround, 5.0) # Surround luminance in nits
+    Lb   = Default (Lb,       0.0) # Display Black level in nits
+    Lw   = Default (Lw,    1000.0) # Peak Display White  in nits
+    sr   = Default (surround, 5.0) # Surround luminance  in nits
 
-    # Might want to adapt to illu in the future for more options
+    # In the future might want to adapt to illuminant for more flexibility
     coef = RGB_to_XYZ(mat, ID[3], list=true, adaptXYZ=false)
 
     Lb   = Lb / 1000.
     Lpw  = Lw / 1000.
-    sr   = max(0.0001,sr)
+    sr   = max(0.0001,sr) # Eye dark limit is 0.000001 nits (best case scenario under scotopic vision)
     y    = 1.2*pow(1.111,log(Lpw)/log(2))*pow(0.98,log(sr/5.0)/log(2))
 
     RGB  = ExtractClip()
@@ -690,16 +691,16 @@ function OOTFi_HLG (clip c, float "Lb", float "Lw", int "surround", string "matr
     ID   = color_propGet()
     bi   = ID[7]
     mat  = Default (matrix, ID[2])
-    Lb   = Default (Lb,       0.0)
-    Lw   = Default (Lw,    1000.0) # Peak Display White in nits
-    sr   = Default (surround, 5.0) # Surround luminance in nits
+    Lb   = Default (Lb,       0.0) # Display Black level in nits
+    Lw   = Default (Lw,    1000.0) # Peak Display White  in nits
+    sr   = Default (surround, 5.0) # Surround luminance  in nits
 
-    # Might want to adapt to illu in the future for more options
+    # In the future might want to adapt to illuminant for more flexibility
     coef = RGB_to_XYZ(mat, ID[3], list=true, adaptXYZ=false)
 
     Lb   = Lb / 1000.
     Lpw  = Lw / 1000.
-    sr   = max(0.0001,sr)
+    sr   = max(0.0001,sr) # Eye dark limit is 0.000001 nits (best case scenario under scotopic vision)
     y    = 1.2*pow(1.111,log(Lpw)/log(2))*pow(0.98,log(sr/5.0)/log(2))
 
     y    = (1-y)/y
@@ -715,7 +716,8 @@ function OOTFi_HLG (clip c, float "Lb", float "Lw", int "surround", string "matr
 
 
 
-# WIP.
+# WIP: EOTFi_PQtoHLG
+#
 # Benchmarks for 1080p:
 # 100%  172fps    P(4) fmtc_transfer(transs="PQ",transd="HLG",sceneref=false)
 #  91%  156fps    P(4) z_ConvertFormat(pixel_type="RGBP16",colorspace_op="rgb:st2084:2020:full=>rgb:std-b67:2020:full")
@@ -723,7 +725,7 @@ function OOTFi_HLG (clip c, float "Lb", float "Lw", int "surround", string "matr
 #  74%  127fps    P(4) DGCube("PQ_to_HLG.cube")
 #  57%   98/93fps P(8) EOTFi_PQtoHLG()       (16-bit/32-bit float)  +16% compared to EOTF_PQ().EOTFi_HLG()
 #  50%   85/79fps P(8) EOTF_PQ().EOTFi_HLG() (16-bit/32-bit float)
-function EOTFi_PQtoHLG (clip c, int "RefWhite", int "MasterLevel", float "GrayLVL", bool "tv_in", bool "tv_out") {
+function EOTFi_PQtoHLG (clip c, int "RefWhite", int "MasterLevel", float "GrayLVL", float "Lb", float "Lw", int "surround", string "matrix", bool "tv_in", bool "tv_out") {
     c
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
@@ -804,7 +806,7 @@ function LMTi_DCP (clip c, bool "tv_range", int "UV", bool "show") {
 ###
 ###
 ### Abstract:
-###    Many vision applications require precise measurement of scene radiance. The function relating scene radiance to image
+###    "Many vision applications require precise measurement of scene radiance. The function relating scene radiance to image
 ###    intensity of animaging system is called the camera response. We analyze the properties that all camera responses share.This allows us
 ###    to find the constraints that any response function must satisfy. These constraints determine the theoretical space of all possible camera
 ###    responses. We have collected a diverse database of 175 real-world camera response functions (DoRF). Using this database, we show that
@@ -812,7 +814,7 @@ function LMTi_DCP (clip c, bool "tv_range", int "UV", bool "show") {
 ###    theoretical space with the data from DoRF to create a low-parameter empirical model of response (EMoR). This response model allows
 ###    us to accurately interpolate the complete response function of a camera from a small number of measurements obtained using a
 ###    standard chart. We also show that the model can be used to accuratelyestimate the camera response from images of an arbitrary scene
-###    taken using different exposures. The DoRF database and the EMoR model can be downloaded at http://www.cs.columbia.edu/CAVE.
+###    taken using different exposures. The DoRF database and the EMoR model can be downloaded at http://www.cs.columbia.edu/CAVE."
 ###
 ### Ref:
 ###    "Modeling the Space of Camera Response Functions,"
@@ -856,13 +858,13 @@ function LMTi_EMoR (clip c, bool "tv_range") {
 # Based on GOG: Gain-Gamma-Offset function by Rafal Mantiuk
 
 # Examples (from Ubuntu's pfstmo docs):
-#        lcd_office (100, 0.8, 1, 400, "sRGB" )
+#        lcd_office (100, 0.8, 1, 400, "sRGB"  )
 #               lcd set to "office" mode seen in bright environment
-#        lcd        (200, 0.8, 1, 60, "sRGB"  )
+#        lcd        (200, 0.8, 1,  60, "sRGB"  )
 #               typical lcd seen in dim environment (default)
-#        lcd_bright (500, 0.5, 1, 10, "DCIXYZ")
+#        lcd_bright (500, 0.5, 1,  10, "DCIXYZ")
 #               newer LCD TV seen in dark environment
-#        crt        (80,  1,   2, 60, "sRGB"  )
+#        crt        (80,  1,   2,  60, "sRGB"  )
 #               CRT monitor seen in dim environment
 
 function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround", string "transfer", string "EOTF") {
@@ -870,10 +872,10 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
     fs = propNumElements("_ColorRange")  > 0 ? \
          propGetInt     ("_ColorRange") == 0 : isRGB()
 
-    Lw = Default(Lw,     100.0)    # Display peak white  given in nits, lux or cd/m2 (they are all same)
-    Lb = Default(Lb,       0.3)    # Display black level given in nits, lux or cd/m2
-    k  = Default(k,          1)    # Panel reflectivity given in %
-    s  = Default(Surround,  50)    # Surround viewing conditions given in nits, lux or cd/m2 (50 for dim, 400 for bright office, 32000 sunny outdoors)
+    Lw = Default(Lw,        100.0) # Display peak white  given in nits, lux or cd/m2 (they are all same)
+    Lb = Default(Lb,          0.3) # Display black level given in nits, lux or cd/m2
+    k  = Default(k,             1) # Panel reflectivity given in %
+    s  = Default(Surround,     50) # Surround viewing conditions given in nits, lux or cd/m2 (50 for dim, 400 for bright office, 32000 sunny outdoors)
     tr = Default(transfer, "sRGB") # Simulated EOTF
     tro= Default(EOTF,     "1886") # Viewing display EOTF
 
@@ -907,8 +909,14 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
 ###    OOTF(OETFi="1886",EOTF="sRGB",show=true) # for a certain OETFi to EOTF adaptation
 ###
 ### Dim surround standards:
-### HDR: D65, 5 nits
-### SDR: D65, 5 nits (new) | PeakWhite/10 nits (old)
+###    HDR: D65, 5 nits
+###    SDR: D65, 5 nits (new) | PeakWhite/10 nits (old)
+###
+### Room surround environments and preferred EOTF:
+###    average surround -200  lux- gamma 2.0 (well lit  living room at day   time)
+###    dim surround     -64   lux- gamma 2.2 (lights on living room at night time)
+###    dim surround     -6-34 lux- gamma 2.4 (most lights off       at night time, reference environment)
+###    dark surround    -0    lux- gamma 2.6 (lights off            at night time)
 ###
 
 function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
@@ -1034,8 +1042,8 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###    Uchimura Filmic:            From the "HDR Theory and Practice" CEDEC talk by Hajime Uchimura
 ###
 ###    Hill ACES:       ACES curve fit by Stephen Hill
-###    Narkowicz ACES:  ACES curve fit by Krzysztof Narkowicz
 ###    Hill ACES:       ACES curve fit by Romain Guy
+###    Narkowicz ACES:  ACES curve fit by Krzysztof Narkowicz
 ###    iCAM06:
 ###    Insomniac:
 ###    BT.2390 EETF:      From "ITU-R BT.2390-8" 2020. Perceptual tone mapping curve. Might be flawed, and deprecated in favor of BT.2446
@@ -1132,8 +1140,8 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
     isy    = isy()
     bi     = BitsPerComponent()
     md     = Default (mode, "Default") # 'Default', 'Dark' or 'Bright' preset
-    fm     = Default (filmic, false )  # Filmic or Flat tonemapping. Don't use Filmic for Display Referred linear (only for Scene Referred)
-    sh     = Default (show, false)
+    fm     = Default (filmic, false )  # 'Filmic' or 'Flat' tonemapping. Don't use Filmic for Display Referred linear (only for Scene Referred)
+    sh     = Default (show,   false )
     df     = md=="Default"     dk = md=="Dark"
     nm     = df ? 0 : !fm ? !dk ? 1 : 2 : !dk ? 3 : 4
 
@@ -1289,7 +1297,7 @@ function Full_scale (clip a, bool "forward", int "Y", int "UV", bool "broadcast"
 #               ResizersPack (for show)
 #
 # Examples:
-#   SoftLimiter(16,235)              # no rolloff (straight clamp), assumes input IS legal (within 16,235, actually 14-238 with default EBU R 103 'tolerance=1.25')
+#   SoftLimiter(16,235)              # no rolloff (straight clamp), assumes input *is* legal (within 16,235, actually 14-238 with default EBU R 103 'tolerance=1.25')
 #   SoftLimiter(12,240,12,245)       # Bring specified values to legal range with rolloff
 #   SoftLimiter(dyn=2)               # Bring           values to legal range with rolloff (values defined by dynamic stats)
 #   SoftLimiter(dyn=1)               # Bring           values to legal range with rolloff (values defined by scene   stats)
