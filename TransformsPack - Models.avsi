@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.3       (29-12-2022)   ##
+###   Transforms Pack - Models v1.4       (18-02-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -202,6 +202,7 @@
 # CAM20u       - Improvement over CIECAM16 for predicting the color appearance of unrelated colors.
 # ZCAM*+       - A uniform (UCS) space for HDR color.
 #-Oklab*       - A uniform (UCS) space for SDR color. Simple to compute yet powerful. Takes CAM16 lightness and chroma, and IPT for hue. OkLch is the cylindrical form of Oklab.
+# DT UCS22*    - The darktable UCS 22 is a perceptually uniform color space designed from psychoperceptual experimental data specifically for the purpose of artistic saturation changes, as performed in the color balance RGB module. It uses a brightness-saturation scheme that compensates for the Helmholtz-Kohlraush effect. https://eng.aurelienpierre.com/2022/02/color-saturation-control-for-the-21th-century
 # iCAM06       - An image (not only color) appearance metric model to not only compute perceived difference in lightness, hue or chroma, but also contrast, sharpness or graininess. Involves converting to IPT, low-pass filtering in linear space, convert to non-linearity, then to Jch model and QM if necessary for the metrics.
 
 
@@ -904,7 +905,7 @@ function XYZ_to_YDzDx (clip XYZ, clip "Y", clip "Z", bool "Array") {
     } else {
 
         Expr(Y, X, Z, "", ex_dlut(Format("{cf1} z "+b32+" * x  - "), bi, true),  \
-                          ex_dlut(Format("y "+b32+"  {cf2} x * - "), bi, true), format=PixelType(XYZ))
+                          ex_dlut(Format("y "+b32+"  {cf2} x * - "), bi, true), format="YUV444P"+(bi>16?"S":string(bi)))
         propSet("_Matrix",     13)
         propSet("_Model",      15) } }
 
@@ -936,7 +937,7 @@ function YDzDx_to_XYZ (clip YDzDx, clip "Dz", clip "Dx", bool "Array") {
     } else {
 
         Expr(Dx, Y, Dz, ex_dlut(Format("x "+b32+" y {cf1} * + "), bi, true), "",  \
-                        ex_dlut(Format("z "+b32+" y {cf2} * + "), bi, true), format=PixelType(YDzDx))
+                        ex_dlut(Format("z "+b32+" y {cf2} * + "), bi, true), format="RGBP"+(bi>16?"S":string(bi)))
         propSet("_Matrix",     0)
         propSet("_Model",      0) } }
 
@@ -1028,7 +1029,7 @@ function XYZ_to_Yxy (clip XYZ, clip "Y", clip "Z", bool "Array") {
     } else {
 
         Expr(X, Y, Z, "y", "x 0 <= 0.3805 x dup y z + + / ?",\
-                           "y 0 <= 0.3769 y dup x z + + / ?",  optSingleMode=true, format=PixelType(XYZ))
+                           "y 0 <= 0.3769 y dup x z + + / ?",  optSingleMode=true, format="RGBP"+(bi>16?"S":string(bi)))
         propSet("_Matrix", 2)
         propSet("_Model",  23) } }
 
@@ -1055,7 +1056,7 @@ function Yxy_to_XYZ (clip Yxy, clip "x", clip "y", bool "Array") {
 
             Expr(Yb, xl, yl, "y z / x *               ", \
                              "      x                 ", \
-                             "y z / x * Y@ y / Y - x -", optSingleMode=true, format=PixelType(Yxy))
+                             "y z / x * Y@ y / Y - x -", optSingleMode=true, format="RGBP"+(bi>16?"S":string(bi)))
             propSet("_Matrix", 0)
             propSet("_Model",  0) } }
 
@@ -1231,7 +1232,7 @@ function RGB_to_HSV (clip RGB, clip "G", clip "B", bool "tv_range", bool "Array"
         H = Expr(R, G, B, V, Hs, optSingleMode=true).propSet("_Matrix", 2).propSet("_Model", 25)
         [H, S, V]
 
-    } else { Expr(R, G, B, V, Hs, Ss, "a", format=PixelType(RGB), optSingleMode=true)
+    } else { Expr(R, G, B, V, Hs, Ss, "a", format="RGBP"+(bi>16?"S":string(bi)), optSingleMode=true)
              propSet("_Matrix",     2)
              propSet("_Model",      25) } }
 
@@ -1269,7 +1270,7 @@ function HSV_to_RGB (clip HSV, clip "S", clip "V", bool "tv_range", bool "Array"
         B = Expr(H, S, V, Bs, optSingleMode=false)
         [R, G, B]
 
-    } else { Expr(H, S, V, Rs, Gs, Bs, format=PixelType(HSV), optSingleMode=true)
+    } else { Expr(H, S, V, Rs, Gs, Bs, format="RGBP"+(bi>16?"S":string(bi)), optSingleMode=true)
              propSet("_Matrix",     0)
              propSet("_Model",      1) } }
 
@@ -1320,7 +1321,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
             T  = Expr(L,M,S, Ts, optSingleMode=true)
             [I, P, T]
 
-        } else { Expr(L,M,S, Is, Ps, Ts, format=PixelType(RGB), optSingleMode=true)
+        } else { Expr(L,M,S, Is, Ps, Ts, format="YUV444P"+(bi>16?"S":string(bi)), optSingleMode=true)
                  propSet("_Matrix",     2)
                  propSet("_Model",      17) }
 
@@ -1337,7 +1338,7 @@ function RGB_to_IPT (clip RGB, clip "G", clip "B", bool "Jch", string "matrix", 
             h  = Expr(L,M,S, hs, optSingleMode=true)
             [I, C, h]
 
-        } else { Expr(L,M,S, Is, Cs, hs, format=PixelType(RGB), optSingleMode=true)
+        } else { Expr(L,M,S, Is, Cs, hs, format="YUV444P"+(bi>16?"S":string(bi)), optSingleMode=true)
                  propSet("_Matrix",     2)
                  propSet("_Model",      18) } } }
 
@@ -1398,7 +1399,7 @@ function IPT_to_RGB (clip IPT, clip "P", clip "T", bool "Jch", string "matrix", 
         B = Expr(L,M,S, Bs, optSingleMode=false)
         [R, G, B]
 
-    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(IPT), optSingleMode=true)
+    } else { Expr(L,M,S, Rs, Gs, Bs, format="RGBP"+(bi>16?"S":string(bi)), optSingleMode=true)
              propSet("_Matrix",     0)
              propSet("_Model",      1) } }
 
@@ -1457,7 +1458,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
             b   = Expr(L,M,S, bs, optSingleMode=true)
             [Lk, a, b]
 
-        } else { Expr(L,M,S, Ls, as, bs, format=PixelType(RGB), optSingleMode=true)
+        } else { Expr(L,M,S, Ls, as, bs, format="YUV444P"+(bi>16?"S":string(bi)), optSingleMode=true)
                  propSet("_Matrix",      2)
                  propSet("_Model",      37) }
 
@@ -1474,7 +1475,7 @@ function RGB_to_Oklab (clip RGB, clip "G", clip "B", bool "Jch", string "matrix"
             h  = Expr(L,M,S, hs, optSingleMode=true)
             [Lk, C, h]
 
-        } else { Expr(L,M,S, Ls, Cs, hs, format=PixelType(RGB), optSingleMode=true)
+        } else { Expr(L,M,S, Ls, Cs, hs, format="YUV444P"+(bi>16?"S":string(bi)), optSingleMode=true)
                  propSet("_Matrix",      2)
                  propSet("_Model",      38) } } }
 
@@ -1539,7 +1540,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
         B = Expr(L,M,S, Bs, optSingleMode=true)
         [R, G, B]
 
-    } else { Expr(L,M,S, Rs, Gs, Bs, format=PixelType(Lab), optSingleMode=true)
+    } else { Expr(L,M,S, Rs, Gs, Bs, format="RGBP"+(bi>16?"S":string(bi)), optSingleMode=true)
              propSet("_Matrix",     0)
              propSet("_Model",      1) } }
 
@@ -1681,7 +1682,7 @@ function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bo
                                      # Only 'false' required for a joint matrix transformations where Illuminants differ (the conversion is then handled by CAT() )
 
     # Properties:
-    # Summing columns yields XYZ tristimulus values or Reference White in Y=1.0 scale [0.95048, 1, 1.08955]. From where you can extract the white point (ie. x = X/(X+Y+Z)...)
+    # Summing columns yields XYZ tristimulus values or Reference White in Y=1.0 scale [0.95048, 1, 1.08955]. From where you can extract the white point coordinates (ie. x = X/(X+Y+Z)...)
     # Summing column in the middle yields 1.0 (this column represents luminance coefficients)
     # Summing rows are proportional to summing rows with the color primaries. Extract primaries by pr1 = x[0]/(x[0]+x[1]+x[2]), pr2 = x[1]/(x[0]+x[1]+x[2]), etc
     #
@@ -1744,8 +1745,8 @@ function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bo
 
 
 # LMS space for linear Chromatic Adaptation Transform.
-# LMS stands for Long, Medium, Short cone rod responses known as fundamental tristimulus values.
-# This is the fastest and more straight-forward method for chromatic adaptation, without actually going through the model -CAM-.
+# LMS stands for Long, Medium, Short cone-rod responses known as fundamental tristimulus values.
+# This is the fastest and more straight-forward method for chromatic adaptation, without actually going through the full model -CAM-.
 # All of them work over 1931 and 1964 Standard Observers although some of them make a distinction (ie. CIE 2015)
 #    XYZ Scaling
 #    von Kries (Hunt-Pointer-Estevez for equal energy -E-)
@@ -1895,27 +1896,29 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
     # Fuzzy aliases
     mdL = LCase(md)
-    LMS = md == "XYZ"           ? XYZvk   :  md == "CAT00"           ? CAT00    : \
-          md == "Scale"         ? XYZvk   :  md == "CAT02"           ? CAT02    : \
-          md == "Scaling"       ? XYZvk   :  md == "CAT02B"          ? CAT02B   : \
-          md == "Kries"         ? HPE65   :  md == "CAT02CRA"        ? CAT02CRA : \
-          md == "von Kries"     ? HPE65   :  md == "CAT16"           ? CAT16    : \
-          md == "vonKries"      ? HPE65   :  md == "Sharp"           ? Shp      : \
-          md == "HPE"           ? HPE65   :  md == "Sphere"          ? Sph      : \
-          FindStr(mdL,"hunt")>0 ? HPE65   :  md == "SharpSphere"     ? Sph      : \
-          md == "E"             ? HPEE    :  md == "Sharp2"          ? Sph      : \
-          md == "EE"            ? HPEE    :  md == "Sphere2"         ? b20      : \
-          md == "HPEE"          ? HPEE    :  md == "Sharp3"          ? b20      : \
-          md == "HPEDV"         ? HPEDV   :  FindStr(mdL,"hue")>0    ? b20      : \
-          md == "IPT"           ? HPEIPT  :  md == "OPP"             ? OPP      : \
-          md == "HPEIPT"        ? HPEIPT  :  md == "170-2"           ? STK      : \
-          md == "Oklab"         ? OK      :  FindStr(md,"2006")   >0 ? STK      : \
-          md == "Bradford"      ? Brad    :  FindStr(md,"2012")   >0 ? STK      : \
-          md == "Brad"          ? Brad    :  FindStr(md,"2015")   >0 ? STK      : \
-          md == "CAT97"         ? Brad    :  FindStr(md,"tockman")>0 ? STK      : \
-          md == "Fairchild"     ? Fair    :  FindStr(mdL,"bianco")>0 ? BIA      : \
-          md == "Cat5"          ? Cat5    :  FindStr(md,"PC"     )>0 ? BIAPC    : \
-          md == "Cat9"          ? Cat9    :  Assert(false,"XYZ_to_LMS: Unsupported LMS mode.")
+    LMS = md == "XYZ"             ? XYZvk   :  md == "CAT00"           ? CAT00    : \
+          md == "Scale"           ? XYZvk   :  md == "CAT02"           ? CAT02    : \
+          md == "Scaling"         ? XYZvk   :  md == "CAT02B"          ? CAT02B   : \
+          md == "Kries"           ? HPE65   :  md == "CAT02CRA"        ? CAT02CRA : \
+          md == "von Kries"       ? HPE65   :  md == "CAT16"           ? CAT16    : \
+          md == "vonKries"        ? HPE65   :  md == "Sharp"           ? Shp      : \
+          md == "HPE"             ? HPE65   :  md == "Sphere"          ? Sph      : \
+          FindStr(mdL,"hunt")>0   ? HPE65   :  md == "SharpSphere"     ? Sph      : \
+          md == "E"               ? HPEE    :  md == "Sharp2"          ? Sph      : \
+          md == "EE"              ? HPEE    :  md == "Sphere2"         ? b20      : \
+          md == "HPEE"            ? HPEE    :  md == "Sharp3"          ? b20      : \
+          md == "HPE-E"           ? HPEE    :  FindStr(mdL,"hue")>0    ? b20      : \
+          md == "HPEDV"           ? HPEDV   :  md == "HPE-DV"          ? HPEDV    : \
+          md == "IPT"             ? HPEIPT  :  md == "OPP"             ? OPP      : \
+          md == "HPE-IPT"         ? HPEIPT  :  md == "Stockman10"      ? STK10    : \
+          md == "HPEIPT"          ? HPEIPT  :  md == "170-2"           ? STK      : \
+          md == "Oklab"           ? OK      :  FindStr(md,"2006")   >0 ? STK      : \
+          FindStr(md,"radford")>0 ? Brad    :  FindStr(md,"2012")   >0 ? STK      : \
+          md == "Brad"            ? Brad    :  FindStr(md,"2015")   >0 ? STK      : \
+          md == "CAT97"           ? Brad    :  FindStr(md,"tockman")>0 ? STK      : \
+          FindStr(md,"airchild")>0? Fair    :  FindStr(mdL,"bianco")>0 ? BIA      : \
+          md == "Cat5"            ? Cat5    :  FindStr(md,"PC"     )>0 ? BIAPC    : \
+          md == "Cat9"            ? Cat9    :  Assert(false,"XYZ_to_LMS: Unsupported LMS mode.")
 
     LMS = trans ? MatrixTranspose(LMS) : LMS
     list  ? LMS : MatrixClip(xyz, LMS) }
@@ -1974,17 +1977,17 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
         wps = ArraySize(src)>2 ? src : [src[0],src[1],1-src[0]-src[1],src[0]]
         wps = ArrayAppend(wps,wps)
     } else {
-        src   = color_Fuzzy_Search (src)
-        src   = list ? [src[1],src[1]] : src
-        wps   = color_coef(src[1],illu=src[1])
+        src = color_Fuzzy_Search (src)
+        src = list ? [src[1],src[1]] : src
+        wps = color_coef(src[1],illu=src[1])
     }
     if (isArray(tgt)) {
         wpt = ArraySize(tgt)>2 ? tgt : [tgt[0],tgt[1],1-tgt[0]-tgt[1],tgt[0]]
         wpt = ArrayAppend(wpt,wpt)
     } else {
-        tgt   = color_Fuzzy_Search (tgt)
-        tgt   = list ? [tgt[1],tgt[1]] : tgt
-        wpt   = color_coef(tgt[1],illu=tgt[1])
+        tgt = color_Fuzzy_Search (tgt)
+        tgt = list ? [tgt[1],tgt[1]] : tgt
+        wpt = color_coef(tgt[1],illu=tgt[1])
     }
 
     same  = wps[3] == wpt[3]
@@ -2218,8 +2221,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
     }
 
 # Add Spectral Luminous Efficiency functions (Photopic, Mesopic and Scotopic)
-# WIP
-# Calculate the Chromaticity Coordinates for the given temperature and Color Matching Function
+# WIP: Calculate the Chromaticity Coordinates for the given temperature and Color Matching Function
 function Chromaticity_xy(clip a, int "Temp", string "CMF") {
 
     T   = Default(temp, 6504)
@@ -2258,9 +2260,9 @@ function Chromaticity_xy(clip a, int "Temp", string "CMF") {
 function SPD_D(int i) {
 
     S0 = spline(i, 300,0.04, 305,1.38, 310,6.0, 315,16.0, 320,29.6, 325,44.29, 330,55.3, 335,57.84, 340,57.3, 345,59.53, 350,61.8, 355,61.32, 360,61.5, 365,65.56, 370,68.8, 375,66.86, 380,63.4, 385,61.68, 390,65.8, 395,79.72, 400,94.8, 405,102.06, 410,104.8, 415,106.85, 420,105.9, 425,99.99, 430,96.8, 435,103.55, 440,113.9, 445,121.29, 450,125.6, 455,126.72, 460,125.5, 465,123.16, 470,121.3, 475,121.61, 480,121.3, 485,117.46, 490,113.5, 495,112.78, 500,113.1, 505,112.4, 510,110.8, 515,108.22, 520,106.5, 525,107.6, 530,108.8, 535,107.32, 540,105.3, 545,104.85, 550,104.4, 555,102.5, \
-                  560,100.0, 565,97.64, 570,96.0, 575,95.79, 580,95.1, 585,91.95, 590,89.1, 595,89.29, 600,90.5, 605,90.7, 610,90.3, 615,89.71, 620,88.4, 625,85.91, 630,84.0, 635,84.48, 640,85.1, 645,83.61, 650,81.9, 655,81.72, 660,82.6, 665,84.05, 670,84.9, 675,84.13, 680,81.3, 685,76.08, 690,71.9, 695,72.0, 700,74.3, 705,76.89, 710,76.4, 715,69.34, 720,63.3, 725,65.76, 730,71.7, 735,76.03, 740,77.0, 745,73.21, 750,65.2, 755,53.54, 760,47.7, 765,57.11, 770,68.6, 775,68.66, 780,65.0, 785,65.29, 790,66.0, 795,64.36, 800,61.0, 805,56.26, 810,53.3, 815,55.14, 820,58.9, 825,61.0, 830,61.9)
+                   560,100.0, 565,97.64, 570,96.0, 575,95.79, 580,95.1, 585,91.95, 590,89.1, 595,89.29, 600,90.5, 605,90.7, 610,90.3, 615,89.71, 620,88.4, 625,85.91, 630,84.0, 635,84.48, 640,85.1, 645,83.61, 650,81.9, 655,81.72, 660,82.6, 665,84.05, 670,84.9, 675,84.13, 680,81.3, 685,76.08, 690,71.9, 695,72.0, 700,74.3, 705,76.89, 710,76.4, 715,69.34, 720,63.3, 725,65.76, 730,71.7, 735,76.03, 740,77.0, 745,73.21, 750,65.2, 755,53.54, 760,47.7, 765,57.11, 770,68.6, 775,68.66, 780,65.0, 785,65.29, 790,66.0, 795,64.36, 800,61.0, 805,56.26, 810,53.3, 815,55.14, 820,58.9, 825,61.0, 830,61.9)
     S1 = spline(i, 300,0.02, 305,1.03, 310,4.5, 315,12.02, 320,22.4, 325,33.82, 330,42.0, 335,42.65, 340,40.6, 345,41.11, 350,41.6, 355,39.48, 360,38.0, 365,40.17, 370,42.4, 375,41.27, 380,38.5, 385,35.68, 390,35.0, 395,38.67, 400,43.4, 405,45.74, 410,46.3, 415,45.83, 420,43.9, 425,40.28, 430,37.1, 435,36.37, 440,36.7, 445,36.57, 450,35.9, 455,34.55, 460,32.6, 465,30.24, 470,27.9, 475,26.05, 480,24.3, 485,22.25, 490,20.1, 495,18.04, 500,16.2, 505,14.78, 510,13.2, 515,10.88, 520,8.6, 525,7.13, 530,6.1, 535,5.16, 540,4.2, 545,3.06, 550,1.9, 555,0.89, 560,-0.0, 565,-0.77, 570,-1.6, \
-                    575,-2.69, 580,-3.5, 585,-3.46, 590,-3.5, 595,-4.52, 600,-5.8, 605,-6.59, 610,-7.2, 615,-7.93, 620,-8.6, 625,-9.03, 630,-9.5, 635,-10.29, 640,-10.9, 645,-10.82, 650,-10.7, 655,-11.14, 660,-12.0, 665,-13.13, 670,-14.0, 675,-14.11, 680,-13.6, 685,-12.63, 690,-12.0, 695,-12.52, 700,-13.3, 705,-13.44, 710,-12.9, 715,-11.62, 720,-10.6, 725,-10.83, 730,-11.6, 735,-12.16, 740,-12.2, 745,-11.49, 750,-10.2, 755,-8.52, 760,-7.8, 765,-9.39, 770,-11.2, 775,-11.09, 780,-10.4, 785,-10.45, 790,-10.6, 795,-10.31, 800,-9.7, 805,-8.84, 810,-8.3, 815,-8.63, 820,-9.3, 825,-9.66, 830,-9.8)
+                   575,-2.69, 580,-3.5, 585,-3.46, 590,-3.5, 595,-4.52, 600,-5.8, 605,-6.59, 610,-7.2, 615,-7.93, 620,-8.6, 625,-9.03, 630,-9.5, 635,-10.29, 640,-10.9, 645,-10.82, 650,-10.7, 655,-11.14, 660,-12.0, 665,-13.13, 670,-14.0, 675,-14.11, 680,-13.6, 685,-12.63, 690,-12.0, 695,-12.52, 700,-13.3, 705,-13.44, 710,-12.9, 715,-11.62, 720,-10.6, 725,-10.83, 730,-11.6, 735,-12.16, 740,-12.2, 745,-11.49, 750,-10.2, 755,-8.52, 760,-7.8, 765,-9.39, 770,-11.2, 775,-11.09, 780,-10.4, 785,-10.45, 790,-10.6, 795,-10.31, 800,-9.7, 805,-8.84, 810,-8.3, 815,-8.63, 820,-9.3, 825,-9.66, 830,-9.8)
     S2 = spline(i, 300,0.0, 305,1.08, 310,2.0, 315,2.7, 320,4.0, 325,6.45, 330,8.5, 335,8.59, 340,7.8, 345,7.27, 350,6.7, 355,5.81, 360,5.3, 365,5.84, 370,6.1, 375,4.76, 380,3.0, 385,2.03, 390,1.2, 395,-0.12, 400,-1.1, 405,-0.97, 410,-0.5, 415,-0.49, 420,-0.7, 425,-0.86, 430,-1.2, 435,-1.91, 440,-2.6, 445,-2.87, 450,-2.9, 455,-2.88, 460,-2.8, 465,-2.68, 470,-2.6, 475,-2.65, 480,-2.6, 485,-2.23, 490,-1.8, 495,-1.6, 500,-1.5, 505,-1.39, 510,-1.3, 515,-1.25, 520,-1.2, 525,-1.13, 530,-1.0, 535,-0.75, 540,-0.5, 545,-0.38, 550,-0.3, 555,-0.15, \
                    560,0.0, 565,0.12, 570,0.2, 575,0.24, 580,0.5, 585,1.24, 590,2.1, 595,2.71, 600,3.2, 605,3.68, 610,4.1, 615,4.45, 620,4.7, 625,4.81, 630,5.1, 635,5.89, 640,6.7, 645,7.04, 650,7.3, 655,7.88, 660,8.6, 665,9.25, 670,9.8, 675,10.27, 680,10.2, 685,9.15, 690,8.3, 695,8.86, 700,9.6, 705,9.32, 710,8.5, 715,7.59, 720,7.0, 725,7.13, 730,7.6, 735,7.96, 740,8.0, 745,7.53, 750,6.7, 755,5.64, 760,5.2, 765,6.24, 770,7.4, 775,7.28, 780,6.8, 785,6.86, 790,7.0, 795,6.81, 800,6.4, 805,5.85, 810,5.5, 815,5.69, 820,6.1, 825,6.36, 830,6.5)
     [S0,S1,S2] }
