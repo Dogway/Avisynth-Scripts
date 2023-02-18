@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.3         (29-12-2022)   ##
+###   Transforms Pack - Main v1.4         (18-02-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -123,9 +123,9 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     src   = color_Fuzzy_Search (source)
     tgt   = color_Fuzzy_Search (disp_ref)
     src   = src[0]=="709" || src[0]=="170M" && !img || src[0]=="240M" || src[0]=="Display-P3" || \
-            FindStr(src[0], "470")>0 && !img || FindStr(src[0], "2020")>0 ? [src[0],src[1],"1886"] : [src[0],src[1],img?"sRGB":src[2]]
+            FindStr(src[0], "470")>0 && !img || FindStr(src[0],"2020")>0 ? [src[0],src[1],"1886"] : [src[0],src[1],img?"sRGB":src[2]]
     tgt   = tgt[0]=="709" || tgt[0]=="170M"         || tgt[0]=="240M" || tgt[0]=="Display-P3" || \
-            FindStr(tgt[0], "470")>0         || FindStr(tgt[0], "2020")>0 ? [tgt[0],tgt[1],"1886"] : tgt
+            FindStr(tgt[0], "470")>0         || FindStr(tgt[0],"2020")>0 ? [tgt[0],tgt[1],"1886"] : tgt
     gamut = !(src[0] == tgt[0] || !gamut)
 
     rgb ? ConvertToPlanarRGB(src[0])                               : \
@@ -205,7 +205,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
         fmt    = format_Fuzzy_Search(b, p_type,  bib)
         fmta   = format_Fuzzy_Search(a, p_typea, bia)
         bc     = bicubic_coeffs(krn)
-        krn    = bc[1]>=-1 ? "Bicubic" : krn
+        krn    = bc[0]>=-2 ? "Bicubic" : krn
 
         cplace  = rgbb || yv444  || yv411  ? "MPEG1" : isUHD  ? "top_left" : "MPEG2"
         cplacea = rgba || yv444a || yv411a ? "MPEG1" : isUHDa ? "top_left" : "MPEG2"
@@ -251,10 +251,6 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 
 ###
 ### ConvertFormat()
-###
-###
-### Similar to avsresize's z_ConvertFormat() but more flexible, more options and more features:
-### More color models and color space conversions, chroma reconstruction, scale_space, noring, mod size, ratio resize, kernel/matrix aliases (supports any resizer), presets, show settings, etc
 ###
 ### Dependencies: AviSynth+ 3.7.3 and over
 ###               ExTools
@@ -320,13 +316,13 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 ###     [string "D_out"="" (""/ "A"/ "B"/ "D50"/ "E"/ "D55"/ "ACES"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93"/ "ID50"/ "ID65"/ "Sunlight"/ "Overcast")],
 ###     [string "cplace_in"=""  (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
 ###     [string "cplace_out"="" (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
+###     [string "CAT"="CAT" ("CAT"/ "Simulation"/ "Compensation")],
 ###     [bool "tv_in"=true],
 ###     [bool "tv_out"=true],
 ###     [string "scale_space"="gamma" ("gamma"/ "linear"/ "sigmoid"/ "log")],
 ###     [string "kernel"="spline36"   ("nnedi3"/ "EEDI3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
 ###     [string "kernel_c"="spline36" ("nnedi3"/ "EEDI3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
 ###     [int "taps"=[0,0] ([0,0] to [12,12] by [1,1])],
-###     [bool "CAT"=true],
 ###     [bool "nomoiree"=false],
 ###     [bool "noring"=false],
 ###     [bool "UVrecon"=false],
@@ -627,13 +623,12 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     src_height = Defined (src_height) ? IsArray(src_height) ? ArraySize(src_height) > 1 ? src_height : ArrayAdd(src_height,coh) : [src_height,coh] : [h,coh]
     src_heightc= src_height[1]     src_height = src_height[0]
 
-    i_type1  || o_type1                  ? Assert(  bi==8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")         : nop()
-    i_type10 || o_type10                 ? Assert(false,   "ConvertFormat: Unsupported Pixel Type: YUV410")             : nop()
-    !fc && (i_type2  || i_fmt[1]=="420") ? Assert( w%2==0, "ConvertFormat: Clip Width is not mod2" )                    : nop()
-    !fc &&  i_type1                      ? Assert( w%4==0, "ConvertFormat: Clip Width is not mod4" )                    : nop()
-    o_type1                              ? Assert(nw%4==0, "ConvertFormat: Target Width is not mod4" )                  : nop()
-    !(isRGBo ||  o_type4 || (cnw>cow || cnh>coh))                                                                       ? \
-                                           Assert(!recon,  "ConvertFormat: Invalid settings for chroma reconstruction") : nop()
+    i_type1  || o_type1                          ? Assert(  bi==8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")         : nop()
+    i_type10 || o_type10                         ? Assert(false,   "ConvertFormat: Unsupported Pixel Type: YUV410")             : nop()
+    !fc && !isy && (i_type2 || i_fmt[1]=="420")  ? Assert( w%2==0, "ConvertFormat: Clip Width is not mod2" )                    : nop()
+    !fc &&  i_type1                              ? Assert( w%4==0, "ConvertFormat: Clip Width is not mod4" )                    : nop()
+    o_type1                                      ? Assert(nw%4==0, "ConvertFormat: Target Width is not mod4" )                  : nop()
+    !(isRGBo || o_type4 || (cnw>cow || cnh>coh)) ? Assert(!recon,  "ConvertFormat: Invalid settings for chroma reconstruction") : nop()
 
 
     # Overriding 'taps' arg by kernel name (ie. 'blackman8' means taps=8)
@@ -1318,10 +1313,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         } }
 
         # Frame Properties (fix this when using presets)
-        mat_i   = isRGBo ? 0 : cs_outFA[3]
-        prim_i  = cs_outFA[4]
-        illu_i  = D_outA[5]
-        t_i     = EOTFi_i[6]
+        mat_i   = isRGBo ? 0 : num==0 ? cs_outFA[3] : color_Fuzzy_Search(cs_outFA)[3]
+        prim_i  =              num==0 ? cs_outFA[4] : color_Fuzzy_Search(cs_outFA)[4]
+        illu_i  =              num==0 ? D_outA[5]   : color_Fuzzy_Search(D_out)[5]
+        t_i     =              num==0 ? EOTFi_i[6]  : color_Fuzzy_Search(EOTF)[6]
 
         # Populating frameprops
         if (!isy) {
@@ -1366,7 +1361,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.3",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.4",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1487,9 +1482,9 @@ function color_Fuzzy_Search (string matrix) {
     transfer =
 \     FindStr(matrix,   "2084"  )>0  ? "PQ"       : FindStr(matrix,   "2100"   )>0 ? "PQ"
 \   :         matrix == "PQ"         ? "PQ"       :         matrix == "Perceptual" ? "PQ"
-\   :         matrix == "2020DVp5"   ? "PQ"       :         matrix == "HLG"        ? "HLG"
-\   : FindStr(matrix,   "ARIB"  )>0  ? "HLG ARIB" : FindStr(matrix,   "B67"    )>0 ? "HLG ARIB"
-\   : FindStr(matrix,   "BBC"   )>0  ? "HLG"      : FindStr(matrix,   "NHK"    )>0 ? "HLG"
+\   :         matrix == "2020DVp5"   ? "PQ"       : FindStr(matrix,   "BBC"   )>0  ? "HLG ARIB"
+\   :         matrix == "HLG"        ? "HLG"      : FindStr(matrix,   "NHK"   )>0  ? "HLG ARIB"
+\   : FindStr(matrix,   "ARIB"  )>0  ? "HLG ARIB" : FindStr(matrix,   "B67"   )>0  ? "HLG ARIB"
 \   :         matrix == "1886a"      ? "1886a"    : FindStr(matrix,   "1886"   )>0 ? "1886"
 \   : FindStr(matrix,   "428"   )>0  ? "DCIXYZ"   : FindStr(matrix,   "APPLE"  )>0 ? "AppleRGB"
 \   :         matrix == "Camera"     ? "170M"     :         matrix == "709-Camera" ? "170M"
@@ -2066,33 +2061,33 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
     fullo = FindStr(format_o,"RGB")>0 || jab_o == "444"
 
     # Aliases
-    cplacei = fulli                     ? "center"   : \
-              tli                       ? "top_left" : \
-              cplacei == "DV"           ? "top_left" : \
-              cplacei == "MPEG2"        ? "left"     : \
-              cplacei == "MPEG1"        ? "center"   : \
-              cplacei == "JPEG"         ? "center"   : \
-              cplacei == "JPG"          ? "center"   : \
-              cplacei == "l"            ? "left"     : \
-              cplacei == "c"            ? "center"   : \
-              cplacei == "tl"           ? "top_left" : \
-              cplacei == "t"            ? "top"      : \
-              cplacei == "bl"           ? "bottom_left": \
-              cplacei == "b"            ? "bottom"   : cplacei
+    cplacei = fulli                    ? "center"   : \
+              tli                      ? "top_left" : \
+              cplacei == "DV"          ? "top_left" : \
+              cplacei == "MPEG2"       ? "left"     : \
+              cplacei == "MPEG1"       ? "center"   : \
+              cplacei == "JPEG"        ? "center"   : \
+              cplacei == "JPG"         ? "center"   : \
+              cplacei == "l"           ? "left"     : \
+              cplacei == "c"           ? "center"   : \
+              cplacei == "tl"          ? "top_left" : \
+              cplacei == "t"           ? "top"      : \
+              cplacei == "bl"          ? "bottom_left": \
+              cplacei == "b"           ? "bottom"   : cplacei
 
-    cplaceo = fullo                     ? "center"   : \
-              tlo                       ? "top_left" : \
-              cplaceo == "DV"           ? "top_left" : \
-              cplaceo == "MPEG2"        ? "left"     : \
-              cplaceo == "MPEG1"        ? "center"   : \
-              cplaceo == "JPEG"         ? "center"   : \
-              cplaceo == "JPG"          ? "center"   : \
-              cplaceo == "l"            ? "left"     : \
-              cplaceo == "c"            ? "center"   : \
-              cplaceo == "tl"           ? "top_left" : \
-              cplaceo == "t"            ? "top"      : \
-              cplaceo == "bl"           ? "bottom_left": \
-              cplaceo == "b"            ? "bottom"   : cplaceo
+    cplaceo = fullo                    ? "center"   : \
+              tlo                      ? "top_left" : \
+              cplaceo == "DV"          ? "top_left" : \
+              cplaceo == "MPEG2"       ? "left"     : \
+              cplaceo == "MPEG1"       ? "center"   : \
+              cplaceo == "JPEG"        ? "center"   : \
+              cplaceo == "JPG"         ? "center"   : \
+              cplaceo == "l"           ? "left"     : \
+              cplaceo == "c"           ? "center"   : \
+              cplaceo == "tl"          ? "top_left" : \
+              cplaceo == "t"           ? "top"      : \
+              cplaceo == "bl"          ? "bottom_left": \
+              cplaceo == "b"           ? "bottom"   : cplaceo
 
     # In chroma units (compared to default MPEG1/center)
     icloc  =  cplacei == "left"        ? [ iu,0.0] : \
@@ -2177,11 +2172,11 @@ function color_coef (string "prims", string "mat", string "illu") {
 \   : (illu   == "ID50"           ) ? 15
 \   : (illu   == "ID65"           ) ? 16 : mat_wp
 
-# History:
-# Initially D (Daylight) series illuminants made reference to its number designation in absolute numbers (ie. D50 = 5000K)
-# In 1948, Planck's c2 coefficient (second radiation constant) was updated from 1.438 * 10^(-2) to 1.4388 * 10^(-2)
-# Since 2018, c2 is fixed at an exact value of 1.438776877 * 10^(-2), therefore turning the original 5000K to 5000*(1.438776877/1.438) = 5002.70124K
-# Before 1948, c2 was defined at 1.432 by the SI (Système International d'Unités), despite this CIE used the "U.S. National Bureau of Standards" constant proposal of 1.435, which was used in 1931 for the Illuminants A, B and C.
+# Background:
+#   Initially D (Daylight) series illuminants made reference to its number designation in absolute numbers (ie. D50 = 5000K)
+#   In 1948, Planck's c2 coefficient (second radiation constant) was updated from 1.438 * 10^(-2) to 1.4388 * 10^(-2)
+#   Since 2018, c2 is fixed at an exact value of 1.438776877 * 10^(-2), therefore turning the original 5000K to 5000*(1.438776877/1.438) = 5002.70124K
+#   Before 1948, c2 was defined at 1.432 by the SI (Système International d'Unités), despite this CIE used the "U.S. National Bureau of Standards" constant proposal of 1.435, which was used in 1931 for the Illuminants A, B and C.
 
 # Illuminants try to match the medium and environment mixed white point contribution where the colors are meant to be reproduced.
 # * CCT of about 1850K matches that of a candle light
@@ -2201,7 +2196,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 # It's mandatory for them to do a chromatic adaptation to convert them to the new illuminant primaries. RGB_to_XYZ() and XYZ_to_RGB() do this automatically.
 # Correlated Color Temperatures (CCT) in K (Kelvin) are derived from 'CIE 1931 2º Degree Standard Observer' CMF with 'native' isotherms.
 
-# Note: The Illuminants chromacity coordinates have been calculated from 'Sprague' interpolated SPD of the original datasets with updated (2022) SI constants.
+# Note: The Illuminants chromacity coordinates have been calculated from 'Sprague' interpolated SPD of the original datasets with updated (2023) SI constants.
 # Note: For ICC compliant coefficients you need to round them to hexadecimal after 16-bit allocation. Revert the process and round to 8 significant decimal figures
 #       ( HEX2DEC ( DEC2HEX ( number-to-be-converted * 65536; 9 ) ) ) / 65536  # From: https://ninedegreesbelow.com
 #
@@ -2231,17 +2226,17 @@ function color_coef (string "prims", string "mat", string "illu") {
     # sRGB (IEC 61966-2-1) and ITU-R BT.709-6 (originally CCIR Rec.709)
     cs = mat_i==1 ? [0.640,  0.330, \
                      0.300,  0.600, \
-                     0.150,  0.060  ] : cs
+                     0.150,  0.060] : cs
     # Y’PbPr 601 | ITU-R BT.601 (originally CCIR Rec.601-1 circa 1982)
     # SMPTE 240M | SMPTE 170M   (modeled after P22 phosphors of Conrac consumer CRTs)
     cs = mat_i==2 ? [0.630,   0.340, \
                      0.310,   0.595, \
-                     0.155,   0.070  ] : cs
+                     0.155,   0.070] : cs
     # PAL/SECAM
     # BT-470BG (originally EBU Tech.3123)
     cs = mat_i==4 ? [0.640,   0.330, \
                      0.290,   0.600, \
-                     0.150,   0.060  ] : cs
+                     0.150,   0.060] : cs
     # BT-2020/BT-2100 (for 630nm, 532nm and 467nm)
     cs = mat_i==5 ? [0.707917792, 0.292027109, \
                      0.170237195, 0.796518542, \
@@ -2249,15 +2244,15 @@ function color_coef (string "prims", string "mat", string "illu") {
     # Adobe RGB (1998) (ClayRGB in Elle Stone's profiles)
     cs = mat_i==6 ? [0.640,   0.330, \
                      0.210,   0.710, \
-                     0.150,   0.060  ] : cs
+                     0.150,   0.060] : cs
     # Apple RGB
     cs = mat_i==15? [0.6250,  0.3400, \
                      0.2800,  0.5950, \
-                     0.1550,  0.0700 ] : cs
+                     0.1550,  0.0700] : cs
     # Bruce RGB (very early SWOP printing standard space)
     cs = mat_i==19? [0.6400,  0.3300, \
                      0.2800,  0.6500, \
-                     0.1500,  0.0600 ] : cs
+                     0.1500,  0.0600] : cs
 
 ###################################################
 ###                                              ##
@@ -2536,7 +2531,7 @@ function moncurve_coef (string transfer) {
 
        /* Coeff Derivations:
           "Simultaneous equations" require brute force root-finding algos (ie. bisection method)
-          Added only as reference here since moncurve_x() functions compute them correctly from proper "alpha" coeff.
+           Added only as reference here since moncurve_x() functions compute them correctly from proper "alpha" coeff.
 
         #   alpha = offset     (x coord - 1)
         #   beta  = transition (y coord)= K0/Phi
@@ -2754,18 +2749,27 @@ function Broadcast (float_array mat, string "mode", bool "fill", int "size") {
 # Inner Product (uT · v)
 function Dot (float_array vec1, \
               float_array vec2) {
-    # 1x3 · 1x3
-    (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]) }
+
+    a3  = ArraySize(vec1)==3 || ArraySize(vec2)==3
+    # 1x3 · 1x3 or 1x2 · 1x2
+    a3 ? (vec1[0] * vec2[0]) + (vec1[1] * vec2[1]) + (vec1[2] * vec2[2]) : \
+         (vec1[0] * vec2[0]) + (vec1[1] * vec2[1])   }
 
 
 function Cross (float_array vec1, \
                 float_array vec2) {
 
+    a3  = ArraySize(vec1)==3 || ArraySize(vec2)==3
     # 1x3 X 1x3
-    vec10=vec1[0]  vec11=vec1[1]   vec12=vec1[2]
-    vec20=vec2[0]  vec21=vec2[1]   vec22=vec2[2]
-    cr1 = vec11 *  vec22 - vec12 * vec21
-    cr2 = vec12 *  vec20 - vec10 * vec22
-    cr3 = vec10 *  vec21 - vec11 * vec20
+    if (a3) {
+        vec10=vec1[0]  vec11=vec1[1]   vec12=vec1[2]
+        vec20=vec2[0]  vec21=vec2[1]   vec22=vec2[2]
+        cr1 = vec11 *  vec22 - vec12 * vec21
+        cr2 = vec12 *  vec20 - vec10 * vec22
+        cr3 = vec10 *  vec21 - vec11 * vec20
+        [cr1, cr2, cr3]
+    } else {
+    # 1x2 X 1x2
+        cr1 = vec1[0] * vec2[1] - vec2[0] * vec1[1]
+        [cr1] } }
 
-    [cr1, cr2, cr3] }
