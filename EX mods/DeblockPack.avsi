@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v2.7  (26-01-2023)                                ###
+###        Deblock Pack v2.8  (18-02-2023)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -9,7 +9,6 @@
 ###            Deblock_QED     (+Deblock plugin)                          ###
 ###            DeblockFFT3D    (+FFT3D plugin)                            ###
 ###            CCD             (Script)                                   ###
-###            MCDeblockFFT3D  (+FFT3D plugin)                            ###
 ###            SmoothD2c       (+SmoothD2 plugin)                         ###
 ###            MSUDeCor        (+MSU_Smart_Deblocking plugin)             ###
 ###            SmoothDeblock   (Script) (WIP)                             ###
@@ -182,31 +181,9 @@ function DeblockFFT3D(clip a, int "UV", bool "fulls") {
     fs    = Default(fulls, rgb)
 
     fft   = a.fft3dfilter(sigma=16,sigma2=6,sigma3=1,sigma4=0,bw=12,bh=12,ow=6,oh=6,bt=5,plane=UV==3?4:0,ncpu=2)
-#    fft   = a.FFT3DGPU(sigma=16,sigma2=8,sigma3=4,sigma4=2,bw=16,bh=16,ow=8,oh=8,bt=4,plane=UV==3?4:0,precision=bi>8?0:2)  # x7 performance but not a match (also severely bugged, avoid)
+#   fft   = a.FFT3DGPU(sigma=16,sigma2=8,sigma3=4,sigma4=2,bw=16,bh=16,ow=8,oh=8,bt=4,plane=UV==3?4:0,precision=bi>8?0:2)  # x7 performance but not a match (also severely bugged, avoid)
     rg20D = ex_lutxy(fft,fft.removegrain(20,UV==3?20:-1),"x y - 1.49 * range_half +",UV=uv,fulls=fs)
             ex_lutxyza(a,fft,rg20D,fft,"x y - X@ z range_half - Z@ * 0 < a X abs Z abs < X a + z a range_half - + ? ? ",UV=uv,fulls=fs) }
-
-
-
-## Motion Compensated Deblock
-function MCDeblockFFT3D(clip a, int "UV", bool "fulls") {
-
-    rgb     = isRGB(a)
-    bi    = BitsPerComponent(a)
-
-    UV      = Default(UV,      3)
-    fs      = Default(fulls, rgb)
-
-    pre     = UV<3 && !isy(a) ? a.ExtractY() : a
-    pre     = pre.ConvertBits(8, dither=-1, fulls=fs)
-
-    sup     = pre.MSuper(pel=1, hpad = 0, vpad = 0, chroma=UV==3, mt=true)
-    vectors = sup.MAnalyse(isb = false, lambda = 1000,truemotion=false,chroma=UV==3,mt=true)
-    compensation = pre.MCompensate(sup,vectors).ConvertBits(bi, fulls=fs)
-
-    compensation.DeblockFFT3D(UV=uv,fulls=fs)
-    UV<3 && !isy(a) ? CombinePlanes(last,a,planes="YUV",Pixel_Type=PixelType(a)) : last
-    }
 
 
 
@@ -219,7 +196,7 @@ function MCDeblockFFT3D(clip a, int "UV", bool "fulls") {
 ### AviSynth+ port of Julek's VapourSynth port of "Camcorder Color Denoise" VirtualDub plugin by Sergey Stolyarevsky.
 ### This is a chroma denoiser, characterized to easily present blocking in digital video recordings,
 ### specially with codecs preceding H.264, like camcorders or VHS captures.
-### The author designed it against video from a Canon MD160 camera (320x240 12.5fps interlaced).
+### The author designed it after video from a Canon MD160 camera (320x240 12.5fps interlaced).
 ###
 ### https://github.com/dnjulek/jvsfunc/blob/main/jvsfunc/expr.py
 ### https://acobw.narod.ru/
@@ -1475,7 +1452,7 @@ function ShiftDCTBack(clip orig,int density, clip wmc, float wms, string dct_typ
     cMain=(i+j==0) ? cMain : MergeChroma(cMain,cMain.AddBorders(0,0,den_i,den_j).Crop(den_i,den_j,cMain.width(),cMain.height()))
     shiftClip.Set(idens+Int(Pow(density,2)),(i+j==0) ? cFlot : cFlot.crop(den_i,den_j,orig.width(),orig.height()))
     shiftClip.Set(idens,                    (i+j==0) ? cMain : cMain.crop(den_i,den_j,orig.width(),orig.height()))
-    global avgI = avgI+", shiftClip"+String(idens)+", 255.0/"+String(wms)
+    global avgI = avgI+", shiftClip"+String(idens)+", 255.0 /"+String(wms)
     global avgF = (i+j==0) ? avgF : avgF+", shiftClip"+String(idens+Int(Pow(density,2)))+", "+String(1/Pow(density,2))
 }
 
