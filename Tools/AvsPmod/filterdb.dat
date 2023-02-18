@@ -6096,9 +6096,11 @@ int "xthresh"=255 (0 to 255)
 
 WhitePoint(
 clip,
-int "temperature"=6504 (1704 to 14016 by 24),
-string "matrix"="709" ("470M"/ "470BG"/ "170M"/ "709"/ "2020CL"/ "2020NCL"/ "Display-P3"/ "ACEScg")],
+float temperature=6504 (1704 to 14016 by 24),
+[float temp_source=6504 (1704 to 14016 by 24)],
+[string "matrix"="709" ("470M"/ "470BG"/ "170M"/ "709"/ "2020CL"/ "2020NCL"/ "Display-P3"/ "ACEScg")],
 [int "observer"=1931 (1931/ 1964)],
 [string "locus"="Daylight" ("Daylight"/ "Planckian")],
-bool "tv_range"=true
+[string "LMS"="CAT16" ("XYZ"/ "HPE -Hunt-Pointer-Estevez-"/ "HPE-E"/ "HPE-IPT"/ "HPE-DV"/ "CAT97/Bradford"/ "CAT00"/ "CAT00 Fairchild"/ "CAT02"/ "CAT02B"/ "CAT02CRA"/ "CAT16"/ "OkLab"/ "Sharp"/ "SharpSphere"/ "SharpSphereHUE"/ "Stockman"/ "Stockman10"/ "Cat5"/ "Cat9"/ "Bianco"/ "BiancoPC"/ "OPP")],
+[bool "tv_range"=true]
 )
