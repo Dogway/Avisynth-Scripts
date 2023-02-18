@@ -647,7 +647,6 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     bs = Blocksize
     sr = max(1,bs / 8)
     Overlap      = Default( Overlap,      Select( pNum,  bs/2,      bs/2,     bs/2,     bs/2,     bs/2,     bs/2,     bs/2,     bs/4,     bs/4,      bs/4,      bs/4       ) )
-#   Search       = Default( Search,       Select( pNum,     5,         4,        4,        4,        4,        4,        4,        4,        0,         0,         0       ) )
     Search       = Default( Search,       Select( pNum,     4,         4,        4,        4,        2,        2,        2,        2,        0,         0,         0       ) )
     SearchR      = Default( Search,       Select( pNum,     4,         0,        0,        0,        0,        0,        0,        0,        0,         0,         0       ) )
     SearchParam  = Default( SearchParam,  Select( pNum,    sr,        sr,       sr,       sr,       sr,       sr,       sr,       sr,       sr,        sr,        sr       ) )
