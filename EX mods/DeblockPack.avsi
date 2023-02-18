@@ -109,9 +109,11 @@
 
 function Deblock_QED ( clip clp, int "quant1", int "quant2", int "aOff1", int "bOff1", int "aOff2", int "bOff2", string "exdeblock1", string "exdeblock2", int "UV"  ) {
 
-    rgb    = isRGB(clp)
-    fs     = propNumElements (clp,"_ColorRange")  > 0 ? \
-             propGetInt      (clp,"_ColorRange") == 0 : rgb
+    clp
+    yuy2   = isYUY2()
+    rgb    = isRGB()
+    fs     = propNumElements ("_ColorRange")  > 0 ? \
+             propGetInt      ("_ColorRange") == 0 : rgb
 
     quant1 = Default( quant1, 24 ) # Strength of block edge deblocking
     quant2 = Default( quant2, 26 ) # Strength of block internal deblocking
@@ -126,6 +128,8 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2", int "aOff1", int "b
                                    # u=2  -> no chroma deblocking at all (just copy it from source)
                                    # u=1  -> directly use chroma deblocking from the normal deblock()
                                    # u=-1 -> directly use chroma deblocking from the strong deblock()
+
+    clp = yuy2 ? ConvertToYUV422() : clp
     isy = isy(clp)
     UV1 = !isy ?  uv == 1 ?  4  : abs(UV) : 1
     UV2 = !isy && uv == 1 ? "z" : Undefined()
@@ -167,7 +171,8 @@ function Deblock_QED ( clip clp, int "quant1", int "quant2", int "aOff1", int "b
     deblocked = (uv<0) ? deblocked.mergechroma(strong) : deblocked
 
     # remove mod 8 borders
-    deblocked.crop(0,0,-padX,-padY) }
+    deblocked.crop(0,0,-padX,-padY)
+    yuy2 ? ConvertToYUY2() : last }
 
 
 
