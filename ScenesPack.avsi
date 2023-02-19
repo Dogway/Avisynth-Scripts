@@ -187,7 +187,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
         avg   = 0    SE   = FC     divy = 0.000001 aarr  = []   divm  = divy
         avgt  = 0    pDf1 = n > 2 ? pDfp : 255
         arrz  = [0.0,0.0,0.0,0.0,0.0]
-        stats = ArrayAdd(arrz,[0.0])
+        stats = ArrayAdd(arrz,0.0)
         EVr   = 0    EVm = 0
 
         if (UV) {
