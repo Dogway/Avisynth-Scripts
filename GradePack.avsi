@@ -450,14 +450,13 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
         sts  = bi>8 ? ArrayOp(sts,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : sts
         cst  = PlaneMinMaxStats(last,th,0,0,false)
         cst  = bi>8 ? ArrayOp(cst,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : cst
-        pmxt = tv!=tvo && tv ? 3 : 1
         pmin = lo ? df ? cst[2] : sts[2] : tv ?  16 :   0
         pmax = hi ? df ? cst[3] : sts[3] : tv ? 235 : 255
 
         if (gm) {
             rng  = (pmax   -   pmin)
-            scn  = (sts[6] -   pmin) / rng                               # New scene average after normalization
-            cur  = (cst[5] - cst[2]) / (cst[pmxt] - cst[2])              # New frame average after normalization
+            scn  = (sts[6] -   pmin) / rng                            # New scene average after normalization
+            cur  = (cst[5] - cst[2]) / (cst[3] - cst[2])              # New frame average after normalization
 
             # Prolly I should replace gamma (+weighting to darks) with a simple midpoint remap function
             lscn  = log(scn)
