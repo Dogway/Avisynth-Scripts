@@ -27,7 +27,7 @@ chroma_reconstruct https://github.com/Irrational-Encoding-Wizardry/lvsfunc/blob/
 
 #######################################################################
 ###                                                                 ###
-###    yugefunc  v1.0 (26-01-2023)                                  ###
+###    yugefunc  v1.1 (19-02-2023)                                  ###
 ###                                                                 ###
 ###    Collection of VapourSynth functions ported to AviSynth+      ###
 ###                                                                 ###
@@ -128,17 +128,18 @@ function ex_guidedblur(clip a, float "radius", clip "guidance", float "regulatio
     fs  = propNumElements(a, "_ColorRange")  > 0 ? \
           propGetInt     (a, "_ColorRange") == 0 : rgb
 
-    gd  = Default(guidance, Undefined())  # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
-    r   = Default(radius,        2)       # 'use_gauss = false' stepping is in integer increments
-    eps = Default(regulation, 0.01)
-    rm  = Default(regulation_mode, 0)     # 0: Original Guided Filter, 1: Weighted Guided Image Filter, 2: Gradient Domain Guided Image Filter
-    ga  = Default(use_gauss,   true)
-    fa  = Default(fast,       false)      # Might need to readjust 'radius' to match when fast=false
-    sh  = Default(show,       false)
+    fa  = Default(fast,          false)     # Might need to readjust 'radius' to match when fast=false
     s   = Default(subsampling_ratio, 2)
+    r   = Default(radius,            2)
+    gd  = Default(guidance, Undefined())    # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
+    eps = Default(regulation,     0.01)
+    rm  = Default(regulation_mode,   0)     # 0: Original Guided Filter, 1: Weighted Guided Image Filter, 2: Gradient Domain Guided Image Filter
+    ga  = Default(use_gauss,      true)     # 'use_gauss = false' stepping is in integer increments
+    sh  = Default(show,          false)
     kn1 = Default(kernel1,   "Precise")
     kn2 = Default(kernel2,   "Precise")
     UV  = Default(UV,    rgb ? 3 : 2)
+    r   = fa ? r/float(s) : r
 
     epr = eps < 0 ? "range_max swap -" : ""
     eps = abs(eps)
@@ -306,9 +307,8 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
           propGetInt     (clp, "_ColorRange") == 0 : rgb
 
     gd  = Default(guidance, Undefined())  # Optional: use a gradient magnitude clip here (ie. frei-chen edge mask, etc)
-    r   = Default(radius,   2)
-    fr  = floor(r)
-    gm  = Default(gamma, 0.01)
+    r   = Default(radius,       2)
+    gm  = Default(gamma,     0.01)
     al  = Default(alpha,    false)
     ga  = Default(use_gauss, true)
     eps = Default(epsilon, 0.003906250)
@@ -316,6 +316,7 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     ad  = Default(adaptive,  true)
     sh  = Default(show,     false)
     UV  = Default(UV,    rgb ? 3 : 2)
+    fr  = floor(r)
 
     isg = Defined(gd)
     clp =      clp.ConvertBits(32, fulls=fs, fulld=true)
@@ -349,7 +350,7 @@ function ex_ANguidedblur(clip clp, float "radius", clip "guidance", float "gamma
     B = !isg ? ex_lutxy  (A,X1,      "1 x - y *"                     ,UV=uv, scale_inputs="none") : \
                ex_lutxyz (A,X1,G1,   "y x z * -"                     ,UV=uv, scale_inputs="none")
 
-    # unsharp mask with custom divisor
+    # unsharp mask with ad hoc divisor
     div   = sqrt(pi/2) / 6
     sigma = !sm ? ex_lut(gd,Format("x[-1,1] x[1,1] x[-1,-1] x[1,-1] x[0,0] 4 * + + + + x[0,1] x[-1,0] x[1,0] x[0,-1] + + + 2 * - {div} *"),UV=uv, scale_inputs="none") : nop()
 
