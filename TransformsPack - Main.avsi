@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.4         (18-02-2023)   ##
+###   Transforms Pack - Main v1.5         (19-02-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -116,7 +116,7 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
     c          = Default (c, 0.75)              # Precise Bicubic
     p          = Default (p, 0.25)
 
-    Assert(IsVersionOrGreater(3,7,2), "Display_Referred: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "Display_Referred: Update AviSynth+ version")
 
     clp.ConvertBits(32, fulls=fs)
 
@@ -149,16 +149,16 @@ function Display_Referred (clip clp, string "source", string "disp_ref", string 
 
 
 
-# Matches 'a' to 'b' clip format (size, length, color model, Jab, bitdepth)
+# Matches 'a' to 'b' clip format (size, length, color model, range, Jab, bitdepth) *Interlacing not supported
 function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size", bool "props", bool "length", bool "Internal") {
 
     fst    = Default (Internal,    false) # Set to true to use internal ConvertTo... filters instead of ConvertFormat(). Might be slower though.
     fp     = Default (props,        true) # Assign frame properties
     sz     = Default (size,         true) # Match dimensions
     mfc    = Default (length,      false) # Match also framecount
-    krn    = Default (kernel, fst ? "spline36" : "lanczos3")
+    krn    = Default (kernel,   "CatRom")
 
-    Assert(IsVersionOrGreater(3,7,2), "MatchClip: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "MatchClip: Update AviSynth+ version")
 
     propIDs= color_propGet(b)
 
@@ -184,7 +184,6 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 
     mat    = Default(matrix, propIDs[2])
 
-
         a
         yv411  = b.isYV411()      yv411a = a.isYV411()
         yv444  = b.is444()        yv444a = a.is444()
@@ -194,55 +193,59 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
         mod    = rgba && rgbb || isya && isyb || yv444 && yv444a ? 1 : 2
         isScl  = (w != wa || h != ha) && sz
 
+        fmt    = format_Fuzzy_Search(b, p_type,  bib)
+        fmta   = format_Fuzzy_Search(a, p_typea, bia)
+        krnc   = Eval(fmta[1])>Eval(fmt[1]) ? "Didee" : krn
+
     if (!fst) {
 
-        ConvertFormat(isScl ? rat : 1, fmt_in=p_typea, fmt_out=p_type, cs_in=mat, cs_out="", kernel=krn, kernel_c=w>wa?krn:"Didee", tv_in=!fs, tv_out=!fd)
+        ConvertFormat(isScl ? rat : 1, fmt_in=p_typea, fmt_out=p_type, cs_in=mat, cs_out="", kernel=krn, kernel_c=krnc, tv_in=!fs, tv_out=!fd)
         isScl ? PadResize(w, h, mode="dilate", mod=mod) : last
         alpha ? AddAlphaPlane(b)                        : last
 
     } else {
 
-        fmt    = format_Fuzzy_Search(b, p_type,  bib)
-        fmta   = format_Fuzzy_Search(a, p_typea, bia)
-        bc     = bicubic_coeffs(krn)
-        krn    = bc[0]>=-2 ? "Bicubic" : krn
+        # Match dimensions
+        isScl ? RatioResize(rat,  mode="%",kernel=w>wa?krn:"Didee",mod=mod) : last
+        isScl ? PadResize  (w, h, mode="dilate",      mod=mod)              : last
 
-        cplace  = rgbb || yv444  || yv411  ? "MPEG1" : isUHD  ? "top_left" : "MPEG2"
-        cplacea = rgba || yv444a || yv411a ? "MPEG1" : isUHDa ? "top_left" : "MPEG2"
+        cplace  = rgbb || yv444  || yv411  ? "MPEG1" : isUHD  ? "top_left"  : "MPEG2"
+        cplacea = rgba || yv444a || yv411a ? "MPEG1" : isUHDa ? "top_left"  : "MPEG2"
+
+        mat     = mat+(fd!=fs?":l":":f")
+        bc      = bicubic_coeffs(krnc) # Hardcode 'Didee' when downscaling chroma
+        krn     = bc[0]>=-2 ? "Bicubic" : krn
+
         not42   = LeftStr(fmta[1],2) != "42"
 
-        # Match dimensions
-        isScl ? RatioResize(rat,  mode="%",kernel=krn,mod=mod,b=bc[0],c=bc[1]) : last
-        isScl ? PadResize  (w, h, mode="dilate",      mod=mod)                 : last
-
-        # ConvertBackToYUY2 bug: https://forum.doom9.org/showthread.php?p=1038027#post1038027
+        # ConvertBackToYUY2 bug: https://forum.doom9.org/showthread.php?p=1038027
         isyb   ? rgba ? isUHDa ? DotClip([0.262372,0.678464,0.059164]) : /* Assumes Rec2020 for UHD */
                       \  isHDa ? DotClip([0.212600,0.715179,0.072221]) : /* Assumes Rec709  for  HD */
                       \          DotClip([0.298912,0.586603,0.114485]) : ConvertToY(mat)                                                                                : \
-        rgbb   ? rgbp ? Eval(  "ConvertToPlanarRGB            (mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn)"))  : \
-                        Eval(  "ConvertTo"   +string(fmt[3])+"(mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn)"))  : \
-        yv411         ? Eval(  "ConvertToYV411                (false,mat,"          +(not42 ? ""   :        """ChromaInPlacement=cplacea, """)+"chromaresample=krn)")   : \
+        rgbb   ? rgbp ? Eval(  "ConvertToPlanarRGB            (mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn,param1=bc[0],param2=bc[1])")) : \
+                        Eval(  "ConvertTo"   +string(fmt[3])+"(mat,interlaced=false"+(yv411a || rgba ? ")" : ",ChromaInPlacement=cplacea,       chromaresample=krn,param1=bc[0],param2=bc[1])")) : \
+        yv411         ? Eval(  "ConvertToYV411                (false,mat,"          +(not42 ? ""   :        """ChromaInPlacement=cplacea, """)+"chromaresample=krn,param1=bc[0],param2=bc[1])")  : \
         YUY2  && rgba ? Eval("""ConvertBackToYUY2             (      mat                                                                                        """)    : \
-                        Eval(  "ConvertToYUV"+string(fmt[1])+"(false,mat"           +(not42 ? ""   :         ",ChromaInPlacement=cplacea")+(yv444 ? ")" : ",chromaresample=krn, ChromaOutPlacement=cplace)"))
+                        Eval(  "ConvertToYUV"+string(fmt[1])+"(false,mat"           +(not42 ? ""   :         ",ChromaInPlacement=cplacea")+(yv444 ? ")" : ",chromaresample=krn,param1=bc[0],param2=bc[1], ChromaOutPlacement=cplace)"))
     }
 
-    clr = !rgbb ? fd ? $008080 : $108080 : \
-                  fd ? $000000 : $101010
+    clr = !rgbb ? fd  ? $008080 : $108080 : \
+                  fd  ? $000000 : $101010
 
-    isyb               ? ConvertBits(bib, dither=1, fulls=fs, fulld=fd) : \
-    !yv411 ? bia > bib ? ConvertBits(bib, dither=1, fulls=fd, fulld=fd) : \
-                         ConvertBits(bib,           fulls=fd, fulld=fd) : last
-     alpha             ? AddAlphaPlane(b)                               : last
-     mfc   ? fca > fc  ? Trim(last, 0, fc==1 ? -1 : fc-1)               : \
-                         last+BlankClip(a,fc-fca,color_yuv=clr,pixel_type=p_type,width=sz?w:wa,height=sz?h:ha) : last
+    Und = bia > bib   ? Undefined() : 1
+    isyb || !yv411    ? ConvertBits(bib, dither=Und, fulls=isyb?fs:fd, fulld=fd) : last
+
+    alpha             ? AddAlphaPlane(b)                                         : last
+    mfc  ? fca > fc   ? Trim(last, 0, fc==1 ? -1 : fc-1)                         : \
+                        last+BlankClip(a,fc-fca,color_yuv=clr,pixel_type=p_type,width=sz?w:wa,height=sz?h:ha) : last
 
     # Planar to Interleaved
-    YUY2 && !rgba      ? ConvertToYUY2()  : last
+    YUY2 && !rgba     ? ConvertToYUY2()  : last
 
     # Frame Properties
     if (fst && fp) {
                 propCopy(b,true,props=["_Matrix","_Primaries"],exclude=true)
-    fd !=  fs ? propSet("_ColorRange", fd ? 1 : 0) : last # Overrides the ConvertTo... props
+    fd !=  fs ? propSet("_ColorRange", fd ? 0 : 1) : last # Overrides the ConvertTo... props
                 } }
 
 
@@ -343,8 +346,6 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 # DPID                                        (dw) https://github.com/Asd-g/AviSynth-DPID (requires: http://avisynth.nl/index.php/Avsresize) (Ranking: Zopti1080 (for UHD) >= SSIM_downsample > DPID > SSIM >>> SincLin > Zopti)
 # Spline100/Spline144                         (up) https://github.com/EleonoreMizo/fmtconv
 # Wiener                                      (up) https://github.com/EleonoreMizo/fmtconv      (Sharp as Blackman6 but much more aliasing, and a bit more ringing)
-# SincLin2ResizeMT                         (up,dw) https://github.com/jpsdr/ResampleMT/releases (like a sharper lanczos or a -moderate- ring suppresed Sinc) (Doom9 thread: https://forum.doom9.org/showthread.php?p=1919769#post1919769)
-# SinPowResizeMT                              (dw) https://github.com/jpsdr/ResampleMT/releases (Doom9 thread: https://forum.doom9.org/showthread.php?p=1918124)
 # Jinc (EWA Lanczos)                          (up) https://github.com/Asd-g/AviSynth-JincResize/releases
 # FCBI (Fast Curve Based Interp)              (up) https://github.com/Asd-g/AviSynth-FCBI
 # SuperResXBR                                 (up) https://github.com/mysteryx93/AviSynthShader/releases
@@ -358,6 +359,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 # EWA_RobidouxSharp                                https://github.com/Asd-g/avslibplacebo
 
 # Internal:
+#
 # Point    / Nearest             (actually slower than bicubic!)
 # Bilinear / Triangular
 # Bicubic  / Cubic               (not recommended for highly quantized content: JPEGs, H.264, etc)
@@ -365,6 +367,8 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 # Sinc     is a box-windowed             sinc filter (Default 4 lobes).
 # Lanczos  is a Lanczos or sinc-windowed sinc filter (Default 4 lobes).
 # Blackman is a Blackman-windowed        sinc filter (Default 6 lobes). (Improved lanczos with less ringing)
+# SincLin2Resize                 (up,dw) like a sharper lanczos or a -moderate- ring suppresed Sinc (Doom9 thread: https://forum.doom9.org/showthread.php?p=1919769)
+# SinPowerResize                    (dw)                                                            (Doom9 thread: https://forum.doom9.org/showthread.php?p=1918124)
 
 # (-) Missing. ref: https://github.com/mpv-player/mpv/blob/master/video/out/filter_kernels.c
 #              ref: https://artoriuz.github.io/blog/mpv_upscaling.html
@@ -519,7 +523,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
         OETF   = prp[5]
     LMS        = Default (LMS,            "CAT16"      )
     CAT        = Default (CAT,            "CAT"        )                # 'CAT', 'Simulation' or 'Compensation'. Perform CAT (Chromatic Adaptation Transform), illuminant simulation or compensation (full White Point conversion)
-    space      = Default (scale_space, OETF=="linear"?"linear":"gamma") # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog -log(x+a)-. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374#post1687374) or (https://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345#msg763345)
+    space      = Default (scale_space, OETF=="linear"?"linear":"gamma") # resizing space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog -log(x+a)-. ("luminance weighted gamma resampling/sharpening"" Improvement over sigmoid: https://forum.doom9.org/showthread.php?p=1687374) or (https://web.archive.org/web/20150420001849/http://forum.luminous-landscape.com/index.php?topic=91754.msg763345)
     cplace_in  = Default (cplace_in, fc ? "center" : "")                # Assumes default from format
     cplace_out = Default (cplace_out,  cplace_in)                       # Assumes default from format
     src_left   = Defined (src_left) ? IsArray(src_left)  ? ArraySize(src_left) > 1 ? src_left : ArrayAdd(src_left,0.0) : [src_left,0.0] : [0.0,0.0]
@@ -740,9 +744,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
                                                    """fmtc_resample({nw},{nh},kernel="blackmanminlobe"    """: \
                         kernel == "SincLin"      || kernel == "SincLin2ResizeMT"                             ? \
-                                                 "SincLin2ResizeMT({nw},{nh},range=1,taps={pd}?int({p}):15"  : \
+                                                 "SincLin2Resize({nw},{nh},range=1,taps={pd}?int({p}):15"    : \
                         kernel == "SinPow"      || kernel == "SinPowResizeMT"                                ? \
-                                                 "SinPowResizeMT({nw},{nh},range=1,p={pd}?{p}:2.5"           : \
+                                                 "SinPowerResize({nw},{nh},range=1,p={pd}?{p}:2.5"           : \
                         kernel == "SSIM"        || kernel == "ResizeShader"                                  ? \
                                                    """ResizeShader({nw},{nh},kernel="SSIM",b=0.1"""          : \
                         kernel == "SSIM2"                                                                    ? \
@@ -1361,7 +1365,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.4",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.5",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1963,7 +1967,7 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "Cub-grange"        ? [0.0308,0.4846]:c # up but also dw. Bicubic approximation to Lagrange scaling (a bit sharper than it)
     c = kernel == "Catmull-Rom"       ? [ 0.0,  0.5] : c  # up Canonical sharp Bicubic (roughly equivalent to spline16resize() and EWA RobidouxSharp)
     c = kernel == "Didee"             ? [-0.5, 0.25] : c  # dw Didée's downscaling sharp coefficients for 1080p to 720p. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
-    c = kernel == "Zopti"             ? [-0.6,  0.4] : c  # dw 2160p to 720p Zopti optimized (by Boulder) (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218#post1865218
+    c = kernel == "Zopti"             ? [-0.6,  0.4] : c  # dw 2160p to 720p Zopti optimized (by Boulder) (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218
     c = kernel == "ZoptiN"            ? [-0.6,  0.3] : c  # dw Like Zopti but more neutral (better over/undershoot normalization). Good for final resizing.
     c = kernel == "ZoptiH"            ? [-0.83,0.14] : c  # dw 1080 to half optimized (for 1080p and smaller clips)
     c = kernel == "Zopti720"          ? [-1.00,0.16] : c  # dw 1080p to 720p (for upscaling it always optimized to Catmull-Rom, although I visually prefer Precise)
