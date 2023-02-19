@@ -1110,13 +1110,13 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###
 ### PadBorders()
 ###
-### Superseeds AddBorders(), Crop(), old PadMirror() and Didée's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804#post1596804)
+### Superseeds AddBorders(), Crop(), old PadMirror() and Didée's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804)
 ### in one single filter.
 ### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (https://avisynth.nl/index.php/Color_presets).
 ###
 ### 'Dilate' is slightly faster than 'Mirror' (and probably filtering friendlier)
 ### 'Fill' requires FillBorders plugin, and mostly works at low units (1 or 2 pixels max)
-###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131#post518131)
+###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131)
 ###
 ### You can also crop at the same time, let's say crop sides, pad vertically:
 ###     PadBorders(-10,20,-10,20,"Dilate")
