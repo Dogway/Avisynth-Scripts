@@ -789,7 +789,7 @@ function ex_glow(clip a, int "radius", int "thres", float "opacity", bool "tv_ra
 ###
 ###
 ### ex_posterize() - ported from cretindesalpes':
-### https://forum.doom9.org/showthread.php?p=1516096#post1516096
+### https://forum.doom9.org/showthread.php?p=1516096
 ###
 ### Dependencies: > ExTools
 ###                 fmtconv
