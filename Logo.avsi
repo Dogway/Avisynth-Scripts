@@ -4,7 +4,7 @@
 ###  (21-12-2022) by Dogway
 ###
 ### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
-### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465#post525465)
+### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465)
 ###
 ### -It is a fast and handy function for adding logos or other type of elements upfront the video image in YV12 space.
 ### -It will stack on the video using a mask if the image has alpha. Moreover you can blend it using a blending mode.
@@ -143,7 +143,7 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     PAR      = Default(PAR,1.0)        # Indicate the PAR of your source, if anamorphic output, so logo will show correct at display
     gif      = Default(anim_gif,false) # Is your logo a packed animated gif?
 
-    Assert(IsVersionOrGreater(3,7,2),  "Logo: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),  "Logo: Update AviSynth+ version")
 
     !(mode == "Over" || mode == "Watermark" || mode == "Screen"  || mode == "Multiply") ? \
     Assert(false,         "Logo: Unsupported Blending Mode: " +string(mode))  : nop()
@@ -172,7 +172,7 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
 
     msk   = mat ? ExtractA(logo0.FadeIn0(I).FadeOut0(O)).PointResize(mw*2,mh*2).ex_inpand(2,mode="plus").BicubicResize(mw,mh,-0.5,0.25).AssumeFPS(fps)
     \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).AssumeFPS(fps)
-    logo0 = logo0.MatchClip(c).AssumeFPS(fps)
+    logo0 = logo0.MatchClip(c,internal=true).AssumeFPS(fps)
     logo0 = HasAlpha(logo0) ? logo0.RemoveAlphaPlane() : logo0
 
 
