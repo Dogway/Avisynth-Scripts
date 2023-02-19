@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.6  (21-12-2022)                     ###
+###        Similarity Metrics Pack v3.7  (19-02-2023)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -81,13 +81,13 @@ Ref:
 
 function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
-    rgb = isRGB (dist)
-    w   = width (dist)
-    h   = height(dist)
-    isHD= (w > 1099 || h > 599)
-    bi  = BitsPerComponent(dist)
-    fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
-          propGetInt      (dist,"_ColorRange") == 0 : rgb
+    rgb      = isRGB (dist)
+    w        = width (dist)
+    h        = height(dist)
+    isHD     = (w > 1099 || h > 599)
+    bi       = BitsPerComponent(dist)
+    fs       = propNumElements (dist,"_ColorRange")  > 0 ? \
+               propGetInt      (dist,"_ColorRange") == 0 : rgb
 
     c        = Default(c, 0.0026)
     y        = Default(y, true)
@@ -120,7 +120,7 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
         clip2 = clip2.ConvertBits(32, fulls=fs, fulld=true)
     }
 
-    # qprewitt gradient magnitude with custom normalization
+    # qprewitt gradient magnitude with ad hoc normalization
     krn         = ex_shape(1,center=false)
     quality_map = ex_lutxy(ex_edge(clip1, krn+"A D F + + C - E - H - dup *
                                                A B C + + F - G - H - dup * +", 0, 255, clamp_float=false),  \
@@ -343,13 +343,13 @@ Ref:
 
 function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", float "stddev", float "dynamic_range", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
-    rgb = isRGB (dist)
-    w   = width (dist)
-    h   = height(dist)
-    isHD= (w > 1099 || h > 599)
-    bi  = BitsPerComponent(dist)
-    fs  = propNumElements (dist,"_ColorRange")  > 0 ? \
-          propGetInt      (dist,"_ColorRange") == 0 : rgb
+    rgb      = isRGB (dist)
+    w        = width (dist)
+    h        = height(dist)
+    isHD     = (w > 1099 || h > 599)
+    bi       = BitsPerComponent(dist)
+    fs       = propNumElements (dist,"_ColorRange")  > 0 ? \
+               propGetInt      (dist,"_ColorRange") == 0 : rgb
 
     y        = Default(y,  true)
     u        = Default(u, false)
@@ -423,13 +423,13 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
 
 function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls") {
 
-    w     = width (dist)
-    h     = height(dist)
-    isHD  = (w > 1099 || h > 599)
-    rgb   = isRGB(dist)
-    bi    = BitsPerComponent(dist)
-    fs    = propNumElements (dist,"_ColorRange")  > 0 ? \
-            propGetInt      (dist,"_ColorRange") == 0 : rgb
+    w    = width (dist)
+    h    = height(dist)
+    isHD = (w > 1099 || h > 599)
+    rgb  = isRGB(dist)
+    bi   = BitsPerComponent(dist)
+    fs   = propNumElements (dist,"_ColorRange")  > 0 ? \
+           propGetInt      (dist,"_ColorRange") == 0 : rgb
 
     show = Default(show,        0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     dw   = Default(downsample, isHD)
@@ -480,11 +480,11 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
 
 function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", bool "aug", bool "Y", bool "U", bool "V", int "show", bool "fulls") {
 
-    rgb   = isRGB(a)
-    isy   = isY(a)
-    bi    = BitsPerComponent(a)
-    fs    = propNumElements (a,"_ColorRange")  > 0 ? \
-            propGetInt      (a,"_ColorRange") == 0 : rgb
+    rgb  = isRGB(a)
+    isy  = isY(a)
+    bi   = BitsPerComponent(a)
+    fs   = propNumElements (a,"_ColorRange")  > 0 ? \
+           propGetInt      (a,"_ColorRange") == 0 : rgb
 
     show = Default(show,        0)  # 0: output 'diff'  1: output 'clip'  2: output 'diff' with subtitle
     rd   = Default(rad,         1)
@@ -507,6 +507,7 @@ function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", boo
     clp = clp.ConvertBits(32, dither=-1, fulls=fs, fulld=true)
     px  = ex_shape(rd,rdV,mode=md)
 
+    # Could be optimized into a one-liner though
     mx = ex_luts(clp, mode="max", pixels=px)
     mn = ex_luts(clp, mode="min", pixels=px)
     av = ex_luts(clp, mode="avg", pixels=px)
@@ -601,13 +602,13 @@ SSIM_downsample(w,h,smooth=0.43,resample_args="-0.6,0.4")
 
 function SSIM_downsample(clip c, int target_width, int target_height, val "smooth", string "kernel", float "epsilon", string "resample_args", bool "dither", bool "fulls")
 {
-    rgb = isRGB(c)
-    bi  = BitsPerComponent(c)
-    fs  = propNumElements (c,"_ColorRange")  > 0 ? \
-          propGetInt      (c,"_ColorRange") == 0 : rgb
+    rgb     = isRGB(c)
+    bi      = BitsPerComponent(c)
+    fs      = propNumElements (c,"_ColorRange")  > 0 ? \
+              propGetInt      (c,"_ColorRange") == 0 : rgb
 
     smooth  = Default(smooth, 1.5)              # Can be a float or a string for a blurring function (ie. "ex_blur(1)")
-    kernel  = Default(kernel, "BicubicResize")
+    kernel  = Default(kernel, "Bicubic")
     epsilon = Default(epsilon, 0.000001)
     dither  = Default(dither,  true)
     fs      = Default(fulls,     fs)
@@ -618,7 +619,7 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
     sh = String(target_height)
     resample_args = (Defined(resample_args)) ? ", " + resample_args : ""
 
-    l   = Eval(kernel + "(" + sw + "," +  sh + resample_args + ")")
+    l   = Eval(kernel + "Resize(" + sw + "," +  sh + resample_args + ")")
     sqr = ex_lut(l, "x dup *", UV=3, scale_inputs="none")
 
     if (IsFloat(smooth))
