@@ -2,8 +2,8 @@
 ### SantiagMod  (19-04-2010)
 ### Simple antialiasing
 ###
-### Original by cretindesalpes (Santiag: https://forum.doom9.org/showthread.php?p=1393006#post1393006)
-### Mod      by Archimedes  (SantiagMod: https://forum.doom9.org/showthread.php?p=1419815#post1419815)
+### Original by cretindesalpes (Santiag: https://forum.doom9.org/showthread.php?p=1393006)
+### Mod      by Archimedes  (SantiagMod: https://forum.doom9.org/showthread.php?p=1419815)
 ### Dogway mod: Removed GScript call (GScript builtin in AVS+)
 ###             Added 'gpuid' arg for EEDI3CL and NNEDI3CL
 ###             Speed optimizations
