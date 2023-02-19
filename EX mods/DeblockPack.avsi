@@ -40,7 +40,7 @@
 ### https://avisynth.nl/index.php/Deblock_QED
 ### https://web.archive.org/web/20060509152326/http://home.arcor.de/dhanselmann/_stuff/Deblock_QED.avs
 ### https://videoprocessing.forumer.com/viewtopic.php?p=413
-### https://forum.doom9.org/showthread.php?p=751174#post751174
+### https://forum.doom9.org/showthread.php?p=751174
 ###
 ### Dependencies:
 ###             Deblock
@@ -69,7 +69,7 @@
 ### Changes 2010-10-16: (Bi11)
 ### - Replaced 'relative' with the new 'mode' parameter in mt_LutSpa(), starting from MaskTools 2.0a45
 ### - Changed Quant and Offset defaults to 24,26,1,1,2,2 to increase effectiveness, but still within sensible limits.
-###   (see for details: https://forum.doom9.org/showthread.php?p=810932#post810932)
+###   (see for details: https://forum.doom9.org/showthread.php?p=810932)
 ###
 ### Changes 2011-11-29: (06_taro)
 ### - Replaced (chroma=uv>2?"process":"ignore") by (chroma=uv>2?"process":"copy") to avoid garbage clip when uv=2.
@@ -1682,7 +1682,7 @@ function BorderMask(clip orig, int "bth1", int "bth2", int "bshare", int "eth1",
 #############################################
 
 # Updated by StainlessS (22-01-2020)
-# https://forum.doom9.org/showthread.php?p=1896631#post1896631
+# https://forum.doom9.org/showthread.php?p=1896631
 #
 # rb-array.avsi -- functions SimFor simulating arrays & loops in Avisynth 2.xx
 #
