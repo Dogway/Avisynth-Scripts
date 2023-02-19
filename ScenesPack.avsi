@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Scenes Pack v4.5   (05-02-2023)               ##
+###   Scenes Pack v4.5   (19-02-2023)               ##
 ###                                                 ##
 ###                      by Dogway (Jose Linares)   ##
 ###                                                 ##
@@ -16,7 +16,7 @@
 ######################################################
 ###
 ###
-### SceneStats() by Dogway (05-02-2023)
+### SceneStats() by Dogway (19-02-2023)
 ###
 ### SceneStats does a robust Scene Change Detection and calculates scene's statistics.
 ### Therefore it allows to work or apply filters on a per-scene ("per-shot" in film terms) basis,
@@ -34,6 +34,7 @@
 ### _SceneExposure: 0: Very Dark, 1: Dark, 2: Balanced, 3: Bright, 4: Very Bright
 ### Pearson's Skewness: Pearson's nonparametric skew of the scene's histogram distribution: (3*(average - median))/stdev = 0 (uniform distribution), +n (gamma distribution -> tilted to dark), -n (beta distribution -> tilted to bright)
 ### Tip1: A big difference between average and median depicts an asymmetric contrasty scene (bright frames + dark frames) or set of asymmetric contrasty frames (bright pixels + dark pixels)
+### * IQM is like a interframe thresholded average, removing outliers at both sides discarding strong frame average biases. Probably more representative than average or median.
 ###
 ###
 ### Dependencies: > AviSynth v3.7.3
@@ -417,7 +418,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 
 
 ###
-### ReadStats() by Dogway (24-09-2022)
+### ReadStats() by Dogway (04-02-2023)
 ###
 ### Reads scene statistics from a file created by SceneStats() and writes them into frame properties:
 ###    "_SceneRange":       [SceneStart, SceneEnd]
@@ -427,7 +428,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
 ###    "_SceneExposure":    int
 ###    "_SceneChangePrev":  int
 ###
-### BEWARE!! For some reason in the exported log the first scene has repeated stats so manually remove those lines before loading the file.
+### BEWARE!! For some reason in the exported log (from AvspMod) the first scene has repeated stats so manually remove those lines before loading the file.
 ###
 function ReadStats(clip a, string "path") {
 
