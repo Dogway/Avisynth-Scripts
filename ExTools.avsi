@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v10.0    (16-02-2023)                 ##
+###        ExTools v10.0    (19-02-2023)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -29,7 +29,7 @@
 ### fulls: Defines the source bitdepth scale (full/bitshift range) when converting from/to integer HBD formats (10, 12, 14, 16)
 ###        ConvertBits() defaults to false for YUV, same in ExTools if frame properties are not present.
 ###
-### Dependencies: AviSynth+ 3.7.2+ (https://forum.doom9.org/showthread.php?t=181351)
+### Dependencies: AviSynth+ 3.7.3+ (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
 ###
@@ -363,13 +363,13 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
         y    = mcfa || mcf == "CAMBI" || mVMAF ?   y.ConvertBits(32,fulls=true)          : y
         a1   = mcfa && sh < 2 ? y.propClearAll() : isHD ? a1.ConvertBits(32,fulls=true) : a.ConvertBits(32,fulls=fs,fulld=true)
         b1   = mcfa || mcf == "CAMBI" || mVMAF ?   isHD ? b1.ConvertBits(32,fulls=true) : b.ConvertBits(32,fulls=fs,fulld=true) : b1
-        b2   = rgb  || isy || is444(b1) ? b1.ConvertToPlanarRGB(matrix=matA) : b1.ConvertToPlanarRGB(matrix=matA,chromaresample="spline36")
+        b2   = rgb  || isy || is444(b1) ? b1.ConvertToPlanarRGB(matrix=matA) : b1.ConvertToPlanarRGB(matrix=matA,chromaresample="bicubic",param1=0,param2=0.5)
 
         y    = mcfa || mcf == "SSIM" || mcf == "BSSIM" ? \
                                         vsSSIM(b1, y, show=1, fulls=true) : y
         y    = mcfa || mcf == "BSSIM" ? BSSIM (b1, y, show=1, fulls=true) : y
-        y    = mcfa                   ? rgb || isy ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) :      is444(b1) ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) : GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA,chromaresample="spline36") : \
-                       mcf == "GMSD"  ?              GMSD(b1, y, show=1, fulls=true) : mcf=="SSIMU" || mcf=="SSIMU2" || mcf=="MDSI" || mcf=="BUTT" || mcf=="rMEA" || mcf=="OkMSE" ? is444(y) ? y.ConvertToPlanarRGB(matrix=matA) :      y.ConvertToPlanarRGB(matrix=matA,chromaresample="spline36") : y
+        y    = mcfa                   ? rgb || isy ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) :      is444(b1) ? GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA) : GMSD(b1, y, show=1, fulls=true).ConvertToPlanarRGB(matrix=matA,chromaresample="bicubic",param1=0,param2=0.5) : \
+                       mcf == "GMSD"  ?              GMSD(b1, y, show=1, fulls=true) : mcf=="SSIMU" || mcf=="SSIMU2" || mcf=="MDSI" || mcf=="BUTT" || mcf=="rMEA" || mcf=="OkMSE" ? is444(y) ? y.ConvertToPlanarRGB(matrix=matA) :      y.ConvertToPlanarRGB(matrix=matA,chromaresample="bicubic",param1=0,param2=0.5) : y
         y    = mcfa || mcf == "MDSI"  ? !isy ? MDSI  (b2, y, show=1, fulls=true)                                 : y : y
         y    = mcfa || FindStr(UCase(mcf),"SSIMU")>0 ? !isy ? ssimulacra(y, b2, feature=mcfa?2:mcf=="SSIMU"?0:1) : y : y
         b3   = mcfa || mcf == "BUTT"  ? !isy ? Butteraugli(y, b2)                                                : y : y  # Very slow filter ~3fps
