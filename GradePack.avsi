@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.6 (17-02-2023)               ##
+###           Grade Pack v8.7 (19-02-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -273,7 +273,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
 ###
 ###
-### ex_levels() - v4.3 (08-02-2023)
+### ex_levels() - v4.4 (19-02-2023)
 ###
 ###
 ### Works like internal Levels() but with HBD support out of the box (using autoscaling)
@@ -328,7 +328,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     sh   = Default(show,        false)
     rs   = Default(reStats,ist&&!isrn) # Recalculate Stats from input args (could save from re-running SceneStats() at the cost of accuracy)
     cf   = Default(clamp_float,  bi32)
-    UV   = Default(UV,    rgb ? 3 : 2)
+    UV   = Default(UV,    rgb ? 3 : 1) # if UV=3, for YUV it will compensate chroma according to levels range expansion/reduction
     si   = ex_UVf(rgb, bi)
 
     # Storing for 'show'
@@ -361,11 +361,11 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     crg  = ex_bs( tv ? 224 : 255, 8, bi, fulls=!tv)
     oho  = oho / (crg + ep)
     iho  = crg / (iho + ep)
-    rt   = oho * iho
+    rt   = pow(oho * iho, 1./gam)
     cstr = rgb ? str : ex_UVexpr(Format(rangePCc + " {rt} * " + rangeTVc), UV, bi, rgb, !tv, si)
 
     isy     ? Expr(c, str      ,                  lut=lut, clamp_float=bi32) : \
-    UV == 1 ? Expr(c, str, ""  ,                  lut=lut, clamp_float=bi32) : \
+    UV != 3 ? Expr(c, str, ""  ,                  lut=lut, clamp_float=bi32) : \
               Expr(c, str, cstr, scale_inputs=si, lut=lut, clamp_float=bi32)
 
     ST = """ sts  = propGetAsArray("_SceneStats")
@@ -430,15 +430,15 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
     fs   = propNumElements ("_ColorRange")  > 0 ? \
            propGetInt      ("_ColorRange") == 0 : rgb
 
+    df   = Default(Deflicker, false)
     lo   = Default(lo,         true)
     gm   = Default(gamma,      true)
-    hi   = Default(hi,        false)
+    hi   = Default(hi,           df)
     in   = Default(interval,    0.5)      # Interval in seconds for fetching frames
     th   = Default(th,          0.1)      # 1/1000 threshold (0.1% or 1‰ -one per-mille-)
     tv   = Default(tv_in,       !fs)
     tvo  = Default(tv_out,       tv)
-    df   = Default(Deflicker, false)
-    rs   = Default(reStats,     !df)      # Hard-coded off when deflicker is used
+    rs   = Default(reStats,     !df)      # Numerally recomputes new stats instead of rerunning SceneStats. Hard-coded off when deflicker is used
 
     Assert(IsVersionOrGreater(3,7,3), "ex_autolevels: Update AviSynth+ version")
     Assert(rn,                        "ex_autolevels: '_SceneRange' frame properties are required")
@@ -450,14 +450,16 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
         sts  = bi>8 ? ArrayOp(sts,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : sts
         cst  = PlaneMinMaxStats(last,th,0,0,false)
         cst  = bi>8 ? ArrayOp(cst,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : cst
-        pmin = lo ? df ? cst[2] : sts[2] : tv ?     16 :     0
-        pmax = hi ? df ? cst[3] : sts[3] : df ? cst[1] : sts[1]
+        pmxt = tv!=tvo && tv ? 3 : 1
+        pmin = lo ? df ? cst[2] : sts[2] : tv ?  16 :   0
+        pmax = hi ? df ? cst[3] : sts[3] : tv ? 235 : 255
 
         if (gm) {
             rng  = (pmax   -   pmin)
-            scn  = (sts[6] -   pmin) / rng                            # New scene average after normalization
-            cur  = (cst[5] - cst[2]) / (cst[1] - cst[2])              # New frame average after normalization
+            scn  = (sts[6] -   pmin) / rng                               # New scene average after normalization
+            cur  = (cst[5] - cst[2]) / (cst[pmxt] - cst[2])              # New frame average after normalization
 
+            # Prolly I should replace gamma (+weighting to darks) with a simple midpoint remap function
             lscn  = log(scn)
             lcur  = log(cur)
             # Keep gamma stable to new normalization
@@ -465,16 +467,18 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
             # Keep original IQM gamma (removes flicker gamma)
             pavg2 = lscn/lcur
             # Second pass refinement ( 1/(pavg2+1) is the new frame average value using integrals with limits(0,1) )
-          # pavg2 = log((1/(pavg2+1)))/lcur  # Commented as only worked on synthetic tests
+          # pavg2 = log((1/(pavg2+1)))/lcur                           # Commented as only worked on synthetic tests
             # Lower the effect on extreme gammas
             pavg2 = pavg2*clamp(1.1*sin(-pi*(0.56*pavg2-1.06)),0.7,1)
             pavg  = df ? pavg1/pavg2 : pavg1                          # Exponent to keep gamma to scene's IQM average
         } else { pavg = 1 }
 
-        ex_levels(pmin,pavg,pmax,0,255,tvo,rgb?3:1,false,df?false:rs)
+        tv!=tvo ? tvo ? ex_levels(pmin,pavg,pmax,16,235,false,!rgb&&df?1:3,false,df?false:rs) : \
+                        ex_levels(pmin,pavg,pmax,0 ,255,false,!rgb&&df?1:3,false,df?false:rs) : \
+                        ex_levels(pmin,pavg,pmax,0 ,255,tv,   !rgb&&df?1:3,false,df?false:rs)
     } )
-    tv!=tvo ? tvo ? SMPTE_Legal(true,Y=1) : SMPTE_Legal(false,Y=1) : last
-    tv!=tvo ?       propSet("_ColorRange",tvo?1:0)                 : last }
+    tv!=tvo && df && !rgb ? tvo ? SMPTE_Legal(true,Y=1) : SMPTE_Legal(false,Y=1) : last
+    tv!=tvo               ?       propSet("_ColorRange",tvo?1:0)                 : last }
 
 
 
@@ -869,7 +873,7 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
     in  = Default (invert,    false)   # invert mask
     fs  = !ID[6]
 
-    Assert(IsVersionOrGreater(3,7,2), "Skin_Qualifier: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "Skin_Qualifier: Update AviSynth+ version")
 
     dg  = (-1 * dg) * (pi / 180)       # IPT HUE goes reverse so "-1 *"
     LO  = 1-bw
@@ -878,8 +882,8 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 
     rgb ? IsPlanar(c) ? c : ConvertToPlanarRGB(c) : c
 
-    bi < 14 ? ConvertBits(14, fulls=fs)                                   : last
-    !rgb    ? ConvertToPlanarRGB(matrix=mat[0],chromaresample="spline36") : last
+    bi < 14 ? ConvertBits(14, fulls=fs)                                                      : last
+    !rgb    ? ConvertToPlanarRGB(matrix=mat[0],chromaresample="bicubic",param1=0,param2=0.5) : last
               CCTF(mat[2], true, !rgb ? false : !fs, false)
 
     RGB_to_Oklab(matrix=mat[0], Jch=true, fulls=true)
@@ -954,14 +958,14 @@ function HSVxHSV (clip c, float "str", string "modeA", string "modeB", float "De
     sm  = sh > 1
     si  = tv ? "int" : "intf"
 
-    Assert(IsVersionOrGreater(3,7,2), "HSVxHSV: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "HSVxHSV: Update AviSynth+ version")
     Assert(!isy && !rgb,              "HSVxHSV: Only YUV format is supported")
 
     U   = ExtractU(c)
     V   = ExtractV(c)
     Yf  = ExtractY(c)
     Ys  = is444(c) ? Yf : Yf.BicubicResize(U.width(),U.height(),-0.5,0.25)
-    c4  = is444(c) ?  c : c.ConverttoYUV444(matrix=ID[2],chromaresample="spline36")
+    c4  = is444(c) ?  c : c.ConverttoYUV444(matrix=ID[2],chromaresample="bicubic",param1=0,param2=0.5)
     c4U = ExtractU(c4)
     c4V = ExtractV(c4)
     Uc  = YtoUV(U,U,c4U)
@@ -1186,7 +1190,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
     sh>1 ? mskY_to_YYY(yuv, last, true, false, 3, bi).\
            propDelete(["_Matrix","_Primaries","_Transfer","_PictType"]) : last
 
-    # EBUR103 tag
+    # EBU R103 tag
     sh==2 || !ebu ? last : \
     ScriptClip( function[bi,tv] () {
 
@@ -1573,7 +1577,7 @@ function WhitePoint (clip c, float "temperature", float "temp_source", string "m
     tv    = Default(tv_range,  ID[6] )
     lis   = Default(list,      false )  # Set to True to output [x,y,z] coordinates of the CCT (correlated color temperature)
 
-    Assert(IsVersionOrGreater(3,7,2), "WhitePoint: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "WhitePoint: Update AviSynth+ version")
 
     mat   = Color_fuzzy_search(mat)
 
