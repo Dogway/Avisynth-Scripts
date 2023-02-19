@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.4       (18-02-2023)   ##
+###   Transforms Pack - Models v1.5       (19-02-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -209,20 +209,20 @@
 # YCbCr to RGB' standalone function (at least 10-bit precision recommended)
 function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", string "kernel", float "b", float "c", float "p", string "cplace", bool "UVrecon") {
 
-    matrix     = Default (matrix, "709")
+    matrix   = Default (matrix, "709")
 
-    bi         = BitsPerComponent(yuv)
-    fs         = propNumElements (yuv,"_ColorRange")  > 0 ? \
-                 propGetInt      (yuv,"_ColorRange") == 0 : (matrix=="JPEG" || matrix=="JPG")
+    bi       = BitsPerComponent(yuv)
+    fs       = propNumElements (yuv,"_ColorRange")  > 0 ? \
+               propGetInt      (yuv,"_ColorRange") == 0 : (matrix=="JPEG" || matrix=="JPG")
 
-    kernel     = Default (kernel,"Precise")      # Precise Bicubic. A better alternative although slower is lanczos3
-    tv_in      = Default (tv_in,       !fs)
-    tv_out     = Default (tv_out,    false)
-    cplace     = Default (cplace,       "")
-    recon      = Default (UVrecon,   false)
-    b          = Default (b,  0.0)               # Bicubic 'b' coefficient, or 'taps' for sinc kernels
-    c          = Default (c, 0.75)               # Precise Bicubic
-    p          = Default (p,    9)
+    kernel   = Default (kernel, "CatRom")      # Catmull-Rom. Curiously enough the kernel doesn't make a big difference when going to RGB, be it spline36, bicubics, etc.
+    tv_in    = Default (tv_in,       !fs)
+    tv_out   = Default (tv_out,    false)
+    cplace   = Default (cplace,       "")
+    recon    = Default (UVrecon,   false)
+    b        = Default (b,  0.0)               # Bicubic 'b' coefficient, or 'taps' for sinc kernels
+    c        = Default (c,  0.5)               # Catmull-Rom
+    p        = Default (p,    9)
 
     Assert(IsVersionOrGreater(3,7,2), "YUV_to_RGB: Update AviSynth+ version")
     Assert(!isRGB(yuv),               "YUV_to_RGB: Only YUV format supported")
@@ -320,19 +320,19 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
 # RGB' to YCbCr standalone function (at least 10-bit precision recommended)
 function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", string "Jab", string "kernel", float "b", float "c", float "p", string "cplace") {
 
-    bi         = BitsPerComponent(rgb)
-    fs         = propNumElements (rgb,"_ColorRange")  > 0 ? \
-                 propGetInt      (rgb,"_ColorRange") == 0 : true
+    bi       = BitsPerComponent(rgb)
+    fs       = propNumElements (rgb,"_ColorRange")  > 0 ? \
+               propGetInt      (rgb,"_ColorRange") == 0 : true
 
-    matrix     = Default (matrix,   "709")
-    p_type     = Default (Jab,      "420")     # target YUV chroma subsampling
-    kernel     = Default (kernel, "Didee")
-    tv_in      = Default (tv_in,      !fs)
-    tv_out     = Default (tv_out,    true)
-    cplace     = Default (cplace,      "")
-    b          = Default (b, -0.5)
-    c          = Default (c, 0.25)             # Didée's Bicubic
-    p          = Default (p,    9)
+    matrix   = Default (matrix,   "709")
+    p_type   = Default (Jab,      "420")     # target YUV chroma subsampling
+    kernel   = Default (kernel, "Didee")
+    tv_in    = Default (tv_in,      !fs)
+    tv_out   = Default (tv_out,    true)
+    cplace   = Default (cplace,      "")
+    b        = Default (b, -0.5)
+    c        = Default (c, 0.25)             # Didée's Bicubic
+    p        = Default (p,    9)
 
     Assert(IsVersionOrGreater(3,7,2),   "RGB_to_YUV: Update AviSynth+ version")
     Assert(isRGB(rgb) && IsPlanar(rgb), "RGB_to_YUV: Only Planar RGB format supported")
@@ -430,20 +430,20 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", str
 # RGB' to YcCbcCrc 444 function (for Rec.2020CL)
 function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", string "EOTFi", float_array "coef", bool "tv_in", bool "tv_out", bool "Array") {
 
-    isy  = isy(RGB)
-    bi   = BitsPerComponent(RGB)
-    fs   = propNumElements (RGB,"_ColorRange")  > 0 ? \
-           propGetInt      (RGB,"_ColorRange") == 0 : true
-    tr   = propNumElements (RGB,"_Transfer")    > 0 ? \
-           propGetInt      (RGB,"_Transfer")   == 8 : false
-    lut  = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
-    mat  = Default (matrix, "709")
-    trc  = Default (EOTFi, "1886")
-    coef = Default (coef, color_coef(mat=mat))
-    tvi  = Default (tv_in,    !fs)
-    tvo  = Default (tv_out, false)
-    arc  = Default (Array,    isy)
-    trcl = tr ? "linear" : trc
+    isy       = isy(RGB)
+    bi        = BitsPerComponent(RGB)
+    fs        = propNumElements (RGB,"_ColorRange")  > 0 ? \
+                propGetInt      (RGB,"_ColorRange") == 0 : true
+    tr        = propNumElements (RGB,"_Transfer")    > 0 ? \
+                propGetInt      (RGB,"_Transfer")   == 8 : false
+    lut       = bi > 12 || isRunTime(RGB,!isy) ? 0 : 2
+    mat       = Default (matrix, "709")
+    trc       = Default (EOTFi, "1886")
+    coef      = Default (coef, color_coef(mat=mat))
+    tvi       = Default (tv_in,    !fs)
+    tvo       = Default (tv_out, false)
+    arc       = Default (Array,    isy)
+    trcl      = tr ? "linear" : trc
 
     mat       = color_Fuzzy_Search(mat)
     s_gam     = moncurve_coef(trc)      # some values are getting crushed in the Rec709 transfer
@@ -481,29 +481,29 @@ function RGB_to_YcCbcCrc (clip RGB, clip "Gx", clip "Bx", string "matrix", strin
 # WIP. YcCbcCrc 444 to RGB' function (for Rec.2020CL)
 function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", string "EOTFi", float_array "coef", string "kernel", bool "tv_in", bool "tv_out", bool "Array") {
 
-    isy  = isy(YUV)
-    bi   = BitsPerComponent(YUV)
-    fs   = propNumElements (YUV,"_ColorRange")  > 0 ? \
-           propGetInt      (YUV,"_ColorRange") == 0 : false
-    tr   = propNumElements (YUV,"_Transfer")    > 0 ? \
-           propGetInt      (YUV,"_Transfer")   == 8 : false
-    lut  = bi > 12 || isRunTime(YUV,false) ? 0 : 2
-    mat  = Default (matrix, "709")
-    trc  = Default (EOTFi, "1886")
-    knn  = Default (kernel, "Blackman4")
-    coef = Default (coef, color_coef(mat=mat))
-    tvi  = Default (tv_in,    !fs)
-    tvo  = Default (tv_out, false)
-    arc  = Default (Array,    isy)
-    trcl = tr ? "linear" : trc
+    isy       = isy(YUV)
+    bi        = BitsPerComponent(YUV)
+    fs        = propNumElements (YUV,"_ColorRange")  > 0 ? \
+                propGetInt      (YUV,"_ColorRange") == 0 : false
+    tr        = propNumElements (YUV,"_Transfer")    > 0 ? \
+                propGetInt      (YUV,"_Transfer")   == 8 : false
+    lut       = bi > 12 || isRunTime(YUV,false) ? 0 : 2
+    mat       = Default (matrix,    "709")
+    trc       = Default (EOTFi,    "1886")
+    knn       = Default (kernel, "CatRom")
+    coef      = Default (coef, color_coef(mat=mat))
+    tvi       = Default (tv_in,       !fs)
+    tvo       = Default (tv_out,    false)
+    arc       = Default (Array,       isy)
+    trcl      = tr ? "linear" : trc
 
-    mat  = color_Fuzzy_Search(mat)
-    Y444 = ConvertFormat(YUV,1,1,fmt_out="444",kernel_c=knn,tv_in=tvi,tv_out=tvi)
+    mat       = color_Fuzzy_Search(mat)
+    Y444      = ConvertFormat(YUV,1,1,fmt_out="444",kernel_c=knn,tv_in=tvi,tv_out=tvi)
 
-    clp  = !isy ? ExtractClip(Y444) : nop()
-    Y    = !isy ? clp[0] :    YUV
-    Cb   = !isy ? clp[1] :     Cb   # Need to scale up
-    Cr   = !isy ? clp[2] :      Cr
+    clp       = !isy ? ExtractClip(Y444) : nop()
+    Y         = !isy ? clp[0] :    YUV
+    Cb        = !isy ? clp[1] :     Cb   # Need to scale up
+    Cr        = !isy ? clp[2] :      Cr
 
     bi32m     = bi == 32 ? "" : "range_half -"
     bi32p     = bi == 32 ? "" : "range_half +"
