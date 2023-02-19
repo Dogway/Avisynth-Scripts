@@ -1,5 +1,5 @@
 # SPresso() by Didée (2005.11.28)
-# https://forum.doom9.org/showthread.php?p=867316#post867316
+# https://forum.doom9.org/showthread.php?p=867316
 #
 #                Didée      in 2006.09.04 for "Corrected a BIG bug"
 #                r.f    mod in 2020.05.07 for HBD
@@ -9,7 +9,7 @@
 #                Dogway mod in 2022.03.05 Cosmetics
 #
 # SPresso (Spatial Pressdown) is a purely spatial script designed to achieve better compressibility without doing too much harm to the original detail.
-# SPresso was not designed for 1080p processing/encoding; due to its 3x3 kernel it works better on standard definition (SD) content like DVDs and possibly on 720p.
+# Original SPresso was not designed for 1080p processing/encoding; due to its 3x3 kernel it works better on standard definition (SD) content like DVDs and possibly on 720p.
 # On noisy DVD/SD sources, compression gain usually is from 2% to 3% (light settings -> changes almost invisible) up to 10 to 12% (stronger settings -> slight, gentle softening, not very obvious).
 #
 # Dependencies:
