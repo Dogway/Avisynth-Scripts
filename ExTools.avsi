@@ -1596,7 +1596,7 @@ function ex_bilateral(clip a, float "radius", float "radiusV", float "ithres", f
 
 
 # Like ex_bilateral(), a less gentle blurring but more performant
-# Similar to SurfaceBlur() by Didée: https://forum.doom9.org/showthread.php?p=1586287#post1586287
+# Similar to SurfaceBlur() by Didée: https://forum.doom9.org/showthread.php?p=1586287
 # SurfaceBlur(3,5) is 22% slower than ex_smartblur(3,thres=20)
 #
 # A good value for HD anime is: ex_smartblur(3,thres=6)
@@ -1792,7 +1792,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ## Large-sigma optimized gaussian blur filter
 ##
 ## Heavy mod of FRC_GaussianBlur42()
-## https://forum.doom9.org/showthread.php?p=1807156#post1807156
+## https://forum.doom9.org/showthread.php?p=1807156
 ##
 ##
 ## Dependencies:
@@ -2035,7 +2035,7 @@ function ex_MFR (clip c, clip ref, float "lo", float "hi", int "UV") {
 # ex_FluxSmoothT - fluctuating smooth (Nifty Temporal Mean/Median combination -temporal version of MinBlur-)
 #
 # Soft thresholded minimal change of temporal average + temporal median
-# Based on Didée's concept: https://forum.doom9.org/showthread.php?p=1471858#post1471858
+# Based on Didée's concept: https://forum.doom9.org/showthread.php?p=1471858
 # 6% faster than FluxSmoothT() (AVX2), also allows higer temporal radii
 #
 function ex_FluxSmoothT(clip a, int "rad", int "th", bool "LFR", bool "DCTFlicker", int "UV") {
