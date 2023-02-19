@@ -98,7 +98,7 @@ function BoxMask(clip clp, int "x1", int "x2", int "y1", int "y2", int "UV", boo
 ### FlatMask() (28-06-2022)
 ###
 ###
-### This is a dual purpose filter for 2D cartoons to create either flat masks or high-quality single line edge masks.
+### This is a dual purpose filter for 2D cartoons to create either flat masks or high-quality single line (Ridge Filter) edge masks.
 ### One is the opposite of the other so you only have to tune the radius and scale settings to define
 ### to what extent the edge mask is applied.
 ### If 'filt' clip argument is not defined by default the output is the edge mask.
@@ -159,7 +159,7 @@ function FlatMask(clip a, float "rad", float "scale", int "lo", int "MSR", clip 
     # UHD size is too big for good performance
      isUHD ? BicubicResize(nmod(w/2),nmod(h/2),-0.99,0.06) : last
 
-    ex_retinex(lvl=1,lo=lvl,tv_in=!fs,tv_out=false) # some issues here on flat areas (quantization)
+    ex_retinex(lvl=1,lo=lvl,tv_in=!fs,tv_out=false) # some issues here on flat areas (quantization) (Apply SmoothGrad?)
     MSR=ex_median("IQM")                            # pre for full 'qprewitt'
 
     # Prefilter (scale space)
@@ -517,7 +517,7 @@ function ex_limitchange(clip flt, clip src, float "limit", float "bias", float "
 ### https://forum.doom9.org/showthread.php?t=99679
 ###
 ### MCSoothe() by Didée (14th July 2007)
-### https://forum.doom9.org/showthread.php?p=1367334#post1367334
+### https://forum.doom9.org/showthread.php?p=1367334
 ###
 ### mod by Dogway (15-03-2022) - Merged Soothe(), SoothCL() and MCSoothe() plus optimizations.
 ###
