@@ -9,4 +9,4 @@
 
 ------
 
-![](https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain/show.v4.0.0d.png)
+![](https://github.com/Dogway/Avisynth-Scripts/blob/master/SMDegrain/show.v4.0.0d.png)
