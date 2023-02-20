@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.6  (26-01-2023)                             ###
+###        Sharpeners Pack v4.7  (18-02-2023)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -887,10 +887,10 @@ function RSharpen(clip clp, float "str", int "mode", float "strUV", int "modeUV"
 ###
 ###  Contra()                   (15 Dec 2007) by Didée
 ###
-###  https://forum.doom9.org/showthread.php?p=1076276#post1076276
-###  https://forum.doom9.org/showthread.php?p=1076491#post1076491
+###  https://forum.doom9.org/showthread.php?p=1076276
+###  https://forum.doom9.org/showthread.php?p=1076491
 ###
-###  ex_ContraSharpening() v3.5 (12 Dec 2021)
+###  ex_ContraSharpening() v3.6 (18 Feb 2023)
 ###  - Mod and port to ExTools by Dogway
 ###
 ###
@@ -906,6 +906,9 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 
     rgb = isRGB(denoised)
     bi  = BitsPerComponent(denoised)
+    fb  = GetParity(denoised) ? 2 : 1
+    in  = propNumElements (denoised,"_FieldBased") > 0 ?     \
+          propGetInt      (denoised,"_FieldBased") : IsFrameBased(input) ? 0 : fb
     fs  = propNumElements (denoised,"_ColorRange")  > 0 ? \
           propGetInt      (denoised,"_ColorRange") == 0 : rgb
 
@@ -915,9 +918,14 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 
     os  = ex_bs(os, 8, bi, fulls=fs)
 
-    isg = MC ? VarExist("cb1") && VarExist("cf1") : false   # if MC=true; reuse motion vector frames if created (in SMDegrain or elsewhere with same global var name)
-    isc = MC ? VarExist("b1c") && VarExist("f1c") : false   # if MC=true; reuse compensated   frames if created (in SMDegrain or elsewhere with same global var name)
+    i   = in>0 ? 2 : 1
+    isg = MC ? VarExist(Format("cb{i}")) && VarExist(Format("cf{i}")) : false   # if MC=true; reuse motion vector frames if created (in SMDegrain or elsewhere with same global var name)
+    isc = MC ? VarExist(Format("b{i}c")) && VarExist(Format("f{i}c")) : false   # if MC=true; reuse compensated   frames if created (in SMDegrain or elsewhere with same global var name)
 
+    if (in>0 && MC) {
+        cb1 = isg ? cb2 : nop()  cf1 = isg ? cf2 : nop()
+        b1c = isc ? b2c : nop()  f1c = isc ? f2c : nop()
+    }
 
     s   = denoised.ex_MinBlur(HD?2:1,UV=1)                                                                    # Damp down remaining spots of the denoised clip.
     ssD = ex_makediff(s,HD?s.removegrain(12,-1).\
@@ -952,7 +960,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 ###
 ###  SeeSaw v0.3i (02 Jan 2006) by Didée
 ###
-###  https://forum.doom9.org/showthread.php?p=760935#post760935
+###  https://forum.doom9.org/showthread.php?p=760935
 ###
 ###    0.3f (13 Dec 2006) by foxyshadis (port to masktools2)
 ###    0.3g (15 Dec 2015) by StainlessS (Force int call arguments to user script function float params to be explicit floats)
@@ -1190,7 +1198,7 @@ function ex_SootheSS2(clip sharp, clip orig, int "sootheT", int "sootheS", bool 
     Calls SeeSaw() multiple times. Requires SeeSaw script + SeeSaw requirements.
 
     https://forum.doom9.org/showthread.php?t=174309&page=2
-    Inspired by InGoldie: https://forum.doom9.org/showthread.php?p=1748707#post1748707 (as usual, thread deleted)
+    Inspired by InGoldie: https://forum.doom9.org/showthread.php?p=1748707 (as usual, thread deleted)
 
     Times, Number of iterations.
     IG, smoother/soother, can be:-
@@ -1241,9 +1249,9 @@ function SeeSawMulti(clip  c, int "Times", val "IG",
 
 #######################################
 ###
-###          FineSharpPlus by Dogway (05-02-2021)
+###          FineSharpPlus by Dogway (05-03-2022)
 ### a mod of FineSharp     by Didée  (08-04-2012)
-### (https://forum.doom9.org/showthread.php?p=1569035#post1569035)
+### (https://forum.doom9.org/showthread.php?p=1569035)
 ###
 ### "Small and relatively fast realtime-sharpening function,
 ###  for 1080p, or after scaling 720p -> 1080p during playback (to make 720p look more like being 1080p)
@@ -1303,10 +1311,10 @@ function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xs
     \ : (abs(mode)==2) ? c.removegrain(4, -1).removegrain(12,-1)
     \ : (abs(mode)==3) ? c.removegrain(4, -1).removegrain(12,-1).removegrain(4,-1) : c
 
-    shrp  =(cstr<0.01) ? "x + " : "0 max range_half +"
+    shrp  = (cstr<0.01) ?  "x + " : "0 max range_half +"
     shrpD = ex_lutxy(c,b,Format("x y - A@ abs B@ {SZRPR} * {PSTRR} ^ {SZRP3} * A sgn * A dup * C@ {SZRP2} {LDMP} + * C {LDMP} + {SZRP2} * / * {SZRP} {HDMP} * 4 ^ 1 + B {HDMP} * 4 ^ 1 + / * "+shrp), UV=1, fulls=true, scale_inputs="allf")
 
-    shrp  =(cstr<0.01) ? shrpD : ex_lutxyz(c,shrpD,shrpD.ex_lut(Format("x range_half - {CSTR} * range_half +"),fulls=true).removegrain(rg,-1), "x y + z -", UV=1, fulls=true)
+    shrp = (cstr<0.01) ? shrpD : ex_lutxyz(c,shrpD,shrpD.ex_lut(Format("x range_half - {CSTR} * range_half +"),fulls=true).removegrain(rg,-1), "x y + z -", UV=1, fulls=true)
 
            (xstr<0.01) ? shrp  : ex_lutxy (shrp, shrp.removegrain(20,-1),"x dup y - 9.69 * +", UV=1, fulls=true).repair(shrp,12,0).mergeluma(shrp,1.0-xstr)
            (sstr<0.01) ?    c  : last }
@@ -1319,15 +1327,15 @@ function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xs
 ## NonlinUSM: local contrast by Didée, (01-02-2012)
 ##
 ## Non-Linear Unsharp Masking
-##     https://forum.doom9.org/showthread.php?p=1555234#post1555234
+##     https://forum.doom9.org/showthread.php?p=1555234
 ##
 ## Local Contrast Enhancement function:
 ## Something to play with - the "nonlinear" sharpening from SeeSaw, just with a wide-range gaussian instead of a small-range kernel.
 ##
 ## (modded Raffriff42 - lowered strength of effect if "str" < 1.0)
 ## following header comments by raffriff42
-## https://forum.doom9.org/showthread.php?p=1821086#post1821086
-## https://forum.doom9.org/showthread.php?p=1690165#post1690165
+## https://forum.doom9.org/showthread.php?p=1821086
+## https://forum.doom9.org/showthread.php?p=1690165
 ##
 ## mod by Dogway (05-03-2022)
 ## - Ported to ExTools
@@ -1407,7 +1415,7 @@ function NonlinUSM(clip o, float "str", float "pow", float "z", float "rad", flo
 #
 # SlopeBend()  (SlopeBender? SlopeTwist? SlopeTwister? SlopeSharpen?)
 #
-# https://forum.doom9.org/showthread.php?p=680658#post680658
+# https://forum.doom9.org/showthread.php?p=680658
 #
 # A sharpening experiment by Didée  (10-08-2004). Usage is NOT RECOMMENDED.
 #                     mod by Dogway (16-08-2021)
@@ -1495,7 +1503,7 @@ function SlopeBend( clip a, int "str", int "rad", float "ss_x", float "ss_y", bo
 
 
 # Didée's Median Enhancer Sharpener (12-10-2012)
-# https://forum.doom9.org/showthread.php?p=1595531#post1595531
+# https://forum.doom9.org/showthread.php?p=1595531
 #
 # ExTools port  by Dogway           (05-09-2021)
 #
@@ -1540,7 +1548,7 @@ function MedianSharp (clip a, int "str", float "pow", int "UV") {
 #  AVS+ backport  by Dogway       (16-08-2021)
 #
 #  From: https://forum.doom9.org/showthread.php?t=163598
-#  From: https://forum.doom9.org/showthread.php?p=1537261#post1537261
+#  From: https://forum.doom9.org/showthread.php?p=1537261
 #  Didée: Wanna some sharpening that causes no haloing, without any edge masking?
 #
 #  Args:
@@ -1601,7 +1609,7 @@ function DetailSharpen(clip c, float "str", int "pow", int "z", int "ldmp", int 
 ### SSSharpFaster() (Super Slow Sharpen Faster)
 ### SSSharp's mod by LaTo (12-10-2012)
 ###
-### https://forum.doom9.org/showthread.php?t=142682&page=4#post1218074
+### https://forum.doom9.org/showthread.php?p=1218074
 ###
 ### port by Dogway (05-09-2021)
 ###
@@ -1757,7 +1765,7 @@ function SSW(clip c) {
 ###
 ### ReCon()   by *.mp4 guy (18-06-2010)
 ### ReConvolution - Makes things sharp by mixing pixels together
-### https://forum.doom9.org/showthread.php?p=1409582#post1409582
+### https://forum.doom9.org/showthread.php?p=1409582
 ###
 ### Optimized and ported by Dogway (04-09-2021)
 ###
@@ -1848,7 +1856,7 @@ function ReCon(clip C, float "str", float "strv", float "rad", float "radv", int
 
 
 ### blah()   by *.mp4 guy (09-06-2010)
-### https://forum.doom9.org/showthread.php?p=1406843#post1406843
+### https://forum.doom9.org/showthread.php?p=1406843
 ###
 ### Optimized and ported by Dogway (04-09-2021)
 ###
@@ -1962,7 +1970,7 @@ function blah(Clip c, int "str", int "strv", float "de", float "dev", float "re"
 ###          v0.2 by *.mp4 guy (11-08-2010)
 ###          v0.1 by *.mp4 guy (06-03-2010)
 ###
-### Soft thresholded median sharpening function (superseeded by ReCon) (https://forum.doom9.org/showthread.php?p=1425066#post1425066)
+### Soft thresholded median sharpening function (superseeded by ReCon) (https://forum.doom9.org/showthread.php?p=1425066)
 ###
 ### 1. calculate difference between center pixel and median neighborhood pixels
 ### 2. soft-limit each difference
@@ -2220,7 +2228,7 @@ function YAHR(clip clp) {
 ###                          ###
 ################################
 
-# Note: Most of feisty2's filters (these or Plum, Oyster, Vine, etc) are benchmarked against SD 4:3 clips (namely old music clips)
+# Note: Most of feisty2's filters (these or Plum, Oyster, Vine, etc) are modeled after SD 4:3 clips (namely old music clips)
 #       So keep that in mind when evaluating performance on HD or its quality.
 #
 # Dependencies:
@@ -2796,7 +2804,7 @@ function plum_Final(clip src, clip ref, clip "super", clip "superf", int "radius
 # LindaSharp() by Tempter57  (26-11-2012)
 #         mod  by Dogway     (13-09-2022)
 #
-#  From: https://forum.doom9.org/showthread.php?p=1602640#post1602640
+#  From: https://forum.doom9.org/showthread.php?p=1602640
 #
 # Very similar to DetailSharpen() but only sharpening a difference of blurs (between ex_sbr() and a median blur)...
 # ...to minimize sharpening of noise inherent to high frequencies.
@@ -2941,7 +2949,7 @@ function MultiSharpen2(clip C, int multi, float "sharpen", float "blur") {
 ##  pSharpen() by ilpippo80 (02-07-2005)
 ##  Performs two-point sharpening to avoid overshoot.
 ##
-##  https://forum.doom9.org/showthread.php?p=681194#post681194
+##  https://forum.doom9.org/showthread.php?p=681194
 ##
 ##  ported to MaskTools2 by colours     (02-08-2015)
 ##  ss_x and ss_y fix    by colours     (16-03-2016)
