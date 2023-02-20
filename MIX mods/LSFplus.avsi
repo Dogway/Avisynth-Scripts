@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v5.5 mix - 14 June 2022                                   ###
+###                                v5.6 mix - 18 February 2023                               ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -33,6 +33,8 @@
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v5.6mx : - Support for globals of interlaced clips for 'source'
 ###
 ### v5.5mx : - No changes (sync with EX mod)
 ###
@@ -216,11 +218,11 @@
 ###
 ### -> MaskTools2     (v2.2.30 or up)
 ### -> RgTools        (v1.2    or up)
-### -> ExTools        (v9.6    or up)
-### -> ResizersPack   (v10.7   or up)
-### -> SMDegrain      (v3.5.8  or up)  [for preblur="ON"]
+### -> ExTools        (v10.0   or up)
+### -> ResizersPack   (v11.2   or up)
+### -> SMDegrain      (v4.0.0  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
-### -> SharpenersPack (v4.5    or up)  [for Smode=1, Smode=2 and Smode=3]
+### -> SharpenersPack (v4.7    or up)  [for Smode=1, Smode=2 and Smode=3]
 ### -> CAS                             [for Smode=6]
 ###
 ###
@@ -604,7 +606,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v5.5mix"
+    version = "v5.6mix"
 
     rgb    = isRGB(inclip)
     ox     = inclip.width()
@@ -762,9 +764,16 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
     ### Temporal limiting
     if (Lmode==6) {
-
-        isg   = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
+        fb    = GetParity(inclip) ? 2 : 1
+        in    = propNumElements (inclip,"_FieldBased") > 0 ?     \
+                propGetInt      (inclip,"_FieldBased") : IsFrameBased(inclip) ? 0 : fb
+        i     = in>0 ? 2 : 1
+        isg   = VarExist(Format("cb{i}")) && VarExist(Format("cf{i}")) # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
         super = isg && VarExist("super") ? isy(super) ? super : super.ExtractY() : nop()
+
+        if (in>0 && isg) {
+            cb1 = cb2  cf1 = cf2
+        }
 
         if (!isg || SS) {
 
