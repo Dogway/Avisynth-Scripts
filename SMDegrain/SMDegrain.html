@@ -337,6 +337,12 @@ This luma expansion is performed in the same stage as the TV->PC range conversio
 From 0.0 to 1.0 (1.0 being no-op) uses ex_retinex(), the value will serve as the normalization factor (ie. 0.40 to normalize black to pixel value of 40 -in 8-bit scale-).<br/>
 Use <var>show</var> to review the brightening curve for >1.0 values.<br/>
 <br/>
+<h4><a id="Amp"></a>Amp</h4>
+<i>[float: 0.0 ~ 1.0]  Default: 0.0312</i><br/>
+<br/>
+Use this together with <var>Str</var>. This defines the amplitude of the brightening in the luma range, for example by using 1.0 all the<br/>
+luma range will be used and the brightening will find its peak at luma value 128 in the original. Default is 0.0625 (1.0/16) which just sits over luma value 16 (256/16)<br/>
+<br/>
 <h4><a id="LFR"></a>LFR</h4>
 <i>[bool: true, "false"] or [int: 50 ~ Resolution]</i><br/>
 <br/>
@@ -349,12 +355,6 @@ The value represents a cutoff in resolution units of the maximum dimension, so f
 <br/>
 Only works when <var>LFR</var> is activated. It tries to stabilize low frequency flicker produced by grain propagated to low frequencies by the DCT compression algorithm.<br/>
 When enabled it will run a custom temporal denoiser to <i>calm</i> the flicker. Only enable this when your source is very grainy.<br/>
-<br/>
-<h4><a id="Amp"></a>Amp</h4>
-<i>[float: 0.0 ~ 1.0]  Default: 0.0312</i><br/>
-<br/>
-Use this together with <var>Str</var>. This defines the amplitude of the brightening in the luma range, for example by using 1.0 all the<br/>
-luma range will be used and the brightening will find its peak at luma value 128 in the original. Default is 0.0625 (1.0/16) which just sits over luma value 16 (256/16)<br/>
 <br/>
 <h4><a id="blksize"></a>blksize</h4>
 <i>[int: 4, 8, "16", 32, 48, 64]</i><br/>
@@ -534,7 +534,7 @@ SMDegrain(2, 200, prefilter=pre, mfilter=pre, refinemotion=true, contrasharp=60,
 <br/>
 How to degrain an PQ encoded HDR clip. Note that <var>prefilter</var> clips also pass through ex_Luma_Rebuild() internally.
 <pre>pre=DGHDRtoSDR(mode="pq",white=ceil(59.49080238715383)) # Check different white levels depending on source
-SMDegrain(tr=3,thSAD=300,prefilter=pre,UHDHalf=true) # 'UHDHalf' is redundant as is enabled by default</pre>
+SMDegrain(tr=3,thSAD=300,prefilter=pre,UHDHalf=true)    # 'UHDHalf' is redundant as is enabled by default</pre>
 <br/>
 (Re)using motion vectors <var>globals</var>.
 <pre>SMDegrain(tr=1,thSAD=400,prefilter=3,str=1.4,globals=3)    # Output vectors only
@@ -557,8 +557,8 @@ to the work of Asd-g and other active members, so the future is bright.<br/>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
 <p><b>v4.0.0d</b> (21-02-2023)</p>
     <ul>
-        <li>YUY2 support for all clip type arguments via internal planar conversion (CClip, mfilter, prefilter)</li>
-        <li>Direct interlaced support for all 'mode' filters and clip type arguments (CClip, mfilter, prefilter)</li>
+        <li>YUY2 support for all clip type arguments via internal planar conversion (CClip, mfilter, prefilter and input)</li>
+        <li>Direct interlaced support for all 'mode' filters and clip type arguments (CClip, mfilter, prefilter and input)</li>
         <li>Update chroma shift for UHDHalf to use Catmull-Rom instead of slower spline16</li>
         <li>Allow string types for 'prefilter' argument to define the preset</li>
         <li>Add RIFE as denoising 'mode'. Mixed results though</li>
