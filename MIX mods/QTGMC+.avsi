@@ -790,7 +790,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     ForceTR        = Default( ForceTR,       0        )
     ReplaceGlobals = (PrevGlobals == "Replace" || PrevGlobals == "Reuse") # If reusing existing globals put them back afterwards - simplifies logic later
     ReuseGlobals   = (PrevGlobals == "Reuse")
-    ProgSADMask    = (InputType > 1) ? 0.0 : ProgSADMask
+    ProgSADMask    = (InputType < 2) ? 0.0 : ProgSADMask
     input          =                            yuy2  ? ConvertToYUV422(input,interlaced=InputType>0) : input
     EdiExt         = Defined(EdiExt) ? isYUY2(EdiExt) ? ConvertToYUV422(EdiExt)                       : EdiExt : Undefined()
 
