@@ -159,7 +159,8 @@ By default the before "sharp" clip is the one used as input for <var>SMDegrain()
 <var>Contrasharp</var> when set to "true", will use ex_ContraSharpening() (an ExTools mod to Didée's <i>Contrasharpening()</i>) which:<br/>
   <i>"Sharpens the denoised clip, but doesn't add more to any pixel than what was removed previously"</i><br/>
    In the practice you will get a slightly sharper result than the source, which is welcome.<br/>
-In the other hand if your parameter input is an integer, <i>LSFplus()</i> (an optimized LSFmod mod) will be used instead. It will be slower, but maybe better for certain sources. Its value will serve as a <var>contrasharp</var>ening multiplier, use one around 50 for similar strength as <i>ex_ContraSharpening()</i>.
+In the other hand if your parameter input is an integer, <i>LSFplus()</i> (an optimized LSFmod mod) will be used instead. It will be slower, but maybe better for certain sources.<br/>
+Its value will serve as a <var>contrasharp</var>ening multiplier, use one around 50 for similar strength as <i>ex_ContraSharpening()</i>.
 <br/><br/>
 <h4><a id="RefineMotion"></a>RefineMotion</h4>
 
@@ -419,7 +420,8 @@ If necessary, crop beforehand ideally in multiples of 16. Turn it to 0 if you ar
 <h4><a id="thSCD1"></a>thSCD1</h4>
 <i>[int: "400"] *int(pow((<var>blksize</var>*2.5),2))</i><br/>
 <br/>
-Threshold which decides whether a block has changed between the previous frame and the current one. So it is one of the thresholds used to tweak the scene changes detection engine. Raising it will lower the number of blocks detected as changed. It may be useful for noisy or flickered video. To fix blending on scene changes on dark scenes, try first the <var>Str</var> and <var>Amp</var> parameters.<br/>
+Threshold which decides whether a block has changed between the previous frame and the current one. So it is one of the thresholds used to tweak the scene changes detection engine.<br/>
+Raising it will lower the number of blocks detected as changed. It may be useful for noisy or flickered video. To fix blending on scene changes on dark scenes, try first the <var>Str</var> and <var>Amp</var> parameters.<br/>
 <br/>
 <h4><a id="thSCD2"></a>thSCD2</h4>
 <i>[int: 0~"130"~255]</i><br/>
@@ -471,7 +473,7 @@ The integers define what to do with the global variables. Default is 0.<br/>
     <li>3: Output globals only (Don't process clip)</li></ul>
 <br/>
 Some parameters MUST MATCH those from the processed vectors stage (e.g. <var>Globals=</var>2 or 3) and the read vectors stage (e.g. <var>Globals=</var>1).
-<var>pel=</var>, <var>subpixel=</var>, <var>chroma=</var> and <var>vpad/hpad</var>.
+<var>pel=</var>, <var>subpixel=</var>, <var>chroma=</var> and <var>vpad/hpad</var>.<br/>
 Other than that the only settings that work when reading (<var>Globals=</var>1) are: <var>tr=</var>, <var>thSAD=</var>, <var>plane</var>, <var>limit</var>, <var>limitc</var>, <var>contrasharp</var>, <var>CClip</var> and the <var>interlaced</var> parameters. Others are ignored.<br/>
 Global names that can be reused are: <var>Super</var>, <var>bv1</var>, <var>fv1</var>, <var>bv2</var>, <var>fv2</var>, <var>bv3</var>, <var>fv3</var>, <var>bv4</var>, <var>fv4</var>, <var>bv6</var>, <var>fv6</var>, <var>vmulti</var>.<br/>
 <br/>
