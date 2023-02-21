@@ -1,7 +1,7 @@
-# SMDegrain Mod - Online Documentation
+# SMDegrain Mod
 
 
-[SMDegrain v4.0.0d (Work in Progress)](https://raw.githack.com/Dogway/Avisynth-Scripts/master/SMDegrain/SMDegrain.html)
+[SMDegrain v4.0.0d Documentation](https://raw.githack.com/Dogway/Avisynth-Scripts/master/SMDegrain/SMDegrain.html)
 
 ------
 
