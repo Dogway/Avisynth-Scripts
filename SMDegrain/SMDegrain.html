@@ -86,7 +86,7 @@ Internally default values have been optimized with pareto statistics via <a href
 What SMDegrain brings though is an interface to apply <var>prefilters</var>, either via the internal presets or external custom ones, motion filters, different degrain <var>modes</var>, lowpassing to recover smearing, etc. Following a list of the main features:
 <br/>
 <br/>
-<b>Frame properties support:</b> Reads frame properties for details on luma range, bitdepth, source matrix or interlacing.<br/>
+<b>Frame properties support:</b> Reads frame properties for details on luma/chroma range, bitdepth, source matrix or interlacing.<br/>
 <b>High bitdepth denoising:</b> Supports AviSynth+ native HBD formats, from 8-bit up to 16-bit.<br/>
 <b>Contrasharpening:</b> The pretty much standarized sharpening method created by Didée is blended into the function, so you can easily use it in HBD pipelines. An strength biased method is also possible via an internal LSFplus call. A <var>CClip</var> parameter is also supplied so you can choose another source to sharpen from, other than the default <var>SMDegrain()</var> input.<br/>
 <b>Interlaced support:</b> It supports <var>interlaced</var> sources, for YUY2 color spaces and most parameters as well.<br/>
@@ -191,14 +191,14 @@ Select the planes you wish to process:<br/>
 <br/><br/>
 <h4><a id="prefilter"></a>prefilter</h4>
 
-<i>[int: "-1", 0, 1, 2, 3, 4, 5, 6, 7, 8] or [clip: - ]</i><br/>
+<i>[int: "-1", 0, 1, 2, 3, 4, 5, 6, 7, 8] or [clip: - ] or [string: - ]</i><br/>
 <br/>
 See <a href="#prefilter2">below</a> for a review of prefilter presets.
 <br/><br/><br/><br/>
 <h3><a id="advanced"></a>Advanced&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h3>
 <br/>
 <h4><a id="mode"></a>mode</h4>
-<i>[string: "MDegrain", MedianT, MedianST, MedianSTS, <a href="http://avisynth.nl/index.php/TemporalSoften" target="_blank">TemporalSoften</a>, <a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/ExTools.avsi#L2035" target="_blank">FluxSmoothT</a>, <a href="http://avisynth.nl/index.php/Dfttest" target="_blank">DFTTest</a>, ML3DEx, Hybrid, TL3D, STWM, IQMT, GaussT5, GaussST5,<br/>
+<i>[string: "MDegrain", MedianT, MedianST, MedianSTS, <a href="http://avisynth.nl/index.php/TemporalSoften" target="_blank">TemporalSoften</a>, <a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/ExTools.avsi#L2035" target="_blank">FluxSmoothT</a>, <a href="http://avisynth.nl/index.php/Dfttest" target="_blank">DFTTest</a>, ML3DEx, Hybrid, TL3D, STWM, IQMT, GaussT5, GaussST5, <a href="https://github.com/Asd-g/AviSynthPlus-RIFE/issues/2" target="_blank">RIFE</a>,<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;rMDegrain, rMedianST, rMedianSTS, rML3DEx, rHybrid, rTL3D, rSTWM, rIQMT ,rGaussT5, rGaussST5]</i><br/>
 <br/>
 Defines the filter for the temporal degrain. Normally should be left at default MDegrain which works best, but using other modes can provide Motion Compensation filtering<br/> to filters that aren't motion protected like ML3DEx, IQMT, etc. probably for prefiltering or other uses. Most of these modes are explained in ExTools ex_median() entry (<a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/ExTools.avsi#L2298" target="_blank">link</a>).<br/>
@@ -241,7 +241,7 @@ Hierarchical levels smoothing and reducing (halving) filter.<br/>
 Set and forget setting. Mode 3 gives the most accuracy for downscaling.<br/>
 <br/>
 <h4><a id="prefilter2"></a>prefilter</h4>
-<i>[int: "-1", 0, 1, 2, 3, 4, 5, 6, 7, 8] or [clip: - ]</i><br/>
+<i>[int: "-1", 0, 1, 2, 3, 4, 5, 6, 7, 8] or [clip: - ] or [string: "", "SBR", "MinBlur", "MinBlur2", "MinBlur3", "FluxSmoothST", "DFTTest", "KNLMeans", "DGDenoise", "BM3D"]</i><br/>
 <br/>
 <ul>
     <li>-1 = off (Default)</li>
@@ -269,7 +269,7 @@ From <var>pel</var>, going through <var>subpixel</var>, to luma expansion (<var>
 <br/>
 In general terms spatial prefiltering is enough (presets from 0 to 3 and 5) while very grainy sources might require spatio-temporal filters (presets 4, 6, 7, and 8).<br/>
 The goal here is not to provide a fully perfectly denoised clip but a slightly soft or out-of-focus version of an ideal clean clip, that is, soft edges (but not blurry) and clean flat areas.<br/>
-For example cartoons display many flat areas that work great with median filters (1 to 3) or even non-local means (6 and 7). While live action, depending on<br/> the nature of the grain, can use the spatial prefilters which are faster or BM3D (preset  8). Custom external prefilters will be also be explained below.<br/><br/>
+For example cartoons display many flat areas that work great with median filters (1 to 3) or even non-local means (6 and 7). While live action, depending on<br/> the nature of the grain, can use the spatial prefilters which are faster or BM3D (preset  8). Custom external prefilters will also be explained below.<br/><br/>
 To put denoising filters in comparison back to back, we can broadly order them in the following sequence of quality:<br/>
 <pre>BM3D (Block Matching 3D) > NLMeans > Motion Compensation (MVTools) > Frequency Filters (FFT/DFT..) > Bilateral > Median > simple linear filters (Gaussian Filter, Wiener Filter...)</pre><br/>
 <br/>
@@ -554,11 +554,13 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
-<p><b>v4.0.0d</b> (20-02-2023)</p>
+<p><b>v4.0.0d</b> (21-02-2023)</p>
     <ul>
         <li>YUY2 support for all clip type arguments via internal planar conversion (CClip, mfilter, prefilter)</li>
         <li>Direct interlaced support for all 'mode' filters and clip type arguments (CClip, mfilter, prefilter)</li>
         <li>Update chroma shift for UHDHalf to use Catmull-Rom instead of slower spline16</li>
+        <li>Allow string types for 'prefilter' argument to define the preset</li>
+        <li>Add RIFE as denoising 'mode'. Mixed results though</li>
         <li>ex_retinex() - Fixed highlights=false for lvl=1 and lvl=2</li>
         <li>ex_retinex() - Fixed range conversion for all 'lvl' modes</li>
         <li>ex_BM3D() - Fix range string format when converting to other formats</li>
