@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.98 + mod by Dogway 2023, based on 3.382s              #
+#     QTGMC 3.99 + mod by Dogway 2023, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -24,7 +24,16 @@
 #     - More features and bug fixes
 #
 #
+# BENCHMARKS (8-bit @ 1080p with a i7-4790, so probably your numbers will be higher):
+#   Medium 14fps  MatchPreset="medium"  5.8fps
+#   Slow   13fps  MatchPreset="medium"  5.6fps
+#   Slower  9fps  MatchPreset="slow"    3.8fps
+#
+#
 # --- LATEST CHANGES ---
+#
+# v3.99p
+# - Add empty vars 'bVec2' and 'fVec2' as exception handlers
 #
 # v3.98p
 # - Direct YUY2 support via global internal conversion
@@ -443,13 +452,13 @@
 #
 # --- REQUIREMENTS ---
 #
-# Input formats: YUV, YUY2, 8-bit and HBD (sans 32-bit float)
+# Input formats: YUV, YUY2, between 8-bit and 16-bit
 #
 # Core plugins:
 #   MVTools2   (2.7.45   or above)
 #   MaskTools2 (2.2.30   or above)
 #   RgTools    (1.2      or above)
-#   vsTCanny   (1.1.8   for gaussian blur or above)
+#   vsTCanny   (1.1.8    or above) (for gaussian blur)
 #   NNEDI3CL   (1.0.6    or above) (for gpuid=0)
 #   SysInfo    (0.1.2.9  or above) (requires "Microsoft Visual C++ 2010 x64 Redistributable")
 #   Vinverse   (0.9.4    or above)
@@ -476,7 +485,7 @@
 # To use QTGMC+ write a script like this:
 #   YourSource("yourfile")                 # Mainly DGSource or FFVideoSource
 #   QTGMCp( Preset="Slow", FPSDivisor=1 )  # FPSDivisor=1 for double (frame)rate, =2 for half-rate
-#                                          # Add SourceMatch>0 if dealing with Anime to avoid ghosting artifacts
+#   Prefetch(8)                            # Add SourceMatch>0 to QTGMCp() if dealing with Anime to avoid ghosting artifacts
 #
 # Save this script with an ".avs" extension. You can now use it as an AVI source for encoding.
 #
@@ -484,7 +493,7 @@
 #   "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast" & "Draft"
 # The default preset is "Slower"
 # Don't be obsessed with using slower settings as the differences can be small. HD material benefits little from extreme settings (and will be very slow)
-# For much faster speeds read the full documentation, the section on 'Multi-threading'
+# For much faster speeds read the full documentation.
 #
 # There are many settings for tweaking the script, full details in the main documentation. You can display settings currently being used with 'Show':
 #   QTGMCp( Preset="Slow", Show=true )
@@ -627,27 +636,27 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     bs  = Select( tNum,  16, 16, 32 )
     bs2 = (bs >= 16) ? 32 : bs * 2
 
-    #                                                               Very                                                        Very      Super      Ultra
-    # Preset groups:                                     Placebo    Slow      Slower    Slow      Medium    Fast      Faster    Fast      Fast       Fast       Draft
-    TR0          = Default( TR0,          Select( pNum,  2,         2,        2,        2,        2,        2,        1,        1,        1,         1,         0          ) )
-    TR1          = Default( TR1,          Select( pNum,  2,         2,        2,        1,        1,        1,        1,        1,        1,         1,         1          ) )
-    TR2X         = Default( TR2,          Select( pNum,  3,         2,        1,        1,        1,        0,        0,        0,        0,         0,         0          ) )
-    Rep0         = Defined(Rep0) ? Rep0 : TR0 < 1 ? 0 : Undefined()
-    Rep0         = Default( Rep0,         Select( pNum,  4,         4,        4,        4,        3,        3,        0,        0,        0,         0,         0          ) )
-    Rep1         = Default( Rep1,         Select( pNum,  0,         0,        0,        0,        0,        0,        0,        0,        0,         0,         0          ) )
-    Rep2         = Default( Rep2,         Select( pNum,  4,         4,        4,        4,        4,        4,        4,        4,        3,         3,         0          ) )
-    EdiMode      = Default( EdiMode,      Select( pNum, "NNEDI3",  "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3",  "RepYadif","Bob"       ) )
-    NNSize       = Default( NNSize,       Select( pNum,  1,         1,        1,        1,        5,        5,        4,        4,        4,         4,         4          ) )
-    NNeurons     = Default( NNeurons,     Select( pNum,  2,         2,        1,        1,        1,        0,        0,        0,        0,         0,         0          ) )
-    EdiQual      = Default( EdiQual,      Select( pNum,  2,         1,        1,        1,        1,        1,        1,        1,        1,         1,         1          ) )
-    EdiMaxD      = Default( EdiMaxD,      Select( pNum,  12,        10,       8,        7,        7,        6,        6,        5,        4,         4,         4          ) )
-    SMode        = Default( SMode,        Select( pNum,  2,         2,        2,        2,        2,        2,        2,        2,        2,         2,         0          ) )
-    SLModeX      = Default( SLMode,       Select( pNum,  2,         2,        2,        2,        2,        2,        2,        2,        0,         0,         0          ) )
-    SLRad        = Default( SLRad,        Select( pNum,  3,         1,        1,        1,        1,        1,        1,        1,        1,         1,         1          ) )
-    Sbb          = Default( Sbb,          Select( pNum,  3,         1,        1,        0,        0,        0,        0,        0,        0,         0,         0          ) )
-    SrchClipPP   = Default( SrchClipPP,   Select( pNum,  3,         3,        3,        3,        3,        2,        2,        2,        1,         1,         0          ) )
-    SubPel       = Default( SubPel,       Select( pNum,  2,         2,        2,        2,        1,        1,        1,        1,        1,         1,         1          ) )
-    Blocksize    = Default( Blocksize,    Select( pNum,  bs,        bs,       bs,       bs,       bs,       bs,       bs2,      bs2,      bs2,       bs2,       bs2        ) )
+    #                                                                 Very                                                        Very      Super      Ultra
+    # Preset groups:                                       Placebo    Slow      Slower    Slow      Medium    Fast      Faster    Fast      Fast       Fast       Draft
+    TR0          = Default( TR0,          Select( pNum,    2,         2,        2,        2,        2,        2,        1,        1,        1,         1,         0        ) )
+    TR1          = Default( TR1,          Select( pNum,    2,         2,        2,        1,        1,        1,        1,        1,        1,         1,         1        ) )
+    TR2X         = Default( TR2,          Select( pNum,    3,         2,        1,        1,        1,        0,        0,        0,        0,         0,         0        ) )
+    Rep0         = Defined(Rep0) ? Rep0 : TR0 < 1 ? 0 :   Undefined()
+    Rep0         = Default( Rep0,         Select( pNum,    4,         4,        4,        4,        3,        3,        0,        0,        0,         0,         0        ) )
+    Rep1         = Default( Rep1,         Select( pNum,    0,         0,        0,        0,        0,        0,        0,        0,        0,         0,         0        ) )
+    Rep2         = Default( Rep2,         Select( pNum,    4,         4,        4,        4,        4,        4,        4,        4,        3,         3,         0        ) )
+    EdiMode      = Default( EdiMode,      Select( pNum,   "NNEDI3",  "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3",  "RepYadif","Bob"     ) )
+    NNSize       = Default( NNSize,       Select( pNum,    1,         1,        1,        1,        5,        5,        4,        4,        4,         4,         4        ) )
+    NNeurons     = Default( NNeurons,     Select( pNum,    2,         2,        1,        1,        1,        0,        0,        0,        0,         0,         0        ) )
+    EdiQual      = Default( EdiQual,      Select( pNum,    2,         1,        1,        1,        1,        1,        1,        1,        1,         1,         1        ) )
+    EdiMaxD      = Default( EdiMaxD,      Select( pNum,   12,        10,        8,        7,        7,        6,        6,        5,        4,         4,         4        ) )
+    SMode        = Default( SMode,        Select( pNum,    2,         2,        2,        2,        2,        2,        2,        2,        2,         2,         0        ) )
+    SLModeX      = Default( SLMode,       Select( pNum,    2,         2,        2,        2,        2,        2,        2,        2,        0,         0,         0        ) )
+    SLRad        = Default( SLRad,        Select( pNum,    3,         1,        1,        1,        1,        1,        1,        1,        1,         1,         1        ) )
+    Sbb          = Default( Sbb,          Select( pNum,    3,         1,        1,        0,        0,        0,        0,        0,        0,         0,         0        ) )
+    SrchClipPP   = Default( SrchClipPP,   Select( pNum,    3,         3,        3,        3,        3,        2,        2,        2,        1,         1,         0        ) )
+    SubPel       = Default( SubPel,       Select( pNum,    2,         2,        2,        2,        1,        1,        1,        1,        1,         1,         1        ) )
+    Blocksize    = Default( Blocksize,    Select( pNum,   bs,        bs,       bs,       bs,       bs,       bs,      bs2,      bs2,      bs2,       bs2,       bs2        ) )
     bs = Blocksize
     sr = max(1,bs / 8)
     Overlap      = Default( Overlap,      Select( pNum,  bs/2,      bs/2,     bs/2,     bs/2,     bs/2,     bs/2,     bs/2,     bs/4,     bs/4,      bs/4,      bs/4       ) )
@@ -692,7 +701,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     MatchEdi2 = Default( MatchEdi2,            Select( mpNum2, "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "NNEDI3", "TDeint",  ""    ) )
     MatchNNSize2                             = Select( mpNum2,  1,        1,        1,        1,        5,        5,        4,        4,        4,        4     )
     MatchNNeurons2                           = Select( mpNum2,  2,        2,        1,        1,        1,        0,        0,        0,        0,        0     )
-    MatchEdiMaxD2                            = Select( mpNum2,  12,       10,       8,        7,        7,        6,        6,        5,        4,        4     )
+    MatchEdiMaxD2                            = Select( mpNum2, 12,       10,        8,        7,        7,        6,        6,        5,        4,        4     )
     MatchEdiQual2                            = Select( mpNum2,  2,        1,        1,        1,        1,        1,        1,        1,        1,        1     )
 
 
@@ -848,6 +857,8 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     srchClip  = QTGMCp_GetUserGlobal( GlobalNames, "srchClip",  ReuseGlobals )
     srchSuper = QTGMCp_GetUserGlobal( GlobalNames, "srchSuper", ReuseGlobals )
 
+    bVec2 = Undefined()
+    fVec2 = Undefined()
     for (i=1, maxTR, 1) {
 
         Eval(Format("""bVec{i} = QTGMCp_GetUserGlobal( GlobalNames, "bVec{i}", ReuseGlobals )"""))
