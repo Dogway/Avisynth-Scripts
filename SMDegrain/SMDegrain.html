@@ -21,7 +21,7 @@
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 22-February-2023
+<b>Date:</b> 23-February-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -296,11 +296,16 @@ The above is for mild to strong sources, for very strong ones like "21 grams" I 
 <pre>SMDegrain(tr=3,mode="TemporalSoften",blksize=32,thSAD=1200,LFR=300,DCTFlicker=true,contrasharp=false,refinemotion=true)
 SMDegrain(tr=1,mode="MDegrain"      ,blksize=32,thSAD=300 ,LFR=false              ,contrasharp=true ,refinemotion=true)</pre>
 <br/>
-Or another option (the possibilites are endless so experiment):
+Another option:
 <pre>SMDegrain(tr=3,mode="rTemporalGauss",blksize=32,thSAD=1300,LFR=300  ,contrasharp=false,refinemotion=true)
 SMDegrain(tr=2,mode="TemporalSoften",blksize=32,thSAD= 600,LFR=false,contrasharp=true ,refinemotion=true)</pre>
 <br/>
-This method is called <b>MDegrain refinement</b>, while the previous one using <var>prefilter</var> is called <b>Motion Vector refinement</b>, and both are considered<br/>
+And another one with <var>prefilter</var> (the possibilites are endless so choose your poison):
+<pre>pre=ex_bm3d(60,3,preset="noisy")
+SMDegrain(tr=2,mode="TemporalSoften",blksize=32,prefilter=pre,thSAD=600,refinemotion=true)
+ex_unsharp(0.2,Fc=width()/2) # Remove the dreamy/softness look</pre>
+<br/>
+The double call method is called <b>MDegrain refinement</b>, while the ones using <var>prefilter</var> are called <b>Motion Vector refinement</b>, and both are considered<br/>
 pyramidal refinements as you lower the strength of the prefilter/denoising the lower the stack. You can also mix both methods and experiment.<br/>
 Double calls are effective in the sense that it naturally applies a binomial weighting to the pixels, the furthest frames having less weight,<br/>
 just like two stacked mean/box blurs approximate a binomial blur in the spatial domain.<br/>
@@ -559,14 +564,15 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
-<p><b>v4.0.0d</b> (22-02-2023)</p>
+<p><b>v4.0.0d</b> (23-02-2023)</p>
     <ul>
-        <li>YUY2 support for all clip type arguments via internal planar conversion (CClip, mfilter, prefilter and input)</li>
+        <li>YUY2 support for all clip type arguments via internal planar conversion  (CClip, mfilter, prefilter and input)</li>
         <li>Direct interlaced support for all 'mode' filters and clip type arguments (CClip, mfilter, prefilter and input)</li>
         <li>Update chroma shift for UHDHalf to use Catmull-Rom instead of slower spline16</li>
         <li>Allow string types for 'prefilter' argument to define the preset</li>
         <li>Replace GaussT5 with TemporalGauss 'mode'</li>
         <li>Reparametrize thSCD1, DCTR and scaleCSAD for TS (Temporal___) modes (regression fix)</li>
+        <li>Add 'mode' to show panel</li>
         <li>ex_retinex() - Fixed highlights=false for lvl=1 and lvl=2</li>
         <li>ex_retinex() - Fixed range conversion for all 'lvl' modes</li>
         <li>ex_BM3D() - Fix range string format when converting to other formats</li>

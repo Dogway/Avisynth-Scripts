@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.0.0d RC3  by Dogway    - 22 Feb  2023                           ###
+###                       v4.0.0d RC4  by Dogway    - 23 Feb  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -77,7 +77,7 @@
 ###   [clip "mfilter"],
 ###   bool "RefineMotion"=false,
 ###   [bool "interlaced"=false],
-###   [float "Str"=5.0 (0.0 to 6.0)],
+###   [float "Str"=5.0 (0.0 to 8.0)],
 ###   [float "Amp"=0.03 (0.00 to 1.00)],
 ###   [int "plane"=4 (1 to 4)],
 ###   [bool "chroma"=true],
@@ -113,20 +113,20 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                    propGetInt     (input, "_ColorRange") == 0 : rgb
 
     md           = Default( mode,   "MDegrain")
-    md           = ReplaceStr(LCase(md)," ","")
+    md           = ReplaceStr(md," ",       "")
     tr           = Default( tr,             2 )
-    tri          = tr                                          # Storing for DCTFlicker
-    rc           = LeftStr(md, 1) == "r"                       # recursion won't work on 'TemporalSoften', 'FluxSmoothT' or 'MedianT' (only when tr > 2)
+    rc           =     LeftStr(md, 1) == "r"                   # recursion won't work on 'TemporalSoften', 'FluxSmoothT' or 'MedianT' (only when tr > 2)
     md           = rc ? MidStr(md, 2) : md
 
-    md           = FindStr(md, "mediant") > 0 ? rc && tr==1 ? "MedianT" : rc && tr==2 ? "MedianT5" : "medianTn" : md
+    md           = FindStr(LCase(md), "mediant") > 0 ? rc && tr==1 ? "MedianT" : rc && tr==2 ? "MedianT5" : "MedianTn" : md
     T3           = md == "MedianT"  || md == "MedianST" || md == "ML3DEx"   || md == "Hybrid"    || md == "TL3D"
     T5           = md == "MedianT5" || md == "STWM"     || md == "GaussST5" || md == "MedianSTS" || md == "IQMT"
-    T7           = FindStr(md, "fluxsmooth") > 0
+    T7           = FindStr(LCase(md), "fluxsmooth") > 0
     TG           = md == "TemporalGauss"
     TS           = md == "TemporalSoften" || TG
 
     tr           = T3 ? 1 : T5 ? 2 : T7 ? min(3,tr) : TS ? min(7,tr) : tr
+    tri          = tr                                          # Storing for DCTFlicker
 
 
     UHDhalf      = Default( UHDhalf,  true)
@@ -144,7 +144,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 isYV411(input) ? isHD ?          0 : -1 : \
                                  isHD ? TS ? 1 : 2 :  0
 
-    thSAD        = Default( thSAD,  300 )
+    thSAD        = Default( thSAD,  TS ? 750 : 300 )
         thSADR   =                  round(exp(-101./(thSAD*0.83)) * 360)                 # Directly proportional up to critical thSAD, then -not included- inversely proportional (-1.9x+682)
         thSADRC  =                  round(thSADR * 0.755 * (0.25*exp(scaleCSAD*0.693)))  # Currently not supported by MRecalculate()
     thSADC       = Default( thSADC, round(thSAD  * 0.755 * (0.25*exp(scaleCSAD*0.693))))
@@ -451,18 +451,18 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 output = TG               ? inter.ex_blur3D(0,0,tr,"weighted",UV=plane0?3:1)                                 : \
                          TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                             : \
-                         md == "medianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
-                         md == "dfttest"  ? inter.dfttest(sstring="0.0:4 0.5:8 1.0:16",U=plane0,V=plane0,dither=1,sbsize=nmod(blksize*0.75),sosize=nmod(blksize*0.75)/2,tbsize=tr,tmode=(tr-1)%2,tosize=floor(tr/2.),swin=2,twin=tr>2?4:7) : \
+                         md == "MedianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
+                         md == "DFTTest"  ? inter.DFTTest(sstring="0.0:4 0.5:8 1.0:16",U=plane0,V=plane0,dither=1,sbsize=nmod(blksize*0.75),sosize=nmod(blksize*0.75)/2,tbsize=tr,tmode=(tr-1)%2,tosize=floor(tr/2.),swin=2,twin=tr>2?4:7) : \
                          T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1)                                     : \
                                             inter.ex_median(mode=md, thres=limit, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1)
 
 
-                output = isMult || TS || T7 || (md == "medianTn") || (md == "dfttest") ? output.selectevery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
+                output = isMult || TS || T7 || (md == "MedianTn") || (md == "DFTTest") ? output.SelectEvery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
 
                 if (LFRB) {
 
                     mfilterLP = inputP.ex_gaussianblur(LFR)
-                    DCTF_pass = DCTF ? inputP.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/2,blksize=blksize,prefilter=mfilterLP,pel=1,rfilter=0,str=0,tv_range=false,plane=0,truemotion=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349)
+                    DCTF_pass = DCTF ? inputP.SMDegrain(tr=ceil(tri/3.),thSAD=thSAD/2,blksize=blksize,prefilter=mfilterLP,pel=1,rfilter=0,str=0,tv_range=false,plane=0,truemotion=false) : nop()  # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349)
                     mfilterLP = DCTF ? ex_repair(mfilterLP, DCTF_pass.ex_gaussianblur(LFR),"temp4") : mfilterLP
                     outputLP  = output.ex_gaussianblur(LFR)
                     output    = ex_makeadddiff(output, outputLP, mfilterLP, UV=2)
@@ -497,7 +497,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             if (LFRB) {
 
                 mfilterLP = mfilter.ex_gaussianblur(LFR)
-                DCTF_pass = DCTF ? mfilter.smdegrain(tr=ceil(tri/3.),thSAD=thSAD/2,blksize=blksize,prefilter=mfilterLP,pel=1,rfilter=0,str=0,tv_range=false,plane=0,chroma=false,truemotion=false) : nop() # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349)
+                DCTF_pass = DCTF ? mfilter.SMDegrain(tr=ceil(tri/3.),thSAD=thSAD/2,blksize=blksize,prefilter=mfilterLP,pel=1,rfilter=0,str=0,tv_range=false,plane=0,chroma=false,truemotion=false) : nop() # Calming -Luma- Low Frequency Flicker (aka removing DCT flicker: https://forum.doom9.org/showthread.php?p=1073349)
                 mfilterLP = DCTF ? ex_repair(mfilterLP, DCTF_pass.ex_gaussianblur(LFR),"temp4") : mfilterLP
                 outputLP  =  output.ex_gaussianblur(LFR)
                 output    = ex_makeadddiff(output, outputLP, mfilterLP, UV=2)
@@ -521,7 +521,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                   InterPar == 1 ? CClip.AssumeFrameBased().AssumeBFF().SeparateFields().propSet("_Field",0) : CClip : CClip
                 CClip =                           CClip.propSet("_FieldBased", 0)
                 } else { CClip = inputP }
-                CClip = MFilterB && SLimit      ? ex_merge(  CClip, mfilter, Mavg, luma=true, UV=plane0?3:1)                : CClip
+                CClip = MFilterB && SLimit      ? ex_merge(CClip, mfilter, Mavg, luma=true, UV=plane0?3:1)                  : CClip
 
         }
 
@@ -621,7 +621,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             plt = pref8.GradientLinear(zoom=1, positive=true, precision=2, smooth=true, tv_range=!fsp)
             plt = plt.ex_Luma_Rebuild(S0=Str,c=Amp,tv_in=!fsp)
             plt = plt.HistoCurve(size=2,gradient=false)
-            plt = plt.BicubicResize(sw,sh,-0.5,0.25).subtitle("Luma Rebuild curve", size=min(w2,h2)/45, text_color=$FFFFFF)
+            plt = plt.BicubicResize(sw,sh,-0.5,0.25).Subtitle("Luma Rebuild curve", size=min(w2,h2)/45, text_color=$FFFFFF)
             plt = PadBorders(plt,w2-sw,0,0,hi-sh)
             plt = Merge(pref8,rgb?plt.ConvertToPlanarRGB():plt)
             pref8 = ex_merge(pref8,plt,BoxMask(pref8,w2-sw,w2,0,sh),UV=3)
@@ -675,7 +675,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         Subtitle(          "\n\n\nthSAD(C)     = " + string( GlobalO?"bypass":string(thSAD)     + "(" + string(plane0?thSADC:"bypass") + ")")+ \
                  varn+           "CClip        = " + string( GlobalO?"bypass":(Defined(CClip)?"defined":"Undefined"))                        + \
                              "\n\nInterlaced   = " + string(isInter)                                                                         ,lsp=lsp,text_color=                               $ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
-        Subtitle(varn+           "RefineMotion = " + string( GlobalO?"bypass":RefineMotion)                                                  ,lsp=lsp,text_color=yellow                  ?Color:$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
+        Subtitle(varn+           "Mode         = " + string( GlobalO?"bypass":md=="MedianTn"?"MedianT":(rc?"r":"")+md)                       ,lsp=lsp,text_color=(yellow||red||blue)     ?Color:$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
+        Subtitle(varn+         "\nRefineMotion = " + string( GlobalO?"bypass":RefineMotion)                                                  ,lsp=lsp,text_color=yellow                  ?Color:$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(varn+       "\n\nContrasharp  = " + string( GlobalO?"bypass":contrasharp)                                                   ,lsp=lsp,text_color=yellow&&!GlobalO        ?Color:$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(varn+varn+    "\nplane        = " + string( GlobalO?"bypass":(plane==0?"0 (Luma)":plane==1?"1 (U plane)":plane==2?"2 (V plane)":plane==3?"3 (Chroma)":"4(Luma+Chroma)")),lsp=lsp,text_color=(red||blue)&&!GlobalO?Color:$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle("<-- "+string(IsClip(prefilter)||prefilter!=-1?"Prefiltered clip converted\n    to PC levels":"Clip converted to PC levels\n   ")+" for the motion search", lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1-10,y=hi-round(ys/1.5))
@@ -1127,7 +1128,7 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 # Function Definition:
 #    (
 #    clip,
-#    float sigma=3.0 (1.0 to 10.0 by 0.5),
+#    float sigma=3.0 (1.0 to 30.0 by 0.5),
 #    [int "radius"=1 (1 to 5)],
 #    [string "preset"="Low" ("Fast"/ "Low"/ "Normal"/ "High"/ "Noisy")],
 #    [int "gpuid"=0 (-1 to 2)],
