@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.0.0d RC4  by Dogway    - 23 Feb  2023                           ###
+###                       v4.0.0d RC5  by Dogway    - 23 Feb  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -70,7 +70,7 @@
 ###   int thSAD=300 (100 to 1500),
 ###   [int "blksize"=16 (4 to 64 by 4)],
 ###   [int "overlap"=8 (2 to 32 by 4)],
-###   string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "TemporalGauss"/ "FluxSmoothT"/ "DFTTest"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussST5"/ "--"/ "rMDegrain"/ "rMedianST"/ "rMedianSTS"/ "rTemporalGauss"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT"/ "rGaussST5"),
+###   string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "TemporalGauss"/ "FluxSmoothT"/ "DFTTest"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussST5"/ "--"/ "rMDegrain"/ "rMedianT"/ "rMedianST"/ "rMedianSTS"/ "rTemporalGauss"/ "rFluxSmoothT"/ "rDFTTest"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT"/ "rGaussST5"),
 ###   string "prefilter"="" (""/ "SBR"/ "MinBlur"/ "MinBlur2"/ "MinBlur3"/ "FluxSmoothST"/ "DFTTest"/ "KNLMeans"/ "DGDenoise"/ "BM3D"),
 ###   bool "ContraSharp"=false,
 ###   [clip "CClip"],
@@ -115,7 +115,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     md           = Default( mode,   "MDegrain")
     md           = ReplaceStr(md," ",       "")
     tr           = Default( tr,             2 )
-    rc           =     LeftStr(md, 1) == "r"                   # recursion won't work on 'TemporalSoften', 'FluxSmoothT' or 'MedianT' (only when tr > 2)
+    rc           =     LeftStr(md, 1) == "r"
     md           = rc ? MidStr(md, 2) : md
 
     md           = FindStr(LCase(md), "mediant") > 0 ? rc && tr==1 ? "MedianT" : rc && tr==2 ? "MedianT5" : "MedianTn" : md
@@ -247,8 +247,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     isInter              ? Assert(h%4==0,                           "SMDegrain: Interlaced sources require mod 4 height sizes")          : nop()
     RefineMotion         ? Assert(blksize > 7,                      "SMDegrain: For RefineMotion you need a blksize of at least 8")      : nop()
           md=="medianTn" ? Assert(!IsInter,                         "SMDegrain: neo_TMedian is broken for interlaced sources")           : nop()
-    rc && md!="MDegrain" ? Assert(T3 || T5 || TG || md=="medianTn", "SMDegrain: Unsupported 'mode' for recursion")                       : nop()
-    rc && md!="MDegrain" ? Assert(tr < 3   || TG,                   "SMDegrain: Recursion doesn't work with radius over than 2")         : nop()
+    rc && TS             ? Assert(TG,                               "SMDegrain: Unsupported 'mode' for recursion")                       : nop()
 
 
 
@@ -449,12 +448,16 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 \ :               isInter ? interleave(                            f2c, inputP, b2c                            ) : interleave(                          f1c, inputP, b1c                          )
 
 
+            DM="""
                 output = TG               ? inter.ex_blur3D(0,0,tr,"weighted",UV=plane0?3:1)                                 : \
                          TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                             : \
                          md == "MedianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
                          md == "DFTTest"  ? inter.DFTTest(sstring="0.0:4 0.5:8 1.0:16",U=plane0,V=plane0,dither=1,sbsize=nmod(blksize*0.75),sosize=nmod(blksize*0.75)/2,tbsize=tr,tmode=(tr-1)%2,tosize=floor(tr/2.),swin=2,twin=tr>2?4:7) : \
                          T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1)                                     : \
-                                            inter.ex_median(mode=md, thres=limit, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1)
+                                            inter.ex_median(mode=md, thres=limit, recursion=rc, Y=plane!=3?3:1, UV=plane0?3:1)"""
+
+                                   Eval(           DM)
+                rc && !T3 && !T5 ? Eval(ReplaceStr(DM, "inter", "output")) : last
 
 
                 output = isMult || TS || T7 || (md == "MedianTn") || (md == "DFTTest") ? output.SelectEvery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
