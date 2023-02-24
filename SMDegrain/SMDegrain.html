@@ -21,7 +21,7 @@
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 23-February-2023
+<b>Date:</b> 24-February-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -296,7 +296,7 @@ The above is for mild to strong sources, for very strong ones like "21 grams" I 
 SMDegrain(tr=1,mode="MDegrain"      ,blksize=32,thSAD=300 ,LFR=false              ,contrasharp=true ,refinemotion=true)</pre>
 <br/>
 Another option:
-<pre>SMDegrain(tr=3,mode="TemporalGauss",blksize=32,thSAD=1300,LFR=300  ,contrasharp=false,refinemotion=true)
+<pre>SMDegrain(tr=3,mode="TemporalGauss" ,blksize=32,thSAD=1300,LFR=300  ,contrasharp=false,refinemotion=true)
 SMDegrain(tr=2,mode="TemporalSoften",blksize=32,thSAD= 600,LFR=false,contrasharp=true ,refinemotion=true)</pre>
 <br/>
 And another one with <var>prefilter</var> (the possibilites are endless so choose your poison):
@@ -563,7 +563,7 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
-<p><b>v4.0.0d</b> (23-02-2023)</p>
+<p><b>v4.0.0d</b> (24-02-2023)</p>
     <ul>
         <li>YUY2 support for all clip type arguments via internal planar conversion  (CClip, mfilter, prefilter and input)</li>
         <li>Direct interlaced support for all 'mode' filters and clip type arguments (CClip, mfilter, prefilter and input)</li>

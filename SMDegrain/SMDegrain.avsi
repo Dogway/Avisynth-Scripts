@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.0.0d RC5  by Dogway    - 23 Feb  2023                           ###
+###                       v4.0.0d RC6  by Dogway    - 24 Feb  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -94,23 +94,22 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,                                 \
                      int "gpuid" , int  "rfilter", bool "UHDhalf" ) {
 
-    fb           = GetParity(input) ? 2 : 1
-    InterPar     = propNumElements(input,"_FieldBased") > 0 ? \
+    fb           = GetParity      (input) ? 2 : 1
+    InterPar     = propNumElements(input,"_FieldBased")  > 0 ? \
                    propGetInt     (input,"_FieldBased") : IsFrameBased(input) ? 0 : fb
+    sr           = propNumElements(input,"_SceneRange")  > 0
+    fscale       = propNumElements(input,"_ColorRange")  > 0 ? \
+                   propGetInt     (input,"_ColorRange") == 0 : rgb
     isInter      = Default( Interlaced,  InterPar!=0  )
 
-    isyuy        = isYUY2(input)
-    input        = isyuy ? ConvertToYUV422(input,interlaced=isInter) : input
-    bi           = BitsPerComponent(input)
     w            = input.width ()
     h            = input.height()
+    rgb          = input.isRGB()
     isy          = input.isy()
-    p_type       = input.PixelType()
-    rgb          = FindStr(p_type, "RGB") > 0
+    bi           = BitsPerComponent(input)
+    isyuy        = isYUY2(input)
+    input        = isyuy ? ConvertToYUV422(input,interlaced=isInter) : input
 
-    sr           = propNumElements(input, "_SceneRange")  > 0
-    fscale       = propNumElements(input, "_ColorRange")  > 0 ? \
-                   propGetInt     (input, "_ColorRange") == 0 : rgb
 
     md           = Default( mode,   "MDegrain")
     md           = ReplaceStr(md," ",       "")
@@ -126,6 +125,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     TS           = md == "TemporalSoften" || TG
 
     tr           = T3 ? 1 : T5 ? 2 : T7 ? min(3,tr) : TS ? min(7,tr) : tr
+    tr2          = tr*2
     tri          = tr                                          # Storing for DCTFlicker
 
 
@@ -314,7 +314,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                    pref
 
 
-    # Default Auto-Prefilter - Luma expansion TV->PC (up to 16% more values for motion estimation)
+    # Default Auto-Prefilter - Luma expansion TV->PC (up to 16% more values for motion estimation) + Dynamic range expansion on darks
 
     pref8  =    Str > 1 ? pref.ex_Luma_Rebuild(S0=Str,c=Amp,    UV=Chr, tv_in=!fsp, tv_out=false, bits=8)                               : \
             0 < Str < 1 ? pref.ex_retinex(lo=Str*100,lvl=sr?3:1,UV=Chr, tv_in=!fsp, tv_out=false).ConvertBits(8, dither=-1, fulls=true) : \
@@ -342,7 +342,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         Recalculate  = !GlobalR && RefineMotion ? (pelclip ? MSuper(pref8,  pel=pel, sharp=min(subpixel,2), chroma=chroma, hpad=hpadU, vpad=vpadU, levels=1, pelclip=pclip                 , mt=true)  : \
                                                              MSuper(pref8,  pel=pel, sharp=min(subpixel,2), chroma=chroma, hpad=hpadU, vpad=vpadU, levels=1                                , mt=true)) : nop()
             If (!isMult) {
-                t2 = isInter ? tr > 1 ? tr*2 : tr : tr
+                t2   =   isInter ?   tr > 1 ? tr2 : tr : tr
                 bv12 =   isInter && (tr > 5)                  ? (!GlobalR  ? super_search.MAnalyse(isb = true, delta =12,  overlap=    overlap,blksize=    blksize, search=search,  chroma=chroma, truemotion=truemotion, dct=dct,  searchparam=searchparam, pelsearch=pelsearch, temporal=TS, scaleCSAD=scaleCSAD, plevel=0, pglobal=pglobal, mt=true) : bv12) : nop()
                 bv12 =   isInter && (tr > 5) && RefineMotion &&  !GlobalR  ?   MRecalculate           (Recalculate,bv12,   overlap=halfoverlap,blksize=halfblksize, search=searchr, chroma=chroma, truemotion=truemotion, dct=dctr, searchparam=searchparamr, thSAD=halfthSAD, scaleCSAD=scaleCSAD, mt=true) :                                            bv12
                 bv10 =   isInter && (tr > 4)                  ? (!GlobalR  ? super_search.MAnalyse(isb = true, delta =10,  overlap=    overlap,blksize=    blksize, search=search,  chroma=chroma, truemotion=truemotion, dct=dct,  searchparam=searchparam, pelsearch=pelsearch, temporal=TS, scaleCSAD=scaleCSAD, plevel=0, pglobal=pglobal, mt=true) : bv10) : nop()
@@ -399,7 +399,6 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                             } else {
 
-                tr2    = tr*2
                 vmulti =                   !GlobalR ? super_search.MAnalyse( multi=true,overlap=    overlap,blksize=    blksize, search=search,  chroma=chroma, truemotion=truemotion, delta = isInter ? tr2 : tr, dct=dct,  scaleCSAD=scaleCSAD, mt=true, searchparam=searchparam, pelsearch=pelsearch, temporal=TS, plevel=0, pglobal=pglobal) : vmulti
                 vmulti = RefineMotion   ? (!GlobalR ? MRecalculate (Recalculate, vmulti,overlap=halfoverlap,blksize=halfblksize, search=searchr, chroma=chroma, truemotion=truemotion,    tr = isInter ? tr2 : tr, dct=dctr, scaleCSAD=scaleCSAD, mt=true, searchparam=searchparamr, thSAD=halfthSAD                                           ) : vmulti) : vmulti
                 vmulti =                   !GlobalR ? (isInter ? vmulti.SelectEvery (4, 2, 3) : vmulti) : vmulti.SelectRangeEvery (Rtr*2, tr2, 0, false)
@@ -416,10 +415,10 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                                MMin   = plane0 ? mfilter : mfilter.ExtractY()
                                MMsk   = ""
-                for (i = i2, isInter ? tr*2 : tr, i2) {
+                for (i = i2, isInter ? tr2 : tr, i2) {
                     Eval(      Format(  "Mb{i}c = isMult ? nop() : MMask(MMin, bv{i}, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
                     Eval(      Format(  "Mf{i}c = isMult ? nop() : MMask(MMin, fv{i}, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
-                    Eval(      Format("""MMsk   = MMsk + ((isInter ? {i}!=2 : {i}!=1) ? "," : "") + string(Format("Mb{i}c, 1./(tr*2), Mf{i}c, 1./(tr*2)"))"""))
+                    Eval(      Format("""MMsk   = MMsk + ((isInter ? {i}!=2 : {i}!=1) ? "," : "") + string(Format("Mb{i}c, 1./(tr2), Mf{i}c, 1./(tr2)"))"""))
                 }
 
                 Mavg   = !isMult ? Eval("Average("+MMsk+")") : MMask(MMin, vmulti, ml=50, gamma=2.222, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2) }
@@ -427,7 +426,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             if (md != "MDegrain") {
 
 
-                for (i = i2, isInter ? tr*2 : tr, i2) {
+                for (i = i2, isInter ? tr2 : tr, i2) {
 
                     gcv = (isInter ? i==2 : i==1) && isShrp && isCntr && !SLimit ? "global " : ""
 
@@ -448,6 +447,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 \ :               isInter ? interleave(                            f2c, inputP, b2c                            ) : interleave(                          f1c, inputP, b1c                          )
 
 
+            # Alternative Degrain modes
+
             DM="""
                 output = TG               ? inter.ex_blur3D(0,0,tr,"weighted",UV=plane0?3:1)                                 : \
                          TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                             : \
@@ -460,7 +461,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                 rc && !T3 && !T5 ? Eval(ReplaceStr(DM, "inter", "output")) : last
 
 
-                output = isMult || TS || T7 || (md == "MedianTn") || (md == "DFTTest") ? output.SelectEvery(tr*2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
+                output = isMult || TS || T7 || (md == "MedianTn") || (md == "DFTTest") ? output.SelectEvery(tr2+1, tr) : output.SelectEvery((T5?2:1)*2+1,T5?2:1)
 
                 if (LFRB) {
 
@@ -632,7 +633,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         pref   = pref8.ConvertBits(min(bi,16), fulls=true)
         pref   = Str == 1 && !chroma ? CombinePlanes(pref, inputP, planes=rgb?"RGB":"YUV", pixel_type=PixelType(input)) : pref
-        blkclp = BlankClip(isInter?AssumeFrameBased(pref):pref,length=1,pixel_type=p_type,color=$161616,channels=0)
+        blkclp = BlankClip(isInter?AssumeFrameBased(pref):pref,length=1,pixel_type=PixelType(input),color=$161616,channels=0)
                  \.crop(0,hi%8,0,0,true).SeparateFields().AssumeFrameBased().SeparateFields()
 
         Interleave(SelectEven(blkclp).AddBorders(2,0,0,0,color=$7f7f7f).Crop(0,0,-2,0,true),SelectOdd(blkclp))
