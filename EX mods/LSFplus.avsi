@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v5.6 ex - 18 February 2023                                ###
+###                                v6.0 ex - 24 February 2023                                ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -34,7 +34,10 @@
 ### | CHANGELOG |
 ### +-----------+
 ###
-### v5.6ex : - Support for globals of interlaced clips for 'source'
+### v6.0ex : - Revert 5.6ex as handling of interlaced content is better dealt as stacked fields
+###          - Promote to 6.0ex and wrap up
+###
+### v5.6ex : - Support for globals of interlaced clips on temporal limiting
 ###
 ### v5.5ex : - Some cleanup in repair modes
 ###
@@ -226,7 +229,7 @@
 ### -> ResizersPack   (v11.2   or up)
 ### -> SMDegrain      (v4.0.0  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
-### -> SharpenersPack (v4.7    or up)  [for Smode=1, Smode=2, Smode=3 and Smode=6]
+### -> SharpenersPack (v5.0    or up)  [for Smode=1, Smode=2, Smode=3 and Smode=6]
 ###
 ###
 ###
@@ -610,7 +613,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v5.6ex"
+    version = "v6.0ex"
 
     rgb    = isRGB(inclip)
     ox     = inclip.width()
@@ -630,7 +633,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
              preset=="medium" ? 2 : \
              preset=="fast"   ? 3 : 4
 
-    Assert(IsVersionOrGreater(3,7,2), "LSFplus: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "LSFplus: Update AviSynth+ version")
     Assert(num != 4,      chr(10) + """LSFplus: Preset must be "LSF", "slow", "mid" or "fast" !""" + chr(10))
 
     #                                                                         LSF                  SLOW                 MEDIUM                  FAST
@@ -768,16 +771,9 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
     ### Temporal limiting
     if (Lmode==6) {
-        fb    = GetParity(inclip) ? 2 : 1
-        in    = propNumElements (inclip,"_FieldBased") > 0 ?     \
-                propGetInt      (inclip,"_FieldBased") : IsFrameBased(inclip) ? 0 : fb
-        i     = in>0 ? 2 : 1
-        isg   = VarExist(Format("cb{i}")) && VarExist(Format("cf{i}")) # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
-        super = isg && VarExist("super") ? isy(super) ? super : super.ExtractY() : nop()
 
-        if (in>0 && isg) {
-            cb1 = cb2  cf1 = cf2
-        }
+        isg   = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
+        super = isg && VarExist("super") ? isy(super) ? super : super.ExtractY() : nop()
 
         if (!isg || SS) {
 
