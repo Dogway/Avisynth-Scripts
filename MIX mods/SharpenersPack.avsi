@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v4.7  (18-02-2023)                             ###
+###        Sharpeners Pack v5.0  (24-02-2023)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -890,7 +890,7 @@ function RSharpen(clip clp, float "str", int "mode", float "strUV", int "modeUV"
 ###  https://forum.doom9.org/showthread.php?p=1076276
 ###  https://forum.doom9.org/showthread.php?p=1076491
 ###
-###  ex_ContraSharpening() v3.6 (18 Feb 2023)
+###  ex_ContraSharpening() v4.0 (24 Feb 2023)
 ###  - Mod and port to ExTools by Dogway
 ###
 ###
@@ -906,9 +906,6 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 
     rgb = isRGB(denoised)
     bi  = BitsPerComponent(denoised)
-    fb  = GetParity(denoised) ? 2 : 1
-    in  = propNumElements (denoised,"_FieldBased") > 0 ?     \
-          propGetInt      (denoised,"_FieldBased") : IsFrameBased(input) ? 0 : fb
     fs  = propNumElements (denoised,"_ColorRange")  > 0 ? \
           propGetInt      (denoised,"_ColorRange") == 0 : rgb
 
@@ -918,14 +915,8 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 
     os  = ex_bs(os, 8, bi, fulls=fs)
 
-    i   = in>0 ? 2 : 1
-    isg = MC ? VarExist(Format("cb{i}")) && VarExist(Format("cf{i}")) : false   # if MC=true; reuse motion vector frames if created (in SMDegrain or elsewhere with same global var name)
-    isc = MC ? VarExist(Format("b{i}c")) && VarExist(Format("f{i}c")) : false   # if MC=true; reuse compensated   frames if created (in SMDegrain or elsewhere with same global var name)
-
-    if (in>0 && MC) {
-        cb1 = isg ? cb2 : nop()  cf1 = isg ? cf2 : nop()
-        b1c = isc ? b2c : nop()  f1c = isc ? f2c : nop()
-    }
+    isg = MC ? VarExist("cb1") && VarExist("cf1") : false   # if MC=true; reuse motion vector frames if created (in SMDegrain or elsewhere with same global var name)
+    isc = MC ? VarExist("b1c") && VarExist("f1c") : false   # if MC=true; reuse compensated   frames if created (in SMDegrain or elsewhere with same global var name)
 
     s   = denoised.ex_MinBlur(HD?2:1,UV=1)                                                                    # Damp down remaining spots of the denoised clip.
     ssD = ex_makediff(s,HD?s.removegrain(12,-1).\
