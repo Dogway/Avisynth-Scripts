@@ -50,8 +50,8 @@
 <ul>
 <table>
   <tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/LSFplus.avsi" target="_blank">LSFplus</a></b></li></td><td>&nbsp;&nbsp;(v5.6 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or LFR)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/SharpenersPack.avsi" target="_blank">SharpenersPack</a></b></li></td><td>&nbsp;&nbsp;(v4.7 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or LFR)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/LSFplus.avsi" target="_blank">LSFplus</a></b></li></td><td>&nbsp;&nbsp;(v6.0 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp>0)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/SharpenersPack.avsi" target="_blank">SharpenersPack</a></b></li></td><td>&nbsp;&nbsp;(v5.0 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or LFR)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/GradePack.avsi" target="_blank">GradePack</a></b></li></td><td>&nbsp;&nbsp;(v8.7 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ or show)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ScenesPack.avsi" target="_blank">ScenesPack</a></b></li></td><td>&nbsp;&nbsp;(v4.5 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ if '_SceneRange' frameprops exist)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MasksPack.avsi" target="_blank">MasksPack</a></b></li></td><td>&nbsp;&nbsp;(v6.6 or higher)</td><td>&nbsp;&nbsp;(for show)</td></tr>
@@ -174,7 +174,8 @@ Turn it on for better motion vectors, specially when dealing with ghosting issue
 <i>[bool: true, "false"]</i><br/>
 <br/>
 By default not needed since it will be read from frame properties, but if you are getting issues or just want to play it safe set this parameter to true. Output will also be <var>interlaced</var>.<br/>
-Note that now you can/must feed directly interlaced clips into <var>CClip</var>, <var>prefilter</var>, or <var>mfilter</var>, without the need to separate fields.
+Note that must feed directly interlaced clips into <var>CClip</var>, <var>prefilter</var>, or <var>mfilter</var>, without the need to separate fields. Check examples on the bottom section.<br/>
+Given the packing sub-format for interlaced clips, the minimum 'tr' allowed is of 2 even if tr=1 is set, and jumps in 2 so for tr=3 -> 4, tr=4 -> 4, and so on.
 <br/><br/>
 <h4><a id="plane"></a>plane</h4>
 
@@ -251,8 +252,8 @@ Set and forget setting. Mode 3 gives the most accuracy for downscaling.<br/>
     <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/ExTools.avsi#L2123" target="_blank">4</a> = FluxSmoothST (spatio-temporal median/gauss filter)</li>
     <li><a href="http://avisynth.nl/index.php/Dfttest" target="_blank">5</a> = DFTTest (spatial)</li>
     <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L1213" target="_blank">6</a> = KNLmeansCL (spatio-temporal non-local means OpenCL GPU filter)*</li>
-    <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L1160" target="_blank">7</a> = DGDenoise (spatio-temporal non-local means Cuda GPU filter)*</li>
-    <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L1055" target="_blank">8</a> = BM3D (spatio-temporal BM3D Cuda GPU filter)*</li>
+    <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L1160" target="_blank">7</a> = DGDenoise (temporal non-local means Cuda GPU filter)*</li>
+    <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L1055" target="_blank">8</a> = BM3D (temporal BM3D Cuda GPU filter)*</li>
     <li>- = <var>prefilter</var>ed clip input variable</li>
   *Watch out for OpenCL or CUDA version compatibilities with your GPU vendor
 </ul>
@@ -270,7 +271,7 @@ In general terms spatial prefiltering is enough (presets from 0 to 3 and 5) whil
 The goal here is not to provide a fully perfectly denoised clip but a slightly soft or out-of-focus version of an ideal clean clip, that is, soft edges (but not blurry) and clean flat areas.<br/>
 For example cartoons display many flat areas that work great with median filters (1 to 3) or even non-local means (6 and 7). While live action, depending on<br/> the nature of the grain, can use the spatial prefilters which are faster or BM3D (preset  8). Custom external prefilters will also be explained below.<br/><br/>
 To put denoising filters in comparison back to back, we can broadly order them in the following sequence of quality:<br/>
-<pre>BM3D (Block Matching 3D) > NLMeans > Motion Compensation (MVTools) > Frequency Filters (FFT/DFT..) > Bilateral > Median > simple linear filters (Gaussian Filter, Wiener Filter...)</pre><br/>
+<pre>BM3D (Block Matching 3D) > NLMeans > SAD Block Matching (MVTools) > Frequency Filters (FFT/DFT..) > Bilateral > Median > simple linear filters (Gaussian Filter, Wiener Filter...)</pre><br/>
 <br/>
 Another useful way to think about prefilters for example when building custom prefiltered clips is to treat the clip as if you were filtering as usual without SMDegrain, that is,<br/>
 using Deblockers if blocking is present, Decrawlers, cleaning Gibbs noise, some spatial denoiser, etc. Then this clip is only fed to <var>prefilter</var> while the original is used as input for SMDegrain.<br/>
@@ -284,7 +285,7 @@ Good question, and yes, that's actually one of the recommendations for fizz grai
 Just keep in mind that running MVTools2 twice in the same script may lower performance greatly, but using a low radius (<var>tr</var>) can help towards that.<br/>
 <br/>
 For example, we have a very grainy 1080p source so we are going to apply quite extreme settings.<br/>
-<pre>pre=SMDegrain(tr=1,mode="TemporalSoften",blksize=32,prefilter=8  ,thSAD=900,LFR=400,DCTFlicker=false,contrasharp=false,refinemotion=true)
+<pre>pre=SMDegrain(tr=1,mode="TemporalSoften",blksize=32,prefilter=8  ,thSAD=700,LFR=400,DCTFlicker=false,contrasharp=false,refinemotion=true)
     SMDegrain(tr=2,mode="MDegrain"      ,blksize=32,prefilter=pre,thSAD=400,LFR=200,DCTFlicker=true ,contrasharp=true ,refinemotion=true)</pre>
 <br/>
 TemporalSoften and TemporalGauss are two degraining <var>mode</var>s that switch a few internal settings to make it more temporally stable. It's quite an extreme approach<br/>
@@ -522,6 +523,10 @@ This is a good example to show that <var>interlaced</var> YUY2 sources can be pr
 <pre># Interlaced YUY2 source
 SMDegrain(tr=1,thSAD=250,interlaced=true,contrasharp=true)</pre>
 <br/>
+Denoising interlaced with a custom prefilter.
+<pre>pre=SMD_UnfoldFieldsVertical().STTWM().SMD_FoldFieldsVertical() # Tailored SeparateFields then Interleaving back
+SMDegrain(tr=1,thSAD=250,interlaced=true,prefilter=pre,contrasharp=true)</pre>
+<br/>
 HD sources are detected automatically, and as so settings are optimized for speed; <var>pel=</var>1, <var>blksize=</var>16, <var>overlap=</var>8, <var>truemotion=</var>false
 <pre># HD source (from 1100px wide or 600px high up)
 SMDegrain(tr=2,thSAD=180,prefilter=2,contrasharp=30,refinemotion=true,chroma=false,plane=0)</pre>
@@ -567,6 +572,7 @@ to the work of Asd-g and other active members, so the future is bright.<br/>
     <ul>
         <li>YUY2 support for all clip type arguments via internal planar conversion  (CClip, mfilter, prefilter and input)</li>
         <li>Direct interlaced support for all 'mode' filters and clip type arguments (CClip, mfilter, prefilter and input)</li>
+        <li>Update handling of interlaced content. Bugfix + Performance + Code optimization</li>
         <li>Update chroma shift for UHDHalf to use Catmull-Rom instead of slower spline16</li>
         <li>Allow string types for 'prefilter' argument to define the preset</li>
         <li>Replace GaussT5 with TemporalGauss 'mode'</li>
