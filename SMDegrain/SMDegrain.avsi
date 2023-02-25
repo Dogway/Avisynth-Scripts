@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.0.0d RC7  by Dogway    - 24 Feb  2023                           ###
+###                       v4.0.0d RC8  by Dogway    - 25 Feb  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -94,6 +94,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,                                 \
                      int "gpuid" , int  "rfilter", bool "UHDhalf" ) {
 
+    w            = input.width ()
+    h            = input.height()
+    rgb          = input.isRGB()
+    isy          = input.isy()
+    bi           = BitsPerComponent(input)
+    isyuy        = isYUY2(input)
     fb           = GetParity      (input) ? 2 : 1
     InterPar     = propNumElements(input,"_FieldBased")  > 0 ? \
                    propGetInt     (input,"_FieldBased") : IsFrameBased(input) ? 0 : fb
@@ -102,19 +108,13 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                    propGetInt     (input,"_ColorRange") == 0 : rgb
     isInter      = Default( Interlaced,  InterPar!=0  )
 
-    w            = input.width ()
-    h            = input.height()
-    rgb          = input.isRGB()
-    isy          = input.isy()
-    bi           = BitsPerComponent(input)
-    isyuy        = isYUY2(input)
     input        = isyuy ? ConvertToYUV422(input,interlaced=isInter) : input
 
 
     md           = Default( mode,   "MDegrain")
     md           = ReplaceStr(md," ",       "")
-    trd          = Default( tr,             2 )
-    tr           = isInter ? ceil(trd/2.0) : trd
+    tr           = Default( tr,             2 )
+    tr           = isInter ? ceil(tr/2.0) : tr
     rc           =     LeftStr(md, 1) == "r"
     md           = rc ? MidStr(md, 2) : md
 
@@ -267,7 +267,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     inputP  =  inputP.propSet("_FieldBased", 0)
 
     Mfilter = MFilterB ? isYUY2(MFilter)   ? ConvertToYUV422(MFilter,  interlaced=isInter)      : MFilter                           : inputP
-    MFilter = MFilterB ? isInter           ? SMD_UnfoldFieldsVertical(MFilter,true,InterPar==2) : MFilter.propSet("_FieldBased", 0) : MFilter
+    MFilter = MFilterB ? isInter           ? SMD_UnfoldFieldsVertical(MFilter,true,InterPar==2) : MFilter.propSet("_FieldBased", 0) : inputP
 
     # Prefilter
 
@@ -275,7 +275,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     nh      =  UHDhalf ? nmod(h/2.0) : h
 
     pref8   =  preclip ? isYUY2(prefilter) ? ConvertToYUV422(prefilter,interlaced=isInter)        : prefilter                       : inputP
-    pref8   =  preclip ? isInter           ? SMD_UnfoldFieldsVertical(prefilter,true,InterPar==2) : pref8.propSet("_FieldBased", 0) : pref8
+    pref8   =  preclip ? isInter           ? SMD_UnfoldFieldsVertical(prefilter,true,InterPar==2) : pref8.propSet("_FieldBased", 0) : inputP
 
     fsp     = !preclip ? !tv : propNumElements(pref8, "_ColorRange")  > 0 ? \
                                propGetInt     (pref8, "_ColorRange") == 0 : !tv
@@ -288,7 +288,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     pref    = !GlobalR ? preclip ? UHDhalf        ? pref : prefilter                                                                                                                                                  : \
                                   (prefilter==-1) ? pref                                                                                                                                                              : \
-                                  (prefilter== 0) ? !isInter ? pref.ex_MinBlur(0,Chr) : pref.ex_boxblur(0.3,0,"weighted",3,Chr)                                                                                       : \
+                                  (prefilter== 0) ? !isInter ? pref.ex_sbr(1, UV=Chr) : pref.ex_boxblur(0.3,0,"weighted",3,Chr)                                                                                       : \
                                   (prefilter== 1) ?            pref.ex_MinBlur(1,Chr,isInter ? """ex_Median(mode="horizontal" ,UV=uv)""" : "median")                                                                  : \
                                   (prefilter== 2) ?            pref.ex_MinBlur(2,Chr,isInter ? """ex_Median(mode="horizontalS",UV=uv)""" : "median")                                                                  : \
                                   (prefilter== 3) ?            pref.ex_Median(mode="IQMV", UV=Chr)                                                                                                                    : \
@@ -308,7 +308,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             0 < Str < 1 ? pref.ex_retinex(lo=Str*100,lvl=sr?3:1,UV=Chr, tv_in=!fsp, tv_out=false).ConvertBits(8, dither=-1, fulls=true) : \
                    !fsp ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) :          pref.ConvertBits(8, dither=-1, fulls=true)
 
-    pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., isInter ? 0 : thSAD/1800., Fc=w/8., th=0.0) : pref8 # Low Frequency expansion (higher SAD -> more protection)
+    pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., Fc=w/8., th=0.0) : pref8 # Low Frequency expansion (higher SAD -> more protection)
 
     If (sShow ? false : !Show) {
 
@@ -624,7 +624,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         Subtitle("SMDegrain Mod v4.0.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=isInter?h/50:h/25)
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
-        Subtitle(            "\n\ntr           = " + string(trd)                                                                             + \
+        Subtitle(            "\n\ntr           = " + string(isInter ? tr*2 : tr)                                                             + \
                  varn+varn+      "chroma       = " + string(chroma)                                                                          ,lsp=lsp,text_color=red||blue               ?Color:$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(          "\n\n\nthSAD(C)     = " + string( GlobalO?"bypass":string(thSAD)     + "(" + string(plane0?thSADC:"bypass") + ")")+ \
                  varn+           "CClip        = " + string( GlobalO?"bypass":(Defined(CClip)?"defined":"Undefined"))                        + \
@@ -644,7 +644,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                  varn+             "search     = " + string( GlobalR?"bypass":search)                                                        ,lsp=lsp,text_color=yellow&&!GlobalR        ?Color:$7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
         Subtitle(varn+varn+        "blksize    = " + string( GlobalR?"bypass":blksize)                                                       + \
                                  "\noverlap    = " + string( GlobalR?"bypass":overlap)                                                       ,lsp=lsp,text_color=(red||blue)&&!GlobalR   ?Color:$7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)
-        Subtitle(varn+           "\nprefilter  = " + (GlobalR?string("bypass"):(preclip?"Clip"+sp+" Variable":(prefilter==0?"0"+sp+"    MinBlur(0)":prefilter==1?"1"+sp+"    MinBlur(1)":prefilter==2?"2"+sp+"    MinBlur(2)":prefilter==3?"3"+sp+"    IQMV":prefilter==4?"4"+sp+"    FluxSmoothST":\
+        Subtitle(varn+           "\nprefilter  = " + (GlobalR?string("bypass"):(preclip?"Clip"+sp+" Variable":(prefilter==0?"0"+sp+"    SBR()":prefilter==1?"1"+sp+"    MinBlur(1)":prefilter==2?"2"+sp+"    MinBlur(2)":prefilter==3?"3"+sp+"    IQMV":prefilter==4?"4"+sp+"    FluxSmoothST":\
                                                                                                                prefilter==5?"5"+sp+"    DFTTest"   :prefilter==6?"6"+sp+"    KNLmeans"  :prefilter==7?"7"+sp+"    DGDenoise" :prefilter==8?"8"+sp+"    BM3D":"OFF"+sp+"    (-1)"))) + \
                                "\n\nAmp        = " + (GlobalR||str==1.0?string("bypass"):string(Amp,"%1.2f"))+" Amplitude"                   + \
                  varn+           "\nlimit(C)   = " + (GlobalO?string("bypass"):string(limit)     + "(" + string(limitc) + ")")               ,lsp=lsp,text_color=                               $7f7f7f,font="COURIER NEW",size=s,x=w4,y=ys)

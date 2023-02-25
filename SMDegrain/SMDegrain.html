@@ -21,7 +21,7 @@
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 24-February-2023
+<b>Date:</b> 25-February-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -277,7 +277,7 @@ Another useful way to think about prefilters for example when building custom pr
 using Deblockers if blocking is present, Decrawlers, cleaning Gibbs noise, some spatial denoiser, etc. Then this clip is only fed to <var>prefilter</var> while the original is used as input for SMDegrain.<br/>
 By doing this all those issues will be cleaned temporally more effectively while retaining more details. Now, yes, areas where block matching failed (motion areas) will passthrough<br/>
 the original clip with all its artifacts, so the trick is to feed the same clip to <var>mfilter</var>, so motion areas will apply the <var>prefilter</var> clip spatially while stable areas will only treat them <a href="https://forum.doom9.org/showthread.php?p=1980946" target="_blank">temporally</a>.<br/>
-<pre>pre=my_custom_prefiltering().ex_sbr() # sbr to soften edges, could also use ex_minblur(0)
+<pre>pre=my_custom_prefiltering().ex_sbr() # sbr to soften edges
 SMDegrain(last,prefilter=pre,mfilter=pre)</pre><br/>
 <br/>
 Now you might think, if SMDegrain is so good, why not use it also for prefiltering?<br/>
@@ -568,7 +568,7 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
-<p><b>v4.0.0d</b> (24-02-2023)</p>
+<p><b>v4.0.0d</b> (25-02-2023)</p>
     <ul>
         <li>YUY2 support for all clip type arguments via internal planar conversion  (CClip, mfilter, prefilter and input)</li>
         <li>Direct interlaced support for all 'mode' filters and clip type arguments (CClip, mfilter, prefilter and input)</li>
