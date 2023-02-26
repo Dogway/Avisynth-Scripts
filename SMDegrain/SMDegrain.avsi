@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.0.0d RC8  by Dogway    - 25 Feb  2023                           ###
+###                       v4.0.0d RC9  by Dogway    - 26 Feb  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -274,24 +274,24 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     nw      =  UHDhalf ? nmod(w/2.0) : w
     nh      =  UHDhalf ? nmod(h/2.0) : h
 
-    pref8   =  preclip ? isYUY2(prefilter) ? ConvertToYUV422(prefilter,interlaced=isInter)        : prefilter                       : inputP
-    pref8   =  preclip ? isInter           ? SMD_UnfoldFieldsVertical(prefilter,true,InterPar==2) : pref8.propSet("_FieldBased", 0) : inputP
+    pref    =  preclip ? isYUY2(prefilter) ? ConvertToYUV422(prefilter,interlaced=isInter)      : prefilter                         : inputP
+    pref    =  preclip ? isInter           ? SMD_UnfoldFieldsVertical(pref,   true,InterPar==2) : pref.   propSet("_FieldBased", 0) : inputP
 
-    fsp     = !preclip ? !tv : propNumElements(pref8, "_ColorRange")  > 0 ? \
-                               propGetInt     (pref8, "_ColorRange") == 0 : !tv
+    fsp     = !preclip ? !tv : propNumElements(pref, "_ColorRange")  > 0 ? \
+                               propGetInt     (pref, "_ColorRange") == 0 : !tv
 
-    pref8   = bi > 8   ? pref8.ConvertBits(8, dither=-1, fulls=fsp, fulld=fsp)                                                                                                                              : pref8
-    pref8   = UHDhalf  ? pref8.BicubicResize(nw,nh,-0.99,0.06)                                                                                                                                              : pref8
-    pref    = UHDhalf  ? !(isy || rgb || cplaceCMD=="444") && chroma ? Eval("""pref8.ConvertToYUV"""+cplaceCMD+"""(false,"","MPEG1","bicubic","top_left",0.0,0.5)""").ConvertBits(bi, fulls=fsp, fulld=fsp) : pref8 : inputP # Assumes UHD is top_left aligned
+    pref8   = bi > 8   ? pref. ConvertBits(8, dither=-1, fulls=fsp, fulld=fsp)                                                                                                                                        : pref
+    prefh   = UHDhalf  ? pref8.BicubicResize(nw,nh,-0.99,0.06)                                                                                                                                                        : pref
+    pref    = UHDhalf  ? !(isy || rgb || cplaceCMD=="444") && chroma ? Eval("""prefh.ConvertToYUV"""+cplaceCMD+"""(false,"","MPEG1","bicubic","top_left",0.0,0.5)""").ConvertBits(bi, fulls=fsp, fulld=fsp) : prefh   : pref # Assumes UHD is top_left aligned
 
     Lthres  = ex_bs(75, 8, bi, tv_in=true, tv_out=!fsp)
 
-    pref    = !GlobalR ? preclip ? UHDhalf        ? pref : prefilter                                                                                                                                                  : \
+    pref    = !GlobalR ? preclip ?                  pref                                                                                                                                                              : \
                                   (prefilter==-1) ? pref                                                                                                                                                              : \
                                   (prefilter== 0) ? !isInter ? pref.ex_sbr(1, UV=Chr) : pref.ex_boxblur(0.3,0,"weighted",3,Chr)                                                                                       : \
                                   (prefilter== 1) ?            pref.ex_MinBlur(1,Chr,isInter ? """ex_Median(mode="horizontal" ,UV=uv)""" : "median")                                                                  : \
                                   (prefilter== 2) ?            pref.ex_MinBlur(2,Chr,isInter ? """ex_Median(mode="horizontalS",UV=uv)""" : "median")                                                                  : \
-                                  (prefilter== 3) ?            pref.ex_Median(mode="IQMV", UV=Chr)                                                                                                                    : \
+                                  (prefilter== 3) ? !isInter ? pref.ex_Median(mode="IQMV", UV=Chr) : pref.ex_Median(mode="IQM", UV=Chr)                                                                               : \
                                   (prefilter== 4) ? !isInter ? pref.ex_FluxSmoothST(2,1,255,0,false,Chr) : pref.ex_MinBlur(2,Chr,"""ex_median(mode="horizontalS",UV=uv)""",false,255).ex_FluxSmoothT(1,0,true,UV=Chr) : \
                                   (prefilter== 5) ? ex_merge(DFTTest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,U=chroma,V=chroma,dither=1,threads=1,sbsize=12,sosize=6,swin=2),pref,                             \
                                                                pref.ex_lut(Format("range_max range_max {Lthres} ymin - / x ymin - * -"),UV=1,clamp_float=true), luma=chroma, UV=Chr)                                  : \
@@ -314,12 +314,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         # Subpixel 3 and 4
         inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)   # nnedi3 is slower with HBD
-        pclip   = pelclip ? subpixel==4 && prefilter==-1 ?  pref8.  nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift=pel>1&&gpuid!=-1?"spline16":"none")               : \
-                                                            Undefined()                                                                                                                        : nop() # Wiener filter is good enough for MAnalyse
-        pclip2  = pelclip ? subpixel==4 ?                   inputP8.nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="spline16").ConvertBits(bi, fulls=!tv, fulld=!tv) : \
-                                                            inputP. BlackmanResize(w*pel,h*pel, taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25)                                       : nop() # Center shift, from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and
-                                                                                                                                                                                                       # additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed).
-                                                                                                                                                                                                       # nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
+        pclip   = pelclip ? subpixel==4 ? pref8.  nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift=pel>1&&gpuid!=-1?"spline16":"none")               : \
+                                          Undefined()                                                                                                                        : nop() # Wiener filter is good enough for MAnalyse
+        pclip2  = pelclip ? subpixel==4 ? inputP8.nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="spline16").ConvertBits(bi, fulls=!tv, fulld=!tv) : \
+                                          inputP. BlackmanResize(w*pel,h*pel, taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25)                                       : nop() # Center shift, from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and
+                                                                                                                                                                                     # additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed).
+                                                                                                                                                                                     # nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
 
