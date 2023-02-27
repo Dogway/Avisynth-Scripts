@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.2 (17-02-2023)     ##
+###   Resizers Functions Pack 11.3 (26-02-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -643,7 +643,7 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
 #       nnedi3
 #         SysInfo (for nnedi3 CPU: Requires "Microsoft Visual C++ 2010 x64 Redistributable")
 #
-function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", int "gpuid") {
+function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", bool "props", int "gpuid") {
 
     a
     w       = width ()
@@ -699,6 +699,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
     dfh     = Defined(fheight)
     w2      = Default(fwidth,     w1)
     h2      = Default(fheight,    h1)
+    pp      = Default(props,    true)        # Write runtime frameprops (or not)
     gpuid   = Default(gpuid,       0)        # Set to -1 for "cpu" nnedi3
     # Internal arg for signaling chroma Y planes from ConvertFormat()
     pln     = Default(planes,isy  ? [3] : [3,fmt,fmt]) # [3,2] means process luma, and chroma as 420 (id 2 for 420, 3 for 422, 4 for 444 and 1 for 411. 0 for no chroma)
@@ -744,7 +745,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
 
     gpuid<0   ? in ? propCopy(a,true,props=["_AbsoluteTime"],exclude=true) : propCopy(a)    : last
     in || fld ? propSet("_FieldBased",0).propSet("_Field",fd%2)                             : last
-    in ? dd   ? propSet("_Combed",0).ScriptClip(function[a]() {
+    in  ? dd && pp ? propSet("_Combed",0).ScriptClip(function[a]() {
                                      propSet("_DurationDen",propGetInt(a,"_DurationDen")*2)
                                      propSet("_DurationNum",propGetInt(a,"_DurationNum")  )
                                } ) : propSet("_Combed",0) : \
@@ -793,7 +794,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
 #       ExTools
 #       EEDI3CL / eedi3 (requires at least AVS+ v3.7.3 for EEDI3CL)
 #
-function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alpha", float "beta", float "gamma", int "nrad", int "mdis", int "vcheck", bool "hp", bool "ucubic", bool "cost3", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", clip "sclip", int "gpuid") {
+function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alpha", float "beta", float "gamma", int "nrad", int "mdis", int "vcheck", bool "hp", bool "ucubic", bool "cost3", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", clip "sclip", bool "props", int "gpuid") {
 
     a
     w       = width ()
@@ -853,6 +854,7 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
     dfh     = Defined(fheight)
     w2      = Default(fwidth,     w1)
     h2      = Default(fheight,    h1)
+    pp      = Default(props,    true)        # Write runtime frameprops (or not)
     gpuid   = Default(gpuid,       0)        # Set to -1 for "cpu" eedi3
     # Internal arg for signaling chroma Y planes from ConvertFormat()
     pln     = Default(planes,isy  ? [3] : [3,fmt,fmt]) # [3,2] means process luma, and chroma as 420 (id 2 for 420, 3 for 422, 4 for 444 and 1 for 411. 0 for no chroma)
@@ -901,7 +903,7 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
 
     gpuid<0   ? in ? propCopy(a,true,props=["_AbsoluteTime"],exclude=true) : propCopy(a)    : last
     in || fld ? propSet("_FieldBased",0).propSet("_Field",fd%2)                             : last
-    in ? dd   ? propSet("_Combed",0).ScriptClip(function[a]() {
+    in  ? dd && pp ? propSet("_Combed",0).ScriptClip(function[a]() {
                                      propSet("_DurationDen",propGetInt(a,"_DurationDen")*2)
                                      propSet("_DurationNum",propGetInt(a,"_DurationNum")  )
                                } ) : propSet("_Combed",0) : \
