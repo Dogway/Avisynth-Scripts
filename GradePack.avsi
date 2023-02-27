@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.7 (19-02-2023)               ##
+###           Grade Pack v8.7 (24-02-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -101,7 +101,7 @@ function ex_vibrance (clip a, float "sat", string "mode", float "bias", clip "Rc
     sat   = max(sat, 0)
     Rec   = FindStr(LCase(md),"recover") > 0
 
-          Assert(IsVersionOrGreater(3,7,2), "ex_vibrance: Update AviSynth+ version")
+          Assert(IsVersionOrGreater(3,7,3), "ex_vibrance: Update AviSynth+ version")
           Assert(!isRGB(a),                 "ex_vibrance: RGB format not supported")
     Rec ? Assert(Defined(Rc),               "ex_vibrance: 'Recover' mode requires a clip defined in the 'Rc' parameter to recover saturation from") : nop()
 
@@ -227,7 +227,7 @@ function ex_contrast (clip c, float "cont", float "sat", float "pivot", bool "tv
 
     pivot = ex_bs(pivot, 8, 32, tv_in=tv || tv && 125.4 < pivot <= 126, tv_out=false) # Pivot to float PC levels
 
-    Assert(IsVersionOrGreater(3,7,2), "ex_contrast: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "ex_contrast: Update AviSynth+ version")
 
     rangePC  = tv ? "x ymin - ymax ymin - /"                   : "x "
     rangeTV  = tv ? "ymax ymin - * ymin +"                     : ""
@@ -338,7 +338,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
     sohi = ohi
     ep   = 0.000001
 
-    Assert(IsVersionOrGreater(3,7,2), "ex_levels: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "ex_levels: Update AviSynth+ version")
 
     rangePC  = tv ? "x ymin - range_max ymax ymin - / * "       : "x "
     rangeTV  = tv ? " ymax ymin - range_max / * ymin + "        : ""
@@ -623,7 +623,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
          md == "minus"        ? "subtract"     : \
          md == "and"          ? "multiply"     : md
 
-                                           Assert(IsVersionOrGreater(3,7,2), "ex_blend: Update AviSynth+ version")
+                                           Assert(IsVersionOrGreater(3,7,3), "ex_blend: Update AviSynth+ version")
     md == "darker" || md == "lighter"    ? Assert(rgb && UV == 3,            "ex_blend: 'darker' and 'lighter' modes require RGB inputs and UV = 3") : nop()
     md == "color"  || md == "value"      || \
     md == "hue"    || md == "saturation" ? Assert(!rgb && !isy,              "ex_blend: 'hue', 'saturation', 'color' and 'value' modes require YUV inputs") : nop()
@@ -1148,7 +1148,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
     ebu     = Default (EBUR103,     false)  # Enable for EBU R103 ("_OutGamut" frameprops and less strict thresholds)
     sh      = Default (show,            0)  # 0: Show out-of-gamut overlay   1: Also show metric   2: Show mask so you can filter out those areas
 
-    Assert(IsVersionOrGreater(3,7,2), "GamutWarning: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "GamutWarning: Update AviSynth+ version")
     Assert(!isRGB(yuv),               "GamutWarning: Only YUV format supported")
 
     mat     = Color_Fuzzy_search (mat)
@@ -1263,7 +1263,7 @@ function PseudoColor(clip a, string "mode", float "iso", bool "tv_range") {
     md   = Default(mode, "rainbow") # "rainbow" or "isoparam"
     iso  = Default(iso,   1.0)      # strength for "isoparam"
 
-    Assert(IsVersionOrGreater(3,7,2),            "PseudoColor: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),            "PseudoColor: Update AviSynth+ version")
     Assert((md=="rainbow" ? !isy : true) && !rgb,"PseudoColor: 'rainbow', only YUV format supported")
 
     if (md == "rainbow") {
@@ -1315,7 +1315,7 @@ function Vignette (clip c, float "Vignette", bool "show", bool "tv_range") {
     tv    = Default(tv_range, !show)
     str   = pow((clamp(str,0,1) + 0.5) / 1.5, 0.5)
 
-    Assert(IsVersionOrGreater(3,7,2), "Vignette: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "Vignette: Update AviSynth+ version")
 
     msk = ex_lutspa(c, Format("x  width 0.5 * - abs width 0.5 * / range_max * 1.5 {str} 0.5 * + ^ range_max / 0 max "+ \
                               "y height 0.5 * - abs width 0.5 * / range_max * 1.5 {str} 0.5 * + ^ range_max / 0 max "+ \
@@ -1345,7 +1345,7 @@ function greyscale_rgb (clip rgb, string "matrix", bool "tv_range") {
     tv     = Default (tv_range, ID[6])
     matrix = Default (matrix,   ID[2])
 
-    Assert(IsVersionOrGreater(3,7,2), "greyscale_rgb: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "greyscale_rgb: Update AviSynth+ version")
     Assert(isRGB(rgb),                "greyscale_rgb: Only works on RGB format")
 
     rgb
@@ -1386,7 +1386,7 @@ function FindTemp (clip c, string "matrix", bool "show") {
     sh   = Default(show,      true )
     bi   = ID[7]   bi32 = bi==32
 
-    Assert(IsVersionOrGreater(3,7,2), "FindTemp: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "FindTemp: Update AviSynth+ version")
 
     matrix = color_Fuzzy_Search (mat)[0]
     coef   = color_coef(matrix)
@@ -1465,7 +1465,7 @@ function GreyWorld(clip a, bool "fast", bool "Rc", bool "stats", bool "show") {
     sts  = Default(stats,  rng) # Use scene stats to compute color deviation
     sh   = Default(show, false)
 
-    Assert(IsVersionOrGreater(3,7,2), "GreyWorld: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "GreyWorld: Update AviSynth+ version")
     Assert(!rgb && !isy,              "GreyWorld: Only works on YUV formats")
     Assert(sts ? rng : true,          "GreyWorld: 'stats=true' requires '_SceneRange' frame properties")
 
@@ -1667,6 +1667,7 @@ function WhitePoint (clip c, float "temperature", float "temp_source", string "m
 
         CCTF(mat[2], false, false, false)
 
+        if (temp2==6504) {
         2850 <= temp1 <= 2860 ? propSet("_Illuminant", 13) : \
         5000 <= temp1 <= 5005 ? propSet("_Illuminant",  0) : \
         5450 <= temp1 <= 5460 ? propSet("_Illuminant",  8) : \
@@ -1679,6 +1680,7 @@ function WhitePoint (clip c, float "temperature", float "temp_source", string "m
         5095 <= temp1 <= 5105 ? propSet("_Illuminant", 15) : \
         6600 <= temp1 <= 6610 ? propSet("_Illuminant", 16) : \
         8940 <= temp1 <= 8950 ? propSet("_Illuminant",  7) : last
+        }
 
         rgb ? rgbp ? last : MatchClip(c,internal=true) : \
         RGB_to_YUV( mat[0], tv_in=false, tv_out=tv, kernel="bicubic", b=-0.5, c=0.25, Jab=PixelType(c))
