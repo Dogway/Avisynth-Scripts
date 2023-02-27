@@ -3,7 +3,7 @@
 #     QTGMC 3.33       by Vit,   2012                               #
 #     QTGMC 3.34d  mod by Dogway 2015                               #
 #     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 3.99 + mod by Dogway 2023, based on 3.382s              #
+#     QTGMC 4.00 + mod by Dogway 2023, based on 3.382s              #
 #                                                                   #
 #     https://forum.doom9.org/showthread.php?t=156028               #
 #     https://avisynth.nl/index.php/QTGMC                           #
@@ -24,13 +24,22 @@
 #     - More features and bug fixes
 #
 #
-# BENCHMARKS (8-bit @ 1080p with a i7-4790, so probably your numbers will be higher):
-#   Medium 14fps  MatchPreset="medium"  5.8fps
-#   Slow   13fps  MatchPreset="medium"  5.6fps
-#   Slower  9fps  MatchPreset="slow"    3.8fps
+# BENCHMARKS (8-bit @ 1080p with a i7-4790K@Stock, so probably your numbers will be higher):
+#   Medium 15 fps  SourceMatch=1, MatchPreset="medium" 13.5fps
+#   Slow   14 fps  SourceMatch=1, MatchPreset="medium" 12.2fps
+#   Slower 9.4fps  SourceMatch=1, MatchPreset="slow"    7.5fps
 #
 #
 # --- LATEST CHANGES ---
+#
+# v4.00p
+# - Fix SrchClipPP=3
+# - Fix SourceMatch=2
+# - Optimize SourceMatch=3
+# - Optimize when GrainRestore > 0 and Sbb > 1
+# - Improve Temporal weightings for MDegrain2 match
+# - Disable internal runtime frameprop assignments (AVS+ memory leak bug)
+# - Add BM3D as optional Denoiser type
 #
 # v3.99p
 # - Add empty vars 'bVec2' and 'fVec2' as exception handlers
@@ -465,14 +474,15 @@
 #
 # Core scripts:
 #   ExTools      (10.0   or above)
-#   ResizersPack (11.2   or above) (for nnedi3wrap() )
-#   SMDegrain    (4.0.0  or above) (for ex_luma_rebuild() or KNLMeansCL denoiser type)
+#   ResizersPack (11.3   or above) (for nnedi3wrap() )
+#   SMDegrain    (4.0.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser type)
 #
 # Optional:
 #   NNEDI2, NNEDI, EEDI3CL, EEDI2, EEDI2CUDA (requires recent drivers), TDeInt - if selected directly or via a source-match preset
 #   yadifmod2    (0.2.7  or above) - for Preset="Ultra Fast" or if selected directly
 #   KNLMeansCL   (1.1.1e or above) - if selected for noise processing
 #   DFTTest      (1.9.6  or above) - if selected for noise processing
+#   BM3D         (test10 or above) - if selected for noise processing
 #   neo_FFT3D    (r11    or above) - if selected for noise processing
 #       For neo_FFT3D & DFTTest you also need the FFTW3 library (FFTW.org). On Windows the file needed for both is libfftw3f-3.dll and placed in your System32 or SysWow64 folder
 #   AddGrainC    (1.8.4  or above) - if NoiseDeint="Generate" selected for noise bypass
@@ -511,8 +521,8 @@
 #     int "thSAD1"=640 (100 to 1000),
 #     int "thSAD2"=256 (100 to 1000),
 #     int "SourceMatch"=0 (0 to 3),
-#     string "MatchPreset"="Slower" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
-#     string "MatchPreset2"="Slower" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+#     string "MatchPreset"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+#     string "MatchPreset2"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
 #     [int "MatchTR2"=1 (0 to 2)],
 #     float "MatchEnhance"=0.5 (0.0 to 1.0 by 0.05),
 #     int "Lossless"=0 (0 to 2),
@@ -530,7 +540,7 @@
 #     )
 #
 # Preset call:
-#     QTGMCp(thSAD1=640, thSAD2=256, Preset="very slow", SourceMatch=0, MatchPreset="very slow", MatchPreset2="very slow", MatchEnhance=0.5, Lossless=0, EZDenoise=0.0, EZKeepGrain=1.0, NoisePreset="Faster", FPSDivisor=1, threads=4, show=false)
+#     QTGMCp(thSAD1=640, thSAD2=256, Preset="slower", SourceMatch=0, MatchPreset="slow", MatchPreset2="slow", MatchEnhance=0.5, Lossless=0, EZDenoise=0.0, EZKeepGrain=1.0, NoisePreset="Faster", FPSDivisor=1, threads=4, show=false)
 #
 function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
                     int "NNSize", int "NNeurons", int "EdiQual", int "EdiMaxD", string "ChromaEdi", clip "EdiExt", float "Sharpness", \
@@ -550,7 +560,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     yuy2      = Input.isYUY2()
     bi        = Input.BitsPerComponent()
     bi8       = bi == 8
-    bi32m     = bi == 32 ? "" : "range_half -"  # Scale Inputs in Expr() is broken for 32-bit float
+    bi32m     = bi == 32 ? "" : "range_half -"  # Scale Inputs in Expr() is broken for 32-bit float. Anyway 32-bit is currently (2023) unsupported for MVTools.
     bi32p     = bi == 32 ? "" : "range_half +"
     fs        = propNumElements(Input, "_ColorRange")  > 0 ? \
                 propGetInt     (Input, "_ColorRange") == 0 : rgb
@@ -568,8 +578,8 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     Amp       = Default( Amp,     0.0312 )
     tv        = Default( TV_range,    !fs)
 
-    Assert(IsVersionOrGreater(3,7,3),            "QTGMCp: Update AviSynth+ version")      # NNEDI3CL -and others- minimum requirement
-    Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "QTGMCp: UseEdiExt need EdiExt to work")
+    Assert(IsVersionOrGreater(3,7,3),            "QTGMC+: Update AviSynth+ version")      # NNEDI3CL -and others- minimum requirement
+    Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "QTGMC+: UseEdiExt need EdiExt to work")
 
     # Select presets / tuning
     Preset = Default( Preset, "Slower" )
@@ -585,7 +595,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
              (Preset       == "Super Fast") ? 8 : \
              (Preset       == "Ultra Fast") ? 9 : \
              (Preset       == "Draft"     ) ? 10 : 11
-             Assert( pNum  < 11, "QTGMCp: 'Preset' choice is invalid" )
+             Assert( pNum  < 11, "QTGMC+: 'Preset' choice is invalid" )
 
     mpNum1 = (!Defined(MatchPreset))      ? ((pNum + 3 <= 9) ? (pNum + 3) : 9) : \
              (MatchPreset  == "Placebo"   ) ? 0 : \
@@ -599,7 +609,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
              (MatchPreset  == "Super Fast") ? 8 : \
              (MatchPreset  == "Ultra Fast") ? 9 : \
              (MatchPreset  == "Draft"     ) ? 10 : 11
-             Assert( mpNum1 < 10, "QTGMCp: 'MatchPreset' choice is invalid/unsupported" )
+             Assert( mpNum1 < 10, "QTGMC+: 'MatchPreset' choice is invalid/unsupported" )
 
     MatchPreset = Select( mpNum1, "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast", "Draft" )
 
@@ -615,7 +625,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
              (MatchPreset2 == "Super Fast") ? 8 : \
              (MatchPreset2 == "Ultra Fast") ? 9 : \
              (MatchPreset2 == "Draft"     ) ? 10 : 11
-    Assert( mpNum2 < 10, "QTGMCp: 'MatchPreset2' choice is invalid/unsupported" )
+    Assert( mpNum2 < 10, "QTGMC+: 'MatchPreset2' choice is invalid/unsupported" )
     MatchPreset2 = Select( mpNum2, "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast", "Draft" )
 
     NoisePreset = Default( NoisePreset, "Fast" )
@@ -624,13 +634,13 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
              (NoisePreset  == "Medium"    ) ? 2 : \
              (NoisePreset  == "Fast"      ) ? 3 : \
              (NoisePreset  == "Faster"    ) ? 4 : 5
-    Assert( npNum < 5, "QTGMCp: 'NoisePreset' choice is invalid" )
+    Assert( npNum < 5, "QTGMC+: 'NoisePreset' choice is invalid" )
 
     Tuning = Default( Tuning, "None" )
     tNum =   (Tuning       == "None"      ) ? 0 : \
              (Tuning       == "DV-SD"     ) ? 1 : \
              (Tuning       == "DV-HD"     ) ? 2 : 3
-    Assert( tNum < 3, "QTGMCp: 'Tuning' choice is invalid" )
+    Assert( tNum < 3, "QTGMC+: 'Tuning' choice is invalid" )
 
     # Tunings only affect blocksize in this version
     bs  = Select( tNum,  16, 16, 32 )
@@ -671,7 +681,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     Refinemotion = Default( Refinemotion, false) #https://github.com/Dogway/Avisynth-Scripts/pull/23#issuecomment-918586163
 
     # Noise presets                                                               Slower     Slow       Medium     Fast       Faster
-    Denoiser       = Default( Denoiser,                           Select( npNum,  "DFTTest", "DFTTest", "DFTTest", "fft3df",  "fft3df" ) )
+    Denoiser       = Default( Denoiser,                           Select( npNum,  "DFTTest", "DFTTest", "DFTTest",  "FFT3D",   "FFT3D" ) )
     DenoiseMC      = Default( DenoiseMC,                          Select( npNum,       true,      true,     false,    false,     false ) )
     NoiseTR        = Default( NoiseTR,                            Select( npNum,          2,         1,         1,        1,         0 ) )
     NoiseDeint     = Default( NoiseDeint,                         Select( npNum, "Generate",     "Bob",        "",       "",        "" ) )
@@ -685,7 +695,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     MatchEdiQual  = EdiQual
 
     # However, can use a faster initial interpolation when using source-match allowing the basic source-match step to "correct" it with higher quality settings
-    Assert( SourceMatch == 0 || mpNum1 >= pNum, "QTGMCp: 'MatchPreset' cannot use a slower setting than 'Preset'" )
+    Assert( SourceMatch == 0 || mpNum1 >= pNum, "QTGMC+: 'MatchPreset' cannot use a slower setting than 'Preset'" )
     #                                                                    Very                                                         Very      Super     Ultra
     # Basic source-match presets                                Placebo  Slow       Slower    Slow      Medium    Fast      Faster    Fast      Fast      Fast
     NNSize   = (SourceMatch == 0) ? NNSize   : Select( mpNum1,  1,       1,         1,        1,        5,        5,        4,        4,        4,        4     )
@@ -723,7 +733,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     MatchTR2     = Default( MatchTR2,     1   )
     MatchEnhance = Default( MatchEnhance, 0.5 )
     Lossless     = Default( Lossless,     0   )
-    Assert( Lossless <= 2, "QTGMCp: Lossless setting only supports mode 1 ('true lossless') and mode 2 ('fake lossless') - see documentation in script and consider source-match settings" )
+    Assert( Lossless <= 2, "QTGMC+: Lossless setting only supports mode 1 ('true lossless') and mode 2 ('fake lossless') - see documentation in script and consider source-match settings" )
 
     # Sharpness defaults. Sharpness default is always 1.0 (0.2 with source-match), but adjusted to give roughly same sharpness for all settings
     SMode      = (Defined(Sharpness) && Sharpness == 0.0) ? 0 : SMode
@@ -739,7 +749,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     SVThin     = Default( SVThin, 0.0 )
 
     # Noise processing settings
-    Assert( !Defined(EZDenoise) || EZDenoise <= 0.0 || !Defined(EZKeepGrain) || EZKeepGrain <= 0.0, "QTGMCp: EZDenoise and EZKeepGrain cannot be used together" )
+    Assert( !Defined(EZDenoise) || EZDenoise <= 0.0 || !Defined(EZKeepGrain) || EZKeepGrain <= 0.0, "QTGMC+: EZDenoise and EZKeepGrain cannot be used together" )
     NoiseProcess =  Defined(NoiseProcess) ? NoiseProcess              : \
                    (Defined(EZDenoise)   && EZDenoise   > 0.0)    ? 1 : \
                    (Defined(EZKeepGrain) && EZKeepGrain > 0.0)    ? 2 : \
@@ -848,8 +858,8 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     CMrg = ChromaMotion ? 12  : -1
 
     # Bob the input as a starting point for motion search clip
-    bobbed = (InputType == 0) ? UseEdiExt > 0 ? EdiExt : clip.ex_bob( 0,0.5 ) : \
-             (InputType == 1) ? clip                                          : \
+    bobbed = (InputType == 0) ? UseEdiExt > 0 ? EdiExt : clip.ex_bob( 0,0.5,props=1) : \
+             (InputType == 1) ? clip                                                 : \
                                 clip.ex_boxblur( 0, 1, "weighted", UV=CMmt)
     bobbed = (InputType == 0) && UseEdiExt > 1 ? bobbed.vinverse(uv=CMmt) : bobbed
 
@@ -874,7 +884,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     ts1 = (!srchcheck && TR0 > 0) ? bobbed.TemporalSoften( 1, 255, CMts, 28, 2 ) : nop()  # 0.00  0.33  0.33  0.33  0.00
     ts2 = (!srchcheck && TR0 > 1) ? bobbed.TemporalSoften( 2, 255, CMts, 28, 2 ) : nop()  # 0.20  0.20  0.20  0.20  0.20
 
-    # Combine linear weightings to give binomial weightings - TR0=0: (1), TR0=1: (1:2:1), TR0=2: (1:4:6:4:1) # * uh! this is more like (1:3:12:3:1)
+    # Combine linear weightings to give binomial weightings - TR0=0: (1), TR0=1: (1:2:1), TR0=2: (1:4:6:4:1)
       domtr02 = TR0 == -2 && !(InputType == 0 && UseEdiExt > 1)
       domtr01 = TR0 == -1 && !(InputType == 0 && UseEdiExt > 1)
     binomial0 = srchcheck        ? nop() : \
@@ -882,7 +892,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
       domtr01 && Defined(EdiExt) ? EdiExt                   : TR0 == -1 ? bobbed                              : \
                 (TR0 == 0)       ? bobbed                                                                     : \
                 (TR0 == 1)       ? (ChromaMotion ? ts1.Merge( bobbed, 0.25 ) : ts1.MergeLuma( bobbed, 0.25 )) : \
-                                                   ex_lutxyz(ts1,ts2,bobbed,"x 0.562625 * y 0.312375 * z 0.125 * + +", UV=CMmt)
+                                                   ex_lutxyz(ts1,ts2,bobbed,"x 0.5625 * y 0.3125 * z 0.125 * + +", UV=CMmt) # Kinda would like to optimize using ex_blur3D(0,z=1) but has no SC
 
     # Remove areas of difference between temporal blurred motion search clip and bob that are not due to bob-shimmer - removes general motion blur
     repair0 = (srchcheck || Rep0 == 0) ? binomial0 : binomial0.QTGMCp_KeepOnlyBobShimmerFixes( bobbed, Rep0, (RepChroma && ChromaMotion), !tv )
@@ -892,15 +902,15 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     # Originally call in SrchClipPP == 1 was blurring by resizing (with Bilinear) which strength is dependant of input size
     spatialBlur = (SrchClipPP == 0 || srchcheck) ? nop()                           : \
                   (SrchClipPP == 1) ? repair0.vsTCanny(1.90,mode=-1,u=CMmt,v=CMmt) : \
-                                      repair0.vsTCanny(1.96,mode=-1,u=CMmt,v=CMmt)  # vsTcanny is subsampling aware
+                                      repair0.vsTCanny(1.96,mode=-1,u=CMmt,v=CMmt)  # vsTcanny is chroma subsampling aware
 
     spatialBlur = (SrchClipPP > 1 && IsClip(spatialBlur)) ? (ChromaMotion ? spatialBlur.Merge( repair0, 0.1 ) : spatialBlur.MergeLuma( repair0, 0.1 )) : spatialBlur
-    # typo? last one (originally SrchClipPP  > 1) would never be activated...
+
     srchClip    =  srchcheck        ? srchClip            : \
                   (SrchClipPP == 0) ? repair0             : \
                   (SrchClipPP  < 3) ? spatialBlur         : \
-                  (SrchClipPP  > 1) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - Y x - 0.49 * x + ? ?", UV=CMmt, fulls=!tv ) : nop()
-    srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=St, c=Amp, uv=CMmt, tv_in=tv, tv_out=false, bits=8) : srchClip.ConvertBits(8,dither=-1)
+                  (SrchClipPP  > 2) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - Y x - 0.49 * x + ? ?", UV=CMmt, fulls=!tv ) : nop()
+    srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=St, c=Amp, tv_in=tv, tv_out=false, uv=CMmt, bits=8) : srchClip.ConvertBits(8,dither=-1)
 
     # Calculate forward and backward motion vectors from motion search clip
     srchSuper = IsClip(srchSuper) ? srchSuper                                                                                                        : \
@@ -942,8 +952,8 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     # Expand fields to full frame size before extracting noise (allows use of motion vectors which are frame-sized)
     fullClip  = (NoiseProcess == 0)   ? nop()                        : \
                 (InputType > 0)       ? clip                         : \
-                                        clip.ex_bob( 0, 1.0 )
-    fullSuper = (NoiseTR > 0)         ? fullClip.MSuper( pel=SubPel, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, rfilter=3, mt=bomt ) : nop() #TEST chroma OK?
+                                        clip.ex_bob( 0,1.0,props=1)
+    fullSuper = (NoiseTR   > 0)       ? fullClip.MSuper( pel=SubPel, levels=1, hpad=hpad, vpad=vpad, chroma=ChromaNoise, rfilter=3, mt=bomt ) : nop() #TEST chroma OK?
 
     # Create a motion compensated temporal window around current frame and use to guide denoisers
     noiseWindow = (NoiseProcess == 0) ? nop()    : \
@@ -957,11 +967,13 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                                                     fullClip, \
                                                     fullClip.MCompensate( fullSuper, bVec1, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt ),    \
                                                     fullClip.MCompensate( fullSuper, bVec2, thSCD1=ThSCD1, thSCD2=ThSCD2, mt=bomt ) )
-    noiseWindow = (NoiseProcess != 0) && n16d ? noiseWindow.ConvertBits(16,fulls=!tv)              : noiseWindow
+    noiseWindow = (NoiseProcess != 0) && n16d ? noiseWindow.ConvertBits(16,fulls=!tv)        : noiseWindow
     dnWindow    = (NoiseProcess == 0)         ? nop() : \
                   (Denoiser == "DFTTest")     ? noiseWindow.DFTTest( Y=true, U=ChromaNoise, V=ChromaNoise, sigma=Sigma*4, tbsize=noiseTD, threads=1, Dither=1 ) : \
                   (Denoiser == "KNLMeansCL")  ? noiseWindow.ex_KNLMeansCL(Chroma=ChromaNoise, a=2, d=NoiseTR, h=Sigma, gpuid=gpuid )                            : \
-                                                noiseWindow.neo_fft3d( sigma=Sigma, bt=noiseTD, mt=bomt, ncpu=min(4,Threads), u=max(2,CMmt), v=max(2,CMmt))
+                  (Denoiser == "BM3D")        ? noiseWindow.ex_BM3D(sigma=Sigma,radius=NoiseTR,preset="Normsl",UV=3   ,gpuid=gpuid )                            : \
+                  (Denoiser == "FFT3D")       ? noiseWindow.neo_fft3d( sigma=Sigma, bt=noiseTD, mt=bomt, ncpu=min(4,Threads), u=max(2,CMmt), v=max(2,CMmt))     : \
+                                                Assert( false, "QTGMC+: Couldn't find a matching 'Denoiser' type" )
     dnwindow    = (NoiseProcess != 0) && n16d ? dnwindow.ConvertBits(bi,dither=-1,fulls=!tv) : dnwindow
 
     # Rework denoised clip to match source format - various code paths here: discard the motion compensation window, discard doubled lines (from point resize)
@@ -980,7 +992,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     noise          = (totalRestore >  0) ? ex_makediff( clip, planarDenoised, UV=CNmt1, fulls=!tv )                               : nop()
     deintNoise     = (NoiseProcess == 0 || totalRestore == 0.0) ? nop()                                                           : \
                      (InputType    != 0)                        ? noise                                                           : \
-                     (NoiseDeint   == "Bob")                    ? noise.ex_bob( 0,0.5 )                                           : \
+                     (NoiseDeint   == "Bob")                    ? noise.ex_bob( 0,0.5,props=1)                                    : \
                      (NoiseDeint   == "Generate")               ? noise.QTGMCp_Generate2ndFieldNoise( denoised, ChromaNoise, !tv) : \
                                                                   noise.DoubleWeave()
     # Motion-compensated stabilization of generated noise
@@ -1026,17 +1038,17 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
     # Use motion vectors to blur interpolated image (edi) with motion-compensated previous and next frames. As above, this is done to remove shimmer from
     # alternate frames so the same binomial kernels are used. However, by using motion-compensated smoothing this time we avoid motion blur. The use of
-    # MDegrain1 (motion compensated) rather than TemporalSmooth makes the weightings *look* different, but they evaluate to the same values
+    # MDegrain1 (motion compensated) rather than TemporalSoften makes the weightings *look* different, but they evaluate to the same values
     # Create linear weightings of neighbors first                                                                                                       -2    -1     0    1     2
     degrain1 = (TR1 > 0) ? Eval("edi.MDegrain1( ediSuper, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()  # 0.00  0.33  0.33  0.33  0.00
     degrain2 = (TR1 > 1) ? Eval("edi.MDegrain1( ediSuper, bVec2,fVec2, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()  # 0.33  0.00  0.33  0.00  0.33
-    degrain1 = (TR1 > 0) ? n16 ? degrain1.ConvertBits(8,dither=-1,fulls=!tv) : degrain1 : degrain1
-    degrain2 = (TR1 > 1) ? n16 ? degrain2.ConvertBits(8,dither=-1,fulls=!tv) : degrain2 : degrain2
+    degrain1 = (TR1 > 1) ? degrain1 : (TR1 > 0) ? n16 ? degrain1.ConvertBits(8,dither=-1,fulls=!tv)    : degrain1 : degrain1
+    # Combine linear weightings to give binomial weightings - TR1=0: (1), TR1=1: (1:2:1), TR1=2: (1:4:6:4:1)
+    degrain2 = (TR1 > 1) ? ex_lutxyz(degrain1,degrain2,edi,"x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3) : degrain2
 
-    # Combine linear weightings to give binomial weightings - TR1=0: (1), TR1=1: (1:2:1), TR1=2: (1:4:6:4:1) # * uh! this is more like (1:3:12:3:1)
     binomial1 = (TR1 == 0) ? edi                          : \
                 (TR1 == 1) ? degrain1.Merge( edi, 0.25 )  : \
-                             ex_lutxyz(degrain1,degrain2,edi,"x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
+                       n16 ? degrain2.ConvertBits(8,dither=-1,fulls=!tv) : degrain2
 
     # Remove areas of difference between smoothed image and interpolated image that are not bob-shimmer fixes: repairs residual motion blur from temporal smooth
     repair1 = (Rep1 == 0) ? binomial1 : binomial1.QTGMCp_KeepOnlyBobShimmerFixes( edi, Rep1, RepChroma, !tv )
@@ -1064,7 +1076,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                 (SMode == 1) ? lossed1.ex_lutxy(  lossed1.RemoveGrain( 12 ), Format("x dup y - {sharpAdj} * +"), UV=3, fulls=!tv ) : \
                                lossed1.ex_lutxy( vresharp.RemoveGrain( 12 ), Format("x dup y - {sharpAdj} * +"), UV=3, fulls=!tv )
 
-    # Slightly thin down 1-pixel high horizontal edges that have been widened into neigboring field lines by the interpolator
+    # Slightly thin down 1-pixel high horizontal edges that have been widened into neighboring field lines by the interpolator
     SVThinSc  =  SVThin * 6.0
     vertMedD  = (SVthin > 0.0) ? ex_lut( lossed1, Format("x[0,-1] x[0,1] dup1 dup1 max swap2 min x swap2 clip x - {SVThinSc} * "+bi32p), clamp_float=true, UV=1, fulls=!tv ) : nop() # vertical median - x
     vertMedD  = (SVthin > 0.0) ? (vertMedD.ex_boxblur( 1, 0, "weighted", UV=1 )) : nop()
@@ -1086,8 +1098,10 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
     # Add back any extracted noise, prior to final temporal smooth - this will restore detail that was removed as "noise" without restoring the noise itself
     # Average luma of FFT3DFilter extracted noise is 128.5, so deal with that too
-    addNoise1 = (GrainRestore <= 0.0) ? backBlend2 : \
-                                        backBlend2.ex_lutxy( finalNoise, Format("y {noiseCentre} - {GrainRestore} * range_half neg range_half clip x +"), UV=CNmt2, fulls=!tv )
+    addNoise1 = (GrainRestore  > 0.0) && (Sbb > 1) ? sharpLimit1.ex_lutxyz(ex_makediff( sharpLimit1, lossed1, UV=1, fulls=!tv ).vsTCanny(1.4,mode=-1,u=1,v=1), finalNoise,              \
+                                                                         Format("z {noiseCentre} - {GrainRestore} * {noiseCentre} + 0 range_max clip x y - +"), UV=CNmt2, fulls=!tv ) : \
+                (GrainRestore <= 0.0) ? backBlend2                                                                                                                                    : \
+                                        backBlend2.ex_lutxy( finalNoise, Format("y {noiseCentre} - {GrainRestore} * range_half neg range_half   clip x     +"), UV=CNmt2, fulls=!tv )
 
     # Final light linear temporal smooth for denoising
     stableSuper = (TR2  > 0) ? addNoise1.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, rfilter=3, mt=bomt ) : nop()
@@ -1125,8 +1139,8 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
     # Shutter motion blur - get level of blur depending on output framerate and blur already in source
     blurLevel = (ShutterAngleOut * FPSDivisor - ShutterAngleSrc) * 100.0 / 360.0
-    Assert( blurLevel >=   0, "QTGMCp: Cannot reduce motion blur already in source: increase ShutterAngleOut or FPSDivisor" )
-    Assert( blurLevel <= 200, "QTGMCp: Exceeded maximum motion blur level: decrease ShutterAngleOut or FPSDivisor" )
+    Assert( blurLevel >=   0, "QTGMC+: Cannot reduce motion blur already in source: increase ShutterAngleOut or FPSDivisor" )
+    Assert( blurLevel <= 200, "QTGMC+: Exceeded maximum motion blur level: decrease ShutterAngleOut or FPSDivisor" )
 
     # ShutterBlur mode 2,3 - get finer resolution motion vectors to reduce blur "bleeding" into static areas
     rBlockDivide = Select( ShutterBlur, 1, 1, 2, 4 )
@@ -1149,10 +1163,10 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                    (SBlurLimit  == 0) ? sblur                                             : \
                                         mt_merge( addNoise2, sblur, sbMotionMask, U=3,V=3 )
     # Reduce frame rate
-    decimated = (FPSDivisor != 1) ? sblurred.SelectEvery( FPSDivisor, 0 ) : sblurred
-    decimated = (FPSDivisor != 1) ? ScriptClip(decimated,function[FPSDivisor]() {
-                                    propSet("_DurationDen",propGetInt("_DurationDen")/FPSDivisor)
-                                    } ) : sblurred
+    decimated    = (FPSDivisor  != 1) ? sblurred.SelectEvery( FPSDivisor, 0 ) : sblurred
+    decimated    = (FPSDivisor  != 1) ? ScriptClip(decimated,function[FPSDivisor]() {
+                                        propSet("_DurationDen",propGetInt("_DurationDen")/FPSDivisor)
+                                        } ) : sblurred
     # Crop off temporary vertical padding
     cropped = Border ? decimated.Crop( 0, 4, -0, -4, true ) : decimated
     h       = Border ? h-8 : h
@@ -1162,6 +1176,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     output = (ShowNoise == 0.0) ? cropped : finalNoise.ex_lut(Format("x "+bi32m+" {ShowNoise} * "+bi32p), clamp_float=true, UV=CNmt128, fulls=!tv )
     output = yuy2 ? ConvertToYUY2(output,interlaced=false) : output
     output = output.propSet("_Combed", Lossless > 0 ? 1 : 0 )
+
     return !ShowSettings ? output : \
         output.Subtitle( "TR0=" + string(TR0) + " | TR1=" + string(TR1) + " | TR2=" + string(TR2) + " | Rep0=" + string(Rep0) + " | Rep1=" + string(Rep1) + \
         " | Rep2=" + string(Rep2) + " | RepChroma=" + string(RepChroma) + "\nEdiMode='" + EdiMode + "' | NNSize=" + string(NNSize) + " | NNeurons=" + \
@@ -1204,34 +1219,34 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
     fb        = fb==0 ? GetParity(Input) ? 3 : 2 : fb + 1
 
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
-                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.nnedi3wrap( field=fb, nsize=NNSize, planes=CEed ? [0,1,2] : [0], gpuid=id, qual=EdiQual, nns=NNeurons) : Undefined()
-    EEDI3clp  = EdiMode == "BWDIF+EEDI3" ?                              Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, sclip=NNEDI3clp ).QTGMCp_slimit_dif2(NNEDI3clp,thr=4,UV=CEed?3:2) : \
-                EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3"       ? Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, sclip=NNEDI3clp ) : nop()
+                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.nnedi3wrap( field=fb, nsize=NNSize, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, qual=EdiQual, nns=NNeurons) : Undefined()
+    EEDI3clp  = EdiMode == "BWDIF+EEDI3" ?                              Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, sclip=NNEDI3clp ).QTGMCp_slimit_dif2(NNEDI3clp,thr=4,UV=CEed?3:2) : \
+                EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3"       ? Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, sclip=NNEDI3clp )           : nop()
 
-    interp    = InputType == 1            ? Input                                                                                          : \
-                EdiMode == "NNEDI3"       ? NNEDI3clp                                                                                      : \
-                EdiMode == "NNEDI2"       ? Input.NNEDI2( field=fb, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )         : \
-                EdiMode == "NNEDI"        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                        : \
-                EdiMode == "EEDI3+NNEDI3" ? EEDI3clp                                                                                       : \
-                EdiMode == "EEDI3"        ? EEDI3clp                                                                                       : \
-                EdiMode == "EEDI2"&&id>-1 ? Input.SeparateFields().EEDI2_CUDA( fb, maxd=EdiMaxD, device_id=id, num_streams=8)              : \
-                EdiMode == "EEDI2"        ? Input.SeparateFields().EEDI2(field=fb, maxd=EdiMaxD )                                          : \
-                EdiMode == "Yadif"        ? Input.yadifmod2(mode=3,order=fb-1)                                                             : \
-                EdiMode == "TDeint"       ? Input.TDeInt( mode=1 )                                                                         : \
-                EdiMode == "RepYadif"     ? Repair( Input.yadifmod2(mode=3,order=fb-1),Default( Fallback, Input.ex_bob( 0,0.5 ) ), 2, -1 ) : \
-                EdiMode == "BWDIF+NNEDI3" ? Input.BWDIF(fb,edeint=NNEDI3clp)                                                               : \
-                EdiMode == "BWDIF+EEDI3"  ? Input.BWDIF(fb,edeint=EEDI3clp)                                                                : \
-                                            Default( Fallback, Input.ex_bob( 0,0.5 ) )
+    interp    = InputType == 1            ? Input                                                                                           : \
+                EdiMode == "NNEDI3"       ? NNEDI3clp                                                                                       : \
+                EdiMode == "NNEDI2"       ? Input.NNEDI2( field=fb, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )          : \
+                EdiMode == "NNEDI"        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                         : \
+                EdiMode == "EEDI3+NNEDI3" ? EEDI3clp                                                                                        : \
+                EdiMode == "EEDI3"        ? EEDI3clp                                                                                        : \
+                EdiMode == "EEDI2"&&id>-1 ? Input.SeparateFields().EEDI2_CUDA( fb, maxd=EdiMaxD, device_id=id, num_streams=8)               : \
+                EdiMode == "EEDI2"        ? Input.SeparateFields().EEDI2(field=fb, maxd=EdiMaxD )                                           : \
+                EdiMode == "Yadif"        ? Input.yadifmod2(mode=3,order=fb-1)                                                              : \
+                EdiMode == "TDeint"       ? Input.TDeInt( mode=1 )                                                                          : \
+                EdiMode == "RepYadif"     ? Repair( Input.yadifmod2(mode=3,order=fb-1),Default(Fallback, Input.ex_bob(0,0.5,props=1)),2,-1) : \
+                EdiMode == "BWDIF+NNEDI3" ? Input.BWDIF(fb,edeint=NNEDI3clp)                                                                : \
+                EdiMode == "BWDIF+EEDI3"  ? Input.BWDIF(fb,edeint=EEDI3clp)                                                                 : \
+                                            Default(Fallback, Input.ex_bob( 0,0.5,props=1) )
 
-    interp    = InputType == 1            ? Input                                                                                          : \
+    interp    = InputType == 1            ? Input                                                                                           : \
                 EdiMode == "BWDIF+NNEDI3" || \
-                EdiMode == "BWDIF+EEDI3"  ? interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2)                                                   : \
+                EdiMode == "BWDIF+EEDI3"  ? interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2)                                                    : \
                                             interp
 
-    interpuv  = InputType == 1            ? nop()                                                                                          : \
-                ChromaEdi == "NNEDI3"     ? Input.nnedi3wrap(field=fb, nsize=4, nns=0, qual=1, planes=[1,2], gpuid=id)                     : \
-                ChromaEdi == "Yadif"      ? Input.yadifmod2(mode=3,order=fb-1)                                                             : \
-                ChromaEdi == "Bob"        ? Input.ex_bob( 0,0.5 )                                                                          : \
+    interpuv  = InputType == 1            ? nop()                                                                                           : \
+                ChromaEdi == "NNEDI3"     ? Input.nnedi3wrap(field=fb, nsize=4, nns=0, qual=1, planes=[1,2], gpuid=id, props=false)         : \
+                ChromaEdi == "Yadif"      ? Input.yadifmod2(mode=3,order=fb-1)                                                              : \
+                ChromaEdi == "Bob"        ? Input.ex_bob( 0,0.5,props=1)                                                                    : \
                                             nop()
 
     !IsClip(interpuv) ? interp : interp.MergeChroma( interpuv )
@@ -1325,7 +1340,7 @@ function QTGMCp_Generate2ndFieldNoise( clip Input, clip InterleavedClip, bool "C
 # exactly match source lines. There will be some slight residual combing. Use vertical medians to clean a little of this away
 function QTGMCp_MakeLossless( clip Input, clip Source, int InputType, bool fulls ) {
 
-    Assert( InputType != 1, "QTGMCp: Lossless modes are incompatible with InputType=1" )
+    Assert( InputType != 1, "QTGMC+: Lossless modes are incompatible with InputType=1" )
 
     # Weave the source fields and the "new" fields that have generated in the input
     srcFields  = (InputType == 0) ? Source.SeparateFields() : \
@@ -1339,7 +1354,7 @@ function QTGMCp_MakeLossless( clip Input, clip Source, int InputType, bool fulls
     vmNewDiff2  = ex_lut( vmNewDiff1, "x[0,-1] x[0,1] dup1 dup1 max swap2 min x swap2 clip M@ x * 0 < range_half M x min ?", UV=3, fulls=fulls )
     vmNewDiff3  = vmNewDiff2.Repair( vmNewDiff2.RemoveGrain( 2 ), 1 )
 
-    # Reweave final result
+    # Re-weave final result
     return Interleave( srcFields, newFields.ex_makediff( vmNewDiff3, UV=3, dif=false )).SelectEvery( 4, 0,1,3,2 ).Weave()
 }
 
@@ -1370,8 +1385,6 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
     match1Clip     = (SourceMatch < 1 || InputType == 1) ? Deinterlace : Deinterlace.SeparateFields().SelectEvery( 4, 0,3 ).Weave()
     match1Update   = (SourceMatch < 1 || MatchTR1 == 0) \
                         ? Source : ex_lutxy( Source, match1Clip, Format("x dup y - {errorAdjust1} * +"), clamp_float=true, UV=3 )
-    noyv16ma1Edi   = MatchEdi =="NNEDI2" || MatchEdi =="NNEDI" || MatchEdi =="EEDI3+NNEDI3" || MatchEdi =="EEDI3" || MatchEdi =="TDeint"
-    noyv16ma2Edi   = MatchEdi2=="NNEDI2" || MatchEdi2=="NNEDI" || MatchEdi2=="EEDI3+NNEDI3" || MatchEdi2=="EEDI3" || MatchEdi2=="TDeint"
     match1Edi      = (SourceMatch == 0) ? nop() : match1Update.ConvertBits(8,dither=-1,fulls=fs).QTGMCp_Interpolate( InputType, MatchEdi, MatchNNSize, MatchNNeurons, MatchEdiQual, MatchEdiMaxD, Threads, fulls=fs, gpuid=id ).ConvertBits(bi,fulls=fs)
     match1Super    = (SourceMatch > 0 && MatchTR1 > 0) ? match1Edi.MSuper( pel=SubPel, sharp=SubPelInterp, levels=1, hpad=hpad, vpad=vpad, rfilter=3,   mt=bomt )                 : nop()
     match1Degrain1 = (SourceMatch > 0 && MatchTR1 > 0) ? Eval("match1Edi.MDegrain1( match1Super, bVec1,fVec1, thSAD=ThSAD1, thSCD1=ThSCD1,thSCD2=ThSCD2,mt=bomt" + sMDegnl + ")") : nop()
@@ -1399,9 +1412,10 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
     match2Degrain1 = (SourceMatch > 1 && MatchTR2 > 0) ? n16 ? match2Degrain1.ConvertBits(8,dither=-1,fulls=fs) : match2Degrain1 : match2Degrain1
     match2Degrain2 = (SourceMatch > 1 && MatchTR2 > 1) ? n16 ? match2Degrain2.ConvertBits(8,dither=-1,fulls=fs) : match2Degrain2 : match2Degrain2
     match2         = (SourceMatch < 2) ? match1                                                                 : \
-                     (MatchTR2 == 0)   ? match2Edi                                                              : \
-                     (MatchTR2 == 1)   ? match2Degrain1.Merge( match2Edi, 0.25 )                                : \
-                                         ex_lutxyz(match2Degrain1,match2Degrain2,match2Edi,   "x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
+                     (MatchTR2 == 0)   ? (SourceMatch < 3) ? match1Shp.ex_adddiff(     match2Edi, UV=3, fulls=fs )                         : match2Edi                               : \
+                     (MatchTR2 == 1)   ? (SourceMatch < 3) ? match2Degrain1.ex_lutxyz( match2Edi,match1Shp,"x dup y - 0.25 * - z +", UV=3) : match2Degrain1.Merge( match2Edi, 0.25 ) : \
+                                         (SourceMatch < 3) ? ex_lutxyza(match2Degrain1,match2Degrain2,match2Edi,match1Shp,"x 0.75 * y 0.1875 * z 0.0625 * a + + +", UV=3)            : \
+					                     ex_lutxyz (match2Degrain1,match2Degrain2,match2Edi,          "x 0.75 * y 0.1875 * z 0.0625 * + +"    , UV=3)
 
     # Source-match second refinement - correct error introduced in the refined difference by temporal smoothing. Similar to error correction from basic step
     errorAdjust2   = Select( MatchTR2, 1.0, 2.0 / (1.0 + errorTemporalSimilarity), 8.0 / (3.0 + 5.0 * errorTemporalSimilarity) )
@@ -1413,12 +1427,12 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
     match3Degrain1 = (SourceMatch > 2 && MatchTR2 > 0) ? n16 ? match3Degrain1.ConvertBits(8,dither=-1,fulls=fs) : match3Degrain1 : match3Degrain1
     match3Degrain2 = (SourceMatch > 2 && MatchTR2 > 1) ? n16 ? match3Degrain2.ConvertBits(8,dither=-1,fulls=fs) : match3Degrain2 : match3Degrain2
     match3         = (SourceMatch < 3) ? match2                                                                 : \
-                     (MatchTR2 == 0)   ? match3Update                                                           : \
-                     (MatchTR2 == 1)   ? match3Degrain1.Merge( match3Update,  0.25 )                            : \
-                                         ex_lutxyz(match3Degrain1,match3Degrain2,match3Update,"x 0.75 * y 0.1875 * z 0.0625 * + +", UV=3)
+                     (MatchTR2 == 0)   ? match1Shp.ex_adddiff( match3Update, UV=3, fulls=fs )                   : \
+                     (MatchTR2 == 1)   ? match3Degrain1.ex_lutxyz( match3Update,match1Shp,"x dup y - 0.25 * - z +", UV=3) : \
+                                         ex_lutxyza(match3Degrain1,match3Degrain2,match3Update,match1Shp,"x 0.75 * y 0.1875 * z 0.0625 * a + + +", UV=3)
 
     # Apply difference calculated in source-match refinement
-    return (SourceMatch < 2) ? match1 : match1Shp.ex_adddiff( match3, UV=3, fulls=fs )
+    return match3
 }
 
 
@@ -1432,7 +1446,7 @@ function QTGMCp_SetUserGlobal( string Prefix, string Name, val Value, bool "Repl
     {
         Eval( "global " + globalName + " = Value" )
 
-    } else { Assert( false, """QTGMCp: Multiple calls to QTGMC, set PrevGlobals="Replace" or read documentation on 'Multiple QTGMC Calls'""" ) }
+    } else { Assert( false, """QTGMC+: Multiple calls to QTGMC, set PrevGlobals="Replace" or read documentation on 'Multiple QTGMC Calls'""" ) }
 }
 
 # Return value of global variable called "Prefix_Name". Returns nop() if it doesn't exist or Reuse is false
@@ -1445,7 +1459,7 @@ function QTGMCp_GetUserGlobal( string Prefix, string Name, bool "Reuse" )
 }
 
 # from Zs_RF_Shared v1.159, required for EdiMode=="BWDIF+EEDI3"
-# "base on Dither_limit_dif16 idea (not 100% same output)"
+# "based on Dither_limit_dif16 idea (not 100% same output)"
 function QTGMCp_slimit_dif2(clip "flt", clip "src", clip "ref", float "thr", float "elast", int "UV", bool "elastinfl") {
 
     thr     = Default(thr,  0.25)
@@ -1524,7 +1538,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 #     bool "nnedi3"=false
 #     )
 #
-function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int "gpuid") {
+function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int "props", int "gpuid") {
 
     fs    = propNumElements(cp, "_ColorRange")  > 0 ? \
             propGetInt     (cp, "_ColorRange")      : 1
@@ -1536,17 +1550,19 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
             propSet        (cp, "_DurationDen", FrameRateNumerator  (cp))
     fb    = fb==0 ? GetParity(cp) ? 2 : 1 : fb
 
+    yv12  = cp.is420()
     w     = cp.Width()
     h     = cp.Height()
     h     = Default(height, h)
     b     = Default(b,    0.0)     # cubic coefficient 'b'
     c     = Default(c,    1.0)     # cubic coefficient 'c'. Bob(0.0, 1.0) preserves the original fields for RGB and YUY2, and preserves the Luma but not the Chroma for YV12.
     nn    = Default(nnedi3, false) # Use nnedi3 instead of cubic interpolation
+    pp    = Default(props,      2) # 0: Skip writting frameprops. 1: Write only clip frameprops. 2: Write clip and frame -runtime- frameprops.
     gp    = Default(gpuid,  0)
 
     par   = fb==2
 
-    if (is420(cp)) {
+    if (yv12) {
 
         shift = par ? 0.25 : -0.25
 
@@ -1574,16 +1590,19 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
     } else {
 
         !nn ? Bob(cp, b, c, h ) : \
-              nnedi3wrap(cp, field=fb+1,nsize=3,nns=3,qual=2,gpuid=gp)
+              nnedi3wrap(cp, field=fb+1,nsize=3,nns=3,qual=2,props=true,gpuid=gp)
     }
 
     par ? AssumeTFF() : AssumeBFF()
+
+    if (pp>0 && (yv12 || (!yv12 && !nn))) {
     propCopy(cp,true,props=["_DurationNum","_FieldBased","_PictType","_AbsoluteTime"],exclude=true)
-    if (!nn) {
-    ScriptClip(function[cp]() {
+
+    pp>1 ? ScriptClip(function[cp]() {
     propSet("_DurationDen",propGetInt(cp,"_DurationDen")*2)
     propSet("_DurationNum",propGetInt(cp,"_DurationNum")  )
-    } )
+    } ) : last
+
     propSet("_FieldBased",0).propSet("_Field",fb-1).propSet("_Combed",0) } }
 
 
