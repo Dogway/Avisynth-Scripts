@@ -21,7 +21,7 @@
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 26-February-2023
+<b>Date:</b> 27-February-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -42,7 +42,7 @@
   <tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.0 or higher)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/MVTools" target="_blank">MVTools2</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v2.7.45 or higher)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.2 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.3 or higher)</td></tr>
   </tr>
 </table>
 </ul>
@@ -291,6 +291,8 @@ For example, we have a very grainy 1080p source so we are going to apply quite e
 TemporalSoften and TemporalGauss are two degraining <var>mode</var>s that switch a few internal settings to make it more temporally stable. It's quite an extreme approach<br/>
 also with <var>blksize</var>=32 and <var>thSAD</var>=900, therefore we should recover some low frequency smearing with <var>LFR</var>=400 and <var>DCTFlicker</var>=true.<br/>
 Following we feed this <var>prefilter</var> clip to the next SMDegrain call with saner settings.<br/>
+*For these two degraining modes you might want to manually tweak the <var>thSCD1</var> value, specially in the <var>thSAD</var> 400 to 800 range.<br/>
+Higher than that it's automatically parametrized to give the lowest <var>thSCD1</var> value (prevents filtering across scene changes) with reasonable filtering.<br/>
 <br/>
 The above is for mild to strong sources, for very strong ones like "21 grams" I found myself using a double call:<br/>
 <pre>SMDegrain(tr=3,mode="TemporalSoften",blksize=32,thSAD=1200,LFR=300,DCTFlicker=true,contrasharp=false,refinemotion=true)
@@ -425,7 +427,7 @@ If necessary, crop beforehand ideally in multiples of 16. Turn it to 0 if you ar
 *<i>Nominal Analog Blanking</i><br/>
 <br/>
 <h4><a id="thSCD1"></a>thSCD1</h4>
-<i>[int: "400"] *int(pow((<var>blksize</var>*2.5),2))</i><br/>
+<i>[int: "365"]</i><br/>
 <br/>
 Threshold which decides whether a block has changed between the previous frame and the current one. So it is one of the thresholds used to tweak the scene changes detection engine.<br/>
 Raising it will lower the number of blocks detected as changed. It may be useful for noisy or flickered video. To fix blending on scene changes on dark scenes, try first the <var>Str</var> and <var>Amp</var> parameters.<br/>
@@ -568,7 +570,7 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
-<p><b>v4.0.0d</b> (26-02-2023)</p>
+<p><b>v4.0.0d</b> (27-02-2023)</p>
     <ul>
         <li>YUY2 support for all clip type arguments via internal planar conversion  (CClip, mfilter, prefilter and input)</li>
         <li>Direct interlaced support for all 'mode' filters and clip type arguments (CClip, mfilter, prefilter and input)</li>

@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.0.0d RC9  by Dogway    - 26 Feb  2023                           ###
+###                       v4.0.0d RC10 by Dogway    - 27 Feb  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -90,7 +90,7 @@
 ################################################################################################
 
 function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , string "mode"     , bool "interlaced" , int   "plane"  , int   "Globals"   , bool "tv_range" ,               \
-                     int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , float "limitC"    , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2",  \
+                     int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , int  "limitC"     , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2",  \
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,                                 \
                      int "gpuid" , int  "rfilter", bool "UHDhalf" ) {
 
@@ -209,8 +209,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     searchparamr = max(0,round(exp(0.69*searchparam-1.79)-0.67))
     pelsearch    = Default( pelsearch, max(0,searchparam*2-2)) # searchRange at finest level. Higher has a high performance hit
     DCT          = Default( DCT,   0 )                         # Change to 5 (slower) if you get artifacts due to luminosity changes (fades, flashes, etc)
-    DCTR         =                        RefineMotion && TS ? 2 : 5
-    thSCD1       = Default( thSCD1, round(RefineMotion && TS ? 0.4*thSAD+520 : 0.35*thSAD+260)) # Typically between 330 and 400
+    DCTR         =                         TS && RefineMotion ? 2 : 5
+    thSCD1       = Default( thSCD1, round(!TS || preclip ? 0.35*thSAD+260 : RefineMotion ? max(230,-1040000*pow(thSAD,-1.214)+950) : max(300,-61275*pow(thSAD,-0.655)+1508))) # Typically between 330 and 400 for !TS
     thSCD2       = Default( thSCD2,  130 )                     # 130 or 51% of SAD change by default
 
     plane        = Default( plane,    isy ? 0 : 4 )
@@ -422,7 +422,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
             DM="""
                 output = TG               ? inter.ex_blur3D(0,0,tr,"weighted",UV=plane0?3:1)                                 : \
-                         TS               ? inter.TemporalSoften(tr,limit,!plane0?0:limitc,15,2)                             : \
+                         TS               ? inter.TemporalSoften(tr,limit,!plane0?0:int(limitc/8.),15,2)                     : \
                          md == "MedianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
                          md == "DFTTest"  ? inter.DFTTest(sstring="0.0:4 0.5:8 1.0:16",U=plane0,V=plane0,dither=1,sbsize=nmod(blksize*0.75),sosize=nmod(blksize*0.75)/2,tbsize=tr,tmode=(tr-1)%2,tosize=floor(tr/2.),swin=2,twin=tr>2?4:7) : \
                          T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1)                                     : \
