@@ -484,6 +484,8 @@ function FSRresize(clip a, val "width", val "height", float "grain", string "pat
 # waifu2xresize()
 #
 # Replacement wrapper for w2xncnnvk() upscaler. Runs VERY slow ~1 fps (GTX 1070)
+# * For anime (model=0) this is better (and faster) at keeping corner details than 2x_Waifaux-NL3-SuperLite,
+#   but it won't denoise as much, so you might need a denoiser and possibly a deringing on top.
 # * w2xncnnvk has a known bug which causes to cast a green tint
 #
 # Dependencies:
