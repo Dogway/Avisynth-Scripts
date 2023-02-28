@@ -32,8 +32,10 @@
 <p>
 	A very high quality deinterlacer with a range of features for both quality and convenience. These include a simple presets system, extensive noise processing capabilities, support for repair of progressive material, precision source matching, shutter speed simulation, etc. Originally based on TempGaussMC_beta2 by Did&eacute;e</p>
 <p>
+	<b>Original:</b> Did&eacute;e<br />
 	<b>Author:</b> Vit<br />
-	<b>Version:</b> 3.33<br />
+	<b>Updates:</b> Terranigma, real.finder, Dogway<br />
+	<b>Doc Version:</b> 3.33<br />
 	<b>Date:</b> 2011-05-10<br />
 	<b>Requirements:</b> YV12 or YUY2 colorspace, <a href="#Requirements">required plugins list</a><br />
 	&nbsp;</p>
@@ -115,43 +117,51 @@
 <h3>
 	<a name="Requirements"></a>Requirements</h3>
 <p>
-	Requires the following plugins, either in the avisynth plugin autoload folder or loaded from the calling script:</p>
+	Requires the following plugins as for version QTGMC+ 4.0.0:</p>
 <h4>
 	Core plugins</h4>
-<ul>
-	<li>
-		<a href="http://avisynth.org.ru/mvtools/mvtools2.html#download"> </a><a href="http://avisynth.org.ru/mvtools/mvtools2.html#download" target="_blank">MVTools2</a> (2.5.11.2 or above)</li>
-	<li>
-		<a href="http://forum.doom9.org/showthread.php?p=701539#post701539" target="_blank">MaskTools v2</a> (recommend 2.0a45 or above)</li>
-	<li>
-		<a href="http://web.missouri.edu/%7Ekes25c/" target="_blank">NNEDI3</a> (recommend 0.9.2 or above)</li>
-	<li>
-		<a href="http://home.arcor.de/kassandro/prerelease/RemoveGrain-1.0.rar" target="_blank">RemoveGrain + Repair</a> (extract only the SSE2 versions, some SSE3 versions have a bug and give no real benefit)</li>
-	<li>
-		<a href="http://home.pages.at/kassandro/RemoveGrain/RemoveGrain.zip" target="_blank">SSE2Tools</a> for YUY2 support (take only SSE2Tools.dll from this zip - do not take the SSE3 version nor the RemoveGrain or Repair dlls)</li>
-</ul>
+<table>
+  <tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/MVTools" target="_blank">MVTools2</a></b></li></td><td>&nbsp;&nbsp;(v2.7.45 or higher)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/MaskTools2" target="_blank">MaskTools2</a></b></li></td><td>&nbsp;&nbsp;(v2.2.30 or higher)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/RgTools" target="_blank">RgTools</a></b></li></td><td>&nbsp;&nbsp;(v1.2 or higher)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.6 or higher)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/vsTCanny" target="_blank">vsTCanny</a></b></li></td><td>&nbsp;&nbsp;(v1.1.8 or higher)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/Vinverse" target="_blank">Vinverse</a></b></li></td><td>&nbsp;&nbsp;(v0.9.4 or higher)</td></tr>
+    <tr><td><li><b><a href="https://forum.doom9.org/showthread.php?t=176131" target="_blank">SysInfo</a></b></li></td><td>&nbsp;&nbsp;(v0.1.2.9 or higher)</td></tr>
+  </tr>
+</table>
+<h4>
+	Core scripts</h4>
+<table>
+  <tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.0 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.3 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/SMDegrain" target="_blank">SMDegrain Mod</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v4.0.0 or higher)</td></tr>
+  </tr>
+</table>
 <h4>
 	Additional plugins</h4>
-<ul>
-	<li>
-		<a href="http://web.missouri.edu/%7Ekes25c/" target="_blank">NNEDI2, NNEDI, EEDI3, EEDI2, TDeint</a> - if selected directly or via a source-match preset</li>
-	<li>
-		<a href="http://avisynth.org.ru/yadif/yadif.html" target="_blank">Yadif</a> - for <code>Preset=&quot;Ultra Fast&quot;</code> or if selected directly (this plugin cannot be autoloaded, it must beloaded in the calling script)</li>
-	<li>
-		<a href="http://home.arcor.de/kassandro/prerelease/VerticalCleaner.rar" target="_blank">VerticalCleaner</a> - for <code>SVThin </code>or <code>Lossless </code>modes</li>
-	<li>
-		<a href="http://ldesoras.free.fr/src/AddGrainC-1.5.1.7z" target="_blank">AddGrainC</a> (or <a href="http://www.megaupload.com/?d=9ZWS9HDF" target="_blank">here</a>) - if <code>NoiseDeint=&quot;Generate&quot;</code> selected for noise processing</li>
-	<li>
-		<a href="http://avisynth.org.ru/fft3dfilter/fft3dfilter.html" target="_blank">FFT3DFilter</a> - if selected for noise processing</li>
-	<li>
-		<a href="http://web.missouri.edu/~kes25c">dfttest</a> - if selected for noise processing
+<table>
+  <tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/TDeint" target="_blank">TDeInt</a></b></li></td><td>&nbsp;&nbsp;(v1.8 or higher)</td><td>&nbsp;&nbsp;(if selected directly or via a <var>SourceMatch</var> preset)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/yadifmod2" target="_blank">yadifmod2</a></b></li></td><td>&nbsp;&nbsp;(v0.2.7 or higher)</td><td>&nbsp;&nbsp;(if selected directly or for <code>Preset=&quot;Ultra Fast&quot;</code>)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI" target="_blank">NNEDI</a>/<a href="http://avisynth.nl/index.php/Nnedi2" target="_blank">NNEDI2</a></b></li></td><td>&nbsp;&nbsp;(latest)</td><td>&nbsp;&nbsp;(if selected directly or via a <var>SourceMatch</var> preset)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/EEDI2" target="_blank">EEDI2</a>/<a href="http://avisynth.nl/index.php/EEDI2CUDA" target="_blank">EEDI2CUDA</a></b></li></td><td>&nbsp;&nbsp;(latest)</td><td>&nbsp;&nbsp;(if selected directly or via a <var>SourceMatch</var> preset)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/Eedi3" target="_blank">EEDI3</a>/<a href="http://avisynth.nl/index.php/EEDI3CL" target="_blank">EEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(latest)</td><td>&nbsp;&nbsp;(if selected directly or via a <var>SourceMatch</var> preset)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/BWDIF" target="_blank">BWDIF</a></b></li></td><td>&nbsp;&nbsp;(v1.2.5 or higher)</td><td>&nbsp;&nbsp;(if <code>EdiMode=&quot;BWDIF+NNEDI3&quot;</code> or <code>EdiMode=&quot;BWDIF+EEDI3&quot;</code>)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/AddGrainC" target="_blank">AddGrainC</a></b></li></td><td>&nbsp;&nbsp;(v1.8.4 or higher)</td><td>&nbsp;&nbsp;(if <code>NoiseDeint=&quot;Generate&quot;</code> selected for noise processing)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/neo_FFT3D" target="_blank">neo_FFT3D</a></b></li></td><td>&nbsp;&nbsp;(r11 or higher)</td><td>&nbsp;&nbsp;(if selected for noise processing)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/Dfttest" target="_blank">DFTTest</a></b></li></td><td>&nbsp;&nbsp;(v1.9.7 or higher)</td><td>&nbsp;&nbsp;(if selected for noise processing)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/KNLMeansCL" target="_blank">KNLMeansCL</a></b></li></td><td>&nbsp;&nbsp;(v1.1.1e or higher)</td><td>&nbsp;&nbsp;(if selected for noise processing)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/BM3DCUDA" target="_blank">BM3D</a></b></li></td><td>&nbsp;&nbsp;(test10 or higher)</td><td>&nbsp;&nbsp;(if selected for noise processing)</td></tr>
+  </tr>
+</table>
 		<ul>
 			<li>
 				For FFT3DFilter and ddftest you also need the FFTW3 library (<a href="http://www.fftw.org/">main page</a> / <a href="http://www.fftw.org/install/windows.html">windows zips</a>). On Windows the file needed for both is libfftw3f-3.dll. However for FFT3DFilter, it needs to be called FFTW3.dll, so you will need two copies and rename one. On Windows put the files in your System32 or SysWow64 folder (which depends on your OS and the version of AviSynth that you&#39;re running)<br />
 				&nbsp;</li>
 		</ul>
-	</li>
-</ul>
 <h3>
 	<a name="GettingStarted"></a>Getting Started</h3>
 <p>
@@ -176,44 +186,15 @@ QTGMC( Preset=&quot;Slow&quot;, ShowSettings=true )</pre>
 <h3>
 	<a name="Multithreading"></a>Multi-threading</h3>
 <p>
-	QTGMC is very demanding on your system. For best performance try using it multi-threaded. You need an &quot;MT&quot; version of avisynth, find the links to these versions on the <a href="http://avisynth.org/mediawiki/Main_Page">AviSynth Wiki</a>. Below is a template multi-threading script, read and follow the comments carefully (you cannot use this script as it is):</p>
+	QTGMC is very demanding on your system. For best performance try using it multi-threaded. Below is a template multi-threading script, read and follow the comments carefully:</p>
 <pre>
-SetMemoryMax(M)  # Optional line. Leave it out at first. See below for value M
-SetMTMode(5, X)  # See below for value X
-YourSource( &quot;yourfile&quot; )  # DGDecode_mpeg2source, FFVideoSource, AviSource, whatever your source requires
-SetMTMode(2)
-QTGMC( Preset=&quot;Slow&quot;, EdiThreads=Y ) # Choose preset based on overall speed/quality you want. See below for value Y
-Distributor()    # This line may or may not be necessary, try removing it and see if you get more speed</pre>
-<h4>
-	Setting X</h4>
-<ul>
-	<li>
-		Start at the number of logical cores in your machine (note: with HyperThreading enabled, logical cores = 2x physical cores)</li>
-	<li>
-		If it crashes, decrease 1 at a time</li>
-	<li>
-		Otherwise increase 1 at a time until CPU usage just about reaches 100%, don&#39;t go too far or it will slow down</li>
-</ul>
-<h4>
-	Setting Y</h4>
-<ul>
-	<li>
-		Start at about half number of cores and tweak upwards or downwards</li>
-	<li>
-		Reducing this value might allow you to increase X for an overall speedup</li>
-</ul>
-<h4>
-	Setting M</h4>
-<ul>
-	<li>
-		First try without the SetMemoryMax line</li>
-	<li>
-		However, selecting a good SetMemoryMax value might better utilise memory and increase stability. Particularly important for slower settings</li>
-	<li>
-		Try values 400,600,800,1000 etc. Sometimes reducing this value can allow you to increase X for a speedup</li>
-</ul>
+SetMemoryMax(2048*4)              # Replace *4 with *6, *8, depending on system RAM and QTGMC requirements
+YourSource( &quot;yourfile&quot; )          # DGDecode_mpeg2source, FFVideoSource, AviSource, whatever your source requires
+QTGMC( Preset=&quot;Slow&quot;, Threads=Y ) # Choose preset based on overall speed/quality you want. See below for value Y
+Prefetch(8)                       # Play with these values depending on system CPU cores and threads</pre>
+
 <p>
-	Each machine is different, the above guidelines are simply a good starting point. Experiment for best results. Note that you can only use QTGMC with SetMTMode(...), do not use MT(...). There are occasional instabilities with multi-threading, because AviSynth is not quite thread-safe. These instabilities affect different users in different ways: some report no issues, others can barely get multi-threading to work at all<br />
+	Each machine is different, the above guidelines are simply a good starting point. Experiment for best results. There are occasional instabilities with multi-threading, because AviSynth is not quite thread-safe. These instabilities affect different users in different ways: some report no issues, others can barely get multi-threading to work at all<br />
 	&nbsp;</p>
 <h2>
 	<a name="FeaturesSettings"></a>Features / Settings</h2>
@@ -849,16 +830,16 @@ QTGMC( Preset=XXXX, SourceMatch=3, Lossless=2, Sharpness=XXX, TR2=X ) # Best qua
 QTGMC( Preset=&quot;Slow&quot;, SourceMatch=1 )                # Enable basic source-match. Result somewhat closer to source.
 QTGMC( Preset=&quot;Slow&quot;, SourceMatch=1, Sharpness=0.4 ) # Basic source-match but sharper (up from 0.2). Be careful as sharpness limiting defaults to off
 QTGMC( Preset=&quot;Slow&quot;, SourceMatch=1, Lossless=2 )    # Basic source-match with &quot;fake&quot; lossless. Efficient setting for quality, may bring minor combing
- 
+
 QTGMC( Preset=&quot;Medium&quot;, SourceMatch=2, TR2=2 )       # Refined source-match, closer to source with no combing, slower. Increased TR2 reduces noise
- 
+
 QTGMC( Preset=&quot;Slower&quot;, SourceMatch=3 )              # Twice refined source-match, higher quality than mode 2, but a little bit slower again
 QTGMC( Preset=&quot;Slower&quot;, SourceMatch=3, Lossless=2 )  # Twice refined source-match with fake lossless. Almost perfect fidelity mode with few artefacts
 QTGMC( Preset=&quot;Slower&quot;, SourceMatch=3, Lossless=1 )  # Twice refined source-match with true lossless. Exact detail, but likely combing and shimmer
- 
+
 QTGMC( Preset=&quot;Slow&quot;, SourceMatch=3, Lossless=2, MatchEnhance=0.75 ) # Further enhance detail found by refined match, a little sharper, may be noisier
 QTGMC( Preset=&quot;Slow&quot;, SourceMatch=3, Lossless=2, MatchEnhance=0.75, NoiseProcess=1, NoiseRestore=0.7, Sigma=1.5 ) # As above, denoise a little to help
- 
+
 QTGMC( Preset=&quot;Slower&quot;, MatchPreset=&quot;Very Fast&quot;, SourceMatch=1 ) # Faster basic source-match preset (defaults to 3 steps faster than main Preset)
 QTGMC( Preset=&quot;Slower&quot;, MatchPreset=&quot;Faster&quot;, MatchPreset2=&quot;Ultra Fast&quot;, SourceMatch=3 ) # Faster refined source-match preset as well
                                                                                          # (defaults to 2 steps faster than basic match Preset)
@@ -1075,7 +1056,7 @@ QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=1, NoiseRestore=0.0, Denoiser=&qu
 # Retain Noise / Grain
 QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=1, NoiseRestore=1.0, Sigma=2.0 ) # Retain *all* the noise / fine detail of a less noisy source
 QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=1, GrainRestore=1.0, Sigma=2.0 ) # Similar to above but only keep the more &quot;stable&quot; noise elements (depends on TR2)
- 
+
 # Strong Detail / Grain
 QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=2, GrainRestore=0.5, NoiseRestore=0.1, Sigma=2.5 ) # Using stronger mode 2, retains noise and sharpens slightly
 QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=2, GrainRestore=0.4, NoiseRestore=0.2, Sigma=1.8, \
@@ -1426,13 +1407,13 @@ TempGaussMC_beta2( 2,2,1, Border=false, SVthin=0.0 )
 <h2>
 	<a name="VersionHistory"></a>Version History</h2>
 <p>
-	<span style="font-size: smaller;"><b>v3.33</b><br />
+	<span style="font-size: smaller;"><b>v3.33</b> (10-05-2012)<br />
     Increased maximum value for Rep0, Rep1 and Rep2 to 7 (from 5). Higher values help with flicker on static detail, potential for minor motion blur<br />
     Bug fix for the fact that Bob always outputs a BFF clip regardless of field order of input (thanks ajp_anton)<br />
     Improved generation of noise (NoiseDeint="Generate") for NoiseProcess / EZKeepGrain<br />
     Minor change to denoising<br />
 	<br />
-	<b>v3.32</b><br />
+	<b>v3.32</b> (05-05-2011)<br />
 	Bugfix with shutter blur and ChromaMotion<br />
 	Tweaked vector recalculation for shutter motion blur<br />
 	Changed defaults for TR2 when using source-match<br />
@@ -1449,13 +1430,13 @@ TempGaussMC_beta2( 2,2,1, Border=false, SVthin=0.0 )
 	Preset is now the first setting, allowing a simpler form: QTGMC(&quot;Slow&quot;). Old TGMC style will no longer work<br />
 	Workaround for padding bug in MVTools that crashed faster modes. Removes need for SafeMode setting, which has been removed<br />
 	<br />
-	<b>v3.25</b><br />
+	<b>v3.25</b> (14-03-2011)<br />
 	Added YUY2 support<br />
 	NoiseBypass renamed to NoiseProcess<br />
 	PrevGlobals now defaults to &quot;Replace&quot; for simplicity<br />
 	Tweaked &quot;Very Fast&quot; preset for quality and consistency with other preset speeds<br />
 	<br />
-	<b>v3.20</b><br />
+	<b>v3.20</b> (07-03-2011)<br />
 	Motion vectors made available to calling script (see External Linkage section in documentation), added related GlobalNames, PrevGlobals &amp; ForceTR settings<br />
 	Added simplified noise processing settings: EZDenoise, EZKeepGrain and NoisePreset<br />
 	Support for dfttest as denoiser for noise processing - added settings Denoiser and DftThreads<br />
@@ -1485,7 +1466,7 @@ TempGaussMC_beta2( 2,2,1, Border=false, SVthin=0.0 )
 	Enabling ShowNoise automatically switches on NoiseBypass<br />
 	Bug fixes: &quot;Draft&quot; mode, noise extraction with InputType=1, MatchEdi setting<br />
 	<br />
-	<b>v3.0</b><br />
+	<b>v3.0</b> (23-01-2011)<br />
 	Introduced source-match modes and settings for higher fidelity output - supported for interlaced and progressive input<br />
 	Most lossless settings removed - superseded by source-match, only Lossless integer remains<br />
 	Added ProgSADMask setting for progressive repair modes (InputType=2,3) to help recover stable detail<br />
@@ -1500,7 +1481,7 @@ TempGaussMC_beta2( 2,2,1, Border=false, SVthin=0.0 )
 	Bug fixes in Sbb and InputType=3<br />
 	Complete rewrite of documentation and some script tidying<br />
 	<br />
-	<b>v2.51</b><br />
+	<b>v2.51</b> (26-10-2010)<br />
 	Changed default interpolator to &quot;NNEDI3&quot; for presets up to &quot;Super Fast&quot; and (new) lossless presets up to &quot;Faster&quot;<br />
 	Range of preset tweaks including higher quality output from &quot;Super Fast&quot; &amp; &quot;Ultra Fast&quot; but with a little speed loss<br />
 	Support for EdiMode=&quot;EEDI3+NNEDI3&quot;: EEDI3 with sclip taken from NNEDI3<br />
@@ -1548,7 +1529,7 @@ TempGaussMC_beta2( 2,2,1, Border=false, SVthin=0.0 )
 	Additional speed tweaks: NNSize, SrchClipPP, SubPel, Precise<br />
 	Added Presets system and beginnings of Tunings<br />
 	<br />
-	<b>v1.00</b><br />
-	First draft - high speed basic TGMC algorithm only</span></p>
+	<b>v1.00</b> (05-08-2010)<br />
+	First draft - high speed basic TGMC algorithm only (based on original TempGaussMC_beta2 by Did&eacute;e and Terranigma's MVTools2 update)</span></p>
 	</body>
 </html>
