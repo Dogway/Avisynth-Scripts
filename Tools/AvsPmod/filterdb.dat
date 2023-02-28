@@ -1613,6 +1613,28 @@ float "src_height"=0,
 int "taps"=4 (2 to 30)
 )
 
+SinLin2Resize(
+clip,
+int target_width,
+int target_height,
+float "src_left"=0,
+float "src_top"=0,
+float "src_width"=0,
+float "src_height"=0,
+int "taps"=4 (2 to 30)
+)
+
+SinPowerResize(
+clip,
+int target_width,
+int target_height,
+float "src_left"=0,
+float "src_top"=0,
+float "src_width"=0,
+float "src_height"=0,
+float "p"=2.5 (1.0 to 12.0)
+)
+
 SkewRows(
 clip,
 int skew
@@ -2927,14 +2949,6 @@ int "v"=3 (1 / 2 / 3),
 bool "mt"=false,
 )
 
-JpegSource_JpegSource(
-string "file"= ("*.jpg"),
-int "rec"=1,
-int "channel"=-1,
-int "length"=1000,
-float "fps_num"=24,
-int "fps_den"=1
-)
 
 kerneldeint140_KernelDeint(
 clip,
@@ -3602,56 +3616,6 @@ bool "debug"=false,
 [bool "scale"=true]
 )
 
-SoundOut_SoundOut(
-clip,
-[string "output"="" ("WAV"/ "AC3"/ "MP2"/ "MP3"/ "OGG"/ "FLAC"/ "MAC"/ "WV"/ "CMD")],
-[string "filename"= ("*.*")],
-[bool "showprogress"=true],
-[bool "autoclose"=false],
-[bool "silentblock"=true],
-[bool "addvideo"=true],
-[int "abrrate"=128],
-[bool "accuratealloc"=true],
-[int "acmod"= (0 / 1 / 2 / 3 / 4 / 5 / 6 / 7)],
-[bool "autoCloseWindow"=false],
-[bool "bandwidthfilter"=false],
-[int "bitrate"=192],
-[bool "blockswitch"=false],
-[bool "cbr"=false],
-[int "cbrrate"],
-[int "compressionlevel"],
-[bool "copyright"=false],
-[bool "crc"=false],
-[bool "dab"=false],
-[bool "dchighpass"=false],
-[int "dialognormalization"=31 (0 to 31)],
-[bool "dolbysurround"=false],
-[int "drc"=5 (0 / 1 / 2 / 3 / 4 / 5)],
-[int "emphasis"=0 (0 / 1 / 2 / 3)],
-[string "executable"="aften.exe"],
-[int "format"],
-[bool "iscbr"=true],
-[bool "islfe"],
-[bool "lfelowpass"=false],
-[int "mode"=2 (0 / 1 / 2)],
-[bool "nofilename"=false],
-[bool "original"=false],
-[string "overwriteFile"= ("Yes"/ "No"/ "Ask")],
-[bool "padding"],
-[bool "peakchunck"=false],
-[string "postfilename"=""],
-[string "prefilename"="-b 384 -"],
-[int "psymodel"=3 (-1 / 0 / 1 / 2 / 3 / 4)],
-[bool "quick"=false],
-[bool "showoutput"=true],
-[int "stereomode"=-1 (-1 / 0 / 1 / 2 / 3 / 4)],
-[int "type"],
-[bool "vbr"=false],
-[int "vbrbitrate"=128],
-[int "vbrpreset"=1001 (1001 / 1002 / 1003 / 1004 / 1005 / 1006 / 1007)],
-[float "vbrquality"],
-[int "wait"=5]
-)
 
 SSIQ_SSIQ(
 clip,
@@ -4163,23 +4127,25 @@ ConvertFormat(
 clip,
 float width=1.0 (0.1 to 1920.0),
 float height=1.0 (0.1 to 1080.0),
-string "fmt_in"=""  (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab"),
-string "fmt_out"="" (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab"),
-string preset="" (""/ "none"/ "DoVi/DVp5/DVp7"/ "PQ10/UHD"/ "HLG10"/ "HD"/ "DVD-NTSC"/ "DVD-PAL"/ "DV"/ "CRT-NTSC"/ "CRT-PAL"/ "Master"/ "Archival"/ "Grade"/ "Theater"/ "JPEGXL"/ "JPEG2000"/ "JPG_old"/ "JPG"),
-string "cs_in"=""  (""/ "709"/ "470M"/ "470BG"/ "170M"/ "NTSC-J"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG"/ "WideGamut"/ "AppleRGB"/ "ProPhoto"/ "AllColorsRGB"/ "MaxRGB"/ "xTremeRGB"/ "ColorMatch"/ "BruceRGB"/ "DonRGB4"/ "BestRGB"/ "BetaRGB"/ "RussellRGB"/ "ECI-RGB"/ "EktaSpacePS5"/ "ChromeSpace100"/ "CIE RGB"),
-string "cs_out"="" (""/ "709"/ "470M"/ "470BG"/ "170M"/ "NTSC-J"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG"/ "WideGamut"/ "AppleRGB"/ "ProPhoto"/ "AllColorsRGB"/ "MaxRGB"/ "xTremeRGB"/ "ColorMatch"/ "BruceRGB"/ "DonRGB4"/ "BestRGB"/ "BetaRGB"/ "RussellRGB"/ "ECI-RGB"/ "EktaSpacePS5"/ "ChromeSpace100"/ "CIE RGB"),
-string "OETF" ="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG ARIB"/ "ACESCCt"/ "log100"/ "log316"/ "1361"),
-string "OETFi"="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG ARIB"/ "ACESCCt"/ "log100"/ "log316"/ "1361"),
-string "EOTFi"="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG ARIB"/ "ACESCCt"/ "log100"/ "log316"/ "1361"),
-string "D_in"=""  (""/ "A"/ "B"/ "D50"/ "E"/ "D55"/ "ACES"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93"/ "ID50"/ "ID65"/ "Sunlight"/ "Overcast")],
-string "D_out"="" (""/ "A"/ "B"/ "D50"/ "E"/ "D55"/ "ACES"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93"/ "ID50"/ "ID65"/ "Sunlight"/ "Overcast")],
+[string preset="" (""/ "none"/ "DoVi/DVp5/DVp7"/ "PQ10/UHD"/ "HLG10"/ "HD"/ "DVD-NTSC"/ "DVD-PAL"/ "DV"/ "CRT-NTSC"/ "CRT-PAL"/ "Master"/ "Archival"/ "Grade"/ "Theater"/ "JPEGXL"/ "JPEG2000"/ "JPG_old"/ "JPG")],
+[string "fmt_in"=""  (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab")],
+[string "fmt_out"="" (""/ "YCbCr411"/ "YCbCr420"/ "YCbCr422"/ "YCbCr444"/ "YcCbcCrc"/ "YUVr"/ "YCoCg"/ "YCoCgR"/ "RGB"/ "HSV"/ "OPP"/ "XYZ"/ "Yxy"/ "YDzDx"/ "Duv"/ "CIELab"/ "CIELuv"/ "IPT"/ "Oklab")],
+[string "cs_in"=""  (""/ "709"/ "470M"/ "470BG"/ "170M"/ "NTSC-J"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG"/ "WideGamut"/ "AppleRGB"/ "ProPhoto"/ "AllColorsRGB"/ "MaxRGB"/ "xTremeRGB"/ "ColorMatch"/ "BruceRGB"/ "DonRGB4"/ "BestRGB"/ "BetaRGB"/ "RussellRGB"/ "ECI-RGB"/ "EktaSpacePS5"/ "ChromeSpace100"/ "CIE RGB")],
+[string "cs_out"="" (""/ "709"/ "470M"/ "470BG"/ "170M"/ "NTSC-J"/ "240M"/ "2020NCL"/ "2020CL"/ "XYZ"/ "DCI-P3"/ "Display-P3"/ "ACEScg"/ "ACES2065"/ "ACESCCt"/ "AdobeRGB"/ "AWG"/ "WideGamut"/ "AppleRGB"/ "ProPhoto"/ "AllColorsRGB"/ "MaxRGB"/ "xTremeRGB"/ "ColorMatch"/ "BruceRGB"/ "DonRGB4"/ "BestRGB"/ "BetaRGB"/ "RussellRGB"/ "ECI-RGB"/ "EktaSpacePS5"/ "ChromeSpace100"/ "CIE RGB")],
+[string "OETF" ="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG ARIB"/ "ACESCCt"/ "log100"/ "log316"/ "1361")],
+[string "OETFi"="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG ARIB"/ "ACESCCt"/ "log100"/ "log316"/ "1361")],
+[string "EOTFi"="" (""/ "linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ ""170M"/ 709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG ARIB"/ "ACESCCt"/ "log100"/ "log316"/ "1361")],
+[string "D_in"=""  (""/ "A"/ "B"/ "D50"/ "E"/ "D55"/ "ACES"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93"/ "ID50"/ "ID65"/ "Sunlight"/ "Overcast")],
+[string "D_out"="" (""/ "A"/ "B"/ "D50"/ "E"/ "D55"/ "ACES"/ "D60"/ "DCI"/ "D65"/ "C"/ "D75"/ "D93"/ "ID50"/ "ID65"/ "Sunlight"/ "Overcast")],
+[string "cplace_in"=""  (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
+[string "cplace_out"="" (""/ "center"/ "left"/ "top_left"/ "top"/ "bottom_left"/ "bottom")],
 [string "CAT"="CAT" ("CAT"/ "Simulation"/ "Compensation")],
 [bool "tv_in"=true],
-bool "tv_out"=true,
-string "scale_space"="gamma" ("gamma"/ "linear"/ "sigmoid"/ "log"),
-string "kernel"="spline36"   ("nnedi3"/ "EEDI3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
-[string "kernel_c"="spline36" ("nnedi3"/ "EEDI3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
-int "taps"=[0,0] ([0,0] to [12,12] by [1,1]),
+[bool "tv_out"=true],
+[string "scale_space"="gamma" ("gamma"/ "linear"/ "sigmoid"/ "log")],
+[string "kernel"="spline36"   ("nnedi3"/ "EEDI3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
+[string "kernel_c"="spline36" ("nnedi3"/ "EEDI3"/ "deep"/ "FCBI"/ "SuperResXBR"/ "Waifu2x"/ "RAVU"/ "FSR1"/ "Krig"/ "FSRCNN"/ "DPID"/ "SSIM"/ "SSIM2"/ "--"/ "Point"/ "Nearest"/ "Box"/ "Bilinear"/ "Bicubic"/ "Quadratic"/ "Gauss"/ "--"/ "Wiener"/ "Spline"/ "Spline16"/ "Spline36"/ "Spline64"/ "Spline100"/ "Spline144"/ "Spline196"/ "Spline256"/ "--"/ "Jinc"/ "Jinc16"/ "Jinc36"/ "Jinc64"/ "Jinc100"/ "Jinc144"/ "Jinc196"/ "Jinc256"/ "EWASharp"/ "EWASharp2"/ "EWASharp4"/ "EWASharper"/ "EWASharper2"/ "EWASharper4"/ "EWASharpest"/ "EWASoft"/ "HaasnSoft"/ "Tukey"/ "--"/ "Sinc"/ "SincLin"/ "SinPow"/ "--"/ "Welch"/ "Cosine"/ "Bessel"/ "Wiener"/ "Hamming"/ "Hann"/ "EWA_Hann"/ "Kaiser"/ "Blackman"/ "Black-Harris"/ "Black-Nuttall"/ "Nuttall"/ "Bohman"/ "Parzen"/ "Lanczos"/ "EWA_Lanczos"/ "Ginseng"/ "EWA_Ginseng"/ "Flat-Top"/ "MinSide"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch")],
+[int "taps"=[0,0] ([0,0] to [12,12] by [1,1])],
 [bool "nomoiree"=false],
 [bool "noring"=false],
 [bool "UVrecon"=false],
@@ -4217,6 +4183,7 @@ int "e_taps"=6 (2 to 20),
 int "f_taps"=8 (2 to 20),
 int "c_taps"=6 (2 to 20),
 int "deconv"=0 (-10 to 15),
+float "sharpness"=1 (0 to 20),
 [float "grain"=0.0 (0.0 to 2.0)],
 float "th_rat"=1.25 (1.00 to 2.00 by 0.05),
 float "th"=1.0 (0.0 to 5.0),
@@ -4608,7 +4575,7 @@ bool "invert"=false
 ex_blend(
 clip a,
 clip b,
-string "mode"="multiply" ("normal"/ "blend"/ "interpolation"/ "harmonic"/ "geometric"/ "watermark"/ "--"/ "darker"/ "darken"/ "multiply"/ "multiply128"/ "softburn"/ "colorburn"/ "linearburn"/ "--"/ "lighter"/ "lighten"/ "screen"/ "softdodge"/ "colordodge"/ "lineardodge"/ "linearadd"/ "--"/ "overlay"/ "softoverlay"/ "hardoverlay"/ "softlight"/ "hardlight"/ "vividlight"/ "linearlight"/ "stamp"/ "pinlight"/ "hardmix"/ "reflect"/ "glow"/ "freeze"/ "heat"/ "--"/ "grainextract"/ "grainmerge"/ "--"/ "difference"/ "softdifference"/ "negation"/ "exclusion"/ "subtract"/ "linearsubtract"/ "from"/ "divide"/ "andn"/ "bleach"/ "extremity"/ "stain"/ "phoenix"/ "--"/ "hue"/ "saturation"/ "color"/ "luminosity"),
+string "mode"="multiply" ("normal"/ "blend"/ "interpolation"/ "harmonic"/ "geometric"/ "watermark"/ "--"/ "darker"/ "darken"/ "darkenS"/ "multiply"/ "multiply128"/ "softburn"/ "colorburn"/ "linearburn"/ "--"/ "lighter"/ "lighten"/ "lightenS"/ "screen"/ "softdodge"/ "colordodge"/ "lineardodge"/ "linearadd"/ "--"/ "overlay"/ "softoverlay"/ "hardoverlay"/ "softlight"/ "hardlight"/ "vividlight"/ "linearlight"/ "stamp"/ "pinlight"/ "hardmix"/ "reflect"/ "glow"/ "freeze"/ "heat"/ "--"/ "grainextract"/ "grainmerge"/ "--"/ "difference"/ "softdifference"/ "negation"/ "exclusion"/ "subtract"/ "linearsubtract"/ "from"/ "divide"/ "andn"/ "bleach"/ "extremity"/ "stain"/ "phoenix"/ "--"/ "hue"/ "saturation"/ "color"/ "value"),
 float "opacity"=1.00 (0.00 to 1.00),
 [float "watermark"=1.0 (0.0 to 2.0)],
 [int "UV"=3 (1 / 2 / 3)]
@@ -4634,10 +4601,10 @@ string "mode"="mean" ("mean"/ "weighted")
 
 ex_BM3D(
 clip,
-float sigma=3.0 (1.0 to 10.0 by 0.5),
+float sigma=3.0 (1.0 to 30.0 by 0.5),
 [int "radius"=1 (1 to 5)],
 [string "preset"="Low" ("Fast"/ "Low"/ "Normal"/ "High"/ "Noisy")],
-[bool "CUDA"=true],
+[int "gpuid"=0 (-1 to 2)],
 [bool "OPP"=true]
 )
 
@@ -4722,6 +4689,14 @@ int "UV"=3 (1 / 2 / 3),
 [bool "show"=false]
 )
 
+ex_autolevels(
+clip,
+bool "lo"=true,
+bool "gamma"=true,
+bool "hi"=true,
+[bool Deflicker=false]
+)
+
 ex_logic(
 clip a,
 clip b,
@@ -4732,6 +4707,8 @@ ex_Luma_Rebuild(
 clip,
 float S0=5.0 (1.0 to 9.0),
 float c=0.03 (0.00 to 1.00),
+[int "lo"=0 (0 to 32)],
+[int "hi"=255 (220 to 255)],
 [bool "tv_out"=false],
 [bool "show"=false]
 )
@@ -4746,7 +4723,7 @@ string "mode"="avg" ("average"/ "median"/ "--"/ "min"/ "max"/ "minmax"/ "--"/ "b
 ex_makediff(
 clip a,
 clip b,
-string "metric"="none" ("none"/ "ALL"/ "--"/ "ME"/ "MAE"/ "SMAE"/ "MAD"/ "MAD2"/ "MSE"/ "MSLE"/ "RMSE"/ "CHAR"/ "--"/ "OkMSE"/ "RedMe"/ "CIEDE2000"/ "R2"/ "ZTest"/ "CAMBI"/ "--"/ "PSNR"/ "SSIM"/ "MS_SSIM"/ "BSSIM"/ "GMSD"/ "MDSI"/ "BUTT"),
+string "metric"="none" ("none"/ "ALL"/ "--"/ "ME"/ "MAE"/ "SMAE"/ "MAD"/ "MAD2"/ "MSE"/ "MSLE"/ "RMSE"/ "CHAR"/ "--"/ "OkMSE"/ "RedMe"/ "CIEDE2000"/ "R2"/ "ZTest"/ "CAMBI"/ "--"/ "PSNR"/ "SSIM"/ "MS_SSIM"/ "BSSIM"/ "SSIMU"/ "SSIMU2"/ "GMSD"/ "MDSI"/ "BUTT"),
 bool "aug"=false,
 bool "dif"=false,
 int "show"=2 (0 to 3)
@@ -4796,7 +4773,7 @@ string "mode"="undot2" ("median"/ "medianc"/ "undot"/ "undot2"/ "undot3"/ "edgeS
 ex_retinex(
 clip,
 int "lvl"=1 (0 to 3),
-[float "lo"=40.0 (0.0 to 128.0 by 1)],
+[float "lo"=50.0 (0.0 to 128.0 by 1)],
 [float "hi"=242.0 (128.0 to 255.0 by 1)],
 [float "sigma"=1.0 (1.0 to 5.0)]
 [bool "highlights"=false],
@@ -5131,8 +5108,8 @@ float "gamma1_2"=0.6 (0.05 to 1.00)
 HSVxHSV(
 clip yuv,
 float str=1.0 (0.0 to 360.0),
-string "modeA"="HUE" ("HUE"/ "SAT"/ "LUM"),
-string "modeB"="SAT" ("HUE"/ "SAT"/ "LUM"),
+string "modeA"="HUE" ("HUE"/ "SAT"/ "VAL"),
+string "modeB"="SAT" ("HUE"/ "SAT"/ "VAL"),
 float "Delta"=180.0 (0.0 to 360.0 by 1),
 float "Q"=0.20 (0.01 to 1.00),
 float "Opacity"=1.0 (0.0 to 1.0),
@@ -5643,8 +5620,8 @@ string "Preset"="Slower" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "F
 int "thSAD1"=640 (100 to 1000),
 int "thSAD2"=256 (100 to 1000),
 int "SourceMatch"=0 (0 to 3),
-string "MatchPreset"="Very Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
-string "MatchPreset2"="Very Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+string "MatchPreset"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
+string "MatchPreset2"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
 [int "MatchTR2"=1 (0 to 2)],
 float "MatchEnhance"=0.5 (0.0 to 1.0 by 0.05),
 int "Lossless"=0 (0 to 2),
@@ -5665,10 +5642,10 @@ RatioResize(
 clip,
 float ratio=1.0 (0.0 to 2.0),
 string mode="%" ("adjust2w"/ "adjust2h"/ "DAR"/ "DARconform"/ "PAR"/ "%"),
-int mod=2 (1 to 16),
-string kernel="bicubic" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "Point"/ "bilinear"/ "bicubic"/ "deep"/ "nnedi3"),
-float b=0.00 (-1.00 to 1.00),
-float c=0.50 (0.00 to 1.00)
+[int mod=2 (1 to 16)],
+string kernel="Catmull-Rom" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "SincLin2"/ "SinPower"/ "Point"/ "bilinear"/ "deep"/ "nnedi3"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+[float b=0.00 (-1.00 to 1.00)],
+[float c=0.50 (0.00 to 1.00)]
 )
 
 RawReadInterleaved(
@@ -5789,6 +5766,7 @@ float "th"=0.5 (0.0 to 5.0),
 float "dFactor"=3.7 (2.5 to 4.0),
 [float "MinDif"=1.0 (0.5 to 4.0)],
 [bool "iFactor"=true],
+[bool "Anime"=false],
 [bool "Y"=true],
 [bool "UV"=false],
 bool "show"=false
@@ -5869,16 +5847,16 @@ bool "show"=false
 SMDegrain(
 clip input,
 int tr=1 (1 to 9),
-int thSAD=300 (100 to 1000),
+int thSAD=300 (100 to 1500),
 [int "blksize"=16 (4 to 64 by 4)],
 [int "overlap"=8 (2 to 32 by 4)],
-string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "FluxSmoothT"/ "DFTTest"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussT5"/ "GaussST5"/ "--"/ "rMDegrain"/ "rMedianST"/ "rMedianSTS"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT" /"rGaussT5"/ "rGaussST5"),
-int "prefilter"=-1 (-1 to 7),
+string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "TemporalGauss"/ "FluxSmoothT"/ "DFTTest"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussST5"/ "--"/ "rMDegrain"/ "rMedianT"/ "rMedianST"/ "rMedianSTS"/ "rTemporalGauss"/ "rFluxSmoothT"/ "rDFTTest"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT"/ "rGaussST5"),
+string "prefilter"="" (""/ "SBR"/ "MinBlur"/ "MinBlur2"/ "MinBlur3"/ "FluxSmoothST"/ "DFTTest"/ "KNLMeans"/ "DGDenoise"/ "BM3D"),
 bool "ContraSharp"=false,
 [clip "CClip"],
 bool "RefineMotion"=false,
 [bool "interlaced"=false],
-[float "Str"=5.0 (0.0 to 6.0)],
+[float "Str"=5.0 (0.0 to 8.0)],
 [float "Amp"=0.03 (0.00 to 1.00)],
 [int "plane"=4 (1 to 4)],
 [bool "chroma"=true],
