@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.3 (26-02-2023)     ##
+###   Resizers Functions Pack 11.3 (28-02-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -988,10 +988,10 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
 ###    clip,
 ###    float ratio=1.0 (0.0 to 2.0),
 ###    string mode="%" ("adjust2w"/ "adjust2h"/ "DAR"/ "DARconform"/ "PAR"/ "%"),
-###    int mod=2 (1 to 16),
-###    string kernel="bicubic" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "Point"/ "bilinear"/ "bicubic"/ "deep"/ "nnedi3"),
-###    float b=0.00 (-1.00 to 1.00),
-###    float c=0.50 (0.00 to 1.00)
+###    [int mod=2 (1 to 16)],
+###    string kernel="Catmull-Rom" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "SincLin2"/ "SinPower"/ "Point"/ "bilinear"/ "deep"/ "nnedi3"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    [float b=0.00 (-1.00 to 1.00)],
+###    [float c=0.50 (0.00 to 1.00)]
 ###    )
 ###
 ###############################################################################
