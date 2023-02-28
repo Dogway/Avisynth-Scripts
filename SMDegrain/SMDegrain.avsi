@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.0.0d RC10 by Dogway    - 27 Feb  2023                           ###
+###                       v4.0.0d RC11 by Dogway    - 28 Feb  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -100,6 +100,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     isy          = input.isy()
     bi           = BitsPerComponent(input)
     isyuy        = isYUY2(input)
+    is22         = is422 (input)
+    is20         = is420 (input)
     fb           = GetParity      (input) ? 2 : 1
     InterPar     = propNumElements(input,"_FieldBased")  > 0 ? \
                    propGetInt     (input,"_FieldBased") : IsFrameBased(input) ? 0 : fb
@@ -137,10 +139,10 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     isUHD        = UHD && !UHDhalf
     UHDhalf      = UHD &&  UHDhalf
 
-    cplaceCMD = is420  (input) ? "420" : is422(input) ? "422" : "444"
+    cplaceCMD = is20           ? "420" : is22 ? "422" : "444"
 
-    scaleCSAD = is420  (input) ? isHD ? TS ? 1 : 2 :  0 : \
-                is422  (input) ? isHD ? TS ? 1 : 2 :  0 : \
+    scaleCSAD = is20           ? isHD ? TS ? 1 : 2 :  0 : \
+                is22           ? isHD ? TS ? 1 : 2 :  0 : \
                 is444  (input) ? isHD ? TS ? 1 : 2 :  1 : \
                 isYV411(input) ? isHD ?          0 : -1 : \
                                  isHD ? TS ? 1 : 2 :  0
@@ -162,6 +164,14 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     isCntr       = IsBool (   Contrasharp )
     isShrp       = !isCntr ? (Contrasharp > 0.0) : Contrasharp
 
+
+    plane        = Default( plane,    isy ? 0 : 4 )
+    plane0       = plane!=0
+    chroma       = Default( chroma, !(isy || !plane0)  )
+    Chr          = chroma ? 3 : 1
+    U            = plane0 && plane!=2 ? 3 : 2
+    V            = plane0 && plane!=1 ? 3 : 2
+    ChP          = plane0 && plane!=4                          # No luma denoise case
 
     preclip      = IsClip ( prefilter    )
     prefilter    = Default( prefilter, -1)
@@ -197,30 +207,30 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
              LFR = Fs / ( k * 2 * pi )                         # Frequency Cutoff for Gaussian Sigma
     } else { LFR = 3.46*(w/1920.) }                            # (Default: -3dB -log(2)- at 300Hz)
 
+
     blksize      = Default( blksize,  isHD ? 16 : 8 )
         blk2     = blksize    / 2
         ovl2     = max(2,blk2 / 2)
     overlap      = Default( overlap, blk2 )
+
     search       = Default( search, RefineMotion ? 4 : 2 )
     searchr      = 0
     pglobal      = 11
     truemotion   = Default( truemotion, TS || T7 || !isHD)
+
     searchparam  = Default( searchparam, RefineMotion && truemotion ? isUHD ? 2 : 5 : isUHD ? 1 : 2 )
     searchparamr = max(0,round(exp(0.69*searchparam-1.79)-0.67))
     pelsearch    = Default( pelsearch, max(0,searchparam*2-2)) # searchRange at finest level. Higher has a high performance hit
+
     DCT          = Default( DCT,   0 )                         # Change to 5 (slower) if you get artifacts due to luminosity changes (fades, flashes, etc)
     DCTR         =                         TS && RefineMotion ? 2 : 5
-    thSCD1       = Default( thSCD1, round(!TS || preclip ? 0.35*thSAD+260 : RefineMotion ? max(230,-1040000*pow(thSAD,-1.214)+950) : max(300,-61275*pow(thSAD,-0.655)+1508))) # Typically between 330 and 400 for !TS
+
     thSCD2       = Default( thSCD2,  130 )                     # 130 or 51% of SAD change by default
+    thSCD1       = Default( thSCD1, round(!TS || preclip || ChP ?                       0.35*thSAD+260          : \
+                                                 RefineMotion ? max(230,-1040000*pow(thSAD,-1.214)+950)  : \
+                                                                max(300,-61275  *pow(thSAD,-0.655)+1508))) # Typically between 330 and 400 for !TS
 
-    plane        = Default( plane,    isy ? 0 : 4 )
-    plane0       = plane!=0
-    chroma       = Default( chroma, !(isy || !plane0)  )
-    Chr          = chroma ? 3 : 1
-    U            = plane0 && plane!=2 ? 3 : 2
-    V            = plane0 && plane!=1 ? 3 : 2
-
-    Str          = Default( Str,   5.0 )                       # 0 or 1: Automatic Range Conversion (with FrameProps)  0<Str<1: Multi-Scale Retinex  >1.0: ex_luma_rebuild(Str) (from 0.1 to 0.9 indicates ex_retinex() black level clipping value)
+    Str          = Default( Str, ChP ? 1 : 5.0 )               # 0 or 1: Automatic Range Conversion (with FrameProps)  0<Str<1: Multi-Scale Retinex  >1.0: ex_luma_rebuild(Str) (from 0.1 to 0.9 indicates ex_retinex() black level clipping value)
     Amp          = Default( Amp, 1./32 )
     DefTV        = Defined( tv_range)
     tv           = Default( tv_range, !fscale)
@@ -308,7 +318,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             0 < Str < 1 ? pref.ex_retinex(lo=Str*100,lvl=sr?3:1,UV=Chr, tv_in=!fsp, tv_out=false).ConvertBits(8, dither=-1, fulls=true) : \
                    !fsp ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) :          pref.ConvertBits(8, dither=-1, fulls=true)
 
-    pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., Fc=w/8., th=0.0) : pref8 # Low Frequency expansion (higher SAD -> more protection)
+    pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., Fc=w/8., th=0.0) : pref8 # Low Frequency expansion (the higher SAD the more protection)
 
     If (sShow ? false : !Show) {
 
@@ -919,7 +929,7 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "lo", int "hi", i
 ##    (
 ##    clip,
 ##    int "lvl"=1 (0 to 3),
-##    [float "lo"=40.0 (0.0 to 128.0 by 1.0)],
+##    [float "lo"=50.0 (0.0 to 128.0 by 1.0)],
 ##    [float "hi"=242.0 (128.0 to 255.0 by 1.0)],
 ##    [float "sigma"=1.0 (1.0 to 5.0)],
 ##    [bool "highlights"=false],
@@ -928,31 +938,32 @@ function ex_Luma_Rebuild (clip src, float "s0", float "c", int "lo", int "hi", i
 ##
 function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", bool "highlights", bool "tv_in", bool "tv_out", int "UV") {
 
-    w    = width (clp)
-    h    = height(clp)
-    rgb  = isRGB (clp)
-    isy  = isy   (clp)
-    bi   = BitsPerComponent(clp)
-    rn   = propNumElements (clp,"_SceneRange")  > 0
-    fs   = propNumElements (clp,"_ColorRange")  > 0 ? \
-           propGetInt      (clp,"_ColorRange") == 0 : rgb
-    isHD = (w > 1099 || h > 599 )
-    isUHD= (w > 2599 || h > 1499)
+    w     = width (clp)
+    h     = height(clp)
+    wh    = max(w,h)
+    rgb   = isRGB (clp)
+    isy   = isy   (clp)
+    bi    = BitsPerComponent(clp)
+    rn    = propNumElements (clp,"_SceneRange")  > 0
+    fs    = propNumElements (clp,"_ColorRange")  > 0 ? \
+            propGetInt      (clp,"_ColorRange") == 0 : rgb
+    isHD  = (w > 1099 || h > 599 )
+    isUHD = (w > 2599 || h > 1499)
 
-    lvl  = Default(lvl,  rn ? 3 : 1)        # 0: MSR output   1: Fixed levels output  2: auto-levels  3: scene's levels (requires '_SceneRange' frame properties present)
-    hl   = Default(highlights, true)        # Set to false to only recover shadows. For lvl=3 it might cause mid-range expansion (loss of shading) so in this case probably ex_luma_rebuild() should be more indicated as it spreads the expansion through the rest of the range.
-    lo   = Default(lo,  lvl==1?50:4)        # value in input range levels of low  level for normalization in lvl=1. For lvl=2 the divisor for the low level percentile (Reminder: crop black borders)
-    hi   = Default(hi,!hl?255:255-lo/3.)    # value in input range levels of high level for normalization in lvl=1.
-    r    = Default(sigma,         1)        # Multiplier. 1 to 5 roughly (leave it at 1 for the most time)
-    tv   = Default(tv_in,       !fs)        # Range of input  clip
-    tvo  = Default(tv_out,       tv)        # Range of output clip
-    UV   = Default(UV,  tvo ? 3 : 2)        # Set to 3 to convert Chroma to TV range if tv_out=true
-    bi32 = bi==32
-    si   = tv ? "none" : "intf"
+    lvl   = Default(lvl,  rn ? 3 : 1)        # 0: MSR output   1: Fixed levels output  2: auto-levels  3: scene's levels (requires '_SceneRange' frame properties present)
+    hl    = Default(highlights, true)        # Set to false to only recover shadows. For lvl=3 it might cause mid-range expansion (loss of shading) so in this case probably ex_luma_rebuild() should be more indicated as it spreads the expansion through the rest of the range.
+    lo    = Default(lo,  lvl==1?50:4)        # value in input range levels of low  level for normalization in lvl=1. For lvl=2 the divisor for the low level percentile (Reminder: crop black borders)
+    hi    = Default(hi,!hl?255:255-lo/3.)    # value in input range levels of high level for normalization in lvl=1.
+    r     = Default(sigma,         1)        # Multiplier. 1 to 5 roughly (leave it at 1 for the most time)
+    tv    = Default(tv_in,       !fs)        # Range of input  clip
+    tvo   = Default(tv_out,       tv)        # Range of output clip
+    UV    = Default(UV,  tvo ? 3 : 2)        # Set to 3 to convert Chroma to TV range if tv_out=true
+    bi32  = bi==32
+    si    = tv ? "none" : "intf"
 
-    hll  = hl || lvl>1
-    mn   = tvo ? 16      : 0
-    mx   = tvo ? 255-235 : 0
+    hll   = hl || lvl>1
+    mn    = tvo ? 16      : 0
+    mx    = tvo ? 255-235 : 0
 
     if (!hl) {
         MAX  =            ex_bs(255, 8, 32, fulls=true)
@@ -963,12 +974,13 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
         LON  =            ex_bs(lo,  8, 32, tv_in=tv,    tv_out=false)
         HIN  = !hl? MAX : ex_bs(hi,  8, 32, tv_in=tv,    tv_out=false)
 
-    w    = max(w,h)
 
-    a    = isy ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262372,0.678464,0.059164]) : isHD ? clp.DotClip([0.212600,0.715179,0.072221]) : clp.DotClip([0.298912,0.586603,0.114485])
+    a    = isy ? clp : !rgb ? clp.ExtractY() : isUHD ? clp.DotClip([0.262372,0.678464,0.059164]) : \
+                                                isHD ? clp.DotClip([0.212600,0.715179,0.072221]) : \
+                                                       clp.DotClip([0.298912,0.586603,0.114485])
     y    = a.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)
-    b    = y.ex_GaussianBlur(w*0.015 * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
-    c    = y.ex_GaussianBlur(w*0.05  * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
+    b    = y.ex_GaussianBlur(wh*0.015 * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
+    c    = y.ex_GaussianBlur(wh*0.05  * r,pad=true).ConvertBits(bi, fulls=!tv, fulld=!tv)
     d    = y.ScriptClip(function [] () { ex_lut(string(AverageLuma(last))) } ).ConvertBits(bi, fulls=!tv, fulld=!tv)
 
     rangePC =                          tv  ? "ymin - ymax ymin - /"                                           : ""
@@ -1094,27 +1106,27 @@ function ex_retinex(clip clp, int "lvl", float "lo", float "hi", float "sigma", 
 #
 function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "OPP", int "UV", bool "tv_range", int "gpuid") {
 
-    rgb = isRGB(a)
-    isy = isy  (a)
-    bi  = BitsPerComponent(a)
-    pID = color_propGet   (a)
+    rgb  = isRGB(a)
+    isy  = isy  (a)
+    bi   = BitsPerComponent(a)
+    pID  = color_propGet   (a)
 
-    s   = Default(sigma,      3)  # Denoising strength
-    md  = Default(preset, "Low")  # Fast, Low, Normal, High, Noisy
-    OPP = Default(OPP,      rgb)  # RGB clips hard-coded to OPP=true
-    UV  = Default(UV,    rgb ? 3 : 1)
-    tv  = Default(tv_range, pID[6])
-    gid = Default(gpuid,      0)
-    cd  = gid > -1
-    pri = pID[2]
-    mat = pri+(tv?":l":":f")
+    s    = Default(sigma,      3)  # Denoising strength
+    md   = Default(preset, "Low")  # Fast, Low, Normal, High, Noisy
+    OPP  = Default(OPP,      rgb)  # RGB clips hard-coded to OPP=true
+    UV   = Default(UV,    rgb ? 3 : 1)
+    tv   = Default(tv_range, pID[6])
+    gid  = Default(gpuid,      0)
+    cd   = gid > -1
+    pri  = pID[2]
+    mat  = pri+(tv?":l":":f")
 
-    pr = md == "Fast"   ? 0 : \
-         md == "Low"    ? 1 : \
-         md == "Normal" ? 2 : \
-         md == "High"   ? 3 : \
-         md == "Noisy"  ? 4 : \
-         Assert(false, "ex_BM3D: Wrong 'preset' mode")
+    pr   = md == "Fast"   ? 0 : \
+           md == "Low"    ? 1 : \
+           md == "Normal" ? 2 : \
+           md == "High"   ? 3 : \
+           md == "Noisy"  ? 4 : \
+           Assert(false, "ex_BM3D: Wrong 'preset' mode")
 
     #                                         fast      lc          np            high           vn
     r          = Default( radius, Select(pr,  1,         2,         3,             4,             4          ) ) # temporal radius
@@ -1170,7 +1182,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
 
     w   = width (a)
     h   = height(a)
-    is42= is420 (a)
+    is20= is420 (a)
     bi  = BitsPerComponent(a)
     pID = color_propGet   (a)
 
@@ -1188,7 +1200,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
     mat  = (!tv?"PC":"Rec")+pri
 
     a
-    !is42 ? ConvertToYUV420(matrix=mat,chromaresample=UV==3?"bicubic":"point",param1=-0.5,param2=0.25) : last
+    !is20 ? ConvertToYUV420(matrix=mat,chromaresample=UV==3?"bicubic":"point",param1=-0.5,param2=0.25) : last
     bi>8 && bi!= 16 ? ConvertBits(16, fulls=!tv, fulld=!tv)                                            : last
     al = last
 
@@ -1198,7 +1210,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
     ConvertBits(bi, dither=bi==32?-1:1, fulls=!tv, fulld=!tv)
 
     isY(a)  ? ExtractY()                                                 : \
-    !is42   ? CombinePlanes(last,a,planes="YUV",pixel_type=PixelType(a)) : last }
+    !is20   ? CombinePlanes(last,a,planes="YUV",pixel_type=PixelType(a)) : last }
 
 
 
@@ -1239,10 +1251,10 @@ function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode
 
     isy     = c.isy()
     rgb     = c.isrgb()
-    fullchr = c.is444()
-    chr420  = c.is420()
+    is44    = c.is444()
+    is20    = c.is420()
 
-    stacked = chroma && !fullchr && !isy
+    stacked = chroma && !is44 && !isy
     UV      = stacked ? "Y" : rgb ? "auto" : !isy && chroma ? "YUV" : "Y"
     UVb     = chroma ? 3 : 2
     dwclip  = Defined( rclip )
@@ -1254,9 +1266,9 @@ function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode
         Uwclip  = dwclip ? ExtractU(wclip) : nop()
         Vclip   =          ExtractV(c)
         Vwclip  = dwclip ? ExtractV(wclip) : nop()
-        UVstack = chr420 ? StackVertical  (Uclip, Vclip)              : \
+        UVstack = is20   ? StackVertical  (Uclip, Vclip)              : \
                            StackHorizontal(Uclip, Vclip) # otherwise 422 horizontal stack
-        UVwstack= dwclip ? (chr420 ? StackVertical  (Uwclip, Vwclip)  : \
+        UVwstack= dwclip ? (is20   ? StackVertical  (Uwclip, Vwclip)  : \
                                      StackHorizontal(Uwclip, Vwclip)) : nop()
 
         nlc     =          StackHorizontal(ExtractY(c),    UVstack )
@@ -1268,11 +1280,11 @@ function ex_KNLMeansCL (clip c, float "h", int "d", int "a", int "s", int "wmode
         uvw     = Uclip.width ()
         uvh     = Uclip.height()
 
-        nly     =          nlc.crop(0,0,chr420 ? -uvw : -(uvw+uvw),0, true)
+        nly     =          nlc.crop(0,0,is20 ? -uvw : -(uvw+uvw),0, true)
 
-        nlu     = chr420 ? nlc.crop(w2,0,0,-uvh,  true) : \
+        nlu     = is20   ? nlc.crop(w2,0,0,-uvh,  true) : \
                            nlc.crop(w2,0,-uvw,0,  true)
-        nlv     = chr420 ? nlc.crop(w2,uvh,   0,0,true) : \
+        nlv     = is20   ? nlc.crop(w2,uvh,   0,0,true) : \
                            nlc.crop(w2+uvw,0,0,0 ,true)
 
                   CombinePlanes(nly, nlu, nlv, planes="YUV", pixel_type=PixelType(c))
