@@ -1,0 +1,1554 @@
+<html>
+	<head>
+		<meta content="en-us" http-equiv="Content-Language" />
+		<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type" />
+		<title>QTGMC - High Quality Deinterlacer</title>
+		<style type="text/css">
+			body { font-family: verdana, arial, helvetica, sans-serif; color: #000000; font-size: 12px; background-color: #C8D4D8; text-align: Left; line-height: 150%; padding: 0px; margin: 6px }
+			h1 { font-family: verdana, arial, helvetica, sans-serif; font-size: 26px; line-height: 150%; color: #000000; padding: 0px 0px 0px 8px; margin-left: 0px; margin-right: 0px; margin-top: 12px; margin-bottom: 12px }
+			h2 { font-family: verdana, arial, helvetica, sans-serif; font-size: 22px; line-height: 150%; color: #000000; background-color: #90A0C0; padding:  0px 0px 0px 8px; margin-left: 0px; margin-right: 0px; margin-top: 12px; margin-bottom: 12px; border: #8080D0; border-style: solid; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px }
+			h3 { font-family: verdana, arial, helvetica, sans-serif; font-size: 18px; line-height: 150%; color: #000000; padding: 0px 0px 0px 8px; margin-left: 0px; margin-right: 0px; margin-top: 12px; margin-bottom: 12px; border: #8080D0; border-style: solid; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px }
+			h4 { font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 12px; font-style: normal; font-weight: bold; text-decoration: underline }
+			a { color: #005090; text-decoration: none; font-family: verdana, arial, helvetica, sans-serif }
+			a:link  { color: #005090}
+			a:visited { color: #005090}
+			a:hover { background-color: #FF6060; color: #005090 }
+			table { font-size: 12px; margin-left: 0px; margin-top: 12px; margin-bottom: 12px; line-height: 150% }
+			pre { font-size: 12px; font-family: Courier, monospace; margin-top: 10px; margin-bottom: 10px; background-color: #D0D0C0; padding-left: 12px; padding-top: 12px; padding-right: 12px; padding-bottom: 12px; border: #908030; border-style: solid; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px }
+			code { font-family: Courier, monospace; font-size: 12px; letter-spacing: 1px; color: #660033 }
+			var { font-family: Verdana, Arial, Helvetica, sans-serif; font-weight: normal; font-size: 12px; font-style: italic; letter-spacing: 1px; color: #660033 }
+			tt { font-family: Courier, monospace; font-size: 12px }
+			em { font-family: Courier, monospace; font-weight: normal; color: #FFFFFF; font-style: normal }
+			strong { font-family: Courier, monospace; font-weight: bold; color: #FFFF66; font-style: normal }
+			cite { border: 1px #3030A0 dotted; padding-left: 2px; padding-right: 2px; padding-top: 1px; padding-bottom: 1px }
+			kbd { color: #808000; font-family: Verdana, Arial, Helvetica, sans-serif; font-weight: normal; font-size: 10px; font-style: normal }
+		</style>
+	</head>
+	<body>
+<h1>
+	QTGMC</h1>
+<h2>
+	Abstract</h2>
+<p>
+	A very high quality deinterlacer with a range of features for both quality and convenience. These include a simple presets system, extensive noise processing capabilities, support for repair of progressive material, precision source matching, shutter speed simulation, etc. Originally based on TempGaussMC_beta2 by Did&eacute;e</p>
+<p>
+	<b>Author:</b> Vit<br />
+	<b>Version:</b> 3.33<br />
+	<b>Date:</b> 2011-05-10<br />
+	<b>Requirements:</b> YV12 or YUY2 colorspace, <a href="#Requirements">required plugins list</a><br />
+	&nbsp;</p>
+<h2>
+	Contents</h2>
+<ol>
+	<li>
+		<a href="#Latest">Latest Changes</a></li>
+	<li>
+		<a href="#Usage">Usage</a>
+		<ol>
+			<li>
+				<a href="#Requirements">Requirements</a></li>
+			<li>
+				<a href="#GettingStarted">Getting Started</a></li>
+			<li>
+				<a href="#Multithreading">Multi-threading</a></li>
+		</ol>
+	</li>
+	<li>
+		<a href="#FeaturesSettings">Features / Settings</a>
+		<ol>
+			<li>
+				<a href="#CoreSettings">Core Settings</a></li>
+			<li>
+				<a href="#MotionAnalysis">Motion Analysis</a></li>
+			<li>
+				<a href="#Interpolation">Interpolation</a></li>
+			<li>
+				<a href="#Sharpness">Sharpness</a></li>
+			<li>
+				<a href="#SourceMatch">Source Match / Lossless</a></li>
+			<li>
+				<a href="#NoiseBypass">Noise Bypass / Denoising</a></li>
+			<li>
+				<a href="#ProgressiveInput">Progressive Input</a></li>
+			<li>
+				<a href="#ShutterBlur">Shutter Speed Motion Blur / Frame Rate</a></li>
+			<li>
+				<a href="#MiscellaneousSettings">Miscellaneous Settings</a></li>
+		</ol>
+	</li>
+	<li>
+		<a href="#ExternalLinkage">External Linkage</a>
+		<ol>
+			<li>
+				<a href="#MotionVectors">Accessing QTGMC Motion Vectors</a></li>
+			<li>
+				<a href="#MultipleCalls">Multiple QTGMC Calls</a></li>
+		</ol>
+	</li>
+	<li>
+		<a href="#TempGaussMC">TempGaussMC Notes</a></li>
+	<li>
+		<a href="#Acknowledgements">Acknowledgments</a></li>
+	<li>
+		<a href="#VersionHistory">Version History</a><br />
+		&nbsp;</li>
+</ol>
+<h2>
+	<a name="Latest"></a>Latest Changes</h2>
+<p>
+	v3.33</p>
+<ul>
+	<li>
+		Increased maximum value for <var>Rep0</var>, <var>Rep1</var> and <var>Rep2</var> to 7 (from 5). Higher values help with flicker on static detail, potential for minor motion blur</li>
+	<li>
+		Bug fix for the fact that Bob always outputs a BFF clip regardless of field order of input (thanks ajp_anton)</li>
+	<li>
+		Improved generation of noise (NoiseDeint="Generate") for <var>NoiseProcess</var> / <var>EZKeepGrain</var></li>
+	<li>
+		Minor change to denoising</li>
+</ul>
+<p>
+	Jump to <a href="#VersionHistory">Version History</a><br />
+	&nbsp;</p>
+<h2>
+	<a name="Usage"></a>Usage</h2>
+<h3>
+	<a name="Requirements"></a>Requirements</h3>
+<p>
+	Requires the following plugins, either in the avisynth plugin autoload folder or loaded from the calling script:</p>
+<h4>
+	Core plugins</h4>
+<ul>
+	<li>
+		<a href="http://avisynth.org.ru/mvtools/mvtools2.html#download"> </a><a href="http://avisynth.org.ru/mvtools/mvtools2.html#download" target="_blank">MVTools2</a> (2.5.11.2 or above)</li>
+	<li>
+		<a href="http://forum.doom9.org/showthread.php?p=701539#post701539" target="_blank">MaskTools v2</a> (recommend 2.0a45 or above)</li>
+	<li>
+		<a href="http://web.missouri.edu/%7Ekes25c/" target="_blank">NNEDI3</a> (recommend 0.9.2 or above)</li>
+	<li>
+		<a href="http://home.arcor.de/kassandro/prerelease/RemoveGrain-1.0.rar" target="_blank">RemoveGrain + Repair</a> (extract only the SSE2 versions, some SSE3 versions have a bug and give no real benefit)</li>
+	<li>
+		<a href="http://home.pages.at/kassandro/RemoveGrain/RemoveGrain.zip" target="_blank">SSE2Tools</a> for YUY2 support (take only SSE2Tools.dll from this zip - do not take the SSE3 version nor the RemoveGrain or Repair dlls)</li>
+</ul>
+<h4>
+	Additional plugins</h4>
+<ul>
+	<li>
+		<a href="http://web.missouri.edu/%7Ekes25c/" target="_blank">NNEDI2, NNEDI, EEDI3, EEDI2, TDeint</a> - if selected directly or via a source-match preset</li>
+	<li>
+		<a href="http://avisynth.org.ru/yadif/yadif.html" target="_blank">Yadif</a> - for <code>Preset=&quot;Ultra Fast&quot;</code> or if selected directly (this plugin cannot be autoloaded, it must beloaded in the calling script)</li>
+	<li>
+		<a href="http://home.arcor.de/kassandro/prerelease/VerticalCleaner.rar" target="_blank">VerticalCleaner</a> - for <code>SVThin </code>or <code>Lossless </code>modes</li>
+	<li>
+		<a href="http://ldesoras.free.fr/src/AddGrainC-1.5.1.7z" target="_blank">AddGrainC</a> (or <a href="http://www.megaupload.com/?d=9ZWS9HDF" target="_blank">here</a>) - if <code>NoiseDeint=&quot;Generate&quot;</code> selected for noise processing</li>
+	<li>
+		<a href="http://avisynth.org.ru/fft3dfilter/fft3dfilter.html" target="_blank">FFT3DFilter</a> - if selected for noise processing</li>
+	<li>
+		<a href="http://web.missouri.edu/~kes25c">dfttest</a> - if selected for noise processing
+		<ul>
+			<li>
+				For FFT3DFilter and ddftest you also need the FFTW3 library (<a href="http://www.fftw.org/">main page</a> / <a href="http://www.fftw.org/install/windows.html">windows zips</a>). On Windows the file needed for both is libfftw3f-3.dll. However for FFT3DFilter, it needs to be called FFTW3.dll, so you will need two copies and rename one. On Windows put the files in your System32 or SysWow64 folder (which depends on your OS and the version of AviSynth that you&#39;re running)<br />
+				&nbsp;</li>
+		</ul>
+	</li>
+</ul>
+<h3>
+	<a name="GettingStarted"></a>Getting Started</h3>
+<p>
+	Install AviSynth and ensure you have at least the core plugins listed in the <a href="#Requirements">requirements section</a>. Then to use QTGMC, write a script like this:</p>
+<pre>
+YourSource( &quot;yourfile&quot; )  # DGDecode_mpeg2source, FFVideoSource, AviSource, whatever your source requires
+QTGMC( Preset=&quot;Slow&quot; )
+SelectEven();  # Add this line to keep original frame rate, leave it out for smoother doubled frame rate
+</pre>
+<p>
+	Save this script with an &quot;.avs&quot; extension. You can now use it as an AVI source for encoding.</p>
+<p>
+	The &quot;Preset&quot; used selects sensible settings for a given encoding speed. Choose a preset from:<br />
+	<code>&nbsp;&nbsp;&quot;Placebo&quot;, &quot;Very Slow&quot;, &quot;Slower&quot;, &quot;Slow&quot;, &quot;Medium&quot;, &quot;Fast&quot;, &quot;Faster&quot;, &quot;Very Fast&quot;, &quot;Super Fast&quot;, &quot;Ultra Fast&quot;, &quot;Draft&quot;</code><br />
+	The default preset is <code>&quot;Slower&quot;</code>.  Don&#39;t be obsessed with using slower settings, the differences can be small. In particular HD material benefits less from extreme settings (and will be slow)</p>
+<p>
+	There are many settings for tweaking this script, full details are provided in this documentation. The settings have been divided into categories, which each having key points, a detailed description, settings specifications/defaults, and several examples. The key points and examples should get you going. You can display settings currently being used with <code>ShowSettings</code>:</p>
+<pre>
+QTGMC( Preset=&quot;Slow&quot;, ShowSettings=true )</pre>
+<p>
+	&nbsp;</p>
+<h3>
+	<a name="Multithreading"></a>Multi-threading</h3>
+<p>
+	QTGMC is very demanding on your system. For best performance try using it multi-threaded. You need an &quot;MT&quot; version of avisynth, find the links to these versions on the <a href="http://avisynth.org/mediawiki/Main_Page">AviSynth Wiki</a>. Below is a template multi-threading script, read and follow the comments carefully (you cannot use this script as it is):</p>
+<pre>
+SetMemoryMax(M)  # Optional line. Leave it out at first. See below for value M
+SetMTMode(5, X)  # See below for value X
+YourSource( &quot;yourfile&quot; )  # DGDecode_mpeg2source, FFVideoSource, AviSource, whatever your source requires
+SetMTMode(2)
+QTGMC( Preset=&quot;Slow&quot;, EdiThreads=Y ) # Choose preset based on overall speed/quality you want. See below for value Y
+Distributor()    # This line may or may not be necessary, try removing it and see if you get more speed</pre>
+<h4>
+	Setting X</h4>
+<ul>
+	<li>
+		Start at the number of logical cores in your machine (note: with HyperThreading enabled, logical cores = 2x physical cores)</li>
+	<li>
+		If it crashes, decrease 1 at a time</li>
+	<li>
+		Otherwise increase 1 at a time until CPU usage just about reaches 100%, don&#39;t go too far or it will slow down</li>
+</ul>
+<h4>
+	Setting Y</h4>
+<ul>
+	<li>
+		Start at about half number of cores and tweak upwards or downwards</li>
+	<li>
+		Reducing this value might allow you to increase X for an overall speedup</li>
+</ul>
+<h4>
+	Setting M</h4>
+<ul>
+	<li>
+		First try without the SetMemoryMax line</li>
+	<li>
+		However, selecting a good SetMemoryMax value might better utilise memory and increase stability. Particularly important for slower settings</li>
+	<li>
+		Try values 400,600,800,1000 etc. Sometimes reducing this value can allow you to increase X for a speedup</li>
+</ul>
+<p>
+	Each machine is different, the above guidelines are simply a good starting point. Experiment for best results. Note that you can only use QTGMC with SetMTMode(...), do not use MT(...). There are occasional instabilities with multi-threading, because AviSynth is not quite thread-safe. These instabilities affect different users in different ways: some report no issues, others can barely get multi-threading to work at all<br />
+	&nbsp;</p>
+<h2>
+	<a name="FeaturesSettings"></a>Features / Settings</h2>
+<h3>
+	<a name="CoreSettings"></a>Core Settings</h3>
+<p>
+	<b>Key Points</b>: For basic usage, select a preset and leave the core settings alone. Most useful setting is <var>TR2</var>, which controls smoothing of output</p>
+<p>
+	The core algorithm is this:<br />
+	0. Bob the source clip. Temporally smooth the bob to remove shimmer then analyse its motion<br />
+	1. More accurately interpolate the source clip (e.g. NNEDI3). Use the motion analysis from previous step to temporally smooth this interpolate with motion compensation. This removes shimmer whilst retaining detail. Resharpen the result to counteract any blurring<br />
+	2. A final light temporal smooth to clean the result</p>
+<p>
+	Stages 0 &amp; 1 use a binomial smooth (similar to a Gaussian) to remove deinterlacing shimmer. Stage 2 uses a simple linear smoothing. So each stage involves a temporal smooth with the radius (number of frames involved) given in the settings <var>TR0</var>, <var>TR1 </var>and <var>TR2</var>. The binomial smooths are critical for the algorithm so <var>TR0 </var>and <var>TR1 </var>should be at least 1. <var>TR0 </var>only affects the motion analysis and is only indirectly visible, increasing it to 2 will generally give a better motion match. Increasing TR1 and TR2 will create a smoother and more stable output and more strongly denoise. The downside is that you will get more blurring and may lose detail. The blur is counteracted by the sharpening settings described below. Also note that increased <var>TR1 </var>&amp; <var>TR2 </var>can cause/strengthen halos where the motion analysis is inaccurate</p>
+<p>
+	The deinterlacer primarily tries to reduce &quot;bob shimmer&quot;: horizontal lines of shimmer created when interpolating an interlaced stream. Consequently any changes made to the initial interpolation (e.g. NNEDI3) are expected to be horizontal lines of change only. The repair stages <var>Rep0</var>, <var>Rep1 </var>and <var>Rep2 </var>occur after each temporal smooth. They only allow such horizontal lines of change - shimmer fixes, discarding other changes. This prevents the motion blur<br />
+	that temporal smoothing could generate. The <var>repX </var>settings control the size of areas to allow through. See the QTGMC_KeepOnlyBobShimmerFixes function comments</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<b>Settings</b></td>
+			<td style="vertical-align: top; width: 7%;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>TR0</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Temporal binomial smoothing radius used to create motion search clip. In general 2=quality, 1=speed, 0=don&#39;t use</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>TR1</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Temporal binomial smoothing radius used on interpolated clip for inital output. In general 2=quality, 1=speed, 0=don&#39;t use</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>TR2</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0,1,2,3)</td>
+			<td style="vertical-align: top;">
+				Temporal linear smoothing radius used for final stablization / denoising. Increase for smoother output</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>Rep0</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Repair motion search clip (0 = off): repair unwanted blur after temporal smooth <var>TR0 </var>(see QTGMC_KeepOnlyBobShimmerFixes function in script for details)</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>Rep1</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Repair initial output clip (0 = off): repair&nbsp;unwanted blur after temporal smooth <var>TR1</var></td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>Rep2</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Repair final output clip (0 = off):&nbsp;unwanted blur after temporal smooth <var>TR2 </var>(will also repair <var>TR1 </var>blur if <var>Rep1 </var>not used)</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>RepChroma</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Whether the repair modes affect chroma</td>
+		</tr>
+		<tr>
+			<td colspan="3">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3">
+				Defaults determined by preset for all these settings (see table in script or use <var>ShowSettings</var>), except <var>RepChroma </var>which defaults to true</td>
+		</tr>
+	</tbody>
+</table>
+<p>
+	<b>Examples</b></p>
+<pre>
+QTGMC( Preset=&quot;Slow&quot;, TR2=3 )  # Strong final smooth (e.g. noisy / shimmery source)
+</pre>
+<p>
+	&nbsp;</p>
+<h3>
+	<a name="MotionAnalysis"></a>Motion Analysis</h3>
+<p>
+	<b>Key Points</b>: The presets make sensible choices for motion analysis. Some sources or requirements may require tweaks, but read these and MVTools2 docs first.</p>
+<p>
+	The bobbed source clip is sent to the MVTools2 plugin to perform motion analysis. Almost all these settings are used directly in MVTools2 functions. Read the MVTools2 documentation for more details on their purpose. Some settings can be altered for a speed / accuracy tradeoff. Less accurate motion search can result in blurring and/or oversharpening (in different circumstances) as well as slight distortions of visual elements. The faster presets gain speed by simplifying the motion search parameters, use the &quot;ShowSettings&quot; parameter or look at the table a short way into the script to see how.</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<b>Settings</b></td>
+			<td style="width: 8%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>SrchClipPP</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0,1,2,3)</td>
+			<td style="vertical-align: top;">
+				Pre-filtering for motion search clip, 0 = none, 1 = simple blur, 2 = Gauss blur, 3 = Gauss blur + edge soften</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>SubPel</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(1,2,4)</td>
+			<td style="vertical-align: top;">
+				Sub-pixel accuracy for motion analysis (1 = 1 pixel, 2 = 1/2 pixel, 4 = 1/4 pixel)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>SubPelInterp</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Interpolation used for sub-pixel motion analysis: 0 = bilinear (soft), 1 = bicubic (sharper), 2 = Weiner (sharpest)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Blocksize</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(4,8,16,32)</td>
+			<td style="vertical-align: top;">
+				Size of blocks that are matched during motion analysis</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Overlap</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(&lt; Blocksize/2)</td>
+			<td style="vertical-align: top;">
+				How much to overlap motion analysis blocks (requires more blocks, but essential to smooth block edges in motion compenstion)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Search</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...5)</td>
+			<td style="vertical-align: top;">
+				Search method used for matching motion blocks - see MVTools2 documentation for available algorithms</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>SearchParam</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Parameter for search method chosen. For default search method (hexagon search) it is the search range</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>PelSearch</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Search parameter (as above) for the finest sub-pixel level (see <var>SubPel</var>)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ChromaMotion</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Whether to consider chroma when analyzing motion. Setting to false gives good speed-up, but may very occasionally make incorrect motion decision.</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>TrueMotion</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Whether to use the &#39;truemotion&#39; defaults from MAnalyse (see MVTools2 documentation)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Lambda</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Motion vector field coherence - how much the motion analysis favors similar motion vectors for neighboring blocks. Should be scaled by <var>BlockSize</var>*<var>BlockSize</var>/64</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>LSAD</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				How much to reduce need for vector coherence (i.e. Lambda above) if prediction of motion vector from neighbors is poor, typically in areas of complex motion. This value is scaled in MVTools (unlike Lambda)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>PNew</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Penalty for choosing a new motion vector for a block over an existing one - avoids chosing new vectors for minor gain</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>PLevel</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Mode for scaling lambda across different sub-pixel levels - see MVTools2 documentation for choices</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>GlobalMotion </var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Whether to estimate camera motion to assist in selecting block motion vectors</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>DCT</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...10)</td>
+			<td style="vertical-align: top;">
+				Modes to use DCT (frequency analysis) or SATD as part of the block matching process - see MVTools2 documentation for choices</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ThSAD1</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				SAD threshold for block match on shimmer-removing temporal smooth (<var>TR1</var>). Increase to reduce bob-shimmer more (may smear/blur)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ThSAD2</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				SAD threshold for block match on final denoising temporal smooth (<var>TR2</var>). Increase to strengthen final smooth (may smear/blur)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ThSCD1</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Scene change detection parameter 1 - see MVTools documentation</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ThSCD2</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Scene change detection parameter 2 - see MVTools documentation</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				Defaults: For some settings defaults are determined by preset (see table in script or use <var>ShowSettings</var>). Some other defaults are:<br />
+				&nbsp; <var>SubPelInterp</var>=2, <var>TrueMotion </var>= false, <var>GlobalMotion</var>=true, <var>DCT</var>=0, <var>ThSAD1</var>=640, <var>ThSAD2</var>=256, <var>ThSCD1</var>=180, <var>ThSCD2</var>=98<br />
+				The remaining defaults depend on <var>TrueMotion</var>:<br />
+				<var>TrueMotion</var>=false (the default):<br />
+				&nbsp; <var>Lambda </var>= (1000 * <var>BlockSize</var><sup>2</sup>)/64, <var>LSAD</var>=400,&nbsp; <var>PNew</var>=25, <var>PLevel</var>=0<br />
+				<var>TrueMotion</var>=true:<br />
+				&nbsp; <var>Lambda </var>= (100&nbsp; * <var>BlockSize</var><sup>2</sup>)/64, <var>LSAD</var>=1200, <var>PNew</var>=50, <var>PLevel</var>=1<br />
+				&nbsp;</td>
+		</tr>
+	</tbody>
+</table>
+<h3>
+	<a name="Interpolation"></a>Interpolation</h3>
+<p>
+	<b>Key Points</b>: Interpolation affects quality and speed. The presets can be relied on to provide sensible defaults mostly using NNEDI3.</p>
+<p>
+	The first step to create the deinterlaced output is to spatially interpolate a single half-height field into a full-height frame. A variety of interpolators are supported, with various settings to control the quality/speed of the output.</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<b>Settings</b></td>
+			<td style="vertical-align: top; width: 7%;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>EdiMode</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Interpolation method, from <var>&quot;NNEDI3&quot;</var>, <var>&quot;NNEDI2&quot;</var>, <var>&quot;NNEDI&quot;</var>, <var>&quot;EEDI3+NNEDI3&quot;</var> (EEDI3 with sclip from NNEDI3), <var>&quot;EEDI3&quot;</var>, <var>&quot;EEDI2&quot;</var>, <var>&quot;Yadif&quot;</var>, <var>&quot;TDeint&quot;</var> or <var>&quot;RepYadif&quot;</var> (&quot;repaired&quot; Yadif), anything else uses <var>&quot;Bob&quot;</var></td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>ChromaEdi</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Interpolation method used for chroma. Set to &quot;&quot; to use <var>EdiMode </var>above (default). Otherwise choose from <var>&quot;NNEDI3&quot;</var>, <var>&quot;Yadif&quot;</var> or <var>&quot;Bob&quot;</var> - all high speed variants. This can give a minor speed-up if using a very slow <var>EdiMode </var>(i.e. one of the EEDIx modes)</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>NNSize</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0...6)</td>
+			<td style="vertical-align: top;">
+				Area around each pixel used as predictor for NNEDI3. A larger area is slower with better quality, read the NNEDI3 docs to see the area choices. Note: area sizes are not in increasing order (i.e. increased value doesn&#39;t always mean increased quality)</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>NNeurons</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0...4)</td>
+			<td style="vertical-align: top;">
+				Controls number of neurons in NNEDI2 (0-2) &amp; NNEDI3 (0-4), larger = slower and better quality but improvements are small</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>EdiQual</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(1,2,3)</td>
+			<td style="vertical-align: top;">
+				Quality setting for NNEDI2 (1,2,3) &amp; NNEDI3 (1,2 only). Higher values for better quality - but improvements are marginal</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>EdiMaxD</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(1...)</td>
+			<td style="vertical-align: top;">
+				Spatial search distance for finding connecting edges in EEDI2 and EEDI3</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>EdiThreads</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Number of threads to use in EEDI3 &amp; NNEDI2/3, 0 = default = number of logical processors on system. Also affects source-match interpolations. Source-match can add 2 further interpolations per frame, adjusting this setting can help balance system load</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>EdiExt</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(clip)</td>
+			<td style="vertical-align: top;">
+				Provide externally created interpolated clip rather than use one of the above modes</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				Defaults: Determined by presets for NNEDIx and EEDIx (see table in script or use <var>ShowSettings</var>). Other defaults are <var>ChromaEdi=&quot;&quot;, </var><var>EdiThreads</var>=0, <var>EdiExt</var>=undefined</td>
+		</tr>
+	</tbody>
+</table>
+<p>
+	<b>Examples</b></p>
+<pre>
+QTGMC( Preset=&quot;Slow&quot;, EdiMode=&quot;EEDI3&quot;, EdiMaxD=16 ) # Use EEDI3 with an explicit search radius
+QTGMC( Preset=&quot;Very Slow&quot;, EdiThreads=2 )           # Specify number of threads (with default NNEDI3) useful to tweak if using SetMTMode or source-match
+</pre>
+<p>
+	&nbsp;</p>
+<h3>
+	<a name="Sharpness"></a>Sharpness</h3>
+<p>
+	<b>Key Points</b>: Always consider adjusting the <var>Sharpness </var>setting to taste. The default 1.0 is fairly sharp. If using <a href="#SourceMatch">source-match</a> the default is 0.2</p>
+<p>
+	The core of the algorithm involves a binomial smooth to remove shimmer. So the result needs to be resharpened to counteract this blur. The main setting <var>Sharpness </var>defaults to 1.0, which is a level designed to retain the sharpness of stable areas. However, this level can cause moving areas to be oversharpened so you may wish to reduce the value depending on source. Sharpness when using <a href="#SourceMatch">source-match</a> behaves differently, see that section. The sharpness processing for a given setting is tweaked to remain roughly similar regardless of other settings. However, there will be minor differences, so always consider adjusting sharpness if you tweak other major settings.</p>
+<p>
+	Oversharpening is limited either spatially (<var>SLMode</var> = 1,3) or temporally (<var>SLMode</var> = 2,4). Temporal limiting is more &quot;correct&quot; but also more aggressive in preventing sharpening. It&#39;s also slower. You can set a small value in the overshoot setting (<var>SOvs</var>) to give the temporal limiting a bit of &quot;headroom&quot;. You can also perform sharpness limiting later in the algorithm (<var>SLMode</var> = 3,4) for more sharpness, but with the potential for minor artefacts.</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<b>Settings</b></td>
+			<td style="vertical-align: top; width: 7%;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>Sharpness</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0.0...)</td>
+			<td style="vertical-align: top;">
+				How much to resharpen the temporally blurred clip (default is always 1.0 unlike original TGMC)</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>SMode</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Resharpening mode:&nbsp; 0 = none, 1 = difference from 3x3 blur kernel, 2 = vertical max/min average + 3x3 kernel</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>SLMode</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0,1,2,3,4)</td>
+			<td style="vertical-align: top;">
+				Sharpness limiting: 0 = off, [1 = spatial, 2 = temporal] : before final temporal smooth, [3 = spatial, 4 = temporal] : after final temporal smooth</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>SLRad</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Temporal or spatial radius used with sharpness limiting (depends on <var>SLMode</var>). Temporal radius can only be 0,1 or 3</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>SOvs</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0...255)</td>
+			<td style="vertical-align: top;">
+				Amount of overshoot allowed with temporal sharpness limiting (<var>SLMode</var> = 2,4), i.e. allow some oversharpening</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>SVThin</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0.0...)</td>
+			<td style="vertical-align: top;">
+				How much to thin down 1-pixel wide lines that have been widened due to interpolation into neighboring field lines</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 10%;">
+				<var>Sbb</var></td>
+			<td style="vertical-align: top; width: 7%;">
+				(0,1,2,3)</td>
+			<td style="vertical-align: top;">
+				Back blend (blurred) difference between pre &amp; post sharpened clip (minor fidelity improvement): 0 = Off, 1 = before (1st) sharpness limiting, 2 = after (1st) sharpness limiting, 3 = both</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				Defaults are determined by preset for <var>SMode</var>, <var>SLMode</var>, <var>SLRad </var>and <var>Sbb </var>(see table in script or use <var>ShowSettings</var>). Other defaults are: <var>SOvs</var>=0, <var>SVThin</var>=0.0, <var>Sbb</var>=0</td>
+		</tr>
+	</tbody>
+</table>
+<p>
+	<b>Examples</b></p>
+<pre>
+QTGMC( Preset=&quot;Slow&quot;, Sharpness=0.4 )           # Reduce oversharpening
+QTGMC( Preset=&quot;Slow&quot;, Sharpness=1.2, SLMode=1 ) # Increase sharpness, use spatial sharpness limiting (which typically allows more sharpening)
+</pre>
+<p>
+	&nbsp;</p>
+<h3>
+	<a name="SourceMatch"></a>Source Match / Lossless</h3>
+<p>
+	<kbd>Very detailed section for new feature [documentation likely to be thinned as feature matures]</kbd><br />
+	<kbd>Note: the effects of this feature are both subtle and precise, intended only for exacting detail. Make sure you can see exacting detail first.</kbd></p>
+<p>
+	<b>Key Points</b>: Source-match creates higher fidelity output with extra processing. Enable with <var>SourceMatch</var> = 1,2 or 3. Higher values are slower and more accurate. Can combine with <var>Lossless </var>setting (especially <var>Lossless</var>=2) for more detail again. Tweak speed with <var>MatchPreset </var>(like <var>Preset</var>). Will honor artefacts in source, so best used with quality sources. By default <var>Sharpness </var>becomes 0.2 &amp; sharpness limiting (<var>SLMode</var>) is switched off, so adjust sharpness carefully.</p>
+<p>
+	<b>Quickstart</b>: The templates below increase in both quality and slowness. Choose a preset as required, the very fastest presets are not suitable though. The default <var>Sharpness</var>=0.2 but you may wish to increase it slightly. Set <var>TR2</var>=1 for clean source, set <var>TR2</var>=2 or <var>TR2</var>=3 (slower) if more denoising required or use <a href="#NoiseBypass">noise processing</a></p>
+<pre>
+QTGMC( Preset=XXXX, SourceMatch=1, Sharpness=XXX, TR2=X )             # Basic mode, fastest
+QTGMC( Preset=XXXX, SourceMatch=1, Lossless=2, Sharpness=XXX, TR2=X ) # Good quality, efficient, minor residual combing
+QTGMC( Preset=XXXX, SourceMatch=2, Sharpness=XXX, TR2=X )             # Good quality, slower, no combing
+QTGMC( Preset=XXXX, SourceMatch=3, Lossless=2, Sharpness=XXX, TR2=X ) # Best quality, slowest, very minor residual combing
+</pre>
+<p>
+	&nbsp;</p>
+<p>
+	Intuitively, a deinterlacer should just inject new fields into the source, leaving the original pixels untouched. The temporal blur/resharpen in this script means that doesn&#39;t happen - the source pixels are changed in the output. The (optional) source-match steps attempt to fix this and make the result closer to the source. They work by looking at the difference between output and source at different points in the algorithm and correcting for that difference.</p>
+<p>
+	Matching to the source will capture more source detail and reduce oversharpening / haloing. Caveat: the default algorithm temporally smooths but with source-matching much less so (by necessity / design). Source-matching may faithfully recreate artefacts in the source (e.g blocking, banding &amp; some noise) so it&#39;s better for quality sources. The <var>SourceMatch </var>setting sets the mode: 0=off (standard [Q]TGMC algorithm), 1,2,3 for progressively more accurate but slower processing. Modes 2 &amp; 3 restore almost exact source detail but are sensitive to noise &amp; introduce occasional aliasing (mode 3 is less affected). Mode 1 is a more conservative halfway stage that rarely introduces artefacts.</p>
+<p>
+	Since source-matching recovers sharpness, the <var>Sharpness </var>default is reduced to 0.2. Source-matching may initially appear less sharp than standard processing because it will not oversharpen. However, be careful if raising the sharpness, because <u>sharpness limiting is switched off by default</u>. This is because sharpness limiting reduces the the accuracy of these modes. Use the <var>MatchEnhance </var>setting to exaggerate additional detail found by modes 2 &amp; 3. This gives a sharpening / detail enhancing effect and works well at sensible levels - but it&#39;s a slight cheat that should be used with care as it can easily enhance noise. Since source-match is sensitive to source noise you may want to set <var>TR2 </var>to 2 or 3 and/or use some noise processing (see below).</p>
+<p>
+	The additional <var>Lossless </var>modes are designed to take source-match to its logical conclusion: <var>Lossless </var>mode 1 restores the *exact* pixels of the source into the output (provided <var>NoiseRestore</var>=0). This recovers a liitle more source detail but can introduce shimmering, minor combing, noise etc. Note the <var>Sharpness </var>and <var>MatchEnhance </var>settings have little effect in lossless mode 1. <var>Lossless </var>mode 2 makes the clip lossless before the sharpening &amp; final temporal smooth. This removes most of the lossless artefacts and also allows sharpness control. This mode will not give an exactly lossless output but it will gain a little more detail.</p>
+<p>
+	The source-match settings introduce further processing. <var>SourceMatch </var>mode 1 requires a second interpolation (e.g. NNEDI3), but it can use a lower quality settings than the main stage. <var>SourceMatch </var>mode 2 requires yet another interpolation, but works effectively with just a bob (but using a better interpolator can reduce occasional aliasing). Mode 3 adds just a little more processing and is usually worth it as it reduces artefacts. There is no exact control over the interpolations used (too many settings required), instead there are <var>MatchPreset</var>s that work in a similar way to the main Preset. The extra processing suggests much slower speeds, but actually using higher speed presets (both <var>MatchPreset </var>and <var>Preset</var>) with source-matching can give results comparable to slower presets without it. Having said that, the extra detail from source-matching is too subtle to significantly affect very high speed main presets.</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<b>Settings</b></td>
+			<td style="width: 7%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<var>SourceMatch</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0,1,2,3)</td>
+			<td style="vertical-align: top;">
+				0 = Source-matching off (standard algorithm), 1 = basic source-match, 2 = refined match, 3 = twice refined match</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: bottom;">
+				<span style="font-size: smaller;"><b>SourceMatch=1,2,3</b></span></td>
+			<td style="width: 7%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<var>MatchPreset</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Speed/quality for basic source-match processing, select from &quot;Placebo&quot;, &quot;Very Slow&quot;, &quot;Slower&quot;, &quot;Slow&quot;, &quot;Medium&quot;, &quot;Fast&quot;, &quot;Faster&quot;, &quot;Very Fast&quot;, &quot;Super Fast&quot;, &quot;Ultra Fast&quot; (&quot;Draft&quot; is not supported). Ideal choice is the same as main preset, but can choose a faster setting (but not a slower setting). Default is 3 steps faster than main <var>Preset</var>.</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<var>MatchEdi</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Override default interpolation method for basic source-match. Default method is same as main <var>EdiMode </var>setting (usually NNEDI3). Only need to override if using slow method for main interpolation (e.g. EEDI3) and want a faster method for source-match</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: bottom;">
+				<span style="font-size: smaller;"><b>SourceMatch=2,3</b></span></td>
+			<td style="width: 7%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<var>MatchPreset2</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Speed/quality for refined source-match processing, select from &quot;Placebo&quot;, &quot;Very Slow&quot;, &quot;Slower&quot;, &quot;Slow&quot;, &quot;Medium&quot;, &quot;Fast&quot;, &quot;Faster&quot;, &quot;Very Fast&quot;, &quot;Super Fast&quot;, &quot;Ultra Fast&quot; (&quot;Draft&quot; is not supported). Default is 2 steps faster than <var>MatchPreset</var>. Faster settings are usually sufficient but can use slower settings if you get extra aliasing in this mode</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<var>MatchEdi2</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Override interpolation method for refined source-match. Can be a good idea to pick <var>MatchEdi2</var>=&quot;Bob&quot; for speed</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<var>MatchTR2</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Temporal radius for refined source-matching. 2=smoothness, 1=speed/sharper, 0=not recommended. Differences are very marginal. Basic source-match doesn&#39;t need this setting as its temporal radius must match <var>TR1 </var>core setting (i.e. there is no MatchTR1)</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<var>MatchEnhance</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0.0...)</td>
+			<td style="vertical-align: top;">
+				Enhance the detail found by source-match modes 2 &amp; 3. A slight cheat - will enhance noise if set too strong. Best set &lt; 1.0</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: bottom;">
+				&nbsp;</td>
+			<td style="width: 7%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: bottom;">
+				<span style="font-size: smaller;"><b>Optional Extras</b></span></td>
+			<td style="width: 7%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 12%; vertical-align: top;">
+				<var>Lossless</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Puts exact source fields into result &amp; cleans any artefacts. 0=off, 1=after final temporal smooth, 2=before resharpening. Adds some extra detail but: mode 1 gets shimmer / minor combing, mode 2 is more stable/tweakable but not exactly lossless</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				Defaults: <var>SourceMatch</var>=0, <var>MatchPreset</var>=[3 settings quicker than main <var>Preset</var>], <var>MatchPreset2</var>=[2 settings quicker than <var>MatchPreset</var>]<br />
+				<var>MatchEdi</var> = same as <var>EdiMode</var>, except if <var>MatchPreset</var>=&quot;Ultra Fast&quot; when it is <var>&quot;Yadif&quot;</var><br />
+				<var>MatchEdi2</var> = &quot;NNEDI3&quot;, except if <var>MatchPreset</var>=&quot;Super Fast&quot; when it is &quot;TDeint&quot;, or if <var>MatchPreset</var>=&quot;Ultra Fast&quot; when it is &quot;Bob&quot;<br />
+				<var>MatchTR2</var>=1, <var>MatchEnhance</var>=0.5, <var>Lossless</var>=0</td>
+		</tr>
+	</tbody>
+</table>
+<p>
+	<b>Examples</b></p>
+<pre>
+QTGMC( Preset=&quot;Slow&quot;, SourceMatch=1 )                # Enable basic source-match. Result somewhat closer to source.
+QTGMC( Preset=&quot;Slow&quot;, SourceMatch=1, Sharpness=0.4 ) # Basic source-match but sharper (up from 0.2). Be careful as sharpness limiting defaults to off
+QTGMC( Preset=&quot;Slow&quot;, SourceMatch=1, Lossless=2 )    # Basic source-match with &quot;fake&quot; lossless. Efficient setting for quality, may bring minor combing
+ 
+QTGMC( Preset=&quot;Medium&quot;, SourceMatch=2, TR2=2 )       # Refined source-match, closer to source with no combing, slower. Increased TR2 reduces noise
+ 
+QTGMC( Preset=&quot;Slower&quot;, SourceMatch=3 )              # Twice refined source-match, higher quality than mode 2, but a little bit slower again
+QTGMC( Preset=&quot;Slower&quot;, SourceMatch=3, Lossless=2 )  # Twice refined source-match with fake lossless. Almost perfect fidelity mode with few artefacts
+QTGMC( Preset=&quot;Slower&quot;, SourceMatch=3, Lossless=1 )  # Twice refined source-match with true lossless. Exact detail, but likely combing and shimmer
+ 
+QTGMC( Preset=&quot;Slow&quot;, SourceMatch=3, Lossless=2, MatchEnhance=0.75 ) # Further enhance detail found by refined match, a little sharper, may be noisier
+QTGMC( Preset=&quot;Slow&quot;, SourceMatch=3, Lossless=2, MatchEnhance=0.75, NoiseProcess=1, NoiseRestore=0.7, Sigma=1.5 ) # As above, denoise a little to help
+ 
+QTGMC( Preset=&quot;Slower&quot;, MatchPreset=&quot;Very Fast&quot;, SourceMatch=1 ) # Faster basic source-match preset (defaults to 3 steps faster than main Preset)
+QTGMC( Preset=&quot;Slower&quot;, MatchPreset=&quot;Faster&quot;, MatchPreset2=&quot;Ultra Fast&quot;, SourceMatch=3 ) # Faster refined source-match preset as well
+                                                                                         # (defaults to 2 steps faster than basic match Preset)
+QTGMC( Preset=&quot;Slower&quot;, MatchPreset=&quot;Slow&quot;, MatchPreset2=&quot;Slow&quot;, SourceMatch=3 ) # Or use slower source-match presets (usually unnecessary)
+
+</pre>
+<p>
+	&nbsp;</p>
+<h3>
+	<a name="NoiseBypass"></a>Noise Bypass / Denoising</h3>
+<p>
+	<b>Key Points</b>: QTGMC can remove, retain or strengthen noise and very fine detail. Has automatic &quot;EZ&quot; settings for simple operation. Refer to examples below</p>
+<p>
+	The use of multiple temporal smooths means that this script denoises by default. QTGMC can extract some noise/grain from the source at the start, then optionally restore some of it back in again at the end. This allows either denoising, or for the grain/noise from the source to be retained. For simplest operation use one of the two automatic &quot;EZ&quot; modes, <var>EZDenoise </var>or <var>EZKeepGrain </var>(can only use one at once) and select a <var>NoisePreset</var>. For manual operation there are two modes: <var>NoiseProcess</var>=1 actually denoises at the start, whereas <var>NoiseProcess</var>=2 just identifies the noise in the source without removing it. <var>NoiseProcess</var>=1 is typically used for stronger denoising of the output, and <var>NoiseProcess</var>=2 is used to retain grain or for a very light denoise.</p>
+<p>
+	Manual operation: after selecting a mode, set a <var>Sigma </var>value to estimate the level of source noise. Use the <var>ShowNoise </var>setting to help in this choice. Then decide how much of that noise to restore after the deinterlace. There are two restore points called <var>GrainRestore</var>/<var>NoiseRestore</var>, the amount of noise restored depends on their sum. For full denoising set them both to 0. For grain retention, a good starting point is 0.7/0.3 for <var>NoiseProcess</var>=1, and 0.3/0.1 for <var>NoiseProcess</var>=2. <var>GrainRestore </var>restores more stable &quot;grain-like&quot; detail. <var>NoiseRestore </var>restores finer more fluctuating noise. Usually best if <var>GrainRestore </var>is greater than <var>NoiseRestore </var>unless you want a very noisy look. Too high restoral values will give grain exaggeration and even luma changes.</p>
+<p>
+	<u>Important:</u> You must use a non-zero value in one of <var>EZDenoise</var>, <var>EZKeepGrain </var>or <var>NoiseProcess </var>or no noise processing will occur</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<b>Quick Settings</b></td>
+			<td style="width: 8%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>EZDenoise</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0.0...)</td>
+			<td style="vertical-align: top;">
+				Automatic setting to denoise source. Set &gt; 0.0 to enable. Higher values denoise more. Can use <var>ShowNoise </var>to help choose value</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>EZKeepGrain</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0.0...)</td>
+			<td style="vertical-align: top;">
+				Automatic setting to retain source grain/detail. Set &gt; 0.0 to enable. Higher values retain more grain. A good starting point = 1.0</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>NoisePreset</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Automatic setting for quality of noise processing. Choices: &quot;Slower&quot;, &quot;Slow&quot;, &quot;Medium&quot;, &quot;Fast&quot;, and &quot;Faster&quot;, Default is &quot;Fast&quot;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="width: 8%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<b>Full Settings</b></td>
+			<td style="width: 8%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>NoiseProcess</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Bypass mode: 0 = disable, 1 = denoise source &amp; optionally restore some noise back at end of script [use for stronger denoising], 2 = identify noise only &amp; optionally restore some after QTGMC smoothing [for grain retention / light denoising]</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ChromaNoise</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				When processing noise (<var>NoiseProcess </var>&gt; 0), whether to process chroma noise or not (luma noise is always processed)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: bottom;">
+				&nbsp;</td>
+			<td style="width: 8%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: bottom;">
+				<span style="font-size: smaller;"><b>Removing Noise</b></span></td>
+			<td style="width: 8%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Denoiser</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Select denoiser to use for noise bypass / denoising. Select from &quot;dfttest&quot; or &quot;fft3dfilter&quot;. dfttest is better, but slower. Unknown value selects &quot;fft3dfilter&quot;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>DftThreads</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Number of threads to use if using &quot;dfttest&quot; for <var>Denoiser</var>, 0 = number of logical processors on system. Default = <var>EdiThreads</var></td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>DenoiseMC</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Whether to provide a motion-compensated clip to the denoiser for better noise vs detail detection (will be a little slower)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>NoiseTR</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0,1,2)</td>
+			<td style="vertical-align: top;">
+				Temporal radius used when analyzing clip for noise extraction. Higher values better identify noise vs detail but are slower</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Sigma</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0.0...)</td>
+			<td style="vertical-align: top;">
+				Amount of noise known to be in the source, sensible values vary by source and denoiser, so experiment. Use <var>ShowNoise </var>to help</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ShowNoise</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(bool / 0.0...)</td>
+			<td style="vertical-align: top;">
+				Display extracted and &quot;deinterlaced&quot; noise rather than normal output. Set to true or false, or set a value (around 4 to 16) to specify contrast for displayed noise. Visualising noise helps to determine suitable value for <var>Sigma </var>or <var>EZDenoise </var>- want to see noise and noisy detail, but not too much clean structure or edges - fairly subjective. Pause the video when checking this</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: bottom;">
+				<span style="font-size: smaller;"><b>Restoring Noise</b></span></td>
+			<td style="width: 8%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>GrainRestore </var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0.0...1.0...)</td>
+			<td style="vertical-align: top;">
+				How much removed noise/grain to restore before final temporal smooth. Retain &quot;stable&quot; grain and some detail (effect depends on <var>TR2</var>)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>NoiseRestore </var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(0.0...1.0...)</td>
+			<td style="vertical-align: top;">
+				How much removed noise/grain to restore after final temporal smooth. Retains any kind of noise</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>NoiseDeint</var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				When noise is taken from interlaced source, how to &#39;deinterlace&#39; it before restoring. &quot;Bob&quot; &amp; &quot;DoubleWeave&quot; are fast but with minor issues: &quot;Bob&quot; is coarse and &quot;Doubleweave&quot; lags by one frame. &quot;Generate&quot; is a high quality mode that generates fresh noise lines, but it is slower. Unknown value selects &quot;DoubleWeave&quot;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>StabilizeNoise </var></td>
+			<td style="width: 8%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Use motion compensation to limit shimmering and strengthen detail within the restored noise. Recommended for &quot;Generate&quot; mode</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				For most presets the defaults are: <var>NoiseProcess</var>=0, <var>Sigma</var>=2.0, <var>NoiseRestore/GrainRestore</var>=0.0, <var>ChromaNoise</var>=false, <var>DftThreads</var>=<var>EdiThreads</var>, <var>ShowNoise</var>=false<br />
+				In &quot;Placebo&quot;, &quot;Very Slow&quot; some defaults change: <var>NoiseProcess</var>=2, <var>GrainRestore</var>=0.3, <var>NoiseRestore</var>=0.1<br />
+				<var>EZDenoise </var>and <var>EZKeepGrain </var>set automatic values for <var>NoiseProcess</var>, <var>NoiseRestore</var>/<var>GrainRestore </var>and <var>Sigma</var><br />
+				<var>Denoiser</var>, <var>DenoiseMC</var>, <var>NoiseTR</var>, <var>NoiseDeint </var>and <var>StabilizeNoise </var>settings are determined by <var>NoisePreset</var><br />
+				If using manual settings be sure to override *all* the values you are interested in</td>
+		</tr>
+	</tbody>
+</table>
+<p>
+	<b>Examples</b></p>
+<pre>
+# Automatic Settings
+QTGMC( Preset=&quot;Slower&quot;, EZDenoise=2.5,   NoisePreset=&quot;Slow&quot;   ) # Automatic denoising, value is denoising strength, preset is quality/speed tradeoff
+QTGMC( Preset=&quot;Slower&quot;, EZKeepGrain=1.0, NoisePreset=&quot;Faster&quot; ) # Automatic grain retention - retain all source grain
+
+# Denoising
+QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=1, NoiseRestore=0.0, Sigma=4.0 ) # Fully denoise, strength of denoising depends on Sigma setting
+QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=1, NoiseRestore=0.0, Denoiser=&quot;dfttest&quot;, DenoiseMC=true, NoiseTR=2, Sigma=4.0 ) # More &quot;accurate&quot; denoising (slower)
+
+# Retain Noise / Grain
+QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=1, NoiseRestore=1.0, Sigma=2.0 ) # Retain *all* the noise / fine detail of a less noisy source
+QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=1, GrainRestore=1.0, Sigma=2.0 ) # Similar to above but only keep the more &quot;stable&quot; noise elements (depends on TR2)
+ 
+# Strong Detail / Grain
+QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=2, GrainRestore=0.5, NoiseRestore=0.1, Sigma=2.5 ) # Using stronger mode 2, retains noise and sharpens slightly
+QTGMC( Preset=&quot;Slower&quot;, NoiseProcess=2, GrainRestore=0.4, NoiseRestore=0.2, Sigma=1.8, \
+       NoiseDeint=&quot;Generate&quot;, StabilizeNoise=true )  # As above with better quality, more stable detail and grain
+</pre>
+<p>
+	&nbsp;</p>
+<h3>
+	<a name="ProgressiveInput"></a>Progressive Input</h3>
+<p>
+	<b>Key Points</b>: Can remove horizontal shimmering effects from progressive sources. Experiment with <var>InputType</var>=1, 2 or 3 for best results. FPS will not be doubled</p>
+<p>
+	This script is designed for deinterlacing and so by default expects an interlaced clip. However, much of its operation concerns the reduction of horizontal shimmering. It is possible to use the script to remove similar shimmer from a progressive clip by using the <var>InputType </var>setting. <var>InputType</var>=1 is used for general progressive material that contains less severe problems. <var>InputType</var>=2,3 are designed for badly deinterlaced material with considerable horizontal artefacts. These modes drop half the fields and recreate an interlaced stream from the others, which is then treated in the normal way. Mode 3 differs from mode 2 only in that it complements field parity of the input. Generally mode 1 will retain more detail, but repair less artefacts than modes 2,3. You may consider setting <var>TR2 </var>to a higher value (e.g. 2 or 3) when repairing progressive material.</p>
+<p>
+	<var>SourceMatch </var>and <var>Lossless </var>modes are supported for progressive material. It works well for <var>InputType</var>=2,3, where the input is converted to an interlaced stream, and helps in detail retention. Source-match is much less useful for <var>InputType</var>=1</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<b>Settings</b></td>
+			<td style="width: 7%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>InputType</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0,1,2,3)</td>
+			<td style="vertical-align: top;">
+				Default = 0 for interlaced input. Settings 1,2 &amp; 3 accept progressive input for deshimmer or repair. Frame rate of progressive source is not doubled. Mode 1 is for general progressive material. Modes 2 &amp; 3 are designed for badly deinterlaced material</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ProgSADMask</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0.0...)</td>
+			<td style="vertical-align: top;">
+				Only applies to <var>InputType</var>=2,3. If <var>ProgSADMask </var>&gt; 0.0 then blend <var>InputType </var>modes 1 and 2/3 based on block motion SAD. Higher values help recover more detail, but repair less artefacts. Reasonable range about 2.0 to 20.0, or 0.0 for no blending</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				Defaults:&nbsp;<var>InputType</var>=0, <var>ProgSADMask </var>= 10.0 (slower presets) or 0.0 (faster presets)</td>
+		</tr>
+	</tbody>
+</table>
+<p>
+	<b>Examples</b></p>
+<pre>
+QTGMC( Preset=&quot;Slower&quot;, InputType=1 )                   # Process progressive source, it will be temporally smoothed / deshimmered
+QTGMC( Preset=&quot;Slower&quot;, InputType=2, ProgSADMask=12.0 ) # Process progressive source with major artefacts, slightly favoring detail over repairs
+</pre>
+<p>
+	&nbsp;</p>
+<h3>
+	<a name="ShutterBlur"></a>Shutter Speed Motion Blur / Frame Rate</h3>
+<p>
+	<b>Key Points</b>: Can output video at single or double-frame rate. For smoother playback of single-rate output there are settings to add light motion blur to simulate different shutter angles (shutter speeds)</p>
+<p>
+	By default QTGMC outputs video at &quot;double-rate&quot;, twice the frame rate of the source. This is because there are two separate images (fields) in every frame, which the deinterlacing process restores in full. By setting FPSDivisor to 2, every second frame is dropped and the output frame rate is the same as the source (&quot;single-rate&quot;)</p>
+<p>
+	Single-rate output may look a little stuttery, depending on how the source was filmed/created. Adding motion blur to each frame can help with this, smoothing the feel of the slower rate playback. This is done by setting ShutterBlur to 1,2 or 3, then specifying the shutter angle that you wish the output to simulate. However, as there may be some motion blur already in the source you also need to specify/estimate the shutter angle used in the source. Shutter angles range from 0 to 360, with 0 being perfectly sharp and 360 being fully blurred from one frame to next (artificial output shutter angles &gt; 360 are supported to a very limited degree). Motion-blur can also be applied to double-rate output, but the effect is less noticable.</p>
+<p>
+	As motion analysis is block-based, motion blur of an object can &quot;bleed&quot; into surrounding, more static areas. This can be reduced using the slower ShutterBlur modes or by increasing the SBlurLimit setting (which is enabled and set to 4 by default). Both repair methods may reduce the level of motion blur a little though. In situations of complex motion the motion analysis can be incorrect, which can lead to inappropriate blurring.</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<b>Settings</b></td>
+			<td style="width: 7%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>FPSDivisor</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(1,2...)</td>
+			<td style="vertical-align: top;">
+				1 = Double-rate output, 2 = Single-rate output. Higher values can be used too (e.g. 60fps &amp; <var>FPSDivisor</var>=3 gives 20fps output).<br />
+				<u>Important</u>: You do not need <code>SelectEven()</code> in the calling script if you use <var>FPSDivisor</var>=2</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ShutterBlur</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0,1,2,3)</td>
+			<td style="vertical-align: top;">
+				0 = Off, 1 = Enable, 2,3 = Higher precisions (slower). Higher precisions reduce blur &quot;bleeding&quot; into static areas a little</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ShutterAngleSrc </var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0...360)</td>
+			<td style="vertical-align: top;">
+				Shutter angle used in source. If necessary, estimate from motion blur seen in a single frame: 0=pin-sharp, 360=fully blurred from frame to frame</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ShutterAngleOut </var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0...360)</td>
+			<td style="vertical-align: top;">
+				Shutter angle to simulate in output. Extreme values may be rejected (depends on other settings). Cannot reduce motion blur already in the source</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>SBlurLimit</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0...)</td>
+			<td style="vertical-align: top;">
+				Limit motion blur where motion lower than given value. Increase to reduce blur &quot;bleeding&quot;. 0=Off. Sensible range around 2-12</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				Defaults:&nbsp;<var>FPSDivisor</var>=1, <var>ShutterBlur</var>=0, <var>ShutterAngleSrc</var>=180, <var>ShutterAngleOut</var>=180, <var>SBlurLimit</var>=4</td>
+		</tr>
+	</tbody>
+</table>
+<p>
+	<b>Examples</b></p>
+<pre>
+QTGMC( Preset=&quot;Slower&quot;, FPSDivisor=2, ShutterBlur=1, ShutterAngleSrc=30,  ShutterAngleOut=180 ) # Smooth single-rate output, when input has little blur
+QTGMC( Preset=&quot;Slower&quot;, FPSDivisor=2, ShutterBlur=1, ShutterAngleSrc=180, ShutterAngleOut=180 ) # Keep &quot;film&quot; look on single-rate output, &quot;film&quot; input
+QTGMC( Preset=&quot;Slower&quot;, FPSDivisor=2, ShutterBlur=2, ShutterAngleSrc=180, ShutterAngleOut=180, SBlurLimit=8 ) # Same but srongly reduce blur &quot;bleeding&quot;
+QTGMC( Preset=&quot;Slower&quot;, FPSDivisor=1, ShutterBlur=1, ShutterAngleSrc=0,   ShutterAngleOut=720 ) # Blur some high shutter-speed footage, keep double rate
+                                                                                                # [Use of artificially high shutter angles is limited]
+</pre>
+<p>
+	&nbsp;</p>
+<h3>
+	<a name="MiscellaneousSettings"></a>Miscellaneous Settings</h3>
+<p>
+	Settings not covered above. Note that Border is false by default, which differs from TempGaussMC</p>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<b>Settings</b></td>
+			<td style="width: 7%; vertical-align: top;">
+				&nbsp;</td>
+			<td style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Border</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Pad a little vertically while processing (doesn&#39;t affect output size) - set true you see flickering on the very top or bottom line of the output. If you have wider edge effects than that, you should crop afterwards instead. Be wary of this setting if reusing QTGMC motion vectors in the calling script.</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Precise</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Set to false to use faster algorithms with *very* slight imprecision in places</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Preset</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Sets a range of defaults for different encoding speeds. Select from &quot;Placebo&quot;, &quot;Very Slow&quot;, &quot;Slower&quot;, &quot;Slow&quot;, &quot;Medium&quot;, &quot;Fast&quot;, &quot;Faster&quot;, &quot;Very Fast&quot;, &quot;Super Fast&quot;, &quot;Ultra Fast&quot; &amp; &quot;Draft&quot;</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>Tuning</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				Tweaks the defaults for different source types. Choose from &quot;None&quot;, &quot;DV-SD&quot;, &quot;DV-HD&quot;. Default is &quot;None&quot;. [An idea for development based on the x264 approach, but as I don&#39;t work with many source types it has seen little development]</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ShowSettings </var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(bool)</td>
+			<td style="vertical-align: top;">
+				Display all the current parameter values - useful to find preset defaults</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>GlobalNames</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				The name used to expose intermediate clips to calling script. See <a href="#ExternalLinkage">External Linkage</a> section. Defaults to &quot;QTGMC&quot;.</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>PrevGlobals</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(string)</td>
+			<td style="vertical-align: top;">
+				What to do with global variables from earlier QTGMC call that match above name. Either &quot;Replace&quot;, or &quot;Reuse&quot; (for a speed-up)</td>
+		</tr>
+		<tr>
+			<td style="width: 10%; vertical-align: top;">
+				<var>ForceTR</var></td>
+			<td style="width: 7%; vertical-align: top;">
+				(0,1,2,3)</td>
+			<td style="vertical-align: top;">
+				Ensure globally exposed motion vectors are calculated to this radius even if not needed by QTGMC. 0 = disabled (default)</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				&nbsp;</td>
+		</tr>
+		<tr>
+			<td colspan="3" style="vertical-align: top;">
+				Defaults: <var>Border</var>=false, <var>Preset</var>=&quot;Slower&quot;, <var>Tuning</var>=&quot;None&quot;,  <var>ShowSettings</var>=false, <var>GlobalNames</var>=&quot;QTGMC&quot;, <var>PrevGlobals</var>=undefined, <var>ForceTR</var>=0. Default for <var>Precise </var>depends on <var>Preset</var><br />
+				&nbsp;</td>
+		</tr>
+	</tbody>
+</table>
+<h2>
+	<a name="ExternalLinkage"></a>External Linkage</h2>
+<h3>
+	<a name="MotionVectors"></a>Accessing QTGMC Motion Vectors</h3>
+<table border="0" cellpadding="1" cellspacing="1" style="width: 100%;">
+	<tbody>
+		<tr>
+			<td colspan="2" style="vertical-align: top; width: 20%;">
+				QTGMC now exposes its motion vectors and other intermediate clips to the calling script through global variables. These globals are uniquely named. By default they begin with the prefix &quot;QTGMC_&quot;. The available clips are:</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 20%;">
+				Backward motion vectors</td>
+			<td style="vertical-align: top;">
+				<var>bVec1</var>, <var>bVec2</var>, <var>bVec3 </var>(temporal radius 1 to 3)</td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 20%;">
+				Forward motion vectors</td>
+			<td style="vertical-align: top;">
+				<var>fVec1</var>, <var>fVec2</var>, <var>fVec3</var></td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 20%;">
+				Filtered clip used for motion analysis</td>
+			<td style="vertical-align: top;">
+				<var>srchClip</var></td>
+		</tr>
+		<tr>
+			<td style="vertical-align: top; width: 20%;">
+				MVTools &quot;super&quot; clip for filtered clip</td>
+			<td style="vertical-align: top;">
+				<var>srchSuper</var></td>
+		</tr>
+		<tr>
+			<td colspan="2" style="vertical-align: top; width: 20%;">
+				Not all these clips are necessarily created - it depends on your QTGMC settings. To ensure motion vector creation to radius X, set <var>ForceTR</var>=X</td>
+		</tr>
+	</tbody>
+</table>
+<p>
+	An example:</p>
+<pre>
+QTGMC( Preset=&quot;Medium&quot;, ForceTR=2, SubPel=2 )  # Ensure we get temporal radius of at least 2, read note below regarding SubPel
+super = MSuper( pel=2, levels=1 )              # Faster to use levels=1, don&#39;t usually need more levels once you have the vectors
+MDegrain2( super, QTGMC_bVec1,QTGMC_fVec1, QTGMC_bVec2,QTGMC_fVec2 )  # Use QTGMC-created motion vectors
+</pre>
+<h4>
+	Important Notes</h4>
+<ul>
+	<li>
+		The <var>SubPel </var>setting to QTGMC must match the <var>pel</var> setting in MVTools or you will get visual errors or crashes. Default <var>SubPel </var>in QTGMC varies depending on <var>Preset</var>, &quot;Medium&quot; and quicker settings get <var>SubPel</var>=1, slower settings get <var>SubPel</var>=2. Default <var>pel </var>in MVTools is 2</li>
+	<li>
+		Do not use <var>Border</var>=true if using motion vectors in this way, or the clips exposed will have an 8 pixel border top and bottom (i.e. they won&#39;t match your source)<br />
+		&nbsp;</li>
+</ul>
+<h3>
+	<a name="MultipleCalls"></a>Multiple QTGMC Calls</h3>
+<p>
+	The section above showed how global variables are used to expose the workings of QTGMC. However, if there are multiple calls to QTGMC in your script then you should consider whether they should work together with their exposed globals. By default the globals for each call to QTGMC will overwrite the globals from previous calls. However there are actually three options in this case:</p>
+<ul>
+	<li>
+		Use the setting <var>GlobalNames</var> to make unique global names for each call. E.g. if you set <code>GlobalNames=&quot;TestA&quot;</code> you will receive a global called <var>TestA_bVec1</var>.</li>
+	<li>
+		Set <var>PrevGlobals</var>=&quot;Reuse&quot; to reuse existing similar named globals for this run &amp; not recalculate motion vectors etc. This will improve performance.</li>
+	<li>
+		Set <var>PrevGlobals</var>=&quot;Replace&quot; to overwrite similar named globals from a previous run. This is the default and easiest option for most use cases.</li>
+</ul>
+<p>
+	Here&#39;s an artifical example of multiple calls in a script to show the options:</p>
+<pre>
+q1 = c.QTGMC( Preset=&quot;Medium&quot; )  # QTGMC_bVec1 and similar variables are created
+q2 = c.QTGMC( Preset=&quot;Medium&quot; )  # Recalculates and replaces variables QTGMC_bVec1 and similar with new values (same as setting PrevGlobals=&quot;Replace&quot;)
+q3 = c.QTGMC( Preset=&quot;Medium&quot;, PrevGlobals=&quot;Reuse&quot;   )  # Reuses QTGMC_bVec1 motion vectors from q2 above. Doesn&#39;t recalculate, improving performance
+q4 = c.QTGMC( Preset=&quot;Medium&quot;, GlobalNames=&quot;TestA&quot;   )  # Creates new variables called TestA_bVec1...
+q5 = c.QTGMC( Preset=&quot;Medium&quot;, GlobalNames=&quot;TestA&quot;, PrevGlobals=&quot;Reuse&quot; ) # Reuses the TestA_bVec1 motion vectors
+
+</pre>
+<p>
+	Here&#39;s a realistic example. This simple script repairs progressive material with very bad deinterlacing artefacts. It needs two calls to QTGMC:</p>
+<pre>
+t = QTGMC( Preset=&quot;Slower&quot;, InputType=2 )
+b = QTGMC( Preset=&quot;Slower&quot;, InputType=3, PrevGlobals=&quot;Reuse&quot; ) # Reuse motion vectors from first call for a good speed-up
+Repair( t, b, 1 )
+</pre>
+<p>
+	&nbsp;</p>
+<h2>
+	<a name="TempGaussMC"></a>TempGaussMC Notes</h2>
+<p>
+	In its default setup this script is very similar in operation to TempGaussMC_beta2. The call QTGMC() is very similar to:</p>
+<pre>
+TempGaussMC_beta2( 2,2,1, Border=false, SVthin=0.0 )
+</pre>
+<p>
+	There are a few key differences:</p>
+<ul>
+	<li>
+		QTGMC typically uses &quot;NNEDI3&quot; for interpolation (TempGaussMC_beta2 uses &quot;EEDI2&quot; by default)</li>
+	<li>
+		<var>Sharpness </var>default in QTGMC is always 1.0 (or 0.2 if using source-match) - adjusted internally to give very roughly the same sharpness across settings / presets</li>
+	<li>
+		In QTGMC, <var>SVThin </var>defaults to 0, <var>Border </var>defaults to false</li>
+	<li>
+		Lossless and Draft modes are supported but in a different way</li>
+	<li>
+		The parameter order is the same up to <var>EdiMode</var>, a couple of &#39;lesser&#39; parameters have had name changes for consistency</li>
+</ul>
+<p>
+	&nbsp;</p>
+<h2>
+	<a name="Acknowledgements"></a>Acknowledgements</h2>
+<p>
+	Thanks go to Did&eacute;e for the script from where this began.<br />
+	Also thanks to the plugin coders: Manao, Fizick, Tritical, <span class="postbody">Kassandro, </span>Tsp, SEt, Tom Barry, Foxyshadis, TSchniede, Kurosu, mg262 and any others...<br />
+	And to the many people who have given feedback, reported bugs and offered suggestions to help improve the script<br />
+	&nbsp;</p>
+<h2>
+	<a name="VersionHistory"></a>Version History</h2>
+<p>
+	<span style="font-size: smaller;"><b>v3.33</b><br />
+    Increased maximum value for Rep0, Rep1 and Rep2 to 7 (from 5). Higher values help with flicker on static detail, potential for minor motion blur<br />
+    Bug fix for the fact that Bob always outputs a BFF clip regardless of field order of input (thanks ajp_anton)<br />
+    Improved generation of noise (NoiseDeint="Generate") for NoiseProcess / EZKeepGrain<br />
+    Minor change to denoising<br />
+	<br />
+	<b>v3.32</b><br />
+	Bugfix with shutter blur and ChromaMotion<br />
+	Tweaked vector recalculation for shutter motion blur<br />
+	Changed defaults for TR2 when using source-match<br />
+	Minor bugfix with SLMode/SLRad on pass-through settings<br />
+	<br />
+	<b>v3.31</b><br />
+	Small bug-fix with new ChromaMotion setting<br />
+	<br />
+	<b>v3.30</b><br />
+	Added ChromaMotion setting - can ignore chroma when analyzing motion (a speed-up with few ill-effects)<br />
+	Added ChromaEdi setting - allow faster interpolation for chroma than luma (mainly useful for EEDI2/3)<br />
+	New fast pre-filter (SrchClipPP) mode 1, previous modes 1 &amp; 2 are now modes 2 &amp; 3. Presets all updated with new modes<br />
+	EdiMode &quot;TDIYadif&quot; changed to &quot;RepYadif&quot; = Yadif+Repair giving less artefacts &amp; more speed. Is default mode for &quot;Ultra Fast&quot;<br />
+	Preset is now the first setting, allowing a simpler form: QTGMC(&quot;Slow&quot;). Old TGMC style will no longer work<br />
+	Workaround for padding bug in MVTools that crashed faster modes. Removes need for SafeMode setting, which has been removed<br />
+	<br />
+	<b>v3.25</b><br />
+	Added YUY2 support<br />
+	NoiseBypass renamed to NoiseProcess<br />
+	PrevGlobals now defaults to &quot;Replace&quot; for simplicity<br />
+	Tweaked &quot;Very Fast&quot; preset for quality and consistency with other preset speeds<br />
+	<br />
+	<b>v3.20</b><br />
+	Motion vectors made available to calling script (see External Linkage section in documentation), added related GlobalNames, PrevGlobals &amp; ForceTR settings<br />
+	Added simplified noise processing settings: EZDenoise, EZKeepGrain and NoisePreset<br />
+	Support for dfttest as denoiser for noise processing - added settings Denoiser and DftThreads<br />
+	Added ChromaNoise setting to optionally enable chroma noise processing<br />
+	Added DenoiseMC setting to use motion-compensated clip for denoising, improves detection of noise vs detail<br />
+	Replaced fft3dfilter-specific BT setting with NoiseTR setting to set temporal radius for denoiser.<br />
+	Added StabilizeNoise setting to &quot;stabilize&quot; &amp; &quot;deshimmer&quot; noise restored in noise bypass (was part of &quot;Generate&quot; mode)<br />
+	Dropped NoiseRemove setting, now always removes all noise specified by given Sigma (enough controls already!)<br />
+	MotionBlur renamed to ShutterBlur, MBlurLimit renamed to SBlurLimit, DetailRestore renamed to GrainRestore (old names gave wrong impression)<br />
+	Bug fixes: stabilization of &quot;Generate&quot; noise mode, manually enabling SLMode with SourceMatch<br />
+	Documentation converted to HTML<br />
+	<br />
+	<b>v3.11</b><br />
+	Exposed ThSAD1, ThSAD2, ThSCD1 and ThSCD2 to allow tweaks to temporal smoothing and scene change detection<br />
+	Fixed bug introduced in v3.05, which skipped part of core algorithm(!)<br />
+	<br />
+	<b>v3.10</b><br />
+	Explicit conditions to ensure unused filters are not constructed to reduce memory use<br />
+	FPSDivisor works even if not using motion blur<br />
+	<br />
+	<b>v3.05</b><br />
+	Motion blur support, added settings FPSDivisor, MotionBlur, ShutterAngleSrc, ShutterAngleOut, SBlurLimit<br />
+	Bug fixes: Some Sbb modes with source match, MatchEdi setting (again)<br />
+	<br />
+	<b>v3.01</b><br />
+	Support for lossless modes on InputType=2,3 - improves detail retention<br />
+	Enabling ShowNoise automatically switches on NoiseBypass<br />
+	Bug fixes: &quot;Draft&quot; mode, noise extraction with InputType=1, MatchEdi setting<br />
+	<br />
+	<b>v3.0</b><br />
+	Introduced source-match modes and settings for higher fidelity output - supported for interlaced and progressive input<br />
+	Most lossless settings removed - superseded by source-match, only Lossless integer remains<br />
+	Added ProgSADMask setting for progressive repair modes (InputType=2,3) to help recover stable detail<br />
+	Added RepChroma setting to allow disabling of chroma processing in repair stages (rep0,1,2)<br />
+	Added DetailRestore setting for NoiseBypass - allowing denoising with some fine detail retention<br />
+	Noise bypass with NoiseDeint=&quot;Generate&quot; is now motion-compensated for better grain/detail restoral, NoiseDeint=&quot;Copy&quot; removed<br />
+	Corrected minor luma shift when using NoiseBypass (FFT3DFilter noise center is 128.5 not 128)<br />
+	Added ShowNoise setting to display extracted noise, helps in determining Sigma<br />
+	TDeint added as interpolator (suitable for source-match)<br />
+	YadifPath no longer global<br />
+	EdiMode for &quot;Ultra Fast&quot; changed from &quot;TDIYadif&quot; to &quot;Yadif&quot; (otherwise slower than &quot;Super Fast&quot; for non-threaded)<br />
+	Bug fixes in Sbb and InputType=3<br />
+	Complete rewrite of documentation and some script tidying<br />
+	<br />
+	<b>v2.51</b><br />
+	Changed default interpolator to &quot;NNEDI3&quot; for presets up to &quot;Super Fast&quot; and (new) lossless presets up to &quot;Faster&quot;<br />
+	Range of preset tweaks including higher quality output from &quot;Super Fast&quot; &amp; &quot;Ultra Fast&quot; but with a little speed loss<br />
+	Support for EdiMode=&quot;EEDI3+NNEDI3&quot;: EEDI3 with sclip taken from NNEDI3<br />
+	Added LosslessPreset and EdiThreads parameters<br />
+	Tidied up output from ShowSettings and small bug fix<br />
+	Fixed serious bug when using lossless modes on the higher speed presets<br />
+	<br />
+	<b>v2.47</b><br />
+	Fixed bug with default overlap when an explicit blocksize was given<br />
+	<br />
+	<b>v2.46</b><br />
+	Replaced mt_average with merge - was causing exceptions in certain MT situations<br />
+	<br />
+	<b>v2.45</b><br />
+	Tweaked use of Yadif: explicit loading is now optional, see YadifPath variable<br />
+	<br />
+	<b>v2.41</b><br />
+	Removed explicit Yadif plugin load<br />
+	<br />
+	<b>v2.40</b><br />
+	Support for lossless output with added parameters: Lossless, LosslessTR, LosslessEdi<br />
+	Support for EdiMode(&quot;NNEDI3&quot;, &quot;EEDI3&quot;)<br />
+	Paramters NNeurons added &amp; NNSize reworked for new -EDI3 versions<br />
+	Minor preset tweaks for better quality/speed spread<br />
+	<br />
+	<b>v2.30</b><br />
+	Added EdiExt (edeint in original TGMC)<br />
+	Improved progressive input modes<br />
+	<br />
+	<b>v2.20</b><br />
+	All rep values, SVThin and motion search settings supported<br />
+	Better matching of Sbb<br />
+	&quot;Draft&quot; preset. Default preset changed from &quot;Slow&quot; to &quot;Slower&quot;<br />
+	Support for progressive input (InputType)<br />
+	Sharpness values/defaults normalized<br />
+	<br />
+	<b>v2.10</b><br />
+	Supported most of the remaining core TGMC features: EdiMode(&quot;NNEDI&quot;, &quot;Yadif&quot;), TR2(3), SLmode(3,4), SLRad, Sbb(2,3)<br />
+	Added noise bypass (removal / restoration)<br />
+	Added ShowSettings<br />
+	<br />
+	<b>v2.00</b><br />
+	First fully featured version<br />
+	Supported majority of core TGMC features<br />
+	Additional speed tweaks: NNSize, SrchClipPP, SubPel, Precise<br />
+	Added Presets system and beginnings of Tunings<br />
+	<br />
+	<b>v1.00</b><br />
+	First draft - high speed basic TGMC algorithm only</span></p>
+	</body>
+</html>
