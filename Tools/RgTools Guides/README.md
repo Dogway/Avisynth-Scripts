@@ -1,6 +1,6 @@
 ## REMOVEGRAIN:
 
-This is the original removegrain() guide I made back in 2011 and that was doing the rounds later on.
+This is the original removegrain() guide I wrote back in 2011 and that made the rounds later on.
 Additionally I attach a similar guide for Repair() I made recently.
 
 ```
