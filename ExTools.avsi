@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v10.0    (19-02-2023)                 ##
+###        ExTools v10.0    (01-03-2023)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -32,6 +32,7 @@
 ### Dependencies: AviSynth+ 3.7.3+ (https://forum.doom9.org/showthread.php?t=181351)
 ###
 ### Credits: Thanks to wonkey_monkey (David Horman) for Expr optimization tips
+###          and pinterf for Expr's pixel addressing feature and his continued efforts on AVS+ development
 ###
 ###########################################################
 ###                                                      ##
