@@ -1234,7 +1234,7 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 
 # --- CHANGELOG ---
 #
-# v4.00p
+# v4.00p (01-03-2023)
 # - Fix SrchClipPP=3
 # - Fix SourceMatch=2
 # - Optimize SourceMatch=3
@@ -1411,7 +1411,7 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 # - Replaced vinverse() with ex_vinverse() for custem (now clip2) arg
 # - Removed Dither tools related arguments
 #
-# v3.50p based on v3.382s by A.SONY
+# v3.50p (27-07-2021)
 # - Replaced MaskTools2 with Expr calls via ExTools pack wrappers (except mt_merge)
 # - Merged redundant expressions
 # - Replaced blurs and medians with ExTools equivalents
