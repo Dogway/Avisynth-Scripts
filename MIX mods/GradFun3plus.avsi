@@ -258,7 +258,7 @@ function SmoothGradPlus(clip a, int "radius", float "thr", float "elast", clip "
     thr_2       = ex_bs(thr_2,        16, bi, fs, flt=true)
     hhr         = 1 / ex_bs(32768/2., 16, bi, fs, flt=true)
 
-    val_filt    = ex_GaussianBlur(a, 0.635*(rad-1)+0.6,Y=Y, UV=UV) # Reparametrized to roughly mimic Dither_box_filter16()
+    val_filt    = ex_GaussianBlur(a, 0.635*(rad-1)+0.6, Y=Y, UV=UV) # Reparametrized to roughly mimic Dither_box_filter16()
 
     rfd ? ex_lutxyz(a,val_filt,ref,Format("y z - 0.5 *     abs D@ {thr_1} < y D {thr_2} > x D {thr_slope} * {thr_offset} - y x - 0.5 {hhr} * * * x swap - ? ? "),Y=Y,UV=UV) : \
           ex_lutxy (a,val_filt,    Format("y x - 0.5 * D1@ abs D@ {thr_1} < y D {thr_2} > x D {thr_slope} * {thr_offset} - D1      * {hhr} *     x swap - ? ? "),Y=Y,UV=UV) }
