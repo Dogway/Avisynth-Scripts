@@ -14,14 +14,19 @@
 #                                                                   #
 #-------------------------------------------------------------------#
 #
+# Acknowledgements by Vit:
+# 	"Thanks go to Didée for the script from where this began.
+# 	Also thanks to the plugin coders: Manao, Fizick, Tritical, Kassandro, Tsp, SEt, Tom Barry, Foxyshadis, TSchniede, Kurosu, mg262 and any others..
+# 	And to the many people who have given feedback, reported bugs and offered suggestions to help improve the script"
+#
 #
 # QTGMC+ features and changes (from v3.382s):
 #     - Frame properties support
-#     - Increased performance for HBD (+70%) *Using CPU bound nnedi3()
+#     - Increased performance for HBD (+40%)
 #     - PC range aware
 #     - Pruned noop or redundant arguments
 #     - Sanitized + adapted code and expressions to align to AVS+ features
-#     - More features and bug fixes
+#     - More features and bug fixes (read the changelog at the bottom)
 #
 #
 # BENCHMARKS (8-bit @ 1080p with a i7-4790K@Stock, so probably your numbers will be higher):
@@ -30,436 +35,7 @@
 #   Slower 9.4fps  SourceMatch=1, MatchPreset="slow"    7.5fps
 #
 #
-# --- LATEST CHANGES ---
-#
-# v4.00p
-# - Fix SrchClipPP=3
-# - Fix SourceMatch=2
-# - Optimize SourceMatch=3
-# - Optimize when GrainRestore > 0 and Sbb > 1
-# - Improve Temporal weightings for MDegrain2 match
-# - Disable internal runtime frameprop assignments (AVS+ memory leak bug)
-# - Add BM3D as optional Denoiser type
-#
-# v3.99p
-# - Add empty vars 'bVec2' and 'fVec2' as exception handlers
-#
-# v3.98p
-# - Direct YUY2 support via global internal conversion
-# - Port slimit_dif2() from Zs_RF_Shared and remove its dependency
-#
-# v3.97p
-# - Change a few defaults on the slower presets for increased quality
-# - Set rfilter=3 for all MSuper instances for extra accuracy
-# - Enable for HD sources scaled chroma for MV sampling
-# - Disable ex_bob() frameprops assignment when using nnedi3 which already does it
-#
-# v3.96p
-# - Add support for EEDI2CUDA
-#
-# v3.95p
-# - Fix typo on KNLMeansCL call for 'gpuid'
-# - Update dependencies versions
-# - Update show panel
-# - Make '_Durationxxx' dynamic, also in ex_bob()
-#
-# v3.94p
-# - Populate with "_Field" frameprop where appropiate
-# - Fix "_AbsoluteTime" frameprop
-#
-# v3.93p
-# - Fix for missing "_Durationxxx" frameprops
-#
-# v3.92p
-# - Typo on neo_fft3d() chroma index
-#
-# v3.91p
-# - Remove 'device_type'
-# - Replace 'device_id' with 'gpuid' and update ex_KNLMeansCL() call
-# - Revert back to neo_FFT3D() after benchmarks
-#
-# v3.90p
-# - Refine '_Combed' property
-# - Add EEDI3wrap for EEDI3CL compatibility
-# - Update for latest nnedi3wrap()
-#
-# v3.89p
-# - Removed old "cYadif" and "RepcYadif" Edimodes
-# - Fixed InputType=1 for progressive inputs
-# - Now all deinterlacers inherit field order from frame properties preferably
-# - Better frame properties workflow in the pipeline
-#
-# v3.88p
-# - Fix HBD for 'ShutterBlur'
-#
-# v3.87p
-# - Update ex_bob() for latest NNEDI3CL version
-#
-# v3.86p
-# - Replace NNEDI3CL with nnedi3wrap
-#
-# v3.85p
-# - Replace nnedi3 with NNEDI3CL
-#
-# v3.84p
-# - Update with latest ex_luma_rebuild() version
-# - Update function definition
-#
-# v3.83p
-# - Update with latest Asd-g's vinverse plugin, deprecates ex_vinverse() -now semi-legacy- (v3.82 & v3.83)
-#
-# v3.81p
-# - Update calls for latest vsTCanny
-# - Fix HBD for 'InputType' 2 and 3
-#
-# v3.80p
-# - Add dumb nnedi3 interpolation to ex_bob()
-# - Update propCopy calls to v3.7.2 test8
-# - Rename ex_vinverse() 'custem' arg to 'clip2'
-# - Rename filter to QTGMC+ and function to QTGMCp()
-#
-# v3.79p
-# - Fix a memory leak with propCopy() (v3.78)
-# - Add ex_bob(), a port of sh_bob() for frameprops support (v3.78)
-# - Add propNumElements to ex_blob() to check first if frameprops exist
-#
-# v3.77p
-# - Add ex_ReduceFlicker()
-# - Fix addnoiseN clamp
-#
-# v3.76p
-# - Frameprops passthrough
-# - Add function definitions
-# - Tweak 'Str' and 'Amp' defaults
-#
-# v3.75p
-# - Fix ex_vinverse() vertical blur
-# - Optimize ex_vinverse() VshrpD expression
-# - Add float output for 'noiseCentre' variable
-#
-# v3.74p
-# - Optimize expressions with lerp
-# - Optimize convolutions fetching first pixels first
-# - Add 'range' arg to nnedi3 calls
-#
-# v3.73p
-# - Increase EdiQual Defaults for Placebo
-# - Rename 'Showsettings' to 'Show' and parametrize font size
-# - Update call for latest vsTCanny
-#
-# v3.72p
-# - More expression optimizations (v3.71p & v3.72p)
-# - Some 'fs' fixes (v3.70p)
-#
-# v3.69p
-# - Optimize code structure with loops
-# - Override 'fs' with 'tv' if defined
-# - Cosmetics
-#
-# v3.68p
-# - Read bitdepth scale from frameprops, and remove 'fulls' arg
-# - Process NNEDI3 (and other deinterlacers) in 8-bit for HBD inputs (NNEDI3 is not optimized enough for HBD)
-#
-# v3.67p
-# - Tweak again NNEDI3 thread settings
-# - Adjust chroma blur radius for chroma subsampling
-#
-# v3.66p
-# - Replace sh_GetUserGlobalIMT with SysInfo's SI_LogicalCores()
-# - Update nnedi3 calls for more performance on given threads
-# - Readjusted gaussian blur sigmas
-# - Preliminar 32-bit float support (MDegrain is broken for 32-bit)
-#
-# v3.65p
-# - Update QTGMC_Set/GetUserGlobal() functions
-# - Replace ex_gaussianblur() with vsTCanny(), faster
-# - Update dependencies list
-# - Revert Bankers' rounding workaround
-#
-# v3.64p
-# - Optimize thin var expression
-# - Attach optimized ex_vinverse()
-#
-# v3.63p
-# - re-add bomt var
-# - add Refinemotion to presets
-#
-# v3.62p
-# - Revised chroma processing for vinverses and blurs
-# - Filled missing 'fulls'
-# - Cut redundant args (thanks real.finder)
-# - Tweaked some defaults based on zorr's zopti findings (more on this coming)
-#
-# v3.61p
-# - EdiExtPre removed, UseEdiExt become int parameter, 0=false, 1=true, 2=same as old UseEdiExt+EdiExtPre
-#
-# v3.60p
-# - Update to latest ExTools
-# - Added 'fulls' to ConvertBits()
-# - Replaced blurs with ex_GaussianBlur()
-# - Some Expr optimizations
-# - Add back deleted Precise arg
-# - Add back UV=3 to tmax and tmin
-# - Removed bomt var
-# - Remove keep_tv_range limiter
-# - 32-bit support is Work In Progress
-#
-# v3.51p
-# - Replaced vinverse() with ex_vinverse() for custem (now clip2) arg
-# - Removed Dither tools related arguments
-#
-# v3.50p based on v3.382s by A.SONY
-# - Replaced MaskTools2 with Expr calls via ExTools pack wrappers (except mt_merge)
-# - Merged redundant expressions
-# - Replaced blurs and medians with ExTools equivalents
-# - Replaced Vinverse_avsi() with ex_vinverse() (HBD) and vinverse() (8bit)
-# - Removed Dither support
-# - Reverted from neo_ to vanilla fft3d and dfttest (sameish or faster)
-# - Formatting and small optimizations
-#
-# v3.382s
-# - fix for n16 family
-#
-# v3.380s based on v3.34d (mod) by Dogway
-# - Added Refinemotion Option for more accurate denoising.
-#
-# v3.378s
-# - added tr0=-2 same as -1 but with Vinverse_avsi
-# - added EdiExtPre to use Vinverse_avsi with UseEdiExt
-#
-# v3.377s
-# - added n16d (same as lsbd but use 16bit avs+ HBD)
-# - added FastMA, use 8bit in Motion Analysing clip for faster Motion Analysis when using HBD Inputs
-# - added ESearchP, using ErazorTT Suggestion for SearchParam for hex and umh
-#
-# v3.376s
-# - fix keep_tv_range in avs+
-#
-# v3.375s
-# - new EdiMode modes "BWDIF+NNEDI3" and "BWDIF+EEDI3" (need moded Vinverse_avsi)
-# - fix RepYadif EdiMode for non YUY2 clip (it was same as Yadif)
-#
-# v3.371s
-# - use sh_Bob
-# - support sh_GetUserGlobalIMT (set_plugins_threads) and sh_GetUserGlobalIMTint (set_plugins_threads_int) and sh_GetUserGlobalIMTbool (set_plugins_threads_bool)
-# - fix threads parameters bugs
-#
-# v3.368s
-# - bug fix (thanks to missuse)
-# - make it work with original mvtools2 (for manolito)
-# - add keep_tv_range bool
-# - add device_type and device_id
-#
-# v3.365s
-# - support neo_FFT3D and neo_dfttest
-#
-# v3.363s
-# - some changes in LUT things
-#
-# v3.362s
-# - some changes for avs+ and avs neo, need IsAvsNeo(), IsAvsPlus() and AvsPlusVersionNumber(), they are in SMDegrain v3.1.2.101s or up
-#
-# v3.361s
-# - update to masktools 2.2.17, use expr in avs+ (for speed up and less RAM usage)
-#
-# v3.358s
-# - new n16 bool (avs+ faster replacement for lsb), and tr2=6
-#
-# v3.357s
-# - high bit depth now basically work in avs+
-#
-# v3.354s
-# - added optional chikuzen PlanarTools for YUY2 using nonyuy2clipin/nonyuy2clipout in AnimeIVTC() v2.20
-#
-# v3.353s
-# - added ndjamena suggestion for maximum temporal radius
-# - added DftDither to controle dfttest dither Parameter
-#
-# v3.352s
-# - added UseEdiExt
-# - added tr0=-1 to use the EdiExt clip (if there is no EdiExt clip then it will not work)
-# - rep0 now will be 0 if tr0 < 1
-#
-# v3.347s
-# - fix SourceMatch (bug after new YUY2 method, thanks to ndjamena for report it)
-#
-# v3.346s
-# - EEDI3+NNEDI3 bug fix by ndjamena
-# - Renamed DftThreads parameter to FftThreads, to set the ncpu argument of FFT3DFilter (from VS)
-# - FFT3DFilter will work now in YUY2, use it with Denoiser="fft3df" (or use NoisePreset)
-#
-# v3.345s
-# - work with SH_KNLMeansCL now to process chroma too
-#
-# v3.343s
-# - edit in ChromaEdi
-# - others
-#
-# v3.34s (mod) 2016 12 18 (ravewulf idea in another way)
-# - Added yadifmod2 (if you need old one use it like this EdiMode="cYadif" or EdiMode="RepcYadif")
-# - fast and clean up YUY2 (will work in x64 now, no need to SSETools)
-#
-# v3.33s (mod) 2016 12 06
-# - Add TR2=4 and TR2=5
-# - add TV_range bool and dither_luma_rebuild (from SMDegrain) Str and Amp
-# - for avsplus now QTGMC_Bob is ready for any 420, not only yv12
-#
-# v3.33s (mod) 2016 04 11
-# - Add KNLMeansCL as another Denoiser to NoiseProcess
-# - others
-#
-# v3.33s (mod) 2016 01 19
-# - make QTGMC_deflate/QTGMC_inflate work with YUY2 using masktool2 for avs 2.60
-#
-# v3.33s (mod) 2015 10 23
-# - revert to QTGMC_deflate/QTGMC_inflate quoted from Dogway
-#
-# v3.33s (mod) 2015 9 10
-# - fix Multiple QTGMC Calls
-# - others fix
-#
-# v3.33s (mod) 2015 8 6
-# - some changes in bob to speed up
-#
-# v3.33s (mod) 2015 8 4
-# - fix bug in YUY2 with SourceMatch
-# - add slice=false to ditherpost to avoid artefacts
-#
-# v3.33s (mod)
-# - fix bob chroma
-# - work with new masktool2 for avs 2.60 in YUY2
-#
-# v3.33d (mod)
-# - Added 32 bit precision option through the lsbd (for dfttest and knlmeanscl) and lsb (mdegrain) options.
-# - optimized some mask handling a bit as originally suggested by Vit
-# - others
-#
-# v3.33
-# - Increased maximum value for Rep0, Rep1 and Rep2 to 7 (from 5). Higher values help with flicker on static detail, potential for minor motion blur
-# - Bug fix for the fact that Bob always outputs a BFF clip regardless of field order of input (thanks ajp_anton)
-# - Improved generation of noise (NoiseDeint="Generate") for noise bypass / EZKeepGrain
-# - Minor change to denoising
-#
-# v3.32
-# - Bugfix with shutter blur and ChromaMotion (thanks Heaud)
-# - Tweaked vector recalculation for shutter motion blur
-# - Changed defaults for TR2 when using source-match
-# - Minor bugfix with SLMode/SLRad on pass-through settings
-#
-# v3.31
-# - Small bug-fix with new ChromaMotion setting
-#
-# v3.30
-# - Added ChromaMotion setting - can ignore chroma when analyzing motion (a speed-up with few ill-effects)
-# - Added ChromaEdi setting - allow faster interpolation for chroma than luma (mainly useful for EEDI2/3)
-# - New fast pre-filter (SrchClipPP) mode 1, previous modes 1 & 2 are now modes 2 & 3. Presets all updated with new modes
-# - EdiMode "TDIYadif" changed to "RepYadif" = Yadif+Repair giving less artefacts & more speed. Is default mode for "Ultra Fast"
-# - Preset is now the first setting, allowing a simpler form: QTGMC("Slow"). Old TGMC style will no longer work
-# - Workaround for padding bug in MVTools that crashed faster modes. Removes need for SafeMode setting, which has been removed
-#
-# v3.25
-# - Added YUY2 support
-# - NoiseBypass renamed to NoiseProcess
-# - PrevGlobals now defaults to "Replace" for simplicity
-# - Tweaked "Very Fast" preset for quality and consistency with other preset speeds
-#
-# v3.20
-# - Motion vectors made available to calling script (see External Linkage section in documentation), added related GlobalNames, PrevGlobals & ForceTR settings
-# - Added simplified noise processing settings: EZDenoise, EZKeepGrain and NoisePreset
-# - Support for dfttest as denoiser for noise processing - added settings Denoiser and DftThreads
-# - Added ChromaNoise setting to optionally enable chroma noise processing
-# - Added DenoiseMC setting to use motion-compensated clip for denoising, improves detection of noise vs detail
-# - Replaced fft3dfilter-specific BT setting with NoiseTR setting to set temporal radius for denoiser.
-# - Added StabilizeNoise setting to "stabilize" & "deshimmer" noise restored in noise bypass (was part of "Generate" mode)
-# - Dropped NoiseRemove setting, now always removes all noise specified by given Sigma (enough controls already!)
-# - MotionBlur renamed to ShutterBlur, MBlurLimit renamed to SBlurLimit, DetailRestore renamed to GrainRestore (old names gave wrong impression)
-# - Bug fixes: stabilization of "Generate" noise mode, manually enabling SLMode with SourceMatch
-# - Documentation converted to HTML
-#
-# v3.11
-# - Exposed ThSAD1, ThSAD2, ThSCD1 and ThSCD2 to allow tweaks to temporal smoothing and scene change detection
-# - Fixed bug introduced in v3.05, which skipped part of core algorithm(!)
-#
-# v3.10
-# - Explicit conditions to ensure unused filters are not constructed to reduce memory use
-# - FPSDivisor works even if not using motion blur
-#
-# v3.05
-# - Motion blur support, added settings FPSDivisor, MotionBlur, ShutterAngleSrc, ShutterAngleOut, SBlurLimit
-# - Bug fixes: Some Sbb modes with source match, MatchEdi setting (again)
-#
-# v3.01
-# - Support for lossless modes on InputType=2,3 - improves detail retention
-# - Enabling ShowNoise automatically switches on NoiseBypass
-# - Bug fixes: "Draft" mode, noise extraction with InputType=1, MatchEdi setting
-#
-# v3.0
-# - Introduced source-match modes and settings for higher fidelity output - supported for interlaced and progressive input
-# - Most lossless settings removed - superseded by source-match, only Lossless integer remains
-# - Added ProgSADMask setting for progressive repair modes (InputType=2,3) to help recover stable detail
-# - Added RepChroma setting to allow disabling of chroma processing in repair stages (rep0,1,2)
-# - Added DetailRestore setting for NoiseBypass - allowing denoising with some fine detail retention
-# - Noise bypass with NoiseDeint="Generate" is now motion-compensated for better grain/detail restoral, NoiseDeint="Copy" removed
-# - Corrected minor luma shift when using NoiseBypass (FFT3DFilter noise center is 128.5 not 128)
-# - Added ShowNoise setting to display extracted noise, helps in determining Sigma
-# - TDeint added as interpolator (suitable for source-match)
-# - YadifPath no longer global
-# - EdiMode for "Ultra Fast" changed from "TDIYadif" to "Yadif" (otherwise slower than "Super Fast" for non-threaded)
-# - Bug fixes in Sbb and InputType=3
-# - Complete rewrite of documentation and some script tidying
-#
-# v2.51
-# - Changed default interpolator to "NNEDI3" for presets up to "Super Fast" and (new) lossless presets up to "Faster"
-# - Range of preset tweaks including higher quality output from "Super Fast" & "Ultra Fast" but with a little speed loss
-# - Support for EdiMode="EEDI3+NNEDI3": EEDI3 with sclip taken from NNEDI3
-# - Added LosslessPreset and EdiThreads parameters
-# - Tidied up output from ShowSettings and small bug fix
-# - Fixed serious bug when using lossless modes on the higher speed presets
-#
-# v2.47
-# - Fixed bug with default overlap when an explicit blocksize was given
-#
-# v2.46
-# - Replaced mt_average with merge - was causing exceptions in certain MT situations
-#
-# v2.45
-# - Tweaked use of Yadif: explicit loading is now optional, see YadifPath variable
-#
-# v2.41
-# - Removed explicit Yadif plugin load
-#
-# v2.40
-# - Support for lossless output with added parameters: Lossless, LosslessTR, LosslessEdi
-# - Support for EdiMode("NNEDI3", "EEDI3")
-# - Paramters NNeurons added & NNSize reworked for new -EDI3 versions
-# - Minor preset tweaks for better quality/speed spread
-#
-# v2.30
-# - Added EdiExt (edeint in original TGMC)
-# - Improved progressive input modes
-#
-# v2.20
-# - All rep values, SVThin and motion search settings supported
-# - Better matching of Sbb
-# - "Draft" preset. Default preset changed from "Slow" to "Slower"
-# - Support for progressive input (InputType)
-# - Sharpness values/defaults normalized
-#
-# v2.10
-# - Supported most of the remaining core TGMC features: EdiMode("NNEDI", "Yadif"), TR2(3), SLmode(3,4), SLRad, Sbb(2,3)
-# - Added noise bypass (removal / restoration)
-# - Added ShowSettings
-#
-# v2.00
-# - First fully featured version
-# - Supported majority of core TGMC features
-# - Additional speed tweaks: NNSize, SrchClipPP, SubPel, Precise
-# - Added Presets system and beginnings of Tunings
-#
-# v1.00
-# - First draft - high speed basic TGMC algorithm only
-#
-# --- REQUIREMENTS ---
+# --- DEPENDENCIES ---
 #
 # Input formats: YUV, YUY2, between 8-bit and 16-bit
 #
@@ -478,34 +54,39 @@
 #   SMDegrain    (4.0.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser type)
 #
 # Optional:
-#   NNEDI2, NNEDI, EEDI3CL, EEDI2, EEDI2CUDA (requires recent drivers), TDeInt - if selected directly or via a source-match preset
+#   TDeInt, NNEDI, NNEDI2, EEDI3/EEDI3CL, EEDI2/EEDI2CUDA (requires recent drivers) - if selected directly or via a source-match preset
 #   yadifmod2    (0.2.7  or above) - for Preset="Ultra Fast" or if selected directly
 #   KNLMeansCL   (1.1.1e or above) - if selected for noise processing
 #   DFTTest      (1.9.6  or above) - if selected for noise processing
 #   BM3D         (test10 or above) - if selected for noise processing
 #   neo_FFT3D    (r11    or above) - if selected for noise processing
 #       For neo_FFT3D & DFTTest you also need the FFTW3 library (FFTW.org). On Windows the file needed for both is libfftw3f-3.dll and placed in your System32 or SysWow64 folder
-#   AddGrainC    (1.8.4  or above) - if NoiseDeint="Generate" selected for noise bypass
-#   BWDIF        (1.2.5  or above) - for EdiMode modes "BWDIF+NNEDI3" and "BWDIF+EEDI3"
+#   AddGrainC    (1.8.4  or above) - if NoiseDeint="Generate" selected for NoiseProcess
+#   BWDIF        (1.2.5  or above) - if 'EdiMode' are "BWDIF+NNEDI3" or "BWDIF+EEDI3"
 
 
 # --- GETTING STARTED ---
 #
 # Install AviSynth and ensure you have at least the core plugins listed in the requirements section above. Put them in the plugins autoload folder.
+#
 # To use QTGMC+ write a script like this:
 #   YourSource("yourfile")                 # Mainly DGSource or FFVideoSource
 #   QTGMCp( Preset="Slow", FPSDivisor=1 )  # FPSDivisor=1 for double (frame)rate, =2 for half-rate
 #   Prefetch(8)                            # Add SourceMatch>0 to QTGMCp() if dealing with Anime to avoid ghosting artifacts
 #
-# Save this script with an ".avs" extension. You can now use it as an AVI source for encoding.
+# Save this script with an ".avs" extension. You can now use it as a placeholder of an AVI file for encoding.
 #
 # The "Preset" used selects sensible settings for a given encoding speed. Choose a preset from:
 #   "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast" & "Draft"
 # The default preset is "Slower"
-# Don't be obsessed with using slower settings as the differences can be small. HD material benefits little from extreme settings (and will be very slow)
-# For much faster speeds read the full documentation.
 #
-# There are many settings for tweaking the script, full details in the main documentation. You can display settings currently being used with 'Show':
+# Don't be obsessed with using slower settings as the differences can be small.
+# HD material benefits little from extreme settings (and will be very slow)
+#
+# There are many settings for tweaking the script, full details in the main documentation:
+# https://raw.githack.com/Dogway/Avisynth-Scripts/master/MIX%20mods/QTGMC%20Docs%20(v3.33).html
+#
+# You can display settings currently being used with 'Show':
 #   QTGMCp( Preset="Slow", Show=true )
 #
 #
@@ -578,54 +159,54 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     Amp       = Default( Amp,     0.0312 )
     tv        = Default( TV_range,    !fs)
 
-    Assert(IsVersionOrGreater(3,7,3),            "QTGMC+: Update AviSynth+ version")      # NNEDI3CL -and others- minimum requirement
+    Assert(IsVersionOrGreater(3,7,3),            "QTGMC+: Update AviSynth+ version")
     Assert(!(!Defined(EdiExt) && UseEdiExt > 0), "QTGMC+: UseEdiExt need EdiExt to work")
 
     # Select presets / tuning
     Preset = Default( Preset, "Slower" )
 
-    pNum =   (Preset       == "Placebo"   ) ? 0 : \
-             (Preset       == "Very Slow" ) ? 1 : \
-             (Preset       == "Slower"    ) ? 2 : \
-             (Preset       == "Slow"      ) ? 3 : \
-             (Preset       == "Medium"    ) ? 4 : \
-             (Preset       == "Fast"      ) ? 5 : \
-             (Preset       == "Faster"    ) ? 6 : \
-             (Preset       == "Very Fast" ) ? 7 : \
-             (Preset       == "Super Fast") ? 8 : \
-             (Preset       == "Ultra Fast") ? 9 : \
-             (Preset       == "Draft"     ) ? 10 : 11
-             Assert( pNum  < 11, "QTGMC+: 'Preset' choice is invalid" )
+    pNum =   (Preset       == "Placebo"   ) ?  0 : \
+             (Preset       == "Very Slow" ) ?  1 : \
+             (Preset       == "Slower"    ) ?  2 : \
+             (Preset       == "Slow"      ) ?  3 : \
+             (Preset       == "Medium"    ) ?  4 : \
+             (Preset       == "Fast"      ) ?  5 : \
+             (Preset       == "Faster"    ) ?  6 : \
+             (Preset       == "Very Fast" ) ?  7 : \
+             (Preset       == "Super Fast") ?  8 : \
+             (Preset       == "Ultra Fast") ?  9 : \
+             (Preset       == "Draft"     ) ? 10 : \
+             Assert( false, "QTGMC+: 'Preset' choice is invalid" )
 
     mpNum1 = (!Defined(MatchPreset))      ? ((pNum + 3 <= 9) ? (pNum + 3) : 9) : \
-             (MatchPreset  == "Placebo"   ) ? 0 : \
-             (MatchPreset  == "Very Slow" ) ? 1 : \
-             (MatchPreset  == "Slower"    ) ? 2 : \
-             (MatchPreset  == "Slow"      ) ? 3 : \
-             (MatchPreset  == "Medium"    ) ? 4 : \
-             (MatchPreset  == "Fast"      ) ? 5 : \
-             (MatchPreset  == "Faster"    ) ? 6 : \
-             (MatchPreset  == "Very Fast" ) ? 7 : \
-             (MatchPreset  == "Super Fast") ? 8 : \
-             (MatchPreset  == "Ultra Fast") ? 9 : \
-             (MatchPreset  == "Draft"     ) ? 10 : 11
-             Assert( mpNum1 < 10, "QTGMC+: 'MatchPreset' choice is invalid/unsupported" )
+             (MatchPreset  == "Placebo"   ) ?  0 : \
+             (MatchPreset  == "Very Slow" ) ?  1 : \
+             (MatchPreset  == "Slower"    ) ?  2 : \
+             (MatchPreset  == "Slow"      ) ?  3 : \
+             (MatchPreset  == "Medium"    ) ?  4 : \
+             (MatchPreset  == "Fast"      ) ?  5 : \
+             (MatchPreset  == "Faster"    ) ?  6 : \
+             (MatchPreset  == "Very Fast" ) ?  7 : \
+             (MatchPreset  == "Super Fast") ?  8 : \
+             (MatchPreset  == "Ultra Fast") ?  9 : \
+             (MatchPreset  == "Draft"     ) ? 10 : \
+             Assert( false, "QTGMC+: 'MatchPreset' choice is invalid" )
 
     MatchPreset = Select( mpNum1, "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast", "Draft" )
 
     mpNum2 = (!Defined(MatchPreset2))       ? ((mpNum1 + 2 <= 9) ? (mpNum1 + 2) : 9) : \
-             (MatchPreset2 == "Placebo"   ) ? 0 : \
-             (MatchPreset2 == "Very Slow" ) ? 1 : \
-             (MatchPreset2 == "Slower"    ) ? 2 : \
-             (MatchPreset2 == "Slow"      ) ? 3 : \
-             (MatchPreset2 == "Medium"    ) ? 4 : \
-             (MatchPreset2 == "Fast"      ) ? 5 : \
-             (MatchPreset2 == "Faster"    ) ? 6 : \
-             (MatchPreset2 == "Very Fast" ) ? 7 : \
-             (MatchPreset2 == "Super Fast") ? 8 : \
-             (MatchPreset2 == "Ultra Fast") ? 9 : \
-             (MatchPreset2 == "Draft"     ) ? 10 : 11
-    Assert( mpNum2 < 10, "QTGMC+: 'MatchPreset2' choice is invalid/unsupported" )
+             (MatchPreset2 == "Placebo"   ) ?  0 : \
+             (MatchPreset2 == "Very Slow" ) ?  1 : \
+             (MatchPreset2 == "Slower"    ) ?  2 : \
+             (MatchPreset2 == "Slow"      ) ?  3 : \
+             (MatchPreset2 == "Medium"    ) ?  4 : \
+             (MatchPreset2 == "Fast"      ) ?  5 : \
+             (MatchPreset2 == "Faster"    ) ?  6 : \
+             (MatchPreset2 == "Very Fast" ) ?  7 : \
+             (MatchPreset2 == "Super Fast") ?  8 : \
+             (MatchPreset2 == "Ultra Fast") ?  9 : \
+             (MatchPreset2 == "Draft"     ) ? 10 : \
+             Assert( false, "QTGMC+: 'MatchPreset2' choice is invalid" )
     MatchPreset2 = Select( mpNum2, "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast", "Draft" )
 
     NoisePreset = Default( NoisePreset, "Fast" )
@@ -633,14 +214,14 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
              (NoisePreset  == "Slow"      ) ? 1 : \
              (NoisePreset  == "Medium"    ) ? 2 : \
              (NoisePreset  == "Fast"      ) ? 3 : \
-             (NoisePreset  == "Faster"    ) ? 4 : 5
-    Assert( npNum < 5, "QTGMC+: 'NoisePreset' choice is invalid" )
+             (NoisePreset  == "Faster"    ) ? 4 : \
+             Assert( false, "QTGMC+: 'NoisePreset' choice is invalid" )
 
     Tuning = Default( Tuning, "None" )
     tNum =   (Tuning       == "None"      ) ? 0 : \
              (Tuning       == "DV-SD"     ) ? 1 : \
-             (Tuning       == "DV-HD"     ) ? 2 : 3
-    Assert( tNum < 3, "QTGMC+: 'Tuning' choice is invalid" )
+             (Tuning       == "DV-HD"     ) ? 2 : \
+             Assert( false, "QTGMC+: 'Tuning' choice is invalid" )
 
     # Tunings only affect blocksize in this version
     bs  = Select( tNum,  16, 16, 32 )
@@ -687,7 +268,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     NoiseDeint     = Default( NoiseDeint,                         Select( npNum, "Generate",     "Bob",        "",       "",        "" ) )
     StabilizeNoise = Default( StabilizeNoise,                     Select( npNum,       true,      true,      true,    false,     false ) )
 
-    # The basic source-match step corrects and re-runs the interpolation of the input clip. So it initialy uses same interpolation settings as the main preset
+    # The basic source-match step corrects and re-runs the interpolation of the input clip. So it initially uses same interpolation settings as the main preset
     SourceMatch   = Default( SourceMatch, 0 )
     MatchNNSize   = NNSize
     MatchNNeurons = NNeurons
@@ -1648,3 +1229,442 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
     str == 1 ? ex_lutxyza(a,   b2,b,f,   "z a dup1 dup1 max swap2 min y x -                     0 max          - x max swap x y -                     0 max + x min z a x 2 * + + 0.25 * swap2 clip", UV=uv) : \
     str == 2 ? Expr      (a,   b2,b,f,f2,"z a dup1 dup1 max swap2 min y x - b x - min           0 max          - x max swap x y - x b - min           0 max + x min z a x 2 * + + 0.25 * swap2 clip", UV2)   : \
                Expr      (a,b3,b2,b,f,f3,"a b dup1 dup1 max swap2 min z x - y x - min c x - min 0 max          - x max swap x z - x y - min x c - min 0 max + x min a b x 2 * + + 0.25 * swap2 clip", UV2)   }
+
+
+
+# --- CHANGELOG ---
+#
+# v4.00p
+# - Fix SrchClipPP=3
+# - Fix SourceMatch=2
+# - Optimize SourceMatch=3
+# - Optimize when GrainRestore > 0 and Sbb > 1
+# - Improve Temporal weightings for MDegrain2 match
+# - Disable internal runtime frameprop assignments (AVS+ memory leak bug)
+# - Add BM3D as optional Denoiser type
+# - Uploaded v3.33 documentation (should work for 95% of v4.0.0 settings)
+#
+# v3.99p
+# - Add empty vars 'bVec2' and 'fVec2' as exception handlers
+#
+# v3.98p
+# - Direct YUY2 support via global internal conversion
+# - Port slimit_dif2() from Zs_RF_Shared and remove its dependency
+#
+# v3.97p
+# - Change a few defaults on the slower presets for increased quality
+# - Set rfilter=3 for all MSuper instances for extra accuracy
+# - Enable for HD sources scaled chroma for MV sampling
+# - Disable ex_bob() frameprops assignment when using nnedi3 which already does it
+#
+# v3.96p
+# - Add support for EEDI2CUDA
+#
+# v3.95p
+# - Fix typo on KNLMeansCL call for 'gpuid'
+# - Update dependencies versions
+# - Update show panel
+# - Make '_Durationxxx' dynamic, also in ex_bob()
+#
+# v3.94p
+# - Populate with "_Field" frameprop where appropiate
+# - Fix "_AbsoluteTime" frameprop
+#
+# v3.93p
+# - Fix for missing "_Durationxxx" frameprops
+#
+# v3.92p
+# - Typo on neo_fft3d() chroma index
+#
+# v3.91p
+# - Remove 'device_type'
+# - Replace 'device_id' with 'gpuid' and update ex_KNLMeansCL() call
+# - Revert back to neo_FFT3D() after benchmarks
+#
+# v3.90p
+# - Refine '_Combed' property
+# - Add EEDI3wrap for EEDI3CL compatibility
+# - Update for latest nnedi3wrap()
+#
+# v3.89p
+# - Removed old "cYadif" and "RepcYadif" Edimodes
+# - Fixed InputType=1 for progressive inputs
+# - Now all deinterlacers inherit field order from frame properties preferably
+# - Better frame properties workflow in the pipeline
+#
+# v3.88p
+# - Fix HBD for 'ShutterBlur'
+#
+# v3.87p
+# - Update ex_bob() for latest NNEDI3CL version
+#
+# v3.86p
+# - Replace NNEDI3CL with nnedi3wrap
+#
+# v3.85p
+# - Replace nnedi3 with NNEDI3CL
+#
+# v3.84p
+# - Update with latest ex_luma_rebuild() version
+# - Update function definition
+#
+# v3.83p
+# - Update with latest Asd-g's vinverse plugin, deprecates ex_vinverse() -now semi-legacy- (v3.82 & v3.83)
+#
+# v3.81p
+# - Update calls for latest vsTCanny
+# - Fix HBD for 'InputType' 2 and 3
+#
+# v3.80p
+# - Add dumb nnedi3 interpolation to ex_bob()
+# - Update propCopy calls to v3.7.2 test8
+# - Rename ex_vinverse() 'custem' arg to 'clip2'
+# - Rename filter to QTGMC+ and function to QTGMCp()
+#
+# v3.79p
+# - Fix a memory leak with propCopy() (v3.78)
+# - Add ex_bob(), a port of sh_bob() for frameprops support (v3.78)
+# - Add propNumElements to ex_blob() to check first if frameprops exist
+#
+# v3.77p
+# - Add ex_ReduceFlicker()
+# - Fix addnoiseN clamp
+#
+# v3.76p
+# - Frameprops passthrough
+# - Add function definitions
+# - Tweak 'Str' and 'Amp' defaults
+#
+# v3.75p
+# - Fix ex_vinverse() vertical blur
+# - Optimize ex_vinverse() VshrpD expression
+# - Add float output for 'noiseCentre' variable
+#
+# v3.74p
+# - Optimize expressions with lerp
+# - Optimize convolutions fetching first pixels first
+# - Add 'range' arg to nnedi3 calls
+#
+# v3.73p
+# - Increase EdiQual Defaults for Placebo
+# - Rename 'Showsettings' to 'Show' and parametrize font size
+# - Update call for latest vsTCanny
+#
+# v3.72p
+# - More expression optimizations (v3.71p & v3.72p)
+# - Some 'fs' fixes (v3.70p)
+#
+# v3.69p
+# - Optimize code structure with loops
+# - Override 'fs' with 'tv' if defined
+# - Cosmetics
+#
+# v3.68p
+# - Read bitdepth scale from frameprops, and remove 'fulls' arg
+# - Process NNEDI3 (and other deinterlacers) in 8-bit for HBD inputs (NNEDI3 is not optimized enough for HBD)
+#
+# v3.67p
+# - Tweak again NNEDI3 thread settings
+# - Adjust chroma blur radius for chroma subsampling
+#
+# v3.66p
+# - Replace sh_GetUserGlobalIMT with SysInfo's SI_LogicalCores()
+# - Update nnedi3 calls for more performance on given threads
+# - Readjusted gaussian blur sigmas
+# - Preliminar 32-bit float support (MDegrain is broken for 32-bit)
+#
+# v3.65p
+# - Update QTGMC_Set/GetUserGlobal() functions
+# - Replace ex_gaussianblur() with vsTCanny(), faster
+# - Update dependencies list
+# - Revert Bankers' rounding workaround
+#
+# v3.64p
+# - Optimize thin var expression
+# - Attach optimized ex_vinverse()
+#
+# v3.63p
+# - re-add bomt var
+# - add Refinemotion to presets
+#
+# v3.62p
+# - Revised chroma processing for vinverses and blurs
+# - Filled missing 'fulls'
+# - Cut redundant args (thanks real.finder)
+# - Tweaked some defaults based on zorr's zopti findings (more on this coming)
+#
+# v3.61p
+# - EdiExtPre removed, UseEdiExt become int parameter, 0=false, 1=true, 2=same as old UseEdiExt+EdiExtPre
+#
+# v3.60p
+# - Update to latest ExTools
+# - Added 'fulls' to ConvertBits()
+# - Replaced blurs with ex_GaussianBlur()
+# - Some Expr optimizations
+# - Add back deleted Precise arg
+# - Add back UV=3 to tmax and tmin
+# - Removed bomt var
+# - Remove keep_tv_range limiter
+# - 32-bit support is Work In Progress
+#
+# v3.51p
+# - Replaced vinverse() with ex_vinverse() for custem (now clip2) arg
+# - Removed Dither tools related arguments
+#
+# v3.50p based on v3.382s by A.SONY
+# - Replaced MaskTools2 with Expr calls via ExTools pack wrappers (except mt_merge)
+# - Merged redundant expressions
+# - Replaced blurs and medians with ExTools equivalents
+# - Replaced Vinverse_avsi() with ex_vinverse() (HBD) and vinverse() (8bit)
+# - Removed Dither support
+# - Reverted from neo_ to vanilla fft3d and dfttest (sameish or faster)
+# - Formatting and small optimizations
+#
+# v3.382s
+# - fix for n16 family
+#
+# v3.380s based on v3.34d (mod) by Dogway
+# - Added Refinemotion Option for more accurate denoising.
+#
+# v3.378s
+# - added tr0=-2 same as -1 but with Vinverse_avsi
+# - added EdiExtPre to use Vinverse_avsi with UseEdiExt
+#
+# v3.377s
+# - added n16d (same as lsbd but use 16bit avs+ HBD)
+# - added FastMA, use 8bit in Motion Analysing clip for faster Motion Analysis when using HBD Inputs
+# - added ESearchP, using ErazorTT Suggestion for SearchParam for hex and umh
+#
+# v3.376s
+# - fix keep_tv_range in avs+
+#
+# v3.375s
+# - new EdiMode modes "BWDIF+NNEDI3" and "BWDIF+EEDI3" (need moded Vinverse_avsi)
+# - fix RepYadif EdiMode for non YUY2 clip (it was same as Yadif)
+#
+# v3.371s
+# - use sh_Bob
+# - support sh_GetUserGlobalIMT (set_plugins_threads) and sh_GetUserGlobalIMTint (set_plugins_threads_int) and sh_GetUserGlobalIMTbool (set_plugins_threads_bool)
+# - fix threads parameters bugs
+#
+# v3.368s
+# - bug fix (thanks to missuse)
+# - make it work with original mvtools2 (for manolito)
+# - add keep_tv_range bool
+# - add device_type and device_id
+#
+# v3.365s
+# - support neo_FFT3D and neo_dfttest
+#
+# v3.363s
+# - some changes in LUT things
+#
+# v3.362s
+# - some changes for avs+ and avs neo, need IsAvsNeo(), IsAvsPlus() and AvsPlusVersionNumber(), they are in SMDegrain v3.1.2.101s or up
+#
+# v3.361s
+# - update to masktools 2.2.17, use expr in avs+ (for speed up and less RAM usage)
+#
+# v3.358s
+# - new n16 bool (avs+ faster replacement for lsb), and tr2=6
+#
+# v3.357s
+# - high bit depth now basically work in avs+
+#
+# v3.354s
+# - added optional chikuzen PlanarTools for YUY2 using nonyuy2clipin/nonyuy2clipout in AnimeIVTC() v2.20
+#
+# v3.353s
+# - added ndjamena suggestion for maximum temporal radius
+# - added DftDither to controle dfttest dither Parameter
+#
+# v3.352s
+# - added UseEdiExt
+# - added tr0=-1 to use the EdiExt clip (if there is no EdiExt clip then it will not work)
+# - rep0 now will be 0 if tr0 < 1
+#
+# v3.347s
+# - fix SourceMatch (bug after new YUY2 method, thanks to ndjamena for report it)
+#
+# v3.346s
+# - EEDI3+NNEDI3 bug fix by ndjamena
+# - Renamed DftThreads parameter to FftThreads, to set the ncpu argument of FFT3DFilter (from VS)
+# - FFT3DFilter will work now in YUY2, use it with Denoiser="fft3df" (or use NoisePreset)
+#
+# v3.345s
+# - work with SH_KNLMeansCL now to process chroma too
+#
+# v3.343s
+# - edit in ChromaEdi
+# - others
+#
+# v3.34s (mod) (18-12-2016) (ravewulf idea in another way)
+# - Added yadifmod2 (if you need old one use it like this EdiMode="cYadif" or EdiMode="RepcYadif")
+# - fast and clean up YUY2 (will work in x64 now, no need to SSETools)
+#
+# v3.33s (mod) (06-12-2016)
+# - Add TR2=4 and TR2=5
+# - add TV_range bool and dither_luma_rebuild (from SMDegrain) Str and Amp
+# - for avsplus now QTGMC_Bob is ready for any 420, not only yv12
+#
+# v3.33s (mod) (11-04-2016)
+# - Add KNLMeansCL as another Denoiser to NoiseProcess
+# - others
+#
+# v3.33s (mod) (19-01-2016)
+# - make QTGMC_deflate/QTGMC_inflate work with YUY2 using masktool2 for avs 2.60
+#
+# v3.33s (mod) (23-10-2015)
+# - revert to QTGMC_deflate/QTGMC_inflate quoted from Dogway
+#
+# v3.33s (mod) (10-09-2015)
+# - fix Multiple QTGMC Calls
+# - others fix
+#
+# v3.33s (mod) (06-08-2015)
+# - some changes in bob to speed up
+#
+# v3.33s (mod) (04-08-2015)
+# - fix bug in YUY2 with SourceMatch
+# - add slice=false to ditherpost to avoid artefacts
+#
+# v3.33s (mod)
+# - fix bob chroma
+# - work with new masktool2 for avs 2.60 in YUY2
+#
+# v3.35d (mod)
+# - Added fixed QTGMC_Bob() for proper YV12 chroma center (by real.finder based on a Gavino find)
+#
+# v3.34d (mod)
+# - Added Refinemotion Option for more accurate denoising.
+#
+# v3.33d (mod) (10-05-2012)
+# - Added 32 bit precision option through the lsbd (for dfttest and knlmeanscl) and lsb (mdegrain) options.
+# - optimized some mask handling a bit as originally suggested by Vit
+# - others
+#
+# v3.33 (10-05-2012)
+# - Increased maximum value for Rep0, Rep1 and Rep2 to 7 (from 5). Higher values help with flicker on static detail, potential for minor motion blur
+# - Bug fix for the fact that Bob always outputs a BFF clip regardless of field order of input (thanks ajp_anton)
+# - Improved generation of noise (NoiseDeint="Generate") for noise bypass / EZKeepGrain
+# - Minor change to denoising
+#
+# v3.32 (05-05-2011)
+# - Bugfix with shutter blur and ChromaMotion (thanks Heaud)
+# - Tweaked vector recalculation for shutter motion blur
+# - Changed defaults for TR2 when using source-match
+# - Minor bugfix with SLMode/SLRad on pass-through settings
+#
+# v3.31
+# - Small bug-fix with new ChromaMotion setting
+#
+# v3.30
+# - Added ChromaMotion setting - can ignore chroma when analyzing motion (a speed-up with few ill-effects)
+# - Added ChromaEdi setting - allow faster interpolation for chroma than luma (mainly useful for EEDI2/3)
+# - New fast pre-filter (SrchClipPP) mode 1, previous modes 1 & 2 are now modes 2 & 3. Presets all updated with new modes
+# - EdiMode "TDIYadif" changed to "RepYadif" = Yadif+Repair giving less artefacts & more speed. Is default mode for "Ultra Fast"
+# - Preset is now the first setting, allowing a simpler form: QTGMC("Slow"). Old TGMC style will no longer work
+# - Workaround for padding bug in MVTools that crashed faster modes. Removes need for SafeMode setting, which has been removed
+#
+# v3.25 (14-03-2011)
+# - Added YUY2 support
+# - NoiseBypass renamed to NoiseProcess
+# - PrevGlobals now defaults to "Replace" for simplicity
+# - Tweaked "Very Fast" preset for quality and consistency with other preset speeds
+#
+# v3.20 (07-03-2011)
+# - Motion vectors made available to calling script (see External Linkage section in documentation), added related GlobalNames, PrevGlobals & ForceTR settings
+# - Added simplified noise processing settings: EZDenoise, EZKeepGrain and NoisePreset
+# - Support for dfttest as denoiser for noise processing - added settings Denoiser and DftThreads
+# - Added ChromaNoise setting to optionally enable chroma noise processing
+# - Added DenoiseMC setting to use motion-compensated clip for denoising, improves detection of noise vs detail
+# - Replaced fft3dfilter-specific BT setting with NoiseTR setting to set temporal radius for denoiser.
+# - Added StabilizeNoise setting to "stabilize" & "deshimmer" noise restored in noise bypass (was part of "Generate" mode)
+# - Dropped NoiseRemove setting, now always removes all noise specified by given Sigma (enough controls already!)
+# - MotionBlur renamed to ShutterBlur, MBlurLimit renamed to SBlurLimit, DetailRestore renamed to GrainRestore (old names gave wrong impression)
+# - Bug fixes: stabilization of "Generate" noise mode, manually enabling SLMode with SourceMatch
+# - Documentation converted to HTML
+#
+# v3.11
+# - Exposed ThSAD1, ThSAD2, ThSCD1 and ThSCD2 to allow tweaks to temporal smoothing and scene change detection
+# - Fixed bug introduced in v3.05, which skipped part of core algorithm(!)
+#
+# v3.10
+# - Explicit conditions to ensure unused filters are not constructed to reduce memory use
+# - FPSDivisor works even if not using motion blur
+#
+# v3.05
+# - Motion blur support, added settings FPSDivisor, MotionBlur, ShutterAngleSrc, ShutterAngleOut, SBlurLimit
+# - Bug fixes: Some Sbb modes with source match, MatchEdi setting (again)
+#
+# v3.01
+# - Support for lossless modes on InputType=2,3 - improves detail retention
+# - Enabling ShowNoise automatically switches on NoiseBypass
+# - Bug fixes: "Draft" mode, noise extraction with InputType=1, MatchEdi setting
+#
+# v3.0 (23-01-2011)
+# - Introduced source-match modes and settings for higher fidelity output - supported for interlaced and progressive input
+# - Most lossless settings removed - superseded by source-match, only Lossless integer remains
+# - Added ProgSADMask setting for progressive repair modes (InputType=2,3) to help recover stable detail
+# - Added RepChroma setting to allow disabling of chroma processing in repair stages (rep0,1,2)
+# - Added DetailRestore setting for NoiseBypass - allowing denoising with some fine detail retention
+# - Noise bypass with NoiseDeint="Generate" is now motion-compensated for better grain/detail restoral, NoiseDeint="Copy" removed
+# - Corrected minor luma shift when using NoiseBypass (FFT3DFilter noise center is 128.5 not 128)
+# - Added ShowNoise setting to display extracted noise, helps in determining Sigma
+# - TDeint added as interpolator (suitable for source-match)
+# - YadifPath no longer global
+# - EdiMode for "Ultra Fast" changed from "TDIYadif" to "Yadif" (otherwise slower than "Super Fast" for non-threaded)
+# - Bug fixes in Sbb and InputType=3
+# - Complete rewrite of documentation and some script tidying
+#
+# v2.51 (26-10-2010)
+# - Changed default interpolator to "NNEDI3" for presets up to "Super Fast" and (new) lossless presets up to "Faster"
+# - Range of preset tweaks including higher quality output from "Super Fast" & "Ultra Fast" but with a little speed loss
+# - Support for EdiMode="EEDI3+NNEDI3": EEDI3 with sclip taken from NNEDI3
+# - Added LosslessPreset and EdiThreads parameters
+# - Tidied up output from ShowSettings and small bug fix
+# - Fixed serious bug when using lossless modes on the higher speed presets
+#
+# v2.47
+# - Fixed bug with default overlap when an explicit blocksize was given
+#
+# v2.46
+# - Replaced mt_average with merge - was causing exceptions in certain MT situations
+#
+# v2.45
+# - Tweaked use of Yadif: explicit loading is now optional, see YadifPath variable
+#
+# v2.41
+# - Removed explicit Yadif plugin load
+#
+# v2.40
+# - Support for lossless output with added parameters: Lossless, LosslessTR, LosslessEdi
+# - Support for EdiMode("NNEDI3", "EEDI3")
+# - Paramters NNeurons added & NNSize reworked for new -EDI3 versions
+# - Minor preset tweaks for better quality/speed spread
+#
+# v2.30
+# - Added EdiExt (edeint in original TGMC)
+# - Improved progressive input modes
+#
+# v2.20
+# - All rep values, SVThin and motion search settings supported
+# - Better matching of Sbb
+# - "Draft" preset. Default preset changed from "Slow" to "Slower"
+# - Support for progressive input (InputType)
+# - Sharpness values/defaults normalized
+#
+# v2.10
+# - Supported most of the remaining core TGMC features: EdiMode("NNEDI", "Yadif"), TR2(3), SLmode(3,4), SLRad, Sbb(2,3)
+# - Added noise bypass (removal / restoration)
+# - Added ShowSettings
+#
+# v2.00
+# - First fully featured version
+# - Supported majority of core TGMC features
+# - Additional speed tweaks: NNSize, SrchClipPP, SubPel, Precise
+# - Added Presets system and beginnings of Tunings
+#
+# v1.00 (05-08-2010)
+# - First draft - high speed basic TGMC algorithm only (based on original TempGaussMC_beta2 by Didée and Terranigma's MVTools2 update)
+#
