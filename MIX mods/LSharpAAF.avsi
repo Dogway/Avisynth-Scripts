@@ -21,7 +21,7 @@
 # v1.80 updated in 2021-12-23 (Dogway) Replace SangNom with SangNom2, and nnedi2 with nnedi3. Some cosmetics and better U/V plane handling
 # v1.81 updated in 2022-03-05 (Dogway) Rebase with latest LSFplus
 # v1.90 updated in 2022-06-24 (Dogway) Saturate default SangNom2 to 128. Update scaling kernels in LSharpAAF()
-# v1.91 updated in 2022-12-20 (Dogway) Remove SantiagMod, now as an indepedent script.
+# v1.91 updated in 2022-12-20 (Dogway) Remove SantiagMod, now as an independent script
 #
 #
 # Requirements (Plugins):
