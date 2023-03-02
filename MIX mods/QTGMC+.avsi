@@ -15,9 +15,9 @@
 #-------------------------------------------------------------------#
 #
 # Acknowledgements by Vit:
-# 	"Thanks go to Didée for the script from where this began.
-# 	Also thanks to the plugin coders: Manao, Fizick, Tritical, Kassandro, Tsp, SEt, Tom Barry, Foxyshadis, TSchniede, Kurosu, mg262 and any others..
-# 	And to the many people who have given feedback, reported bugs and offered suggestions to help improve the script"
+#   "Thanks go to Didée for the script from where this began.
+#   Also thanks to the plugin coders: Manao, Fizick, Tritical, Kassandro, Tsp, SEt, Tom Barry, Foxyshadis, TSchniede, Kurosu, mg262 and any others..
+#   And to the many people who have given feedback, reported bugs and offered suggestions to help improve the script"
 #
 #
 # QTGMC+ features and changes (from v3.382s):
@@ -45,12 +45,11 @@
 #   RgTools    (1.2      or above)
 #   vsTCanny   (1.1.8    or above) (for gaussian blur)
 #   NNEDI3CL   (1.0.6    or above) (for gpuid=0)
-#   SysInfo    (0.1.2.9  or above) (requires "Microsoft Visual C++ 2010 x64 Redistributable")
 #   Vinverse   (0.9.4    or above)
 #
 # Core scripts:
 #   ExTools      (10.0   or above)
-#   ResizersPack (11.3   or above) (for nnedi3wrap() or EEDI3wrap() )
+#   ResizersPack (11.4   or above) (for nnedi3wrap() or EEDI3wrap() )
 #   SMDegrain    (4.0.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser type)
 #
 # Optional:
@@ -302,8 +301,8 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     # Core and Interpolation defaults
     TR2        = (SourceMatch > 0) ? Default(TR2, ((TR2X == 0) ? 1 : TR2X)) : TR2X  # ***TR2 defaults always at least 1 when using source-match***
     RepChroma  = Default( RepChroma,  true )
-    Threads    = Default( Threads, SI_LogicalCores() )
-    gpuid      = Default( gpuid, 0 )
+    Threads    = Default( Threads,       8 )
+    gpuid      = Default( gpuid,         0 )
     bomt       = Threads != 1
     ChromaEdi  = Default( ChromaEdi,  ""   )
     NNeurons   = (EdiMode == "NNEDI2" && NNeurons > 2) ? 2 : NNeurons # Smaller range for NNeurons in NNEDI2 (which calls it nsize)
@@ -552,7 +551,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     dnWindow    = (NoiseProcess == 0)         ? nop() : \
                   (Denoiser == "DFTTest")     ? noiseWindow.DFTTest( Y=true, U=ChromaNoise, V=ChromaNoise, sigma=Sigma*4, tbsize=noiseTD, threads=1, Dither=1 ) : \
                   (Denoiser == "KNLMeansCL")  ? noiseWindow.ex_KNLMeansCL(Chroma=ChromaNoise, a=2, d=NoiseTR, h=Sigma, gpuid=gpuid )                            : \
-                  (Denoiser == "BM3D")        ? noiseWindow.ex_BM3D(sigma=Sigma,radius=NoiseTR,preset="Normsl",UV=3   ,gpuid=gpuid )                            : \
+                  (Denoiser == "BM3D")        ? noiseWindow.ex_BM3D(sigma=Sigma,radius=NoiseTR,preset="Normal",UV=3   ,gpuid=gpuid )                            : \
                   (Denoiser == "FFT3D")       ? noiseWindow.neo_fft3d( sigma=Sigma, bt=noiseTD, mt=bomt, ncpu=min(4,Threads), u=max(2,CMmt), v=max(2,CMmt))     : \
                                                 Assert( false, "QTGMC+: Couldn't find a matching 'Denoiser' type" )
     dnwindow    = (NoiseProcess != 0) && n16d ? dnwindow.ConvertBits(bi,dither=-1,fulls=!tv) : dnwindow
@@ -788,46 +787,46 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
 # Interpolate input clip using method given in EdiMode. Use Fallback or Bob as result if mode not in list. If ChromaEdi string if set then interpolate chroma
 # separately with that method (only really useful for EEDIx). The function is used as main algorithm starting point and for first two source-match stages
-function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSize, int NNeurons, int EdiQual, int EdiMaxD, int Threads, clip "Fallback", string "ChromaEdi", bool "fulls", int "gpuid" ) {
+function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSize, int NNeurons, int EdiQual, int EdiMaxD, int "Threads", clip "Fallback", string "ChromaEdi", bool "fulls", int "gpuid" ) {
 
     ChromaEdi = Default( ChromaEdi,  "" )
     CEed      =        ( ChromaEdi == "")
     id        = Default(gpuid,         0)
-    threads   = SI_LogicalCores()
+    threads   = Default(threads,       8)
 
     fb        = propNumElements  (Input,"_FieldBased") > 0 ? \
                 propGetInt       (Input,"_FieldBased")     : 0
     fb        = fb==0 ? GetParity(Input) ? 3 : 2 : fb + 1
 
     NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || \
-                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.nnedi3wrap( field=fb, nsize=NNSize, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, qual=EdiQual, nns=NNeurons) : Undefined()
+                EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.nnedi3wrap( field=fb, nsize=NNSize, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, qual=EdiQual, nns=NNeurons, threads=threads) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ?                              Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, sclip=NNEDI3clp ).QTGMCp_slimit_dif2(NNEDI3clp,thr=4,UV=CEed?3:2) : \
-                EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3"       ? Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, sclip=NNEDI3clp )           : nop()
+                EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3"       ? Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, sclip=NNEDI3clp )                            : nop()
 
-    interp    = InputType == 1            ? Input                                                                                           : \
-                EdiMode == "NNEDI3"       ? NNEDI3clp                                                                                       : \
-                EdiMode == "NNEDI2"       ? Input.NNEDI2( field=fb, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )          : \
-                EdiMode == "NNEDI"        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                         : \
-                EdiMode == "EEDI3+NNEDI3" ? EEDI3clp                                                                                        : \
-                EdiMode == "EEDI3"        ? EEDI3clp                                                                                        : \
-                EdiMode == "EEDI2"&&id>-1 ? Input.SeparateFields().EEDI2_CUDA( fb, maxd=EdiMaxD, device_id=id, num_streams=8)               : \
-                EdiMode == "EEDI2"        ? Input.SeparateFields().EEDI2(field=fb, maxd=EdiMaxD )                                           : \
-                EdiMode == "Yadif"        ? Input.yadifmod2(mode=3,order=fb-1)                                                              : \
-                EdiMode == "TDeint"       ? Input.TDeInt( mode=1 )                                                                          : \
-                EdiMode == "RepYadif"     ? Repair( Input.yadifmod2(mode=3,order=fb-1),Default(Fallback, Input.ex_bob(0,0.5,props=1)),2,-1) : \
-                EdiMode == "BWDIF+NNEDI3" ? Input.BWDIF(fb,edeint=NNEDI3clp)                                                                : \
-                EdiMode == "BWDIF+EEDI3"  ? Input.BWDIF(fb,edeint=EEDI3clp)                                                                 : \
+    interp    = InputType == 1            ? Input                                                                                                    : \
+                EdiMode == "NNEDI3"       ? NNEDI3clp                                                                                                : \
+                EdiMode == "NNEDI2"       ? Input.NNEDI2( field=fb, U=CEed,V=CEed, nsize=NNeurons, qual=EdiQual, threads=Threads )                   : \
+                EdiMode == "NNEDI"        ? Input.NNEDI ( field=fb, U=CEed,V=CEed )                                                                  : \
+                EdiMode == "EEDI3+NNEDI3" ? EEDI3clp                                                                                                 : \
+                EdiMode == "EEDI3"        ? EEDI3clp                                                                                                 : \
+                EdiMode == "EEDI2"&&id>-1 ? Input.SeparateFields().EEDI2_CUDA( fb, maxd=EdiMaxD, device_id=id, num_streams=8)                        : \
+                EdiMode == "EEDI2"        ? Input.SeparateFields().EEDI2(field=fb, maxd=EdiMaxD )                                                    : \
+                EdiMode == "Yadif"        ? Input.yadifmod2(mode=3,order=fb-1)                                                                       : \
+                EdiMode == "TDeint"       ? Input.TDeInt( mode=1 )                                                                                   : \
+                EdiMode == "RepYadif"     ? Repair( Input.yadifmod2(mode=3,order=fb-1),Default(Fallback, Input.ex_bob(0,0.5,props=1)),2,-1)          : \
+                EdiMode == "BWDIF+NNEDI3" ? Input.BWDIF(fb,edeint=NNEDI3clp)                                                                         : \
+                EdiMode == "BWDIF+EEDI3"  ? Input.BWDIF(fb,edeint=EEDI3clp)                                                                          : \
                                             Default(Fallback, Input.ex_bob( 0,0.5,props=1) )
 
-    interp    = InputType == 1            ? Input                                                                                           : \
+    interp    = InputType == 1            ? Input                                                                                                    : \
                 EdiMode == "BWDIF+NNEDI3" || \
-                EdiMode == "BWDIF+EEDI3"  ? interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2)                                                    : \
+                EdiMode == "BWDIF+EEDI3"  ? interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2)                                                             : \
                                             interp
 
-    interpuv  = InputType == 1            ? nop()                                                                                           : \
-                ChromaEdi == "NNEDI3"     ? Input.nnedi3wrap(field=fb, nsize=4, nns=0, qual=1, planes=[1,2], gpuid=id, props=false)         : \
-                ChromaEdi == "Yadif"      ? Input.yadifmod2(mode=3,order=fb-1)                                                              : \
-                ChromaEdi == "Bob"        ? Input.ex_bob( 0,0.5,props=1)                                                                    : \
+    interpuv  = InputType == 1            ? nop()                                                                                                    : \
+                ChromaEdi == "NNEDI3"     ? Input.nnedi3wrap(field=fb, nsize=4, nns=0, qual=1, planes=[1,2], props=false, gpuid=id, threads=threads) : \
+                ChromaEdi == "Yadif"      ? Input.yadifmod2(mode=3,order=fb-1)                                                                       : \
+                ChromaEdi == "Bob"        ? Input.ex_bob( 0,0.5,props=1)                                                                             : \
                                             nop()
 
     !IsClip(interpuv) ? interp : interp.MergeChroma( interpuv )
@@ -1119,7 +1118,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
 #     bool "nnedi3"=false
 #     )
 #
-function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int "props", int "gpuid") {
+function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int "props", int "threads", int "cores", int "gpuid") {
 
     fs    = propNumElements(cp, "_ColorRange")  > 0 ? \
             propGetInt     (cp, "_ColorRange")      : 1
@@ -1135,11 +1134,13 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
     w     = cp.Width()
     h     = cp.Height()
     h     = Default(height, h)
-    b     = Default(b,    0.0)     # cubic coefficient 'b'
-    c     = Default(c,    1.0)     # cubic coefficient 'c'. Bob(0.0, 1.0) preserves the original fields for RGB and YUY2, and preserves the Luma but not the Chroma for YV12.
-    nn    = Default(nnedi3, false) # Use nnedi3 instead of cubic interpolation
-    pp    = Default(props,      2) # 0: Skip writting frameprops. 1: Write only clip frameprops. 2: Write clip and frame -runtime- frameprops.
-    gp    = Default(gpuid,  0)
+    b     = Default(b,    0.0)            # cubic coefficient 'b'
+    c     = Default(c,    1.0)            # cubic coefficient 'c'. Bob(0.0, 1.0) preserves the original fields for RGB and YUY2, and preserves the Luma but not the Chroma for YV12.
+    pp    = Default(props,      2)        # 0: Skip writting frameprops. 1: Write only clip frameprops. 2: Write clip and frame -runtime- frameprops.
+    nn    = Default(nnedi3, false)        # Use nnedi3 instead of cubic interpolation
+    gp    = Default(gpuid,      0)        # Only for nnedi3=true
+    th    = Default(threads,    8)        # Only for nnedi3=true and gpuid=-1 ("cpu" nnedi3)
+    co    = Default(cores,nmod(th/2,2,4)) # Only for nnedi3=true and gpuid=-1 ("cpu" nnedi3)
 
     par   = fb==2
 
@@ -1157,9 +1158,9 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
         Yodd  = eY.SelectOdd()   Uodd  = eU.SelectOdd()   Vodd  = eV.SelectOdd()
 
         yeven = !nn ? Yeven.BicubicResize(w, h, b, c, 0,  shift, w, fh) : \
-                      Yeven.nnedi3wrap(1,2, par ? 1 : 0,nsize=3,nns=3,qual=2,cshift="none",gpuid=gp)
+                      Yeven.nnedi3wrap(1,2, par ? 1 : 0,nsize=3,nns=3,qual=2,cshift="none",threads=th,cores=co,gpuid=gp)
         yodd  = !nn ?  Yodd.BicubicResize(w, h, b, c, 0, -shift, w, fh) : \
-                       Yodd.nnedi3wrap(1,2, par ? 0 : 1,nsize=3,nns=3,qual=2,cshift="none",gpuid=gp)
+                       Yodd.nnedi3wrap(1,2, par ? 0 : 1,nsize=3,nns=3,qual=2,cshift="none",threads=th,cores=co,gpuid=gp)
 
         ceven = Interleave( Ueven, Veven).BicubicResize(w2, h/2, b, c, 0,  shift, w2, fh/2)
         codd  = Interleave(  Uodd, Vodd ).BicubicResize(w2, h/2, b, c, 0, -shift, w2, fh/2)
@@ -1171,7 +1172,7 @@ function ex_bob(clip cp, float "b", float "c", int "height", bool "nnedi3", int 
     } else {
 
         !nn ? Bob(cp, b, c, h ) : \
-              nnedi3wrap(cp, field=fb+1,nsize=3,nns=3,qual=2,props=true,gpuid=gp)
+              nnedi3wrap(cp, field=fb+1,nsize=3,nns=3,qual=2,props=true,threads=th,cores=co,gpuid=gp)
     }
 
     par ? AssumeTFF() : AssumeBFF()
@@ -1234,7 +1235,7 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 
 # --- CHANGELOG ---
 #
-# v4.00p (01-03-2023)
+# v4.00p (02-03-2023)
 # - Fix SrchClipPP=3
 # - Fix SourceMatch=2
 # - Optimize SourceMatch=3
@@ -1242,6 +1243,7 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 # - Improve Temporal weightings for MDegrain2 match
 # - Disable internal runtime frameprop assignments (AVS+ memory leak bug)
 # - Add BM3D as optional Denoiser type
+# - Remove SysInfo dependency as it's broken for Win11, newer CPUs and unmaintained
 # - Uploaded v3.33 documentation (should work for 95% of v4.0.0 settings)
 #
 # v3.99p
