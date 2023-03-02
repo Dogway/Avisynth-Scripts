@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.3 (28-02-2023)     ##
+###   Resizers Functions Pack 11.4 (02-03-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -34,7 +34,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (17-02-2023)
+### deep_resize() - by Dogway (02-03-2023)
 ###
 ### Convenient and high performance function to resize natural images (not cartoons) in high quality (different kernels for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -144,7 +144,7 @@
 ###     deep_resize(1280)
 ###
 ###
-function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", string "sspace", bool "noring", int "deconv", float "sharpness", float "grain", bool "HBD", float "th_rat", float "th", float "elast", int "qual", val "gpuid", bool "show") {
+function deep_resize(clip a, val "width", val "height", string "edge", string "flat", string "chroma", int "e_taps", int "f_taps", int "c_taps", string "sspace", bool "noring", int "deconv", float "sharpness", float "grain", bool "HBD", float "th_rat", float "th", float "elast", int "qual", int "threads", int "cores", val "gpuid", bool "show") {
 
     wu  = !Defined(width)
     hu  = !Defined(height)
@@ -204,6 +204,8 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     nr     = Default(noring,     false)
     sh     = Default(show,       false)
     HBD    = Default(HBD, ssp!="Gamma" && krn1!="nnedi3")
+    threads= Default(threads,        8)                                                       # Only for gpuid=-1 ("cpu" nnedi3)
+    cores  = Default(cores,nmod(threads/2,2,4))                                               # Only for gpuid=-1 ("cpu" nnedi3)
     ddec   = Defined(deconv)
     dec    = Default(deconv,     0)                                                           # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
     gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.4 : 0 )                               # Grain strength. >0 Add grain to big upscales as a mean of cheap detail hallucination
@@ -229,8 +231,8 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 
         # Downscale/upscale with same edge/flat kernel
         krn1=="nnedi3" && krn1c=="nnedi3" ? \
-                nnedi3resize (a, w2,h2,qual=qual,HBD=HBD,gpuid=egpu) : \
-                ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,tv_out=!fs,scale_space=ssp,noring=nr,gpuid=ecgpu)
+                nnedi3resize (a, w2,h2,qual=qual,HBD=HBD,threads=threads,cores=cores,gpuid=egpu) : \
+                ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn1,kernel_c=krn1c,taps=[etp,ctp],tv_in=!fs,tv_out=!fs,scale_space=ssp,noring=nr,threads=threads,cores=cores,gpuid=ecgpu)
 
         mul>0 ? LSFplus(preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs) : last
 
@@ -241,7 +243,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             an      = !isy ? a.ExtractY() : a
             an      = !HBD ? an.ConvertBits(8,dither=-1,fulls=fs,fulld=fs) : an
 
-            edge1   = ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,tv_out=!fs,scale_space=ssp,noring=nr,gpuid=egpu) # noring and scale_space is only applied to edges
+            edge1   = ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,tv_out=!fs,scale_space=ssp,noring=nr,threads=threads,cores=cores,gpuid=egpu) # noring and scale_space is only applied to edges
 
             # don't sharpen nnedi3 when one dimensional resize case
             edge    = krn1=="nnedi3" ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
@@ -249,7 +251,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
                                               ConvertBits(bi,        fulls=fs, fulld=fs) : edge1 : edge1
 
             # resizing chroma+flat area
-            flat    =                         ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,tv_out=!fs,gpuid=fcgpu)
+            flat    =                         ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,tv_out=!fs,threads=threads,cores=cores,gpuid=fcgpu)
 
             # edge/flat limiting
             !isy ? CombinePlanes(edge, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : edge
@@ -318,7 +320,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
 # Dependencies:
 #       see nnedi3wrap() below
 #
-function nnedi3resize(clip a, val "width", val "height", float "src_left", float "src_top", bool "HBD", float "sharpness", int "qual", int "nns", int "nsize", int "etype", int "pscrn", string "cshift", int_array "planes", int "gpuid") {
+function nnedi3resize(clip a, val "width", val "height", float "src_left", float "src_top", bool "HBD", float "sharpness", int "qual", int "nns", int "nsize", int "etype", int "pscrn", string "cshift", int_array "planes", int "threads", int "cores", int "gpuid") {
 
     wu      = !Defined(width)
     hu      = !Defined(height)
@@ -351,7 +353,7 @@ function nnedi3resize(clip a, val "width", val "height", float "src_left", float
     rfactor = rw<factor && rh<factor
     krnn    = Default(cshift, rfactor ? "Bicubic" : "Blackman")
 
-    nnedi3wrap(a,ws?1:factor,hs?1:factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,src_left=src_left,src_top=src_top,sharpness=sharpness,cshift=krnn,HBD=HBD,planes=planes,gpuid=gpuid)
+    nnedi3wrap(a,ws?1:factor,hs?1:factor,nns=nns,nsize=nsize,qual=qual,etype=etype,pscrn=pscrn,fwidth=w2,fheight=h2,src_left=src_left,src_top=src_top,sharpness=sharpness,cshift=krnn,HBD=HBD,planes=planes,threads=threads,cores=cores,gpuid=gpuid)
     }
 
 
@@ -643,9 +645,8 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
 #       NNEDI3CL (requires at least AVS+ v3.7.3)
 #       or
 #       nnedi3
-#         SysInfo (for nnedi3 CPU: Requires "Microsoft Visual C++ 2010 x64 Redistributable")
 #
-function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", bool "props", int "gpuid") {
+function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsize", int "nns", int "qual", int "etype", int "pscrn", string "cshift", int "fwidth", int "fheight", float "src_left", float "src_top", int_array "planes", bool "HBD", float "sharpness", bool "props", int "threads", int "cores", int "gpuid") {
 
     a
     w       = width ()
@@ -694,15 +695,17 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
     qual    = Default(qual,        1)
     etype   = Default(etype,       0)
     pscrn   = Default(pscrn,       2)
-    HBD     = Default(HBD,     false)        # Force source HBD (slower)
+    HBD     = Default(HBD,     false)            # Force source HBD (slower)
     src_l   = Default(src_left,    0)
     src_t   = Default(src_top,     0)
     dfw     = Defined(fwidth)
     dfh     = Defined(fheight)
     w2      = Default(fwidth,     w1)
     h2      = Default(fheight,    h1)
-    pp      = Default(props,    true)        # Write runtime frameprops (or not)
-    gpuid   = Default(gpuid,       0)        # Set to -1 for "cpu" nnedi3
+    pp      = Default(props,    true)            # Write runtime frameprops (or not)
+    gpuid   = Default(gpuid,       0)            # Set to -1 for "cpu" nnedi3
+    threads = Default(threads,     8)            # Only for gpuid=-1 ("cpu" nnedi3)
+    cores   = Default(cores,nmod(threads/2,2,4)) # Only for gpuid=-1 ("cpu" nnedi3)
     # Internal arg for signaling chroma Y planes from ConvertFormat()
     pln     = Default(planes,isy  ? [3] : [3,fmt,fmt]) # [3,2] means process luma, and chroma as 420 (id 2 for 420, 3 for 422, 4 for 444 and 1 for 411. 0 for no chroma)
     pln     = ArraySize(pln) == 1 ? [pln[0], fmt,fmt] : ArraySize(pln)==2 ? ArrayAdd(pln,pln[1]) : pln
@@ -723,9 +726,6 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
     !HBD ? ConvertBits(a, 8, dither=-1, fulls=fs, fulld=fs) : a
 
     if (gpuid<0) {
-
-        cores   = SI_PhysicalCores()
-        threads = SI_LogicalCores()
 
         if        (in || oned) {
 
