@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.5         (19-02-2023)   ##
+###   Transforms Pack - Main v1.5         (02-03-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -428,7 +428,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 function ConvertFormat (clip clp, val "width", val       "height", string   "fmt_in", string       "fmt_out", string        "cs_in", string         "cs_out", string           "OETFi", string      "EOTFi", string "OETF",  \
                             string     "D_in", string     "D_out", bool      "tv_in", bool          "tv_out", string    "cplace_in", string     "cplace_out", string             "CAT", string        "LMS", bool     "GC",  \
                          string "scale_space", string    "kernel", string "kernel_c", float_array "src_left", float_array "src_top", float_array "src_width", float_array "src_height",                                      \
-                           string    "preset", float_array "taps", int         "mod", bool        "nomoiree", bool         "noring", bool          "UVrecon", bool              "show", val         "gpuid") {
+                           string    "preset", float_array "taps", int         "mod", bool        "nomoiree", bool         "noring", bool          "UVrecon", bool              "show", int       "threads", int   "cores", val "gpuid") {
 
     IsPackedRGB(clp) ? ConvertToPlanarRGB(clp) : clp
 
@@ -535,8 +535,10 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     noring     = Default (noring,  false)
     nomoir     = Default (nomoiree,false)
     recon      = Default (UVrecon, false)
-    Comp       = Default (GC,      false)  # Gamut compression
+    Comp       = Default (GC,      false)        # Gamut compression
     dg         = Default (show,    false)
+    th         = Default (threads,     8)        # for kernel CPU nnedi3 (gpu=-1) or deep
+    co         = Default (cores,nmod(th/2,2,4))  # for kernel CPU nnedi3 (gpu=-1) or deep
     gpu        = Defined(gpuid) ? IsInt(gpuid) ? [gpuid,gpuc] : ArraySize(gpuid)==1 ? ArrayAdd(gpuid,gpuc) : gpuid : [gpu,gpuc]
     # Set gpuid to 0 or above to run scalers over the GPU. Supported kernels are nnedi3 and those supported by avslibplacebo (bicubics, splines, sincs, and some jincs).
     # Waifu, RAVU, SSIM, FSRCNN, Krig, SuperResXBR, FCBI and Tukey are GPU only. GPU scaling for anything other than jincs is surprisingly slower though.
@@ -693,7 +695,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     ewarad = pd ? int(p) + 0.24 : 3.2383154841662362
 
     resampler = Format( kernel == "nnedi3" || kernel == "nnedi"                                              ? \
-                                          """nnedi3resize({nw},{nh},cshift="spline36",gpuid={gpuid},HBD=space!="gamma"?true:Undefined()""" : \
+                                          """nnedi3resize({nw},{nh},cshift="spline36",gpuid={gpuid},HBD=space!="gamma"?true:Undefined(),threads=th,cores=co""" : \
                         kernel == "EEDI3"  || kernel == "EEDI"                                               ? \
                                           """eedi3resize ({nw},{nh},cshift="spline36",gpuid={gpuid},HBD=space!="gamma"?true:Undefined()""" : \
                         kernel == "Bicubic"                                                                  ? \
@@ -711,7 +713,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         kernel == "Gauss"                                                                    ? \
                                    gpuid<0       ? "GaussResize({nw},{nh},p={pd}?{p}:9"                      : \
                                    """libplacebo_Resample({nw},{nh},"gaussian",param1={pd}?{p}:9,device={gpuid}""" : \
-                        kernel == "deep"         ? """deep_resize({nw},{nh},grain=0,gpuid={gpuid},HBD=space!="gamma"?true:Undefined()""" : \
+                        kernel == "deep"         ? """deep_resize({nw},{nh},grain=0,gpuid={gpuid},HBD=space!="gamma"?true:Undefined(),threads=th,cores=co""" : \
                         kernel == "Average"  || kernel == "Box" || kernel == "Dirichlet" || kernel == "Area" || kernel == "Simple" ? \
                                                    """fmtc_resample({nw},{nh},kernel="box" """               : \
                         kernel == "Spline"       ? """fmtc_resample({nw},{nh},kernel="Spline",taps={pd}?int({p}):4""": \
