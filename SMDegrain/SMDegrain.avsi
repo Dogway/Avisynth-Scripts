@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.0.0d RC11 by Dogway    - 28 Feb  2023                           ###
+###                       v4.0.0d      by Dogway    - 02 Mar  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -58,8 +58,9 @@
 ###              DGDecNV                (for prefilter=7)
 ###              BM3D                   (for prefilter=8)
 ###                 TransformsPack      (for prefilter=7 or prefilter=8)
-###              neo_tmedian            (for mode="medianT")  (crashed for interlaced clips, even when set '_FieldBased' to 0 and AssumeFrameBased() )
-###              NNEDI3CL               (for subpixel=4)
+###              neo_tmedian            (for mode="medianT")  (crashes for interlaced clips, even when set '_FieldBased' to 0 and AssumeFrameBased() )
+###              vsTTempSmooth          (for mode="TemporalSmooth")
+###              NNEDI3/NNEDI3CL        (for subpixel=4)
 ###              Average                (for mfilter + (Contrasharp or mode!=MDegrain) )
 ###
 ###
@@ -70,7 +71,7 @@
 ###   int thSAD=300 (100 to 1500),
 ###   [int "blksize"=16 (4 to 64 by 4)],
 ###   [int "overlap"=8 (2 to 32 by 4)],
-###   string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "TemporalGauss"/ "FluxSmoothT"/ "DFTTest"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussST5"/ "--"/ "rMDegrain"/ "rMedianT"/ "rMedianST"/ "rMedianSTS"/ "rTemporalGauss"/ "rFluxSmoothT"/ "rDFTTest"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT"/ "rGaussST5"),
+###   string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "TemporalSmooth"/ "TemporalGauss"/ "FluxSmoothT"/ "DFTTest"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussST5"/ "--"/ "rMDegrain"/ "rMedianT"/ "rMedianST"/ "rMedianSTS"/ "rTemporalGauss"/ "rFluxSmoothT"/ "rDFTTest"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT"/ "rGaussST5"),
 ###   string "prefilter"="" (""/ "SBR"/ "MinBlur"/ "MinBlur2"/ "MinBlur3"/ "FluxSmoothST"/ "DFTTest"/ "KNLMeans"/ "DGDenoise"/ "BM3D"),
 ###   bool "ContraSharp"=false,
 ###   [clip "CClip"],
@@ -92,7 +93,7 @@
 function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , string "mode"     , bool "interlaced" , int   "plane"  , int   "Globals"   , bool "tv_range" ,               \
                      int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , int  "limitC"     , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2",  \
                     bool "chroma", int "hpad"    , int "vpad"     , val  "Show"   , float "Str"        , float "Amp"        , int   "DCT"       , int "searchparam" , int "pelsearch"   , int   "search" , bool "truemotion" ,                                 \
-                     int "gpuid" , int  "rfilter", bool "UHDhalf" ) {
+                     int "gpuid" , int  "rfilter", bool "UHDhalf" , int  "threads" ) {
 
     w            = input.width ()
     h            = input.height()
@@ -125,7 +126,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     T5           = md == "MedianT5" || md == "STWM"     || md == "GaussST5" || md == "MedianSTS" || md == "IQMT"
     T7           = FindStr(LCase(md), "fluxsmooth") > 0
     TG           = md == "TemporalGauss"
-    TS           = md == "TemporalSoften" || TG
+    TM           = md == "TemporalSmooth"
+    TS           = md == "TemporalSoften" || TG || TM
 
     tr           = T3 ? 1 : T5 ? 2 : T7 ? min(3,tr) : TS ? min(7,tr) : tr
     tr2          = tr*2
@@ -226,7 +228,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     DCTR         =                         TS && RefineMotion ? 2 : 5
 
     thSCD2       = Default( thSCD2,  130 )                     # 130 or 51% of SAD change by default
-    thSCD1       = Default( thSCD1, round(!TS || preclip || ChP ?                       0.35*thSAD+260          : \
+    thSCD1       = Default( thSCD1, round(!TS || preclip || ChP ?                       0.35*thSAD+260   : \
                                                  RefineMotion ? max(230,-1040000*pow(thSAD,-1.214)+950)  : \
                                                                 max(300,-61275  *pow(thSAD,-0.655)+1508))) # Typically between 330 and 400 for !TS
 
@@ -242,7 +244,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     limit        = Default( limit, md!="MDegrain" ? 255 : isUHD ? 2 : 255 )  # auto-scaled
     limitc       = Default( limitc,limit)
 
-    gpuid        = Default ( gpuid,  0)                        # Choose the GPU device_id for NNEDI3, KNLMeancCL and BM3D, or -1 for CPU mode (only NNEDI3)
+    gpuid        = Default ( gpuid,   0)                       # Choose the GPU device_id for NNEDI3, KNLMeancCL and BM3D, or -1 for CPU mode (only NNEDI3)
+    threads      = Default ( threads, 8)                       # CPU threads for NNEDI3 in CPU mode (gpuid=-1)
     sShow        = IsString( Show)
     Show         = Default ( Show,  false)
 
@@ -324,12 +327,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         # Subpixel 3 and 4
         inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)   # nnedi3 is slower with HBD
-        pclip   = pelclip ? subpixel==4 ? pref8.  nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift=pel>1&&gpuid!=-1?"spline16":"none")               : \
-                                          Undefined()                                                                                                                        : nop() # Wiener filter is good enough for MAnalyse
-        pclip2  = pelclip ? subpixel==4 ? inputP8.nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="spline16").ConvertBits(bi, fulls=!tv, fulld=!tv) : \
-                                          inputP. BlackmanResize(w*pel,h*pel, taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25)                                       : nop() # Center shift, from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and
-                                                                                                                                                                                     # additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed).
-                                                                                                                                                                                     # nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
+        pclip   = pelclip ? subpixel==4 ? pref8.  nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift=pel>1&&gpuid!=-1?"spline16":"none",threads=threads)               : \
+                                          Undefined()                                                                                                                                        : nop() # Wiener filter is good enough for MAnalyse
+        pclip2  = pelclip ? subpixel==4 ? inputP8.nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="spline16",threads=threads).ConvertBits(bi, fulls=!tv, fulld=!tv) : \
+                                          inputP. BlackmanResize(w*pel,h*pel, taps=6, src_left=(pel*0.5)*0.25, src_top=(pel*0.5)*0.25)                                                       : nop() # Center shift, from docs: "src_left=0.25, src_top=0.25" for Luma and "src_left = 0.5 for YUY2 and
+                                                                                                                                                                                                     # additionally src_top = 0.5" for chroma to match MVTools internal interpolation (for 'MPEG2' chroma placement assumed).
+                                                                                                                                                                                                     # nnedi3_rpow2() already behaves like this when "cshift=" is not declared.
 
         # Motion vectors search (mt=true requires avstp.dll in plugin path, otherwise ignored)
 
@@ -432,7 +435,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
             DM="""
                 output = TG               ? inter.ex_blur3D(0,0,tr,"weighted",UV=plane0?3:1)                                 : \
-                         TS               ? inter.TemporalSoften(tr,limit,!plane0?0:int(limitc/8.),15,2)                     : \
+                         TM               ? inter.vsTTempSmooth (tr,limit+1,!plane0?0:int(limitc/8.)+1,!plane0?0:int(limitc/8.)+1,255,255,255,strength=1,scthresh=15,u=plane0?3:2,v=plane0?3:2) : \
+                         TS               ? inter.TemporalSoften(tr,limit,  !plane0?0:int(limitc/8.),15,2)                   : \
                          md == "MedianTn" ? inter.neo_tmedian(radius=tr,Y=plane!=3?3:2, U=U, V=V)                            : \
                          md == "DFTTest"  ? inter.DFTTest(sstring="0.0:4 0.5:8 1.0:16",U=plane0,V=plane0,dither=1,sbsize=nmod(blksize*0.75),sosize=nmod(blksize*0.75)/2,tbsize=tr,tmode=(tr-1)%2,tosize=floor(tr/2.),swin=2,twin=tr>2?4:7) : \
                          T7               ? inter.ex_FluxSmoothT(tr,limit,UV=plane0?3:1)                                     : \
