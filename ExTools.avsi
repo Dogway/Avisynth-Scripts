@@ -1823,7 +1823,7 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ## Benchmarks:
 ##    100% ex_gaussianblur(6,UV=2)  (396fps)      (gaussian approximation, fastest for large sigma)
 ##     47% vsTCanny(6,mode=-1,u=1,v=1)            (true gaussian,          fastest for mid   sigma)
-##     21% ex_blur(6,mode="gaussian",UV=1)        (true gaussian,          best    for low   sigma)
+##     21% ex_blur (6,mode="gaussian",UV=1)       (true gaussian,          best    for low   sigma)
 
 function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool "mblur", int "Y", int "UV") {
 
