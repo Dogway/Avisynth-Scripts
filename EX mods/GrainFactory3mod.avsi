@@ -6,7 +6,7 @@
 ###                                            ###
 ###            2012.04.06 v1.2 by 06_taro      ###
 ###            2020.04.06      by A.SONY.      ###
-###            2023.02.17 ex   by Dogway       ###
+###            2023.03.03 ex   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
@@ -188,8 +188,8 @@ Assert(IsVersionOrGreater(3,7,2), "GrainFactory3mod: Update AviSynth+ version")
     pb           = Default( preblur,st>=1.0 )
 
     rgb = isRGB(clp)
-    fs  = propNumElements (clp,"_ColorRange")  > 0 ? \
-          propGetInt      (clp,"_ColorRange") == 0 : rgb
+    fs  = propNumElements(clp,"_ColorRange")  > 0 ? \
+          propGetInt     (clp,"_ColorRange") == 0 : rgb
     tv  = Default( tv_range, !fs)
 
     #-----------------------------------------------------------------------------------
