@@ -304,7 +304,7 @@ Assert(IsVersionOrGreater(3,7,2), "GrainFactory3mod: Update AviSynth+ version")
     th21str = MX / (th1str - th2str)
     th43str = MX / (th3str - th4str)
 
-    one  = temp_avg == 0  || ( g1const && g2const && g3const )
+    one  = tmpavg   == 0  || ( g1const && g2const && g3const )
     two  = ontop_grain>0  ||  ontop_cgrain>0
     thre = !one || two
     ex   = ex_dlut(Format("x dup y - a {th1str} - {th21str} * neg range_max / 0 1 clip * -
