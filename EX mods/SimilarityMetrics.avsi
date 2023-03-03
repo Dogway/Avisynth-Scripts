@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.7  (19-02-2023)                     ###
+###        Similarity Metrics Pack v3.8  (03-03-2023)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -563,7 +563,7 @@ This script is port of the VapourSynth SSIM_downsample - https://github.com/Wolf
 # If it's a float, it specifies the "sigmaX" of vsTCanny.
 # If it's a function, it acts as a general smoother.
 #---------------
-# kernel (default "BicubicResize"): Resample kernel.
+# kernel (default "Bicubic"): Resample kernel.
 #---------------
 # epsilon (default 0.000001)
 #---------------
@@ -607,11 +607,11 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
     fs      = propNumElements (c,"_ColorRange")  > 0 ? \
               propGetInt      (c,"_ColorRange") == 0 : rgb
 
-    smooth  = Default(smooth, 1.5)              # Can be a float or a string for a blurring function (ie. "ex_blur(1)")
-    kernel  = Default(kernel, "Bicubic")
+    smooth  = Default(smooth,       1.5)        # Can be a float or a string for a blurring function (ie. "ex_blur(1)")
+    kernel  = Default(kernel, "Bicubic")+"Resize"
     epsilon = Default(epsilon, 0.000001)
-    dither  = Default(dither,  true)
-    fs      = Default(fulls,     fs)
+    dither  = Default(dither,      true)
+    fs      = Default(fulls,         fs)
 
     c.ConvertBits(32, fulls=fs, fulld=true)
 
@@ -619,7 +619,7 @@ function SSIM_downsample(clip c, int target_width, int target_height, val "smoot
     sh = String(target_height)
     resample_args = (Defined(resample_args)) ? ", " + resample_args : ""
 
-    l   = Eval(kernel + "Resize(" + sw + "," +  sh + resample_args + ")")
+    l   = Eval(kernel + "(" + sw + "," +  sh + resample_args + ")")
     sqr = ex_lut(l, "x dup *", UV=3, scale_inputs="none")
 
     if (IsFloat(smooth))
