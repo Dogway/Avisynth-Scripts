@@ -19,6 +19,11 @@
 ### |  CHANGELOG  |
 ### +-------------+
 ###
+### 2023.03.03 ex
+###      - Promote to AVS+ v3.7.3
+###      - Fix bug in cstr=0 case
+###      - Fix typo
+###
 ### 2023.02.17 ex
 ###      - Added global settings as multipliers
 ###      - Parameter fit between global 'size' and 'gnstr' arguments
@@ -130,7 +135,7 @@ function GrainFactory3mod(clip clp,
  \                        bool  "use_sAverageLumaMask" )
 {
 
-Assert(IsVersionOrGreater(3,7,2), "GrainFactory3mod: Update AviSynth+ version")
+Assert(IsVersionOrGreater(3,7,3), "GrainFactory3mod: Update AviSynth+ version")
 
     w            = width (clp)
     h            = height(clp)
@@ -175,10 +180,10 @@ Assert(IsVersionOrGreater(3,7,2), "GrainFactory3mod: Update AviSynth+ version")
     g2const      = Default( g2const, false )     # AddGrainC "constant" parameter of grain / for midtone areas
     g3const      = Default( g3const, false )     # AddGrainC "constant" parameter of grain / for bright areas
     tmpavg       = Default( temp_avg,    1 )/100.# [ 0 - 100] percentage of noise's temporal averaging (NO EFFECT when g1const=g2const=g3const=true !!)
-    th1          = Default( th1,        45 )     # start of dark->midtone  mixing zone
-    th2          = Default( th2,        85 )     # end  of  dark->midtone  mixing zone
-    th3          = Default( th3,       135 )     # start of midtone->bright  mixing zone
-    th4          = Default( th4,       195 )     # end  of  midtone->bright  mixing zone
+    th1          = Default( th1,        45 )     # start of dark    -> midtone mixing zone
+    th2          = Default( th2,        85 )     # end  of  dark    -> midtone mixing zone
+    th3          = Default( th3,       135 )     # start of midtone -> bright  mixing zone
+    th4          = Default( th4,       195 )     # end  of  midtone -> bright  mixing zone
     ontop_grain  = Default( ontop_grain, 0 )     # [ 0 - ???] additional luma grain to put on top of prev. generated grain
                                                  # positive value for AddGrainC strength, negative value for f3kdb grain strength
     ontop_cgrain = Default( ontop_cgrain,0 )     # [ 0 - ???] additional chroma grain to put on top of prev. generated grain
@@ -311,7 +316,7 @@ Assert(IsVersionOrGreater(3,7,2), "GrainFactory3mod: Update AviSynth+ version")
                              dup z - a {th3str} - {th43str} * neg range_max / 0 1 clip * - ") \
        +(thre ? (chroma ? "b" : "a")+" swap - range_half +" : ""), bi, !tv)
 
-    grainlayer = Expr(grainlayer1, grainlayer2, grainlayer3, chroma ? mskY_to_YYY(o,o) : o, chroma ? o : Undefined(), ex, chroma ? ex : Undefined())
+    grainlayer = Eval("""Expr(grainlayer1, grainlayer2, grainlayer3, chroma ? mskY_to_YYY(o,o) : o, """+(chroma ? "o," : "")+""" ex, chroma ? ex : "a") """)
 
     grainlayer = one    ? grainlayer
     \          : chroma ? grainlayer.merge(    grainlayer.temporalsoften(1,255,255,255,2), tmpavg)
