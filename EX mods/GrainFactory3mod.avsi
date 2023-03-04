@@ -6,7 +6,7 @@
 ###                                            ###
 ###            2012.04.06 v1.2 by 06_taro      ###
 ###            2020.04.06      by A.SONY.      ###
-###            2023.03.03 ex   by Dogway       ###
+###            2023.03.04 ex   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
@@ -19,7 +19,7 @@
 ### |  CHANGELOG  |
 ### +-------------+
 ###
-### 2023.03.03 ex
+### 2023.03.04 ex
 ###      - Promote to AVS+ v3.7.3
 ###      - Fix bug in cstr=0 case
 ###      - Fix typo
@@ -135,7 +135,7 @@ function GrainFactory3mod(clip clp,
  \                        bool  "use_sAverageLumaMask" )
 {
 
-Assert(IsVersionOrGreater(3,7,3), "GrainFactory3mod: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "GrainFactory3mod: Update AviSynth+ version")
 
     w            = width (clp)
     h            = height(clp)
@@ -149,9 +149,11 @@ Assert(IsVersionOrGreater(3,7,3), "GrainFactory3mod: Update AviSynth+ version")
 
     sz           = Default(   size,     sz )
 
-    st           = Default(    str,    1.0 )*0.63*pow(sz,-2.3)+0.37
+    st           = Default(    str,    1.0 )
+    st           =       st >0 ?  st *0.63*pow(sz,-2.3)+0.37 : 0
 
-    cs           = Defined(   cstr ) ? cstr *0.63*pow(sz,-2.3)+0.37 : st
+    cs           = Defined(   cstr )
+    cs           = cs ? cstr>0 ? cstr*0.63*pow(sz,-2.3)+0.37 : 0 : st
 
     #-----------------------------------------------------------------------------------
 
