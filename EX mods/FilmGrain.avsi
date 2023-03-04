@@ -3,7 +3,7 @@
 ###                  FilmGrain                 ###
 ###         a GrainFactory3mod refactor        ###
 ###                                            ###
-###            2023.03.03    by Dogway         ###
+###            2023.03.04    by Dogway         ###
 ###                                            ###
 ##################################################
 ###
@@ -16,7 +16,7 @@
 ### |  CHANGELOG  |
 ### +-------------+
 ###
-### 2023.03.03
+### 2023.03.04
 ###      - Fix filter name
 ###      - Promote to AVS+ v3.7.3
 ###      - Fix bug in cstr=0 case
@@ -65,7 +65,7 @@ function FilmGrain       (clip clp,
  \                        bool  "use_sAverageLumaMask" )
 {
 
-Assert(IsVersionOrGreater(3,7,3), "FilmGrain: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "FilmGrain: Update AviSynth+ version")
 
     w            = width (clp)
     h            = height(clp)
@@ -80,7 +80,7 @@ Assert(IsVersionOrGreater(3,7,3), "FilmGrain: Update AviSynth+ version")
     sz           = Default(   size,     sz )
 
     st           = Default(    str,    1.0 )
-    st           =      str >0 ? str *0.63*pow(sz,-2.3)+0.37 : 0
+    st           =       st >0 ?  st *0.63*pow(sz,-2.3)+0.37 : 0
 
     cs           = Defined(   cstr )
     cs           = cs ? cstr>0 ? cstr*0.63*pow(sz,-2.3)+0.37 : 0 : st
