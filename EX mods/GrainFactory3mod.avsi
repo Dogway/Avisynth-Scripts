@@ -6,7 +6,7 @@
 ###                                            ###
 ###            2012.04.06 v1.2 by 06_taro      ###
 ###            2020.04.06      by A.SONY.      ###
-###            2023.03.04 ex   by Dogway       ###
+###            2023.03.05 ex   by Dogway       ###
 ###                                            ###
 ##################################################
 ###
@@ -19,7 +19,7 @@
 ### |  CHANGELOG  |
 ### +-------------+
 ###
-### 2023.03.04 ex
+### 2023.03.05 ex
 ###      - Promote to AVS+ v3.7.3
 ###      - Fix bug in cstr=0 case
 ###      - Fix typo
@@ -313,7 +313,7 @@ function GrainFactory3mod(clip clp,
 
     one  = tmpavg   == 0  || ( g1const && g2const && g3const )
     two  = ontop_grain>0  ||  ontop_cgrain>0
-    thre = !one || two
+    thre = one && !two
     ex   = ex_dlut(Format("x dup y - a {th1str} - {th21str} * neg range_max / 0 1 clip * -
                              dup z - a {th3str} - {th43str} * neg range_max / 0 1 clip * - ") \
        +(thre ? (chroma ? "b" : "a")+" swap - range_half +" : ""), bi, !tv)
