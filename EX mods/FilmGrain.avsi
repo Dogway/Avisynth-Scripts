@@ -3,11 +3,11 @@
 ###                  FilmGrain                 ###
 ###         a GrainFactory3mod refactor        ###
 ###                                            ###
-###            2023.03.04    by Dogway         ###
+###            2023.03.05    by Dogway         ###
 ###                                            ###
 ##################################################
 ###
-### Luma adaptive grain generating filter. Y/YUV only.
+### Luma+Detail adaptive grain generating filter. Y/YUV only.
 ###
 ### FilmGrain is based on Didée's GrainFactory3 script
 ###
@@ -15,6 +15,11 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### 2023.03.05
+###      - Tweak defaults
+###      - Reduce 'coarse' range to 0.0-5.0
+###      - Add 'conv' arg to *break* edges/details
 ###
 ### 2023.03.04
 ###      - Fix filter name
@@ -49,15 +54,15 @@
 ###
 
 function FilmGrain       (clip clp,
- \                        float "str",     float "cstr",    float "size",  float "coarse",
- \                        float "g1str",   float "g2str",   float "g3str",
- \                        float "g1cstr",  float "g2cstr",  float "g3cstr",
- \                        int   "g1shrp",  int   "g2shrp",  int   "g3shrp",
- \                        float "g1size",  float "g2size",  float "g3size",
- \                        int   "g1tex",   int   "g2tex",   int   "g3tex",
- \                        bool  "g1const", bool  "g2const", bool  "g3const",
- \                        int   "th1",     int   "th2",     int   "th3",    int "th4",
- \                        int   "temp_avg",  bool "preblur",
+ \                        float "str",     float "cstr",     float "size", float "coarse",
+ \                         bool "conv",    int   "temp_avg", bool "preblur",
+ \                        float "g1str",   float "g2str",    float "g3str",
+ \                        float "g1cstr",  float "g2cstr",   float "g3cstr",
+ \                        int   "g1shrp",  int   "g2shrp",   int   "g3shrp",
+ \                        float "g1size",  float "g2size",   float "g3size",
+ \                        int   "g1tex",   int   "g2tex",    int   "g3tex",
+ \                        bool  "g1const", bool  "g2const",  bool  "g3const",
+ \                        int   "th1",     int   "th2",      int   "th3",    int "th4",
  \                        float "ontop_grain",
  \                        float "ontop_cgrain",
  \                        bool  "ontop_const",
@@ -71,7 +76,7 @@ function FilmGrain       (clip clp,
     h            = height(clp)
     isHD         = w > 1099 || h >  599
     isUHD        = w > 2599 || h > 1499
-    sz           = (isHD ? 1920 : isUHD ? 3840 : 1280)/1920.
+    sz           = (isHD ? 1920 : isUHD ? 3840 : 1280)/1478. # By default 1.3 for 1080p
 
     #  Global multipliers for dark/mid/bright parameters
     #  By default 1.0, 1.0, 1.0, 1.0 is designed for 1080p content
@@ -79,28 +84,22 @@ function FilmGrain       (clip clp,
 
     sz           = Default(   size,     sz )
 
-    st           = Default(    str,    1.0 )
+    st           = Default(    str,    2.0 )
     st           =       st >0 ?  st *0.63*pow(sz,-2.3)+0.37 : 0
 
     cs           = Defined(   cstr )
-    cs           = cs ? cstr>0 ? cstr*0.63*pow(sz,-2.3)+0.37 : 0 : st
+    cs           = cs ? cstr>0 ? cstr*0.63*pow(sz,-2.3)+0.37 : 0 : st*0.25
 
     ##################################
 
-    crs          = Default(   coarse,  0.0 )     # Increase for more grain-like (rounded) noise
+    crs          = Default( coarse,    2.0 )*100.# Bias between noise and grain (round structure)
 
     g1str        = Default( g1str,     2.0 )*st  # [ 0 - ???] strength of luma grain / for dark areas
-                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
     g2str        = Default( g2str,     4.0 )*st  # [ 0 - ???] strength of luma grain / for midtone areas
-                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
     g3str        = Default( g3str,     4.0 )*st  # [ 0 - ???] strength of luma grain / for bright areas
-                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
     g1cstr       = Default( g1cstr,    4.0 )*cs  # [ 0 - ???] strength of chroma grain / for dark areas
-                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
     g2cstr       = Default( g2cstr,    3.0 )*cs  # [ 0 - ???] strength of chroma grain / for midtone areas
-                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
     g3cstr       = Default( g3cstr,    1.0 )*cs  # [ 0 - ???] strength of chroma grain / for bright areas
-                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
     g1size       = Default( g1size,   0.90 )*sz  # [0.5 - 4.0] size of grain / for dark areas
     g2size       = Default( g2size,   1.17 )*sz  # [0.5 - 4.0] size of grain / for mid-tone areas
     g3size       = Default( g3size,   1.25 )*sz  # [0.5 - 4.0] size of grain / for bright areas
@@ -116,22 +115,21 @@ function FilmGrain       (clip clp,
     th3          = Default( th3,       135 )     # start of midtone -> bright  mixing zone
     th4          = Default( th4,       195 )     # end  of  midtone -> bright  mixing zone
     ontop_grain  = Default( ontop_grain, 0 )     # [ 0 - ???] additional luma grain to put on top of prev. generated grain
-                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
     ontop_cgrain = Default( ontop_cgrain,0 )     # [ 0 - ???] additional chroma grain to put on top of prev. generated grain
-                                                 # positive value for AddGrainC strength, negative value for f3kdb grain strength
     ontop_const  = Default( ontop_const, false)  # AddGrainC "constant" parameter of ontop clip
+    conv         = Default( conv,        false)  # Add convolution to edges
     use_ALMask   = Default( use_sAverageLumaMask, false)
     pb           = Default( preblur,st>=1.0 )
 
     rgb = isRGB(clp)
+    bi  = BitsPerComponent(clp)
     fs  = propNumElements(clp,"_ColorRange")  > 0 ? \
           propGetInt     (clp,"_ColorRange") == 0 : rgb
     tv  = Default( tv_range, !fs)
 
     #-----------------------------------------------------------------------------------
 
-    bi   = BitsPerComponent(clp)
-    o    = pb ? clp.ex_boxblur(0.15,mode="weighted",UV=1) : clp
+    o   = pb ? clp.ex_boxblur(0.15,mode="weighted",UV=1) : clp
 
     # Grain coarseness
     g  = 1+crs
@@ -179,6 +177,8 @@ function FilmGrain       (clip clp,
     ochroma = ( ontop_cgrain != 0 ) || chroma ? 3 : 2
     cchroma = chroma ? 3 : 1
 
+    msk     = ex_edge(clp,"kroon",15,20,UV=chroma?3:2).vsTCanny(4,mode=-1,u=chroma?3:2,v=chroma?3:2)
+
     #-----------------------------------------------------------------------------------
 
     BUMPKERNEL1 = Format("x[-1,1] {T1a} * x[0,0] {T1ah} * - {hlfr} *")
@@ -187,34 +187,40 @@ function FilmGrain       (clip clp,
 
     #-----------------------------------------------------------------------------------
 
-    blk         = blankclip(o, width=w, height=h, color_yuv=$808080, channels=0)
-    grainlayer1 = blk.AddGrainC(g1str, g1cstr, g1sz, g1sz, constant=g1const)
+    blk          = blankclip(o, width=w, height=h, color_yuv=$808080, channels=0)
+    grainlayer1  = blk.AddGrainC(g1str,   g1cstr,   g1sz, g1sz, constant=g1const)
+    grainlayer1c = blk.AddGrainC(g1str*4, g1cstr*4, g1sz, g1sz, constant=g1const)
+    grainlayer1  = conv ? ex_merge(grainlayer1,grainlayer1c,msk,UV=cchroma) : grainlayer1
 
-    grainlayer1 = (g1tex==0)
-    \           ? grainlayer1
-    \           : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
+    grainlayer1  = (g1tex==0)
+    \            ? grainlayer1
+    \            : ex_makediff(grainlayer1,grainlayer1.ex_edge(mode=BUMPKERNEL1, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
 
-    grainlayer1 = grainlayer1.vsTCanny(sqrt(g1b)/2.*sqrt(2),mode=-1,u=g1cstr>0?3:2,v=g1cstr>0?3:2)
-
-    #-----------------------------------------------------------------------------------
-
-    grainlayer2 = blk.AddGrainC(g2str, g2cstr, g2sz, g2sz, constant=g2const)
-
-    grainlayer2 = (g2tex==0)
-    \           ? grainlayer2
-    \           : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
-
-    grainlayer2 = grainlayer2.vsTCanny(sqrt(g2b)/2.*sqrt(2),mode=-1,u=g2cstr>0?3:2,v=g2cstr>0?3:2)
+    grainlayer1  = grainlayer1.vsTCanny(sqrt(g1b)/2.*sqrt(2),mode=-1,u=g1cstr>0?3:2,v=g1cstr>0?3:2)
 
     #-----------------------------------------------------------------------------------
 
-    grainlayer3 = blk.AddGrainC(g3str, g3cstr, g3sz, g3sz, constant=g3const)
+    grainlayer2  = blk.AddGrainC(g2str,   g2cstr,   g2sz, g2sz, constant=g2const)
+    grainlayer2c = blk.AddGrainC(g2str*4, g2cstr*4, g2sz, g2sz, constant=g2const)
+    grainlayer2  = conv ? ex_merge(grainlayer2,grainlayer2c,msk,UV=cchroma) : grainlayer2
 
-    grainlayer3 = (g3tex==0)
-    \           ? grainlayer3
-    \           : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
+    grainlayer2  = (g2tex==0)
+    \            ? grainlayer2
+    \            : ex_makediff(grainlayer2,grainlayer2.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
+                
+    grainlayer2  = grainlayer2.vsTCanny(sqrt(g2b)/2.*sqrt(2),mode=-1,u=g2cstr>0?3:2,v=g2cstr>0?3:2)
 
-    grainlayer3 = grainlayer3.vsTCanny(sqrt(g3b)/2.*sqrt(2),mode=-1,u=g3cstr>0?3:2,v=g3cstr>0?3:2)
+    #-----------------------------------------------------------------------------------
+
+    grainlayer3  = blk.AddGrainC(g3str,   g3cstr,   g3sz, g3sz, constant=g3const)
+    grainlayer3c = blk.AddGrainC(g3str*4, g3cstr*4, g3sz, g3sz, constant=g3const)
+    grainlayer3  = conv ? ex_merge(grainlayer3,grainlayer3c,msk,UV=cchroma) : grainlayer3
+
+    grainlayer3  = (g3tex==0)
+    \            ? grainlayer3
+    \            : ex_makediff(grainlayer3,grainlayer3.ex_edge(mode=BUMPKERNEL2, lo=0, hi=255, UV=cchroma), UV=cchroma, fulls=!tv)
+                
+    grainlayer3  = grainlayer3.vsTCanny(sqrt(g3b)/2.*sqrt(2),mode=-1,u=g3cstr>0?3:2,v=g3cstr>0?3:2)
 
     #-----------------------------------------------------------------------------------
 
@@ -223,7 +229,7 @@ function FilmGrain       (clip clp,
 
     one  = tmpavg   == 0  || ( g1const && g2const && g3const )
     two  = ontop_grain>0  ||  ontop_cgrain>0
-    thre = !one || two
+    thre = one && !two
     ex   = ex_dlut(Format("x dup y - a {th1str} - {th21str} * neg range_max / 0 1 clip * -
                              dup z - a {th3str} - {th43str} * neg range_max / 0 1 clip 1 swap - 0.15 ^ neg 1 + * - ") \
        +(thre ? (chroma ? "b" : "a")+" swap - range_half +" : ""), bi, !tv)
