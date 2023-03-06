@@ -244,7 +244,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     limit        = Default( limit, md!="MDegrain" ? 255 : isUHD ? 2 : 255 )  # auto-scaled
     limitc       = Default( limitc,limit)
 
-    gpuid        = Default ( gpuid,   0)                       # Choose the GPU device_id for NNEDI3, KNLMeancCL and BM3D, or -1 for CPU mode (only NNEDI3)
+    gpuid        = Default ( gpuid,   0)                       # Choose the GPU device_id for NNEDI3, KNLMeancCL and BM3D, or -1 for CPU mode (NNEDI3 and BM3D)
     threads      = Default ( threads, 8)                       # CPU threads for NNEDI3 in CPU mode (gpuid=-1)
     sShow        = IsString( Show)
     Show         = Default ( Show,  false)
@@ -722,7 +722,7 @@ function ex_MinBlur(clip clp, int "r", int "UV", string "mode", bool "sharp", in
     fs      = propNumElements (clp,"_ColorRange")  > 0 ? \
               propGetInt      (clp,"_ColorRange") == 0 : rgb
 
-    r       = Default(r,  1)
+    r       = Default(r,  1)                # 1, 2 or 3. For 3 you can alternatively use ex_median("IQMV")
     Y       = Default(Y,  3)
     UV      = Default(UV, rgb ? 3 : 1)
     mode    = Default(mode, "median")
@@ -779,7 +779,7 @@ function ex_sbr(clip c, int "r", int "Y", int "UV") {
     fs     = propNumElements (c,"_ColorRange")  > 0 ? \
              propGetInt      (c,"_ColorRange") == 0 : rgb
 
-    r      = Default(r,  1)
+    r      = Default(r,  1) # 1, 2 or 3.
     Y      = Default(Y,  3)
     UV     = Default(UV, rgb ? 3 : 1)
     Y31    = (Y==3)  ?  3 :  1

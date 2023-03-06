@@ -325,8 +325,15 @@ Some (very) old examples of custom <var>prefilter</var>ing, for history:<br/>
     <li><a href="https://forum.doom9.org/showthread.php?t=162813" target="_blank">https://forum.doom9.org/showthread.php?t=162813</a></li>
     <li><a href="https://forum.doom9.org/showthread.php?t=132310" target="_blank">https://forum.doom9.org/showthread.php?t=132310</a></li>
     <li><a href="https://forum.doom9.org/showthread.php?t=133977" target="_blank">https://forum.doom9.org/showthread.php?t=133977</a></li>
+    <li><a href="https://forum.doom9.org/showthread.php?p=1367709" target="_blank">https://forum.doom9.org/showthread.php?p=1367709</a></li>
 </li>
 </ul>
+<br/>This last example is a function called Calm(), wrapped by Terka but it's basically QTGMC's default prefiltering from line <a href="https://github.com/Dogway/Avisynth-Scripts/blob/f2d777aadaa7915edc73ba07f2ffd749429cf116/MIX%20mods/QTGMC%2B.avsi#L460" target="_blank">460</a> to <a href="https://github.com/Dogway/Avisynth-Scripts/blob/f2d777aadaa7915edc73ba07f2ffd749429cf116/MIX%20mods/QTGMC%2B.avsi#L492" target="_blank">492</a> using TR0=2 and SrchClipPP=3.<br/>
+What he missed was adding KeepOnlyBobShimmerFixes() which removes <i>"most"</i> TemporalSoften frame blending artifacts.<br/>
+My improved alternative was already given above, but adding ex_sbr() instead of a gaussian blur:<br/>
+<pre>pre=SMDegrain(2,thSAD=1600,mode="TemporalGauss",pel=1,rfilter=0,str=0,tv_range=false,plane=0,truemotion=true) # Tuned for speed or "dumb" MV
+pre=pre.ex_sbr(3,UV=3)</pre>
+*You can read more about this and a stronger alternative more similar to Calm() on this <a href="https://forum.doom9.org/showthread.php?p=1984051" target="_blank">post</a><br/>
 <br/>Notes:
 To sum it up; generally in denoising, temporal filters are always preferred due to its natural look (versus spatial filters).<br/>
 But more often than not for good results <var>prefilter</var>ing plays a key role on the output quality, and setting it up nicely can be looked as an art by itself.<br/>
@@ -462,7 +469,7 @@ Clip should match input format.<br/>
 <i>[int: -1, "0", 1... ]</i><br/>
 <br/>
 Enables GPU processing for the filters that support them. -1 is CPU mode, 0 is default GPU and >0 is device ID if you have more than one GPU.<br/>
--1 (CPU mode) is only for NNEDI3 (for subpixel=3) as <var>prefilter</var>s with KNLMeansCL and BM3D are currently GPU only.<br/>
+-1 (CPU mode) is only for NNEDI3 (for subpixel=3) and BM3D (prefilter=8) as <var>prefilter</var> with KNLMeansCL is currently GPU only.<br/>
 <br/>
 <h4><a id="UHDhalf"></a>UHDhalf</h4>
 <i>[bool: "true", false]</i><br/>
