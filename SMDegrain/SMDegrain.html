@@ -17,11 +17,11 @@
 
 <p>
 <b>Author: </b>Dogway<br/>
-<b>Version: </b>v4.0.0d<br/>
+<b>Version: </b>v4.1.0d<br/>
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 02-March-2023
+<b>Date:</b> 09-March-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -40,7 +40,7 @@
 <ul>
 <table>
   <tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.0 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.1 or higher)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/MVTools" target="_blank">MVTools2</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v2.7.45 or higher)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.4 or higher)</td></tr>
   </tr>
@@ -62,9 +62,9 @@
     <tr><td><li><b><a href="http://avisynth.nl/index.php/BM3DCUDA" target="_blank">BM3D</a></b></li></td><td>&nbsp;&nbsp;(test10 or higher)</td><td>&nbsp;&nbsp;(for prefilter=8)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.5 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Neo_TMedian" target="_blank">neo_tmedian</a></b></li></td><td>&nbsp;&nbsp;(r2 or higher)</td><td>&nbsp;&nbsp;(for mode="medianT") (broken for interlaced inputs)</td></tr>
-    <tr><td><li><b><a href="http://avisynth.nl/index.php/VsTTempSmooth" target="_blank">vsTTempSmooth</a></b></li></td><td>&nbsp;&nbsp;(v1.2.2 or higher)</td><td>&nbsp;&nbsp;(for mode="TemporalSmooth")</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/VsTTempSmooth" target="_blank">vsTTempSmooth</a></b></li></td><td>&nbsp;&nbsp;(v1.2.3 or higher)</td><td>&nbsp;&nbsp;(for mode="TemporalSmooth")</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.6 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
-    <tr><td><li><b><a href="http://avisynth.nl/index.php/Average" target="_blank">Average</a></b></li></td><td>&nbsp;&nbsp;(v0.95 or higher)</td><td>&nbsp;&nbsp;(for mfilter + (Contrasharp or mode!=MDegrain) )</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/Average" target="_blank">Average</a></b></li></td><td>&nbsp;&nbsp;(v0.95 or higher)</td><td>&nbsp;&nbsp;(for LFR or mfilter + (Contrasharp or mode!=MDegrain) )</td></tr>
   </tr>
 </table>
 </ul>
@@ -193,7 +193,7 @@ Select the planes you wish to process:<br/>
 &nbsp;&nbsp;*<i>Keep in mind that <var>plane</var>=4 (2 and 3 as well) can sometimes create chroma smearing. In such case I recommend denoising chroma <var>planes</var> separately in the spatial domain.</i>
 <br/><br/>
 <h4><a id="prefilter"></a>prefilter</h4>
-<i>[int: "-1", 0, 1, 2, 3, 4, 5, 6, 7, 8] or [clip: - ] or [string: "", "SBR", "MinBlur", "MinBlur2", "MinBlur3", "FluxSmoothST", "DFTTest", "KNLMeans", "DGDenoise", "BM3D"]</i><br/>
+<i>[int: "-1", 0, 1, 2, 3, 4, 5, 6, 7, 8] or [clip: - ] or [string: "", "SBR", "MinBlur", "MinBlur2", "MinBlur3", "IQMST", "DFTTest", "KNLMeans", "DGDenoise", "BM3D"]</i><br/>
 <br/>
 See <a href="#prefilter2">below</a> for a review of prefilter presets.
 <br/><br/><br/><br/>
@@ -243,7 +243,7 @@ Hierarchical levels smoothing and reducing (halving) filter.<br/>
 Set and forget setting. Mode 3 gives the most accuracy for downscaling.<br/>
 <br/>
 <h4><a id="prefilter2"></a>prefilter</h4>
-<i>[int: "-1", 0, 1, 2, 3, 4, 5, 6, 7, 8] or [clip: - ] or [string: "", "SBR", "MinBlur", "MinBlur2", "MinBlur3", "FluxSmoothST", "DFTTest", "KNLMeans", "DGDenoise", "BM3D"]</i><br/>
+<i>[int: "-1", 0, 1, 2, 3, 4, 5, 6, 7, 8] or [clip: - ] or [string: "", "SBR", "MinBlur", "MinBlur2", "MinBlur3", "IQMST", "DFTTest", "KNLMeans", "DGDenoise", "BM3D"]</i><br/>
 <br/>
 <ul>
     <li>-1 = off (Default)</li>
@@ -251,7 +251,7 @@ Set and forget setting. Mode 3 gives the most accuracy for downscaling.<br/>
     <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L691" target="_blank">1</a> = mild median/gauss blur</li>
     <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L691" target="_blank">2</a> = strong median/gauss blur</li>
     <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/ExTools.avsi#L2299" target="_blank">3</a> = very strong median/gauss blur (IQMV -Variable Inter Quartile Median- filter)</li>
-    <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/ExTools.avsi#L2123" target="_blank">4</a> = FluxSmoothST (spatio-temporal median/gauss filter)</li>
+    <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/ExTools.avsi#L2299" target="_blank">4</a> = spatio-temporal median/gauss filter (IQMST)</li>
     <li><a href="http://avisynth.nl/index.php/Dfttest" target="_blank">5</a> = DFTTest (spatial)</li>
     <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L1213" target="_blank">6</a> = KNLmeansCL (spatio-temporal non-local means OpenCL GPU filter)*</li>
     <li><a href="https://github.com/Dogway/Avisynth-Scripts/blob/fd8dacee9f11273b4b1d0a93af29e01570a4b461/SMDegrain/SMDegrain.avsi#L1160" target="_blank">7</a> = DGDenoise (temporal non-local means Cuda GPU filter)*</li>
@@ -304,10 +304,13 @@ Another option:
 <pre>SMDegrain(tr=3,mode="TemporalGauss" ,blksize=32,thSAD=1300,LFR=300  ,contrasharp=false,refinemotion=true)
 SMDegrain(tr=2,mode="TemporalSoften",blksize=32,thSAD= 600,LFR=false,contrasharp=true ,refinemotion=true)</pre>
 <br/>
-And another one with <var>prefilter</var> (the possibilites are endless so choose your poison):
+Another one this time with <var>prefilter</var>:
 <pre>pre=ex_bm3d(60,3,preset="noisy")
-SMDegrain(tr=2,mode="TemporalSoften",blksize=32,prefilter=pre,thSAD=600,refinemotion=true)
+SMDegrain(tr=2,mode="TemporalSoften",blksize=32,thSAD=600,prefilter=pre,refinemotion=true)
 ex_unsharp(0.2,Fc=width()/2) # Remove the dreamy/softness look</pre>
+<br/>
+And another one with <var>prefilter</var> (the possibilites are endless so choose your poison):
+<pre>SMDegrain(tr=3,mode="TemporalSoften",thSAD=600,LFR=300,DCTFlicker=true,prefilter="IQMST",refinemotion=true)</pre>
 <br/>
 The double call method is called <b>Degrain refinement</b>, while the ones using <var>prefilter</var> are called <b>Motion Vector refinement</b>, and both are considered<br/>
 pyramidal refinements as you lower the strength of the prefilter/denoising the lower the stack. You can also mix both methods and experiment.<br/>
@@ -329,11 +332,11 @@ Some (very) old examples of custom <var>prefilter</var>ing, for history:<br/>
 </li>
 </ul>
 <br/>This last example is a function called Calm(), wrapped by Terka but it's basically QTGMC's default prefiltering from line <a href="https://github.com/Dogway/Avisynth-Scripts/blob/f2d777aadaa7915edc73ba07f2ffd749429cf116/MIX%20mods/QTGMC%2B.avsi#L460" target="_blank">460</a> to <a href="https://github.com/Dogway/Avisynth-Scripts/blob/f2d777aadaa7915edc73ba07f2ffd749429cf116/MIX%20mods/QTGMC%2B.avsi#L492" target="_blank">492</a> using TR0=2 and SrchClipPP=3.<br/>
-What he missed was adding KeepOnlyBobShimmerFixes() which removes <i>"most"</i> TemporalSoften frame blending artifacts.<br/>
+It's basically a TemporalGauss, with some limiting and a gaussian blur. What he missed was adding KeepOnlyBobShimmerFixes() which removes <i>"most"</i> TemporalSoften frame blending artifacts.<br/>
 My improved alternative was already given above, but adding ex_sbr() instead of a gaussian blur:<br/>
 <pre>pre=SMDegrain(2,thSAD=1600,mode="TemporalGauss",pel=1,rfilter=0,str=0,tv_range=false,plane=0,truemotion=true) # Tuned for speed or "dumb" MV
 pre=pre.ex_sbr(3,UV=3)</pre>
-*You can read more about this and a stronger alternative more similar to Calm() on this <a href="https://forum.doom9.org/showthread.php?p=1984051" target="_blank">post</a><br/>
+*You can read more about this and a stronger alternative more similar to Calm() for DeWobble on this <a href="https://forum.doom9.org/showthread.php?p=1984051" target="_blank">post</a><br/>
 <br/>Notes:
 To sum it up; generally in denoising, temporal filters are always preferred due to its natural look (versus spatial filters).<br/>
 But more often than not for good results <var>prefilter</var>ing plays a key role on the output quality, and setting it up nicely can be looked as an art by itself.<br/>
@@ -373,7 +376,7 @@ The value represents a cutoff in resolution units of the maximum dimension, so f
 <i>[bool: true, "false"]</i><br/>
 <br/>
 Only works when <var>LFR</var> is activated. It tries to stabilize low frequency flicker produced by grain propagated to low frequencies by the DCT compression algorithm.<br/>
-When enabled it will run a custom temporal denoiser to <i>calm</i> the flicker. Only enable this when your source is very grainy.<br/>
+When enabled it will only pass low frequencies to motion areas and filtered through a custom temporal denoiser to <i>calm</i> the flicker. Only enable this when your source is very grainy.<br/>
 <br/>
 <h4><a id="blksize"></a>blksize</h4>
 <i>[int: 4, 8, "16", 32, 48, 64]</i><br/>
@@ -579,6 +582,13 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
+<p><b>v4.1.0d</b> (09-03-2023)</p>
+    <ul>
+        <li>Remove all references to RGB since it isn't supported by MVTools2</li>
+        <li>Pass LFR through the motion mask to further mask out DCT flicker (even when DCTFlicker=false, when true mask is stronger)</li>
+        <li>Replace prefilter=4 (FluxSmoothST) with "IQMST", suited for very grainy HD sources</li>
+        <li>Update documentation</li>
+    </ul>
 <p><b>v4.0.0d</b> (02-03-2023)</p>
     <ul>
         <li>YUY2 support for all clip type arguments via internal planar conversion  (CClip, mfilter, prefilter and input)</li>
