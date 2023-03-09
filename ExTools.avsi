@@ -52,6 +52,7 @@
 ###     ex_invert                                        ##
 ###     ex_lutspa                                        ##
 ###     ex_motion                                        ##
+###     ex_hysteresis                                    ##
 ### BLURS:                                               ##
 ###     ex_boxblur                                       ##
 ###     ex_blur                                          ##
@@ -1087,6 +1088,36 @@ function ex_motion(clip a, int "lo", int "hi", int "Y", int "UV") {
                propSet("_ColorRange", 0)                            }
 
 
+
+# ex_hysteresis() is a pseudo replacement for mt_hysteresis()
+# hysteresis combines masks by growing the small mask into the big mask thus connecting components to build more robust masks.
+# ex_hysteresis() uses iteration so it's pretty slow. Raise 'iter' for greater edge growth. Only for binary masks.
+#
+function ex_hysteresis(clip a, clip b, int "iter", int "Y", int "UV") {
+
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    bi   = BitsPerComponent(a)
+
+    it   = Default(iter,     10)
+    Y    = Default(Y,         3)
+    UV   = Default(UV,  rgb ? 3 : Y!=3 ? 3 : 128)
+    un   = Undefined()
+
+    str  = "y ymax >= x[1,1] x[1,0] max x[1,-1] max x[-1,1] max x[-1,0] max x[-1,-1] max x[0,1] max x[0,-1] max x[0,0] max x max ymax >= and range_max 0 ?"
+
+    ystr =              ex_Yexpr(  str,  Y, bi, rgb, un)
+    cstr = rgb ? ystr : ex_UVexpr( str, UV, bi, rgb, un)
+
+    for (i=1, it, 1) {
+        a = isy     ?  Expr(a, b, ystr      ) : \
+            UV == 1 ?  Expr(a, b, ystr, ""  ) : \
+                       Expr(a, b, ystr, cstr)
+    }
+   a
+   prop = ["_Matrix","_Primaries","_Transfer","_PictType"]
+   propDelete(UV<4?prop:ArrayAdd(prop,"_ChromaLocation"))
+   propSet("_ColorRange", 0)                            }
 
 
 
