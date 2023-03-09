@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v10.0    (01-03-2023)                 ##
+###        ExTools v10.1    (09-03-2023)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -1664,7 +1664,7 @@ function ex_smartblur(clip a, float "radius", float "radiusV", float "thres", in
 
 # modes:
 # SG  - Savitzky-Golay (S-G) smoothing filter, a least-squares polynomial smoothing approach (between an antialiaser and a blur)
-# SNN - Symmetrical Nearest Neighbour based pair average
+# SNN - Symmetrical Nearest Neighbour based pair average. Resembles ex_sbr() but a bit blurrier
 #
 # Function Definition:
 #    (
@@ -2329,9 +2329,9 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 ##  100% ex_median(mode="medianST",UV=1) (93fps)
 ##   81% MedianBlurTemporal(1,1,1) # 2fps without chroma (unstable filter)
 ##
-## Recommended: EMF, smart1/2/3, IQM/5/V/T, CAM, edgeCL, cartoon, DGM1, ML3D and STWM
+## Recommended: EMF, smart1/2/3, IQM/5/V/T/ST, CAM, edgeCL, cartoon, DGM1, ML3D and STWM
 #
-# 63 modes (with '*' own algos):
+# 64 modes (with '*' own algos):
 # undot(1)   - Also called "conservative", removes 1 pixel "salt'n'pepper" impulsive noise            -removegrain(1)-
 # undot2     - Same as undot but clip up to the second closest minimum values. Prune 1x2 pixels       -removegrain(2)-
 # undot3     - Same as undot but clip up to the third  closest minimum values. Prune 3 pixel clusters -removegrain(3)-
@@ -2355,6 +2355,7 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 # IQM5       - Interquartile mean or midmean for a 5x5 kernel.                                                         *Same as                 'Trimean5' but better edge protection
 #*IQMV       - Switches between IQM and IQM5 depending on a difference threshold for better edge protection.           *Similar to ex_MinBlur(3) in output but near 3 times faster.
 # IQMT       - Interquartile mean or midmean of 5 frames.                          (Temporal)                          *Similar to temporal average but more motion protection, albeit less than ex_FluxSmoothT(th=255)
+#*IQMST      - Spatio-temporal IQM. Mix between IQM + IQMT taking the best of both.(Spatio-Temporal, Mostly Motion Protected)
 # EMF        - Extended Median Filter. 3x3 kernel median thresholded against center pixel
 # CWM        - Center Weighted Median
 # CWM2       - Center -stronger- Weighted Median. Similar output to edgeCL but a bit slower
@@ -2404,7 +2405,7 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 # Function Definition:
 #    (
 #    clip,
-#    string "mode"="median" ("undot"/ "undot2"/ "undot3"/ "undot4"/ "undot6"/ "unblob3"/ "unblob3D"/ "--"/ "median"/ "median5"/ "median7"/ "median7o"/ "--"/ "smart"/ "smart2"/ "smart3"/ "--"/ "midsum"/ "Winsor"/ "Winsor5"/ "Trimean"/ "Trimean5"/ "IQM"/ "IQM5"/ "IQMV"/ "--"/ "EMF"/ "CWM"/ "CWM2"/ "WMF"/ "AWM"/ "PWM"/ "RMF"/ "AMF"/ "CAM"/ "SNN"/ "kuwahara"/ "--"/ "edgeW"/ "edgeS"/ "edgeC"/ "edgeCL"/ "cartoon"/ "--"/ "vertical"/ "verticalS"/ "horizontal"/ "horizontalS"/ "--"/ "GaussT5"/ "GaussST5"/ "IQMT"/ "medianT"/ "medianT5"/ "medianST"/ "medianSTS"/ "SixNN"/ "STWM"/ "PML"/ "TL3D"/ "ML3D"/ "ML3Dex"/ "Hybrid"/ "BDM"/ "MMF"/ "--"/ "DGM0"/ "DGM1"/ "DGM2"/ "DGM3"/ "DGM4"/ "DGM5"),
+#    string "mode"="median" ("undot"/ "undot2"/ "undot3"/ "undot4"/ "undot6"/ "unblob3"/ "unblob3D"/ "--"/ "median"/ "median5"/ "median7"/ "median7o"/ "--"/ "smart"/ "smart2"/ "smart3"/ "--"/ "midsum"/ "Winsor"/ "Winsor5"/ "Trimean"/ "Trimean5"/ "IQM"/ "IQM5"/ "IQMV"/ "--"/ "EMF"/ "CWM"/ "CWM2"/ "WMF"/ "AWM"/ "PWM"/ "RMF"/ "AMF"/ "CAM"/ "SNN"/ "kuwahara"/ "--"/ "edgeW"/ "edgeS"/ "edgeC"/ "edgeCL"/ "cartoon"/ "--"/ "vertical"/ "verticalS"/ "horizontal"/ "horizontalS"/ "--"/ "GaussT5"/ "GaussST5"/ "IQMT"/ "IQMST"/ "medianT"/ "medianT5"/ "medianST"/ "medianSTS"/ "SixNN"/ "STWM"/ "PML"/ "TL3D"/ "ML3D"/ "ML3Dex"/ "Hybrid"/ "BDM"/ "MMF"/ "--"/ "DGM0"/ "DGM1"/ "DGM2"/ "DGM3"/ "DGM4"/ "DGM5"),
 #    float "thres"=255.0 (0.0 to 255.0 by 1),
 #    bool "recursion"=false
 #    )
@@ -2430,6 +2431,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                           mode=="smart2"        ? 128 : \
                           mode=="smart3"        ? 128 : \
                           mode=="SNN"           ?  20 : \
+                          mode=="IQMST"         ?  20 : \
                           DGM                   ?   4 : 255)    # Absolute Error threshold. For all modes
 
     th =        ex_bs(thr, 8, bi, fulls=true, flt=true)
@@ -3528,6 +3530,48 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 
                             x L M clip H I J K L M N O P Q
                             C D max F max G max S U min R min + 0.75 * + + + + + + + + + + + 0.08 *"+ths                                                            : \
+                                                                                                                                                                      \
+        mode == "IQMST"  ? "x[-2,-2] x[-1,0]      dup1 dup1 min D^ max L^
+                            x[-2,2] x[0,-1]       dup1 dup1 min E^ max K^
+                            x[2,2] x[0,1]         dup1 dup1 min F^ max J^
+                            x[2,-2] x[1,0]        dup1 dup1 min A^ max I^
+                            y z                   dup1 dup1 min B^ max H^
+                            a b                   dup1 dup1 min C^ max G^
+                            K L                   dup1 dup1 min K^ max L^
+                            G J                   dup1 dup1 min G^ max J^
+                            H I                   dup1 dup1 min H^ max I^
+                            C F                   dup1 dup1 min C^ max F^
+                            D E                   dup1 dup1 min D^ max E^
+                            A B                   dup1 dup1 min A^ max B^
+                            J L                   dup1 dup1 min J^ max L^
+                            F K                   dup1 dup1 min F^ max K^
+                            B G                   dup1 dup1 min B^ max G^
+                            A C                   dup1 dup1 min A^ max C^
+                            I L                             min I^
+                            J K                   dup1 dup1 min J^ max K^
+                            F H                   dup1 dup1 min F^ max H^
+                            E G                   dup1 dup1 min E^ max G^
+                            A D                                    max D^
+                            B C                   dup1 dup1 min B^ max C^
+                            H K                   dup1 dup1 min H^ max K^
+                            G I                   dup1 dup1 min G^ max I^
+                            D F                   dup1 dup1 min D^ max F^
+                            B E                   dup1 dup1 min B^ max E^
+                            I K                             min I^
+                            G J                   dup1 dup1 min G^ max J^
+                            C F                   dup1 dup1 min C^ max F^
+                            B D                                    max D^
+                            I J                             min I^
+                            G H                   dup1 dup1 min G^ max H^
+                            E F                   dup1 dup1 min E^ max F^
+                            C D                                    max D^
+                            F H                   dup1 dup1 min F^ max H^
+                            E G                   dup1 dup1 min E^ max G^
+                            F G                   dup1 dup1 min F^ max G^
+                            H I                   dup1 dup1 min H^ max I^
+                            D E                   dup1 dup1 min D^ max E^
+                            x F G clip E F G H
+                            + + + + D I + 0.75 * + 0.153846154 *"+ths                                                                                               : \
                                                                                                                                                                       \
         mode == "IQMT"   ? "y z                   dup1 dup1 min swap2 max
                             a b                   dup1 dup1 min swap2 max
@@ -5728,10 +5772,10 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
 
                          J dup1 dup1 min swap2 max swap1 K max min"+ths                                                                                             : \
                                                                                                                                                                       \
-                         Assert (false, "ex_median: "+LCase(mode)+": Unsupported median mode.")
+                         Assert (false, "ex_median: '"+mode+"'. Unsupported median mode.")
 
 
-    temp5 = mode == "medianT5" || mode == "STWM" || mode == "GaussT5" || mode == "GaussST5" || mode == "medianSTS" || mode == "IQMT"
+    temp5 = mode == "medianT5" || mode == "STWM" || mode == "GaussT5" || mode == "GaussST5" || mode == "medianSTS" || mode == "IQMT" || mode == "IQMST"
     temp  = mode == "medianT" || mode == "medianST" || mode == "ML3D" || mode == "ML3Dex" || mode == "BDM" || mode == "MMF" || mode == "PML" || \
             FindStr(mode,"DGM")>0 || mode == "unblob3D" || mode == "TL3D" || mode == "Hybrid" || mode == "SixNN" ||  temp5
 
@@ -7462,8 +7506,8 @@ function mskY_to_YYY(clip a, clip msk, bool "luma", bool "rgb", int "UV", int "b
     isy  = isy(a)
     bi   = BitsPerComponent(a)
     bi   = Default(bits,   bi)
-    UV   = Default(UV,      3)
-    luma = Default(luma, true)
+    UV   = Default(UV,      3)    # Process chroma or set a constant color for >6
+    luma = Default(luma,UV==3)    # Copy luma to chroma planes (if UV=3)
     rgb  = Default(rgb, isRGB(a))
 
     w    = width (a)    wm = width (msk)
