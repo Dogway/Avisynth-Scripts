@@ -4731,7 +4731,7 @@ int "show"=2 (0 to 3)
 
 ex_median(
 clip,
-string "mode"="median" ("undot"/ "undot2"/ "undot3"/ "undot4"/ "undot6"/ "unblob3"/ "unblob3D"/ "--"/ "median"/ "median5"/ "median7"/ "median7o"/ "--"/ "smart"/ "smart2"/ "smart3"/ "--"/ "midsum"/ "Winsor"/ "Winsor5"/ "Trimean"/ "Trimean5"/ "IQM"/ "IQM5"/ "--"/ "EMF"/ "CWM"/ "CWM2"/ "WMF"/ "AWM"/ "PWM"/ "RMF"/ "AMF"/ "CAM"/ "SNN"/ "kuwahara"/ "--"/ "edgeW"/ "edgeS"/ "edgeC"/ "edgeCL"/ "cartoon"/ "--"/ "vertical"/ "verticalS"/ "horizontal"/ "horizontalS"/ "--"/ "GaussT5"/ "GaussST5"/ "IQMT"/ "medianT"/ "medianT5"/ "medianST"/ "medianSTS"/ "SixNN"/ "STWM"/ "PML"/ "TL3D"/ "ML3D"/ "ML3Dex"/ "Hybrid"/ "BDM"/ "MMF"/ "--"/ "DGM0"/ "DGM1"/ "DGM2"/ "DGM3"/ "DGM4"/ "DGM5"),
+string "mode"="median" ("undot"/ "undot2"/ "undot3"/ "undot4"/ "undot6"/ "unblob3"/ "unblob3D"/ "--"/ "median"/ "median5"/ "median7"/ "median7o"/ "--"/ "smart"/ "smart2"/ "smart3"/ "--"/ "midsum"/ "Winsor"/ "Winsor5"/ "Trimean"/ "Trimean5"/ "IQM"/ "IQM5"/ "--"/ "EMF"/ "CWM"/ "CWM2"/ "WMF"/ "AWM"/ "PWM"/ "RMF"/ "AMF"/ "CAM"/ "SNN"/ "kuwahara"/ "--"/ "edgeW"/ "edgeS"/ "edgeC"/ "edgeCL"/ "cartoon"/ "--"/ "vertical"/ "verticalS"/ "horizontal"/ "horizontalS"/ "--"/ "GaussT5"/ "GaussST5"/ "IQMT"/ "IQMST"/ "medianT"/ "medianT5"/ "medianST"/ "medianSTS"/ "SixNN"/ "STWM"/ "PML"/ "TL3D"/ "ML3D"/ "ML3Dex"/ "Hybrid"/ "BDM"/ "MMF"/ "--"/ "DGM0"/ "DGM1"/ "DGM2"/ "DGM3"/ "DGM4"/ "DGM5"),
 float "thres"=255.0 (0.0 to 255.0 by 1),
 bool "recursion"=false
 )
@@ -4943,7 +4943,7 @@ float "xstr"=0.19 (0.0 to 0.5),
 FineSharpPlus(
 clip,
 float sstr=1.0 (0.0 to 5.0),
-string mode=1 (-3 / -2 / -1 / 0 / 1 / 2 / 3),
+int mode=1 (-3 / -2 / -1 / 0 / 1 / 2 / 3),
 [float cstr=1.00 (0.50 to 1.25)],
 float "xstr"=0.19 (0.00 to 0.25),
 [float "lstr"=1.49 (0.00 to 2.00)],
@@ -5851,7 +5851,7 @@ int thSAD=300 (100 to 1500),
 [int "blksize"=16 (4 to 64 by 4)],
 [int "overlap"=8 (2 to 32 by 4)],
 string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "TemporalSoften"/ "TemporalSmooth"/ "TemporalGauss"/ "FluxSmoothT"/ "DFTTest"/ "ML3DEx"/ "Hybrid"/ "TL3D"/ "STWM"/ "IQMT"/ "GaussST5"/ "--"/ "rMDegrain"/ "rMedianT"/ "rMedianST"/ "rMedianSTS"/ "rTemporalGauss"/ "rFluxSmoothT"/ "rDFTTest"/ "rML3DEx"/ "rHybrid"/ "rTL3D"/ "rSTWM"/ "rIQMT"/ "rGaussST5"),
-string "prefilter"="" (""/ "SBR"/ "MinBlur"/ "MinBlur2"/ "MinBlur3"/ "FluxSmoothST"/ "DFTTest"/ "KNLMeans"/ "DGDenoise"/ "BM3D"),
+string "prefilter"="" (""/ "SBR"/ "MinBlur"/ "MinBlur2"/ "MinBlur3"/ "IQMST"/ "DFTTest"/ "KNLMeans"/ "DGDenoise"/ "BM3D"),
 bool "ContraSharp"=false,
 [clip "CClip"],
 bool "RefineMotion"=false,
