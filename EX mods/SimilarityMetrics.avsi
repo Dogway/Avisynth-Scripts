@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Similarity Metrics Pack v3.8  (03-03-2023)                     ###
+###        Similarity Metrics Pack v3.9  (14-03-2023)                     ###
 ###                                                                       ###
 ###        Collection of metric functions for AviSynth+                   ###
 ###            Ported by Asd-g from VapourSynth                           ###
@@ -44,7 +44,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ 3.7.2+, ExTools and fmtconv (for downsample=true)
+### Requirements - AviSynth+ 3.7.3+, ExTools and fmtconv (for downsample=true)
 
 
 ### Usage ###
@@ -65,6 +65,8 @@ Ref:
 #---------------
 # show (default 0): Decides output form. 0 returns 'distorted' with frameprops, 1 returns 'reference' with frameprops. 2 returns 'distorted' subtitled with GMSD value and frameprops.
 #---------------
+# propName (default "_PlaneGMSD"): Identifier assigned to the metric frame property, in case you want to stack metrics against different distorted clips.
+#---------------
 # y (default true), u (default false), v (default false): Which plane to process.
 
 
@@ -79,7 +81,7 @@ Ref:
 # Initial version by Asd-g.
 
 
-function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
+function GMSD(clip dist, clip ref, bool "downsample", float "c", string "propName", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
     rgb      = isRGB (dist)
     w        = width (dist)
@@ -97,11 +99,12 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
     show_map = Default(show_map,  false)
     show     = Default(show,          0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     fs       = Default(fulls,        fs)
+    pn       = Default(propName,"_PlaneGMSD")
 
     clip1 = dist
     clip2 = ref
 
-    Assert(IsVersionOrGreater(3,7,2),                         "GMSD: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),                         "GMSD: Update AviSynth+ version")
     Assert(PixelType(clip1) == PixelType(clip2),              "GMSD: clip1 and clip2 must be of the same format")
     Assert(w == clip2.Width() && h == clip2.Height(),         "GMSD: clip1 and clip2 must be of the same width and height")
     Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "GMSD: only one plane must be processed")
@@ -128,15 +131,15 @@ function GMSD(clip dist, clip ref, bool "downsample", float "c", bool "show_map"
                                                A B C + + F - G - H - dup * +", 0, 255, clamp_float=false), Format("x y * sqrt 2 * {c} + x y + {c} + /"))
 
     last = show_map ?
-    \ ScriptClip(quality_map, function[] () { propSet(last,"_PlaneGMSD", Sqrt(AverageLuma(Expr(last,"x "+ String(AverageLuma(last)) +" - dup *"))), 0) } ) :
-    \ ScriptClip(show == 1 ? ref : dist, function [quality_map] ()
+    \ ScriptClip(quality_map, function[pn] () { propSet(last,pn, Sqrt(AverageLuma(Expr(last,"x "+ String(AverageLuma(last)) +" - dup *"))), 0) } ) :
+    \ ScriptClip(show == 1 ? ref : dist, function [quality_map,pn] ()
         {
             avg = String(AverageLuma(quality_map))
-            propSet("_PlaneGMSD", Sqrt(AverageLuma(Expr(quality_map, "x "+ avg +" - dup *"))), 0)
+            propSet(pn, Sqrt(AverageLuma(Expr(quality_map, "x "+ avg +" - dup *"))), 0)
         } )
 
 
-    return show == 2 ? ScriptClip(function[] () { Subtitle("PlaneGMSD: " + String(propGetFloat("_PlaneGMSD"))) } ) : last }
+    return show == 2 ? ScriptClip(function[pn] () { Subtitle("PlaneGMSD: " + String(propGetFloat(pn))) } ) : last }
 
 
 
@@ -164,7 +167,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ 3.7.2+, ExTools, TransformsPack and fmtconv (for downsample=true)
+### Requirements - AviSynth+ 3.7.3+, ExTools, TransformsPack and fmtconv (for downsample=true)
 
 
 ### Usage ###
@@ -181,6 +184,8 @@ Ref:
 #---------------
 # alpha (default 0.6): Weight used to merge Gradient Similarity (GS) map and Chromaticity Similarity (CS) map.
 #---------------
+# propName (default "_PlaneMDSI"): Identifier assigned to the metric frame property, in case you want to stack metrics against different distorted clips.
+#---------------
 # show_map (default false): Whether to return Gradient Similarity (GS), Chromaticity Similarity (CS) and pooled Gradient-Chromacity Similarity (GCS -linear combination of CS and GS-) maps. If it is true, interleaved clip of GS, CS, GCS will be returned. If it false, clip1 will be returned.
 #---------------
 # show (default 0): Decides output form. 0 returns 'distorted' with frameprops, 1 returns 'reference' with frameprops. 2 returns 'distorted' subtitled with MDSI value and frameprops,
@@ -195,7 +200,7 @@ Ref:
 # Initial port version by Asd-g.
 
 
-function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_map", int "show", bool "fulls") {
+function MDSI(clip dist, clip ref, bool "downsample", float "alpha", string "propName", bool "show_map", int "show", bool "fulls") {
 
     rgb      = isRGB (dist)
     w        = width (dist)
@@ -211,11 +216,12 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
     show_map = Default(show_map,   false)
     show     = Default(show,           0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     fs       = Default(fulls,         fs)
+    pn       = Default(propName,"_PlaneMDSI")
 
     clip1 = dist
     clip2 = ref
 
-    Assert(IsVersionOrGreater(3,7,2),                                                           "MDSI: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),                                                           "MDSI: Update AviSynth+ version")
     Assert(PixelType(clip1) == PixelType(clip2) && (IsPlanarRGB(clip1) || IsPlanarRGBA(clip1)), "MDSI: clip1 and clip2 must be in planar RGB format")
     Assert(w == clip2.Width() && h == clip2.Height(),                                           "MDSI: clip1 and clip2 must be of the same width and height")
 
@@ -268,12 +274,12 @@ function MDSI(clip dist, clip ref, bool "downsample", float "alpha", bool "show_
     }
 
 
-    last = ScriptClip(show_map ? Interleave(gs_hvs, cs, gcs) : show == 1 ? ref : dist, function [gcs] ()
+    last = ScriptClip(show_map ? Interleave(gs_hvs, cs, gcs) : show == 1 ? ref : dist, function [gcs,pn] ()
         {
-            propSet(last,"_PlaneMDSI", pow(AverageLuma(Expr(gcs, "x "+ String(AverageLuma(gcs)) +" - abs")), 0.25), 0) # MAD
+            propSet(last,pn, pow(AverageLuma(Expr(gcs, "x "+ String(AverageLuma(gcs)) +" - abs")), 0.25), 0) # MAD
         })
 
-    return show == 2 ? ScriptClip(function [show_map] () { Subtitle(show_map ? ex_invert(last) : last, "PlaneMDSI: " + String(propGetFloat("_PlaneMDSI"))) } ) : last }
+    return show == 2 ? ScriptClip(function [show_map,pn] () { Subtitle(show_map ? ex_invert(last) : last, "PlaneMDSI: " + String(propGetFloat(pn))) } ) : last }
 
 
 
@@ -304,7 +310,7 @@ Ref:
 */
 
 
-### Requirements - AviSynth+ 3.7.2+, vsTCanny, ExTools and fmtconv (for downsample=true)
+### Requirements - AviSynth+ 3.7.3+, vsTCanny, ExTools and fmtconv (for downsample=true)
 
 
 ### Usage ###
@@ -325,6 +331,8 @@ Ref:
 #---------------
 # dynamic_range (default 1.0): Dynamic range of the internal float point clip.
 #---------------
+# propName (default "_PlaneSSIM"): Identifier assigned to the metric frame property, in case you want to stack metrics against different distorted clips.
+#---------------
 # show_map (default false): Whether to return SSIM index map. If not, "clip1" will be returned.
 #---------------
 # show (default 0): Decides output form. 0 returns 'distorted' with frameprops, 1 returns 'reference' with frameprops. 2 returns 'distorted' subtitled with SSIM value and frameprops,
@@ -341,7 +349,7 @@ Ref:
 # Initial version by Asd-g.
 
 
-function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", float "stddev", float "dynamic_range", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
+function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", float "stddev", float "dynamic_range", string "propName", bool "show_map", int "show", bool "Y", bool "U", bool "V", bool "fulls") {
 
     rgb      = isRGB (dist)
     w        = width (dist)
@@ -362,11 +370,12 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
     show_map = Default(show_map,    false)
     show     = Default(show,            0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     fs       = Default(fulls,          fs)
+    pn       = Default(propName,"_PlaneSSIM")
 
     clip1 = dist
     clip2 = ref
 
-    Assert(IsVersionOrGreater(3,7,2),                         "vsSSIM: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),                         "vsSSIM: Update AviSynth+ version")
     Assert(PixelType(clip1) == PixelType(clip2),              "vsSSIM: clip1 and clip2 must be of the same format")
     Assert(w == clip2.Width() && h == clip2.Height(),         "vsSSIM: clip1 and clip2 must be of the same width and height")
     Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "vsSSIM: only one plane must be processed")
@@ -390,11 +399,11 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
 
     mu1     = vsTCanny(clip1, sigmay=stddev, mode=-1) # gaussian blur
     mu2     = vsTCanny(clip2, sigmay=stddev, mode=-1)
-    mu1_sq  = ex_lut(mu1,      "x dup *")
-    mu2_sq  = ex_lut(mu2,      "x dup *")
-    sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut  (clip1,        "x dup *"), sigmay=stddev, mode=-1)
-    sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut  (clip2,        "x dup *"), sigmay=stddev, mode=-1)
-    sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x   y *"), sigmay=stddev, mode=-1)
+    mu1_sq  = ex_lut(mu1,      "x 2 ^")
+    mu2_sq  = ex_lut(mu2,      "x 2 ^")
+    sigmay1_sq_pls_mu1_sq = vsTCanny(ex_lut  (clip1,        "x 2 ^"), sigmay=stddev, mode=-1)
+    sigmay2_sq_pls_mu2_sq = vsTCanny(ex_lut  (clip2,        "x 2 ^"), sigmay=stddev, mode=-1)
+    sigmay12_pls_mu1_mu2  = vsTCanny(ex_lutxy(clip1, clip2, "x y *"), sigmay=stddev, mode=-1)
 
     ssim_map = c1 > 0.0 && c2 > 0.0 ?
     \ Expr(sigmay12_pls_mu1_mu2, mu1_sq, mu2_sq, sigmay1_sq_pls_mu1_sq, sigmay2_sq_pls_mu2_sq, mu1, mu2, Format("c d * X@ 2 * {c1} + x X - 2 * {c2} + * y z + {c1} + a y - b z - + {c2} + * /")) :
@@ -402,26 +411,26 @@ function vsSSIM(clip dist, clip ref, bool "downsample", float "k1", float "k2", 
 
 
     last = show_map ?
-    \ ScriptClip(ssim_map, function[] () { propSet(last,"_PlaneSSIM", AverageLuma(last), 0) } ) :
-    \ ScriptClip(show == 1 ? ref : dist, function [ssim_map] ()
+    \ ScriptClip(ssim_map, function[pn] () { propSet(last,pn, AverageLuma(last), 0) } ) :
+    \ ScriptClip(show == 1 ? ref : dist, function [ssim_map,pn] ()
         {
-            propSet("_PlaneSSIM", AverageLuma(ssim_map), 0)
+            propSet(pn, AverageLuma(ssim_map), 0)
         } )
 
 
-    return show == 2 ? ScriptClip(function[] () { Subtitle("PlaneSSIM: " + String(propGetFloat("_PlaneSSIM"))) } ) : last }
+    return show == 2 ? ScriptClip(function[pn] () { Subtitle("PlaneSSIM: " + String(propGetFloat(pn))) } ) : last }
 
 
 
 # BSSIM() by zorr from B-SSIM paper: "B-SSIM - Structural Similarity Index for Blurred Videos"
-# Adapted by Dogway for optimization and read '_PlaneSSIM' frame property
+# Adapted by Dogway for optimization and read '_PlaneSSIM' (or 'propNameSSIM' defined) frame property
 #
 # Dependencies:
 #     ExTools
 #     vsTCanny
 #     fmtconv  (for HD or downsample=true)
 
-function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls") {
+function BSSIM(clip dist, clip ref, bool "downsample", string "propName", string "propNameSSIM", int "show", bool "fulls") {
 
     w    = width (dist)
     h    = height(dist)
@@ -434,11 +443,13 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
     show = Default(show,        0)  # 0: output 'dist'  1: output 'ref'  2: output 'dist' with subtitle
     dw   = Default(downsample, isHD)
     fs   = Default(fulls,      fs)
+    pn   = Default(propName,    "_PlaneBSSIM")
+    pnS  = Default(propNameSSIM,"_PlaneSSIM")
 
-    Assert(IsVersionOrGreater(3,7,2), "BSSIM: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "BSSIM: Update AviSynth+ version")
 
-    vSSIM = propNumElements (dist, "_PlaneSSIM")  > 0 ? \
-                             dist                     : vsSSIM(dist, ref, downsample=dw, fulls=fs)
+    vSSIM = propNumElements (dist, pnS)  > 0 ? \
+                             dist            : vsSSIM(dist, ref, downsample=dw, fulls=fs)
 
     source  = ref
     blurred = vSSIM
@@ -446,12 +457,12 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
     source8        =  source.ConvertBits(8, dither=-1, fulls=fs, fulld=true)
     blurred8       = blurred.ConvertBits(8, dither=-1, fulls=fs, fulld=true)
 
-    scharr_orig    = ex_edge(source8,  "tritical", 0, 50) # Original paper uses sobel but this is faster
+    scharr_orig    = ex_edge(source8,  "tritical", 0, 50) # Original paper uses 'sobel' but this is faster ('scharr' in original script)
     scharr_blurred = ex_edge(blurred8, "tritical", 0, 50)
 
-    ScriptClip(show == 1 ? ref : dist, function [blurred, source8, blurred8, scharr_orig, scharr_blurred, show] () {
+    ScriptClip(show == 1 ? ref : dist, function [blurred, source8, blurred8, scharr_orig, scharr_blurred, pn, pnS, show] () {
 
-        SSIM        = propGetFloat(blurred, "_PlaneSSIM")
+        SSIM        = propGetFloat(blurred, pnS)
 
         mean8       = AverageLuma(scharr_orig)
         var8        = ex_lut(scharr_orig,   Format("x {mean8} - dup *"))
@@ -465,7 +476,7 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
 
         BSSIM = SSIM * (2*sqrt(varian_orig * varian_alt)) / (varian_orig + varian_alt)
 
-        propSet(last,"_PlaneBSSIM", BSSIM, 0)
+        propSet(last,pn, BSSIM, 0)
 
         return show == 2 ? Subtitle(Format("PlaneBSSIM: {BSSIM}")) : last } ) }
 
@@ -478,7 +489,7 @@ function BSSIM(clip dist, clip ref, bool "downsample", int "show", bool "fulls")
 # Dependencies:
 #     ExTools
 
-function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", bool "aug", bool "Y", bool "U", bool "V", int "show", bool "fulls") {
+function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", bool "aug", bool "Y", bool "U", bool "V", string "propName", int "show", bool "fulls") {
 
     rgb  = isRGB(a)
     isy  = isY(a)
@@ -496,8 +507,9 @@ function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", boo
     u    = Default(u, false)
     v    = Default(v, false)
     fs   = Default(fulls,      fs)
+    pn   = Default(propName, "_PlaneSharpness")
 
-    Assert(IsVersionOrGreater(3,7,2),                         "SVM: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3),                         "SVM: Update AviSynth+ version")
     Assert((y && !u && !v)||(!y && u && !v)||(!y && !u && v), "SVM: Only one plane must be processed")
 
     clp = isy ? a : y ? rgb ? ExtractR(a) : ExtractY(a) : \
@@ -514,13 +526,13 @@ function SVM(clip a, int "rad", int "radV", string "mode", bool "emphasize", boo
 
     var = ex_lutxyz(av,mn,mx,(ep ? "y sqrt x sqrt X@ - dup * z sqrt X" : "y x - dup * z x") +  " - dup * + 0.5 *").ex_deflate()
 
-    ScriptClip(show == 1 ? a : var, function [var] () {
-        propSet(last,"_PlaneSharpness", AverageLuma(var), 0) } )
+    ScriptClip(show == 1 ? a : var, function [var,pn] () {
+        propSet(last,pn, AverageLuma(var), 0) } )
 
     show != 1 ? ConvertBits(au ? ex_lut("x 4 *"):last, bi, dither=-1, fulls=true) : last
 
-    show == 2 ? ScriptClip(function [] () {
-        Subtitle("_PlaneSharpness: "+string(propGetFloat("_PlaneSharpness"))) } ) : last }
+    show == 2 ? ScriptClip(function [pn] () {
+        Subtitle("_PlaneSharpness: "+string(propGetFloat(pn))) } ) : last }
 
 
 
