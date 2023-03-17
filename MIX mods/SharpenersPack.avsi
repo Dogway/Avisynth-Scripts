@@ -1263,7 +1263,7 @@ function SeeSawMulti(clip  c, int "Times", val "IG",
 ### Function Definition:
 ###    (
 ###    clip,
-###    float sstr=1.0 (0.0 to 3.0),
+###    float sstr=1.0 (0.0 to 5.0),
 ###    int mode=1 (3 / 2 / 1 / 0 / -1 / -2 / -3),
 ###    [float cstr=1.00 (0.50 to 1.25)],
 ###    float "xstr"=0.00 (0.00 to 0.25),
@@ -1277,7 +1277,8 @@ function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xs
 
     bi    = BitsPerComponent(c)
 
-    sstr  = Default(sstr, 1.0     )                  #  strength of sharpening, 0.0 up to ??
+    sstr  = Default(sstr, 1.0     )                  #  strength of sharpening, 0.0 up to 5.0
+    sstr  = 0.256*sstr-0.5
     mode  = Default(mode,clamp(round(2*sstr-1),1,3)) #  1 to 3, weakest to strongest. When negative -1 to -3, a broader kernel for equalisation is used.
 
     _cstr = spline(sstr, 0,0, 0.5,0.1, 1.0,0.6, 2.0,0.9, 2.5,1.00, 3.0,1.09, 3.5,1.15, 4.0,1.19, 8.0,1.249, 255.0,1.5)
