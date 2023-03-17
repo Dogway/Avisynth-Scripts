@@ -1489,7 +1489,7 @@ function butt_constructor(float rad, int n, bool vert) {
 # mean     - cubic     blur
 # weighted - spherical blur (beware this mode doesn't have SCD -scene change detection-)
 #
-# By order of strength: mean3D > weighted3D > ex_median("IQMT") > ex_fluxsmoothST(th=255>0)
+# By order of strength: mean3D > weighted3D > ex_median("IQMST") > ex_median("IQMT") > ex_fluxsmoothST(th=255>0)
 #
 # Function Definition:
 #    (
@@ -2195,12 +2195,19 @@ function ex_FluxSmoothST(clip a, int "rad", int "radT", int "th", int "Tth", boo
 # Spatial  3x3
 # Temporal 1x5
 #
+# Examples:
+#   STTWM(sw=20,tw=80,aw=100,sthres=255,tthres=7) # Strong temporal
+#   STTWM(sw=40,tw=60,aw=100,sthres=255,tthres=5) # Strong spatial
+#   STTWM(sw=50,tw=50,aw=100,sthres=  5,tthres=5) # Balanced
+#   STTWM(sw=50,tw=50,aw= 10,sthres=  5,tthres=5) # Light
+#
+#
 # Function Definition:
 #    (
 #    clip,
-#    int "sw"=24 (0 to 100),
-#    int "tw"=49 (0 to 100),
-#    int "aw"=1 (0 to 100),
+#    int "sw"=33 (0 to 100),
+#    int "tw"=67 (0 to 100),
+#    int "aw"=50 (0 to 100),
 #    int "sthres"=5 (0 to 255),
 #    int "tthres"=5 (0 to 255 by 1)
 #    )
@@ -2211,9 +2218,9 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
     isy = isy(a)
     bi  = BitsPerComponent(a)
 
-    sw  = Default(sw,     24)          # 0 - 100% Spatial  Weight
-    tw  = Default(tw,     49)          # 0 - 100% Temporal Weight
-    aw  = Default(aw,      1)          # 0 - 100% Absolute Weight
+    sw  = Default(sw,     33)          # 0 - 100% Spatial  Weight
+    tw  = Default(tw,     67)          # 0 - 100% Temporal Weight
+    aw  = Default(aw,     50)          # 0 - 100% Absolute Weight
     ths = Default(sthres,  5)          # 0 - 255  Spatial  threshold
     tht = Default(tthres,  5)          # 0 - 255  Temporal threshold
     UV  = Default(UV,    rgb ? 3 : 1)
@@ -2224,7 +2231,7 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
 
     ws  = (float(sw)/(sw+tw))
     wt  = (float(tw)/(sw+tw))
-    wa  = aw/100.
+    wa  = min(aw,100)/100.
     wr  = 1 - wa
 
     Assert(IsVersionOrGreater(3,7,2), "STTWM: Update AviSynth+ version")
