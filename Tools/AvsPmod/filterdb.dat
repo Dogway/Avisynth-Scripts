@@ -4942,13 +4942,13 @@ float "xstr"=0.19 (0.0 to 0.5),
 
 FineSharpPlus(
 clip,
-float sstr=1.0 (0.0 to 5.0),
-int mode=1 (-3 / -2 / -1 / 0 / 1 / 2 / 3),
+float sstr=1.0 (0.0 to 3.0),
+int mode=1 (3 / 2 / 1 / 0 / -1 / -2 / -3),
 [float cstr=1.00 (0.50 to 1.25)],
-float "xstr"=0.19 (0.00 to 0.25),
-[float "lstr"=1.49 (0.00 to 2.00)],
-[float "pstr"=1.272 (0.00 to 2.00)],
-[float "ldmp"=1.10 (0.00 to 8.00)],
+float "xstr"=0.00 (0.00 to 0.25),
+[float "lstr"=1.60 (0.00 to 2.00)],
+[float "pstr"=2.00 (0.00 to 2.00)],
+[float "ldmp"=2.00 (0.00 to 8.00)],
 [float "hdmp"=0.01 (0.00 to 8.00)]
 )
 
@@ -5620,6 +5620,7 @@ string "Preset"="Slower" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "F
 int "thSAD1"=640 (100 to 1000),
 int "thSAD2"=256 (100 to 1000),
 int "SourceMatch"=0 (0 to 3),
+string "EdiMode"="NNEDI3" ("Bob"/ "Yadif"/ "RepYadif"/ "TDeint"/ "BWDIF"/ "NNEDI"/ "NNEDI2"/ "NNEDI3"/ "EEDI2"/ "EEDI3"/ "EEDI3+NNEDI3"/ "BWDIF+NNEDI3"/ "BWDIF+EEDI3"/ "BOB+NNEDI3"/ "BWDIF+BOB"/ "BWDIF+BOB+NNEDI3"),
 string "MatchPreset"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
 string "MatchPreset2"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
 [int "MatchTR2"=1 (0 to 2)],
@@ -5957,9 +5958,9 @@ int "dymax"=4
 
 STTWM(
 clip,
-int "sw"=24 (0 to 100),
-int "tw"=49 (0 to 100),
-int "aw"=1 (0 to 100),
+int "sw"=33 (0 to 100),
+int "tw"=67 (0 to 100),
+int "aw"=50 (0 to 100),
 int "sthres"=5 (0 to 255),
 int "tthres"=5 (0 to 255)
 )
