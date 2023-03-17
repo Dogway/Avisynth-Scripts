@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.4 (02-03-2023)     ##
+###   Resizers Functions Pack 11.4 (16-03-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -675,8 +675,8 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
 
     xf      = Default(xfactor, !in ? 2 : 1)     # powers of 2; 2, 4, 8....
     yf      = Default(yfactor,   xf)
-    xf      = int(xf>12?16:min(8,pow(2,xf/2)))  # force power steps
-    yf      = int(yf>12?16:min(8,pow(2,yf/2)))
+    xf      = int(pow(2,round(Log(xf)/Log(2)))) # force power steps
+    yf      = int(pow(2,round(Log(yf)/Log(2)))) # force power steps
 
     xyf     = max(xf,yf)
 
@@ -825,8 +825,8 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
 
     xf      = Default(xfactor, !in ? 2 : 1)     # powers of 2; 2, 4, 8....
     yf      = Default(yfactor,   xf)
-    xf      = int(xf>12?16:min(8,pow(2,xf/2)))  # force power steps
-    yf      = int(yf>12?16:min(8,pow(2,yf/2)))
+    xf      = int(pow(2,round(Log(xf)/Log(2)))) # force power steps
+    yf      = int(pow(2,round(Log(yf)/Log(2)))) # force power steps
 
     xyf     = max(xf,yf)
 
