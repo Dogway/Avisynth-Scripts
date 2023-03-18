@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v5.1  (17-03-2023)                             ###
+###        Sharpeners Pack v5.1  (18-03-2023)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -1255,9 +1255,9 @@ function SeeSawMulti(clip  c, int "Times", val "IG",
 ###
 ### - Didée
 ###      mod 2020.04.12 HBD by real.finder
-### mix  mod 2021.08.16     by Dogway (ported to ExTools and optmized expression)
+### mix  mod 2021.08.16     by Dogway (ported to ExTools and optimized expression)
 ### plus mod 2022.03.05     by Dogway (merged the non-linear sharpening from LSFplus)
-### plus mod 2023.03.17     by Dogway (remapped values to conform to non-linear sharpening)
+### plus mod 2023.03.18     by Dogway (remapped values to conform to LSFplus' non-linear sharpening)
 ###
 ###
 ### Function Definition:
@@ -1270,14 +1270,14 @@ function SeeSawMulti(clip  c, int "Times", val "IG",
 ###    [float "lstr"=1.60 (0.00 to 2.00)],
 ###    [float "pstr"=2.00 (0.00 to 2.00)],
 ###    [float "ldmp"=2.00 (0.00 to 8.00)],
-###    [float "hdmp"=0.01 (0.00 to 8.00)]
+###    [int "hdmp"=0 (0 to 255)]
 ###    )
 ###
-function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xstr", float "lstr", float "pstr", float "ldmp", float "hdmp") {
+function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xstr", float "lstr", float "pstr", float "ldmp", int "hdmp") {
 
     bi    = BitsPerComponent(c)
 
-    sstr  = Default(sstr, 1.0     )                  #  strength of sharpening, 0.0 up to 5.0
+    sstr  = Default(sstr, 1.0  )                     #  strength of sharpening, 0.0 up to 5.0
     sstr  = 0.256*sstr-0.5
     mode  = Default(mode,clamp(round(2*sstr-1),1,3)) #  1 to 3, weakest to strongest. When negative -1 to -3, a broader kernel for equalisation is used.
 
@@ -1289,10 +1289,11 @@ function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xs
 
     #  Viscera parameters
     lstr  = Default(lstr, 1.6  )                     #  modifier for non-linear sharpening
-    pstr  = Default(pstr, 2    )                     #  exponent for non-linear sharpening
+    pstr  = Default(pstr, 2.0  )                     #  exponent for non-linear sharpening
     ldmp  = Default(ldmp, max(2,5*sstr-5))           # "low damp", to not overenhance very small differences (noise coming out of flat areas)
-    hdmp  = Default(hdmp, 0.01 )                     # "high damp", this damping term has a larger effect than ldmp when the sharp-difference is larger than 1, vice versa.
+    hdmp  = Default(hdmp, 0    )                     # "high damp", further reduces sharpening when the sharp-difference is larger than 1. Try 15~30. "0" disables
 
+    HDMPR = 1. / HDMP
     SSTR  = sstr * 50
     LSTR  = lstr * 10
     LSTRR = 1. / lstr
@@ -1306,12 +1307,13 @@ function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xs
     \ : (abs(mode)==2) ? c.removegrain(4, -1).removegrain(12,-1)
     \ : (abs(mode)==3) ? c.removegrain(4, -1).removegrain(12,-1).removegrain(4,-1) : c
 
-    shrpD = ex_lutxy(c,b,Format("x dup y == swap dup y - A@ abs B@ {LSTRR} * {PSTRR} ^ {LSTRS} * A sgn * A 2 ^ C@ {LSTR2} {LDMP} + * C {LDMP} + {LSTR2} * / * {LSTR} {HDMP} * 4 ^ 1 + B {HDMP} * 4 ^ 1 + / * x + ?"), UV=1, fulls=false, scale_inputs="all")
+    HDMPS = (hdmp>0)   ? Format("{LSTR} {HDMPR} * 4 ^ 1 + B {HDMPR} * 4 ^ 1 + / * ") : ""
+    shrpD = ex_lutxy(c,b,Format("x dup y == swap dup y - A@ abs B@ {LSTRR} * {PSTRR} ^ {LSTRS} * A sgn * A 2 ^ C@ {LSTR2} {LDMP} + * C {LDMP} + {LSTR2} * / * "+HDMPS+" x + ?"), UV=1, fulls=false, scale_inputs="all")
 
-    shrp = (cstr<0.01) ? shrpD : ex_lutxy(shrpD,shrpD.ex_lutxy(c,Format("x y - {CSTR} * range_half +"),fulls=true).removegrain(rg,-1), "x y - range_half +", UV=1, fulls=true)
+    shrp = (cstr<0.01) ? shrpD      : ex_lutxy(shrpD,shrpD.ex_lutxy(c,Format("x y - {CSTR} * range_half +"),fulls=true).removegrain(rg,-1), "x y - range_half +", UV=1, fulls=true)
 
-           (xstr<0.01) ? shrp  : ex_lutxy (shrp, shrp.removegrain(20,-1),"x dup y - 9.69 * +", UV=1, fulls=true).repair(shrp,12,0).mergeluma(shrp,1.0-xstr)
-           (sstr<0.01) ?    c  : last }
+           (xstr<0.01) ? shrp       : ex_lutxy (shrp, shrp.removegrain(20,-1),"x dup y - 9.69 * +", UV=1, fulls=true).repair(shrp,12,0).mergeluma(shrp,1.0-xstr)
+           (sstr<0.01) ? c : hdmp>0 ? ex_luts  (last, c, mode="clamp",pixels=ex_shape()) : last }
 
 
 
