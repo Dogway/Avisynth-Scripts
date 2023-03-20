@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v5.1  (18-03-2023)                             ###
+###        Sharpeners Pack v5.1  (20-03-2023)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -1257,7 +1257,7 @@ function SeeSawMulti(clip  c, int "Times", val "IG",
 ###      mod 2020.04.12 HBD by real.finder
 ### mix  mod 2021.08.16     by Dogway (ported to ExTools and optimized expression)
 ### plus mod 2022.03.05     by Dogway (merged the non-linear sharpening from LSFplus)
-### plus mod 2023.03.18     by Dogway (remapped values to conform to LSFplus' non-linear sharpening)
+### plus mod 2023.03.20     by Dogway (remapped values to conform to LSFplus' non-linear sharpening)
 ###
 ###
 ### Function Definition:
@@ -1265,12 +1265,12 @@ function SeeSawMulti(clip  c, int "Times", val "IG",
 ###    clip,
 ###    float sstr=1.0 (0.0 to 5.0),
 ###    int mode=1 (3 / 2 / 1 / 0 / -1 / -2 / -3),
-###    [float cstr=1.00 (0.50 to 1.25)],
+###    [float cstr=0.10 (0.00 to 1.25)],
 ###    float "xstr"=0.00 (0.00 to 0.25),
 ###    [float "lstr"=1.60 (0.00 to 2.00)],
 ###    [float "pstr"=2.00 (0.00 to 2.00)],
 ###    [float "ldmp"=2.00 (0.00 to 8.00)],
-###    [int "hdmp"=0 (0 to 255)]
+###    [int "hdmp"=0 (0 to 30)]
 ###    )
 ###
 function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xstr", float "lstr", float "pstr", float "ldmp", int "hdmp") {
@@ -1278,7 +1278,7 @@ function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xs
     bi    = BitsPerComponent(c)
 
     sstr  = Default(sstr, 1.0  )                     #  strength of sharpening, 0.0 up to 5.0
-    sstr  = 0.256*sstr-0.5
+    sstr  = max(0,0.256*(sstr+1)-0.5)
     mode  = Default(mode,clamp(round(2*sstr-1),1,3)) #  1 to 3, weakest to strongest. When negative -1 to -3, a broader kernel for equalisation is used.
 
     _cstr = spline(sstr, 0,0, 0.5,0.1, 1.0,0.6, 2.0,0.9, 2.5,1.00, 3.0,1.09, 3.5,1.15, 4.0,1.19, 8.0,1.249, 255.0,1.5)
