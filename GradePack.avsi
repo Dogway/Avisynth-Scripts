@@ -415,6 +415,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ### Performs luma levels normalization on a per-scene basis (requires '_SceneStats' or at least '_SceneRange' frameprops)
 ### With 'Deflicker' you can remove luma flicker (see example below).
 ### 'Deflicker' performs global auto-levels on a per-frame and per-scene basis.
+### 'Deflicker' only works if the flicker frequency is higher than the content (ie. high motion), otherwise adjust the 'interval'.
 ###
 ### Example for a robust deflicker (double call):
 ###     ex_autolevels(true ,true, true, Deflicker=true)
