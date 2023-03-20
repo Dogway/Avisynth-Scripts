@@ -52,12 +52,12 @@
 ### Scene Change arguments:
 ###   dFactor:   Detection factor, a multiplier applied to frame difference metrics to decide if a scene changes.
 ###   Mindif:    Supply MinDif as if in 8 bit range (0.0 - 255.0). An additional component part (a bias) of scene change detection. Not very important when iFactor=true
-###   iFactor:   If true (Default) it will give half weights to dFactor for 'I' type frames. This increases succesful detection rates for scene changes.
+###   iFactor:   If true (Default) it will give half weights to dFactor for 'I' type frames. This increases succesful detection rates for scene changes. Disable if clip is only I-frames.
 ###   Anime:     Scene Change Detection for anime should be handled differently, therefore this bool arg. Hard-codes 'iFactor=true' internally.
 ###
 ### Other:
 ###   path:      Define a path (anything other than "") to write stats to a file.
-###   dClip:     You can supply an external clip to compute scene change and stats from. For SC the clip should be grain free, if not supply a 'dClip' prefiltered with ex_minblur() or some kind of median or temporal denoiser.
+###   dClip:     You can supply an external clip to compute scene change and stats from. It can be a cropped version but for SC the clip should be grain free, if not supply a 'dClip' prefiltered with ex_minblur() or some kind of lightweight median or temporal denoiser.
 ###   show:      Enable to output frame properties, Prev frame diff factor, next frame diff factor and a scene change vertical bar.
 ###
 ###
@@ -93,6 +93,7 @@
 ###     ReadStats("E:\source_stats.log")
 ###     or
 ###     ClipStats("E:\source_stats.log") # Slow initialization
+###
 ###
 function SceneStats(clip a, string "mode", float "interval", float "th", float "dFactor", float "MinDif", bool "iFactor", bool "anime", clip "dClip", string "path", bool "Y", bool "UV", bool "show") {
 
@@ -158,7 +159,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     dClip =  an ? dClip.Limiter(0,100)   : dClip       # AntiFlash & Anti-BiModal for Anime
     oClip =       dClip.SelectEvery(1,-1)
     dClip =       dClip.SelectEvery(1, 1)
-    tClip =  dt ? sClip.ex_edge("tritical",0) : nop()  # Sub with SVM()? Should be lightweight though since we're looking back-ahead
+    tClip =  dt ? sClip.ex_edge("tritical",0) : nop()  # Sub with SVM()? Should be lightweight though since we're looking back+ahead
 
     ScriptClip(a, function [oClip,dClip,sClip,tClip,uClip,vClip,Y,UV,stp,stp0,la,th,dfactor,ib,iFactor,MinDif,FC,an,rn,mo,ev,dt,st,std,sr,ZN,PSA,sh] () {
 
