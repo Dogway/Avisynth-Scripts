@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v10.1    (09-03-2023)                 ##
+###        ExTools v10.2    (24-03-2023)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -75,6 +75,7 @@
 ###     ex_deflate                                       ##
 ###     ex_inflate                                       ##
 ###     ex_hitormiss                                     ##
+###     ex_dedither                                      ##
 ###     ex_edge                                          ##
 ###     ex_luts                                          ##
 ###     ex_shape                                         ##
@@ -5884,7 +5885,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
     bi  = BitsPerComponent(a)
 
     md  = Default(mode,  "undot2")
-    md  = ReplaceStr(LCase(mode)," ","")
+    md  = ReplaceStr(LCase(md)," ","")
     UV  = Default(UV,    rgb ? 3 : 1)
     un  = Undefined()
 
@@ -6763,6 +6764,64 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
               Expr(a, str, cstr, scale_inputs="none") } }
 
 
+/*
+   Checkerboard Dedither - pass1
+
+   2011-2022 Hyllian - sergiogdb@gmail.com
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+   THE SOFTWARE.
+
+*/
+# port of https://github.com/libretro/slang-shaders/blob/master/dithering/shaders/checkerboard-dedither/checkerboard-dedither-pass1.slang
+
+function ex_dedither(clip a, float "blend", int "UV") {
+
+    rgb  = isRGB(a)
+    isy  = isy(a)
+    bi   = BitsPerComponent(a)
+    fs   = propNumElements (a,"_ColorRange")  > 0 ? \
+           propGetInt      (a,"_ColorRange") == 0 : rgb
+
+    bl   = Default(blend,       1.0 )
+    UV   = Default(UV, rgb ? 3 : 128)
+    un   = Undefined()
+    si   = fs ? "allf" : "all"
+
+    # checkerboard-dedither-pass1
+    str = Format("f32 x[-1,-1] UL^  x[-1,0] U^  x[1,-1]  UR^
+                      x[-1,0]   L^  x[0,0]  C^  x[0,1]    R^
+                      x[-1,1]  DL^  x[1,0]  D^  x[1,1]   DR^
+
+                      L R max LRM@ C max L R min LRN@ C min -
+                      1 {bl} - * DIFF@
+
+                      1 + 0.5 * C *  1 DIFF - 0.125 *  L R U D + + + *  +
+
+                      LRM C min U D max C min max
+                      LRN C max U D min C max min clip")
+
+
+    isy     ? Expr(a, str                                 , scale_inputs=si) : \
+    UV == 1 ? Expr(a, str, ""                             , scale_inputs=si) : \
+              Expr(a, str, ex_UVexpr(str, UV, bi, rgb, un), scale_inputs=si) }
+
+
 
 # mt_edge() (488fps) is 16% faster (varies with kernel)
 # "Canny" is a bit too complex (requires mt_hysteresis) so that's better used in a plugin (ie. vsTCanny)
@@ -7001,7 +7060,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
 ###   px=ex_shape(3,mode="disk",type="array")
 ###   ex_luts(mode="avg",pixels=px[0], exprf=" X^ "+sel_med(px[1])) -> Trimmed mean with custom kernel shape
 ###
-### For more check Morphological examples above at line: 6180
+### For more check Morphological examples above at line: 6264
 ###
 ### Function Definition:
 ###    (
@@ -7499,7 +7558,7 @@ function ex_dlut(string "str", int "bits", bool "fulls") {
 \   :  Assert (false, "ex_dlut: '"+string(bits)+"', unsupported bit depth.")
 
 
-    #                            8-bit UINT    10-bit UINT     12-bit UINT     14-bit UINT       16-bit UINT       24-bit UINT             32-bit Ufloat (by default AVS+ constants are signed)
+    #                            8-bit UINT    10-bit UINT     12-bit UINT     14-bit UINT       16-bit UINT       24-bit UINT             32-bit Ufloat (by default AVS+ constants are signed) (float chroma should use fulls=true)
     range_min   = Select (bitd,  [  0.,  0.],  [   0.,   0.],  [   0.,   0.],  [    0.,    0.],  [    0.,    0.],  [       0.,       0.],  [       0.,       0.])
     ymin        = Select (bitd,  [ 16., 16.],  [  64.,  64.],  [ 256., 257.],  [ 1024., 1028.],  [ 4096., 4112.],  [ 1048576., 1052672.],  [  16/255.,  16/255.])
     cmin        = Select (bitd,  [ 16., 16.],  [  64.,  64.],  [ 256., 257.],  [ 1024., 1028.],  [ 4096., 4112.],  [ 1048576., 1052672.],  [  16/255.,  16/255.])
