@@ -1246,7 +1246,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ###
 ### Benchmark:
 ### 100.0% PseudoColor("rainbow") (290fps)
-###  32.8% RGB().Cube("lutfile.cube").YV12()
+###  32.8% ConvertToRGB().Cube("false_color.cube").ConvertToYV12()
 ###
 ####################################
 
