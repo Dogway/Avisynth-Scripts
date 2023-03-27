@@ -570,6 +570,10 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 #
 # Wrapper around RIFE port by Asd-g
 #
+# Examples:
+#   RIFEwrap()                    # Default for doubling framerate for live action
+#   RIFEwrap(model=3, anime=true) # for 2D animation
+#
 # Dependencies:
 #       RIFE
 #       ExTools
