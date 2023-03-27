@@ -17,11 +17,11 @@
 
 <p>
 <b>Author: </b>Dogway<br/>
-<b>Version: </b>v4.1.0d<br/>
+<b>Version: </b>v4.2.0d<br/>
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 09-March-2023
+<b>Date:</b> 27-March-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -40,7 +40,7 @@
 <ul>
 <table>
   <tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.1 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.2 or higher)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/MVTools" target="_blank">MVTools2</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v2.7.45 or higher)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.4 or higher)</td></tr>
   </tr>
@@ -51,7 +51,7 @@
 <table>
   <tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/LSFplus.avsi" target="_blank">LSFplus</a></b></li></td><td>&nbsp;&nbsp;(v6.0 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp>0)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/SharpenersPack.avsi" target="_blank">SharpenersPack</a></b></li></td><td>&nbsp;&nbsp;(v5.0 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or LFR)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/SharpenersPack.avsi" target="_blank">SharpenersPack</a></b></li></td><td>&nbsp;&nbsp;(v5.1 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or LFR)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/GradePack.avsi" target="_blank">GradePack</a></b></li></td><td>&nbsp;&nbsp;(v8.7 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ or show)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ScenesPack.avsi" target="_blank">ScenesPack</a></b></li></td><td>&nbsp;&nbsp;(v4.5 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ if '_SceneRange' frameprops exist)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MasksPack.avsi" target="_blank">MasksPack</a></b></li></td><td>&nbsp;&nbsp;(v6.6 or higher)</td><td>&nbsp;&nbsp;(for show)</td></tr>
@@ -63,7 +63,7 @@
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.5 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Neo_TMedian" target="_blank">neo_tmedian</a></b></li></td><td>&nbsp;&nbsp;(r2 or higher)</td><td>&nbsp;&nbsp;(for mode="medianT") (broken for interlaced inputs)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/VsTTempSmooth" target="_blank">vsTTempSmooth</a></b></li></td><td>&nbsp;&nbsp;(v1.2.3 or higher)</td><td>&nbsp;&nbsp;(for mode="TemporalSmooth")</td></tr>
-    <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.6 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
+    <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.7 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Average" target="_blank">Average</a></b></li></td><td>&nbsp;&nbsp;(v0.95 or higher)</td><td>&nbsp;&nbsp;(for LFR or mfilter + (Contrasharp or mode!=MDegrain) )</td></tr>
   </tr>
 </table>
@@ -130,7 +130,7 @@ This setup optimized internally along with <var>RefineMotion</var> might be all 
 <br/>
 <p><i>SMDegrain (clip input, int <a href="#tr">"tr"</a>, int <a href="#thSAD">"thSAD"</a>, int <a href="#thSADC">"thSADC"</a>, bool <a href="#RefineMotion">"RefineMotion"</a>, val <a href="#contrasharp">"contrasharp"</a>, clip <a href="#CClip">"CClip"</a>, string <a href="#mode">"mode"</a>, bool <a href="#interlaced">"interlaced"</a>, int <a href="#plane">"plane"</a>, int <a href="#Globals">"Globals"</a>, bool <a href="#tv_range">"tv_range"</a>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int <a href="#pel">"pel"</a>, int <a href="#subpixel">"subpixel"</a>, val <a href="#prefilter2">"prefilter"</a>, clip <a href="#mfilter">"mfilter"</a>, int <a href="#blksize">"blksize"</a>, int <a href="#overlap">"overlap"</a>, int <a href="#limit">"limit"</a>, float <a href="#limitC">"limitC"</a>, bool <a href="#limitS">"limitS"</a>, val <a href="#LFR">"LFR"</a>, bool <a href="#DCTFlicker">"DCTFlicker"</a>, int <a href="#thSCD1">"thSCD1"</a>, int <a href="#thSCD2">"thSCD2"</a>, &nbsp;&nbsp;\<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool <a href="#chroma">"chroma"</a>, int <a href="#hpad">"hpad"</a>, int <a href="#vpad">"vpad"</a>, val <a href="#Show">"Show"</a>, float <a href="#Str">"Str"</a>, float <a href="#Amp">"Amp"</a>, int <a href="#DCT">"DCT"</a>, int <a href="#searchparam">"searchparam"</a>, int <a href="#pelsearch">"pelsearch"</a>, int <a href="#search">"search"</a>, bool <a href="#truemotion">"truemotion"</a>, int <a href="#gpuid">"gpuid"</a>, int <a href="#rfilter">"rfilter"</a>, bool <a href="#UHDhalf">"UHDhalf"</a>)</i></p><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool <a href="#luma">"luma"</a>,bool <a href="#chroma">"chroma"</a>, int <a href="#hpad">"hpad"</a>, int <a href="#vpad">"vpad"</a>, val <a href="#Show">"Show"</a>, float <a href="#Str">"Str"</a>, float <a href="#Amp">"Amp"</a>, int <a href="#DCT">"DCT"</a>, int <a href="#searchparam">"searchparam"</a>, int <a href="#pelsearch">"pelsearch"</a>, int <a href="#search">"search"</a>, bool <a href="#truemotion">"truemotion"</a>, int <a href="#gpuid">"gpuid"</a>, int <a href="#rfilter">"rfilter"</a>, bool <a href="#UHDhalf">"UHDhalf"</a>)</i></p><br/>
 <br/><br/>
 <h3><a id="basic"></a>Basic&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h3>
 <br/>
@@ -429,6 +429,13 @@ Takes chroma <var>plane</var>s into consideration for calculating the motion vec
 Turn it off for more speed with little cost in quality, or when your chroma is not reliable enough for motion estimation.<br/>
 &nbsp;&nbsp;*<i>Whatch out if you turn this off when processing chroma planes (aka luma vectors when chroma denoising), it has shown problems in <a href="https://forum.doom9.org/showthread.php?p=1551305" target="_blank">previous tests</a>.</i><br/>
 <br/>
+<h4><a id="luma"></a>Luma</h4>
+<i>[bool: "true", false]</i><br/>
+<br/>
+Takes luma <var>plane</var> into consideration for calculating the motion vectors.<br/>
+For example if you were to denoise only Chroma planes (plane=1, 2 or 3), you might or might not want to use vectors from the Luma plane.<br/>
+Actually MVTools2 doesn't have an option for this, so what this does is concerned to prefilters and finally a luma weighting that is half of the chroma on the MVTools2 side.<br/>
+<br/>
 <h4><a id="hpad"></a>Hpad, Vpad</h4>
 <i>[int: "<var>blksize</var>"]</i><br/>
 <br/>
@@ -560,7 +567,7 @@ Also set contrasharpening to temporal limited (limitS)
 SMDegrain(2, 200, prefilter=pre, mfilter=pre, refinemotion=true, contrasharp=60, limitS=false, chroma=false)</pre>
 <br/>
 How to degrain an PQ encoded HDR clip. Note that <var>prefilter</var> clips also pass through ex_Luma_Rebuild() internally.
-<pre>pre=DGHDRtoSDR(mode="pq",white=ceil(59.49080238715383)) # Check different white levels depending on source
+<pre>pre=DGHDRtoSDR(mode="pq",white=ceil(59.49080238715383)) # Check different white levels depending on source metadata
 SMDegrain(tr=3,thSAD=300,prefilter=pre,UHDHalf=true)    # 'UHDHalf' is redundant as is enabled by default</pre>
 <br/>
 (Re)using motion vectors <var>globals</var>.
@@ -582,11 +589,20 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
+<p><b>v4.2.0d</b> (27-03-2023)</p>
+    <ul>
+        <li>Fix ex_DGDenoise() when processing chroma</li>
+        <li>Limit prefilter=6 (KNLMeansCL) gpuid to 0 minimum</li>
+        <li>Optimization. Reuse Mavg var conversion to YUV</li>
+        <li>Optimization. Engulf CClip code block into !GlobalO logic</li>
+        <li>Optimization. Add 'luma' arg, for chroma only MV, or luma denoise with chroma only MVs</li>
+        <li>Logic cleanup for isInter in show code block</li>
+    </ul>
 <p><b>v4.1.0d</b> (09-03-2023)</p>
     <ul>
         <li>Remove all references to RGB since it isn't supported by MVTools2</li>
         <li>Pass LFR through the motion mask to further mask out DCT flicker (even when DCTFlicker=false, when true mask is stronger)</li>
-        <li>Replace prefilter=4 (FluxSmoothST) with "IQMST", suited for very grainy HD sources</li>
+        <li>Replace prefilter=4 (FluxSmoothST) with "IQMST", suited for very grainy live action HD sources</li>
         <li>Update documentation</li>
     </ul>
 <p><b>v4.0.0d</b> (02-03-2023)</p>
