@@ -314,7 +314,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                   (prefilter== 5) ? ex_merge(DFTTest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,Y=Lum==3,U=chroma,V=chroma,dither=1,threads=1,sbsize=12,sosize=6,swin=2),pref,           \
                                                                pref.ex_lut(Format("range_max range_max {Lthres} ymin - / x ymin - * -"),UV=1,clamp_float=true),         Y=Lum,UV=Chr,luma=chroma)            : \
                                   (prefilter== 6) ?            pref.ex_KNLMeansCL(a=2,s=2,d=1,h=7.0,wmode=1,chroma=chroma,gpuid=max(0,gpuid),LFR=600*(nw/1920.)).ex_sbr(Y=Lum,UV=Chr)                        : \
-                                  (prefilter== 7) ?            pref.ex_DGDenoise(str=0.10,LFR=nw/2.,UV=Chr).                                                     ex_sbr(Y=Lum,UV=Chr)                        : \
+                                  (prefilter== 7) ?            pref.ex_DGDenoise(str=Luma?0.10:0,strc=chroma?0.05:0,LFR=nw/2.,UV=Chr).                           ex_sbr(Y=Lum,UV=Chr)                        : \
                                   (prefilter== 8) ?            pref.ex_BM3D(TS?max(10,thSAD/30.):10,1,TS&&thSAD>550?"noisy":"normal",UV=Chr,gpuid=gpuid,tv_range=!fsp)                                       : \
                                                     Assert(false, "SMDegrain: 'Prefilter' didn't find a matching preset: "+string(prefilter))                                                                : \
                                    pref
