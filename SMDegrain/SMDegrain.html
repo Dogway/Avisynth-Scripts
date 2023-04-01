@@ -17,11 +17,11 @@
 
 <p>
 <b>Author: </b>Dogway<br/>
-<b>Version: </b>v4.2.0d<br/>
+<b>Version: </b>v4.3.0d<br/>
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 27-March-2023
+<b>Date:</b> 01-April-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -130,7 +130,7 @@ This setup optimized internally along with <var>RefineMotion</var> might be all 
 <br/>
 <p><i>SMDegrain (clip input, int <a href="#tr">"tr"</a>, int <a href="#thSAD">"thSAD"</a>, int <a href="#thSADC">"thSADC"</a>, bool <a href="#RefineMotion">"RefineMotion"</a>, val <a href="#contrasharp">"contrasharp"</a>, clip <a href="#CClip">"CClip"</a>, string <a href="#mode">"mode"</a>, bool <a href="#interlaced">"interlaced"</a>, int <a href="#plane">"plane"</a>, int <a href="#Globals">"Globals"</a>, bool <a href="#tv_range">"tv_range"</a>,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;\<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;int <a href="#pel">"pel"</a>, int <a href="#subpixel">"subpixel"</a>, val <a href="#prefilter2">"prefilter"</a>, clip <a href="#mfilter">"mfilter"</a>, int <a href="#blksize">"blksize"</a>, int <a href="#overlap">"overlap"</a>, int <a href="#limit">"limit"</a>, float <a href="#limitC">"limitC"</a>, bool <a href="#limitS">"limitS"</a>, val <a href="#LFR">"LFR"</a>, bool <a href="#DCTFlicker">"DCTFlicker"</a>, int <a href="#thSCD1">"thSCD1"</a>, int <a href="#thSCD2">"thSCD2"</a>, &nbsp;&nbsp;\<br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool <a href="#luma">"luma"</a>,bool <a href="#chroma">"chroma"</a>, int <a href="#hpad">"hpad"</a>, int <a href="#vpad">"vpad"</a>, val <a href="#Show">"Show"</a>, float <a href="#Str">"Str"</a>, float <a href="#Amp">"Amp"</a>, int <a href="#DCT">"DCT"</a>, int <a href="#searchparam">"searchparam"</a>, int <a href="#pelsearch">"pelsearch"</a>, int <a href="#search">"search"</a>, bool <a href="#truemotion">"truemotion"</a>, int <a href="#gpuid">"gpuid"</a>, int <a href="#rfilter">"rfilter"</a>, bool <a href="#UHDhalf">"UHDhalf"</a>)</i></p><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;bool <a href="#luma">"luma"</a>, bool <a href="#chroma">"chroma"</a>, int <a href="#hpad">"hpad"</a>, int <a href="#vpad">"vpad"</a>, val <a href="#Show">"Show"</a>, float <a href="#Str">"Str"</a>, float <a href="#Amp">"Amp"</a>, int <a href="#DCT">"DCT"</a>, int <a href="#searchparam">"searchparam"</a>, int <a href="#pelsearch">"pelsearch"</a>, int <a href="#search">"search"</a>, bool <a href="#truemotion">"truemotion"</a>, int <a href="#gpuid">"gpuid"</a>, int <a href="#rfilter">"rfilter"</a>, bool <a href="#UHDhalf">"UHDhalf"</a>)</i></p><br/>
 <br/><br/>
 <h3><a id="basic"></a>Basic&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h3>
 <br/>
@@ -269,9 +269,9 @@ specially when the source is grainy, technically speaking by lowering the SAD (S
 If you didn't realize already, most of the settings in MVTools and SMDegrain revolve around conditioning this <var>prefilter</var>ed clip.<br/>
 From <var>pel</var>, going through <var>subpixel</var>, to luma expansion (<var>Str</var> and <var>Amp</var>) and obviously <var>prefilter</var>s.<br/>
 <br/>
-In general terms spatial prefiltering is enough (presets from 0 to 3 and 5) while very grainy sources might require spatio-temporal filters (presets 4, 6, 7, and 8).<br/>
+In general terms spatial prefiltering is enough (presets from 0 to 3 and 5 and 7) while very grainy sources might require spatio-temporal filters (presets 4, 6 and 8).<br/>
 The goal here is not to provide a fully perfectly denoised clip but a slightly soft or out-of-focus version of an ideal clean clip, that is, soft edges (but not blurry) and clean flat areas.<br/>
-For example cartoons display many flat areas that work great with median filters (1 to 3) or even non-local means (6 and 7). While live action, depending on<br/> the nature of the grain, can use the spatial prefilters which are faster or BM3D (preset  8). Custom external prefilters will also be explained below.<br/><br/>
+For example cartoons may display many flat areas that work great with median filters (1 to 3) or even non-local means (6 and 7). While live action, depending on<br/> the nature of the grain, can use the spatial prefilters which are faster or BM3D (preset  8). Custom external prefilters will also be explained below.<br/><br/>
 To put denoising filters in comparison back to back, we can broadly order them in the following sequence of quality:<br/>
 <pre>BM3D (Block Matching 3D) > NLMeans > SAD Block Matching (MVTools) > Frequency Filters (FFT/DFT..) > Bilateral > Median > simple linear filters (Gaussian Filter, Wiener Filter...)</pre><br/>
 <br/>
@@ -291,7 +291,7 @@ For example, we have a very grainy 1080p source so we are going to apply quite e
     SMDegrain(tr=2,mode="MDegrain"      ,blksize=32,prefilter=pre,thSAD=400,LFR=200,DCTFlicker=true ,contrasharp=true ,refinemotion=true)</pre>
 <br/>
 TemporalSoften and TemporalGauss are two degraining <var>mode</var>s that switch a few internal settings to make it more temporally stable. It's quite an extreme approach<br/>
-also with <var>blksize</var>=32 and <var>thSAD</var>=900, therefore we should recover some low frequency smearing with <var>LFR</var>=400 and <var>DCTFlicker</var>=true.<br/>
+also with <var>blksize</var>=32 and <var>thSAD</var>=700, therefore we should recover some low frequency smearing with <var>LFR</var>=400 and <var>LFR</var>=200, <var>DCTFlicker</var>=true in the second call.<br/>
 Following we feed this <var>prefilter</var> clip to the next SMDegrain call with saner settings.<br/>
 *For these two degraining modes you might want to manually tweak the <var>thSCD1</var> value, specially in the <var>thSAD</var> 400 to 800 range.<br/>
 Higher than that it's automatically parametrized to give the lowest <var>thSCD1</var> value (prevents filtering across scene changes) with reasonable filtering.<br/>
@@ -336,7 +336,7 @@ It's basically a TemporalGauss, with some limiting and a gaussian blur. What he 
 My improved alternative was already given above, but adding ex_sbr() instead of a gaussian blur:<br/>
 <pre>pre=SMDegrain(2,thSAD=1600,mode="TemporalGauss",pel=1,rfilter=0,str=0,tv_range=false,plane=0,truemotion=true) # Tuned for speed or "dumb" MV
 pre=pre.ex_sbr(3,UV=3)</pre>
-*You can read more about this and a stronger alternative more similar to Calm() for DeWobble on this <a href="https://forum.doom9.org/showthread.php?p=1984051" target="_blank">post</a><br/>
+*You can read more about this and a stronger alternative more similar to Calm() for DeWobble on this <a href="https://forum.doom9.org/showthread.php?p=1984051" target="_blank">post and following pages.</a><br/>
 <br/>Notes:
 To sum it up; generally in denoising, temporal filters are always preferred due to its natural look (versus spatial filters).<br/>
 But more often than not for good results <var>prefilter</var>ing plays a key role on the output quality, and setting it up nicely can be looked as an art by itself.<br/>
@@ -345,7 +345,7 @@ But more often than not for good results <var>prefilter</var>ing plays a key rol
 <i>[clip: - ]</i><br/>
 <br/>
 As with <var>prefilter</var>, in mfilter (Motion Filter) you can add a clip variable. This clip will be passed through those areas where SMDegrain() couldn't find a matching block, normally high motion areas.<br/>
-One use for it would be to to use spatial filters, like deblockers or blurring filters that mimic motion blur.<br/>
+One use for it would be to use spatial filters, like deblockers or blurring filters that mimic motion blur.<br/>
 Clip should match input format.<br/>
 <br/>
 <h4><a id="Str"></a>Str</h4>
@@ -589,6 +589,12 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
+<p><b>v4.3.0d</b> (01-04-2023)</p>
+    <ul>
+        <li>Construct vector variables in a for loop</li>
+        <li>Fix 'mode', 'mfilter' and 'LFR' when isMult (tr > 6)</li>
+        <li>Swizzle in unprocessed planes to MFilter clip when the option is used</li>
+    </ul>
 <p><b>v4.2.0d</b> (27-03-2023)</p>
     <ul>
         <li>Fix ex_DGDenoise() when processing chroma</li>
