@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.7 (24-02-2023)               ##
+###           Grade Pack v8.8 (02-04-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -421,7 +421,7 @@ function ex_levels (clip c, float "input_low", float "gamma", float "input_high"
 ###     ex_autolevels(true ,true, true, Deflicker=true)
 ###     ex_autolevels(false,true,false, Deflicker=true) # Second pass (recomputes '_SceneStats') to refine gamma deflicker
 ###
-function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflicker", float "interval", float "th", bool "tv_in", bool "tv_out", bool "reStats") {
+function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", int "lift", bool "Deflicker", float "interval", float "th", bool "tv_in", bool "tv_out", bool "reStats") {
 
     c
     rgb  = isRGB()
@@ -434,25 +434,26 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
     df   = Default(Deflicker, false)
     lo   = Default(lo,         true)
     gm   = Default(gamma,      true)
-    hi   = Default(hi,           df)
+    hi   = Default(hi,           df)      # True for deflicker, False for normalization
     in   = Default(interval,    0.5)      # Interval in seconds for fetching frames
     th   = Default(th,          0.1)      # 1/1000 threshold (0.1% or 1‰ -one per-mille-)
     tv   = Default(tv_in,       !fs)
     tvo  = Default(tv_out,       tv)
+    lf   = Default(lift, df ? 2 : 0)      # When using Deflicker thresholded minimum can be too low, use this bias to avoid crushing blacks
     rs   = Default(reStats,     !df)      # Numerally recomputes new stats instead of rerunning SceneStats. Hard-coded off when deflicker is used
 
     Assert(IsVersionOrGreater(3,7,3), "ex_autolevels: Update AviSynth+ version")
     Assert(rn,                        "ex_autolevels: '_SceneRange' frame properties are required")
     !st ? SceneStats("Stats",in,th) : last
 
-    ScriptClip(function [lo,gm,hi,df,tv,tvo,rgb,bi,th,rs] () {
+    ScriptClip(function [lo,gm,hi,df,tv,tvo,rgb,bi,lf,th,rs] () {
 
         sts  = propGetAsArray("_SceneStats")
         sts  = bi>8 ? ArrayOp(sts,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : sts
         cst  = PlaneMinMaxStats(last,th,0,0,false)
         cst  = bi>8 ? ArrayOp(cst,1,Format("ex_bs(x,{bi},8,fulls=true,flt=true)")) : cst
-        pmin = lo ? df ? cst[2] : sts[2] : tv ?  16 :   0
-        pmax = hi ? df ? cst[3] : sts[3] : tv ? 235 : 255
+        pmin = lo ? df ? cst[2]-lf : sts[2]-lf : tv ?  16 :   0
+        pmax = hi ? df ? cst[3]    : sts[3]    : tv ? 235 : 255       # By default a slight highlights normalization is performed even when hi=false
 
         if (gm) {
             rng  = (pmax   -   pmin)
@@ -484,7 +485,7 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", bool "Deflic
 
 ###
 ###
-### ex_blend() - v4.4 (09-11-2022)
+### ex_blend() - v4.5 (02-04-2023)
 ###
 ###
 ### Works like Overlay() but supports more modes (55 in total), better handling of TV range and performs much faster in either 8-bit or HBD (YUV or RGB).
@@ -708,7 +709,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
                                 Assert (false, "ex_blend: '"+md+"', unsupported blend mode") )
 
 
-    off = !tv || md == "--" || md == "normal" || md == "lighten" || md == "darken" ? "" : " ymin +"
+    off = !tv || md == "--" || md == "normal" || md == "blend" && iso || md == "lighten" || md == "darken" ? "" : " ymin +"
     str = iso || md == "--" || md == "normal" || md == "blend" ? str+off : \
                                                                  str+Format(" A - {op} * A + ")+off
 
@@ -1246,7 +1247,7 @@ function GamutWarning(clip yuv, string "matrix", bool "tv_range", bool "EBUR103"
 ###
 ### Benchmark:
 ### 100.0% PseudoColor("rainbow") (290fps)
-###  32.8% ConvertToRGB().Cube("false_color.cube").ConvertToYV12()
+###  32.8% ConvertToPlanarRGB().Cube("false_color.cube").ConvertToYUV420()
 ###
 ####################################
 
