@@ -604,6 +604,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
     op  = clamp(op,0,1)
     iso = op == 1.0
 
+    md = ReplaceStr(md," ","")
     md = md == "add"          ? "lineardodge"  : \
          md == "addition"     ? "lineardodge"  : \
          md == "plus"         ? "lineardodge"  : \
@@ -621,7 +622,7 @@ function ex_blend(clip a, clip b, string "mode", float "opacity", float "waterma
          md == "brightness"   ? "value"        : \
          md == "lightness"    ? "value"        : \
          md == "hypot"        ? "linearadd"    : \
-         md == "diagonal "    ? "linearadd"    : \
+         md == "diagonal"     ? "linearadd"    : \
          md == "minus"        ? "subtract"     : \
          md == "and"          ? "multiply"     : md
 
