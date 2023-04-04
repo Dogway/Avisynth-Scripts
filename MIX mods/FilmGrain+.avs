@@ -18,6 +18,7 @@
 ###
 ### Dependencies: > ExTools
 ###                 ResizersPack
+###                 GradePack
 ###                 AddGrainC
 ###                 vsTCanny
 ###                 RgTools
