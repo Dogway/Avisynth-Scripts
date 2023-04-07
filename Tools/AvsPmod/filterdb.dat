@@ -4929,6 +4929,23 @@ bool "utf8"=false,
 string "varprefix"=""
 )
 
+FilmGrainPlus(
+clip,
+float str=1.0 (0.0 to 4.0),
+float "size"=1.0 (0.0 to 2.0),
+float "sharpness"=0.9 (0.0 to 1.0),
+float "lo"=1.0 (0.0 to 2.0),
+float "mid"=1.0 (0.0 to 2.0),
+float "hi"=1.0 (0.0 to 2.0),
+string "preset"="--" ("--"/ "FilmGrain"/ "8mm"/ "16mm"/ "35mm"/ "5201"/ "5213"/ "5217"/ "5218"/ "5219"/ "5245"/ "5246"/ "5248"/ "5279"/ "FX214"/ "GT5274"/ "GrainFactory3"/ "DigitalNoise"),
+string "mode"="grain merge" ("grain merge"/ "linear light"),
+float "temp"=0.0 (0.0 to 1.0),
+int "conv"=0 (0 to 100),
+bool "PTH"=true,
+float "strc"=0.10 (0.00 to 0.50),
+int "show"=0 (0 to 3)
+)
+
 FineSharp(
 clip,
 int "mode"=1 (-3 / -2 / -1 / 0 / 1 / 2 / 3),
