@@ -77,7 +77,7 @@
 ###    )
 ###
 ###
-function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "lo", float "mid", float "hi", string "preset", string "mode", float "temp", val "conv", bool "PTH", float "strc", bool "tv_range", int "show") {
+function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "lo", float "mid", float "hi", string "preset", string "mode", float "temp", val "conv", bool "PTH", bool "preblur", float "strc", bool "tv_range", int "show") {
 
     w     = width (a)
     h     = height(a)
@@ -122,6 +122,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     strc  = Default( strc,      str*0.1) # 0.0 - 0.5
     conv  = Default( conv,       false ) # 0   -  100. Set to true or set strength for the convolution to "break" edges
     pth   = Default( PTH,        true  ) # Path to White for chroma grain. Disable if you run out of performance
+    pbl   = Default( preblur,    true  ) # Turn to false if coming from an upscale for example
     md    = Default( mode,      "gamma") # Add grain in "log" or "gamma" space
     sh    = Default( show,           0 ) # 1. Show grain plate centered at 128, 2. Show grain plate centered at round(125.5), 3. Show output with settings overlay
     tv    = Default( tv_range,      !fs)
@@ -159,10 +160,10 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
 
     if (0<sh<3) { last } else {
 
-    pbl    = a.vsTCanny(isUHD?0.5:0.44,mode=-1,u=2,v=2)
+    pbl    = pbl ? a.vsTCanny(isUHD?0.5:0.44,mode=-1,u=2,v=2) : a
 
     # 'frei-chen' with 9 and 'conv' for lo and hi respectively
-    cn     = isBool(conv) ? conv ? 40 : 100 : clamp(100-conv*0.8,20,100)
+    cn     = isBool(conv) ? conv ? ls ? 90 : 40 : 100 : clamp(100-conv*0.8,20,100)
     cop    = -0.005*cn + 1.1
     clo    = ex_bs(  9, 8, bi, fulls=true, flt=true)
     chi    = ex_bs( cn, 8, bi, fulls=true, flt=true)
