@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v1.3  (07-04-2023)             ###
+###      FilmGrain+  v1.4  (09-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -16,6 +16,9 @@
 ### +-------------+
 ### |  CHANGELOG  |
 ### +-------------+
+###
+### v1.4 - 2023.04.09
+###      - Repurpose blend 'mode' to space gamma 'mode'; "log" or "gamma"
 ###
 ### v1.3 - 2023.04.07
 ###      - Fix 'conv' and make it adjustable between 0-100
@@ -53,19 +56,19 @@
 ###     FilmGrainPlus(str=1.4,size=1.5)                        # Good example for digital 1080p films, ideally at 16-bit
 ###     FilmGrainPlus(str=2.5,size=2.0,sharpness=0.3,temp=0.1) # Example for UHD, not only size, but also strength should be raised
 ###
-###     * Note: To speed up the filter for UHD, you can set strc=0 and temp=0.0
+###     * Note: To speed up the filter for UHD, you can set strc=0, temp=0.0 and mode="gamma"
 ###
 ### Function Definition:
 ###    (
 ###    clip,
-###    float str=1.0 (0.0 to 4.0),
+###    float str=1.0 (0.0 to 5.0),
 ###    float "size"=1.0 (0.0 to 2.0),
 ###    float "sharpness"=0.9 (0.0 to 1.0),
 ###    float "lo"=1.0 (0.0 to 2.0),
 ###    float "mid"=1.0 (0.0 to 2.0),
 ###    float "hi"=1.0 (0.0 to 2.0),
 ###    string "preset"="--" ("--"/ "FilmGrain"/ "8mm"/ "16mm"/ "35mm"/ "5201"/ "5213"/ "5217"/ "5218"/ "5219"/ "5245"/ "5246"/ "5248"/ "5279"/ "FX214"/ "GT5274"/ "GrainFactory3"/ "DigitalNoise"),
-###    string "mode"="grain merge" ("grain merge"/ "linear light"),
+###    string "mode"="gamma" ("gamma"/ "log"),
 ###    float "temp"=0.0 (0.0 to 1.0),
 ###    int "conv"=0 (0 to 100),
 ###    bool "PTH"=true,
@@ -111,45 +114,40 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     szD   = Defined( size      )
     shrpD = Defined( sharpness )
 
-    # Presets at 1080p:                       Default FilmGrain 8mm    16mm   35mm  5201   5213   5217   5218   5219   5245   5246   5248   5279  FX214  GT5274    GF3   DigitalNoise
-    str   = Default( str      , Select ( pr,     1.0 ,   1.4,   4.0,   4.0,   1.0,   1.0,   1.0,   1.2,   0.8,   1.0,   1.0,   1.5,   1.0,   1.0,   1.0,    1.0,   2.3,  1.0))
-    sz    = Default( size     , Select ( pr,  w/1920.,   1.5,   2.0,   1.3,   1.0,   1.0,   1.0,   0.4,   0.3,   1.0,   1.0,   0.5,   1.0,   1.0,   1.0,    1.0,   1.0,  1.0))
-    shrp  = Default( sharpness, Select ( pr,     0.9 ,   0.9,   0.4,   0.5,   0.9,   1.0,   1.0,   0.8,   1.0,   1.0,   1.0,   0.8,   1.0,   1.0,   1.0,    1.0,   0.5,  1.0))
-    temp  = Default( temp     , Select ( pr,     0.0 ,   0.1,   0.2,   0.1,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,    0.0,   0.1,  0.0))
-    strc  = Default( strc,       str/8.) # 0.0 - 0.5
-    md    = Default( mode, "grainmerge") # Blend mode. "Grain Merge" preserves tones better and might be faster
+    # Presets at 1080p:                        Default   FilmGrain  8mm   16mm   35mm   5201   5213   5217   5218   5219   5245   5246   5248   5279  FX214  GT5274    GF3   DigitalNoise
+    str   = Default( str      , Select ( pr,      1.3 ,      1.8,   5.0,   5.0,   1.3,   1.0,   1.0,   1.5,   1.0,   1.0,   1.0,   1.9,   1.0,   1.0,   1.0,    1.0,   2.9,  1.0))
+    sz    = Default( size     , Select ( pr,   w/1920.,      1.5,   2.0,   1.3,   1.0,   1.0,   1.0,   0.4,   0.3,   1.0,   1.0,   0.5,   1.0,   1.0,   1.0,    1.0,   1.0,  1.0))
+    shrp  = Default( sharpness, Select ( pr, (8-str)/7.5,    0.9,   0.4,   0.5,   0.9,   1.0,   1.0,   0.8,   1.0,   1.0,   1.0,   0.8,   1.0,   1.0,   1.0,    1.0,   0.5,  1.0))
+    temp  = Default( temp     , Select ( pr, (str-1.25)*0.08,0.1,   0.2,   0.1,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,    0.0,   0.1,  0.0))
+    strc  = Default( strc,      str*0.1) # 0.0 - 0.5
     conv  = Default( conv,       false ) # 0   -  100. Set to true or set strength for the convolution to "break" edges
     pth   = Default( PTH,        true  ) # Path to White for chroma grain. Disable if you run out of performance
+    md    = Default( mode,      "gamma") # Add grain in "log" or "gamma" space
     sh    = Default( show,           0 ) # 1. Show grain plate centered at 128, 2. Show grain plate centered at round(125.5), 3. Show output with settings overlay
     tv    = Default( tv_range,      !fs)
-    md    = ReplaceStr( md, " ","")
-    mdll  = md=="linearlight"
-    cn    = isBool(conv) ? conv ? 40 : 100 : clamp(100-conv*0.8,20,100)
-    cop   = -0.005*cn + 1.1
+    ls    = md=="log"
 
-    lo    = Default( lo,           1.0 ) # 0.0 - 2.0, non linear strength multiplier for dark  areas
-    mi    = Default( mid,          1.0 ) # 0.0 - 2.0, non linear strength multiplier for grey  areas
-    hi    = Default( hi,           1.0 ) # 0.0 - 2.0, non linear strength multiplier for light areas
+    # "log" like weights by default in "gamma" mode
+    lo    = Default( lo, ls ? 1.0 : 0.6) # 0.0 - 2.0, non linear strength multiplier for dark  areas
+    mi    = Default( mid,ls ? 1.0 : 0.9) # 0.0 - 2.0, non linear strength multiplier for grey  areas
+    hi    = Default( hi, ls ? 1.0 : 1.2) # 0.0 - 2.0, non linear strength multiplier for light areas
 
     # Presets params auto-scale for sources other than 1080p (you can override them)
-    mul   = mdll ? 1 : 1.6
-    istr  = str    str  = (pr != 0 && !strD  ?       str  * (  0.409*w*0.001 + 0.214 )      : str)  * mul
-    istrc = strc   strc = (pr != 0 && !strcD ?       strc * (  0.409*w*0.001 + 0.214 )      : strc) * mul
-    isz   = sz     sz   =  pr != 0 && !szD   ?       sz   * (  0.173*w*0.001 + 0.667 )      : sz
-    ishrp = shrp   shrp =  pr != 0 && !shrpD ? clamp(shrp * ( -0.347*w*0.001 + 1.667 ),0,1) : shrp
+    istr  = str    str  = pr != 0 && !strD  ?       str  * (  0.409*w*0.001 + 0.214 )      : str
+    istrc = strc   strc = pr != 0 && !strcD ?       strc * (  0.409*w*0.001 + 0.214 )      : strc
+    isz   = sz     sz   = pr != 0 && !szD   ?       sz   * (  0.173*w*0.001 + 0.667 )      : sz
+    ishrp = shrp   shrp = pr != 0 && !shrpD ? clamp(shrp * ( -0.347*w*0.001 + 1.667 ),0,1) : shrp
 
     Assert(IsVersionOrGreater(3,7,3), "FilmGrain+: Update AviSynth+ version")
 
     Chr   = strc > 0.0 && !isy
-    Chr3  = Chr ? 3 : 2
     crs   = ((1- shrp)*3)+1
     shrp  =   2-(shrp *2)
     sz    = max(1.1,4-sz*1.5)
 
-    pbl   = a.vsTCanny(isUHD?0.5:0.44,mode=-1,u=2,v=2)
     blk   = BlankClip(a, width=nmod(w*sz), height=nmod(h*sz), color_yuv=Eval(ColortoHex(sh==2?"[126,128,128]":"[128,128,128]")), channels=0)
 
-    gl1   = blk.AddGrainC(str*50*sz, strc*50*sz, constant=false, seed=17)
+    gl1   = blk.AddGrainC(str*100*sz, strc*100*sz, constant=false, seed=17)
     # Anti-moiree + 'sharpness' support blur
     crs>1.0 ? gl1.vsTCanny(sqrt(crs)/2.*sqrt(2),mode=-1,u=2,v=2)                : gl1.removegrain(12,0)
 
@@ -158,15 +156,18 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     temp > 0.0 ? Chr ? merge    (last, TemporalSoften(1,255,255,255,2), temp/2) : \
                        mergeluma(last, TemporalSoften(1,255,  0,255,2), temp/2) : last
 
-    if (0<sh<3) { last }
-    else {
-    rngmx = tv   ? "ymax ymin -" : "range_max"
-    srcmx = tv   ? "ymin -"      : ""
-    tvout = tv   ? "ymin +"      : ""
+
+    if (0<sh<3) { last } else {
+
+    pbl    = a.vsTCanny(isUHD?0.5:0.44,mode=-1,u=2,v=2)
 
     # 'frei-chen' with 9 and 'conv' for lo and hi respectively
+    cn     = isBool(conv) ? conv ? 40 : 100 : clamp(100-conv*0.8,20,100)
+    cop    = -0.005*cn + 1.1
     clo    = ex_bs(  9, 8, bi, fulls=true, flt=true)
     chi    = ex_bs( cn, 8, bi, fulls=true, flt=true)
+    norm   = 1. / (chi    -    clo)
+
     th1str = ex_bs( 45, 8, bi, tv_in=true, tv_out=tv)
     th2str = ex_bs( 85, 8, bi, tv_in=true, tv_out=tv)
     th3str = ex_bs(140, 8, bi, tv_in=true, tv_out=tv)
@@ -175,60 +176,69 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
 
     th21str = MX / (th2str - th1str)
     th43str = MX / (th3str - th4str)
-    norm    = 1. / (chi    -    clo)
 
-    op  = str/4.
+    op  = str/5.
     SEG = lo!=1.0 || mi!=1.0 || hi!=1.0
 
     lo  = (lo * op) / MX
     mi  = (mi * op) / MX
     hi  = (hi * op) / MX
+    rh  = string(sqrt((0.501960785-(tv?0.062745098:0))*0.3))
 
-    LL  = "x "+srcmx+" A@ range_half "+srcmx+" < A 2 y "+(mdll ? "ymin 0.1 * - " : "")+srcmx+" B@ * + "+rngmx+" - A 2 B range_half "+srcmx+" - * + ? 0 "+rngmx+" clip "
-    GM  = "x "+srcmx+" A@  y "+srcmx+" + range_half "+srcmx+" - 0 "+rngmx+" clip "
-    mde = mdll ? LL : GM
+    rngmx  = tv ? "ymax ymin -" : "range_max"
+    srcmx  = tv ? "ymin - "     : ""
+    tvout  = tv ? "ymin + "     : ""
 
+    # Merge 'mode'
+    GML = "x "+srcmx+" A@ "+rngmx+" 3.333333333 * / sqrt y "+srcmx+rngmx+" 3.333333333 * / sqrt + "+rh+" - dup * 3.01 * 1.072 ^ 0 1 clip "+rngmx+" * "
+    GMC = "x "+srcmx+" A@ y "+srcmx+" + range_half "+srcmx+" - 0 "+rngmx+" clip "
+    GM  = ls ? GML : GMC
+
+    # 'lo', 'mid' and 'hi' mix
     LMH = Format(" Y@ x dup swap2 - range_max x  {th1str} - {th21str} * -   LO@ {lo} * 0 1 clip * -
                         dup     Y -           x  {th3str} - {th43str} * neg HI@ {hi} * 0 1 clip * -
                         dup     Y - range_max  HI LO max  -                     {mi} * 0 1 clip * -")
 
+    # 'conv' with frei-chen gradient
     EM  = Format(" x[1,1] C@ x[1,-1] H@ + x[-1,1] A@ - x[-1,-1] F@ - x[1,0] x[-1,0] - 1.414213562 * + dup *
                    F H + C - A - x[0,-1] x[0,1] - 1.414213562 * + dup * + sqrt {clo} - {norm} * 0 1 clip {cop} * * - ")
 
-    Ych = !isy ? mskY_to_YYY(pbl,luma=true,bits=bi) : nop()
-    CHL =  PTH ? " dup x - "+(SEG ? "HI" : Format("z {th3str} - {th43str} * neg"))+" range_max / 0 1 clip * -"    : ""
+    # Construct expression
+    COM = cn<100 ? SEG ? GM+tvout+LMH+" dup Y - "+EM : GM+Format(" dup A - {op} * A + dup swap2 - ")+EM+tvout : \
+                   SEG ? GM+tvout+LMH                : GM+Format("     A - {op} * A + ")+tvout
 
-    COM =  cn<100  ? SEG ? mde+tvout+LMH+" dup Y - "+EM : mde+Format(" dup A - {op} * A + dup swap2 - ")+EM+tvout : \
-                     SEG ? mde+tvout+LMH                : mde+Format("     A - {op} * A + ")+tvout
+    # Expression fit for Chroma
+    COC = ReplaceStr(COM," x  "," z ").ReplaceStr("x[", "z[").ReplaceStr(GM,GMC)
+    PTW = PTH ? " dup x - "+(SEG ? "HI" : Format("z {th3str} - {th43str} * neg"))+" range_max / 0 1 clip * -" : ""
 
-    COC = ReplaceStr(COM," x  "," z ").ReplaceStr("x[", "z[").ReplaceStr("ymin 0.1 * -", "")
-
-    Chr || cn<100 || SEG ? ex_lutxyz(pbl,last,Ych,COM,COC+CHL,UV=Chr3)                             : \
-                           ex_blend (pbl,last,mode=mdll?md:"grainmerge",opacity=op,UV=2,tv_range=tv)
+    !Chr ? ex_lutxy (pbl,last,                                   COM,        UV=2) : \
+           ex_lutxyz(pbl,last,mskY_to_YYY(pbl,luma=true,bits=bi),COM,COC+PTW,UV=3)
 
     if (sh==3) {
-            msize  = min(w,h)
-            bg     = BoxMask(0,round(msize/2.4),0,round(msize/1.9), invert=true, tv_out=tv)
-            ex_blend(bg,"multiply",opacity=0.5,tv_range=tv)
+        msize  = min(w,h)
+        bg     = BoxMask(0,round(msize/2.4),0,round(msize/1.8), invert=true, tv_out=tv)
+        ex_blend(bg,"multiply",opacity=0.5,tv_range=tv)
 
-            Subtitle(" FilmGrain+",                        size=msize/16,lsp=4,text_color=$ff5050,font="Segoe UI")
-            Subtitle("\n\n SETTINGS:",                     size=msize/25,lsp=4,text_color=$ffcc99)
-            Subtitle("\n\n\n\n "                 \
-                           +"Preset:\n "         \
-                           +"strength:\n "       \
-                           +"strengthC:\n "      \
-                           +"size:\n "           \
-                           +"sharpness:\n "      \
-                           +"temp:\n "           \
-                           +"conv:\n "           \
-                           +"PTH:\n ",                     size=msize/25,lsp=4,text_color=$ffcc99)
-            Subtitle(Format("\n\n\n\n "                  \
-                           +"'"+preset+"'"+"\n "         \
-                           +string(istr, "%1.2f")+" \n " \
-                           +string(istrc,"%1.2f")+" \n " \
-                           +string(isz,  "%1.2f")+" \n " \
-                           +string(ishrp,"%1.2f")+" \n " \
-                           +string(temp, "%1.2f")+" \n " \
-                           +string(isBool(conv) ? conv ? 40 : 0 : (100-cn)*1.25,"%1.0f")+"\n "\
-                           +"{pth} \n "),       x=msize/4, size=msize/25,lsp=4,text_color=$ffcc99)
+        Subtitle(" FilmGrain+",                        size=msize/16,lsp=4,text_color=$ff5050,font="Segoe UI")
+        Subtitle("\n\n SETTINGS:",                     size=msize/25,lsp=4,text_color=$ffcc99)
+        Subtitle("\n\n\n\n "                         \
+                       +"Preset:\n "                 \
+                       +"Mode:\n "                   \
+                       +"strength:\n "               \
+                       +"strengthC:\n "              \
+                       +"size:\n "                   \
+                       +"sharpness:\n "              \
+                       +"temp:\n "                   \
+                       +"conv:\n "                   \
+                       +"PTH:\n ",                     size=msize/25,lsp=4,text_color=$ffcc99)
+        Subtitle(Format("\n\n\n\n "                  \
+                       +"'"+preset+"'"+"\n "         \
+                       +"'"+md+"'"+"\n "             \
+                       +string(istr, "%1.2f")+" \n " \
+                       +string(istrc,"%1.2f")+" \n " \
+                       +string(isz,  "%1.2f")+" \n " \
+                       +string(ishrp,"%1.2f")+" \n " \
+                       +string(temp, "%1.2f")+" \n " \
+                       +string(isBool(conv) ? conv ? 40 : 0 : (100-cn)*1.25,"%1.0f")+"\n "\
+                       +"{pth} \n "),       x=msize/4, size=msize/25,lsp=4,text_color=$ffcc99)
     } } }
