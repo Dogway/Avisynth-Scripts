@@ -37,7 +37,7 @@
 ### * IQM is like a interframe thresholded average, removing outliers at both sides discarding strong frame average biases. Probably more representative than average or median.
 ###
 ###
-### Dependencies: > AviSynth v3.7.3
+### Dependencies: > AviSynth v3.7.3 test9+
 ###                 ExTools
 ###                 ResizersPack
 ###
@@ -77,8 +77,8 @@
 ###
 ###
 ### Example for online filtering:
-###     setmemorymax(2048)   # Higher recommended though
-###     ffvideoSource("source.mkv")
+###     setmemorymax(2048)          # Higher recommended though
+###     ffvideoSource("source.mkv") # CPU loader recommended as apposed to ie. DGSource()
 ###     SceneStats(mode="Range+Stats",Y=true,UV=false)
 ###     prefetch(n)
 ###
