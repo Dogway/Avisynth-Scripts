@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.4 (16-03-2023)     ##
+###   Resizers Functions Pack 11.5 (09-04-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -34,7 +34,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (02-03-2023)
+### deep_resize() - by Dogway (09-04-2023)
 ###
 ### Convenient and high performance function to resize natural images (not cartoons) in high quality (different kernels for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -76,8 +76,8 @@
 ###   ExTools
 ###   MasksPack
 ###   TransformsPack
-###   GrainFactory3mod   (for grain > 0)
-###   GradePack          (for show=true)
+###   FilmGrain+     (for grain > 0)
+###   GradePack      (for show=true)
 ###   Resizer of choice
 ###       NNEDI3CL          (for default "nnedi3" upscale) (requires at least AVS+ v3.7.3)
 ###       LSFplus           (for default "nnedi3" upscale) (and its dependencies)
@@ -114,7 +114,7 @@
 ###    int "c_taps"=6 (2 to 20),
 ###    int "deconv"=0 (-10 to 15),
 ###    float "sharpness"=1 (0 to 20),
-###    [float "grain"=0.0 (0.0 to 2.0)],
+###    [float "grain"=0.0 (0.0 to 3.0)],
 ###    float "th_rat"=1.25 (1.00 to 2.00 by 0.05),
 ###    float "th"=1.0 (0.0 to 5.0),
 ###    float "elast"=4.0 (1.0 to 10.0),
@@ -137,7 +137,7 @@
 ###     deep_resize(1920,edge="Zopti1080") # for UHD sources "Zopti1080" is the default so can be omitted
 ###
 ###     # 1080p to 720p
-###     deep_resize(1280,edge="SSIM2") # SSIM2 is the default so can be omitted
+###     deep_resize(1280,edge="SSIM2")     # SSIM2 is the default so can be omitted
 ###
 ###     # 2160p to 720p
 ###     deep_resize(1920) or deep_resize(1920,edge="Zopti1080",flat="Zopti1080") # for dw flat=edge so flat="Zopti1080" can be omitted, dw to 1080p defaults to "Zopti1080" so can also be skipped
@@ -208,7 +208,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     cores  = Default(cores,nmod(threads/2,2,4))                                               # Only for gpuid=-1 ("cpu" nnedi3)
     ddec   = Defined(deconv)
     dec    = Default(deconv,     0)                                                           # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
-    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.4 : 0 )                               # Grain strength. >0 Add grain to big upscales as a mean of cheap detail hallucination
+    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 1.6 : 0 )                               # Grain strength. >0 Add grain to big upscales as a mean of cheap detail hallucination
     decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
     dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                       # higher deconvolution the higher the upscale
     dec    = dec == 0.095 ? 0 : dec
@@ -260,9 +260,10 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             # deconvolution from source downscaling
             dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) }
 
-    size = max(w2/1920.,h2/1080.)
-    gr > 0 ? GrainFactory3mod(size=size,str=(size*gr)*2.5,temp_avg=1,preblur=false,tv_range=!fs) : last
-
+    size  = 1.5 * ( 0.000173*w2 + 0.667 )
+    grain = gr  * ( 0.000260*w2 + 0.500 )
+    sharp = min   (-0.000156*w2 + 1.3,1 )
+    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Und,sharpness=sharp,lo=0.7,hi=0.9,preblur=false,temp=0,tv_range=!fs) : last
 
     if (sh) {
             taps = """ krn1 == "Blackman" || krn1 == "Lanczos" || krn1 == "Sinc" || krn1 == "SincLin" || krn1 == "Jinc" """
@@ -404,7 +405,7 @@ function eedi3resize(clip a, val "width", val "height", float "src_left", float 
 #       avs_libplacebo
 #       ExTools
 #       TransformsPack
-#       GrainFactory3mod (for grain>0)
+#       FilmGrain+ (for grain>0)
 #
 function RAVUresize(clip a, val "width", val "height", float "grain", string "path", int "gpuid") {
 
@@ -427,6 +428,7 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
     Assert(IsVersionOrGreater(3,7,3),  "RAVUresize: Update AviSynth+ version")
     Assert(isFloat(w2) || isFloat(h2), "RAVUresize: Width/Height type not supported")
 
+    isUHD2  = (w2 > 2599 || h2 > 1499)
     w2      = isInt(w2) && w2<=10 ? float(w2) : isFloat(w2) && w2>10. ? int(w2) : w2
     h2      = isInt(h2) && h2<=10 ? float(h2) : isFloat(h2) && h2>10. ? int(h2) : h2
     w2      =  w2<=10. ? w*w2 : w2        w2 = nmod(w2,mod)
@@ -436,7 +438,7 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
 
     rw      = w2/float(w)
     rh      = h2/float(h)
-    gr      = Default(grain, rw>1.25 && rh>1.25 ? 0.4 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
+    gr      = Default(grain, rw>1.25 && rh>1.25 ? 1.6 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
     gpuid   = Default(gpuid, 0)
 
     factor  = max(rw,rh) < 3 ? 2 : 4
@@ -455,8 +457,10 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
     shf = factor==2 ? [-0.5] : [0]
     ConvertFormat(w2,h2,fmt_out=isy?"":PixelType(a),cs_out="",EOTFi="",src_left=shf,src_top=shf,kernel=krnn,kernel_c=is4?"Precise":"Didee",tv_in=!fs,tv_out=!fs,gpuid=-1) # cubics and sincs are slow in avs_libplacebo
 
-    size = max(w2/1920.,h2/1080.)
-    gr > 0 ? GrainFactory3mod(size=size,str=(size*gr)*2.5,temp_avg=1,preblur=false,tv_range=!fs) : last
+    size  = 1.5 * ( 0.000173*w2 + 0.667 )
+    grain = gr  * ( 0.000260*w2 + 0.500 )
+    sharp = min   (-0.000156*w2 + 1.3,1 )
+    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Und,sharpness=sharp,lo=0.7,hi=0.9,preblur=false,temp=0,tv_range=!fs) : last
     }
 
 
@@ -470,7 +474,7 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
 #       avs_libplacebo
 #       ExTools
 #       TransformsPack
-#       GrainFactory3mod (for grain>0)
+#       FilmGrain+ (for grain>0)
 #
 function FSRresize(clip a, val "width", val "height", float "grain", string "path", int "gpuid") {
 
@@ -494,8 +498,8 @@ function FSRresize(clip a, val "width", val "height", float "grain", string "pat
 #       w2xncnnvk
 #       ExTools
 #       TransformsPack
-#       GrainFactory3mod (for grain>0)
-#       MasksPack        (for model=1)
+#       FilmGrain+     (for grain>0)
+#       MasksPack      (for model=1)
 #
 function waifu2xresize(clip a, val "width", val "height", int "model", int "noise", float "grain", bool "soothe", bool "tv_range", int "gpuid") {
 
@@ -533,8 +537,9 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     rfactor= rw<factor && rh<factor
     krnn   = rfactor ? "Didee" : "Blackman6" # hard coded final resize: 'Didée' for down 'Blackman6' for up
 
-    isHD   = (w > 1099 || h >  599)
-    isUHD  = (w > 2599 || h > 1499)
+    isHD   = (w  > 1099 || h  >  599)
+    isUHD  = (w  > 2599 || h  > 1499)
+    isUHD2 = (w2 > 2599 || h2 > 1499)
     tilew  = isUHD ? w/4 : isHD ? w/2 : Undefined()
     tileh  = isUHD ? h/3 : isHD ? h/2 : Undefined()
 
@@ -543,11 +548,11 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     gid    = Default(gpuid,      0)
     so     = Default(soothe, md==1)                        # Temporal stabilize sharpening for less temporal jitter
     ns     = Default(noise,      0)                        # From 0 (no denoise) to 4 full denoise
-    gr     = Default(grain, rw>1.25 && rh>1.25 ? 0.4 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
+    gr     = Default(grain, rw>1.25 && rh>1.25 ? 1.6 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
 
-    !isy ? a : ConvertBits(a, 32, fulls=!tv, fulld=true)
+    !isy ? a : ConvertBits(a, 32, fulls=!tv,  fulld=true)
     rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="Precise")
-    !isy ? ConvertBits(32, fulls=true, fulld=true) : last
+    !isy ?     ConvertBits(   32, fulls=true, fulld=true) : last
 
     for (i = 1, factor/2, 1) {
         w2xncnnvk(noise=ns-1, scale=2, tile_w=tilew, tile_h=tileh, model=md, tta=factor<4, fp32=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2) # 2: CUnet is too slow for video
@@ -560,8 +565,10 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 
     ConvertFormat(w2,h2,cs_out="",EOTFi="",kernel=krnn,kernel_c=is4?"Precise":"Didee",tv_in=tv,tv_out=tv,gpuid=-1)
 
-    size = max(w2/1920.,h2/1080.)
-    gr > 0 ? GrainFactory3mod(size=size,str=(size*gr)*2.5,temp_avg=1,preblur=false,tv_range=tv) : last
+    size  = 1.5 * ( 0.000173*w2 + 0.667 )
+    grain = gr  * ( 0.000260*w2 + 0.500 )
+    sharp = min   (-0.000156*w2 + 1.3,1 )
+    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Und,sharpness=sharp,lo=0.7,hi=0.9,preblur=false,temp=0,tv_range=!fs) : last
     }
 
 
