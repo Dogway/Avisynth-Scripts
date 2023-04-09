@@ -19,6 +19,7 @@
 ###
 ### v1.4 - 2023.04.09
 ###      - Repurpose blend 'mode' to space gamma 'mode'; "log" or "gamma"
+###      - Add 'preblur' argument
 ###
 ### v1.3 - 2023.04.07
 ###      - Fix 'conv' and make it adjustable between 0-100
