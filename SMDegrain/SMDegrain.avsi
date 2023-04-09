@@ -37,7 +37,7 @@
 ### The reason behind is to keep it simple so for basic usage you will only need ExTools, ResizersPack and MVTools2.
 ###
 ### Supports all Y, YUV and YUY2 clips progressive or interlaced between 8-16 bits.
-### For HDR use as input (or at least as prefilter) the decoded and tonemapped PQ clip (ie. DGHDRtoSDR(mode="pq",white=ceil(59.49080238715383)))
+### For HDR use as input (or at least as prefilter) the decoded and tonemapped PQ clip (ie. DGHDRtoSDR(mode="pq",white=1500))
 ###
 ### Check documentation for full explanation on settings and defaults:
 ###    https://raw.githack.com/Dogway/Avisynth-Scripts/master/SMDegrain/SMDegrain.html
@@ -146,9 +146,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     U            = plane0 && plane!=2 ? 3 : 2
     V            = plane0 && plane!=1 ? 3 : 2
     ChP          = plane0 && plane!=4                          # No luma denoise case
-    chroma       = Default( chroma, !isy && plane0  )          # Compute chroma MVs? (regardless of preocessed planes)
+    chroma       = Default( chroma, !isy && plane0  )          # Compute chroma MVs? (regardless of processed planes)
     Chr          = chroma ? 3 : 1
-    Luma         = Default( luma,   !ChP            )          # Compute luma   MVs? (regardless of preocessed planes)
+    Luma         = Default( luma,   !ChP            )          # Compute luma   MVs? (regardless of processed planes)
     Lum          = Luma   ? 3 : 1
 
 
@@ -329,16 +329,16 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
     # Default Auto-Prefilter - Luma expansion TV->PC (up to 16% more values for motion estimation) + Dynamic range expansion on darks
 
-    pref8  =    Str > 1 ? pref.ex_Luma_Rebuild(S0=Str, c=Amp,    UV=Chr, Y=Lum, tv_in=!fsp, tv_out=false, bits=8)                               : \
-            0 < Str < 1 ? pref.ex_retinex(lo=Str*100,lvl=sr?3:1, UV=Chr,        tv_in=!fsp, tv_out=false).ConvertBits(8, dither=-1, fulls=true) : \
-                   !fsp ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) :                  pref.ConvertBits(8, dither=-1, fulls=true)
+    pref8  =    Str > 1 ? pref.ex_Luma_Rebuild(S0=Str, c=Amp,      UV=Chr, Y=Lum, tv_in=!fsp, tv_out=false, bits=8)                               : \
+            0 < Str < 1 ? pref.ex_retinex(lo=Str*100,lvl=sr?3:1,   UV=Chr,        tv_in=!fsp, tv_out=false).ConvertBits(8, dither=-1, fulls=true) : \
+                   !fsp ? pref.ConvertBits(8, dither=-1, fulls=false, fulld=true) :                    pref.ConvertBits(8, dither=-1, fulls=true)
 
-    pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., Fc=w/8., th=0.0, Y=Lum, UV=Chr) : pref8 # Low Frequency expansion (the higher SAD the more protection)
+    pref8  = LFRB ? pref8.ex_unsharp(thSAD/1800., Fc=w/8., th=0.0, UV=Chr, Y=Lum) : pref8 # Low Frequency expansion (the higher SAD the more protection)
 
     If (sShow ? false : !Show) {
 
         # Subpixel 3 and 4
-        inputP8 = inputP.ConvertBits(8, dither=-1, fulls=!tv, fulld=!tv)   # nnedi3 is slower with HBD
+        inputP8 = inputP.      ConvertBits(8, dither=-1, fulls=!tv,   fulld=!tv)          # nnedi3 is slower with HBD
         pclip   = pelclip ? subpixel==4 ? pref8.  nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift=pel>1&&gpuid!=-1?"spline16":"none",threads=threads)               : \
                                           Undefined()                                                                                                                                        : nop() # Wiener filter is good enough for MAnalyse
         pclip2  = pelclip ? subpixel==4 ? inputP8.nnedi3wrap(pel,nns=pel/2,nsize=0,qual=pel/2,gpuid=gpuid,HBD=false,cshift="spline16",threads=threads).ConvertBits(bi, fulls=!tv, fulld=!tv) : \
