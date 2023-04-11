@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v1.4  (09-04-2023)             ###
+###      FilmGrain+  v1.5  (11-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -12,37 +12,6 @@
 #######################################################
 ###
 ### Luma+Detail adaptive synthetic film grain filter. Y/YUV only.
-###
-### +-------------+
-### |  CHANGELOG  |
-### +-------------+
-###
-### v1.4 - 2023.04.09
-###      - Repurpose blend 'mode' to space gamma 'mode'; "log" or "gamma"
-###      - Add 'preblur' argument
-###
-### v1.3 - 2023.04.07
-###      - Fix 'conv' and make it adjustable between 0-100
-###      - Make Chroma Grain follow along Luma conv
-###      - Fix PTH when 'lo', 'mid' and 'hi' are not 1.0
-###      - Add 'show' panel
-###
-### v1.2 - 2023.04.06
-###      - Fix 'lo', 'mid', 'hi' masks
-###      - Make chroma grain behave along luma grain
-###      - Move temp line after downscale for performance
-###      - Fix brightening in "linear light" mode. Might remove the mode later on
-###      - Add 'show' option to show the grain plate
-###
-### v1.1 - 2023.04.05
-###      - Add presets system
-###      - Autoscale params to resolution for presets system
-###      - Implement additional "grainmerge" blend mode
-###      - Add Path to White for Chroma Grain
-###      - Replace ex_boxblur() with more performant vsTCanny()
-###
-### v1.0 - 2023.04.04
-###      - Initial Release. Remake from the ground up of FilmGrain, and in turn of GrainFactory3modEX
 ###
 ###
 ### Dependencies: > ExTools
@@ -69,11 +38,12 @@
 ###    float "mid"=1.0 (0.0 to 2.0),
 ###    float "hi"=1.0 (0.0 to 2.0),
 ###    string "preset"="--" ("--"/ "FilmGrain"/ "8mm"/ "16mm"/ "35mm"/ "5201"/ "5213"/ "5217"/ "5218"/ "5219"/ "5245"/ "5246"/ "5248"/ "5279"/ "FX214"/ "GT5274"/ "GrainFactory3"/ "DigitalNoise"),
-###    string "mode"="gamma" ("gamma"/ "log"),
+###    string "mode"="gamma" ("gamma"/ "linear"/ "log"),
 ###    float "temp"=0.0 (0.0 to 1.0),
-###    int "conv"=0 (0 to 100),
+###    int "conv"=0.0 (0.0 to 1.0),
 ###    bool "PTH"=true,
-###    float "strc"=0.10 (0.00 to 0.50),
+###    bool "preblur"=true,
+###    float "strc"=0.1 (0.0 to 1.0),
 ###    int "show"=0 (0 to 3)
 ###    )
 ###
@@ -120,19 +90,20 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     sz    = Default( size     , Select ( pr,   w/1920.,      1.5,   2.0,   1.3,   1.0,   1.0,   1.0,   0.4,   0.3,   1.0,   1.0,   0.5,   1.0,   1.0,   1.0,    1.0,   1.0,  1.0))
     shrp  = Default( sharpness, Select ( pr, (8-str)/7.5,    0.9,   0.4,   0.5,   0.9,   1.0,   1.0,   0.8,   1.0,   1.0,   1.0,   0.8,   1.0,   1.0,   1.0,    1.0,   0.5,  1.0))
     temp  = Default( temp     , Select ( pr, (str-1.25)*0.08,0.1,   0.2,   0.1,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.0,   0.1,   0.0,   0.0,   0.0,    0.0,   0.1,  0.0))
-    strc  = Default( strc,      str*0.1) # 0.0 - 0.5
-    conv  = Default( conv,       false ) # 0   -  100. Set to true or set strength for the convolution to "break" edges
+    strc  = Default( strc,      str*0.2) # 0.0 - 1.0
+    conv  = Default( conv,       false ) # 0.0 - 1.0. Set to true or set strength for the convolution to "break" edges
     pth   = Default( PTH,        true  ) # Path to White for chroma grain. Disable if you run out of performance
     pbl   = Default( preblur,    true  ) # Turn to false if coming from an upscale for example
-    md    = Default( mode,      "gamma") # Add grain in "log" or "gamma" space
+    md    = Default( mode,      "gamma") # Add grain in "log", "linear" or "gamma" space
     sh    = Default( show,           0 ) # 1. Show grain plate centered at 128, 2. Show grain plate centered at round(125.5), 3. Show output with settings overlay
     tv    = Default( tv_range,      !fs)
     ls    = md=="log"
+    ln    = md=="linear"
 
     # "log" like weights by default in "gamma" mode
-    lo    = Default( lo, ls ? 1.0 : 0.6) # 0.0 - 2.0, non linear strength multiplier for dark  areas
-    mi    = Default( mid,ls ? 1.0 : 0.9) # 0.0 - 2.0, non linear strength multiplier for grey  areas
-    hi    = Default( hi, ls ? 1.0 : 1.2) # 0.0 - 2.0, non linear strength multiplier for light areas
+    lo    = Default( lo, ls ? 2.0 : ln ? 0.5 : 0.8) # 0.0 - 2.0, non linear strength multiplier for dark  areas
+    mi    = Default( mid,ls ? 1.0 : ln ? 1.0 : 0.9) # 0.0 - 2.0, non linear strength multiplier for grey  areas
+    hi    = Default( hi, ls ? 1.0 : ln ? 1.5 : 1.2) # 0.0 - 2.0, non linear strength multiplier for light areas
 
     # Presets params auto-scale for sources other than 1080p (you can override them)
     istr  = str    str  = pr != 0 && !strD  ?       str  * (  0.409*w*0.001 + 0.214 )      : str
@@ -143,29 +114,38 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     Assert(IsVersionOrGreater(3,7,3), "FilmGrain+: Update AviSynth+ version")
 
     Chr   = strc > 0.0 && !isy
-    crs   = ((1- shrp)*3)+1
-    shrp  =   2-(shrp *2)
+    crs   =   ((1-  shrp)     *3)+1
+    shrpL =     2-( shrp      *2)
+    shrpC = max(2-((shrp+0.3) *2),0)
     sz    = max(1.1,4-sz*1.5)
 
-    blk   = BlankClip(a, width=nmod(w*sz), height=nmod(h*sz), color_yuv=Eval(ColortoHex(sh==2?"[126,128,128]":"[128,128,128]")), channels=0)
-
+    blk   = BlankClip(a,width=nmod(w*sz),height=nmod(h*sz),pixel_type=isy||!Chr?Undefined():"YUV444P"+string(bi>16?"S":bi),color_yuv=Eval(ColortoHex(tv?"[126,128,128]":"[128,128,128]")),channels=0)
     gl1   = blk.AddGrainC(str*100*sz, strc*100*sz, constant=false, seed=17)
     # Anti-moiree + 'sharpness' support blur
-    crs>1.0 ? gl1.vsTCanny(sqrt(crs)/2.*sqrt(2),mode=-1,u=2,v=2)                : gl1.removegrain(12,0)
+    crs>1.0 ? gl1.vsTCanny(sqrt(crs)/2.*sqrt(2),mode=-1,u=2,v=2) : gl1.removegrain(12,0)
 
-    BicubicResize(w,h,b=shrp,c=(1.0-shrp)/2.)
+    if (Chr && !is444(a)) {
 
-    temp > 0.0 ? Chr ? merge    (last, TemporalSoften(1,255,255,255,2), temp/2) : \
-                       mergeluma(last, TemporalSoften(1,255,  0,255,2), temp/2) : last
+        is22 = is422(a) ? 1 : 2
+        Y    = ExtractY().BicubicResize(w,  h,     b=shrpL,c=(1.0-shrpL)/2.)
+        Y    = temp > 0.0 ? Merge(Y,Y.TemporalSoften(1,255,0,255,2),temp/2 ) : Y
+        U    = ExtractU().BicubicResize(w/2,h/is22,b=shrpC,c=(1.0-shrpC)/2.)
+        V    = ExtractV().BicubicResize(w/2,h/is22,b=shrpC,c=(1.0-shrpC)/2.)
+        CombinePlanes(Y,U,V, planes="YUV", sample_clip=a)
 
+    } else {
+
+        BicubicResize(w,h,b=shrpL,c=(1.0-shrpL)/2.)
+        temp > 0.0 ? MergeLuma(last, TemporalSoften(1,255,0,255,2), temp/2) : last
+    }
 
     if (0<sh<3) { last } else {
 
     pbl    = pbl ? a.vsTCanny(isUHD?0.5:0.44,mode=-1,u=2,v=2) : a
 
     # 'frei-chen' with 9 and 'conv' for lo and hi respectively
-    cn     = isBool(conv) ? conv ? ls ? 90 : 40 : 100 : clamp(100-conv*0.8,20,100)
-    cop    = -0.005*cn + 1.1
+    cn     = isBool(conv) ? conv ? ls ? 0.9 : 0.4 : 1.0 : clamp(1-conv*0.8,0.2,1.0)
+    cop    = -0.5*cn + 1.1
     clo    = ex_bs(  9, 8, bi, fulls=true, flt=true)
     chi    = ex_bs( cn, 8, bi, fulls=true, flt=true)
     norm   = 1. / (chi    -    clo)
@@ -174,6 +154,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     th2str = ex_bs( 85, 8, bi, tv_in=true, tv_out=tv)
     th3str = ex_bs(140, 8, bi, tv_in=true, tv_out=tv)
     th4str = ex_bs(200, 8, bi, tv_in=true, tv_out=tv)
+    rnghlf = ex_bs(tv?126:128, 8, bi, fulls=false, flt=true)
     MX     = ex_bs(255, 8, bi, fulls=true, flt=true)
 
     th21str = MX / (th2str - th1str)
@@ -182,32 +163,35 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     op  = str/5.
     SEG = lo!=1.0 || mi!=1.0 || hi!=1.0
 
-    lo  = (lo * op) / MX
-    mi  = (mi * op) / MX
-    hi  = (hi * op) / MX
+    lop = (lo * op) / MX
+    mip = (mi * op) / MX
+    hip = (hi * op) / MX
     rh  = string(sqrt((0.501960785-(tv?0.062745098:0))*0.3))
 
-    rngmx  = tv ? "ymax ymin -" : "range_max"
-    srcmx  = tv ? "ymin - "     : ""
-    tvout  = tv ? "ymin + "     : ""
+    rngmx  = tv ? "ymax ymin -"  : "range_max"
+    srcmx  = tv ? "ymin - "      : ""
+    tvout  = tv ? "ymin + "      : ""
+    lgnor  = tv ? "2.57 * 1.105" : "2.791 * 1.045"
+    linor  = tv ? "0.5023"       : string(0.501960785)
 
     # Merge 'mode'
-    GML = "x "+srcmx+" A@ "+rngmx+" 3.333333333 * / sqrt y "+srcmx+rngmx+" 3.333333333 * / sqrt + "+rh+" - dup * 3.01 * 1.072 ^ 0 1 clip "+rngmx+" * "
+    GML = "x "+srcmx+" A@ "+rngmx+" 3 * / sqrt y "+srcmx+rngmx+" 3 * / sqrt + "+rh+" - dup * "+lgnor+" ^ 0 1 clip "+rngmx+" * "
+    GMI = "x "+srcmx+" A@ "+rngmx+" / 0 1 clip 2.4 ^ y "+srcmx+rngmx+" / + "+linor+" - 0 1 clip 0.416666667 ^     "+rngmx+" * "
     GMC = "x "+srcmx+" A@ y "+srcmx+" + range_half "+srcmx+" - 0 "+rngmx+" clip "
-    GM  = ls ? GML : GMC
+    GM  = ls ? GML : ln ? GMI : ReplaceStr(GMC,"range_half",Format("{rnghlf}"))
 
     # 'lo', 'mid' and 'hi' mix
-    LMH = Format(" Y@ x dup swap2 - range_max x  {th1str} - {th21str} * -   LO@ {lo} * 0 1 clip * -
-                        dup     Y -           x  {th3str} - {th43str} * neg HI@ {hi} * 0 1 clip * -
-                        dup     Y - range_max  HI LO max  -                     {mi} * 0 1 clip * -")
+    LMH = Format(" Y@ x dup swap2 - range_max x  {th1str} - {th21str} * -   LO@ {lop} * 0 1 clip * -
+                        dup     Y -           x  {th3str} - {th43str} * neg HI@ {hip} * 0 1 clip * -
+                        dup     Y - range_max  HI LO max  -                     {mip} * 0 1 clip * -")
 
     # 'conv' with frei-chen gradient
     EM  = Format(" x[1,1] C@ x[1,-1] H@ + x[-1,1] A@ - x[-1,-1] F@ - x[1,0] x[-1,0] - 1.414213562 * + dup *
                    F H + C - A - x[0,-1] x[0,1] - 1.414213562 * + dup * + sqrt {clo} - {norm} * 0 1 clip {cop} * * - ")
 
     # Construct expression
-    COM = cn<100 ? SEG ? GM+tvout+LMH+" dup Y - "+EM : GM+Format(" dup A - {op} * A + dup swap2 - ")+EM+tvout : \
-                   SEG ? GM+tvout+LMH                : GM+Format("     A - {op} * A + ")+tvout
+    COM = cn<1. ? SEG ? GM+tvout+LMH+" dup Y - "+EM : GM+Format(" dup A - {op} * A + dup swap2 - ")+EM+tvout  : \
+                  SEG ? GM+tvout+LMH                : GM+Format("     A - {op} * A + ")+tvout
 
     # Expression fit for Chroma
     COC = ReplaceStr(COM," x  "," z ").ReplaceStr("x[", "z[").ReplaceStr(GM,GMC)
