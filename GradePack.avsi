@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.8 (02-04-2023)               ##
+###           Grade Pack v8.9 (12-04-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -561,8 +561,8 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", int "lift", 
 ### heat           - Like Freeze but with Base and Top layers swapped, output is very contrasty. 1 - (1 - b)^2 / a
 ###
 ### ANTISYMMETRIC or INVERSION
-### grainextract   -
-### grainmerge     -
+### grainextract   - Difference of Base and Top layers centered at range_half
+### grainmerge     - Blend Top Layer centered on range_half with Base Layer
 ###
 ### difference     - Absolute difference of Base and Top layers
 ### softdifference -
@@ -852,6 +852,11 @@ function ex_posterize (clip c, int "bits", int "mode", int "UV") {
 ### Segmentation of skin tones. Extracts a skin mask to use elsewhere.
 ### It does so in OkLab Jch space which is perceptually uniform (UCS).
 ###
+###
+### Example:
+###
+###     Skin_Qualifier(0.80, Delta=43, Q=0.70, blur=3.0, invert=false)
+###
 ### Function Definition:
 ###    (
 ###    clip,
@@ -881,6 +886,8 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
     LO  = 1-bw
     HI  = 1-bw/(3.01-min(str,1))
     mat = Color_fuzzy_search(ID[2])
+    U   = !rgb ? ExtractU(c).RatioResize(2,"%",kernel="bicubic") : nop()
+    V   = !rgb ? ExtractV(c).RatioResize(2,"%",kernel="bicubic") : nop()
 
     rgb ? IsPlanar(c) ? c : ConvertToPlanarRGB(c) : c
 
@@ -890,14 +897,18 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
 
     RGB_to_Oklab(matrix=mat[0], Jch=true, fulls=true)
 
-    C     = ExtractG()
-    H     = ExtractB()
+    C     = ExtractU()
+    H     = ExtractV()
     Cnorm = "x 0.28 - abs 1 swap - 0 swap 0.706 - -3.4 * -" # Centered at skin saturation and normalized
     in    = in ? "1 swap -" : ""
 
     ex_lutxy(C, H, Format("f32 y 6.283185 * pi - {dg} + cos "+Cnorm+" * 0 swap {LO} - 1 {LO} {HI} - / * - "+in), scale_inputs="intf", fulls=true, clamp_float=true)
 
     ConvertBits(bi, dither= bi==32 ? -1 : 1, fulls=true)
+    !rgb ? ex_lutxyz(U,V,"y range_max / 0.430 - 4 ^ -40000 * 1 + 0 max
+                          z range_max / 0.588 - 4 ^ -40000 * 1 + 0 max * range_max * x min") : last
+    !rgb ? ex_inpand(2).ex_expand(2) : false
+
     bl > 0 ? ex_gaussianblur(bl, pad=false, UV=3) : last
     propDelete(["_Matrix","_Primaries","_Transfer","_PictType"]) }
 
