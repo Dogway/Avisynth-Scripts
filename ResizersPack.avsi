@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.5 (09-04-2023)     ##
+###   Resizers Functions Pack 11.6 (12-04-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -591,9 +591,11 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     isy    = isy  (a)
     rgb    = isRGB(a)
     rgbp   = isPlanarRGB(a)
-
+    w      = width (a)
+    h      = height(a)
     numD   = Defined(FrameNum)
     denD   = Defined(FrameDen)
+    UHD    = (w > 2599 || h > 1499)
 
     numFD  = propNumElements     (a,"_DurationDen") > 0
     num    = FrameRateNumerator  (a)
@@ -615,12 +617,12 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
      Nihui always just exports the fastest model (ensemble False, Fast True), while the other ones can result in a better image.
      Ensembling combines the flow of two different interpolations within the model and if fastmode is false it calls contextnet" */
 
-    md     = Default(model,         22) # model: 3 - for Anime or lineart, 17,6,22 - for photos or live action (in ascending order of qual/speed)
-    num    = Default(FrameNum,     num)
-    den    = Default(FrameDen,     den)
+    md     = Default(model, UHD ? 2 : 22) # model: 3 - for Anime or lineart, 17,6,22 - for photos or live action (in ascending order of qual/speed), model: 2 for UHD
+    num    = Default(FrameNum,       num)
+    den    = Default(FrameDen,       den)
     fd     = Default(FrameDouble, !(numD || denD))
-    an     = Default(Anime,      false)
-    gid    = Default(gpuid,          0)
+    an     = Default(Anime,        false)
+    gid    = Default(gpuid,            0)
     nfps   = (float(num)/den)/fps
     fd     = fd || string(nfps,"%.1f")=="2.0"
 
@@ -628,7 +630,7 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     rgb  ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="Precise")
      isy ? last : ConvertBits(   32, fulls=true, fulld=true)
 
-    RIFE(model=fd ? md : max(md,9), sc=true, skip=an, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2)
+    RIFE(model=fd ? md : max(md,9), sc=true, skip=an, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2, UHD=UHD)
 
     isy   ? ExtractR().ConvertBits(bi, dither=1, fulls=true, fulld=!tv) : \
     !rgb  ? MatchClip (a,matrix=pri,size=false,props=false)             : last
