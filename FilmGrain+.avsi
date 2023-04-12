@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v1.8  (12-04-2023)             ###
+###      FilmGrain+  v1.9  (12-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -21,6 +21,7 @@
 ###                 AddGrainC
 ###                 vsTCanny
 ###                 TransformsPack (for fast=false)
+###                 GradePack      (for emulsion>0 or show=2)
 ###
 ### Examples:
 ###
@@ -43,8 +44,9 @@
 ###    string "preset"="--" ("--"/ "FilmGrain"/ "8mm"/ "16mm"/ "35mm"/ "--"/ "EXR     7248 100T"/ "Ekta    7285 100D"/ "Vision3 7219 100D"/ "--"/ "EXR     5245  50D"/ "EXR     5248 100T"/ "EXR     5293 200T"/ "EXR     5298 500T"/ "Vision  5274 200T"/ "Vision  5246 250D"/ "Vision  5277 320T"/ "Vision  5279 500T"/ "Vision2 5201  50D"/ "Vision2 5212 100T"/ "Vision2 5217 200T"/ "Vision2 5218 500T"/ "Vision3 5203  50D"/ "Vision3 5213 200T"/ "Vision3 5207 250D"/ "Vision3 5219 500T"/ "FX       214 480D"/ "--"/ "Fuji    8510  64T"/ "Fuji    8520  64D"/ "Fuji    8530 125T"/ "Fuji    8550 250T"/ "Fuji    8560 250D"/ "Fuji    8570 500T"/ "Super F 8522  64D"/ "Super F 8532 125T"/ "Super F 8552 250T"/ "Super F 8562 250D"/ "Super F 8582 400T"/ "Super F 8572 500T"/ "Eterna  8543 160T"/ "Eterna  8563 250D"/ "Eterna  8583 400T"/ "Eterna  8573 500T"/ "Reala   8592 500D"/ "--"/ "GrainFactory3"/ "DigitalNoise"),
 ###    string "mode"="gamma" ("gamma"/ "linear"/ "log"),
 ###    float "bump"=0.0 (0.0 to 1.0),
-###    float "conv"=0.0 (0.0 to 1.0),
+###    float "emulsion"=0.0 (0.0 to 1.0),
 ###    float "skin"=1.0 (0.0 to 1.0),
+###    float "conv"=0.0 (0.0 to 1.0),
 ###    bool "fast"=true,
 ###    bool "preblur"=true,
 ###    bool "PTH"=true,
@@ -53,7 +55,7 @@
 ###    )
 ###
 ###
-function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "temp", float "lo", float "mid", float "hi", string "preset", string "mode", val "conv", float "skin", bool "PTH", bool "preblur", bool "fast", float "bump", float "strc", bool "tv_range", int "show") {
+function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "temp", float "lo", float "mid", float "hi", string "preset", string "mode", float "bump", float "emulsion", float "skin", val "conv", bool "PTH", bool "preblur", bool "fast", float "strc", bool "tv_range", int "show") {
 
     w     = width (a)
     h     = height(a)
@@ -134,6 +136,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     conv  = Default( conv,       false ) # 0.0 - 1.0. Set to true or set strength for the convolution to "break" edges
     bmp   = Default( bump,        0.0  ) # 0.0 - 1.0. Raise to make the grain have a 3D volumetric effect
     skin  = Default( skin,        1.0  ) # 0.0 - 1.0. Lower to reduce the effect of grain on faces. Assumes source is YCbCr format in Rec709 space
+    eml   = Default( emulsion,    0.0  ) # 0.0 - 1.0. Raise to mimic the emulsion artifacts common in old film stocks
     pth   = Default( PTH,        true  ) # Path to White for chroma grain. Disable if you run out of performance
     pbl   = Default( preblur,    true  ) # Turn to false if coming from an upscale for example
     fast  = Default( fast,       true  ) # Generally with 'true' an overlay is applied which is faster. With 'false' you do get some natural convolution from AddGrainC. Use it with high 'str' or 'size'.
@@ -143,7 +146,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     ls    = md=="log"
     ln    = md=="linear"
     bmp   = bmp+1
-    skin  = 1-skin
+    skn   = 1-skin
     ygrey = tv ? 126 : 128
 
     # "log" like weights by default in "gamma" mode
@@ -254,45 +257,68 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     # Expression fit for Chroma
     COC = ReplaceStr(COM," x  "," z ").ReplaceStr("x[", "z[").ReplaceStr(GM,GMC)
     PTW = PTH   ? " dup x - "+(SEG ? "HI" : Format("z {th3st} - {th43st} * neg"))+" range_max / 0 1 clip * -" : ""
+    GL  = last
 
     !Chr ? ex_lutxy (pbl,last,                                   COM,        UV=2) : \
            ex_lutxyz(pbl,last,mskY_to_YYY(pbl,luma=true,bits=bi),COM,COC+PTW,UV=3)
 
-    if (skin>0.0 && !isy) {
-    U   = ExtractU(a)
-    V   = ExtractV(a)
-    msk = ex_lutxy(U,V,Format("x range_max / 0.430 - 4 ^ -40000 * 1 + 0 max
-                               y range_max / 0.588 - 4 ^ -40000 * 1 + 0 max * {skin} * range_max *")).ex_inpand().ex_expand()
-    ex_merge(pbl,msk,luma=true,UV=Chr?3:2)
+
+    if (skn>0 && !isy) {
+
+        U   = ExtractU(a)
+        V   = ExtractV(a)
+        msk = ex_lutxy(U,V,Format("x range_max / 0.430 - 4 ^ -40000 * 1 + 0 max
+                                   y range_max / 0.588 - 4 ^ -40000 * 1 + 0 max * {skn} * range_max *")).ex_inpand().ex_expand()
+        ex_merge(pbl,msk,luma=true,UV=Chr?3:2)
+    }
+
+    if (eml>0.0 && !isy) {
+
+        is22   = is422(a) ? 1 : 2
+        sample = padresize(GL.ExtractY(),w/15,h/15).TemporalSoften(1,255,0,255,2)
+        UP     = BilinearResize(sample,w/4,h/is22/2)
+        Y      = ExtractY()
+        U      = ExtractU()
+        V      = ExtractV()
+
+        stains = ex_blend(UP,UP.FlipHorizontal(),mode="subtract",tv_range=false).ex_inpand()
+        UVer   = StackVertical  (stains,stains)
+        UHor   = StackHorizontal(UVer,  UVer)
+        Unew   = ex_lutxy(U,UHor,Format("x y {eml} * -"))
+        CombinePlanes(Y,Unew,V, planes="YUV", sample_clip=last)
     }
 
     if (sh==2) {
         msize  = min(w,h)
-        bg     = BoxMask(0,round(msize/2.4),0,round(msize/1.8), invert=true, tv_out=tv)
+        bg     = BoxMask(0,round(msize/2.5),0,round(msize/1.3), invert=true, tv_out=tv)
         ex_blend(bg,"multiply",opacity=0.5,tv_range=tv)
 
         Subtitle(" FilmGrain+",                        size=msize/16,lsp=4,text_color=$ff5050,font="Segoe UI")
         Subtitle("\n\n SETTINGS:",                     size=msize/25,lsp=4,text_color=$ffcc99)
-        Subtitle("\n\n\n\n "                         \
-                       +"Preset:\n "                 \
-                       +"Mode:\n "                   \
-                       +"strength:\n "               \
-                       +"strengthC:\n "              \
-                       +"size:\n "                   \
-                       +"sharpness:\n "              \
-                       +"temp:\n "                   \
-                       +"conv:\n "                   \
-                       +"bump:\n "                   \
+        Subtitle("\n\n\n\n "                           \
+                       +"Preset:\n "                   \
+                       +"Mode:\n\n "                   \
+                       +"strength:\n "                 \
+                       +"strengthC:\n "                \
+                       +"size:\n "                     \
+                       +"sharpness:\n "                \
+                       +"temp:\n\n "                   \
+                       +"bump:\n "                     \
+                       +"emulsion:\n "                 \
+                       +"skin:\n "                     \
+                       +"conv:\n "                     \
                        +"PTH:\n ",                     size=msize/25,lsp=4,text_color=$ffcc99)
-        Subtitle(Format("\n\n\n\n "                  \
-                       +"'"+preset+"'"+"\n "         \
-                       +"'"+md+"'"+"\n "             \
-                       +string(istr, "%1.2f")+" \n " \
-                       +string(istrc,"%1.2f")+" \n " \
-                       +string(isz,  "%1.2f")+" \n " \
-                       +string(ishrp,"%1.2f")+" \n " \
-                       +string(temp, "%1.2f")+" \n " \
-                       +string(isBool(conv) ? conv ? str*0.1 : 0 : (1-cn)*1.25,"%1.0f")+"\n "\
-                       +string(bump, "%1.2f")+" \n " \
+        Subtitle(Format("\n\n\n\n "                    \
+                       +"'"+preset+"'"+"\n "           \
+                       +"'"+md+"'"+"\n\n "             \
+                       +string(istr, "%1.2f")+" \n "   \
+                       +string(istrc,"%1.2f")+" \n "   \
+                       +string(isz,  "%1.2f")+" \n "   \
+                       +string(ishrp,"%1.2f")+" \n "   \
+                       +string(temp, "%1.2f")+" \n\n " \
+                       +string(bump, "%1.2f")+" \n "   \
+                       +string(eml,  "%1.2f")+" \n "   \
+                       +string(skin, "%1.2f")+" \n "   \
+                       +string(isBool(conv) ? conv ? str*0.1 : 0 : (1-cn)*1.25,"%1.2f")+"\n "\
                        +"{pth} \n "),       x=msize/4, size=msize/25,lsp=4,text_color=$ffcc99)
     } } }
