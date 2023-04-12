@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v1.7  (12-04-2023)             ###
+###      FilmGrain+  v1.8  (12-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -36,23 +36,24 @@
 ###    float str=1.0 (0.0 to 5.0),
 ###    float "size"=1.0 (0.0 to 2.0),
 ###    float "sharpness"=0.9 (0.0 to 1.0),
+###    float "temp"=0.0 (0.0 to 1.0),
 ###    float "lo"=1.0 (0.0 to 2.0),
 ###    float "mid"=1.0 (0.0 to 2.0),
 ###    float "hi"=1.0 (0.0 to 2.0),
 ###    string "preset"="--" ("--"/ "FilmGrain"/ "8mm"/ "16mm"/ "35mm"/ "--"/ "EXR     7248 100T"/ "Ekta    7285 100D"/ "Vision3 7219 100D"/ "--"/ "EXR     5245  50D"/ "EXR     5248 100T"/ "EXR     5293 200T"/ "EXR     5298 500T"/ "Vision  5274 200T"/ "Vision  5246 250D"/ "Vision  5277 320T"/ "Vision  5279 500T"/ "Vision2 5201  50D"/ "Vision2 5212 100T"/ "Vision2 5217 200T"/ "Vision2 5218 500T"/ "Vision3 5203  50D"/ "Vision3 5213 200T"/ "Vision3 5207 250D"/ "Vision3 5219 500T"/ "FX       214 480D"/ "--"/ "Fuji    8510  64T"/ "Fuji    8520  64D"/ "Fuji    8530 125T"/ "Fuji    8550 250T"/ "Fuji    8560 250D"/ "Fuji    8570 500T"/ "Super F 8522  64D"/ "Super F 8532 125T"/ "Super F 8552 250T"/ "Super F 8562 250D"/ "Super F 8582 400T"/ "Super F 8572 500T"/ "Eterna  8543 160T"/ "Eterna  8563 250D"/ "Eterna  8583 400T"/ "Eterna  8573 500T"/ "Reala   8592 500D"/ "--"/ "GrainFactory3"/ "DigitalNoise"),
 ###    string "mode"="gamma" ("gamma"/ "linear"/ "log"),
-###    float "temp"=0.0 (0.0 to 1.0),
 ###    float "bump"=0.0 (0.0 to 1.0),
-###    int "conv"=0.0 (0.0 to 1.0),
-###    bool "PTH"=true,
-###    bool "preblur"=true,
+###    float "conv"=0.0 (0.0 to 1.0),
+###    float "skin"=1.0 (0.0 to 1.0),
 ###    bool "fast"=true,
+###    bool "preblur"=true,
+###    bool "PTH"=true,
 ###    float "strc"=0.1 (0.0 to 1.0),
 ###    int "show"=0 (0 to 2)
 ###    )
 ###
 ###
-function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "lo", float "mid", float "hi", string "preset", string "mode", float "temp", val "conv", bool "PTH", bool "preblur", bool "fast", float "bump", float "strc", bool "tv_range", int "show") {
+function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "temp", float "lo", float "mid", float "hi", string "preset", string "mode", val "conv", float "skin", bool "PTH", bool "preblur", bool "fast", float "bump", float "strc", bool "tv_range", int "show") {
 
     w     = width (a)
     h     = height(a)
@@ -132,6 +133,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     strc  = Default( strc,      str*0.2) # 0.0 - 1.0
     conv  = Default( conv,       false ) # 0.0 - 1.0. Set to true or set strength for the convolution to "break" edges
     bmp   = Default( bump,        0.0  ) # 0.0 - 1.0. Raise to make the grain have a 3D volumetric effect
+    skin  = Default( skin,        1.0  ) # 0.0 - 1.0. Lower to reduce the effect of grain on faces. Assumes source is YCbCr format in Rec709 space
     pth   = Default( PTH,        true  ) # Path to White for chroma grain. Disable if you run out of performance
     pbl   = Default( preblur,    true  ) # Turn to false if coming from an upscale for example
     fast  = Default( fast,       true  ) # Generally with 'true' an overlay is applied which is faster. With 'false' you do get some natural convolution from AddGrainC. Use it with high 'str' or 'size'.
@@ -141,6 +143,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     ls    = md=="log"
     ln    = md=="linear"
     bmp   = bmp+1
+    skin  = 1-skin
     ygrey = tv ? 126 : 128
 
     # "log" like weights by default in "gamma" mode
@@ -195,7 +198,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
 
     if (sh==1) { last } else {
 
-    pbl    = pbl ? a.vsTCanny(binom*(pow(str,0.318)-0.61)*(w/1920.),mode=-1,u=Chr?3:2,v=Chr?3:2) : a
+    pbl    = pbl ? a.vsTCanny(binom*(pow(str,0.318)-0.61)*(pow(w/1920.-0.46,0.4)+0.2),mode=-1,u=Chr?3:2,v=Chr?3:2) : a
 
 
     # 'frei-chen' with 9 and 'conv' for lo and hi respectively
@@ -254,6 +257,14 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
 
     !Chr ? ex_lutxy (pbl,last,                                   COM,        UV=2) : \
            ex_lutxyz(pbl,last,mskY_to_YYY(pbl,luma=true,bits=bi),COM,COC+PTW,UV=3)
+
+    if (skin>0.0 && !isy) {
+    U   = ExtractU(a)
+    V   = ExtractV(a)
+    msk = ex_lutxy(U,V,Format("x range_max / 0.430 - 4 ^ -40000 * 1 + 0 max
+                               y range_max / 0.588 - 4 ^ -40000 * 1 + 0 max * {skin} * range_max *")).ex_inpand().ex_expand()
+    ex_merge(pbl,msk,luma=true,UV=Chr?3:2)
+    }
 
     if (sh==2) {
         msize  = min(w,h)
