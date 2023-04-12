@@ -52,7 +52,7 @@
 ###    )
 ###
 ###
-function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "lo", float "mid", float "hi", string "preset", string "mode", float "temp", val "conv", bool "PTH", bool "preblur", float "bump", float "strc", bool "tv_range", int "show") {
+function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "lo", float "mid", float "hi", string "preset", string "mode", float "temp", val "conv", bool "PTH", bool "preblur", bool "fast", float "bump", float "strc", bool "tv_range", int "show") {
 
     w     = width (a)
     h     = height(a)
