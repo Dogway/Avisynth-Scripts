@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###           Grade Pack v8.9 (12-04-2023)               ##
+###           Grade Pack v9.0 (13-04-2023)               ##
 ###                                                      ##
 ###    https://forum.doom9.org/showthread.php?t=182881   ##
 ###                                                      ##
@@ -562,7 +562,7 @@ function ex_autolevels (clip c, bool "lo", bool "gamma", bool "hi", int "lift", 
 ###
 ### ANTISYMMETRIC or INVERSION
 ### grainextract   - Difference of Base and Top layers centered at range_half
-### grainmerge     - Blend Top Layer centered on range_half with Base Layer
+### grainmerge     - Blend Top Layer -centered on range_half- with Base Layer
 ###
 ### difference     - Absolute difference of Base and Top layers
 ### softdifference -
@@ -905,6 +905,7 @@ function Skin_Qualifier (clip c, float "str", float "Delta", float "Q", float "b
     ex_lutxy(C, H, Format("f32 y 6.283185 * pi - {dg} + cos "+Cnorm+" * 0 swap {LO} - 1 {LO} {HI} - / * - "+in), scale_inputs="intf", fulls=true, clamp_float=true)
 
     ConvertBits(bi, dither= bi==32 ? -1 : 1, fulls=true)
+
     !rgb ? ex_lutxyz(U,V,"y range_max / 0.430 - 4 ^ -40000 * 1 + 0 max
                           z range_max / 0.588 - 4 ^ -40000 * 1 + 0 max * range_max * x min") : last
     !rgb ? ex_inpand(2).ex_expand(2) : false
@@ -1311,31 +1312,51 @@ function PseudoColor(clip a, string "mode", float "iso", bool "tv_range") {
 
 ###
 ###
-### Vignette() - v4.1 (31-03-2022)
+### Vignette() - v4.2 (13-04-2023)
 ###
 ###
-### Adds a vignette (darkening around the frame) to the source.
+### Adds a vignette (darkening and desaturation around the frame) to the source.
 ### Use show=true if you only want the mask.
+###
+###
+### Function Definition:
+###    (
+###    clip,
+###    float "size"=2.3 (0.0 to 3.0 by 0.1),
+###    float "range"=1.8 (0.0 to 3.0 by 0.1),
+###    bool "show"=false
+###    )
+###
 ###
 ### Dependencies: > ExTools
 ###
 ####################################
 
 
-function Vignette (clip c, float "Vignette", bool "show", bool "tv_range") {
+function Vignette (clip c, float "size", float "range", bool "tv_range", bool "show") {
 
-    str   = Default(Vignette, 0.5)
-    show  = Default(show,    false)
-    tv    = Default(tv_range, !show)
-    str   = pow((clamp(str,0,1) + 0.5) / 1.5, 0.5)
+    rgb   = isRGB(c)
+    fs    = propNumElements(c,"_ColorRange")  > 0 ? \
+            propGetInt     (c,"_ColorRange") == 0 : rgb
+
+    sz    = 3-Default(size,       1.0)
+    sm    = 3-Default(range,      1.0)
+    tv    =   Default(tv_range,   !fs)
+    show  =   Default(show,     false)
 
     Assert(IsVersionOrGreater(3,7,3), "Vignette: Update AviSynth+ version")
 
-    msk = ex_lutspa(c, Format("x  width 0.5 * - abs width 0.5 * / range_max * 1.5 {str} 0.5 * + ^ range_max / 0 max "+ \
-                              "y height 0.5 * - abs width 0.5 * / range_max * 1.5 {str} 0.5 * + ^ range_max / 0 max "+ \
-                              "+ range_max min range_max - abs")+(tv ? " ymax ymin - range_max / * ymin +" : ""), UV=128, fulld=!tv)
+    msk   = ex_lutspa(c, Format("width  0.5 * W@ x - abs W / {sz} * 2 ^
+                                 height 0.5 *    y - abs W / {sz} * 2 ^ +
+                                 1 swap - {sm} * 0 1 clip dup 2 ^ swap 2 * 3 swap - *
+                                " + (tv ? "ymax ymin - * ymax ymin - min " + (show ? "ymin +":"") : "range_max * range_max min")), fulld=!tv, UV=show?128:3)
 
-    show ? msk : ex_blend(c, msk, mode="multiply", UV=2, tv_range=tv) }
+    rngmx = tv ? "ymax ymin -" : "range_max"
+    srcmx = tv ? "ymin -"      : ""
+    srcmn = tv ? "ymin +"      : ""
+
+    show ? msk : isY(c) ? ex_lutxy(c,msk,"x "+srcmx+" y * "+rngmx+" / "+srcmn,fulls=!tv) : \
+                          ex_lutxy(c,msk,"x "+srcmx+" y * "+rngmx+" / "+srcmn,rgb?"":"x range_half - y range_max / * range_half +",fulls=!tv) }
 
 
 
