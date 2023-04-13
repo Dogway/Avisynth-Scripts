@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v1.9  (12-04-2023)             ###
+###      FilmGrain+  v2.0  (13-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -11,7 +11,7 @@
 ###                                                 ###
 #######################################################
 ###
-### Luma+Detail adaptive synthetic film grain filter. Y/YUV only.
+### Accurate and performant synthetic film grain filter. Y/YUV at any bitdepth.
 ###
 ###
 ###
@@ -20,8 +20,8 @@
 ###                 GradePack
 ###                 AddGrainC
 ###                 vsTCanny
-###                 TransformsPack (for fast=false)
 ###                 GradePack      (for emulsion>0 or show=2)
+###                 TransformsPack (for fast=false)
 ###
 ### Examples:
 ###
@@ -46,16 +46,22 @@
 ###    float "bump"=0.0 (0.0 to 1.0),
 ###    float "emulsion"=0.0 (0.0 to 1.0),
 ###    float "skin"=1.0 (0.0 to 1.0),
+###    float "preblur"=1.0 (0.0 to 2.0),
 ###    float "conv"=0.0 (0.0 to 1.0),
-###    bool "fast"=true,
-###    bool "preblur"=true,
 ###    bool "PTH"=true,
+###    bool "fast"=true,
 ###    float "strc"=0.1 (0.0 to 1.0),
 ###    int "show"=0 (0 to 2)
 ###    )
 ###
 ###
-function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", float "temp", float "lo", float "mid", float "hi", string "preset", string "mode", float "bump", float "emulsion", float "skin", val "conv", bool "PTH", bool "preblur", bool "fast", float "strc", bool "tv_range", int "show") {
+function FilmGrainPlus(clip a,                                                                 \
+                       float  "str",    float  "size",     float "sharpness", float "temp",    \
+                       float  "lo",     float  "mid",      float "hi",                         \
+                       string "preset", string "mode",                                         \
+                       float  "bump",   float  "emulsion", float "skin",      bool  "preblur", \
+                       val    "conv",   bool   "PTH",      bool  "fast",                       \
+                       float  "strc",   bool   "tv_range", int   "show") {
 
     w     = width (a)
     h     = height(a)
@@ -66,7 +72,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
             propGetInt      (a,"_ColorRange") == 0 : false
     isUHD = w > 2599 || h > 1499
 
-    # The naming convention follows; Series, Film stock number, ASA/ISO, White Point balance (Daylight/Tungsten -3200K-)
+    # The naming convention follows; Series, Film Stock number, ASA/ISO, White Point balance (Daylight -5500- / Tungsten -3200K-)
     # 'FX214' is a special Kodak film stock aimed at bluescreens for VFX composition, hence grain is low but at the cost of loss of sharpness
     # Many of the Kodak film stocks have 16mm counterparts, they are labelled in the 7000 series, so for example 7248 is the 16mm version of 5248
     # Sometimes 'clean' stocks like 5248 or 5219 are "pushed" one or more stops making the look more grainy and contrasty.
@@ -127,21 +133,21 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     szD   = Defined( size      )
     shrpD = Defined( sharpness )
 
-    # Presets at 1080p:                        Default                    FilmGrain  8mm  16mm  35mm  7219  7248  7285  5245  5248  5293  5298  5274  5246  5279  5201  5212  5217  5218  5203  5213  5207  5219 FX214  8510  8520  8530  8550  8560  8570  8522  8532  8552  8562  8582  8572  8543  8563  8583  8573  8592  GF3   DigitalNoise
-    str   = Default( str      , Select ( pr,      1.3 ,                       1.8,   5.0,  5.0,  1.3,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.9,  1.0,  1.0,  1.0,  1.5,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 2.9,  1.0))
-    sz    = Default( size     , Select ( pr,   w/1920.,                       1.5,   2.0,  1.3,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  0.5,  1.0,  1.0,  1.0,  0.4,  0.3,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 1.0,  1.0))
-    shrp  = Default( sharpness, Select ( pr,szD?-0.87*sz+2:(8-str)/7.5,0.9,   0.4,   0.5,  0.9,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  0.8,  1.0,  1.0,  1.0,  0.8,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0, 0.5,  1.0))
-    temp  = Default( temp     , Select ( pr,max((str-1.25)*0.08-0.06,0)+0.06, 0.1,   0.2,  0.1,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.1,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0, 0.1,  0.0))
+    # Presets at 1080p:                        Default                    FilmGrain  8mm  16mm  35mm  7248  7285  7219  5245  5248  5293  5298  5274  5246  5277  5279  5201  5212  5217  5218  5203  5213  5207  5219 FX214  8510  8520  8530  8550  8560  8570  8522  8532  8552  8562  8582  8572  8543  8563  8583  8573  8592   GF3   DigitalNoise
+    str   = Default( str      , Select ( pr,      1.3 ,                       1.8,   7.0,  5.0,  1.3,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.9,  1.0,  1.0,  1.0,  1.0,  1.5,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  2.9,  1.0))
+    sz    = Default( size     , Select ( pr,   w/1920.,                       1.5,   2.0,  1.3,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  0.5,  1.0,  1.0,  1.0,  1.0,  0.4,  0.3,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0))
+    shrp  = Default( sharpness, Select ( pr,szD?-0.87*sz+2:(8-str)/7.5,       0.9,   0.4,  0.5,  0.9,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  0.8,  1.0,  1.0,  1.0,  1.0,  0.8,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  1.0,  0.5,  1.0))
+    temp  = Default( temp     , Select ( pr,max((str-1.25)*0.08-0.06,0)+0.06, 0.1,   0.2,  0.1,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.1,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.1,  0.0))
     strc  = Default( strc,      str*0.2) # 0.0 - 1.0
     conv  = Default( conv,       false ) # 0.0 - 1.0. Set to true or set strength for the convolution to "break" edges
     bmp   = Default( bump,        0.0  ) # 0.0 - 1.0. Raise to make the grain have a 3D volumetric effect
     skin  = Default( skin,        1.0  ) # 0.0 - 1.0. Lower to reduce the effect of grain on faces. Assumes source is YCbCr format in Rec709 space
     eml   = Default( emulsion,    0.0  ) # 0.0 - 1.0. Raise to mimic the emulsion artifacts common in old film stocks
+    pbl   = Default( preblur,     1.0  ) # 0.0 - 2.0. Multiplier for internal blur. Lower or disable by setting it to 0.0 if coming from an upscale for example
     pth   = Default( PTH,        true  ) # Path to White for chroma grain. Disable if you run out of performance
-    pbl   = Default( preblur,    true  ) # Turn to false if coming from an upscale for example
-    fast  = Default( fast,       true  ) # Generally with 'true' an overlay is applied which is faster. With 'false' you do get some natural convolution from AddGrainC. Use it with high 'str' or 'size'.
+    fast  = Default( fast,       true  ) # Generally with 'true' an overlay is applied which is faster. With 'false' you do get some natural convolution from AddGrainC. Use it when high 'str' or 'size' to blend in grain better
     md    = Default( mode,      "gamma") # Add grain in "log", "linear" or "gamma" space
-    sh    = Default( show,           0 ) # 1. Show grain plate centered at 126 if tv_range=true, 2. Show output with settings overlay
+    sh    = Default( show,           0 ) # 1. Show grain plate centered at 126 if tv_range=true or 128 otherwise, 2. Show output with settings overlay
     tv    = Default( tv_range,      !fs)
     ls    = md=="log"
     ln    = md=="linear"
@@ -163,6 +169,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     Assert(IsVersionOrGreater(3,7,3), "FilmGrain+: Update AviSynth+ version")
 
     Chr   = strc > 0.0 && !isy
+    Chr32 = Chr ? 3 : 2
     crs   =   ((1-  shrp)     *3)+1
     shrpL =     2-( shrp      *2)
     shrpC = max(2-((shrp+0.3) *2),0)
@@ -177,11 +184,11 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
     }
 
     blk.AddGrainC(str*100*sz, strc*100*sz, constant=false, seed=17)
-    !fast      ? ex_makediff(blk,gl1,UV=Chr?3:2)                       : nop()
+    !fast      ? ex_makediff(blk,gl1,UV=Chr32)                   : nop()
     # Anti-moiree + 'sharpness' support blur
-    crs != 1.0 ? vsTCanny(binom,mode=-1,u=2,v=2)                       : removegrain(12,0)
+    crs != 1.0 ? vsTCanny(binom,mode=-1,u=2,v=2)                 : removegrain(12,0)
     # Volumetric grain
-    bmp  > 1.0 ? ex_lut(Format("x[-1,1] x - {bmp} * x +"), UV=Chr?3:2) : last
+    bmp  > 1.0 ? ex_lut(Format("x[-1,1] x - {bmp} * x +"), UV=2) : last
 
     if (Chr && !is44) {
 
@@ -189,7 +196,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
         Y    = ExtractY().BicubicResize(w,  h,     b=shrpL,c=(1.0-shrpL)/2.)
         Y    = temp > 0.0 ? Merge(Y,Y.TemporalSoften(1,255,0,255,2),temp/2 ) : Y
         U    = ExtractU().BicubicResize(w/2,h/is22,b=shrpC,c=(1.0-shrpC)/2.)
-        V    = ExtractV().BicubicResize(w/2,h/is22,b=shrpC,c=(1.0-shrpC)/2.)
+        V    = ExtractV().BicubicResize(w/2,h/is22,b=shrpL,c=(1.0-shrpL)/2.) # Red channel is typically blurrier
         CombinePlanes(Y,U,V, planes="YUV", sample_clip=a)
 
     } else {
@@ -201,7 +208,7 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
 
     if (sh==1) { last } else {
 
-    pbl    = pbl ? a.vsTCanny(binom*(pow(str,0.318)-0.61)*(pow(w/1920.-0.46,0.4)+0.2),mode=-1,u=Chr?3:2,v=Chr?3:2) : a
+    pbl    = pbl>0 ? a.vsTCanny(binom*(pow(str,0.318)-0.61)*(pow(w/1920.-0.46,0.4)+0.2)*pbl,mode=-1,u=Chr32,v=Chr32) : a
 
 
     # 'frei-chen' with 9 and 'conv' for lo and hi respectively
@@ -264,26 +271,26 @@ function FilmGrainPlus(clip a, float "str", float "size", float "sharpness", flo
 
 
     if (skn>0 && !isy) {
-
+        # 32-bit not implemented yet
         U   = ExtractU(a)
         V   = ExtractV(a)
         msk = ex_lutxy(U,V,Format("x range_max / 0.430 - 4 ^ -40000 * 1 + 0 max
-                                   y range_max / 0.588 - 4 ^ -40000 * 1 + 0 max * {skn} * range_max *")).ex_inpand().ex_expand()
-        ex_merge(pbl,msk,luma=true,UV=Chr?3:2)
+                                   y range_max / 0.588 - 4 ^ -40000 * 1 + 0 max * range_max {skn} * *")).ex_inpand().ex_expand()
+        ex_merge(pbl,msk,luma=true,UV=Chr32)
     }
 
     if (eml>0.0 && !isy) {
 
         is22   = is422(a) ? 1 : 2
-        sample = padresize(GL.ExtractY(),w/15,h/15).TemporalSoften(1,255,0,255,2)
-        UP     = BilinearResize(sample,w/4,h/is22/2)
+        sample = padresize(GL.ExtractY(),w/16,h/16).TemporalSoften(1,255,0,255,2)
+        UP     = BilinearResize(sample,  w/4, h/is22/2)
         Y      = ExtractY()
         U      = ExtractU()
         V      = ExtractV()
 
         stains = ex_blend(UP,UP.FlipHorizontal(),mode="subtract",tv_range=false).ex_inpand()
         UVer   = StackVertical  (stains,stains)
-        UHor   = StackHorizontal(UVer,  UVer)
+        UHor   = StackHorizontal(UVer,    UVer)
         Unew   = ex_lutxy(U,UHor,Format("x y {eml} * -"))
         CombinePlanes(Y,Unew,V, planes="YUV", sample_clip=last)
     }
