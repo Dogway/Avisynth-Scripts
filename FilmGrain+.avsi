@@ -59,7 +59,7 @@ function FilmGrainPlus(clip a,                                                  
                        float  "str",    float  "size",     float "sharpness", float "temp",    \
                        float  "lo",     float  "mid",      float "hi",                         \
                        string "preset", string "mode",                                         \
-                       float  "bump",   float  "emulsion", float "skin",      bool  "preblur", \
+                       float  "bump",   float  "emulsion", float "skin",      float "preblur", \
                        val    "conv",   bool   "PTH",      bool  "fast",                       \
                        float  "strc",   bool   "tv_range", int   "show") {
 
