@@ -263,7 +263,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     size  = 1.5 * ( 0.000173*w2 + 0.667 )
     grain = gr  * ( 0.000260*w2 + 0.500 )
     sharp = min   (-0.000156*w2 + 1.3,1 )
-    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Und,sharpness=sharp,lo=0.7,hi=0.9,preblur=1./mrat,temp=0.2,tv_range=!fs) : last
+    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Und,sharpness=sharp,lo=0.7,hi=0.9,preblur=mrat>1?0:1./mrat,temp=0.2,tv_range=!fs) : last
 
     if (sh) {
             taps = """ krn1 == "Blackman" || krn1 == "Lanczos" || krn1 == "Sinc" || krn1 == "SincLin" || krn1 == "Jinc" """
@@ -460,7 +460,7 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
     size  = 1.5 * ( 0.000173*w2 + 0.667 )
     grain = gr  * ( 0.000260*w2 + 0.500 )
     sharp = min   (-0.000156*w2 + 1.3,1 )
-    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Und,sharpness=sharp,lo=0.7,hi=0.9,preblur=1./max(rw,rh),temp=0.2,tv_range=!fs) : last
+    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Undefined(),sharpness=sharp,lo=0.7,hi=0.9,preblur=max(rw,rh)>1?0:1./max(rw,rh),temp=0.2,tv_range=!fs) : last
     }
 
 
@@ -568,7 +568,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     size  = 1.5 * ( 0.000173*w2 + 0.667 )
     grain = gr  * ( 0.000260*w2 + 0.500 )
     sharp = min   (-0.000156*w2 + 1.3,1 )
-    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Und,sharpness=sharp,lo=0.7,hi=0.9,preblur=1./max(rw,rh),temp=0.2,tv_range=!fs) : last
+    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Undefined(),sharpness=sharp,lo=0.7,hi=0.9,preblur=max(rw,rh)>1?0:1./max(rw,rh),temp=0.2,tv_range=!fs) : last
     }
 
 
