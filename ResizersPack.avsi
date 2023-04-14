@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.6 (13-04-2023)     ##
+###   Resizers Functions Pack 11.6 (15-04-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -208,7 +208,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     cores  = Default(cores,nmod(threads/2,2,4))                                               # Only for gpuid=-1 ("cpu" nnedi3)
     ddec   = Defined(deconv)
     dec    = Default(deconv,     0)                                                           # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
-    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 1.6 : 0 )                               # Grain strength. >0 Add grain to big upscales as a mean of cheap detail hallucination
+    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.3 : 0 )                               # Grain strength. >0 Add grain to big upscales as a mean of cheap detail hallucination
     decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
     dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                       # higher deconvolution the higher the upscale
     dec    = dec == 0.095 ? 0 : dec
@@ -438,7 +438,7 @@ function RAVUresize(clip a, val "width", val "height", float "grain", string "pa
 
     rw      = w2/float(w)
     rh      = h2/float(h)
-    gr      = Default(grain, rw>1.25 && rh>1.25 ? 1.6 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
+    gr      = Default(grain, rw>1.25 && rh>1.25 ? 0.3 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
     gpuid   = Default(gpuid, 0)
 
     factor  = max(rw,rh) < 3 ? 2 : 4
@@ -548,7 +548,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     gid    = Default(gpuid,      0)
     so     = Default(soothe, md==1)                        # Temporal stabilize sharpening for less temporal jitter
     ns     = Default(noise,      0)                        # From 0 (no denoise) to 4 full denoise
-    gr     = Default(grain, rw>1.25 && rh>1.25 ? 1.6 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
+    gr     = Default(grain, rw>1.25 && rh>1.25 ? 0.3 : 0 ) # Grain strength. >0 Add grain to big upscales as a mean of cheap hallucination
 
     !isy ? a : ConvertBits(a, 32, fulls=!tv,  fulld=true)
     rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="Precise")
