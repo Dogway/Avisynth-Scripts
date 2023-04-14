@@ -41,7 +41,7 @@
 ###    float "lo"=1.0 (0.0 to 2.0),
 ###    float "mid"=1.0 (0.0 to 2.0),
 ###    float "hi"=1.0 (0.0 to 2.0),
-###    string "preset"="--" ("--"/ "FilmGrain"/ "8mm"/ "16mm"/ "35mm"/ "--"/ "EXR     5245  50D"/ "EXR     5248 100T"/ "EXR     5293 200T"/ "EXR     5298 500T"/ "Vision  5274 200T"/ "Vision  5246 250D"/ "Vision  5277 320T"/ "Vision  5279 500T"/ "Vision2 5201  50D"/ "Vision2 5212 100T"/ "Vision2 5217 200T"/ "Vision2 5218 500T"/ "Vision3 5203  50D"/ "Vision3 5213 200T"/ "Vision3 5207 250D"/ "Vision3 5219 500T"/ "FX       214 480D"/ "--"/ "Fuji    8510  64T"/ "Fuji    8520  64D"/ "Fuji    8530 125T"/ "Fuji    8550 250T"/ "Fuji    8560 250D"/ "Fuji    8570 500T"/ "Super F 8522  64D"/ "Super F 8532 125T"/ "Super F 8552 250T"/ "Super F 8562 250D"/ "Super F 8582 400T"/ "Super F 8572 500T"/ "Eterna  8543 160T"/ "Eterna  8563 250D"/ "Eterna  8583 400T"/ "Eterna  8573 500T"/ "Reala   8592 500D"/ "--"/ "GrainFactory3"/ "DigitalNoise"),
+###    string "preset"="--" ("--"/ "FilmGrain"/ "8mm"/ "16mm"/ "35mm"/ "--"/ "EXR     5245  50D"/ "EXR     5248 100T"/ "EXR     5293 200T"/ "EXR     5298 500T"/ "Vision  5274 200T"/ "Vision  5246 250D"/ "Vision  5277 320T"/ "Vision  5279 500T"/ "Vision2 5201  50D"/ "Vision2 5212 100T"/ "Vision2 5217 200T"/ "Vision2 5218 500T"/ "Vision3 5203  50D"/ "Vision3 5213 200T"/ "Vision3 5207 250D"/ "Vision3 5219 500T"/ "FX       214 480D"/ "--"/ "Fuji    8510  64T"/ "Fuji    8520  64D"/ "Fuji    8530 125T"/ "Fuji    8550 250T"/ "Fuji    8560 250D"/ "Fuji    8570 500T"/ "Super F 8522  64D"/ "Super F 8532 125T"/ "Super F 8552 250T"/ "Super F 8562 250D"/ "Super F 8582 400T"/ "Super F 8572 500T"/ "EternaV 8543 160T"/ "Eterna  8563 250D"/ "Eterna  8583 400T"/ "Eterna  8573 500T"/ "Reala   8592 500D"/ "--"/ "GrainFactory3"/ "DigitalNoise"),
 ###    string "mode"="gamma" ("gamma"/ "linear"/ "log"),
 ###    float "bump"=0.0 (0.0 to 1.0),
 ###    float "emulsion"=0.0 (0.0 to 1.0),
@@ -116,7 +116,7 @@ function FilmGrainPlus(clip a,                                                  
             preset == "Super F 8562 250D" ? 31 : \
             preset == "Super F 8582 400T" ? 32 : \
             preset == "Super F 8572 500T" ? 33 : \
-            preset == "Eterna  8543 160T" ? 34 : \
+            preset == "EternaV 8543 160T" ? 34 : \
             preset == "Eterna  8563 250D" ? 35 : \
             preset == "Eterna  8583 400T" ? 36 : \
             preset == "Eterna  8573 500T" ? 37 : \
@@ -321,7 +321,7 @@ function FilmGrainPlus(clip a,                                                  
 
     if (sh==2) {
         msize  = min(w,h)
-        bg     = BoxMask(0,round(msize/(preset=="--"?2.6:1.9)),0,round(msize/1.3), invert=true, tv_out=tv)
+        bg     = BoxMask(0,round(msize/(preset=="--"?2.6:1.8)),0,round(msize/1.3), invert=true, tv_out=tv)
         ex_blend(bg,"multiply",opacity=0.5,tv_range=tv)
 
         Subtitle(" FilmGrain+",                        size=msize/16,lsp=4,text_color=$ff5050,font="Segoe UI")
@@ -340,7 +340,7 @@ function FilmGrainPlus(clip a,                                                  
                        +"conv:\n "                     \
                        +"PTH:\n ",                     size=msize/25,lsp=4,text_color=$ffcc99)
         Subtitle(Format("\n\n\n\n "                    \
-                       +"'"+ReplaceStr(preset,"  "," ").ReplaceStr("  "," ").ReplaceStr(" 52",s16mm?" 72":" 52")+"'"+"\n "\
+                       +"'"+ReplaceStr(preset,"  "," ").ReplaceStr("  "," ").ReplaceStr(" 52",sxmm?" 72":" 52")+"'"+"\n "\
                        +"'"+md+"'"+"\n\n "             \
                        +string(istr, "%1.2f")+" \n "   \
                        +string(istrc,"%1.2f")+" \n "   \
