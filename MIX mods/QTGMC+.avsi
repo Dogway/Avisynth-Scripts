@@ -43,9 +43,9 @@
 #   Vinverse   (0.9.4    or above)
 #
 # Core scripts:
-#   ExTools      (10.1   or above)
-#   ResizersPack (11.4   or above) (for nnedi3wrap() or EEDI3wrap() )
-#   SMDegrain    (4.1.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
+#   ExTools      (10.2   or above)
+#   ResizersPack (11.6   or above) (for nnedi3wrap() or EEDI3wrap() )
+#   SMDegrain    (4.3.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
 #
 # Optional:
 #   TDeInt, NNEDI, NNEDI2, EEDI3/EEDI3CL, EEDI2/EEDI2CUDA (requires recent drivers) - if selected directly via EdiMode or a source-match preset
@@ -207,21 +207,21 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     MatchPreset2 = Select( mpNum2, "Placebo", "Very Slow", "Slower", "Slow", "Medium", "Fast", "Faster", "Very Fast", "Super Fast", "Ultra Fast", "Draft" )
 
     NoisePreset = Default( NoisePreset, "Fast" )
-    npNum =  (NoisePreset  == "Slower"    ) ? 0 : \
-             (NoisePreset  == "Slow"      ) ? 1 : \
-             (NoisePreset  == "Medium"    ) ? 2 : \
-             (NoisePreset  == "Fast"      ) ? 3 : \
-             (NoisePreset  == "Faster"    ) ? 4 : \
+    npNum =  (NoisePreset  == "Slower"    ) ?  0 : \
+             (NoisePreset  == "Slow"      ) ?  1 : \
+             (NoisePreset  == "Medium"    ) ?  2 : \
+             (NoisePreset  == "Fast"      ) ?  3 : \
+             (NoisePreset  == "Faster"    ) ?  4 : \
              Assert( false, "QTGMC+: 'NoisePreset' choice is invalid" )
 
     Tuning = Default( Tuning, "None" )
-    tNum =   (Tuning       == "None"      ) ? 0 : \
-             (Tuning       == "DV-SD"     ) ? 1 : \
-             (Tuning       == "DV-HD"     ) ? 2 : \
+    tNum =   (Tuning       == "None"      ) ?  0 : \
+             (Tuning       == "DV-SD"     ) ?  1 : \
+             (Tuning       == "DV-HD"     ) ?  2 : \
              Assert( false, "QTGMC+: 'Tuning' choice is invalid" )
 
     # Tunings only affect blocksize in this version
-    bs  = Select( tNum,  16, 16, 32 )
+    bs  = Select( tNum, 16, 16, 32 )
     bs2 = min(bs * 2, 32)
 
     # EdiMode                                              BWDIF+BOB+NNEDI3        BWDIF+BOB          BWDIF+NNEDI3      NNEDI3    NNEDI3    BWDIF      BWDIF     BWDIF
@@ -485,9 +485,9 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
     spatialBlur = (SrchClipPP > 1 && IsClip(spatialBlur)) ? (ChromaMotion ? spatialBlur.Merge( repair0, 0.1 ) : spatialBlur.MergeLuma( repair0, 0.1 )) : spatialBlur
 
-    srchClip    =  srchcheck        ? srchClip            : \
-                  (SrchClipPP == 0) ? repair0             : \
-                  (SrchClipPP  < 3) ? spatialBlur         : \
+    srchClip    =  srchcheck        ? srchClip              : \
+                  (SrchClipPP == 0) ? repair0               : \
+                  (SrchClipPP  < 3) ? spatialBlur           : \
                   (SrchClipPP  > 2) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - Y x - 0.49 * x + ? ?", UV=CMmt, fulls=!tv ) : nop()
     srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=St, c=Amp, tv_in=tv, tv_out=false, uv=CMmt, bits=8) : srchClip.ConvertBits(8,dither=-1)
 
@@ -550,7 +550,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     dnWindow    = (NoiseProcess == 0)         ? nop() : \
                   (Denoiser == "DFTTest")     ? noiseWindow.DFTTest( Y=true, U=ChromaNoise, V=ChromaNoise, sigma=Sigma*4, tbsize=noiseTD, threads=1, Dither=1 ) : \
                   (Denoiser == "KNLMeansCL")  ? noiseWindow.ex_KNLMeansCL(Chroma=ChromaNoise, a=2, d=NoiseTR, h=Sigma, gpuid=gpuid )                            : \
-                  (Denoiser == "BM3D")        ? noiseWindow.ex_BM3D(sigma=Sigma,radius=NoiseTR,preset="Normal",UV=3   ,gpuid=gpuid )                            : \
+                  (Denoiser == "BM3D")        ? noiseWindow.ex_BM3D(sigma=Sigma,radius=NoiseTR,preset="Normal",UV=3  , gpuid=gpuid )                            : \
                   (Denoiser == "FFT3D")       ? noiseWindow.neo_fft3d( sigma=Sigma, bt=noiseTD, mt=bomt, ncpu=min(4,Threads), u=max(2,CMmt), v=max(2,CMmt))     : \
                                                 Assert( false, "QTGMC+: Couldn't find a matching 'Denoiser' type" )
     dnwindow    = (NoiseProcess != 0) && n16d ? dnwindow.ConvertBits(bi,dither=-1,fulls=!tv) : dnwindow
@@ -1243,7 +1243,7 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 # v4.1p (14-03-2023) (breaks output parity with original QTGMC)
 # - Add more EdiModes
 # - Change default base bob to BWDIF for better quality (and avoid moiree)
-# - Change all presets EdiModes to more detail preserving alternatives
+# - Change all EdiMode presets to more detail preserving alternatives
 # - Fix typo on sourcematch modes, missing "range_half -"
 # - Fix ChromaMotion internal from garbage to copy
 #
