@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v2.2  (14-04-2023)             ###
+###      FilmGrain+  v2.3  (15-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -13,6 +13,11 @@
 ###
 ### Accurate and performant synthetic film grain filter. Y/YUV at any bitdepth.
 ###
+### This is a grain restoration filter therefore film and lens aberrations like;
+### vignette, veiling, lens blur, light wrap, bokeh, halation, dilation, dust & scratches, etc, aren't emulated.
+###
+### For convenience 'preblur' is included but if you need a superior preblur
+### or any other effect, set 'preblur=0.0' and apply them prior to this filter.
 ###
 ###
 ### Dependencies: > ExTools
@@ -79,51 +84,51 @@ function FilmGrainPlus(clip a,                                                  
     # Many of the Kodak film stocks have 16mm counterparts, they are labelled in the 7000 series, so for example 7248 is the 16mm version of 5248
     # Sometimes 'clean' stocks like 5248 or 5219 are "pushed" one or more stops making the look more grainy and contrasty.
     preset= Default( preset,   "--" )
-    pr    = preset == ""                  ?  0 : \
-            preset == "--"                ?  0 : \
-            preset == "FilmGrain"         ?  1 : \
-            preset == "8mm"               ?  2 : \
-            preset == "16mm"              ?  3 : \
-            preset == "35mm"              ?  4 : \
-            preset == "--"                ?  0 : \
-            preset == "EXR     5245  50D" ?  5 : \
-            preset == "EXR     5248 100T" ?  6 : \
-            preset == "EXR     5293 200T" ?  7 : \
-            preset == "EXR     5298 500T" ?  8 : \
-            preset == "Vision  5274 200T" ?  9 : \
-            preset == "Vision  5246 250D" ? 10 : \
-            preset == "Vision  5277 320T" ? 11 : \
-            preset == "Vision  5279 500T" ? 12 : \
-            preset == "Vision2 5201  50D" ? 13 : \
-            preset == "Vision2 5212 100T" ? 14 : \
-            preset == "Vision2 5217 200T" ? 15 : \
-            preset == "Vision2 5218 500T" ? 16 : \
-            preset == "Vision3 5203  50D" ? 17 : \
-            preset == "Vision3 5213 200T" ? 18 : \
-            preset == "Vision3 5207 250D" ? 19 : \
-            preset == "Vision3 5219 500T" ? 20 : \
-            preset == "FX       214 480D" ? 21 : \
-            preset == "--"                ?  0 : \
-            preset == "Fuji    8510  64T" ? 23 : \
-            preset == "Fuji    8520  64D" ? 24 : \
-            preset == "Fuji    8530 125T" ? 22 : \
-            preset == "Fuji    8550 250T" ? 25 : \
-            preset == "Fuji    8560 250D" ? 26 : \
-            preset == "Fuji    8570 500T" ? 27 : \
-            preset == "Super F 8522  64D" ? 28 : \
-            preset == "Super F 8532 125T" ? 29 : \
-            preset == "Super F 8552 250T" ? 30 : \
-            preset == "Super F 8562 250D" ? 31 : \
-            preset == "Super F 8582 400T" ? 32 : \
-            preset == "Super F 8572 500T" ? 33 : \
-            preset == "EternaV 8543 160T" ? 34 : \
-            preset == "Eterna  8563 250D" ? 35 : \
-            preset == "Eterna  8583 400T" ? 36 : \
-            preset == "Eterna  8573 500T" ? 37 : \
-            preset == "Reala   8592 500D" ? 38 : \
-            preset == "--"                ?  0 : \
-            preset == "GrainFactory3"     ? 39 : \
-            preset == "DigitalNoise"      ? 40 : \
+    pr    = preset == ""                                            ?  0 : \
+            preset == "--"                                          ?  0 : \
+            preset == "FilmGrain"                                   ?  1 : \
+            preset == "8mm"                                         ?  2 : \
+            preset == "16mm"                                        ?  3 : \
+            preset == "35mm"                                        ?  4 : \
+            preset == "--"                                          ?  0 : \
+            preset == "EXR     5245  50D" || FindStr(preset,"5245") ?  5 : \
+            preset == "EXR     5248 100T" || FindStr(preset,"5248") ?  6 : \
+            preset == "EXR     5293 200T" || FindStr(preset,"5293") ?  7 : \
+            preset == "EXR     5298 500T" || FindStr(preset,"5298") ?  8 : \
+            preset == "Vision  5274 200T" || FindStr(preset,"5274") ?  9 : \
+            preset == "Vision  5246 250D" || FindStr(preset,"5246") ? 10 : \
+            preset == "Vision  5277 320T" || FindStr(preset,"5277") ? 11 : \
+            preset == "Vision  5279 500T" || FindStr(preset,"5279") ? 12 : \
+            preset == "Vision2 5201  50D" || FindStr(preset,"5201") ? 13 : \
+            preset == "Vision2 5212 100T" || FindStr(preset,"5212") ? 14 : \
+            preset == "Vision2 5217 200T" || FindStr(preset,"5217") ? 15 : \
+            preset == "Vision2 5218 500T" || FindStr(preset,"5218") ? 16 : \
+            preset == "Vision3 5203  50D" || FindStr(preset,"5203") ? 17 : \
+            preset == "Vision3 5213 200T" || FindStr(preset,"5213") ? 18 : \
+            preset == "Vision3 5207 250D" || FindStr(preset,"5207") ? 19 : \
+            preset == "Vision3 5219 500T" || FindStr(preset,"5219") ? 20 : \
+            preset == "FX       214 480D" || FindStr(preset, "214") ? 21 : \
+            preset == "--"                                          ?  0 : \
+            preset == "Fuji    8510  64T" || FindStr(preset,"8510") ? 23 : \
+            preset == "Fuji    8520  64D" || FindStr(preset,"8520") ? 24 : \
+            preset == "Fuji    8530 125T" || FindStr(preset,"8530") ? 22 : \
+            preset == "Fuji    8550 250T" || FindStr(preset,"8550") ? 25 : \
+            preset == "Fuji    8560 250D" || FindStr(preset,"8560") ? 26 : \
+            preset == "Fuji    8570 500T" || FindStr(preset,"8570") ? 27 : \
+            preset == "Super F 8522  64D" || FindStr(preset,"8522") ? 28 : \
+            preset == "Super F 8532 125T" || FindStr(preset,"8532") ? 29 : \
+            preset == "Super F 8552 250T" || FindStr(preset,"8552") ? 30 : \
+            preset == "Super F 8562 250D" || FindStr(preset,"8562") ? 31 : \
+            preset == "Super F 8582 400T" || FindStr(preset,"8582") ? 32 : \
+            preset == "Super F 8572 500T" || FindStr(preset,"8572") ? 33 : \
+            preset == "EternaV 8543 160T" || FindStr(preset,"8543") ? 34 : \
+            preset == "Eterna  8563 250D" || FindStr(preset,"8563") ? 35 : \
+            preset == "Eterna  8583 400T" || FindStr(preset,"8583") ? 36 : \
+            preset == "Eterna  8573 500T" || FindStr(preset,"8573") ? 37 : \
+            preset == "Reala   8592 500D" || FindStr(preset,"8592") ? 38 : \
+            preset == "--"                                          ?  0 : \
+            preset == "GrainFactory3"                               ? 39 : \
+            preset == "DigitalNoise"                                ? 40 : \
             Assert( false, "FilmGrain+: 'Preset' choice is invalid" )
 
     strD  = Defined( str       )
@@ -154,7 +159,10 @@ function FilmGrainPlus(clip a,                                                  
     bmp   = bmp+1
     skn   = 1-skin
     strc  = strc==-1.0 ? str*0.5 : strc
-    ygrey = tv ? 126 : 128
+    ygrey = tv     ? 126 : 128
+    rnghlf= ex_bs( ygrey,    8, bi, fulls=false, flt=true)
+    MX    = ex_bs(   255,    8, bi, fulls=true,  flt=true)
+    rmax  = bi==32 ? "" : bi > 12 ? "range_max /" : string(1./MX)+" *"
 
     lo    = Default( lo, ls ? 1.5 : ln ? 0.5 : 0.8) # 0.0 - 2.0, non linear strength multiplier for dark  areas
     mi    = Default( mid,ls ? 1.0 : ln ? 1.0 : 1.0) # 0.0 - 2.0, non linear strength multiplier for grey  areas
@@ -218,7 +226,7 @@ function FilmGrainPlus(clip a,                                                  
             Y      = VarExist("Y") ? Y : ExtractY()
             U      = VarExist("U") ? U : ExtractU()
             V      = VarExist("V") ? V : ExtractV()
-            sample = padresize(Y,w/16,h/16).TemporalSoften(1,255,0,255,2)
+            sample = PadResize(Y,w/16,h/16).TemporalSoften(1,255,0,255,2)
             UP     = BilinearResize(sample, w/WSS, h/HSS)
 
             stains = ex_blend(UP,UP.FlipHorizontal(),mode="subtract",tv_range=false).ex_inpand()
@@ -247,17 +255,15 @@ function FilmGrainPlus(clip a,                                                  
     th2st  = ex_bs(   85,  8, bi, tv_in=true, tv_out=tv)
     th3st  = ex_bs(  140,  8, bi, tv_in=true, tv_out=tv)
     th4st  = ex_bs(  200,  8, bi, tv_in=true, tv_out=tv)
-    rnghlf = ex_bs( ygrey, 8, bi, fulls=false, flt=true)
-    MX     = ex_bs(  255,  8, bi, fulls=true,  flt=true)
 
     th21st = MX / (th2st - th1st)
     th43st = MX / (th3st - th4st)
 
     SEG    = lo!=1.0 || mi!=1.0 || hi!=1.0
 
-    lop    = lo / MX
-    mip    = mi / MX
-    hip    = hi / MX
+    lop    = bi > 12 ? Format("{lo} * range_max /") : string(lo / MX)+" *"
+    mip    = bi > 12 ? Format("{mi} * range_max /") : string(mi / MX)+" *"
+    hip    = bi > 12 ? Format("{hi} * range_max /") : string(hi / MX)+" *"
     rh     = string(sqrt((0.501960785-(tv?0.062745098:0))*0.3))
 
     rngmx  = tv ? "ymax ymin -"  : "range_max"
@@ -273,21 +279,21 @@ function FilmGrainPlus(clip a,                                                  
     GM  = ls ? GML : ln ? GMI : ReplaceStr(GMC,"range_half",Format("{rnghlf}"))
 
     # 'lo', 'mid' and 'hi' mix
-    LMH = Format(" Y@ x dup swap2 - range_max x  {th1st} - {th21st} * -   LO@ {lop} * 0 1 clip * -
-                        dup     Y -           x  {th3st} - {th43st} * neg HI@ {hip} * 0 1 clip * -
-                        dup     Y - range_max  HI LO max  -                   {mip} * 0 1 clip * -")
+    LMH = Format(" Y@ x dup swap2 - range_max x  {th1st} - {th21st} * -   LO@ "+lop+" 0 1 clip * -
+                        dup     Y -           x  {th3st} - {th43st} * neg HI@ "+hip+" 0 1 clip * -
+                        dup     Y - range_max  HI LO max  -                   "+mip+" 0 1 clip * -")
 
     # 'conv' with frei-chen gradient
     EM  = Format(" x[1,1] C@ x[1,-1] H@ + x[-1,1] A@ - x[-1,-1] F@ - x[1,0] x[-1,0] - 1.414213562 * + dup *
                    F H + C - A - x[0,-1] x[0,1] - 1.414213562 * + dup * + sqrt {clo} - {norm} * 0 1 clip {cop} * * - ")
 
     # Construct expression
-    COM = cn<1. ? SEG ? GM+tvout+LMH+" dup Y - "+EM : GM+Format(" dup swap2 - ")+EM+tvout  : \
+    COM = cn<1. ? SEG ? GM+tvout+LMH+" dup Y - "+EM : GM+Format(" dup swap2 - ")+EM+tvout : \
                   SEG ? GM+tvout+LMH                : GM+tvout
 
     # Expression fit for Chroma
     COC = ReplaceStr(COM," x  "," z ").ReplaceStr("x[", "z[").ReplaceStr(GM,GMC)
-    PTW = PTH   ? " dup x - "+(SEG ? "HI" : Format("z {th3st} - {th43st} * neg"))+" range_max / 0 1 clip * -" : ""
+    PTW = PTH   ? " dup x - "+(SEG ? "HI" : Format("z {th3st} - {th43st} * neg"))+" "+rmax+" 0 1 clip * -" : ""
     GL  = last
 
     !Chr ? ex_lutxy (pbl,last,                                   COM,        UV=2) : \
@@ -295,11 +301,14 @@ function FilmGrainPlus(clip a,                                                  
 
 
     if (skn>0 && !isy) {
-        # 32-bit not implemented yet
+
         U   = ExtractU(a)
         V   = ExtractV(a)
-        msk = ex_lutxy(U,V,Format("x range_max / 0.430 - 4 ^ -40000 * 1 + 0 max
-                                   y range_max / 0.588 - 4 ^ -40000 * 1 + 0 max * range_max {skn} * *")).ex_inpand().ex_expand()
+        rh1 = bi==32 ? "range_half 0.430 - + " : rmax+" 0.430 -"
+        rh2 = bi==32 ? "range_half 0.588 - + " : rmax+" 0.588 -"
+        rhm = bi==32 ? "range_half         - " : ""
+        msk = ex_lutxy(U,V,Format("x "+rh1+" 4 ^ -40000 * 1 + 0 max
+                                   y "+rh2+" 4 ^ -40000 * 1 + 0 max * range_max {skn} * * "+rhm)).ex_inpand().ex_expand()
         ex_merge(pbl,msk,luma=true,UV=Chr32)
     }
 
