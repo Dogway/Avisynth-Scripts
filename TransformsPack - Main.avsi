@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.5         (02-03-2023)   ##
+###   Transforms Pack - Main v1.6         (15-04-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -535,7 +535,6 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     noring     = Default (noring,  false)
     nomoir     = Default (nomoiree,false)
     recon      = Default (UVrecon, false)
-    Comp       = Default (GC,      false)        # Gamut compression
     dg         = Default (show,    false)
     th         = Default (threads,     8)        # for kernel CPU nnedi3 (gpu=-1) or deep
     co         = Default (cores,nmod(th/2,2,4))  # for kernel CPU nnedi3 (gpu=-1) or deep
@@ -568,7 +567,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     #                           Default  DoVi/DVp5/DVp7  PQ10/UHD/2100   HLG10    HD/1886  DVD-NTSC/601  DVD-PAL/470BG  DV-NTSC     CRT-NTSC     CRT-PAL     Master  GAM*/Archival    Grade     Theater     JPEG-XL    JPEG2000    JPG_old  JPG/sRGB
     o_fmt0     = Select (num,   o_fmt[0],    "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",     "YCbCr",    "YCbCr",       "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",      "XYB",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
-    cs_outFA   = Select (num,   cs_outFA,       "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",      "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old standardized decoding (PS, mozjpeg, cjxl, etc) is always treated as encoded with 170M (470M derived) matrix, regardless of image/profile primaries, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
+    cs_out     = Select (num,     cs_out,       "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",      "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old standardized decoding (PS, mozjpeg, cjxl, etc) is always treated as encoded with 170M (470M derived) matrix, regardless of image/profile primaries, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
     o_fmt1     = Select (num,   o_fmt[1],        "420",       "420",      "420",     "420",      "420",       "420",      "410",       "411",     "411",     "444",       "444",      "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
     tv_out     = Select (num,     tv_out,        false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,      false,    false,    false)
     cplace_out = Select (num, cplace_out,   "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",    "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
@@ -590,6 +589,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                  Assert(false, "ConvertFormat: Invalid scale space type")    : nop()
 
 
+    Comp     = Default (GC, cs_in != cs_out && cs_out=="709") # Gamut compression
     space    = space     != "" && space  != "none" ? space : "gamma"
 
     # Constants for logic flow
@@ -620,9 +620,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     kernel   = kernel   == "Bilcubic" ?   w*h   <  nw*nh  ? "BilcubicU" : "BilcubicD" : kernel
     kernel_c = kernel_c == "Bilcubic" ? cow*coh < cnw*cnh ? "BilcubicU" : "BilcubicD" : kernel_c
     bc       = bicubic_coeffs(kernel)            bch      = bicubic_coeffs(kernel_c)
-    bc_b     = bc[0]>=-1.?bc[0]:1/3.             bch_b    = bch[0]>=-1.?bch[0]:1/3.
-    bc_c     = bc[0]>=-1.?bc[1]:1/3.             bch_c    = bch[0]>=-1.?bch[1]:1/3.
-    kernel   = bc[0]>=-1.? "Bicubic" : kernel    kernel_c = bch[0]>=-1.? "Bicubic" : kernel_c
+    bc_b     = bc[0]>=-2.?bc[0]:1/3.             bch_b    = bch[0]>=-2.?bch[0]:1/3.
+    bc_c     = bc[0]>=-2.?bc[1]:1/3.             bch_c    = bch[0]>=-2.?bch[1]:1/3.
+    kernel   = bc[0]>=-2.? "Bicubic" : kernel    kernel_c = bch[0]>=-2.? "Bicubic" : kernel_c
 
     src_width  = Defined (src_width)  ? IsArray(src_width)  ? ArraySize(src_width)  > 1 ? src_width  : ArrayAdd(src_width, cow) : [src_width, cow] : [w,cow]
     src_widthc = src_width[1]      src_width  = src_width[0]
@@ -913,18 +913,24 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
 
 
-    c_recon  = """c_cplace= chroma_placement(w*2, h*2, fcnw, fcnh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
-                  ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), wref=1)
+    c_recon  = """c_cplace= chroma_placement(w, h, nw, nh, cs_in, cs_out, i_fmt[0], o_fmt0, i_fmt[1], o_fmt1, cplace_in, cplace_out )
+                  ref     =   Y.KNLMeansCL(0, 12, 0, 31.078131515593690, wref=1) # The default float value derives from pow(1.464968620512209618455732713658, 6.4) where 6.4 is the warp strength
                   Luma    = ref.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=gpu[0])
-                  Uu      =  Cb.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=gpu[1], fwidth=w*4, fheight=h*4, cshift=kernel_c)
-                  Vu      =  Cr.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=gpu[1], fwidth=w*4, fheight=h*4, cshift=kernel_c)
-                  Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc)
-                  Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, wref=0, rclip=Luma).BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc)
-                  Cb      = ex_LFR(Unew, Uu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc), LFR=fcnw/1.1)
-                  Cr      = ex_LFR(Vnew, Vu.BicubicResize(fcnw, fcnh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc), LFR=fcnw/1.1)"""
+                  Uu      =  Cb.nnedi3wrap(i_type4?2:i_type1||o_type10?8:4, i_type10?8:i_type0?4:2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=gpu[1], fwidth=nw*2, fheight=nh*2) # This means double than original luma to match 'Luma' dimensions
+                  Vu      =  Cr.nnedi3wrap(i_type4?2:i_type1||o_type10?8:4, i_type10?8:i_type0?4:2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=gpu[1], fwidth=nw*2, fheight=nh*2) # This means double than original luma to match 'Luma' dimensions
+                  Unew    = Uu.KNLMeansCL(0, 12, 0, 9, wref=0, rclip=Luma).BicubicResize(nw, nh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc)
+                  Vnew    = Vu.KNLMeansCL(0, 12, 0, 9, wref=0, rclip=Luma).BicubicResize(nw, nh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc)
+                  Cb      = ex_makeadddiff(Unew, ex_boxblur(Unew),      Uu.BicubicResize(nw, nh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc))
+                  Cr      = ex_makeadddiff(Vnew, ex_boxblur(Vnew),      Vu.BicubicResize(nw, nh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc))"""
 
 
-    # Only scaling (or change in range, or gamma, or chroma placement, or subpixel shift, or odd cropping)
+    # First block is basically scaling or any of the following:
+    #                          color range
+    #                          gamma
+    #                          chroma placement
+    #                          Jab
+    #                          subpixel shift
+    #                          odd cropping
     if (isy || !isSpaIllu && !isFrmt) {
 
         Y     =  isyv      ? ExtractY() : last
@@ -952,7 +958,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
                 if (recon && !i_type4) {
 
-                    Eval(ReplaceStr(c_recon, "fcn", "cn"))
+                    Eval(c_recon)
 
                 } else {
 
@@ -1367,7 +1373,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.5",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.6",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1520,34 +1526,34 @@ function color_Fuzzy_Search (string matrix) {
 \             matrix == "50"         ? "D50"      :         matrix == "A"          ? "A"
 \   :         matrix == "55"         ? "D55"      :         matrix == "D50"        ? "D50"
 \   : FindStr(matrixn,  "ACES"   )>0 ? "ACES"     :         matrix == "D55"        ? "D55"
-\   :         matrix == "60"         ? "D60"      :         matrix == "D65"        ? "D65"
-\   :         matrix == "65"         ? "D65"      :         matrix == "B"          ? "B"
-\   :         matrix == "D"          ? "D65"      :         matrix == "C"          ? "C"
-\   :         matrix == "75"         ? "D75"      :         matrix == "D75"        ? "D75"
-\   :         matrix == "93"         ? "D93"      :         matrix == "D93"        ? "D93"
-\   :         matrix == "DCI"        ? "DCI"      :         matrix == "EE"         ? "E"
-\   :         matrix == "ID50"       ? "ID50"     :         matrix == "ID65"       ? "ID65"
-\   :         matrix == "E"          ? "E"        :         matrix == "Equal"      ? "E"
-\   :         matrix == "Neutral"    ? "E"        :         matrix == "Sun"        ? "Sunlight"
-\   :         matrix == "null"       ? "E"        :         matrix == "Sunlight"   ? "Sunlight"
-\   :         matrix == "Overcast"   ? "Overcast" :         matrixn== "170M"       ? "D65"
-\   :         matrixn== "2020CL"     ? "D65"      :         matrixn== "2020DV5"    ? "D65"
-\   :         matrixn== "2020NCL"    ? "D65"      :         matrixn== "240M"       ? "D65"
-\   :         matrixn== "470BG"      ? "D65"      :         matrixn== "470M"       ? "C"
-\   :         matrixn== "709"        ? "D65"      :         matrixn== "ACES2065"   ? "ACES"
-\   :         matrixn== "AdobeRGB"   ? "D65"      :         matrixn== "AWG"        ? "D50"
-\   :         matrixn== "DCI-P3"     ? "DCI"      :         matrixn== "Display-P3" ? "D65"
-\   :         matrixn== "OPP"        ? "D65"      :         matrixn== "sRGB"       ? "D65"
-\   :         matrixn== "AppleRGB"   ? "D65"      :         matrixn== "RussellRGB" ? "D55"
-\   :         matrixn== "BestRGB"    ? "D50"      :         matrixn== "BruceRGB"   ? "D65"
-\   :         matrixn== "DonRGB4"    ? "D50"      :         matrixn== "BetaRGB"    ? "D50"
-\   :         matrixn== "ECI-RGB"    ? "D50"      :         matrixn== "CIE RGB"    ? "E"
-\   :         matrixn== "ColorMatch" ? "D50"      :         matrixn== "WideGamut"  ? "D50"
-\   :         matrixn== "ProPhoto"   ? "D50"      :         matrixn== "NTSC-J"     ? "D93"
-\   :         matrixn== "XYZ"        ? "E"        :         matrixn=="AllColorsRGB"? "D50"
-\   :         matrixn== "YDzDx"      ? "E"        :         matrixn=="EktaSpacePS5"? "D50"
-\   :         matrixn== "MaxRGB"     ? "D50"      :         matrixn== "xTremeRGB"  ? "D50"
-\   :         matrixn== "ChromeSpace100" ? "D50"  : matrixn
+\   :         matrix == "60"         ? "D60"      :         matrix == "D60"        ? "D60"
+\   :         matrix == "65"         ? "D65"      :         matrix == "D65"        ? "D65"
+\   :         matrix == "D"          ? "D65"      :         matrix == "B"          ? "B"
+\   :         matrix == "75"         ? "D75"      :         matrix == "C"          ? "C"
+\   :         matrix == "93"         ? "D93"      :         matrix == "D75"        ? "D75"
+\   :         matrix == "DCI"        ? "DCI"      :         matrix == "D93"        ? "D93"
+\   :         matrix == "ID50"       ? "ID50"     :         matrix == "EE"         ? "E"
+\   :         matrix == "E"          ? "E"        :         matrix == "ID65"       ? "ID65"
+\   :         matrix == "Neutral"    ? "E"        :         matrix == "Equal"      ? "E"
+\   :         matrix == "null"       ? "E"        :         matrix == "Sun"        ? "Sunlight"
+\   :         matrix == "Overcast"   ? "Overcast" :         matrix == "Sunlight"   ? "Sunlight"
+\   :         matrixn== "2020CL"     ? "D65"      :         matrixn== "170M"       ? "D65"
+\   :         matrixn== "2020NCL"    ? "D65"      :         matrixn== "2020DV5"    ? "D65"
+\   :         matrixn== "470BG"      ? "D65"      :         matrixn== "240M"       ? "D65"
+\   :         matrixn== "709"        ? "D65"      :         matrixn== "470M"       ? "C"
+\   :         matrixn== "AdobeRGB"   ? "D65"      :         matrixn== "ACES2065"   ? "ACES"
+\   :         matrixn== "DCI-P3"     ? "DCI"      :         matrixn== "AWG"        ? "D50"
+\   :         matrixn== "OPP"        ? "D65"      :         matrixn== "Display-P3" ? "D65"
+\   :         matrixn== "AppleRGB"   ? "D65"      :         matrixn== "sRGB"       ? "D65"
+\   :         matrixn== "BestRGB"    ? "D50"      :         matrixn== "RussellRGB" ? "D55"
+\   :         matrixn== "DonRGB4"    ? "D50"      :         matrixn== "BruceRGB"   ? "D65"
+\   :         matrixn== "ECI-RGB"    ? "D50"      :         matrixn== "BetaRGB"    ? "D50"
+\   :         matrixn== "ColorMatch" ? "D50"      :         matrixn== "CIE RGB"    ? "E"
+\   :         matrixn== "ProPhoto"   ? "D50"      :         matrixn== "WideGamut"  ? "D50"
+\   :         matrixn== "XYZ"        ? "E"        :         matrixn== "NTSC-J"     ? "D93"
+\   :         matrixn== "YDzDx"      ? "E"        :         matrixn=="AllColorsRGB"? "D50"
+\   :         matrixn== "MaxRGB"     ? "D50"      :         matrixn=="EktaSpacePS5"? "D50"
+\   :         matrixn== "xTremeRGB"  ? "D50"      :         matrixn== "ChromeSpace100" ? "D50"  : matrixn
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     idm =
@@ -1853,7 +1859,7 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : FindStr(format,"CIELUV"  )>0 ? "444"
 \   : FindStr(format,"HSV"     )>0 ? "444"
 \   : FindStr(format,"ICTCP"   )>0 ? "444"
-\   : FindStr(format,"OKLAB"   )>0 ? "444" : "none"
+\   : FindStr(format,"OKLAB"   )>0 ? "444" : "4"+string(a)+string(b)
 
 
     model  = ReplaceStr(format, jab, "")
@@ -1896,38 +1902,19 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   :         format=="444"       ? ["YCbCr",    "YUV", 4]  : rgb ? ["RGB","RGB",1] : ["YCbCr","YUV",4]
 
     cm0 = cm[0]
-    jab = jab=="none"               ?
-\     (        cm0=="YCbCr"       ) ? "420"
-\   : (        cm0=="YcCbcCrc"    ) ? "420"
-\   : (        cm0=="YUVJ"        ) ? "420"
-\   : (        cm0=="YCoCg"       ) ? "420"
-\   : (        cm0=="YCoCgR"      ) ? "420"
-\   : (        cm0=="sYUV"        ) ? "420"
-\   : (        cm0=="YUVr"        ) ? "444"
-\   : (        cm0=="YDbDr"       ) ? "411"
-\   : (        cm0=="YIQ"         ) ? "411"
-\   : (        cm0=="YUV"         ) ? "411"
-\   : (        cm0=="sYCC"        ) ? "422"
-\   : (        cm0=="ICtCp"       ) ? "420"
-\   : (        cm0=="IPT"         ) ? "420"
-\   : (        cm0=="IPTPQc2"     ) ? "420"
-\   :         isy                   ? "444"
-\   :                "4"+string(a)+string(b) : jab
-
-
     # Color Model based Matrix constants (for frameprops)
     ma =
-\     (        cm[0]=="RGB"       ) ? 0
-\   : (        cm[0]=="XYZ"       ) ? 0
-\   : (        cm[0]=="xvYCC"     ) ? 1
-\   : (        cm[0]=="YCoCg"     ) ? 8
-\   : (        cm[0]=="ICtCp"     ) ? 14 : -1
+\     (        cm0=="RGB"       ) ? 0
+\   : (        cm0=="XYZ"       ) ? 0
+\   : (        cm0=="xvYCC"     ) ? 1
+\   : (        cm0=="YCoCg"     ) ? 8
+\   : (        cm0=="ICtCp"     ) ? 14 : -1
 
 
     # Color Model based Primaries constants (for frameprops)
     pr =
-\     (        cm[0]=="sYCC"      ) ? 1
-\   : (        cm[0]=="XYZ"       ) ? 10 : -1
+\     (        cm0=="sYCC"      ) ? 1
+\   : (        cm0=="XYZ"       ) ? 10 : -1
 
     bdpth = isy ? string(bits) : bits < 32 ? "P" + string(bits) : "PS"
 
@@ -1944,6 +1931,7 @@ function bicubic_coeffs (string kernel) {
     # For downscaling you can follow a different formula: B+2C  =  0 (Didée, ZoptiN)...
     # The next is sharper albeit more haloing    (Zopti): 3B+2C = -1 , but neither will produce affine gradients.
 
+    # Robidoux coeffs follow the rule B+2C = 1
     rb  = 12. /(19.  +9.*sqrt(2))    # 0.378216
     rc  = 113./(58.+216.*sqrt(2))    # 0.310892
     rsb = 6.  /(13.  +7.*sqrt(2))    # 0.262015
@@ -2045,18 +2033,18 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
           FindStr(format_o,"YcCbcCrc")>0 || FindStr(format_o,  "ICtCp")>0
 
                   # source chroma placement defaults
-    dplacei = tli                    ? "top_left"    : \
-              jab_i == "420"         ? "left"        : \
-              jab_i == "422"         ? "left"        : \
-              jab_i == "411"         ? "center"      : \
-              jab_i == "410"         ? "top_left"    : "left"
+    dplacei = tli                      ? "top_left" : \
+              jab_i == "420"           ? "left"     : \
+              jab_i == "422"           ? "left"     : \
+              jab_i == "411"           ? "center"   : \
+              jab_i == "410"           ? "top_left" : "left"
 
                   # out chroma placement defaults
-    dplaceo = tlo                    ? "top_left"    : \
-              jab_o == "420"         ? "left"        : \
-              jab_o == "422"         ? "left"        : \
-              jab_o == "411"         ? "center"      : \
-              jab_o == "410"         ? "top_left"    : "left"
+    dplaceo = tlo                      ? "top_left" : \
+              jab_o == "420"           ? "left"     : \
+              jab_o == "422"           ? "left"     : \
+              jab_o == "411"           ? "center"   : \
+              jab_o == "410"           ? "top_left" : "left"
 
     cplacei = cplace_in =="" ? dplacei : Default (cplace_in,  dplacei)
     cplaceo = cplace_out=="" ? dplaceo : Default (cplace_out, dplaceo)
@@ -2096,15 +2084,15 @@ function chroma_placement (int w, int h, int nw, int nh, string matrix_i, string
               cplaceo == "b"           ? "bottom"   : cplaceo
 
     # In chroma units (compared to default MPEG1/center)
-    icloc  =  cplacei == "left"        ? [ iu,0.0] : \
-              cplacei == "center"      ? [0.0,0.0] : \
-              cplacei == "top_left"    ? [ iu, iv] : \
-              cplacei == "top"         ? [0.0, iv] : \
-              cplacei == "bottom_left" ? [ iu,-iv] : \
-              cplacei == "bottom"      ? [0.0,-iv] : \
+    icloc  =  cplacei == "left"        ? [ iu,0.0]  : \
+              cplacei == "center"      ? [0.0,0.0]  : \
+              cplacei == "top_left"    ? [ iu, iv]  : \
+              cplacei == "top"         ? [0.0, iv]  : \
+              cplacei == "bottom_left" ? [ iu,-iv]  : \
+              cplacei == "bottom"      ? [0.0,-iv]  : \
               Assert (false, "chroma_placement: Unsupported input chroma placement mode.")
 
-    # Out chroma units [third item is _ChromaLocation index for frameprops]
+    # Out chroma units [third item is '_ChromaLocation' frameprop index]
     ocloc  =  cplaceo == "left"        ? [ ou,0.0, 0] : \
               cplaceo == "center"      ? [0.0,0.0, 1] : \
               cplaceo == "top_left"    ? [ ou, ov, 2] : \
@@ -2178,6 +2166,8 @@ function color_coef (string "prims", string "mat", string "illu") {
 \   : (illu   == "ID50"           ) ? 15
 \   : (illu   == "ID65"           ) ? 16 : mat_wp
 
+# CCT: "Temperature of the Planckian radiator having the chromaticity nearest the chromaticity associated with the given spectral distribution on a diagram where the (CIE 1931 standard observer based) u', 2/3v’ coordinates of the Planckian locus and the test stimulus are depicted"
+
 # Background:
 #   Initially D (Daylight) series illuminants made reference to its number designation in absolute numbers (ie. D50 = 5000K)
 #   In 1948, Planck's c2 coefficient (second radiation constant) was updated from 1.438 * 10^(-2) to 1.4388 * 10^(-2)
@@ -2189,7 +2179,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 # * 'A' Illuminant represents the temperature of a gas-filled tungsten light of ~100W (2855.496K)
 # * CCT between 2650K and 3500K is typical of halogen-tungsten light bulbs
 # * CCT between 4200K and 4800K is typical of fluorescents used in scanners
-# * D50 is commonly used for printing and ICC profiles
+# * D50 is commonly used for printing, ICC profiles and the PCS (Profile Connection Space illuminant)
 # * D55 is common in photography as it matches daylight-balanced color negative film temperature. Represents a clear sky sunny daylight.
 # * ACES white point is used for ACES color spaces. With a CCT of 5999.95K actually this is not a D illuminant, neither a Planckian locus. Reasoning: https://docs.acescentral.com/tb/white-point
 # * D60 is called 'Day White' or sometimes 'Cloudy'. It's common for car LED headlights and DSLR flashes. Actually flashes have a nominal value of 5900K in brands like Canon or Nikon, but using higher shutter speeds can increase the captured temperature by 300K with 1/64 or 1/128
@@ -2312,10 +2302,10 @@ function color_coef (string "prims", string "mat", string "illu") {
     wp = mat_wp==8 ? [0.281, 0.311] : wp                 ##
 ###                                                      ##
 ###########################################################
-# * BT.2035 defines 'D93' as 0.2831, 0.2971, but this is a simple straight Daylight CCT derivation of 9300K not the illuminant used in standard consumer CRTs in Japan, which actually was 9300K+27 MPCD** (x=0.281 y=0.311)
-# * In contrast, Master CRT for studio monitors used 9300K+8 MPCD** (x=0.2838 y=0.2984)
+# * BT.2035 defines 'D93' as 0.28315, 0.29711 (actually 0.283064,0.297018), but this is a simple straight Daylight CCT derivation of 9300K not the illuminant used in standard consumer CRTs in Japan, which actually was 9300K+27 MPCD** (x=0.281 y=0.311)
+# * In contrast, Master CRT for studio monitors used 9300K+8 MPCD** (x=0.2838 y=0.2984) (9177.98K)
 # * A third set of primaries for Japanese NTSC (1987) simply uses 170M prims but with [0.2848, 0.2932] illuminant chromatic coordinates, which is also another (worse?) CCT derivation of 9300K.
-# * In (http://www.imaging.org/site/PDFS/Papers/1997/RP-0-67/2401.pdf) Mark Fairchild measured a 9300K Sony Trinitron CRT with coordinates x=0.2838, y=0.3290
+# * In (https://web.archive.org/web/20220517234701/https://www.imaging.org//site/PDFS/Papers/1997/RP-0-67/2401.pdf) Mark Fairchild measured a 9300K Sony Trinitron CRT with coordinates x=0.2838, y=0.3290 (8229.87K)
 
     # NTSC-J (https://web.archive.org/web/20130413104152if_/http://arib.or.jp/english/html/overview/doc/4-TR-B09v1_0.pdf#[{"num":73,"gen":0},{"name":"FitR"},-119,195,724,850])
     cs = mat_i==12 ? [0.618, 0.350, \
@@ -2325,6 +2315,32 @@ function color_coef (string "prims", string "mat", string "illu") {
     cs = mat_i==30 ? [0.641, 0.327, \
                       0.272, 0.591, \
                       0.142, 0.052] : cs
+    # P22 (Another source) (P22 series has a wavelength range of 390-680)
+    cs = mat_i==30 ? [0.640, 0.352, \
+                      0.282, 0.620, \
+                      0.146, 0.061] : cs
+    # P22 (https://www.phosphor-technology.com/crt-phosphors/)
+    cs = mat_i==30 ? [0.647, 0.343, \
+                      0.310, 0.594, \
+                      0.148, 0.062] : cs
+    # P22; average of closer 3 of above 4 matrices. Roughly tends to EBU Tech.
+    cs = mat_i==30 ? [0.642667, 0.340667, \
+                      0.290667, 0.606333, \
+                      0.148667, 0.062000] : cs
+
+    # P22 3rd Gen for Projection Tubes (derived from wavelengths: 611,544,450) (https://books.google.es/books?id=50b8CAAAQBAJ&lpg=PP1&pg=PA159) and (http://www.labguysworld.com/crt_phosphor_research.pdf)
+    # Red was picked from Y2O2S:Eu+Fe2O3 at Wikipedia, since without Fe2O3 red emission would be too dim.
+    cs = mat_i==30 ? [0.668874, 0.330919, \
+                      0.258578, 0.730507, \
+                      0.156641, 0.017705] : cs
+    # P22 2nd Gen (derived from wavelengths: 627,530,440) (SMPTE-C - Measured Average Phosphor (1979-1994))
+    cs = mat_i==30 ? [0.703709, 0.296217, \
+                      0.154722, 0.805864, \
+                      0.164412, 0.010858] : cs
+    # P22 1st Gen (derived from wavelengths: 643,526,450)
+    cs = mat_i==30 ? [0.721555, 0.278420, \
+                      0.122347, 0.822770, \
+                      0.156641, 0.017705] : cs
 
 # ** MPCD -Minimum Perceptible Color Difference- refers to the deviation unit in respect to the temperature CCT. For example D65 can also be specified as 6700K + 18 MPCD or more correctly as 6504K + 4 MPCD.
 
@@ -2418,7 +2434,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 
 ####################################################
 ###                                               ##
-### 'D75' illuminant (7504.052K)                  ##
+### 'D75' illuminant (7504.052K) Light Overcast   ##
     wp = mat_wp==7 ? [0.29897489,0.31479446] : wp ##
 ###                                               ##
 ####################################################
@@ -2428,7 +2444,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 ### Illuminant 'A' (2855.496K) Tungsten incandescent bulb at ~100W        ##
     wp = mat_wp==13 ? [0.44757142,0.40744043] : wp  # Derived from SPD    ##
 ###                                                                       ##
-### Illuminant 'B' (4882.818K) Deprecated 4870K Sunlight standard, see 'Sunlight' below for updated CCT
+### Illuminant 'B' (4882.818K) Deprecated 4870K Noon Sunlight standard, see 'Sunlight' below for updated CCT
     wp = mat_wp==14 ? [0.34840776,0.35161716] : wp  # Derived from SPD, 0.34926529,0.36143266 if derived from CCT
 ###                                                                       ##
 ### Illuminant 'ID50' (CCT of 5099.09K) Interior Daylight D50             ##
