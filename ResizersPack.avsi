@@ -584,12 +584,15 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 # In comparison, ChangeFPS() produces judder and ConvertFPS(), blends all frames.
 #
 function SmoothMotion (clip a) {
-
     a
+    den   = FrameRateDenominator()
     Blend = Merge(SelectEven(),SelectOdd())
     BendI = Interleave(Blend,Blend)
     Inter = Interleave(last,last,BendI)
     SelectEvery(Inter,12, 0,1,2,3,4,6,7,8,9,10)
+
+    propSet("_DurationDen", 60000)
+    propSet("_DurationNum", den)
 }
 
 
