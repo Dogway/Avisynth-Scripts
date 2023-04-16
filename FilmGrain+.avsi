@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v2.3  (15-04-2023)             ###
+###      FilmGrain+  v2.3  (16-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -84,51 +84,51 @@ function FilmGrainPlus(clip a,                                                  
     # Many of the Kodak film stocks have 16mm counterparts, they are labelled in the 7000 series, so for example 7248 is the 16mm version of 5248
     # Sometimes 'clean' stocks like 5248 or 5219 are "pushed" one or more stops making the look more grainy and contrasty.
     preset= Default( preset,   "--" )
-    pr    = preset == ""                                            ?  0 : \
-            preset == "--"                                          ?  0 : \
-            preset == "FilmGrain"                                   ?  1 : \
-            preset == "8mm"                                         ?  2 : \
-            preset == "16mm"                                        ?  3 : \
-            preset == "35mm"                                        ?  4 : \
-            preset == "--"                                          ?  0 : \
-            preset == "EXR     5245  50D" || FindStr(preset,"5245") ?  5 : \
-            preset == "EXR     5248 100T" || FindStr(preset,"5248") ?  6 : \
-            preset == "EXR     5293 200T" || FindStr(preset,"5293") ?  7 : \
-            preset == "EXR     5298 500T" || FindStr(preset,"5298") ?  8 : \
-            preset == "Vision  5274 200T" || FindStr(preset,"5274") ?  9 : \
-            preset == "Vision  5246 250D" || FindStr(preset,"5246") ? 10 : \
-            preset == "Vision  5277 320T" || FindStr(preset,"5277") ? 11 : \
-            preset == "Vision  5279 500T" || FindStr(preset,"5279") ? 12 : \
-            preset == "Vision2 5201  50D" || FindStr(preset,"5201") ? 13 : \
-            preset == "Vision2 5212 100T" || FindStr(preset,"5212") ? 14 : \
-            preset == "Vision2 5217 200T" || FindStr(preset,"5217") ? 15 : \
-            preset == "Vision2 5218 500T" || FindStr(preset,"5218") ? 16 : \
-            preset == "Vision3 5203  50D" || FindStr(preset,"5203") ? 17 : \
-            preset == "Vision3 5213 200T" || FindStr(preset,"5213") ? 18 : \
-            preset == "Vision3 5207 250D" || FindStr(preset,"5207") ? 19 : \
-            preset == "Vision3 5219 500T" || FindStr(preset,"5219") ? 20 : \
-            preset == "FX       214 480D" || FindStr(preset, "214") ? 21 : \
-            preset == "--"                                          ?  0 : \
-            preset == "Fuji    8510  64T" || FindStr(preset,"8510") ? 23 : \
-            preset == "Fuji    8520  64D" || FindStr(preset,"8520") ? 24 : \
-            preset == "Fuji    8530 125T" || FindStr(preset,"8530") ? 22 : \
-            preset == "Fuji    8550 250T" || FindStr(preset,"8550") ? 25 : \
-            preset == "Fuji    8560 250D" || FindStr(preset,"8560") ? 26 : \
-            preset == "Fuji    8570 500T" || FindStr(preset,"8570") ? 27 : \
-            preset == "Super F 8522  64D" || FindStr(preset,"8522") ? 28 : \
-            preset == "Super F 8532 125T" || FindStr(preset,"8532") ? 29 : \
-            preset == "Super F 8552 250T" || FindStr(preset,"8552") ? 30 : \
-            preset == "Super F 8562 250D" || FindStr(preset,"8562") ? 31 : \
-            preset == "Super F 8582 400T" || FindStr(preset,"8582") ? 32 : \
-            preset == "Super F 8572 500T" || FindStr(preset,"8572") ? 33 : \
-            preset == "EternaV 8543 160T" || FindStr(preset,"8543") ? 34 : \
-            preset == "Eterna  8563 250D" || FindStr(preset,"8563") ? 35 : \
-            preset == "Eterna  8583 400T" || FindStr(preset,"8583") ? 36 : \
-            preset == "Eterna  8573 500T" || FindStr(preset,"8573") ? 37 : \
-            preset == "Reala   8592 500D" || FindStr(preset,"8592") ? 38 : \
-            preset == "--"                                          ?  0 : \
-            preset == "GrainFactory3"                               ? 39 : \
-            preset == "DigitalNoise"                                ? 40 : \
+    pr    = preset == ""                                              ?  0 : \
+            preset == "--"                                            ?  0 : \
+            preset == "FilmGrain"                                     ?  1 : \
+            preset == "8mm"                                           ?  2 : \
+            preset == "16mm"                                          ?  3 : \
+            preset == "35mm"                                          ?  4 : \
+            preset == "--"                                            ?  0 : \
+            preset == "EXR     5245  50D" || FindStr(preset,"5245")>0 ?  5 : \
+            preset == "EXR     5248 100T" || FindStr(preset,"5248")>0 ?  6 : \
+            preset == "EXR     5293 200T" || FindStr(preset,"5293")>0 ?  7 : \
+            preset == "EXR     5298 500T" || FindStr(preset,"5298")>0 ?  8 : \
+            preset == "Vision  5274 200T" || FindStr(preset,"5274")>0 ?  9 : \
+            preset == "Vision  5246 250D" || FindStr(preset,"5246")>0 ? 10 : \
+            preset == "Vision  5277 320T" || FindStr(preset,"5277")>0 ? 11 : \
+            preset == "Vision  5279 500T" || FindStr(preset,"5279")>0 ? 12 : \
+            preset == "Vision2 5201  50D" || FindStr(preset,"5201")>0 ? 13 : \
+            preset == "Vision2 5212 100T" || FindStr(preset,"5212")>0 ? 14 : \
+            preset == "Vision2 5217 200T" || FindStr(preset,"5217")>0 ? 15 : \
+            preset == "Vision2 5218 500T" || FindStr(preset,"5218")>0 ? 16 : \
+            preset == "Vision3 5203  50D" || FindStr(preset,"5203")>0 ? 17 : \
+            preset == "Vision3 5213 200T" || FindStr(preset,"5213")>0 ? 18 : \
+            preset == "Vision3 5207 250D" || FindStr(preset,"5207")>0 ? 19 : \
+            preset == "Vision3 5219 500T" || FindStr(preset,"5219")>0 ? 20 : \
+            preset == "FX       214 480D" || FindStr(preset, "214")>0 ? 21 : \
+            preset == "--"                                            ?  0 : \
+            preset == "Fuji    8510  64T" || FindStr(preset,"8510")>0 ? 23 : \
+            preset == "Fuji    8520  64D" || FindStr(preset,"8520")>0 ? 24 : \
+            preset == "Fuji    8530 125T" || FindStr(preset,"8530")>0 ? 22 : \
+            preset == "Fuji    8550 250T" || FindStr(preset,"8550")>0 ? 25 : \
+            preset == "Fuji    8560 250D" || FindStr(preset,"8560")>0 ? 26 : \
+            preset == "Fuji    8570 500T" || FindStr(preset,"8570")>0 ? 27 : \
+            preset == "Super F 8522  64D" || FindStr(preset,"8522")>0 ? 28 : \
+            preset == "Super F 8532 125T" || FindStr(preset,"8532")>0 ? 29 : \
+            preset == "Super F 8552 250T" || FindStr(preset,"8552")>0 ? 30 : \
+            preset == "Super F 8562 250D" || FindStr(preset,"8562")>0 ? 31 : \
+            preset == "Super F 8582 400T" || FindStr(preset,"8582")>0 ? 32 : \
+            preset == "Super F 8572 500T" || FindStr(preset,"8572")>0 ? 33 : \
+            preset == "EternaV 8543 160T" || FindStr(preset,"8543")>0 ? 34 : \
+            preset == "Eterna  8563 250D" || FindStr(preset,"8563")>0 ? 35 : \
+            preset == "Eterna  8583 400T" || FindStr(preset,"8583")>0 ? 36 : \
+            preset == "Eterna  8573 500T" || FindStr(preset,"8573")>0 ? 37 : \
+            preset == "Reala   8592 500D" || FindStr(preset,"8592")>0 ? 38 : \
+            preset == "--"                                            ?  0 : \
+            preset == "GrainFactory3"                                 ? 39 : \
+            preset == "DigitalNoise"                                  ? 40 : \
             Assert( false, "FilmGrain+: 'Preset' choice is invalid" )
 
     strD  = Defined( str       )
