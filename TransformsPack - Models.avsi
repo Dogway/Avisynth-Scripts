@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.5       (19-02-2023)   ##
+###   Transforms Pack - Models v1.6       (15-04-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -30,6 +30,7 @@
 ###     CAT                                              ##
 ###     CMF                                              ##
 ###     SPD_D                                            ##
+###     CIE1931_Locus                                    ##
 ###     Chromaticity_xy                                  ##
 ###                                                      ##
 ###########################################################
@@ -231,13 +232,14 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
     matrix   = color_Fuzzy_Search (matrix)
     coef     = color_coef(mat=matrix[0])
     bc       = bicubic_coeffs(kernel)
-    bc_b     = string(bc[1]>=-1?bc[0]:b)
-    bc_c     = string(bc[1]>=-1?bc[1]:c)
-    kernel   = bc[1]>=-1 ? "Bicubic" : LCase(kernel)
+    bc_b     = string(bc[0]>=-2?bc[0]:b)
+    bc_c     = string(bc[0]>=-2?bc[1]:c)
+    kernel   = bc[0]>=-2 ? "Bicubic" : LCase(kernel)
 
     p_type4  = p_type[1] == "444"
     p_type2  = p_type[1] == "422"
     p_type1  = p_type[1] == "411"
+    p_type0  = p_type[1] == "420"
     p_type10 = p_type[1] == "410"
 
     w  = width (yuv)
@@ -269,14 +271,15 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
 
     if (recon && !p_type4) {
 
-        ref     =   Y.KNLMeansCL(0, 16, 0, pow(1.464968620512209618455732713658, 6.4), "auto", wref=1)
-        Luma    = ref.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0)
-        Uu      = Uor.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0, fwidth=w*2, fheight=h*2)
-        Vu      = Vor.nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0, fwidth=w*2, fheight=h*2)
-        Unew    = Uu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
-        Vnew    = Vu.KNLMeansCL(0, 16, 0, 6.4, "auto", wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5)
-        U       = ex_LFR(Unew, Uu.BicubicResize(w, h, b=0.0, c=0.5), LFR=w/1.1)
-        V       = ex_LFR(Vnew, Vu.BicubicResize(w, h, b=0.0, c=0.5), LFR=w/1.1)
+        ref     =   Y.KNLMeansCL(0, 12, 0, 31.078131515593690, wref=1)
+        Luma    = ref.nnedi3wrap(        2,                           nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0)
+        Uu      = Uor.nnedi3wrap(p_type1||p_type10?8:4, p_type10?8:4, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0)
+        Vu      = Vor.nnedi3wrap(p_type1||p_type10?8:4, p_type10?8:4, nns=1, qual=1, etype=1, nsize=0, HBD=false, gpuid=0)
+        Unew    = Uu.KNLMeansCL(0, 12, 0, 9, wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5, src_left=cplace[0], src_top=cplace[1])
+        Vnew    = Vu.KNLMeansCL(0, 12, 0, 9, wref=0, rclip=Luma).BicubicResize(w, h, b=0.0, c=0.5, src_left=cplace[0], src_top=cplace[1])
+        U       = ex_makeadddiff(Unew, ex_boxblur(Unew),      Uu.BicubicResize(w, h, b=0.0, c=0.5, src_left=cplace[0], src_top=cplace[1]))
+        V       = ex_makeadddiff(Vnew, ex_boxblur(Vnew),      Vu.BicubicResize(w, h, b=0.0, c=0.5, src_left=cplace[0], src_top=cplace[1]))
+
 
     } else {
 
@@ -341,9 +344,9 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", str
     matrix   = color_Fuzzy_Search (matrix)
     coef     = color_coef(mat=matrix[0])
     bc       = bicubic_coeffs(kernel)
-    bc_b     = string(bc[1]>=-1?bc[0]:b)
-    bc_c     = string(bc[1]>=-1?bc[1]:c)
-    kernel   = bc[1]>=-1 ? "Bicubic" : LCase(kernel)
+    bc_b     = string(bc[0]>=-2?bc[0]:b)
+    bc_c     = string(bc[0]>=-2?bc[1]:c)
+    kernel   = bc[0]>=-2 ? "Bicubic" : LCase(kernel)
 
     p_type4  = p_type[1] == "444"
     p_type2  = p_type[1] == "422"
@@ -1953,6 +1956,8 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 # Linear CAT (Chromatic Adaptation Transform):
 # Adapts colors (HUEs) to match those viewed under a different target illuminant.
 # To also match white point (aka White Balance or "Simulation") set mode="Simulation".
+# * This should always be used when converting between spaces of different illuminants.
+# (equi-appearance colorspace transformation: https://yuhaozhu.com/blog/chromatic-adaptation.html#3usecasebequiappearancecolorspacetransformation)
 #
 # Transformation Method:
 #   Strong von Kries (von Kries-Ives) (used in ICC)
@@ -2220,6 +2225,33 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
         }
     }
 
+
+
+# CIE 1931 2º Standard Observer Diagram Plot
+# Spectral Locus + Line of Purples
+
+function CIE1931_Locus (clip a) {
+    a
+    GradientLinear(zoom=1, positive=true, precision=4, smooth=true, x=0, y=0)
+    l=ex_lut("x 0.7347 < x 0.0687 > x 0.17334 < x 0.192 - 2 ^ 13 * x 0.464075 * 0.0756457 - ?
+              x 0.00254539 - -0.112996 ^ 0.315444 * x 3.34128 * - dup 0.65 <= swap x  ? ? 0 ?
+              ").HistoCurve(gradient=false)
+    r=ex_lut("x 0.0039 > x 0.1929 < & x 0.000330 - 0.112953 ^ 1.24888 * x 1.32209 * -
+              x 0.1929 >= x 0.7347 < & x -0.513682 ^ -0.0512165 * x 1.06531 * - 1.10635 + 0 ? ?
+              ").HistoCurve(gradient=false)
+
+    ex_lutxy(l,r,"x y max range_half - 2 *")
+
+    # Render Gamut leveraging Histogram()
+#    ConvertBits(32)
+#    CCTF("1886")
+#    ConverttoPlanarRGB()
+#    RGB_to_XYZ("709")
+
+#    Histogram(mode="color2",keepsource=false,markers=false)
+}
+
+
 # Add Spectral Luminous Efficiency functions (Photopic, Mesopic and Scotopic)
 # WIP: Calculate the Chromaticity Coordinates for the given temperature and Color Matching Function
 function Chromaticity_xy(clip a, int "Temp", string "CMF") {
@@ -2236,7 +2268,7 @@ function Chromaticity_xy(clip a, int "Temp", string "CMF") {
     M2 = ( 0.0300 - 31.4424 * wpx + 30.0717 * wpy) / M
 
     # Beware, some CMFs start at 360nm or 390nm
-    # Similarly some end at 830nm instead of 780nm
+    # Similarly some end at 830nm instead of 780nm (700nm is generally the limit for the HVS)
     W = []
     for (i=380, 780, 5) {
 
