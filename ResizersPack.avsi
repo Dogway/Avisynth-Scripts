@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.6 (15-04-2023)     ##
+###   Resizers Functions Pack 11.7 (16-04-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -16,6 +16,7 @@
 ###      RAVUresize                                 ##
 ###      FSRresize                                  ##
 ###      waifu2xresize                              ##
+###      SmoothMotion                               ##
 ###      RIFEwrap                                   ##
 ###      nnedi3wrap                                 ##
 ###      EEDI3wrap                                  ##
@@ -570,6 +571,26 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     sharp = min   (-0.000156*w2 + 1.3,1 )
     gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Undefined(),sharpness=sharp,lo=0.7,hi=0.9,preblur=0,temp=0.2,tv_range=!fs) : last
     }
+
+
+#
+# SmoothMotion()
+# https://github.com/mpv-player/mpv/wiki/Interpolation#smoothmotion
+#
+# Port of SmoothMotion from MPV, also called "OverSample".
+# Converts 24fps or 23.976fps clips to 60fps or 54.940fps
+# by displaying each frame exactly 2.5 times for real-time playback.
+#
+# In comparison, ChangeFPS() produces judder and ConvertFPS(), blends all frames.
+#
+function SmoothMotion (clip a) {
+
+    a
+    Blend = Merge(SelectEven(),SelectOdd())
+    BendI = Interleave(Blend,Blend)
+    Inter = Interleave(last,last,BendI)
+    SelectEvery(Inter,12, 0,1,2,3,4,6,7,8,9,10)
+}
 
 
 #
