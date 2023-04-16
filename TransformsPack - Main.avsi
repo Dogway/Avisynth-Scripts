@@ -609,6 +609,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     i_type4  = i_fmt[1] == "444"         o_type4  = o_fmt1 == "444"
     i_type2  = i_fmt[1] == "422"         o_type2  = o_fmt1 == "422"
     i_type1  = i_fmt[1] == "411"         o_type1  = o_fmt1 == "411"
+    i_type0  = i_fmt[1] == "420"         o_type0  = o_fmt1 == "420"
     i_type10 = i_fmt[1] == "410"         o_type10 = o_fmt1 == "410"
 
     cow      = i_type4 ?  w : i_type1 || i_type10 ? round( w/4.0) : round( w/2.0)
@@ -631,7 +632,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
     i_type1  || o_type1                          ? Assert(  bi==8, "ConvertFormat: Unsupported Pixel Type: HBD YUV411")         : nop()
     i_type10 || o_type10                         ? Assert(false,   "ConvertFormat: Unsupported Pixel Type: YUV410")             : nop()
-    !fc && !isy && (i_type2 || i_fmt[1]=="420")  ? Assert( w%2==0, "ConvertFormat: Clip Width is not mod2" )                    : nop()
+    !fc && !isy && (i_type2 || i_type0)          ? Assert( w%2==0, "ConvertFormat: Clip Width is not mod2" )                    : nop()
     !fc &&  i_type1                              ? Assert( w%4==0, "ConvertFormat: Clip Width is not mod4" )                    : nop()
     o_type1                                      ? Assert(nw%4==0, "ConvertFormat: Target Width is not mod4" )                  : nop()
     !(isRGBo || o_type4 || (cnw>cow || cnh>coh)) ? Assert(!recon,  "ConvertFormat: Invalid settings for chroma reconstruction") : nop()
