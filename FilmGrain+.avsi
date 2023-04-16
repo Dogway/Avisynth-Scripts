@@ -86,47 +86,47 @@ function FilmGrainPlus(clip a,                                                  
     preset= Default( preset,   "--" )
     pr    = preset == ""                                              ?  0 : \
             preset == "--"                                            ?  0 : \
-            preset == "FilmGrain"                                     ?  1 : \
-            preset == "8mm"                                           ?  2 : \
-            preset == "16mm"                                          ?  3 : \
-            preset == "35mm"                                          ?  4 : \
+            preset == "8mm"                                           ?  1 : \
+            preset == "16mm"                                          ?  2 : \
+            preset == "35mm"                                          ?  3 : \
             preset == "--"                                            ?  0 : \
-            preset == "EXR     5245  50D" || FindStr(preset,"5245")>0 ?  5 : \
-            preset == "EXR     5248 100T" || FindStr(preset,"5248")>0 ?  6 : \
-            preset == "EXR     5293 200T" || FindStr(preset,"5293")>0 ?  7 : \
-            preset == "EXR     5298 500T" || FindStr(preset,"5298")>0 ?  8 : \
-            preset == "Vision  5274 200T" || FindStr(preset,"5274")>0 ?  9 : \
-            preset == "Vision  5246 250D" || FindStr(preset,"5246")>0 ? 10 : \
-            preset == "Vision  5277 320T" || FindStr(preset,"5277")>0 ? 11 : \
-            preset == "Vision  5279 500T" || FindStr(preset,"5279")>0 ? 12 : \
-            preset == "Vision2 5201  50D" || FindStr(preset,"5201")>0 ? 13 : \
-            preset == "Vision2 5212 100T" || FindStr(preset,"5212")>0 ? 14 : \
-            preset == "Vision2 5217 200T" || FindStr(preset,"5217")>0 ? 15 : \
-            preset == "Vision2 5218 500T" || FindStr(preset,"5218")>0 ? 16 : \
-            preset == "Vision3 5203  50D" || FindStr(preset,"5203")>0 ? 17 : \
-            preset == "Vision3 5213 200T" || FindStr(preset,"5213")>0 ? 18 : \
-            preset == "Vision3 5207 250D" || FindStr(preset,"5207")>0 ? 19 : \
-            preset == "Vision3 5219 500T" || FindStr(preset,"5219")>0 ? 20 : \
-            preset == "FX       214 480D" || FindStr(preset, "214")>0 ? 21 : \
+            preset == "EXR     5245  50D" || FindStr(preset,"5245")>0 ?  4 : \
+            preset == "EXR     5248 100T" || FindStr(preset,"5248")>0 ?  5 : \
+            preset == "EXR     5293 200T" || FindStr(preset,"5293")>0 ?  6 : \
+            preset == "EXR     5298 500T" || FindStr(preset,"5298")>0 ?  7 : \
+            preset == "Vision  5274 200T" || FindStr(preset,"5274")>0 ?  8 : \
+            preset == "Vision  5246 250D" || FindStr(preset,"5246")>0 ?  9 : \
+            preset == "Vision  5277 320T" || FindStr(preset,"5277")>0 ? 10 : \
+            preset == "Vision  5279 500T" || FindStr(preset,"5279")>0 ? 11 : \
+            preset == "Vision2 5201  50D" || FindStr(preset,"5201")>0 ? 12 : \
+            preset == "Vision2 5212 100T" || FindStr(preset,"5212")>0 ? 13 : \
+            preset == "Vision2 5217 200T" || FindStr(preset,"5217")>0 ? 14 : \
+            preset == "Vision2 5218 500T" || FindStr(preset,"5218")>0 ? 15 : \
+            preset == "Vision3 5203  50D" || FindStr(preset,"5203")>0 ? 16 : \
+            preset == "Vision3 5213 200T" || FindStr(preset,"5213")>0 ? 17 : \
+            preset == "Vision3 5207 250D" || FindStr(preset,"5207")>0 ? 18 : \
+            preset == "Vision3 5219 500T" || FindStr(preset,"5219")>0 ? 19 : \
+            preset == "FX       214 480D" || FindStr(preset, "214")>0 ? 20 : \
             preset == "--"                                            ?  0 : \
-            preset == "Fuji    8510  64T" || FindStr(preset,"8510")>0 ? 23 : \
-            preset == "Fuji    8520  64D" || FindStr(preset,"8520")>0 ? 24 : \
-            preset == "Fuji    8530 125T" || FindStr(preset,"8530")>0 ? 22 : \
-            preset == "Fuji    8550 250T" || FindStr(preset,"8550")>0 ? 25 : \
-            preset == "Fuji    8560 250D" || FindStr(preset,"8560")>0 ? 26 : \
-            preset == "Fuji    8570 500T" || FindStr(preset,"8570")>0 ? 27 : \
-            preset == "Super F 8522  64D" || FindStr(preset,"8522")>0 ? 28 : \
-            preset == "Super F 8532 125T" || FindStr(preset,"8532")>0 ? 29 : \
-            preset == "Super F 8552 250T" || FindStr(preset,"8552")>0 ? 30 : \
-            preset == "Super F 8562 250D" || FindStr(preset,"8562")>0 ? 31 : \
-            preset == "Super F 8582 400T" || FindStr(preset,"8582")>0 ? 32 : \
-            preset == "Super F 8572 500T" || FindStr(preset,"8572")>0 ? 33 : \
-            preset == "EternaV 8543 160T" || FindStr(preset,"8543")>0 ? 34 : \
-            preset == "Eterna  8563 250D" || FindStr(preset,"8563")>0 ? 35 : \
-            preset == "Eterna  8583 400T" || FindStr(preset,"8583")>0 ? 36 : \
-            preset == "Eterna  8573 500T" || FindStr(preset,"8573")>0 ? 37 : \
-            preset == "Reala   8592 500D" || FindStr(preset,"8592")>0 ? 38 : \
+            preset == "Fuji    8510  64T" || FindStr(preset,"8510")>0 ? 21 : \
+            preset == "Fuji    8520  64D" || FindStr(preset,"8520")>0 ? 22 : \
+            preset == "Fuji    8530 125T" || FindStr(preset,"8530")>0 ? 23 : \
+            preset == "Fuji    8550 250T" || FindStr(preset,"8550")>0 ? 24 : \
+            preset == "Fuji    8560 250D" || FindStr(preset,"8560")>0 ? 25 : \
+            preset == "Fuji    8570 500T" || FindStr(preset,"8570")>0 ? 26 : \
+            preset == "Super F 8522  64D" || FindStr(preset,"8522")>0 ? 27 : \
+            preset == "Super F 8532 125T" || FindStr(preset,"8532")>0 ? 28 : \
+            preset == "Super F 8552 250T" || FindStr(preset,"8552")>0 ? 29 : \
+            preset == "Super F 8562 250D" || FindStr(preset,"8562")>0 ? 30 : \
+            preset == "Super F 8582 400T" || FindStr(preset,"8582")>0 ? 31 : \
+            preset == "Super F 8572 500T" || FindStr(preset,"8572")>0 ? 32 : \
+            preset == "EternaV 8543 160T" || FindStr(preset,"8543")>0 ? 33 : \
+            preset == "Eterna  8563 250D" || FindStr(preset,"8563")>0 ? 34 : \
+            preset == "Eterna  8583 400T" || FindStr(preset,"8583")>0 ? 35 : \
+            preset == "Eterna  8573 500T" || FindStr(preset,"8573")>0 ? 36 : \
+            preset == "Reala   8592 500D" || FindStr(preset,"8592")>0 ? 37 : \
             preset == "--"                                            ?  0 : \
+            preset == "FilmGrain"                                     ? 38 : \
             preset == "GrainFactory3"                                 ? 39 : \
             preset == "DigitalNoise"                                  ? 40 : \
             Assert( false, "FilmGrain+: 'Preset' choice is invalid" )
@@ -136,12 +136,12 @@ function FilmGrainPlus(clip a,                                                  
     szD   = Defined( size      )
     shrpD = Defined( sharpness )
 
-    # Presets at 1080p:                        Default                  FilmGrain  8mm  16mm  35mm | 5245  5248  5293  5298 | 5274  5246  5277  5279 | 5201  5212  5217  5218 | 5203  5213  5207  5219 FX214 | 8510  8520  8530  8550  8560  8570 | 8522  8532  8552  8562  8582  8572 | 8543  8563  8583  8573  8592 |  GF3   DigitalNoise
-    str   = Default( str      , Select ( pr,      0.2 ,                     0.4,   7.0,  2.0,  0.8,   0.1,  1.0,  1.0,  1.0,   0.4,  0.9,  1.0,  1.4,   1.0,  1.0,  0.2,  0.1,   1.0,  1.0,  1.0,  1.0,  0.3,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0))
-    sz    = Default( size     , Select ( pr,   w/1920.,                     1.5,   2.0,  1.7,  1.0,   0.8,  1.8,  1.0,  1.0,   0.4,  0.2,  1.0,  1.9,   1.0,  1.0,  1.4,  1.3,   1.0,  1.0,  1.0,  1.0,  0.8,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0))
-    shrp  = Default( sharpness, Select ( pr,szD?-0.87*sz+2:0.93-0.244*str,  0.9,   0.6,  0.8,  0.8,   0.8,  0.9,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  0.9,  1.0,   1.0,  1.0,  1.0,  1.0,  0.8,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,   0.5,  1.0))
-    temp  = Default( temp     , Select ( pr,max((0.147*str-0.073),0)+0.06,  0.1,   0.2,  0.1,  0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.1,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,  0.0,   0.1,  0.0))
-    strc  = Default( strc     , Select ( pr,   str*0.5,                    -1.0,   0.6,  0.1,  0.1,   0.0,  1.0, -1.0, -1.0,   0.0,  1.0, -1.0,  0.6,  -1.0, -1.0, -1.0, -1.0,  -1.0, -1.0, -1.0, -1.0,  0.3,  -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,  -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,  -1.0, -1.0, -1.0, -1.0, -1.0,  -1.0, -1.0))
+    # Presets at 1080p:                        Default                     8mm  16mm  35mm | 5245  5248  5293  5298 | 5274  5246  5277  5279 | 5201  5212  5217  5218 | 5203  5213  5207  5219 FX214 | 8510  8520  8530  8550  8560  8570 | 8522  8532  8552  8562  8582  8572 | 8543  8563  8583  8573  8592 | FilmGrain  GF3   DigitalNoise
+    str   = Default( str      , Select ( pr,      0.2 ,                    7.0,  2.0,  0.8,   0.1,  1.0,  1.0,  1.0,   0.4,  0.9,  1.0,  1.4,   1.0,  1.0,  0.2,  0.1,   1.0,  1.0,  1.0,  0.1,  0.3,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,     0.4,    1.0,   1.0))
+    sz    = Default( size     , Select ( pr,   w/1920.,                    2.0,  1.7,  1.0,   0.8,  1.8,  1.0,  1.0,   0.4,  0.2,  1.0,  1.9,   1.0,  1.0,  1.4,  1.3,   1.0,  1.0,  1.0,  0.5,  0.8,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,     1.5,    1.0,   1.0))
+    shrp  = Default( sharpness, Select ( pr,szD?-0.87*sz+2:0.93-0.244*str, 0.6,  0.8,  0.8,   0.8,  0.9,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  0.9,  1.0,   1.0,  1.0,  1.0,  1.0,  0.8,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,     0.9,    0.5,   1.0))
+    temp  = Default( temp     , Select ( pr,max((0.147*str-0.073),0)+0.06, 0.2,  0.1,  0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.1,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   0.0,  0.0,  0.0,  0.0,  0.0,     0.1,    0.1,   0.0))
+    strc  = Default( strc     , Select ( pr,   str*0.5,                    0.6,  0.1,  0.1,   0.0,  1.0, -1.0, -1.0,   0.0,  1.0, -1.0,  0.6,  -1.0, -1.0, -1.0, -1.0,  -1.0, -1.0, -1.0, -1.0,  0.3,  -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,  -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,  -1.0, -1.0, -1.0, -1.0, -1.0,    -1.0,   -1.0,  -1.0))
     conv  = Default( conv,       false ) # 0.0 - 1.0. Set to true or set strength for the convolution to "break" edges
     bmp   = Default( bump,        0.0  ) # 0.0 - 1.0. Raise to make the grain have a 3D volumetric effect
     skin  = Default( skin,        1.0  ) # 0.0 - 1.0. Lower to reduce the effect of grain on faces. Assumes source is YCbCr format in Rec709 space
