@@ -578,7 +578,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 # https://github.com/mpv-player/mpv/wiki/Interpolation#smoothmotion
 #
 # Port of SmoothMotion from MPV, also called "OverSample".
-# Converts 24fps or 23.976fps clips to 60fps or 54.940fps
+# Converts 24fps or 23.976fps clips to 60fps or 54.940fps respectively.
 # by displaying each frame exactly 2.5 times for real-time playback.
 #
 # In comparison, ChangeFPS() produces judder and ConvertFPS(), blends all frames.
@@ -589,7 +589,7 @@ function SmoothMotion (clip a) {
     Blend = Merge(SelectEven(),SelectOdd())
     BendI = Interleave(Blend,Blend)
     Inter = Interleave(last,last,BendI)
-    SelectEvery(Inter,12, 0,1,2,3,4,6,7,8,9,10)
+    SelectEvery(Inter,6, 0,1,2,3,4)
 
     propSet("_DurationDen", 60000)
     propSet("_DurationNum", den)
