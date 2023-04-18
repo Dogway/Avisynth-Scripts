@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v2.3  (16-04-2023)             ###
+###      FilmGrain+  v2.4  (18-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -241,7 +241,8 @@ function FilmGrainPlus(clip a,                                                  
     } else {
 
 
-    pbl    = pbl>0 ? a.vsTCanny(max(0,binom*(pow(str,0.318)-0.61)*(pow(w/1920.-0.46,0.4)+0.2)*pbl),mode=-1,u=Chr32,v=Chr32) : a
+    expr   = binom*(pow(str,0.318)-0.61)*(pow(w/1920.-0.46,0.4)+0.2)*pbl
+    pbl    = expr>0.35 ? a.vsTCanny(expr,mode=-1,u=Chr32,v=Chr32) : a
 
 
     # 'frei-chen' with 9 and 'conv' for lo and hi respectively
