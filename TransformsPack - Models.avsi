@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.6       (15-04-2023)   ##
+###   Transforms Pack - Models v1.7       (18-04-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -232,9 +232,9 @@ function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", str
     matrix   = color_Fuzzy_Search (matrix)
     coef     = color_coef(mat=matrix[0])
     bc       = bicubic_coeffs(kernel)
-    bc_b     = string(bc[0]>=-2?bc[0]:b)
-    bc_c     = string(bc[0]>=-2?bc[1]:c)
-    kernel   = bc[0]>=-2 ? "Bicubic" : LCase(kernel)
+    bc_b     = string(bc[0]>-2?bc[0]:b)
+    bc_c     = string(bc[0]>-2?bc[1]:c)
+    kernel   = bc[0]>-2 ? "Bicubic" : LCase(kernel)
 
     p_type4  = p_type[1] == "444"
     p_type2  = p_type[1] == "422"
@@ -344,9 +344,9 @@ function RGB_to_YUV (clip rgb, string "matrix", bool "tv_in", bool "tv_out", str
     matrix   = color_Fuzzy_Search (matrix)
     coef     = color_coef(mat=matrix[0])
     bc       = bicubic_coeffs(kernel)
-    bc_b     = string(bc[0]>=-2?bc[0]:b)
-    bc_c     = string(bc[0]>=-2?bc[1]:c)
-    kernel   = bc[0]>=-2 ? "Bicubic" : LCase(kernel)
+    bc_b     = string(bc[0]>-2?bc[0]:b)
+    bc_c     = string(bc[0]>-2?bc[1]:c)
+    kernel   = bc[0]>-2 ? "Bicubic" : LCase(kernel)
 
     p_type4  = p_type[1] == "444"
     p_type2  = p_type[1] == "422"
@@ -1560,9 +1560,11 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 #
 # Example for IPTPQc2:
 #     YUV444PS IPTPQc2 source
-#     ICtCp_to_RGB("709",10000,DoVi=true)   # Decode to 709
-#     EOTFi_PQ(10000)                       # Reconstitute gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
-function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi") {
+#     ICtCp_to_RGB("2020",10000,DoVi=true)  # Decode to 2020 or 709 optionally to RGB linear
+#     EOTFi_PQ(1000,10000)                  # Reconstitute PQ gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
+#     or
+#     TM_2446C("2020","709","1886",tv_out=false) # Tonemap and output RGB Rec709 in 1886 gamma for DVp8 and other profiles
+function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi", int "scale", bool "tv_out") {
 
     fs     = propNumElements (rgb,"_ColorRange")  > 0 ? \
              propGetInt      (rgb,"_ColorRange") == 0 : true
@@ -1573,7 +1575,9 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
 
     mat    = Defined (matrix) ? mat[0] : color_propGet(rgb)[2]
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 to 10000)
-    DV     = Default (DoVi, false)        # Set to true for IPTPQc2
+    DV     = Default (DoVi,   false)      # Set to true for IPTPQc2
+    tvo    = Default (tv_out, false)
+    mul    = Default (scale,DoVi ? 2 : 1) # 'scaler_chroma' SEI. Chroma scale, may be read from the RPU
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1581,7 +1585,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
                       xt, 1-2*xt,     xt, \
                       xt,     xt, 1-2*xt]
 
-    LMS = XYZ_to_LMS("HPE",       list=true)
+    LMS = XYZ_to_LMS(rgb,"HPE",   list=true)
     LMX = MatrixDot(Crosstalk, LMS)
     XYZ = RGB_to_XYZ(mat,props[3],list=true)
     RtL = MatrixDot(LMX, MatrixTranspose(XYZ)) # RGB to LMS joint matrix
@@ -1589,7 +1593,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     rgb = rgb.ConvertBits(32,fulls=fs,fulld=true)
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
-    LMS_gam = EOTFi_PQ(LMS,PL)
+    LMS_gam = EOTFi_PQ(LMS,RefWhite=203,MasterLevel=PL)
 
     # Skin tones alignment
     alpha = 1.134464
@@ -1600,7 +1604,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
               0, sina,  cosa]
 
     # IPT by Ebner & Fairchild
-    mul = DV ? 0.5 : 1    # DVp5 reshaping. Write to RPU flag
+    mul = 1. / mul    # DVp5 reshaping. Write to RPU flag
     IPT = [     0.4000,      0.4000,       0.2000, \
             mul*4.4550, mul*-4.8510,  mul* 0.3960, \
             mul*0.8056, mul* 0.3572,  mul*-1.1628]
@@ -1615,14 +1619,14 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     fit   = ArrayOp  (skin, sca, "*")
 
     MatrixClip (LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true)
-    ConvertBits(bi,dither=1,fulls=true,fulld=fs)
+    ConvertBits(bi,dither=bi==32?-1:1,fulls=true,fulld=!tvo)
     propSet("_Transfer",           16)
     propSet("_Matrix", DoVi ?  2 : 14)
     propSet("_Model",  DoVi ? 22 : 21) }
 
 
 # ICtCp PQ to RGB linear
-function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi") {
+function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi", int "scale", bool "GC", bool "tv_out") {
 
     fs     = propNumElements (ictcp,"_ColorRange")  > 0 ? \
              propGetInt      (ictcp,"_ColorRange") == 0 : true
@@ -1633,7 +1637,10 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
 
     mat    = Defined (matrix) ? mat[0] : color_propGet(ictcp)[2]
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 to 10000)
-    DV     = Default (DoVi, false)        # Set to true for IPTPQc2
+    DV     = Default (DoVi,   false)      # Set to true for IPTPQc2
+    tvo    = Default (tv_out, false)
+    GC     = Default (GC,     false)      # Gamut Compression
+    mul    = Default (scale,DoVi ? 2 : 1) # 'scaler_chroma' SEI. Chroma scale, may be read from the RPU
 
     ictcp
     # ICtCp to LMS joint matrix
@@ -1642,14 +1649,14 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
              1,  0.560046, -0.320632]
 
     # IPTPQc2 to LMS joint matrix
-    mul  =       DV ? 2 : 1    # undo reshaping. Read from RPU flag
+    mul  =       mul    # undo reshaping. Read from RPU flag
     LMS5 = [ 1,  mul* 0.097600, mul* 0.205200, \
              1,  mul*-0.113900, mul* 0.133200, \
              1,  mul* 0.032600, mul*-0.676900]
 
     ictcp     = ictcp.ConvertBits(32,fulls=fs,fulld=true)
     LMS       = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
-    LMS_gam   = EOTF_PQ(LMS,PL)
+    LMS_gam   = EOTF_PQ(LMS,RefWhite=203,MasterLevel=PL)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1663,7 +1670,18 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     LtR = MatrixDot(MatrixTranspose(MatrixInvert(LMX)), RGB) # LMS to RGB joint matrix
 
     MatrixClip(LMS_gam, LtR, switch=false)
-    ConvertBits(bi,dither=1,fulls=true,fulld=fs)
+
+    if (GC) {
+
+        # 'Desaturate' Gamut Compression (by John Walker: https://www.fourmilab.ch/documents/specrend)
+        RGB = ExtractClip()
+        OF  = "x 0 min y min z min neg dup dup x +"
+        Expr(RGB[0], RGB[1], RGB[2], OF+" X@ swap2 y +    swap z +    max max dup 1 > X swap swap2 / X ?", \
+                                     OF+"    swap2 y + Y@ swap z +    max max dup 1 > Y swap swap2 / Y ?", \
+                                     OF+"    swap2 y    + swap z + Z@ max max dup 1 > Z swap swap2 / Z ?", Format="RGBPS", optSingleMode=true, clamp_float=false)
+    }
+
+    ConvertBits(bi,dither=bi==32?-1:1,fulls=true,fulld=!tvo)
     propSet("_Transfer",   8)
     propSet("_Matrix",     0)
     propSet("_Model",      1) }
@@ -1929,7 +1947,7 @@ function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
 function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 
-    md   = Default (mode, "CAT02B")
+    md   = Default (mode, "CAT16")
     tran = Default (transpose, false)
     list = Default (list,      false)
 
