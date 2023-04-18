@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.6         (15-04-2023)   ##
+###   Transforms Pack - Main v1.7         (18-04-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -214,7 +214,7 @@ function MatchClip (clip a, clip b, string "kernel", string "matrix", bool "size
 
         mat     = mat+(fd!=fs?":l":":f")
         bc      = bicubic_coeffs(krnc) # Hardcode 'Didee' when downscaling chroma
-        krn     = bc[0]>=-2 ? "Bicubic" : krn
+        krn     = bc[0]>-2 ? "Bicubic" : krn
 
         not42   = LeftStr(fmta[1],2) != "42"
 
@@ -621,9 +621,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
     kernel   = kernel   == "Bilcubic" ?   w*h   <  nw*nh  ? "BilcubicU" : "BilcubicD" : kernel
     kernel_c = kernel_c == "Bilcubic" ? cow*coh < cnw*cnh ? "BilcubicU" : "BilcubicD" : kernel_c
     bc       = bicubic_coeffs(kernel)            bch      = bicubic_coeffs(kernel_c)
-    bc_b     = bc[0]>=-2.?bc[0]:1/3.             bch_b    = bch[0]>=-2.?bch[0]:1/3.
-    bc_c     = bc[0]>=-2.?bc[1]:1/3.             bch_c    = bch[0]>=-2.?bch[1]:1/3.
-    kernel   = bc[0]>=-2.? "Bicubic" : kernel    kernel_c = bch[0]>=-2.? "Bicubic" : kernel_c
+    bc_b     = bc[0]>-2.?bc[0]:1/3.              bch_b    = bch[0]>-2.?bch[0]:1/3.
+    bc_c     = bc[0]>-2.?bc[1]:1/3.              bch_c    = bch[0]>-2.?bch[1]:1/3.
+    kernel   = bc[0]>-2.? "Bicubic" : kernel     kernel_c = bch[0]>-2.? "Bicubic" : kernel_c
 
     src_width  = Defined (src_width)  ? IsArray(src_width)  ? ArraySize(src_width)  > 1 ? src_width  : ArrayAdd(src_width, cow) : [src_width, cow] : [w,cow]
     src_widthc = src_width[1]      src_width  = src_width[0]
