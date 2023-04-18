@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.6    (15-04-2023)   ##
+###   Transforms Pack - Transfers v1.7    (18-04-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1047,9 +1047,12 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###    iCAM06:
 ###    Insomniac:
 ###    BT.2390 EETF:      From "ITU-R BT.2390-8" 2020. Perceptual tone mapping curve. Might be flawed, and deprecated in favor of BT.2446
-###    BT.2446 Method A:  From "ITU-R BT.2446-0" 2019
+###    BT.2446 Method A:  From "ITU-R BT.2446-0" 2019. Designed for well-mastered HDR sources
 ###    BT.2446 Method B:  From "ITU-R BT.2446-0" 2019
 ###   -BT.2446 Method C:  From "ITU-R BT.2446-0" 2019
+###    BT.2094_40:
+###    BT.2094_10:
+###    Spline:            From ffmpeg.
 ###    RRT:
 ###    ZCAM:
 ###    JzDT:
@@ -1065,7 +1068,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 # Input must be HDR PC range (or set 'tv_in') linear RGB, output is SDR gamma encoded RGB ('EOTFi' gamma encoded)
 # WIP: Achromatic highlights algorithm hasn't been implemented
 # * Keep in mind that peak luminance in nits (or cd/m^2) relates to float pixel values 100:1. ie. pixel value of 1.0 is 100 nits, 10.0 is 1000 nits and so on.
-function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", float "k1", float "k3", bool "tv_in", bool "tv_out", bool "show") {
+function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", float "k1", float "k3", bool "GC", bool "tv_in", bool "tv_out", bool "show") {
     c
     isy    = isy()
     bi     = BitsPerComponent()
@@ -1078,6 +1081,7 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
     tv_in  = Default (tv_in,      !fs)
     tv_out = Default (tv_out,   tv_in)
     sh     = Default (show,     false)
+    GC     = Default (GC,       false) # Gamut Compression
     k1     = Default (k1,           1) # SDR white level to HDR reference white (diffuse white) ratio. Details on BT.2408 Annex 4
     k3     = Default (k3,        0.52) # How much bright detail you want to keep in
 
@@ -1118,6 +1122,16 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
 
     EOTF!="linear" ? CCTF(EOTF, false, false, tv_out)     : \
     tv_in!=tv_out  ? EOTF=="linear" && tv_out ? SMPTE_legal(true) : propSet("_ColorRange", tv_out?1:0) : last
+
+    if (GC) {
+
+        # 'Desaturate' Gamut Compression (by John Walker: https://www.fourmilab.ch/documents/specrend)
+        RGB = ExtractClip()
+        OF  = "x 0 min y min z min neg dup dup x +"
+        Expr(RGB[0], RGB[1], RGB[2], OF+" X@ swap2 y +    swap z +    max max dup 1 > X swap swap2 / X ?", \
+                                     OF+"    swap2 y + Y@ swap z +    max max dup 1 > Y swap swap2 / Y ?", \
+                                     OF+"    swap2 y    + swap z + Z@ max max dup 1 > Z swap swap2 / Z ?", Format="RGBPS", optSingleMode=true, clamp_float=false)
+    }
 
     if (sh) {
         w   = c.width()
