@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.7 (16-04-2023)     ##
+###   Resizers Functions Pack 11.8 (18-04-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -35,7 +35,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (09-04-2023)
+### deep_resize() - by Dogway (18-04-2023)
 ###
 ### Convenient and high performance function to resize natural images (not cartoons) in high quality (different kernels for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -244,22 +244,23 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
             an      = !isy ? a.ExtractY() : a
             an      = !HBD ? an.ConvertBits(8,dither=-1,fulls=fs,fulld=fs) : an
 
-            edge1   = ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,taps=etp,tv_in=!fs,tv_out=!fs,scale_space=ssp,noring=nr,threads=threads,cores=cores,gpuid=egpu) # noring and scale_space is only applied to edges
+            edge1   = ConvertFormat(an,w2,h2,cs_out="",EOTFi="",kernel=krn1,               taps=etp,      tv_in=!fs,tv_out=!fs,threads=threads,cores=cores,gpuid=egpu,scale_space=ssp,noring=nr) # noring and scale_space is only applied to edges
 
             # don't sharpen nnedi3 when one dimensional resize case
-            edge    = krn1=="nnedi3" ? oned ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : \
+            edge1b  = "!HBD ? ConvertBits(edge1, bi, fulls=fs, fulld=fs) : edge1"
+            edge    = krn1=="nnedi3" ? oned ? Eval(edge1b) : \
                       mul>0          ?        LSFplus    (edge1,preset="LSF",strength=2*mul*(FC?rat:1),Smode=4,Lmode=2,edgemode=0,soothe=FC,overshoot=0,soft=-2,keep=0,tv_range=!fs).\
-                                              ConvertBits(bi,        fulls=fs, fulld=fs) : edge1 : edge1
+                                              ConvertBits(bi, fulls=fs, fulld=fs) : Eval(edge1b) : Eval(edge1b)
 
             # resizing chroma+flat area
-            flat    =                         ConvertFormat(a,w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,tv_out=!fs,threads=threads,cores=cores,gpuid=fcgpu)
+            flat    = ConvertFormat(a, w2,h2,cs_out="",EOTFi="",kernel=krn2,kernel_c=krn1c,taps=[ftp,ctp],tv_in=!fs,tv_out=!fs,threads=threads,cores=cores,gpuid=fcgpu)
 
             # edge/flat limiting
-            !isy ? CombinePlanes(edge, flat, planes="YUV", source_planes="YUV", pixel_type=PixelType(a)) : edge
+            !isy ? CombinePlanes(edge, flat, planes="YUV", pixel_type=PixelType(a)) : edge
             ex_limitdif(flat, last, thr=thr, elast=ela, UV=1)
 
             # deconvolution from source downscaling
-            dec == 0     ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) }
+            dec == 0 ? last : ex_unsharp(w!=w2?-dec/100.:0,h!=h2?-dec/100.:0, Fc=max(w2,h2)/(rat*2)) }
 
     size  = 1.5 * ( 0.000173*w2 + 0.667 )
     grain = gr  * ( 0.000260*w2 + 0.500 )
@@ -593,7 +594,7 @@ function SmoothMotion (clip a) {
 
     propSet("_DurationDen", 60000)
     propSet("_DurationNum", den)
-}
+    }
 
 
 #
@@ -755,7 +756,7 @@ function nnedi3wrap(clip a, int "xfactor", int "yfactor", int "field", int "nsiz
 
     krnn    = Default(cshift, sm ? "spline16" : rfactor ? "ZoptiN" : "Blackman") # kernel used for fwidth or fheight, otherwise only for pixel shift (set to "none" to disable shift fix)
     coeffs  = bicubic_coeffs(krnn)
-    krnn2   = coeffs[0]!=-2 && coeffs[1]!=-2 ? "Bicubic" : krnn
+    krnn2   = coeffs[0]>-2 && coeffs[1]>-2 ? "Bicubic" : krnn
     ep0     = krnn2=="Bicubic" ? coeffs[0] : gpuid==-1 ? krnn2=="Blackman" ? 6 : 4 : Undefined()  # NNEDI3 in CPU mode is limited in cshift modes, so hardcode some values here.
     ep1     = krnn2=="Bicubic" ? coeffs[1] :                                         Undefined()
 
@@ -907,7 +908,7 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
 
     krnn    = Default(cshift, sm ? "spline16" : rfactor ? "ZoptiN" : "Blackman") # kernel used for fwidth or fheight, otherwise only for pixel shift (set to "none" to disable shift fix)
     coeffs  = bicubic_coeffs(krnn)
-    krnn2   = coeffs[0]!=-2 && coeffs[1]!=-2 ? "Bicubic" : krnn
+    krnn2   = coeffs[0]>-2 && coeffs[1]>-2 ? "Bicubic" : krnn
     ep0     = krnn2=="Bicubic" ? coeffs[0] : gpuid==-1 ? krnn2=="Blackman" ? 6 : 4 : Undefined()  # EEDI3 in CPU mode is limited in cshift modes, so hardcode some values here.
     ep1     = krnn2=="Bicubic" ? coeffs[1] :                                         Undefined()
 
