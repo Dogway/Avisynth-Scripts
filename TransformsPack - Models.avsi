@@ -1593,7 +1593,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     rgb = rgb.ConvertBits(32,fulls=fs,fulld=true)
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
-    LMS_gam = EOTFi_PQ(LMS,RefWhite=203,MasterLevel=PL)
+    LMS_gam = EOTFi_PQ(LMS,RefWhite=203,MasterLevel=PL) # ICtCp uses ST 2084 for which 100 is the Reference White, but got less clipping with 203 (ITU)
 
     # Skin tones alignment
     alpha = 1.134464

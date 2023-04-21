@@ -536,9 +536,16 @@ function EOTFi_XYB (clip c, float "gamma", float "bias", bool "tv_in", bool "tv_
 
 
 
-# BT.2100 (PQ to display-referred linear HDR)
+# ST.2084/BT.2100 (PQ to display-referred linear HDR)
 # WIP SMPTE ST 2084
 # Requires planar RGB input (output is always 32-bit float)
+#
+# Example:
+#
+#   32-bit RGB
+#   EOTF_PQ(203,10000) # Or 100 depending on standard
+#   TM_2446C("2020","709",k1=1,k3=0.52,EOTFi="1886",tv_in=false,tv_out=false) # Tonemapping
+#
 function EOTF_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool "tv_out") {
     c
     bi      = BitsPerComponent()
@@ -1149,6 +1156,25 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
 # TM - Hable
 # John Hable Tonemapping curve
 # Input must be 32-bit RGB linear in PC range
+#
+# Example:
+#   TM_Hable(mode="Dark",filmic=false,LinWh=2.0) # Good example for HDR films, even superior to TM_2446C() in my opinion
+#
+# Function Definition:
+#    (
+#    clip,
+#    string "mode"="Default" ("Default"/ "Dark"/ "Bright"),
+#    bool "filmic",
+#    float "LinWh"=11.2 (1.0 to 12.0),
+#    float "A"=0.0 (0.00 to 1.00),
+#    float "B"=0.0 (0.00 to 1.00),
+#    float "C"=0.0 (0.00 to 1.00),
+#    float "D"=0.0 (0.00 to 1.00),
+#    float "E"=0.0 (0.00 to 1.00),
+#    float "F"=0.0 (0.00 to 1.00),
+#    bool "show"=false
+#    )
+#
 function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", float "C", float "D", float "E", float "F", float "LinWh", bool "show") {
     x
     isy    = isy()
