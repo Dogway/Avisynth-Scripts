@@ -7,7 +7,7 @@
 ### Didée: - Speed Boost, Updated:             11-May-2007
 ### Dogway - added protection option.          12-May-2011
 ### Dogway - 2.0ex to 2.3ex Updated to ExTools 05-Mar-2022
-### Dogway - Plus  Optimizations.              22-Apr-2023
+### Dogway - Plus  Optimizations.              23-Apr-2023
 ###
 ###
 ### Parameters:
@@ -66,21 +66,21 @@ function FastLineDarkenPlus( clip c, int "strength", int "prot", int "luma_cap",
 
     if (thinning<1) {
 
-             ex_lutxy  (c,close,             Format("y {lum} min A@ x {thr} + > x A - {str} * x + x ?"),           UV=uv, fulls=fs)
+             ex_lutxy  (c, close,  Format("y {lum} min A@ x {thr} + > x A - {str} * x + x ?"),           UV=uv, fulls=fs)
 
     } else {
 
-        DF = ex_lutxy  (c,close,             Format("y {lum} min A@ x {thr} + > x A - range_half + range_half ?"), UV=uv, fulls=fs)
-        LM = ex_lut    (     DF.ex_inpand(), Format("x range_half - {thn} * range_max + "),                        UV=uv, fulls=fs).ex_boxblur(1,mode="mean",UV=uv)
-             ex_lutxyz (c,LM,DF,             Format("z range_half -    dup
-                                                       {str} 1 + * x[-1,1] x[0,1] max x[1,1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,-1] max x[0,-1] max x[1,-1] max +
-                                                                       dup      swap2 {str} * x +
-                                                     - y range_max / * -"), UV=uv)
+        DF = ex_lutxy  (c, close,  Format("y {lum} min A@ x {thr} + > x A - range_half + range_half ?"), UV=uv, fulls=fs)
+        LM = ex_lut    (       DF, Format("              x[-1,1] x[0,1] min x[1,1] min x[-1,0] min x[0,0] min x[1,0] min x[-1,-1] min x[0,-1] min x[1,-1] min range_half - {thn} * range_max + "),                        UV=uv, fulls=fs).ex_boxblur(1,mode="mean",UV=uv)
+             ex_lutxyz (c, LM, DF, Format("z range_half -    dup
+                                             {str} 1 + * x[-1,1] x[0,1] max x[1,1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,-1] max x[0,-1] max x[1,-1] max +
+                                                             dup      swap2 {str} * x +
+                                           - y range_max / * -"), UV=uv)
     } }
 
 
 ### Changelog:
-###  Plus - Merge 'thin', 'thick' and 'merge' into one call for +7% performance increase (+29% in HBD). Some logic refactor and RGB support.
+###  Plus - Merge 'thin', 'thick' and 'merge' into one call for +13% performance increase (+39% in HBD). Some logic refactor and RGB support.
 ###  2.3  - Minor expr optimizations
 ###  2.2  - Updated to latest ExTools v6.9
 ###  2.1  - Updated to latest ExTools v5.5
