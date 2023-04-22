@@ -581,8 +581,9 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 # Port of SmoothMotion from MPV, also called "OverSample".
 # Converts 24fps or 23.976fps clips to 60fps or 54.940fps respectively.
 # by displaying each frame exactly 2.5 times for real-time playback.
+# Note that it still might exhibit some judder on camera pans.
 #
-# In comparison, ChangeFPS() produces judder and ConvertFPS(), blends all frames.
+# In comparison, ChangeFPS() produces stutter and ConvertFPS(), blends all frames.
 #
 function SmoothMotion (clip a) {
     a
