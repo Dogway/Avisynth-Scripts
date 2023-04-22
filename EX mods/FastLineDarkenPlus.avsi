@@ -47,7 +47,7 @@ function FastLineDarkenPlus( clip c, int "strength", int "prot", int "luma_cap",
     rgb  = isRGB(c)
     bi   = BitsPerComponent(c)
     fs   = propNumElements (c,"_ColorRange")  > 0 ? \
-           propGetInt      (c,"_ColorRange") == 0 : false
+           propGetInt      (c,"_ColorRange") == 0 : rgb
 
     str        = Default(strength,  50) / 128.
     lum        = Default(luma_cap, 191)
