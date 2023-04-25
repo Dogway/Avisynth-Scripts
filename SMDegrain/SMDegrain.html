@@ -42,7 +42,7 @@
   <tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.2 or higher)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/MVTools" target="_blank">MVTools2</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v2.7.45 or higher)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.6 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.8 or higher)</td></tr>
   </tr>
 </table>
 </ul>
@@ -60,7 +60,7 @@
     <tr><td><li><b><a href="http://avisynth.nl/index.php/KNLMeansCL" target="_blank">KNLMeansCL</a></b></li></td><td>&nbsp;&nbsp;(v1.1.1e or higher)</td><td>&nbsp;&nbsp;(for prefilter=6)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/DGDecNV" target="_blank">DGDecNV</a></b></li></td><td>&nbsp;&nbsp;(v246 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/BM3DCUDA" target="_blank">BM3D</a></b></li></td><td>&nbsp;&nbsp;(test10 or higher)</td><td>&nbsp;&nbsp;(for prefilter=8)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.6 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.7 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Neo_TMedian" target="_blank">neo_tmedian</a></b></li></td><td>&nbsp;&nbsp;(r2 or higher)</td><td>&nbsp;&nbsp;(for mode="medianT") (broken for interlaced inputs)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/VsTTempSmooth" target="_blank">vsTTempSmooth</a></b></li></td><td>&nbsp;&nbsp;(v1.2.3 or higher)</td><td>&nbsp;&nbsp;(for mode="TemporalSmooth")</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.7 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
@@ -567,8 +567,8 @@ Also set contrasharpening to temporal limited (limitS)
 SMDegrain(2, 200, prefilter=pre, mfilter=pre, refinemotion=true, contrasharp=60, limitS=false, chroma=false)</pre>
 <br/>
 How to degrain an PQ encoded HDR clip. Note that <var>prefilter</var> clips also pass through ex_Luma_Rebuild() internally.
-<pre>pre=DGHDRtoSDR(mode="pq",white=ceil(59.49080238715383)) # Check different white levels depending on source metadata
-SMDegrain(tr=3,thSAD=300,prefilter=pre,UHDHalf=true)    # 'UHDHalf' is redundant as is enabled by default</pre>
+<pre>pre=DGHDRtoSDR(mode="pq",white=1500)                 # Check different white levels depending on source metadata
+SMDegrain(tr=3,thSAD=300,prefilter=pre,UHDHalf=true) # 'UHDHalf' is redundant as is enabled by default</pre>
 <br/>
 (Re)using motion vectors <var>globals</var>.
 <pre>SMDegrain(tr=1,thSAD=400,prefilter=3,str=1.4,globals=3)    # Output vectors only
