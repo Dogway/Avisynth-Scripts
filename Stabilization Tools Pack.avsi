@@ -1,24 +1,26 @@
-###                                                        #
-###                                                        #
-###                          2.1   by Dogway  (16-09-2015) #
-###                      mod 2.533 by A.SONY  (29-11-2020) #
-### Stabilization Tools Pack 3.4   by Dogway  (06-02-2023) #
-###                                                        #
-###   https://forum.doom9.org/showthread.php?t=182881      #
-###                                                        #
-### Functions:                                             #
-###      FilmGateFix                                       #
-###      FillBorder                                        #
-###      FindBlackBorders                                  #
-###      StabPlus                                          #
-###                                                        #
-############################################################
+###                                                            #
+### EXPERIMENTAL: Largely outdated. Use at your own discretion #
+###                                                            #
+###                          2.1   by Dogway  (16-09-2015)     #
+###                      mod 2.533 by A.SONY  (29-11-2020)     #
+### Stabilization Tools Pack 3.5   by Dogway  (26-04-2023)     #
+###                                                            #
+###   https://forum.doom9.org/showthread.php?t=182881          #
+###                                                            #
+###                                                            #
+### Functions:                                                 #
+###      FilmGateFix                                           #
+###      FillBorder                                            #
+###      FindBlackBorders                                      #
+###      StabPlus                                              #
+###                                                            #
+################################################################
 ###
 ###
 ### Set of tools to work with common stabilization issues, mainly from telecine process.
 ### For aggressive handheld camera shaking I still recommend vdub's Deshaker.
 ###
-### Required: AviSynth+ 3.7.2+
+### Required: AviSynth+ 3.7.3+
 ###           ExTools
 ###
 ###
@@ -408,6 +410,22 @@ function StabPlus(clip clp, int "ts", int "range", int "dxmax", int "dymax", boo
     subsampl  = !(clp.is444() || clp.isy())
 
     abs(fill) != 1 ? FillBorder(pad=subsampl ? 1 : 0,subsample=subsampl,FixFalPos=Defined(FalPosclip) ? FalPosclip : FixFalPos ? clp : Undefined(), mirror=fill==0, FillBordersc=fill==2 ? clp : Undefined(), PAR=PAR) : last }
+
+
+
+# Wrapper for videoFred stabilize function. Works so good that it replaces StabPlus(), me thinks.
+# https://forum.doom9.org/showthread.php?p=1981048
+function Stabilize(clip c, int "offset", bool "info") {
+
+    in = Default(info, false)
+    of = Default(offset, 40)
+
+    c
+    vectors = MSuper().MAnalyse(isb=false)
+    mdata   = MDepan(vectors, rot=false, zoom=false, error= 65)
+
+    DePanStabilize(data=mdata,dxmax=of, dymax=of, zoommax=0, rotmax=0, method=1, mirror=15, prev=1, next=1, info=in)
+    }
 
 
 ######### HELPER FUNCTIONS #########
