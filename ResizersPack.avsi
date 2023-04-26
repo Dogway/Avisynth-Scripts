@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.8 (18-04-2023)     ##
+###   Resizers Functions Pack 11.8 (26-04-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -1226,8 +1226,8 @@ function PadBorders(clip src, int "left", int "top", int "right", int "bottom", 
     } else if (md=="dilate"||md=="fill") {
 
         PointResize(w+l+r+lc+rc, h+t+b+tc+bc, -l-lc, -t-tc, w+l+r+lc+rc, h+t+b+tc+bc)
-        md=="fill" ? rgb && !isPlanar() ? ConverttoPlanarRGB().FillBorders(l,t,r,b,mode=6) : \
-                                                               FillBorders(l,t,r,b,mode=6) : last
+        md=="fill" ? rgb && !isPlanar() ? ConverttoPlanarRGB().FillBorders(left=l,top=t,right=r,bottom=b,mode=6) : \
+                                                               FillBorders(left=l,top=t,right=r,bottom=b,mode=6) : last
 
     } else if (LeftStr(md,1)=="$") {
 
