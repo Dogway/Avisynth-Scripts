@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v2.4  (18-04-2023)             ###
+###      FilmGrain+  v2.5  (26-04-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -33,7 +33,7 @@
 ###     FilmGrainPlus(str=0.2,size=1.5)                        # Good example for digital 1080p films, ideally at 16-bit
 ###     FilmGrainPlus(str=0.8,size=2.0,sharpness=0.3,temp=0.1) # Example for UHD, not only size, but also strength should be raised
 ###
-###     * Note: To speed up the filter for UHD, you can set strc=0, temp=0.0 and mode="gamma"
+###     * Note: To speed up the filter for UHD, you can set strc=0, temp=0.0 and mode="gamma" ('gamma' is the default anyway)
 ###
 ###
 ### Function Definition:
@@ -135,6 +135,7 @@ function FilmGrainPlus(clip a,                                                  
     strcD = Defined( strc      )
     szD   = Defined( size      )
     shrpD = Defined( sharpness )
+    pblD  = Defined( preblur   )
 
     # Presets at 1080p:                        Default                     8mm  16mm  35mm | 5245  5248  5293  5298 | 5274  5246  5277  5279 | 5201  5212  5217  5218 | 5203  5213  5207  5219 FX214 | 8510  8520  8530  8550  8560  8570 | 8522  8532  8552  8562  8582  8572 | 8543  8563  8583  8573  8592 | FilmGrain  GF3   DigitalNoise
     str   = Default( str      , Select ( pr,      0.2 ,                    7.0,  2.0,  0.8,   0.1,  1.0,  1.0,  1.0,   0.4,  0.9,  1.0,  1.4,   1.0,  1.0,  0.2,  0.1,   1.0,  1.0,  1.0,  0.1,  0.3,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,  1.0,   1.0,  1.0,  1.0,  1.0,  1.0,     0.4,    1.0,   1.0))
@@ -242,7 +243,8 @@ function FilmGrainPlus(clip a,                                                  
 
 
     expr   = binom*(pow(str,0.318)-0.61)*(pow(w/1920.-0.46,0.4)+0.2)*pbl
-    pbl    = expr>0.35 ? a.vsTCanny(expr,mode=-1,u=Chr32,v=Chr32) : a
+    pbl    =                        expr > 0.35 ? a.vsTCanny(expr                ,mode=-1,u=Chr32,v=Chr32) : \
+             pblD ? sqrt(pbl)/2.*sqrt(2) > 0.35 ? a.vsTCanny(sqrt(pbl)/2.*sqrt(2),mode=-1,u=Chr32,v=Chr32) : a : a
 
 
     # 'frei-chen' with 9 and 'conv' for lo and hi respectively
