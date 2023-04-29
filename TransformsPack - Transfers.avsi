@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.7    (18-04-2023)   ##
+###   Transforms Pack - Transfers v1.8    (29-04-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -94,6 +94,7 @@
 #  RED LogFilm
 #  Log100
 #  Log316
+#  FS-Log
 #  Sony S-Log
 #  Sony S-Log2
 #  Sony S-Log3
@@ -108,7 +109,7 @@
 ### CCTF() or Color Component Transfer Function, comprehends EOTF/OETFi (forward=true) and OETF/EOTFi (forward=false).
 ### Use this function as the main transfer function to use for different CCTFs that matches 'transfer' string.
 ###
-### Function Definitions:
+### Function Definition:
 ###     (
 ###     clip,
 ###     string "transfer"="sRGB" ("linear"/ "1886a"/ "1886"/ "470M"/ "470BG"/ "240M"/ "170M"/ "709-Camera"/ "sRGB"/ "AdobeRGB"/ "CIELab"/ "Apple"/ "Chrome"/ "xvYCC"/ "PhotoCD"/ "2020NCL"/ "2020CL"/ "DCIXYZ"/ "PQ"/ "HLG"/ "HLG ARIB"/ "ACESCCt"/ "log100"/ "log316"/ "1361"),
@@ -155,7 +156,7 @@ function CCTF (clip c, string "transfer", bool "fw", bool "tv_in", bool "tv_out"
         h   = c.height()
         sw  = nmod(w/5.)   sh = min(h,sw)
         plt = GradientLinear(last,zoom=1, precision=2, positive=true, smooth=true, tv_range=false)
-        plt = CCTF(plt, trans, in, false, false)
+        plt = CCTF(plt, trans, fw, false, false, false)
         plt = HistoCurve(plt,size=2,gradient=false).BicubicResize(sw,sh,-0.5,0.25)
         plt = rgb ? plt.ConvertToPlanarRGB() : plt
         plt = Merge(PadBorders(plt.subtitle(string(trans)),w-sw,0,0,h-sh))
@@ -314,38 +315,56 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 
 
 
-# 1886a (Alternative 1886). A better match for CRT TRF. Uses gamma 3.0 up to offset 0.35, then gamma 2.6.
-# Best match with 2.6133333 power gamma (at default BlackLevel=0)
-
-/*The EOTF specified for 1886 is considered to be a satisfactory, but not exact, match to the
-  characteristic of an actual CRT. When it is desired to match a CRT, the Lw and Lb parameters of the
-  EOTF can be set to the corresponding values of the CRT that are being matched. For moderate
-  black level settings, e.g. 0.1 cd/m 2 , setting the Lb of the EOTF to 0.1 will give a satisfactory match
-  to the CRT. In the event the CRT is operated at a lower black level, e.g. 0.01 cd/m 2 , the EOTF will
-  provide a better match with Lb set to a lower value such as 0.0 cd/m 2 . When it is necessary to more
-  precisely match a flat panel display characteristic to a CRT, the alternative 1886a EOTF formulation
-  may provide a solution. */
-
-function EOTF_1886a (clip c, float "BlackLevel", bool "tv_in", bool "tv_out") {
+### 1886a (Alternative 1886). A better match for CRT TRF. Uses gamma 3.0 up to offset 0.35, then gamma 2.6.
+### Best match with 2.6133333 power gamma (at BlackLevel=0). At default 0.1 practically matches 1886 (2.4 power gamma)
+###
+### /*The EOTF specified for 1886 is considered to be a satisfactory, but not exact, match to the
+###   characteristic of an actual CRT. When it is desired to match a CRT, the Lw and Lb parameters of the
+###   EOTF can be set to the corresponding values of the CRT that are being matched. For moderate
+###   black level settings, e.g. 0.1 cd/m 2 , setting the Lb of the EOTF to 0.1 will give a satisfactory match
+###   to the CRT. In the event the CRT is operated at a lower black level, e.g. 0.01 cd/m 2 , the EOTF will
+###   provide a better match with Lb set to a lower value such as 0.0 cd/m 2 . When it is necessary to more
+###   precisely match a flat panel display characteristic to a CRT, the alternative 1886a EOTF formulation
+###   may provide a solution. */
+###
+###
+### Function Definition:
+###     (
+###     clip,
+###     float "BlackLevel"=0.10 (0.00 to 0.35),
+###     float "WhiteLevel"=100.0 (50.0 to 205.0),
+###     int "brightness"=0 (0 to 100),
+###     int "contrast"=100 (0 to 100)
+###     )
+###
+function EOTF_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "brightness", int "contrast", bool "tv_in", bool "tv_out") {
     c
     rgb     = IsRGB()
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
-    bl      = Default (BlackLevel, 0.0) # Black level in nits (cd/m2)
-    tv_in   = Default (tv_in,    !fs)
-    tv_out  = Default (tv_out, tv_in)
+    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m2)
+    wl      = Default (WhiteLevel, 100) # White level in nits (cd/m2)
+    l       = Default (brightness,   0) # CRT's 'brightness' control (aka 'lift')
+    g       = Default (contrast,   100) # CRT's 'contrast'   control (aka 'gain')
+    tv_in   = Default (tv_in,      !fs)
+    tv_out  = Default (tv_out,   tv_in)
 
     rangePC = tv_in  ? "x ymin - ymax ymin - /" : "x range_max /"
     rangeTV = tv_out ? "ymax ymin - * ymin +"   : "range_max *"
 
-    Lw = 1       # White level
-    Lb = bl/100. # Black level
-    a1 = 2.6     # Shoulder gamma
-    a2 = 3.0     # Knee gamma
-    Vc = 0.35    # Offset
-    k  = Lw /pow(1  + Lb,    a1)
-    sl = k * pow(Vc + Lb, a1-a2) # Slope for knee gamma
+    b  = pow(bl, 1/2.4)
+    a  = pow(wl, 1/2.4)-b
+    b  = l>0    ? (l/286.+b/a) : b/a    # CRT's 'brightness' control
+    a  = g!=100 ? g/100.       : 1      # CRT's 'contrast'   control
+                                      
+    Vc = 0.35                           # Offset
+    Lw = wl/100. * a                    # White level
+    Lb = clamp(b * a,0,Vc)              # Black level
+    a1 = 2.6                            # Shoulder gamma
+    a2 = 3.0                            # Knee gamma
+    k  = Lw /pow(1  + Lb,    a1)      
+    sl = k * pow(Vc + Lb, a1-a2)        # Slope for knee gamma
 
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
 
@@ -354,24 +373,32 @@ function EOTF_1886a (clip c, float "BlackLevel", bool "tv_in", bool "tv_out") {
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
-function EOTFi_1886a (clip c, float "BlackLevel", bool "tv_in", bool "tv_out") {
+function EOTFi_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "brightness", int "contrast", bool "tv_in", bool "tv_out") {
     c
     rgb     = IsRGB()
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
-    bl      = Default (BlackLevel, 0.0) # Black level in nits (cd/m2)
+    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m2)
+    wl      = Default (WhiteLevel, 100) # White level in nits (cd/m2)
+    l       = Default (brightness,   0) # CRT's 'brightness' control (aka 'lift')
+    g       = Default (contrast,   100) # CRT's 'contrast'   control (aka 'gain')
     tv_in   = Default (tv_in,    !fs)
     tv_out  = Default (tv_out, tv_in)
 
     rangePC = tv_in  ? "x ymin - ymax ymin - /" : "x range_max /"
     rangeTV = tv_out ? "ymax ymin - * ymin +"   : "range_max *"
 
-    Lw   = 1                  # White level
-    Lb   = bl/100.            # Black level
-    a1   = 2.6  a1i = 1 / a1  # Shoulder gamma
-    a2   = 3.0  a2i = 1 / a2  # Knee gamma
-    Vc   = 0.35               # Offset
+    b  = pow(bl, 1/2.4)
+    a  = pow(wl, 1/2.4)-b
+    b  = l>0    ? (l/286.+b/a) : b/a    # CRT's 'brightness' control
+    a  = g!=100 ? g/100.       : 1      # CRT's 'contrast'   control
+                                     
+    Vc   = 0.35                         # Offset
+    Lw   = wl/100. * a                  # White level
+    Lb   = clamp(b * a,0,Vc)            # Black level
+    a1   = 2.6  a1i = 1 / a1            # Shoulder gamma
+    a2   = 3.0  a2i = 1 / a2            # Knee gamma
     k    = 1 / (Lw /pow(1  + Lb, a1))
     sl   = k * pow(Vc - Lb,   a2-a1)
     beta =     pow(Vc - Lb,      a1)
@@ -888,7 +915,7 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
 
     Lrfl = ((k*0.01)/pi)*s
 
-    CCTF(   tr, true, !fs, false)
+    CCTF( tr,  true, !fs,  false)
 
     ex_lut(Format("{Lw} {Lb} - x * {Lb} {Lrfl} + + 0.01 *"))
 
@@ -900,7 +927,7 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
 ###
 ### OOTF (Opto-Optical Transfer Function)
 ###
-### Changes the rendering intent for a non-linear output for example for a Surround adaptation or Display-to-Display transfer conversion.
+### Changes the rendering intent for a non-linear output, for example, for a Surround adaptation or Display-to-Display transfer conversion.
 ### Also works for fast inverse OETFi conversion when in linear space to retrieve scene-referred space.
 ### For piecewise transfer functions, a best-fit curve algorithm is used to find the power gamma match.
 ### When OOTF values are below 1.0 it is considered to be an 'inverse OOTF'.
@@ -938,6 +965,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
     EOTF      = Defined (EOTF ) ? isString(EOTF ) ? color_Fuzzy_Search(EOTF ) : EOTF  : ["","",""]
     sh        = Default (show, false)
 
+    # '1886a' is with BlackLevel/Brightness set to 0, for the recommended 0.1 cd/m2 it's a practical match to regular '1886'
     s_gam     = isFloat (OETF) ? [OETF,0] : OETF[2]=="1886a" ? [2.6133333,0] : OETF[2]=="Chrome" ? [2.4,0] : OETF[2]=="AppleRGB" ? [1.783333,0] : moncurve_coef(OETF[2])
     d_gam     = isFloat (EOTF) ? [EOTF,0] : EOTF[2]=="1886a" ? [2.6133333,0] : EOTF[2]=="Chrome" ? [2.4,0] : EOTF[2]=="AppleRGB" ? [1.783333,0] : moncurve_coef(EOTF[2])
 
@@ -1019,7 +1047,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###                                     ##
 ##########################################
 ###
-###   Sometimes also called 'shapers' or 'preluts', they are used to remap HDR values found in light emissive sources or specular reflection of them to SDR or to a lower HDR level.
+###   Sometimes also called 'shapers' or 'preluts', they are used to remap HDR values found in light emissive sources or their specular reflection to SDR or to a lower HDR level.
 ###
 ###    Expanded summary of: https://github.com/tizian/tonemapper
 ###
@@ -1065,7 +1093,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###    JzDT:
 ###    AgX:
 ###    OpenDRT:
-###    Sensitometric:  From Substance Painter YEBIS2 post-processor by Silicon Studio
+###    Sensitometric:     From Substance Painter YEBIS2 post-processor by Silicon Studio
 
 
 
@@ -1161,19 +1189,19 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
 #   TM_Hable(mode="Dark",filmic=false,LinWh=2.0) # Good example for HDR films, even superior to TM_2446C() in my opinion
 #
 # Function Definition:
-#    (
-#    clip,
-#    string "mode"="Default" ("Default"/ "Dark"/ "Bright"),
-#    bool "filmic",
-#    float "LinWh"=11.2 (1.0 to 12.0),
-#    float "A"=0.0 (0.00 to 1.00),
-#    float "B"=0.0 (0.00 to 1.00),
-#    float "C"=0.0 (0.00 to 1.00),
-#    float "D"=0.0 (0.00 to 1.00),
-#    float "E"=0.0 (0.00 to 1.00),
-#    float "F"=0.0 (0.00 to 1.00),
-#    bool "show"=false
-#    )
+#     (
+#     clip,
+#     string "mode"="Default" ("Default"/ "Dark"/ "Bright"),
+#     bool "filmic"=false,
+#     float "LinWh"=11.2 (1.0 to 12.0),
+#     float "A"=0.0 (0.00 to 1.00),
+#     float "B"=0.0 (0.00 to 1.00),
+#     float "C"=0.0 (0.00 to 1.00),
+#     float "D"=0.0 (0.00 to 1.00),
+#     float "E"=0.0 (0.00 to 1.00),
+#     float "F"=0.0 (0.00 to 1.00),
+#     bool "show"=false
+#     )
 #
 function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", float "C", float "D", float "E", float "F", float "LinWh", bool "show") {
     x
