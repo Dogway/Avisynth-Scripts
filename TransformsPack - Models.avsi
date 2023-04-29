@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.7       (18-04-2023)   ##
+###   Transforms Pack - Models v1.8       (29-04-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -108,7 +108,7 @@
 # BMD 4.6K Video v3      - (Legacy)
 # Alexa                  - Arri (Alexa) Wide Gamut.
 # Film                   - Arri Film Matrix. Traditional film primaries with Illuminant C.
-# FS                     - SMPTE Free Scale Gamut for imagery having arbitrary chromaticity that can be conveyed, inherited from Sony's F23, F35, and F65 Wide Gamut cameras. (ST 2048-1).
+#-FS-Gamut               - SMPTE Free Scale Gamut for imagery having arbitrary chromaticity that can be conveyed, inherited from Sony's F23, F35, and F65 Wide Gamut cameras. (ST 2048-1).
 # V-Gamut                - Panasonic V-Gamut (Varicam).
 # V709                   - Panasonic Varicam V709.
 # F-Log                  - Fujifilm F-Log Gamut.
@@ -121,7 +121,7 @@
 #-CIE RGB                - or CIE 1931 RGB in linear space (sometimes over generic gamma of 2.2) and E illuminant.
 #-Apple RGB              - RGB color space by Apple derived from Sony Trinitron phosphors, similar in gamut size to sRGB or ColorMatch. Employs a gamma of 1.8.
 #-ColorMatch RGB         - Radius PressView Monitors with D50 and a power gamma of 1.8.
-# EBU 3213               - EBU Tech. 3213-E / JEDEC P22 phosphors.
+#-EBU Tech. 3213-E       - EBU Tech. 3213-E / JEDEC P22 phosphors. Legacy EBU Tech 3213 (later 470BG) (625-line = PAL, SECAM).
 #-Bruce RGB              - Developed by Bruce Fraser as a conservative-gamut space for dealing with 8-bit imagery that needs heavy editing. Early and modest gamut that made into one of the SWOP printing standards in the U.S.
 #-DonRGB4                - Developed by Don Hutcheson in 1996. Wide gamut working space for photography, prepress, etc. 2.2 pure power gamma.
 #-BestRGB                - Developed by Don Hutcheson. Improved DonRGB4 for saturated reds and magentas. 2.2 pure power gamma.
@@ -156,12 +156,13 @@
 # SO           - Biologically Inspired Color Image Descriptor.
 # c1c2c4       - Biologically Inspired Color Image Descriptor.
 # o1o2         - For Robust Image Detection in Scenes under Cast Shadows. https://digital.csic.es/bitstream/10261/30099/1/Combining%20color-based.pdf
-#-YCbCr        - Color format roughly based on human perception of luma and chroma contribution (approximately perceptually uniform). Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green. It's a 45º skewed parallelogram relative to the square RGB box, therefore only 23.6% of its color volume matches RGB and 76.4% is out of RGB gamut.
+#-YCbCr        - Color format for digital systems roughly based on human perception of luma and chroma contribution (approximately perceptually uniform). Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green. It's a 45º skewed parallelogram relative to the square RGB box, therefore only 23.6% of its color volume matches RGB and 76.4% is out of RGB gamut.
 #-YPbPr        - A model for analogue signals. It's basically the same as YCbCr but with no definition for the SMPTE range.
-# YIQ          - YCbCr with (YCbCr) UV axes rotated 33º, used for NTSC TV analogue system. Quote from avisynth.nl/index.php/Tweak: "In YIQ, orange and teal are along the in-phase (I) axis, while green and magenta are along the quadrature (Q) axis. The eye is far more sensitive to detail along the I axis than along the Q axis, and NTSC allocated more bandwidth for I than for Q."
+# YUV          - Decorrelated Opponent color model for analogue system used in PAL territories and NTSC since 1979.
+# YIQ          - YUV with UV axes rotated 33º, used for old FCC 1953 NTSC TV analogue system until about 1979. Quote from avisynth.nl/index.php/Tweak: "In YIQ, orange and teal are along the in-phase (I) axis, while green and magenta are along the quadrature (Q) axis. The eye is far more sensitive to detail along the I axis than along the Q axis, and NTSC allocated more bandwidth for I than for Q."
 # YDbDr        - PAL-N and SECAM TV analogue format.
-#-YUVr         - "YUV RCT". Same as YUV but fully reversible to RGB.
-# sYUV         - "Sharp YUV". Same as YUV but luma-weighted chroma subsampling, retaining chroma fidelity.
+#-YUVr         - "YUV RCT". Same as YCbCr but fully reversible to RGB.
+# sYUV         - "Sharp YUV". Same as YCbCr but luma-weighted chroma subsampling, retaining chroma fidelity.
 #-YcCbcCrc     - YCbCr Constant Luminance (CL). Better decorrelation than YCbCr.
 # xvYCC        - Expanded Gamut YCbCr. For newer TV systems it is/was a model that allowed the color gamut (typically Rec709) to be stored in the full range while luma in the narrow range.
 #-YCoCg        - Better luma/chroma decorrelation and compression efficiency than YCbCr.
@@ -2300,7 +2301,6 @@ function Chromaticity_xy(clip a, int "Temp", string "CMF") {
     ArrayDel(ArrayDel(ArrayOp(W,W[0] + W[1] + W[2],"/"),4),3)
 
     }
-
 
 
 # CIE Standard Illuminant D Series SPD (Spectral Power Distribution) dataset
