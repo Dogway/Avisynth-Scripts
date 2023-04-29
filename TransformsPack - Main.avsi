@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.7         (18-04-2023)   ##
+###   Transforms Pack - Main v1.8         (29-04-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1487,7 +1487,9 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrix == "OOO"      ? "OPP"        :         matrix == "NTSC-J"   ? "NTSC-J"
 \   :         matrix == "OPP"      ? "OPP"        : FindStr(matrix,   "ALL"  )>0 ? "AllColorsRGB"
 \   : FindStr(matrix,   "MAX"  )>0 ? "MaxRGB"     : FindStr(matrix,   "EKTA" )>0 ? "EktaSpacePS5"
-\   : FindStr(matrix,   "XTREM")>0 ? "xTremeRGB"  : FindStr(matrix,  "CHROME")>0 ? "ChromeSpace100" : ""
+\   : FindStr(matrix,   "XTREM")>0 ? "xTremeRGB"  : FindStr(matrix,  "CHROME")>0 ? "ChromeSpace100"
+\   : FindStr(matrix,    "3213")>0 ? "470BG"      : FindStr(matrix,   "JEDEC")>0 ? "EBU 3213-E"
+\   : FindStr(matrix,      "-E")>0 ? "EBU 3213-E" : ""
 
 
 # * 'Melissa' is ProPhoto with sRGB transfer as defined in Adobe Lightroom
@@ -1521,7 +1523,7 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrixn== "YDzDx"      ? "PQ"       :         matrixn=="AllColorsRGB"? "linear"
 \   :         matrixn== "MaxRGB"     ? "AdobeRGB" :         matrixn=="EktaSpacePS5"? "AdobeRGB"
 \   :         matrixn== "ChromeSpace100"?"Chrome" :         matrixn=="xTremeRGB"   ? "AdobeRGB"
-\   :         matrix == "XYB"        ? "XYB"      : matrixn
+\   :         matrix == "XYB"        ? "XYB"      :         matrixn=="EBU 3213-E"  ? "470BG"  : matrixn
 
     illuminant =
 \             matrix == "50"         ? "D50"      :         matrix == "A"          ? "A"
@@ -1554,7 +1556,8 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrixn== "XYZ"        ? "E"        :         matrixn== "NTSC-J"     ? "D93"
 \   :         matrixn== "YDzDx"      ? "E"        :         matrixn=="AllColorsRGB"? "D50"
 \   :         matrixn== "MaxRGB"     ? "D50"      :         matrixn=="EktaSpacePS5"? "D50"
-\   :         matrixn== "xTremeRGB"  ? "D50"      :         matrixn== "ChromeSpace100" ? "D50"  : matrixn
+\   :         matrixn== "xTremeRGB"  ? "D50"      :         matrixn== "ChromeSpace100" ? "D50"
+\   :         matrixn== "EBU 3213-E" ? "D65"      :         matrixn
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     idm =
@@ -1575,7 +1578,7 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrixn == "ACEScg"          ? 14   :         matrixn == "CIE RGB"         ? 31
 \   :         matrixn == "ACES2065"        ? 15   :         matrixn == "xTremeRGB"       ? 32
 \   :         matrixn == "ACESCCt"         ? 16   :         matrixn == "MaxRGB"          ? 33
-\   :         matrixn == "ChromeSpace100"  ? 34   :         -1
+\   :         matrixn == "ChromeSpace100"  ? 34   :         matrixn == "EBU 3213-E"      ? 5 : -1
 # * YDzDx is defined in SMPTE 2085
 
 
@@ -1661,15 +1664,16 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
     mat_i    = mat_i  !=  2 ? mat_i  :                         3 < prim_i  < 10 ?  prim_i : cm_i == 15 || prim_i == 11 ? 11 : prim_i == 12 ? 12 : 1
     prim_i   = prim_i !=  2 ? prim_i : 0 > mat_i > 8 || 10 > mat_i > 13 ? mat_i : 1
 
-    illu_i   = illu_i != -1 ? illu_i :                             20 > prim_i > 34 ? 0 : prim_i == 11 || mat_i == 11 ? 3 : 13 > prim_i > 17 ? 2 : \
-                                                                   prim_i == 20 ? 1 : prim_i == 13 ? 7 : prim_i == 10 || prim_i == 34 ? 8 : \
+    illu_i   = illu_i != -1 ? illu_i :                             20 > prim_i > 35 && prim_i != 22 ? 0 : prim_i == 11 || mat_i == 11 ? 3 : 13 > prim_i > 17 ? 2 : \
+                                                                   prim_i == 20 ? 1 :  prim_i == 13 ? 7 : prim_i == 10 || prim_i == 35 ? 8 : \
                                                                    prim_i == 4 || mat_i == 4 ? 5 : 4
     t_i      = t_i    !=  2 ? t_i    :                             cm_i == 0 || cm_i == 23 ? 8 : \
                                                                    cm_i == 24 ? 11 : \
                                                                3 < prim_i  < 8  ?  prim_i : \
-                                                                   prim_i == 18 || prim_i == 23 || prim_i == 25 ? 18 : \
-                                                                   prim_i == 29 ? 23 : \
-                                                                   prim_i == 33 ? 24 : \
+                                                                   prim_i == 22 ?  5 : \
+                                                                   prim_i == 18 || prim_i == 24 || prim_i == 26 ? 18 : \
+                                                                   prim_i == 30 ? 23 : \
+                                                                   prim_i == 34 ? 24 : \
                                                               16 > prim_i  > 35 ? 20 : \
                                                                    prim_i == 10 || prim_i == 13 || prim_i == 15 ? 8 : \
                                                                    prim_i == 16 ? 21 : \
@@ -1724,19 +1728,20 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (prim_i == 19   ) ? "BruceRGB"
 \   : (prim_i == 20   ) ? "RussellRGB"
 \   : (prim_i == 21   ) ? "AWG"
-\   : (prim_i == 22   ) ? "WideGamut"
-\   : (prim_i == 23   ) ? "ProPhoto"
-\   : (prim_i == 24   ) ? "AllColorsRGB"
-\   : (prim_i == 25   ) ? "ColorMatch"
-\   : (prim_i == 26   ) ? "BestRGB"
-\   : (prim_i == 27   ) ? "DonRGB4"
-\   : (prim_i == 28   ) ? "BetaRGB"
-\   : (prim_i == 29   ) ? "ECI-RGB"
-\   : (prim_i == 30   ) ? "MaxRGB"
-\   : (prim_i == 31   ) ? "xTremeRGB"
-\   : (prim_i == 32   ) ? "EktaSpacePS5"
-\   : (prim_i == 33   ) ? "ChromeSpace100"
-\   : (prim_i == 34   ) ? "CIE RGB"
+\   : (prim_i == 22   ) ? "EBU 3213-E"
+\   : (prim_i == 23   ) ? "WideGamut"
+\   : (prim_i == 24   ) ? "ProPhoto"
+\   : (prim_i == 25   ) ? "AllColorsRGB"
+\   : (prim_i == 26   ) ? "ColorMatch"
+\   : (prim_i == 27   ) ? "BestRGB"
+\   : (prim_i == 28   ) ? "DonRGB4"
+\   : (prim_i == 29   ) ? "BetaRGB"
+\   : (prim_i == 30   ) ? "ECI-RGB"
+\   : (prim_i == 31   ) ? "MaxRGB"
+\   : (prim_i == 32   ) ? "xTremeRGB"
+\   : (prim_i == 33   ) ? "EktaSpacePS5"
+\   : (prim_i == 34   ) ? "ChromeSpace100"
+\   : (prim_i == 35   ) ? "CIE RGB"
 \   : Assert (false, "color_propGet: Unknown _Primaries ID.")
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
@@ -1753,8 +1758,7 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (mat_i == 11    ) ? "DCI-P3"
 \   : (mat_i == 12    ) ? "Display-P3"
 \   : (mat_i == 13    ) ? "YDzDx"
-\   : (mat_i == 14    ) ? "ICtCp"
-\   : prim_i
+\   : (mat_i == 14    ) ? "ICtCp" : prim_i
 
     illu_i =
 \     (illu_i == 0    ) ? "D50"
@@ -2135,9 +2139,9 @@ function color_coef (string "prims", string "mat", string "illu") {
 \   : (mat    == "ACESCCt"        ) ? 10             : (mat    == "EktaSpacePS5"   ) ? 24
 \   : (mat    == "ACES2065"       ) ? 11             : (mat    == "CIE RGB"        ) ? 25
 \   : (mat    == "240M"           ) ? 2              : (mat    == "MaxRGB"         ) ? 26
-\   : (mat    == "470BG"          ) ? primd ? 4 : 0  : (mat    == "xTremeRGB"      ) ? 27
-\   : (mat    == "NTSC-J"         ) ? 12             : (mat    == "ChromeSpace100" ) ? 24 : 1
-
+\   : (mat    == "470BG"          ) ? primd ? 4  : 0 : (mat    == "xTremeRGB"      ) ? 27
+\   : (mat    == "EBU 3213-E"     ) ? primd ? 28 : 0 : (mat    == "ChromeSpace100" ) ? 24
+\   : (mat    == "NTSC-J"         ) ? 12             : 1
 # * Deriving Rec709 matrix coefficients from its primaries is noted as BT.709-2, in contrast to older and slightly different BT.709-1
 
     mat_wp =
@@ -2204,7 +2208,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 ###                                                                                 ##
 ######################################################################################
 
-    # NTSC 1953
+    # NTSC 1953 (barely used from 1953 to 1979 along YIQ model)
     # BT-470M / FCC
     cs = mat_i==0 ? [0.670,  0.330,   \
                      0.210,  0.710,   \
@@ -2225,7 +2229,7 @@ function color_coef (string "prims", string "mat", string "illu") {
                      0.300,  0.600, \
                      0.150,  0.060] : cs
     # Y’PbPr 601 | ITU-R BT.601 (originally CCIR Rec.601-1 circa 1982)
-    # SMPTE 240M | SMPTE 170M   (modeled after P22 phosphors of Conrac consumer CRTs)
+    # SMPTE 240M | SMPTE 170M   (SMPTE-C modeled after P22 phosphors of Conrac consumer CRTs)
     cs = mat_i==2 ? [0.630,   0.340, \
                      0.310,   0.595, \
                      0.155,   0.070] : cs
@@ -2234,6 +2238,10 @@ function color_coef (string "prims", string "mat", string "illu") {
     cs = mat_i==4 ? [0.640,   0.330, \
                      0.290,   0.600, \
                      0.150,   0.060] : cs
+    # EBU Tech.3123-E (legacy 1975) (formerly JEDEC-P22)
+    cs = mat_i==28? [0.630,   0.340, \
+                     0.295,   0.605, \
+                     0.155,   0.077] : cs
     # BT-2020/BT-2100 (for 630nm, 532nm and 467nm)
     cs = mat_i==5 ? [0.707917792, 0.292027109, \
                      0.170237195, 0.796518542, \
@@ -2250,6 +2258,10 @@ function color_coef (string "prims", string "mat", string "illu") {
     cs = mat_i==19? [0.6400,  0.3300, \
                      0.2800,  0.6500, \
                      0.1500,  0.0600] : cs
+    # Free Scale Gamut (FS-Gamut) (uses D65 defined as 0.31272,0.32903, to use with Free Scale Log)
+    cs = mat_i==30? [0.7347,  0.2653, \
+                     0.1400,  0.8600, \
+                     0.1000, -0.02985] : cs
 
 ###################################################
 ###                                              ##
@@ -2306,44 +2318,45 @@ function color_coef (string "prims", string "mat", string "illu") {
 # * BT.2035 defines 'D93' as 0.28315, 0.29711 (actually 0.283064,0.297018), but this is a simple straight Daylight CCT derivation of 9300K not the illuminant used in standard consumer CRTs in Japan, which actually was 9300K+27 MPCD** (x=0.281 y=0.311)
 # * In contrast, Master CRT for studio monitors used 9300K+8 MPCD** (x=0.2838 y=0.2984) (9177.98K)
 # * A third set of primaries for Japanese NTSC (1987) simply uses 170M prims but with [0.2848, 0.2932] illuminant chromatic coordinates, which is also another (worse?) CCT derivation of 9300K.
-# * In (https://web.archive.org/web/20220517234701/https://www.imaging.org//site/PDFS/Papers/1997/RP-0-67/2401.pdf) Mark Fairchild measured a 9300K Sony Trinitron CRT with coordinates x=0.2838, y=0.3290 (8229.87K)
+# * In [10] Mark Fairchild measured a 9300K Sony Trinitron CRT with coordinates x=0.2838, y=0.3290 (8229.87K)
 
-    # NTSC-J (https://web.archive.org/web/20130413104152if_/http://arib.or.jp/english/html/overview/doc/4-TR-B09v1_0.pdf#[{"num":73,"gen":0},{"name":"FitR"},-119,195,724,850])
-    cs = mat_i==12 ? [0.618, 0.350, \
+    # NTSC-J/P22
+    cs = mat_i==13 ? [0.625, 0.350, \
                       0.280, 0.605, \
-                      0.152, 0.063] : cs
-    # NTSC-J/P22 (https://bkict-ocw.knu.ac.kr/caster/file/lecture/5955F4002DC3E.pdf#page=14)
-    cs = mat_i==30 ? [0.641, 0.327, \
-                      0.272, 0.591, \
-                      0.142, 0.052] : cs
-    # P22 (Another source) (P22 series has a wavelength range of 390-680)
-    cs = mat_i==30 ? [0.640, 0.352, \
-                      0.282, 0.620, \
-                      0.146, 0.061] : cs
-    # P22 (https://www.phosphor-technology.com/crt-phosphors/)
-    cs = mat_i==30 ? [0.647, 0.343, \
-                      0.310, 0.594, \
-                      0.148, 0.062] : cs
-    # P22; average of closer 3 of above 4 matrices. Roughly tends to EBU Tech.
-    cs = mat_i==30 ? [0.642667, 0.340667, \
-                      0.290667, 0.606333, \
-                      0.148667, 0.062000] : cs
+                      0.152, 0.062] : cs
+#############
+## P22 D65 ##
+#############
 
-    # P22 3rd Gen for Projection Tubes (derived from wavelengths: 611,544,450) (https://books.google.es/books?id=50b8CAAAQBAJ&lpg=PP1&pg=PA159) and (http://www.labguysworld.com/crt_phosphor_research.pdf)
-    # Red was picked from Y2O2S:Eu+Fe2O3 at Wikipedia, since without Fe2O3 red emission would be too dim.
-    cs = mat_i==30 ? [0.668874, 0.330919, \
-                      0.258578, 0.730507, \
-                      0.156641, 0.017705] : cs
-    # P22 2nd Gen (derived from wavelengths: 627,530,440) (SMPTE-C - Measured Average Phosphor (1979-1994))
-    cs = mat_i==30 ? [0.703709, 0.296217, \
-                      0.154722, 0.805864, \
-                      0.164412, 0.010858] : cs
-    # P22 1st Gen (derived from wavelengths: 643,526,450)
-    cs = mat_i==30 ? [0.721555, 0.278420, \
-                      0.122347, 0.822770, \
-                      0.156641, 0.017705] : cs
+    # P22 1st Gen - All Sulfide (627,530,440): Y2O2S:Eu (P22), ZnS:Cu,Al (P22/P54), ZnS:Ag (P22)
+    cs = mat_i==30 ? [0.6470, 0.3430, \
+                      0.2820, 0.6200, \
+                      0.1472, 0.0642] : cs
+    # P22 2nd Gen - All Sulfide (626,535,440): Y2O2S:Eu+Fe2O3 (P22), ZnS:Au,Cu,Al (P22/P54), ZnS:Ag (P22)
+    cs = mat_i==30 ? [0.6661, 0.3329, \
+                      0.3134, 0.6310, \
+                      0.1472, 0.0642] : cs
+    # P56,53,55-Projection3  (611,544,450) Y2O3:Eu (P56), Y3Al5O12:Tb (P53), ZnS:Ag,Al (P55)
+    cs = mat_i==30 ? [0.640, 0.335, \
+                      0.341, 0.586, \
+                      0.150, 0.070] : cs
 
 # ** MPCD -Minimum Perceptible Color Difference- refers to the deviation unit in respect to the temperature CCT. For example D65 can also be specified as 6700K + 18 MPCD or more correctly as 6504K + 4 MPCD.
+
+# Sources:
+#   [1] https://books.google.es/books?id=50b8CAAAQBAJ&lpg=PP1&pg=PA159
+#   [2] https://books.google.es/books?id=WoP3DwAAQBAJ&pg=PA225
+#   [3] https://www.phosphor-technology.com/crt-phosphors/
+#   [4] http://www.labguysworld.com/crt_phosphor_research.pdf#page=6
+#   [5] http://www.bitsavers.org/components/rca/crt/TPM-1508A_RCA_Phosphors_Oct61.pdf
+#   [6] http://www.cs.ucf.edu/courses/cap5725/spring2003/Chromaticity.htm
+#   [7] http://research.mrl.ucsb.edu/~ngeorge/downloads/Phosphor%20books/Phosphor%20Handbook.pdf
+#   [8] https://books.google.es/books?id=rN3kOMOPMmEC&pg=PA530
+#   [9] https://bkict-ocw.knu.ac.kr/caster/file/lecture/5955F4002DC3E.pdf#page=14
+#  [10] https://web.archive.org/web/20220517234701/https://www.imaging.org//site/PDFS/Papers/1997/RP-0-67/2401.pdf
+#  [11] https://web.archive.org/web/20130413104152if_/http://arib.or.jp/english/html/overview/doc/4-TR-B09v1_0.pdf#[{"num":73,"gen":0},{"name":"FitR"},-119,195,724,850]
+#  [12] "Phosphors" at Wikipedia
+
 
 ###########################################################
 ###                                                      ##
