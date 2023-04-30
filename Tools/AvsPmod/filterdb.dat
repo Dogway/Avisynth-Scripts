@@ -4884,6 +4884,15 @@ int "threshold"=4 (0 to 128),
 int "thinning"=24 (0 to 128)
 )
 
+FastLineDarkenPlus(
+clip c,
+int "strength"=48 (0 to 255),
+int "prot"=5 (0 to 20),
+int "luma_cap"=191 (0 to 255),
+int "threshold"=4 (0 to 128),
+int "thinning"=24 (0 to 128)
+)
+
 FFFormatTime(
 int ms
 )
