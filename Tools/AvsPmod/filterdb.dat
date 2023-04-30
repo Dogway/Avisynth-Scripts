@@ -4938,7 +4938,7 @@ float "temp"=0.0 (0.0 to 1.0),
 float "lo"=1.0 (0.0 to 2.0),
 float "mid"=1.0 (0.0 to 2.0),
 float "hi"=1.0 (0.0 to 2.0),
-string "preset"="--" ("--"/ "FilmGrain"/ "8mm"/ "16mm"/ "35mm"/ "--"/ "EXR     5245  50D"/ "EXR     5248 100T"/ "EXR     5293 200T"/ "EXR     5298 500T"/ "Vision  5274 200T"/ "Vision  5246 250D"/ "Vision  5277 320T"/ "Vision  5279 500T"/ "Vision2 5201  50D"/ "Vision2 5212 100T"/ "Vision2 5217 200T"/ "Vision2 5218 500T"/ "Vision3 5203  50D"/ "Vision3 5213 200T"/ "Vision3 5207 250D"/ "Vision3 5219 500T"/ "FX       214 480D"/ "--"/ "Fuji    8510  64T"/ "Fuji    8520  64D"/ "Fuji    8530 125T"/ "Fuji    8550 250T"/ "Fuji    8560 250D"/ "Fuji    8570 500T"/ "Super F 8522  64D"/ "Super F 8532 125T"/ "Super F 8552 250T"/ "Super F 8562 250D"/ "Super F 8582 400T"/ "Super F 8572 500T"/ "EternaV 8543 160T"/ "Eterna  8563 250D"/ "Eterna  8583 400T"/ "Eterna  8573 500T"/ "Reala   8592 500D"/ "--"/ "GrainFactory3"/ "DigitalNoise"),
+string "preset"="--" ("--"/ "8mm"/ "16mm"/ "35mm"/ "--"/ "EXR     5245  50D"/ "EXR     5248 100T"/ "EXR     5293 200T"/ "EXR     5298 500T"/ "Vision  5274 200T"/ "Vision  5246 250D"/ "Vision  5277 320T"/ "Vision  5279 500T"/ "Vision2 5201  50D"/ "Vision2 5212 100T"/ "Vision2 5217 200T"/ "Vision2 5218 500T"/ "Vision3 5203  50D"/ "Vision3 5213 200T"/ "Vision3 5207 250D"/ "Vision3 5219 500T"/ "FX       214 480D"/ "--"/ "Fuji    8510  64T"/ "Fuji    8520  64D"/ "Fuji    8530 125T"/ "Fuji    8550 250T"/ "Fuji    8560 250D"/ "Fuji    8570 500T"/ "Super F 8522  64D"/ "Super F 8532 125T"/ "Super F 8552 250T"/ "Super F 8562 250D"/ "Super F 8582 400T"/ "Super F 8572 500T"/ "EternaV 8543 160T"/ "Eterna  8563 250D"/ "Eterna  8583 400T"/ "Eterna  8573 500T"/ "Reala   8592 500D"/ "--"/ "FilmGrain"/ "GrainFactory3"/ "DigitalNoise"),
 string "mode"="gamma" ("gamma"/ "linear"/ "log"),
 float "bump"=0.0 (0.0 to 1.0),
 float "emulsion"=0.0 (0.0 to 1.0),
@@ -5879,6 +5879,7 @@ string "mode"="MDegrain" ("MDegrain"/ "MedianT"/ "MedianST"/ "MedianSTS"/ "Tempo
 string "prefilter"="" (""/ "SBR"/ "MinBlur"/ "MinBlur2"/ "MinBlur3"/ "IQMST"/ "DFTTest"/ "KNLMeans"/ "DGDenoise"/ "BM3D"),
 bool "ContraSharp"=false,
 [clip "CClip"],
+[clip "mfilter"],
 bool "RefineMotion"=false,
 [bool "interlaced"=false],
 [float "Str"=5.0 (0.0 to 8.0)],
@@ -5888,7 +5889,7 @@ bool "RefineMotion"=false,
 int "LFR"=0 (0 to 1920),
 bool "DCTFlicker"=false,
 [bool "TrueMotion"=false],
-bool "show"=false
+[bool "show"=false]
 )
 
 SmoothCurveC3(
@@ -6074,6 +6075,20 @@ int "draft"=0,
 [clip "edeint"]
 )
 
+TM_Hable(
+clip,
+string "mode"="Default" ("Default"/ "Dark"/ "Bright"),
+bool "filmic"=false,
+float "LinWh"=11.2 (1.0 to 12.0),
+float "A"=0.0 (0.00 to 1.00),
+float "B"=0.0 (0.00 to 1.00),
+float "C"=0.0 (0.00 to 1.00),
+float "D"=0.0 (0.00 to 1.00),
+float "E"=0.0 (0.00 to 1.00),
+float "F"=0.0 (0.00 to 1.00),
+bool "show"=false
+)
+
 UnsharpMask_avsi(
 clip,
 float "strength"=60 (0 to 66),
@@ -6082,7 +6097,6 @@ float "threshold"=8 (0 to 16)
 )
 
 Vignette(
-(
 clip,
 float "size"=2.3 (0.0 to 3.0 by 0.1),
 float "range"=1.8 (0.0 to 3.0 by 0.1),
