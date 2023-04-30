@@ -7,7 +7,7 @@
 ### Didée: - Speed Boost, Updated:             11-May-2007
 ### Dogway - added protection option.          12-May-2011
 ### Dogway - 2.0ex to 2.3ex Updated to ExTools 05-Mar-2022
-### Dogway - Plus  Optimizations.              23-Apr-2023
+### Dogway - Plus  Optimizations.              30-Apr-2023
 ###
 ###
 ### Parameters:
@@ -75,7 +75,7 @@ function FastLineDarkenPlus( clip c, int "strength", int "prot", int "luma_cap",
              ex_lutxyz (c, LM, DF, Format("z range_half -    dup
                                              {str} 1 + * x[-1,1] x[0,1] max x[1,1] max x[-1,0] max x[0,0] max x[1,0] max x[-1,-1] max x[0,-1] max x[1,-1] max +
                                                              dup      swap2 {str} * x +
-                                           - y range_max / * -"), UV=uv)
+                                           - y range_max / * -"), UV=uv, fulls=fs)
     } }
 
 
