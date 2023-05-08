@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.8 (26-04-2023)     ##
+###   Resizers Functions Pack 11.9 (08-05-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -1131,6 +1131,10 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
     wn  = nmod(wt,mdh)  wa = wn-w
     hn  = nmod(ht,mdv)  ha = hn-h
 
+    # Bias mod
+    bw  = nmod(bw,mdh)
+    bh  = nmod(bh,mdv)
+
     # Rounding
     wh  = abs(wa)/2.
     hh  = abs(ha)/2.
@@ -1139,8 +1143,8 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
     w1  = ceil (wd)+wf   w2 = floor(wd)+wf
     h1  = ceil (hd)+hf   h2 = floor(hd)+hf
 
-    bw1 = fch ? bw : bw+bw%2
-    bh1 = fch ? bh : bh+bh%2
+    bw1 = fch ? bw : bw+w1%2
+    bh1 = fch ? bh : bh+h1%2
     sgw = sign(wa)
     sgh = sign(ha)
 
