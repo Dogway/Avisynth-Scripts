@@ -209,7 +209,7 @@ function FilmGrainPlus(clip a,                                                  
         V    = ExtractV().BicubicResize(w/2,h/is22,b=shrpC,c=(1.0-shrpC)/2.) # Red channel is typically blurrier
         eml>0 && sh==1 ? last : CombinePlanes(Y,U,V, planes="YUV", sample_clip=a)
 
-    } else { # in 444 for performance reasons red channel is not blurried
+    } else { # For performance reasons in 444 red channel is not blurred
                           BicubicResize(w,  h,     b=shrpL,c=(1.0-shrpL)/2.)
         temp > 0.0 ? last.MergeLuma(  TemporalSoften(1,255,0,255,2),temp/2 ) : last
     }
