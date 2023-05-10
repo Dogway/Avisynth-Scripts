@@ -27,6 +27,8 @@ The only non-replaceable plugins required are [NNEDI3](https://github.com/jpsdr/
 
 For a full description of each filter check the main forum thread at [Doom9](https://forum.doom9.org/showthread.php?t=182881).
 
+[![paypal](https://www.paypalobjects.com/en_US/GB/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate?hosted_button_id=QQSJSY7EJ9YBE)
+
 ------
 
 ## License Terms
