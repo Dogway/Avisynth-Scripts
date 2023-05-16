@@ -17,11 +17,11 @@
 
 <p>
 <b>Author: </b>Dogway<br/>
-<b>Version: </b>v4.3.0d<br/>
+<b>Version: </b>v4.4.0d<br/>
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 01-April-2023
+<b>Date:</b> 16-May-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -42,7 +42,7 @@
   <tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ExTools.avsi" target="_blank">ExTools</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v10.2 or higher)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/MVTools" target="_blank">MVTools2</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v2.7.45 or higher)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.8 or higher)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ResizersPack.avsi" target="_blank">ResizersPack</a></b></li></td><td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(v11.9 or higher)</td></tr>
   </tr>
 </table>
 </ul>
@@ -60,7 +60,7 @@
     <tr><td><li><b><a href="http://avisynth.nl/index.php/KNLMeansCL" target="_blank">KNLMeansCL</a></b></li></td><td>&nbsp;&nbsp;(v1.1.1e or higher)</td><td>&nbsp;&nbsp;(for prefilter=6)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/DGDecNV" target="_blank">DGDecNV</a></b></li></td><td>&nbsp;&nbsp;(v246 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/BM3DCUDA" target="_blank">BM3D</a></b></li></td><td>&nbsp;&nbsp;(test10 or higher)</td><td>&nbsp;&nbsp;(for prefilter=8)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.7 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.9 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Neo_TMedian" target="_blank">neo_tmedian</a></b></li></td><td>&nbsp;&nbsp;(r2 or higher)</td><td>&nbsp;&nbsp;(for mode="medianT") (broken for interlaced inputs)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/VsTTempSmooth" target="_blank">vsTTempSmooth</a></b></li></td><td>&nbsp;&nbsp;(v1.2.3 or higher)</td><td>&nbsp;&nbsp;(for mode="TemporalSmooth")</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.7 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
@@ -91,7 +91,7 @@ What SMDegrain brings though is an interface to apply <var>prefilters</var>, eit
 <b>High bitdepth denoising:</b> Supports AviSynth+ native HBD formats, from 8-bit up to 16-bit.<br/>
 <b>Contrasharpening:</b> The pretty much standarized sharpening method created by Didée is blended into the function, so you can easily use it in HBD pipelines. An strength biased method is also possible via an internal LSFplus call. A <var>CClip</var> parameter is also supplied so you can choose another source to sharpen from, other than the default <var>SMDegrain()</var> input.<br/>
 <b>Interlaced support:</b> It supports <var>interlaced</var> sources, for YUY2 color spaces and most parameters as well.<br/>
-<b>UHD optimized:</b> UHD denoising is optimized via motion vector scaling providing much higher performance by default. Disable with <var>UHDhalf</var> argument.<br/>
+<b>UHD optimized:</b> UHD denoising can be optimized via motion vector scaling providing much higher performance. Enabled by default with <var>UHDhalf</var> argument.<br/>
 <b>Extended Subpixel Accuracy:</b> nnedi3 is added as the 4th option for <var>subpixel</var>. Not strictly necessary in most cases.<br/>
 <b>Better Motion Vectors:</b> An internal conversion from TV levels (16-235) to PC levels (0-255) and a dark zone luma expansion is done to the clip where the motion analysis will be performed on, so you can get much better motion vectors<br/>
 <b>Prefilters:</b> An easy parameter to load predefined <var>prefilter</var>s that perform well in most situations. It also accepts loading your personal <var>prefilter</var>ed clips.<br/>
@@ -101,7 +101,7 @@ What SMDegrain brings though is an interface to apply <var>prefilters</var>, eit
 <b>Motion Vectors Globals Input/Output:</b> Reuse motion vectors <var>globals</var> for faster processing, or just use <var>SMDegrain()</var> as a shortcut for creating nice quality motion vectors.<br/>
 <b>RefineMotion Option (MRecalculate):</b> Performs finer block matching refinement, unless you are very performance deprived you should use this as default for a quality boost.<br/>
 <b>Show Panel:</b> Everything is off by default, but a few settings change in context (i.e. when in HD). Check what is happening behind the scenes and have a fast look at all your settings.<br/>
-<b>Robust:</b> Everything listed above works together with each other indistinctly with interoperability, reliability and optimization in mind. The general idea is to serve as an user friendly front end for vanilla mvtools2+mdegrain or as the original script creator entitled <i>"To make your scripts shorter and less geeky"</i>. Most parameters are turned off or defaulted to MVTools2 defaults or close. Features are based on popular general conceived good practices and time tested procedures.<br/>
+<b>Robust:</b> Everything listed above works together with each other indistinctly with interoperability, reliability and optimization in mind. The general idea is to serve as an user friendly front end for vanilla mvtools2+mdegrain or as the original script creator entitled <i>"To make your scripts shorter and less geeky"</i>. Most parameters are turned off or defaulted to MVTools2 defaults or close. Features are based on popular general conceived good practices and time tried-and-tested procedures.<br/>
 <br/>
 Parameters are arranged in 2 blocks.<br/>
 <br/>
@@ -217,15 +217,15 @@ Accuracy of the motion estimation.
 </ul>
 <br/>
 <h4><a id="subpixel"></a>subpixel</h4>
-<i>[int: 0, 1, "2", 3, 4]</i><br/>
+<i>[int: 0, 1, 2, "3", 4]</i><br/>
 <br/>
 Subpixel accuracy. It chooses an interpolation method for <var>pel=</var>2 or 4. This is the 'sharp' parameter in <i>msuper()</i> extended with modes 3 and 4.<br/>
 Unrelated to output sharpness but accuracy for the motion estimation.<br/>
 <ul>
     <li>subpixel = 0 for soft interpolation (bilinear)</li>
     <li>subpixel = 1 for bicubic interpolation (4 tap Catmull-Rom)</li>
-    <li>subpixel = 2 for sharper Wiener interpolation (6 tap, similar to Lanczos) (Default)</li>
-    <li>subpixel = 3 for blackman taps=6 high quality subpixel interpolation</li>
+    <li>subpixel = 2 for sharper Wiener interpolation (6 tap, similar to Lanczos)</li>
+    <li>subpixel = 3 for blackman taps=6 high quality subpixel interpolation (Default)</li>
     <li>subpixel = 4 for nnedi3 high quality subpixel interpolation</li>
 </ul>
 For <var>subpixel=</var>4 you will need nnedi3 (gpuid=-1) or NNEDI3CL (gpuid=0) plugin. Very useful when used along <var>pel=</var>4 on very small sources, although overkill and unnecesary in most cases.<br/>
@@ -279,7 +279,7 @@ Another useful way to think about prefilters for example when building custom pr
 using Deblockers if blocking is present, Decrawlers, cleaning Gibbs noise, some spatial denoiser, etc. Then this clip is only fed to <var>prefilter</var> while the original is used as input for SMDegrain.<br/>
 By doing this all those issues will be cleaned temporally more effectively while retaining more details. Now, yes, areas where block matching failed (motion areas) will passthrough<br/>
 the original clip with all its artifacts, so the trick is to feed the same clip to <var>mfilter</var>, so motion areas will apply the <var>prefilter</var> clip spatially while stable areas will only treat them <a href="https://forum.doom9.org/showthread.php?p=1980946" target="_blank">temporally</a>.<br/>
-<pre>pre=my_custom_prefiltering().ex_sbr() # sbr to soften edges
+<pre>pre=my_custom_prefiltering().ex_sbr() <font style="color:Green;"><b># sbr to soften edges</b></font>
 SMDegrain(last,prefilter=pre,mfilter=pre)</pre><br/>
 <br/>
 Now you might think, if SMDegrain is so good, why not use it also for prefiltering?<br/>
@@ -292,9 +292,9 @@ For example, we have a very grainy 1080p source so we are going to apply quite e
 <br/>
 TemporalSoften and TemporalGauss are two degraining <var>mode</var>s that switch a few internal settings to make it more temporally stable. It's quite an extreme approach<br/>
 also with <var>blksize</var>=32 and <var>thSAD</var>=700, therefore we should recover some low frequency smearing with <var>LFR</var>=400 and <var>LFR</var>=200, <var>DCTFlicker</var>=true in the second call.<br/>
-Following we feed this <var>prefilter</var> clip to the next SMDegrain call with saner settings.<br/>
-*For these two degraining modes you might want to manually tweak the <var>thSCD1</var> value, specially in the <var>thSAD</var> 400 to 800 range.<br/>
-Higher than that it's automatically parametrized to give the lowest <var>thSCD1</var> value (prevents filtering across scene changes) with reasonable filtering.<br/>
+Following we feed this <var>prefilter</var> clip to the next SMDegrain call with saner settings of 'MDegrain' and <var>thSAD</var>=400.<br/>
+<i>*For these two degraining modes you might want to manually tweak the <var>thSCD1</var> value, specially in the <var>thSAD</var> 400 to 800 range.<br/>
+Higher than that it's automatically parametrized to give the lowest <var>thSCD1</var> value (prevents filtering across scene changes) with reasonable filtering.</i><br/>
 <br/>
 The above is for mild to strong sources, for very strong ones like "21 grams" I found myself using a double call:<br/>
 <pre>SMDegrain(tr=3,mode="TemporalSoften",blksize=32,thSAD=1200,LFR=300,DCTFlicker=true,contrasharp=false,refinemotion=true)
@@ -307,9 +307,9 @@ SMDegrain(tr=2,mode="TemporalSoften",blksize=32,thSAD= 600,LFR=false,contrasharp
 Another one this time with <var>prefilter</var>:
 <pre>pre=ex_bm3d(60,3,preset="noisy")
 SMDegrain(tr=2,mode="TemporalSoften",blksize=32,thSAD=600,prefilter=pre,refinemotion=true)
-ex_unsharp(0.2,Fc=width()/2) # Remove the dreamy/softness look</pre>
+ex_unsharp(0.2,Fc=width()/2) <font style="color:Green;"><b># Remove the dreamy/softness look</b></font></pre>
 <br/>
-And another one with <var>prefilter</var> (the possibilites are endless so choose your poison):
+And another one with <var>prefilter</var> (the possibilities are endless so choose your poison):
 <pre>SMDegrain(tr=3,mode="TemporalSoften",thSAD=600,LFR=300,DCTFlicker=true,prefilter="IQMST",refinemotion=true)</pre>
 <br/>
 The double call method is called <b>Degrain refinement</b>, while the ones using <var>prefilter</var> are called <b>Motion Vector refinement</b>, and both are considered<br/>
@@ -334,7 +334,7 @@ Some (very) old examples of custom <var>prefilter</var>ing, for history:<br/>
 <br/>This last example is a function called Calm(), wrapped by Terka but it's basically QTGMC's default prefiltering from line <a href="https://github.com/Dogway/Avisynth-Scripts/blob/f2d777aadaa7915edc73ba07f2ffd749429cf116/MIX%20mods/QTGMC%2B.avsi#L460" target="_blank">460</a> to <a href="https://github.com/Dogway/Avisynth-Scripts/blob/f2d777aadaa7915edc73ba07f2ffd749429cf116/MIX%20mods/QTGMC%2B.avsi#L492" target="_blank">492</a> using TR0=2 and SrchClipPP=3.<br/>
 It's basically a TemporalGauss, with some limiting and a gaussian blur. What he missed was adding KeepOnlyBobShimmerFixes() which removes <i>"most"</i> TemporalSoften frame blending artifacts.<br/>
 My improved alternative was already given above, but adding ex_sbr() instead of a gaussian blur:<br/>
-<pre>pre=SMDegrain(2,thSAD=1600,mode="TemporalGauss",pel=1,rfilter=0,str=0,tv_range=false,plane=0,truemotion=true) # Tuned for speed or "dumb" MV
+<pre>pre=SMDegrain(2,thSAD=1600,mode="TemporalGauss",pel=1,rfilter=0,str=0,tv_range=false,plane=0,truemotion=true) <font style="color:Green;"><b># Tuned for speed or "dumb" MV</b></font>
 pre=pre.ex_sbr(3,UV=3)</pre>
 *You can read more about this and a stronger alternative more similar to Calm() for DeWobble on this <a href="https://forum.doom9.org/showthread.php?p=1984051" target="_blank">post and following pages.</a><br/>
 <br/>Notes:
@@ -479,13 +479,14 @@ Clip should match input format.<br/>
 <i>[int: -1, "0", 1... ]</i><br/>
 <br/>
 Enables GPU processing for the filters that support them. -1 is CPU mode, 0 is default GPU and >0 is device ID if you have more than one GPU.<br/>
--1 (CPU mode) is only for NNEDI3 (for subpixel=3) and BM3D (prefilter=8) as <var>prefilter</var> with KNLMeansCL is currently GPU only.<br/>
+-1 (CPU mode) is only for NNEDI3 (for subpixel=4) and BM3D (prefilter=8) as <var>prefilter</var> with KNLMeansCL is currently GPU only.<br/>
 <br/>
 <h4><a id="UHDhalf"></a>UHDhalf</h4>
 <i>[bool: "true", false]</i><br/>
 <br/>
-Computes motion vectors from a halved version of the clip for performance reasons. Then the motion vectors are upscaled back to UHD resolution.<br/>
-Only works if your source is UHD.<br/>
+For performance reasons computes motion vectors from a halved version of an UHD clip. Then the motion vectors are upscaled back to UHD resolution for denoising.<br/>
+Keep aware that quality while good won't be on par with plain UHD denoising (<var>UHDHalf</var>=false), specially on low SAD areas where some slight blurring<br/>
+or detail warping can happen. For this reason you might want to limit denoising to a value of 2 or 1 to minimize the effect (test with <var>limit</var>=2).<br/>
 <br/>
 <h4><a id="Globals"></a>Globals</h4>
 <i>[int: "0", 1, 2, 3 ]</i><br/>
@@ -506,14 +507,14 @@ Other than that the only settings that work when reading (<var>Globals=</var>1) 
 Global names that can be reused are: <var>Super</var>, <var>bv1</var>, <var>fv1</var>, <var>bv2</var>, <var>fv2</var>, <var>bv3</var>, <var>fv3</var>, <var>bv4</var>, <var>fv4</var>, <var>bv6</var>, <var>fv6</var>, <var>vmulti</var>.<br/>
 <br/>
 e.g.:<pre>
-                         SMDegrain(tr=3,thSAD=400,globals=3)    # Outputs vectors
+                         SMDegrain(tr=3,thSAD=400,globals=3)    <font style="color:Green;"><b># Outputs vectors</b></font>
 
-                         SMDegrain(tr=2,thSAD=200,globals=1)    # You can use a same or <b>lower</b> "tr" or "thSAD" if you want</pre>
+                         SMDegrain(tr=2,thSAD=200,globals=1)    <font style="color:Green;"><b># You can use a same or lower "tr" or "thSAD" if you want</b></font></pre>
 or<pre>
 
-                         SMDegrain(tr=3,thSAD=400,globals=3)    # Outputs vectors
+                         SMDegrain(tr=3,thSAD=400,globals=3)    <font style="color:Green;"><b># Outputs vectors</b></font>
 
-                         Super = MSuper(levels=1)               # Add this line just before if you have some processing between Globals Output and Input.
+                         Super = MSuper(levels=1)               <font style="color:Green;"><b># Add this line just before if you have some processing between Globals Output and Input.</b></font>
                          MDegrain3(Super, bv1, fv1, bv2, fv2, bv3, fv3, thSAD=400)</pre>
 <br/>
 <h4><a id="Show"></a>Show</h4>
@@ -541,15 +542,15 @@ A personal preference. Turned all chroma off for safeness (on SD, chroma is rare
 <pre>SMDegrain(tr=2,thSAD=300,contrasharp=true,refinemotion=true,chroma=false,plane=0)</pre>
 <br/>
 This is a good example to show that <var>interlaced</var> YUY2 sources can be processed seamlessly.
-<pre># Interlaced YUY2 source
+<pre><font style="color:Green;"><b># Interlaced YUY2 source</b></font>
 SMDegrain(tr=1,thSAD=250,interlaced=true,contrasharp=true)</pre>
 <br/>
 Denoising interlaced with a custom prefilter.
-<pre>pre=SMD_UnfoldFieldsVertical().STTWM().SMD_FoldFieldsVertical() # Tailored SeparateFields then Interleaving back
+<pre>pre=SMD_UnfoldFieldsVertical().STTWM().SMD_FoldFieldsVertical() <font style="color:Green;"><b># Tailored SeparateFields then Interleaving back</b></font>
 SMDegrain(tr=1,thSAD=250,interlaced=true,prefilter=pre,contrasharp=true)</pre>
 <br/>
 HD sources are detected automatically, and as so settings are optimized for speed; <var>pel=</var>1, <var>blksize=</var>16, <var>overlap=</var>8, <var>truemotion=</var>false
-<pre># HD source (from 1100px wide or 600px high up)
+<pre><font style="color:Green;"><b># HD source (from 1100px wide or 600px high up)</b></font>
 SMDegrain(tr=2,thSAD=180,prefilter=2,contrasharp=30,refinemotion=true,chroma=false,plane=0)</pre>
 <br/>
 Tackling a grainy source pragmatically.
@@ -567,11 +568,11 @@ Also set contrasharpening to temporal limited (limitS)
 SMDegrain(2, 200, prefilter=pre, mfilter=pre, refinemotion=true, contrasharp=60, limitS=false, chroma=false)</pre>
 <br/>
 How to degrain an PQ encoded HDR clip. Note that <var>prefilter</var> clips also pass through ex_Luma_Rebuild() internally.
-<pre>pre=DGHDRtoSDR(mode="pq",white=1500)                 # Check different white levels depending on source metadata
-SMDegrain(tr=3,thSAD=300,prefilter=pre,UHDHalf=true) # 'UHDHalf' is redundant as is enabled by default</pre>
+<pre>pre=DGHDRtoSDR(YUV420P16_Lim, mode="pq", gamma=1/2.4, tm=1.0, white=1500) <font style="color:Green;"><b># Check different white levels (60, 100, 203 or default 400) depending on source metadata</b></font>
+SMDegrain(tr=3,thSAD=300,prefilter=pre,UHDHalf=true)                      <font style="color:Green;"><b># 'UHDHalf' enabled (Default) for a performance boost</b></font></pre>
 <br/>
 (Re)using motion vectors <var>globals</var>.
-<pre>SMDegrain(tr=1,thSAD=400,prefilter=3,str=1.4,globals=3)    # Output vectors only
+<pre>SMDegrain(tr=1,thSAD=400,prefilter=3,str=1.4,globals=3) <font style="color:Green;"><b># Output vectors only</b></font>
 MFlowFps(Super, bv1, fv1, num=60,den=1)</pre>
 <br/>
 <p>&nbsp;</p>
@@ -589,6 +590,12 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
+<p><b>v4.4.0d</b> (16-05-2023)</p>
+    <ul>
+        <li>Change back default for 'limit'</li>
+        <li>Add better example for DGHDRtoSDR() prefiltering.</li>
+        <li>Documentation updates.</li>
+    </ul>
 <p><b>v4.3.0d</b> (01-04-2023)</p>
     <ul>
         <li>Construct vector variables in a for loop</li>

@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.3.0d      by Dogway    - 01 Apr  2023                           ###
+###                       v4.4.0d      by Dogway    - 16 May  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -37,7 +37,9 @@
 ### The reason behind is to keep it simple so for basic usage you will only need ExTools, ResizersPack and MVTools2.
 ###
 ### Supports all Y, YUV and YUY2 clips progressive or interlaced between 8-16 bits.
-### For HDR use as input (or at least as prefilter) the decoded and tonemapped PQ clip (ie. DGHDRtoSDR(mode="pq",white=1500))
+### For HDR use as input (or at least as prefilter) the decoded and tonemapped PQ clip.
+### Example:
+###    pre=DGHDRtoSDR(YUV420P16_Lim_PQsrc, mode="pq",gamma=1/2.4,tm=1.0,white=1500) # also try white=60, 100, 203 or default 400 depending on title
 ###
 ### Check documentation for full explanation on settings and defaults:
 ###    https://raw.githack.com/Dogway/Avisynth-Scripts/master/SMDegrain/SMDegrain.html
@@ -90,9 +92,9 @@
 ###
 ################################################################################################
 
-function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , string "mode"     , bool "interlaced" , int   "plane"  , int   "Globals"   , bool "tv_range" ,               \
-                     int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , int  "limitC"     , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int "thSCD1"   , int "thSCD2",  \
-                    bool "chroma", bool    "luma", int "hpad"     , int "vpad"    , val  "Show"        , float "Str"        , float "Amp"       , int   "DCT"       , int "searchparam" , int "pelsearch", int   "search"    , bool "truemotion" ,             \
+function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC" , bool "RefineMotion",  val  "contrasharp", clip  "CClip"     , string "mode"     , bool "interlaced" , int   "plane"  , int   "Globals"   , bool "tv_range"  ,               \
+                     int "pel"   , int "subpixel", val "prefilter", clip "mfilter", int  "blksize"     , int   "overlap"    , int   "limit"     , int  "limitC"     , bool "limitS"     , val   "LFR"    , bool  "DCTFlicker", int  "thSCD1"    , int "thSCD2", \
+                    bool "chroma", bool    "luma", int "hpad"     , int "vpad"    , val  "Show"        , float "Str"        , float "Amp"       , int   "DCT"       , int "searchparam" , int "pelsearch", int   "search"    , bool "truemotion",               \
                      int "gpuid" , int  "rfilter", bool "UHDhalf" , int  "threads" ) {
 
     w            = input.width ()
@@ -237,7 +239,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                                  RefineMotion ? max(230,-1040000*pow(thSAD,-1.214)+950)  : \
                                                                 max(300,-61275  *pow(thSAD,-0.655)+1508))) # Typically between 330 and 400 for !TS
 
-    Str          = Default( Str, !Luma ? 1 : 5.0 )             # 0 or 1: Automatic Range Conversion (with FrameProps)  0<Str<1: Multi-Scale Retinex  >1.0: ex_luma_rebuild(Str) (from 0.1 to 0.9 indicates ex_retinex() black level clipping value)
+    Str          = Default( Str, !Luma ? 1 : 5.0 )             # 0.0 or 1.0 does an Automatic Range Conversion (with FrameProps)  0<Str<1: Multi-Scale Retinex  >1.0: ex_luma_rebuild(Str) (from 0.1 to 0.9 indicates ex_retinex() black level clipping value)
     Amp          = Default( Amp, 1./32 )
     DefTV        = Defined( tv_range)
     tv           = Default( tv_range, !fscale)
@@ -246,7 +248,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         hpadU    = isUHD ? nmod(hpad/2)    : hpad
     vpad         = Default( vpad, isHD ? 0 : hpad)
         vpadU    = isUHD ? nmod(vpad/2)    : vpad
-    limit        = Default( limit, md!="MDegrain" ? 255 : isUHD ? 2 : 255 )  # auto-scaled
+    limit        = Default( limit,  255 )                      # bitdepth auto-scaled
     limitc       = Default( limitc,limit)
 
     gpuid        = Default ( gpuid,   0)                       # Choose the GPU device_id for NNEDI3, KNLMeancCL and BM3D, or -1 for CPU mode (NNEDI3 and BM3D)
@@ -653,7 +655,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v4.3.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=h/round(25/dbl))
+        Subtitle("SMDegrain Mod v4.4.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=h/round(25/dbl))
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(round(tr/dbl))                                                                   + \
