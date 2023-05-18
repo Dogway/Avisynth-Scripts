@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.8    (29-04-2023)   ##
+###   Transforms Pack - Transfers v1.9    (19-05-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -333,8 +333,8 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 ###     clip,
 ###     float "BlackLevel"=0.10 (0.00 to 0.35),
 ###     float "WhiteLevel"=100.0 (50.0 to 205.0),
-###     int "brightness"=0 (0 to 100),
-###     int "contrast"=100 (0 to 100)
+###     int "brightness"=50 (0 to 100),
+###     int "contrast"=50 (0 to 100)
 ###     )
 ###
 function EOTF_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "brightness", int "contrast", bool "tv_in", bool "tv_out") {
@@ -345,8 +345,8 @@ function EOTF_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "bright
               propGetInt     ("_ColorRange") == 0 : rgb
     bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m2)
     wl      = Default (WhiteLevel, 100) # White level in nits (cd/m2)
-    l       = Default (brightness,   0) # CRT's 'brightness' control (aka 'lift')
-    g       = Default (contrast,   100) # CRT's 'contrast'   control (aka 'gain')
+    l       = Default (brightness,  50) # CRT's 'brightness' control (aka 'lift') -0 to 100-
+    g       = Default (contrast,    50) # CRT's 'contrast'   control (aka 'gain') -0 to 100-
     tv_in   = Default (tv_in,      !fs)
     tv_out  = Default (tv_out,   tv_in)
 
@@ -355,15 +355,15 @@ function EOTF_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "bright
 
     b  = pow(bl, 1/2.4)
     a  = pow(wl, 1/2.4)-b
-    b  = l>0    ? (l/286.+b/a) : b/a    # CRT's 'brightness' control
-    a  = g!=100 ? g/100.       : 1      # CRT's 'contrast'   control
-                                      
+    b  = (l-50)/250.+b/a                # CRT's 'brightness' control  -0.20 to +0.20
+    a  = g!=50 ? pow(2,(g-50)/50.) : 1  # CRT's 'contrast'   control   0.50 to +2.00
+
     Vc = 0.35                           # Offset
     Lw = wl/100. * a                    # White level
-    Lb = clamp(b * a,0,Vc)              # Black level
+    Lb = min( b  * a,Vc)                # Black level
     a1 = 2.6                            # Shoulder gamma
     a2 = 3.0                            # Knee gamma
-    k  = Lw /pow(1  + Lb,    a1)      
+    k  = Lw /pow(1  + Lb,    a1)
     sl = k * pow(Vc + Lb, a1-a2)        # Slope for knee gamma
 
     cstr = rgb ? Undefined() : UVRange_construct(tv_in,tv_out,bi,3)
@@ -381,8 +381,8 @@ function EOTFi_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "brigh
               propGetInt     ("_ColorRange") == 0 : rgb
     bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m2)
     wl      = Default (WhiteLevel, 100) # White level in nits (cd/m2)
-    l       = Default (brightness,   0) # CRT's 'brightness' control (aka 'lift')
-    g       = Default (contrast,   100) # CRT's 'contrast'   control (aka 'gain')
+    l       = Default (brightness,  50) # CRT's 'brightness' control (aka 'lift') -0 to 100-
+    g       = Default (contrast,    50) # CRT's 'contrast'   control (aka 'gain') -0 to 100-
     tv_in   = Default (tv_in,    !fs)
     tv_out  = Default (tv_out, tv_in)
 
@@ -391,12 +391,12 @@ function EOTFi_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "brigh
 
     b  = pow(bl, 1/2.4)
     a  = pow(wl, 1/2.4)-b
-    b  = l>0    ? (l/286.+b/a) : b/a    # CRT's 'brightness' control
-    a  = g!=100 ? g/100.       : 1      # CRT's 'contrast'   control
-                                     
+    b  = (l-50)/250.+b/a                # CRT's 'brightness' control  -0.20 to +0.20
+    a  = g!=50 ? pow(2,(g-50)/50.) : 1  # CRT's 'contrast'   control   0.50 to +2.00
+
     Vc   = 0.35                         # Offset
     Lw   = wl/100. * a                  # White level
-    Lb   = clamp(b * a,0,Vc)            # Black level
+    Lb   = min( b  * a,Vc)              # Black level
     a1   = 2.6  a1i = 1 / a1            # Shoulder gamma
     a2   = 3.0  a2i = 1 / a2            # Knee gamma
     k    = 1 / (Lw /pow(1  + Lb, a1))
@@ -938,7 +938,7 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
 ###
 ### Examples:
 ###
-###    OOTF(OOTF=1/0.9811) # A dim to dark adaptation
+###    OOTF(OOTF=1/0.9811) # A dim to dark adaptation (Home Theater dark. Cinema Theater dark is called black-box and uses 2.6 gamma)
 ###    or
 ###    OOTF(OETFi="1886",EOTF="sRGB",show=true) # for a certain OETFi to EOTF adaptation
 ###
@@ -947,10 +947,11 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
 ###    SDR: D65, 5 nits (new) | PeakWhite/10 nits (old)
 ###
 ### Room surround environments and preferred EOTF:
-###    average surround -200  lux- gamma 2.0 (well lit  living room at day   time)
-###    dim surround     -64   lux- gamma 2.2 (lights on living room at night time)
-###    dim surround     -6-34 lux- gamma 2.4 (most lights off       at night time, reference environment)
-###    dark surround    -0    lux- gamma 2.6 (lights off            at night time)
+###    average surround -200   lux- gamma 2.0  (well lit  living room at day   time)
+###    dim surround     -64    lux- gamma 2.2  (lights on living room at night time)
+###    dim surround     -6-34  lux- gamma 2.4  (most lights off       at night time, reference environment)
+###    dark surround    -0.1-5 lux- gamma 2.45 (lights off            at night time)
+###    black-box        -0     lux- gamma 2.6  (lights off            cinema theater black-box)
 ###
 
 function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
@@ -1047,13 +1048,16 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###                                     ##
 ##########################################
 ###
-###   Sometimes also called 'shapers' or 'preluts', they are used to remap HDR values found in light emissive sources or their specular reflection to SDR or to a lower HDR level.
+###   Also called Tone Scales (originally Tone Reproduction), Rendering Transform and occasionally depending on the pipeline stage 'shapers' or 'preluts'.
+###   They are used to remap HDR values found in light emissive sources or their specular reflection to SDR or to a lower HDR Display Referred level in a pleasant manner.
 ###
 ###    Expanded summary of: https://github.com/tizian/tonemapper
 ###
 ###    Linear:              Linearly stretches the entire reference gamut to (a linear multiple of) the display.
 ###    Gamma:               Fits a logarithmic transfer between the tone curves.
-###    Logarithmic:
+###    Logarithmic:         Example: https://www.desmos.com/calculator/hmzirlw7tj
+###    Parabolic:           From Jed Smith compression studies. https://community.acescentral.com/t/output-transform-tone-scale/3498/26
+###    Hyperbolic:          https://www.desmos.com/calculator/yztov9da0f and Piecewise Hyperbolic: https://community.acescentral.com/t/output-transform-tone-scale/3498/56
 ###    Tumblin Rushmeier:   From "Tone Reproduction for Realistic Images" by by Tumblin and Rushmeier 1993
 ###    Schlick:             From "Quantization Techniques for Visualization of High Dynamic Range Pictures" by Schlick 1994
 ###    Ward:                From "A contrast-based scalefactor for luminance display" by Ward 1994
@@ -1090,9 +1094,11 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###    Spline:            From ffmpeg.
 ###    RRT:
 ###    ZCAM:
-###    JzDT:
 ###    AgX:
-###    OpenDRT:
+###    SSTS:              From ACES. B-Splines based tonemapper
+###    Daniele:           Elegant tonescale in the style of Michaelis-Menten function. https://www.desmos.com/calculator/rboxfu8hjb and https://community.acescentral.com/t/output-transform-tone-scale/3498/14?u=dogway
+###    OpenDRT:           Jed Smith's OpenDRT modification of Daniele Siragusano's tone scale inspired by "Michaelis-Menten Constrained" tonescale function.
+###    JzDT:              Same as the OpenDRT tonescale but simplified (less control knobs). It's applied over a perceptual uniform model (JzAzBz)
 ###    Sensitometric:     From Substance Painter YEBIS2 post-processor by Silicon Studio
 
 
@@ -1207,7 +1213,7 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
     x
     isy    = isy()
     bi     = BitsPerComponent()
-    md     = Default (mode, "Default") # 'Default', 'Dark' or 'Bright' preset
+    md     = Default (mode,   "Dark")  # 'Default', 'Dark' or 'Bright' preset
     fm     = Default (filmic, false )  # 'Filmic' or 'Flat' tonemapping. Don't use Filmic for Display Referred linear (only for Scene Referred)
     sh     = Default (show,   false )
     df     = md=="Default"     dk = md=="Dark"
@@ -1230,10 +1236,7 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
     DF  = D*F
     Div = 1./(((LinWh*(A*LinWh+CB)+DE) / (LinWh*(A*LinWh+B)+DF)) - E/F)
 
-    str = dk ? Format(" x             {A} * A@ {CB} + x * {DE} + A {B} + x *") : \
-               Format(" x 2 * dup dup {A} * A@ {CB} +   * {DE} + A {B} +   *")
-
-    ex_lut(str+Format(" {DF} + / {E} {F} / - {Div} *"),UV=3)
+    ex_lut(Format("x {A} * A@ {CB} + x * {DE} + A {B} + x * {DF} + / {E} {F} / - {Div} *"),UV=3)
 
     if (sh) {
         w   = x.width()
