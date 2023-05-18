@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.8         (29-04-2023)   ##
+###   Transforms Pack - Main v1.9         (19-05-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1159,16 +1159,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
 
             Expr(R, G, B, Ro, Go, Bo, Format="RGBPS", optSingleMode=true, clamp_float=false)
 
-            if (Comp) {
-
-                # 'Desaturate' Gamut Compression (by John Walker: https://www.fourmilab.ch/documents/specrend)
-                RGB = ExtractClip()
-                OF  = "x 0 min y min z min neg dup dup x +"
-                Expr(RGB[0], RGB[1], RGB[2], OF+" X@ swap2 y +    swap z +    max max dup 1 > X swap swap2 / X ?", \
-                                             OF+"    swap2 y + Y@ swap z +    max max dup 1 > Y swap swap2 / Y ?", \
-                                             OF+"    swap2 y    + swap z + Z@ max max dup 1 > Z swap swap2 / Z ?", Format="RGBPS", optSingleMode=true, clamp_float=false)
-
-        } }
+            # RGB 'Desaturate' Gamut Compression (by Jed Smith: https://github.com/jedypod/gamut-compress)
+            Comp ? GamutCompression(last,cs_in=cs_in,cs_out=cs_out,illu_in=D_in,illu_out=D_out) : last
+        }
 
     if (isRGBo && isRGBi && isScale) {
 
@@ -1374,7 +1367,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.7",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 1.9",                     size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1526,38 +1519,37 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrix == "XYB"        ? "XYB"      :         matrixn=="EBU 3213-E"  ? "470BG"  : matrixn
 
     illuminant =
-\             matrix == "50"         ? "D50"      :         matrix == "A"          ? "A"
-\   :         matrix == "55"         ? "D55"      :         matrix == "D50"        ? "D50"
-\   : FindStr(matrixn,  "ACES"   )>0 ? "ACES"     :         matrix == "D55"        ? "D55"
+\             matrix == "50"         ? "D50"      :         matrix == "D50"        ? "D50"
+\   :         matrix == "55"         ? "D55"      :         matrix == "D55"        ? "D55"
+\   : FindStr(matrixn,  "ACES"   )>0 ? "ACES"     : FindStr(matrix,   "ACES"   )>0 ? "ACES"
 \   :         matrix == "60"         ? "D60"      :         matrix == "D60"        ? "D60"
 \   :         matrix == "65"         ? "D65"      :         matrix == "D65"        ? "D65"
 \   :         matrix == "D"          ? "D65"      :         matrix == "B"          ? "B"
-\   :         matrix == "75"         ? "D75"      :         matrix == "C"          ? "C"
-\   :         matrix == "93"         ? "D93"      :         matrix == "D75"        ? "D75"
-\   :         matrix == "DCI"        ? "DCI"      :         matrix == "D93"        ? "D93"
-\   :         matrix == "ID50"       ? "ID50"     :         matrix == "EE"         ? "E"
-\   :         matrix == "E"          ? "E"        :         matrix == "ID65"       ? "ID65"
+\   :         matrix == "DCI"        ? "DCI"      :         matrix == "C"          ? "C"
+\   :         matrix == "75"         ? "D75"      :         matrix == "D75"        ? "D75"
+\   :         matrix == "93"         ? "D93"      :         matrix == "D93"        ? "D93"
+\   :         matrix == "ID50"       ? "ID50"     :         matrix == "ID65"       ? "ID65"
+\   :         matrix == "E"          ? "E"        :         matrix == "EE"         ? "E"
 \   :         matrix == "Neutral"    ? "E"        :         matrix == "Equal"      ? "E"
-\   :         matrix == "null"       ? "E"        :         matrix == "Sun"        ? "Sunlight"
-\   :         matrix == "Overcast"   ? "Overcast" :         matrix == "Sunlight"   ? "Sunlight"
+\   :         matrix == "null"       ? "E"        :         matrix == "A"          ? "A"
+\   :         matrix == "Overcast"   ? "Overcast" : FindStr(matrix,   "SUN"    )>0 ? "Sunlight"
 \   :         matrixn== "2020CL"     ? "D65"      :         matrixn== "170M"       ? "D65"
 \   :         matrixn== "2020NCL"    ? "D65"      :         matrixn== "2020DV5"    ? "D65"
 \   :         matrixn== "470BG"      ? "D65"      :         matrixn== "240M"       ? "D65"
 \   :         matrixn== "709"        ? "D65"      :         matrixn== "470M"       ? "C"
-\   :         matrixn== "AdobeRGB"   ? "D65"      :         matrixn== "ACES2065"   ? "ACES"
-\   :         matrixn== "DCI-P3"     ? "DCI"      :         matrixn== "AWG"        ? "D50"
-\   :         matrixn== "OPP"        ? "D65"      :         matrixn== "Display-P3" ? "D65"
-\   :         matrixn== "AppleRGB"   ? "D65"      :         matrixn== "sRGB"       ? "D65"
-\   :         matrixn== "BestRGB"    ? "D50"      :         matrixn== "RussellRGB" ? "D55"
-\   :         matrixn== "DonRGB4"    ? "D50"      :         matrixn== "BruceRGB"   ? "D65"
-\   :         matrixn== "ECI-RGB"    ? "D50"      :         matrixn== "BetaRGB"    ? "D50"
-\   :         matrixn== "ColorMatch" ? "D50"      :         matrixn== "CIE RGB"    ? "E"
-\   :         matrixn== "ProPhoto"   ? "D50"      :         matrixn== "WideGamut"  ? "D50"
-\   :         matrixn== "XYZ"        ? "E"        :         matrixn== "NTSC-J"     ? "D93"
-\   :         matrixn== "YDzDx"      ? "E"        :         matrixn=="AllColorsRGB"? "D50"
-\   :         matrixn== "MaxRGB"     ? "D50"      :         matrixn=="EktaSpacePS5"? "D50"
-\   :         matrixn== "xTremeRGB"  ? "D50"      :         matrixn== "ChromeSpace100" ? "D50"
-\   :         matrixn== "EBU 3213-E" ? "D65"      :         matrixn
+\   :         matrixn== "AdobeRGB"   ? "D65"      :         matrixn== "AWG"        ? "D50"
+\   :         matrixn== "DCI-P3"     ? "DCI"      :         matrixn== "Display-P3" ? "D65"
+\   :         matrixn== "OPP"        ? "D65"      :         matrixn== "sRGB"       ? "D65"
+\   :         matrixn== "AppleRGB"   ? "D65"      :         matrixn== "RussellRGB" ? "D55"
+\   :         matrixn== "BestRGB"    ? "D50"      :         matrixn== "BruceRGB"   ? "D65"
+\   :         matrixn== "DonRGB4"    ? "D50"      :         matrixn== "BetaRGB"    ? "D50"
+\   :         matrixn== "ECI-RGB"    ? "D50"      :         matrixn== "CIE RGB"    ? "E"
+\   :         matrixn== "ColorMatch" ? "D50"      :         matrixn== "WideGamut"  ? "D50"
+\   :         matrixn== "ProPhoto"   ? "D50"      :         matrixn== "NTSC-J"     ? "D93"
+\   :         matrixn== "XYZ"        ? "E"        :         matrixn=="AllColorsRGB"? "D50"
+\   :         matrixn== "YDzDx"      ? "E"        :         matrixn=="EktaSpacePS5"? "D50"
+\   :         matrixn== "MaxRGB"     ? "D50"      :         matrixn== "EBU 3213-E" ? "D65"
+\   :         matrixn== "xTremeRGB"  ? "D50"      :         matrixn=="ChromeSpace100"?"D50" : matrixn
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     idm =
@@ -1660,21 +1652,21 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
     cm_i     = cm_i   != -1 ? cm_i   : fmt[4]
     prim_i   = prim_i !=  2 ? prim_i : fmt[6] != -1 ? fmt[6] : 2
     mat_i    = mat_i  !=  2 ? mat_i  : fmt[5] != -1 ? fmt[5] : 3 < prim_i  < 10 ?  prim_i : cm_i == 15 || prim_i == 11 ? 11 : prim_i == 12 ? 12 : 2
-    prim_i   = prim_i !=  2 ? prim_i : 0 > mat_i > 8 || 10 > mat_i > 13 ? mat_i : isUHD ? 9 : isHD ? 1 : FR==25 ? 5 : FR==29.970 ? 6 : 2
+    prim_i   = prim_i !=  2 ? prim_i : 0 < mat_i < 8 || 10 < mat_i < 13 ? mat_i : isUHD ? 9 : isHD ? 1 : FR==25 ? 5 : FR==29.970 ? 6 : 2
     mat_i    = mat_i  !=  2 ? mat_i  :                         3 < prim_i  < 10 ?  prim_i : cm_i == 15 || prim_i == 11 ? 11 : prim_i == 12 ? 12 : 1
-    prim_i   = prim_i !=  2 ? prim_i : 0 > mat_i > 8 || 10 > mat_i > 13 ? mat_i : 1
+    prim_i   = prim_i !=  2 ? prim_i : 0 < mat_i < 8 || 10 < mat_i < 13 ? mat_i : 1
 
-    illu_i   = illu_i != -1 ? illu_i :                             20 > prim_i > 35 && prim_i != 22 ? 0 : prim_i == 11 || mat_i == 11 ? 3 : 13 > prim_i > 17 ? 2 : \
+    illu_i   = illu_i != -1 ? illu_i :                             20 < prim_i < 35 && prim_i != 22 ? 0 : prim_i == 11 || mat_i  == 11 ? 3 : 13 < prim_i < 17 ? 9 : \
                                                                    prim_i == 20 ? 1 :  prim_i == 13 ? 7 : prim_i == 10 || prim_i == 35 ? 8 : \
                                                                    prim_i == 4 || mat_i == 4 ? 5 : 4
-    t_i      = t_i    !=  2 ? t_i    :                             cm_i == 0 || cm_i == 23 ? 8 : \
-                                                                   cm_i == 24 ? 11 : \
+    t_i      = t_i    !=  2 ? t_i    :                             cm_i   == 0 || cm_i == 23 ? 8 : \
+                                                                   cm_i   == 24 ? 11 : \
                                                                3 < prim_i  < 8  ?  prim_i : \
                                                                    prim_i == 22 ?  5 : \
                                                                    prim_i == 18 || prim_i == 24 || prim_i == 26 ? 18 : \
                                                                    prim_i == 30 ? 23 : \
                                                                    prim_i == 34 ? 24 : \
-                                                              16 > prim_i  > 35 ? 20 : \
+                                                              16 < prim_i  < 34 ? 20 : \
                                                                    prim_i == 10 || prim_i == 13 || prim_i == 15 ? 8 : \
                                                                    prim_i == 16 ? 21 : \
                                                                    prim_i == 9  ? 16 : \
@@ -2133,7 +2125,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 \   : (mat    == "2020NCL"        ) ? 5              : (mat    == "BestRGB"        ) ? 18
 \   : (mat    == "AdobeRGB"       ) ? 6              : (mat    == "BruceRGB"       ) ? 19
 \   : (mat    == "AWG"            ) ? 7              : (mat    == "DonRGB4"        ) ? 20
-\   : (mat    == "Display-P3"     ) ? 8              : (mat    == "BetaRGB"        ) ? 21
+\   : (mat    == "Display-P3"     ) ? 9              : (mat    == "BetaRGB"        ) ? 21
 \   : (mat    == "DCI-P3"         ) ? 9              : (mat    == "ECI-RGB"        ) ? 22
 \   : (mat    == "ACEScg"         ) ? 10             : (mat    == "AllColorsRGB"   ) ? 23
 \   : (mat    == "ACESCCt"        ) ? 10             : (mat    == "EktaSpacePS5"   ) ? 24
@@ -2150,7 +2142,14 @@ function color_coef (string "prims", string "mat", string "illu") {
 \   : (mat    == "DCI-P3"         ) ? 3
 \   : (mat    == "ACES2065"       ) ? 4
 \   : (mat    == "ACEScg"         ) ? 4
-\   : (mat    == "AWG"            ) ? 2 : 1
+\   : (mat    == "AppleRGB"       ) ? 1
+\   : (mat    == "RussellRGB"     ) ? 6
+\   : (mat    == "BruceRGB"       ) ? 1
+\   : (mat    == "EBU 3213-E"     ) ? 1
+\   : (mat    == "CIE RGB"        ) ? 5
+\   : (mat    == "NTSC-J"         ) ? 8
+\   : (mat    == "AWG"            ) ? 2
+\   : (12 < mat_i < 27            ) ? 2 : 1
 
     # The coordinates and CCT's are from CIE 1931 2º Standard Observer
     mat_wp =
@@ -2320,7 +2319,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 # * A third set of primaries for Japanese NTSC (1987) simply uses 170M prims but with [0.2848, 0.2932] illuminant chromatic coordinates, which is also another (worse?) CCT derivation of 9300K.
 # * In [10] Mark Fairchild measured a 9300K Sony Trinitron CRT with coordinates x=0.2838, y=0.3290 (8229.87K)
 
-    # NTSC-J/P22
+    # NTSC-J/P22 (loosely based on JEDEC-P22/EBU Tech-E)
     cs = mat_i==13 ? [0.625, 0.350, \
                       0.280, 0.605, \
                       0.152, 0.062] : cs
@@ -2468,10 +2467,10 @@ function color_coef (string "prims", string "mat", string "illu") {
     wp = mat_wp==16 ? [0.31060736,0.33061329] : wp                        ##
 ###                                                                       ##
 ### 'Sunlight' illuminant (CCT of 5348.259K)                              ##
-    wp = mat_wp==9  ? [0.3362, 0.3502]  : wp                              ##
+    wp = mat_wp==11 ? [0.3362, 0.3502]  : wp                              ##
 ###                                                                       ##
 ### 'Overcast' illuminant (CCT of 6477.361K)                              ##
-    wp = mat_wp==10 ? [0.3134, 0.3275]  : wp                              ##
+    wp = mat_wp==12 ? [0.3134, 0.3275]  : wp                              ##
 ###                                                                       ##
 ### LED-B1   (CCT of 2733.41K)                                            ##
     wp = mat_wp==30 ? [0.45595087,0.40779804] : wp                        ##
@@ -2504,7 +2503,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 
 
     # Hard-coded white-point constant for the Kr, Kg, Kb derivations
-    pw = mat == "170M" || mat == "470BG" ? [0.31005856,0.31614964] : wp
+    pw = mat == "170M" || mat == "470BG" || mat == "NTSC-J" ? [0.31005856,0.31614964] : wp
 
     pr = [cs[0], cs[1], 1 - cs[0] - cs[1]]    pw = [pw[0], pw[1], 1 - pw[0] - pw[1]]
     pg = [cs[2], cs[3], 1 - cs[2] - cs[3]]    wp = [wp[0], wp[1], 1 - wp[0] - wp[1]]
