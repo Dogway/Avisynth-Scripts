@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.8       (29-04-2023)   ##
+###   Transforms Pack - Models v1.9       (19-05-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -27,6 +27,7 @@
 ###     RGB_to_XYZ      /    XYZ_to_RGB                  ##
 ###     XYZ_to_LMS      /    LMS_to_XYZ                  ##
 ### ADAPTATION:                                          ##
+###     GamutCompression                                 ##
 ###     CAT                                              ##
 ###     CMF                                              ##
 ###     SPD_D                                            ##
@@ -168,6 +169,7 @@
 #-YCoCg        - Better luma/chroma decorrelation and compression efficiency than YCbCr.
 #-YCoCgR       - Same as YCoCg but losslessly reversible to RGB.
 # YFbFr        - Similar to YCoCg, employs Karhunen-Loève transform (KLT) to design an integer reversible transform.
+# Yrg          - Truelight Yrg model, described in "Chromaticity Coordinates for Graphic Arts Based on CIE 2006 LMS with Even Spacing of Munsell Colours" by Richard Kirk
 #-XYZ          - CIE 1931 XYZ tristimulus color model representing all the non-imaginary colors.
 # LSY          - Reads lambda-SY. Spectral color space. Representation based on brightness, dominant wavelength and saturation attributes. LSY color coordinates are defined from xyY color coordinates.
 #-YDzDx+       - HDR version of XYZ. Requires at least 10-bit for no visible quantization.
@@ -206,7 +208,8 @@
 #-Oklab*       - A uniform (UCS) space for SDR color. Simple to compute yet powerful. Takes CAM16 lightness and chroma, and IPT for hue. OkLch is the cylindrical form of Oklab.
 # DT UCS22*    - The darktable UCS 22 is a perceptually uniform color space designed from psychoperceptual experimental data specifically for the purpose of artistic saturation changes, as performed in the color balance RGB module. It uses a brightness-saturation scheme that compensates for the Helmholtz-Kohlraush effect. https://eng.aurelienpierre.com/2022/02/color-saturation-control-for-the-21th-century
 # iCAM06       - An image (not only color) appearance metric model to not only compute perceived difference in lightness, hue or chroma, but also contrast, sharpness or graininess. Involves converting to IPT, low-pass filtering in linear space, convert to non-linearity, then to Jch model and QM if necessary for the metrics.
-
+# Hellwig2022  - Hellwig and Fairchild (2022) CAM
+# Others not included: RLAB, Nayatani, LLAB, Kim, Weyrich and Kautz (2009)
 
 # YCbCr to RGB' standalone function (at least 10-bit precision recommended)
 function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", string "kernel", float "b", float "c", float "p", string "cplace", bool "UVrecon") {
@@ -1672,15 +1675,8 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
 
     MatrixClip(LMS_gam, LtR, switch=false)
 
-    if (GC) {
-
-        # 'Desaturate' Gamut Compression (by John Walker: https://www.fourmilab.ch/documents/specrend)
-        RGB = ExtractClip()
-        OF  = "x 0 min y min z min neg dup dup x +"
-        Expr(RGB[0], RGB[1], RGB[2], OF+" X@ swap2 y +    swap z +    max max dup 1 > X swap swap2 / X ?", \
-                                     OF+"    swap2 y + Y@ swap z +    max max dup 1 > Y swap swap2 / Y ?", \
-                                     OF+"    swap2 y    + swap z + Z@ max max dup 1 > Z swap swap2 / Z ?", Format="RGBPS", optSingleMode=true, clamp_float=false)
-    }
+    # RGB 'Desaturate' Gamut Compression (by Jed Smith: https://github.com/jedypod/gamut-compress)
+    GC ? GamutCompression(last,cs_in="2020",cs_out=mat) : last
 
     ConvertBits(bi,dither=bi==32?-1:1,fulls=true,fulld=!tvo)
     propSet("_Transfer",   8)
@@ -1714,7 +1710,7 @@ function RGB_to_XYZ (clip rgb, string cspace, val "illuminant", string "LMS", bo
     #                0.180553, 0.072221, 0.950913] : 0
 
     # Checking discrepancies
-    p1    =                 color_coef(cs[0])
+    p1    =                 color_coef(cs[0], illu=cs[1])
     p2    = isIllu ? illu : color_coef(cs[0], illu=illu)
 
     # White Point
@@ -1977,6 +1973,7 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 # To also match white point (aka White Balance or "Simulation") set mode="Simulation".
 # * This should always be used when converting between spaces of different illuminants.
 # (equi-appearance colorspace transformation: https://yuhaozhu.com/blog/chromatic-adaptation.html#3usecasebequiappearancecolorspacetransformation)
+# * "Zhai and Luo (2018) Chromatic Adaptation Model" is not implemented as it's not a linear transformation (involves two steps) -> https://github.com/colour-science/colour/blob/develop/colour/adaptation/zhai2018.py
 #
 # Transformation Method:
 #   Strong von Kries (von Kries-Ives) (used in ICC)
@@ -1998,28 +1995,26 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
     Assert(!isFloat(src)&&!isFloat(src), "CAT: Only string or array type supported")
 
     if (isArray(src)) {
-        wps = ArraySize(src)>2 ? src : [src[0],src[1],1-src[0]-src[1],src[0]]
-        wps = ArrayAppend(wps,wps)
+        wps = ArraySize(src)>2 ? src : [src[0],src[1],1-src[0]-src[1]]
     } else {
         src = color_Fuzzy_Search (src)
-        src = list ? [src[1],src[1]] : src
         wps = color_coef(src[1],illu=src[1])
+        wps = [wps[3],wps[4],wps[5]]
     }
     if (isArray(tgt)) {
-        wpt = ArraySize(tgt)>2 ? tgt : [tgt[0],tgt[1],1-tgt[0]-tgt[1],tgt[0]]
-        wpt = ArrayAppend(wpt,wpt)
+        wpt = ArraySize(tgt)>2 ? tgt : [tgt[0],tgt[1],1-tgt[0]-tgt[1]]
     } else {
         tgt = color_Fuzzy_Search (tgt)
-        tgt = list ? [tgt[1],tgt[1]] : tgt
         wpt = color_coef(tgt[1],illu=tgt[1])
+        wpt = [wpt[3],wpt[4],wpt[5]]
     }
 
-    same  = wps[3] == wpt[3]
+    same  = wps[0]+wps[1]+wps[2] == wpt[0]+wpt[1]+wpt[2]
 
     LMSm  = XYZ_to_LMS(c, LMS, true)
 
-    wpsn  = MatrixDot([wps[3]/wps[4],1.,wps[5]/wps[4]], LMSm)
-    wptn  = MatrixDot([wpt[3]/wpt[4],1.,wpt[5]/wpt[4]], LMSm)
+    wpsn  = MatrixDot([wps[0]/wps[1],1.,wps[2]/wps[1]], LMSm)
+    wptn  = MatrixDot([wpt[0]/wpt[1],1.,wpt[2]/wpt[1]], LMSm)
     vk    = Broadcast(same ? [1,1,1] : ArrayOp(wptn,wpsn,"/"), "vonKries")
 
     CAM   = !same ? MatrixDot(MatrixInvert(LMSm), MatrixDot(vk, LMSm)) : vk
@@ -2052,6 +2047,181 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
         same ? c : last
 
     } else { CAM } }
+
+
+
+
+#  GamutCompress v0.7 by Jed Smith (2021)
+#  Gamut Compress is a tool to compress out of gamut colors back into gamut.
+#
+#     Out of gamut colors can ocurr with modern digital cinema cameras.
+#     Using the original camera gamut, there would be no problem, but often when doing visual effects
+#     or grading, we need to work in a different colorspace like ACEScg. Since ACEScg is designed
+#     to operate within the spectral locus, this is where out of gamut colors can appear.
+#
+#     Cameras can generate color outside of the spectral locus because the spectral response
+#     curves of the camera do not match the spectral response curves of the human eye, making the
+#     camera a non-colorimetric device which does not satisfy the Luther-Ives criterion.
+#
+#     Out of gamut colors often ocurr with highly saturated light sources like police lights, neon, or lasers.
+#     Re-mapping these colors back into gamut is necessary for pleasing color reproduction, and for working.
+#
+#       * Written by Jed Smith with lots of help from the ACES Gamut Mapping VWG
+#     [1] https://github.com/jedypod/gamut-compress
+#     [2] https://community.acescentral.com/t/rgb-saturation-gamut-mapping-approach-and-a-comp-vfx-perspective
+#     [3] https://community.acescentral.com/c/aces-development-acesnext/vwg-aces-gamut-mapping-working-group
+#____________________________________________
+#
+#  GamutCompress uses an RGB desaturation algorithm with the Parabolic compression method,
+#  which is an elegant and performant gamut compression method.
+#  This method, as it works over RGB, only aligns the primaries but not the full Path to White/Achromatic.
+#  Ideally to minimize HUE skews for the whole path you should compress out-of-gamut values...
+#  under a perceptual model like OkLab/IPT/JzAzBz/IgPgTg/ICtCp etc  -> https://community.acescentral.com/t/output-transform-tone-scale/3498/158
+#
+#  Others GamutCompress methods that are not implemented: https://github.com/jedypod/gamut-compress/commit/5bf5db9380eaaf03ca8fa79a9b4e50d978092d61
+#    pow      https://www.desmos.com/calculator/nvhp63hmtj (includes also parabolic; 'l' for Distance Limit, 't' for threshold)
+#    log      https://www.desmos.com/calculator/hmzirlw7tj
+#    reinhard https://www.desmos.com/calculator/lkhdtjbodx
+#    exp      https://www.desmos.com/calculator/s2adnicmmr
+#    atan     https://www.desmos.com/calculator/h96qmnozpo
+#    tanh     https://www.desmos.com/calculator/xiwliws24x
+#
+#   These curves are sorted by slope. Log is less steep and doesn't get as flat,
+#   which results in more desaturation in compressed colors at the same threshold.
+#   Tanh is more steep and gets flatter soonerwhich causes colors to be more saturated
+#   at the same threshold. You may need to boost the threshold to get
+#   the desired color appearance with tanh.
+#
+#  Threshold:
+#      Percentage of the gamut to affect. If threshold is 0.2,
+#      the inner 80% of the gamut will be unaffected and
+#      out of gamut values will be compressed into
+#      the outer 20% of the gamut's color volume.
+#      When Threshold is at 0, there will be a hard clip.
+#      When Threshold is at 1, the whole gamut is taken into account (aka scaled) for compression.
+#      To better retain source saturation use low values like 0.1.
+#
+#  Max Distance Limits:
+#      Per color component control to specify what distance will be compressed to the gamut boundary.
+#      For example, a value of cyan=0.2 will map colors with a distance of red=1.2 from
+#      the achromatic axis to red=1.0, which is the gamut boundary.
+#      Set this appropriately to minimize HUE shifts and maximize output saturation in compression.
+#      When Distance is at 0, no compression is applied.
+#      When Distance is at 1, out of gamut colors are compressed to the gamut boundary on the achromatic path.
+#      When Distance is >  1, will compress more than the gamut boundary.
+#
+#  Direction:
+#      Specifies whether to apply or inverse the gamut compression operation.
+#      Inverting the gamut compression is possible but should be used
+#      with an excess of caution, because saturated values can be pushed
+#      well outside of the spectral locus.
+#
+# Remark by Jed Smith:
+#      "If you are looking for the so-called "Reference" Gamut Compression (RGC) adopted
+#       by ACES in version 1.2 (and currently -05-2023- in force for OCIO 2.2.1),
+#       you can find it here: https://docs.acescentral.com/guides/rgc-user/
+#       However I would not recommend using it for the following reasons:
+#
+#     1. It has a fixed parameterization for the per-channel compression settings,
+#        which will yield different results depending on the camera source colorimetry.
+#     2. It uses a more aggressive compression function which does not distribute values as evenly,
+#        resulting in the need for lower threshold settings and more problematic inversion (if that is required).
+#     3. It will result in distortion of the chromaticities as part of the compression.
+#        This may be fine for creative grading, but for more technical workflows like in VFX,
+#        a linear compression towards the whitepoint may be desired instead."
+#
+function GamutCompression (clip RGB, clip "G", clip "B", float_array "CMYthres", float_array "CMYdist", string "cs_in", string "cs_out", string "illu_in", string "illu_out", bool "invert", bool "show") {
+    RGB
+    irgb  = isRGB()
+    isy   = isY()
+    props = color_propGet()
+    bi    = props[7]
+
+    Assert(irgb && bi==32, "GamutCompression: Input must be RGB float planar in linear space")
+
+    sh     = Default (show,        false ) # show the default thresholds and distances
+    in     = Default (invert,      false ) # Invert to perform Gamut Expansion
+    cs_in  = Default (cs_in,    props[2] ) # Source color space where you are compressing from
+    cs_out = Default (cs_out,   props[2] ) # Target color space where you are compressing to. If source and target are equal, CMYDist defaults to [0.08,0.52,0.07]
+    cs_in  = color_Fuzzy_Search(cs_in)
+    cs_out = color_Fuzzy_Search(cs_out)
+    il_in  = Default (illu_in,  cs_in[1] ) # Source illuminant
+    il_out = Default (illu_out, cs_out[1]) # Target illuminant
+    il_in  = color_Fuzzy_Search(il_in)
+    il_out = color_Fuzzy_Search(il_out)
+
+    # Calculate primaries chromaticity coordinate distances between color spaces
+    function CSDist(clip c, string cs_in, string cs_out, string illu_in, string illu_out) {
+        c
+        mata = RGB_to_XYZ(cs_in, illu_in, adaptXYZ=false,  list=true)
+        matb = XYZ_to_RGB(cs_out,illu_out,adaptXYZ=false,  list=true)
+        matw = CAT(   illu_in,   illu_out, LMS="CAT16",    list=true)
+        mat  = MatrixDot(MatrixDot(mata, MatrixTranspose(matw)), matb)
+        ach  = Broadcast([mat[0],mat[4],mat[8]],"Right",true)
+        Dist = ArrayOp(ach, mat,"-")
+        DRat = ArrayOp(Dist,ach,"/")
+        CDis = cs_in!=cs_out ? max(DRat[0],DRat[1],DRat[2])-1 : 0.08 # for greens
+        MDis = cs_in!=cs_out ? max(DRat[3],DRat[4],DRat[5])-1 : 0.52 # for blues and reds
+        YDis = cs_in!=cs_out ? max(DRat[6],DRat[7],DRat[8])-1 : 0.07 # for yellows
+        return [CDis,MDis,YDis]
+    }
+
+    CDis =                                       CSDist( cs_in[0], cs_out[0],  il_in[1], il_out[1])
+    CDis = CDis[0]+CDis[1]+CDis[2] >= 0 ? CDis : CSDist(cs_out[0],  cs_in[0], il_out[1],  il_in[1])
+    CDis = ArrayOp(CDis,0,"max(x,y)")                               # Ensure only compression or only expansion
+    cdi  = Default (CMYdist,    CDis)                               # 0.0 to 0.4. Thresholds for Cyan,Magenta,Yellow. Maximum distance beyond the green-blue,blue-red,red-green gamut boundary to compress to the gamut boundary
+    CThr = ArrayOp(cdi,0,"x==0?0:0.085*log(x+0.0036)/log(10)+0.208")# non linear remap from  0-0.8 to 0-0.2
+    cth  = Default (CMYthres,[CThr[0],CThr[1],CThr[2]])             # 0.0 to 0.3. Thresholds for Cyan,Magenta,Yellow. A value of 0.2 means 20% of the outer gamut will be utilized for gamut compression
+
+    clp = !isy ? ExtractClip(RGB) : nop()
+    R   = !isy ? clp[0] :    RGB
+    G   = !isy ? clp[1] :     G
+    B   = !isy ? clp[2] :      B
+
+    # Amount of outer gamut to affect
+    thr = 1.0-cth[0]
+    thg = 1.0-cth[1]
+    thb = 1.0-cth[2]
+
+    # Distance limit: How far beyond the gamut boundary to compress
+    dlx = 1.0+cdi[0]
+    dly = 1.0+cdi[1]
+    dlz = 1.0+cdi[2]
+
+    # Calculate scale so compression function passes through distance limit: (x=dl, y=1)
+    sx = (1-thr)/sqrt(max(1.001,dlx)-1)  sx2 = sx * sx * 0.25  sx3 = sqrt(sx2)*sx
+    sy = (1-thg)/sqrt(max(1.001,dly)-1)  sy2 = sy * sy * 0.25  sy3 = sqrt(sy2)*sy
+    sz = (1-thb)/sqrt(max(1.001,dlz)-1)  sz2 = sz * sz * 0.25  sz3 = sqrt(sz2)*sz
+
+    # Norm MaxRGB (Achromatic axis)
+    ac = "y z max x max A@ "
+
+    # Inverse RGB Ratios: distance from achromatic axis
+    dx = "swap 0 == 0 A x - A abs / ? D@ "
+    dy = "swap 0 == 0 A y - A abs / ? D@ "
+    dz = "swap 0 == 0 A z - A abs / ? D@ "
+
+    # Compressed distance
+    # Parabolic compression function: https://www.desmos.com/calculator/nvhp63hmtj
+    if (!in) {
+        cdx  = dx+Format("dup {thr} < swap D {thr} - {sx2} + sqrt {sx} * {thr} {sx3} - + ?")
+        cdy  = dy+Format("dup {thg} < swap D {thg} - {sy2} + sqrt {sy} * {thg} {sy3} - + ?")
+        cdz  = dz+Format("dup {thb} < swap D {thb} - {sz2} + sqrt {sz} * {thb} {sz3} - + ?")
+    } else {
+        cdx  = dx+Format("dup {thr} < swap D {thr} - {sx3} + 2 ^ {sx} 2 ^ / {thr} {sx2} - + ?")
+        cdy  = dy+Format("dup {thg} < swap D {thg} - {sy3} + 2 ^ {sy} 2 ^ / {thg} {sy2} - + ?")
+        cdz  = dz+Format("dup {thb} < swap D {thb} - {sz3} + 2 ^ {sz} 2 ^ / {thb} {sz2} - + ?")
+    }
+
+    # Inverse RGB Ratios to RGB
+    cr = ac+" dup dup abs "+cdx+" * - 0 max"
+    cg = ac+" dup dup abs "+cdy+" * - 0 max"
+    cb = ac+" dup dup abs "+cdz+" * - 0 max"
+
+    Expr(R,G,B, cr,cg,cb, Format="RGBPS", optSingleMode=true, clamp_float=false)
+    sh ? ArrayPrint(ArrayAppend(cdi,cth)) : last
+    }
+
 
 
 # CIE XYZ Color Matching Functions approximations from tabulated data.
@@ -2094,7 +2264,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     # 390nm to 830nm. Multi-Lobe, Piecewise Gaussian Fit for CIE 1931 2º Standard Observer
     if        (CMF=="1931") {
-    Wx = 0.312712      Wy = 0.329008 # D65 illuminant at [0.312712, 0.329008]
+    Wx = 0.312712      Wy = 0.329008 # Precomputed D65 illuminant at [0.312712, 0.329008]
     t1 = (nm-442.0) * (nm<442.0?0.0624:0.0374)
     t2 = (nm-599.8) * (nm<599.8?0.0264:0.0323)
     t3 = (nm-501.1) * (nm<501.1?0.0490:0.0382)
@@ -2116,7 +2286,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     # 360nm to 830nm. Multi-Lobe, Piecewise Gaussian Fit for CIE 1964 10º Standard Observer
     } else if (CMF=="1964") {
-    Wx = 0.313824      Wy = 0.330999     # D65 illuminant at [0.313824, 0.330999]
+    Wx = 0.313824      Wy = 0.330999     # Precomputed D65 illuminant at [0.313824, 0.330999]
     X  = 1.160477     * exp(-1           * pow((nm - 593.27583359)  /48.81284125,2)) + \
          0.406066     * exp(-1           * pow((nm - 444.33348762)  /27.9289803 ,2))
     Y  = 1.01318991   * exp(-0.937256650 * pow((nm - 556.301693)    /62.6625473 ,2)) + \
@@ -2131,7 +2301,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     # Multi-Lobe, Piecewise Gaussian Fit for CIE 2015 2º Standard Observer
     } else if (CMF=="2015_2") {
-    Wx = 0.313453      Wy = 0.330802    # D65 illuminant at [0.313453, 0.330802]
+    Wx = 0.313453      Wy = 0.330802    # Precomputed D65 illuminant at [0.313453, 0.330802]
     X  = 1.151326    * exp(-1           * pow((nm - 596.83152348)/46.78554306,2)) + \
          0.3494153   * exp(-1           * pow((nm - 443.24921254)/29.65566071,2))
     Y  = 0.918944680 * exp(-1.29798797  * pow((nm - 570.182202)  /63.9498238 ,2)) + \
@@ -2150,7 +2320,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     # Multi-Lobe, Piecewise Gaussian Fit for CIE 2015 10º Standard Observer
     } else if (CMF=="2015_10") {
-    Wx = 0.313786      Wy = 0.331275       # D65 illuminant at [0.313786, 0.331275]
+    Wx = 0.313786      Wy = 0.331275       # Precomputed D65 illuminant at [0.313786, 0.331275]
     X  = 1.160477       * exp(-1           * pow((nm - 593.11837073) /48.15263773,2)) + \
          0.406066       * exp(-1           * pow((nm - 444.07099185) /27.94059768,2))
     Y  = 0.989818002    * exp(-0.957978328 * pow((nm - 557.662171)   /62.5184569 ,2)) + \
@@ -2165,7 +2335,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     # 380nm to 825nm. Multi-Lobe, Piecewise Gaussian Fit for Judd(1951)-Vos(1978) modified CIE 1931 2º Standard Observer
     } else if (CMF=="Judd-Vos") {
-    Wx = 0.316084      Wy = 0.335067    # D65 illuminant at [0.316084, 0.335067]
+    Wx = 0.316084      Wy = 0.335067    # Precomputed D65 illuminant at [0.316084, 0.335067]
     X  = 1.151326    * exp(-1           * pow((nm - 596.16761823)/44.86322931,2)) + \
          0.3494153   * exp(-1           * pow((nm - 441.85056287)/30.60218578,2))
     Y  = 0.601847253 * exp(-1.51659845  * pow((nm - 581.234908)  /63.9735453 ,2)) + \
@@ -2186,7 +2356,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     # 380nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Cat5 Abhijit Sarkar's Observer tests 10º Standard Observer
     } else if (CMF=="Cat5") {
-    Wx = 0.293241      Wy = 0.34077       # D65 illuminant at [0.293241, 0.340770]
+    Wx = 0.293241      Wy = 0.34077       # Precomputed D65 illuminant at [0.293241, 0.340770]
     X  = 1.160477       * exp(-1          * pow((nm - 594.34831376)  /44.70087141,2)) + \
          0.406066       * exp(-1          * pow((nm - 443.85540032)  /27.42727776,2))
     Y  = 0.0589846547   * exp(-4.04288641 * pow((nm - 606.960286)    /61.9859710 ,2)) + \
@@ -2201,7 +2371,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     # 380nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Cat9 Abhijit Sarkar's Observer tests 10º Standard Observer
     } else if (CMF=="Cat9") {
-    Wx = 0.301797      Wy = 0.341821       # D65 illuminant at [0.301797, 0.341821]
+    Wx = 0.301797      Wy = 0.341821       # Precomputed D65 illuminant at [0.301797, 0.341821]
     X  = 1.160477       * exp(-1           * pow((nm - 598.09202261)  /45.81682164,2)) + \
          0.406066       * exp(-1           * pow((nm - 447.75849618)  /25.77397532,2))
     Y  = 0.0589846547   * exp(-4.04288641  * pow((nm - 606.960286)    /61.9859710 ,2)) + \
@@ -2216,7 +2386,7 @@ function CMF (clip c, string "CMF", int "wavelength", bool "show") {
 
     # 390nm to 780nm. Multi-Lobe, Piecewise Gaussian Fit for Asanos's 151 Cat.1 2º Observer tests
     } else { /* if (CMF=="Asano") revise fit for Z prolly also for Judd-Vos */
-    Wx = 0.312994      Wy = 0.328972    # D65 illuminant at [0.312994, 0.328972]
+    Wx = 0.312994      Wy = 0.328972    # Precomputed D65 illuminant at [0.312994, 0.328972]
     X  = 1.151326    * exp(-1           * pow((nm - 596.85301964)/44.83663761,2)) + \
          0.3494153   * exp(-1           * pow((nm - 444.51663941)/30.28442651,2))
     Y  =-0.468768354 * exp(-2.88091492  * pow((nm - 568.978314)  /63.7801126 ,2)) + \
@@ -2287,7 +2457,7 @@ function Chromaticity_xy(clip a, int "Temp", string "CMF") {
     M2 = ( 0.0300 - 31.4424 * wpx + 30.0717 * wpy) / M
 
     # Beware, some CMFs start at 360nm or 390nm
-    # Similarly some end at 830nm instead of 780nm (700nm is generally the limit for the HVS)
+    # Similarly some end at 830nm instead of 780nm (400-700nm is generally the limit for the HVS)
     W = []
     for (i=380, 780, 5) {
 
