@@ -482,9 +482,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
       cs_outF  = cs_outFA[0]
 
     OETFd      = Defined(OETF)  ? OETF =="" ? false : true : false
-    OETFid     = propIDs[5]!="linear" ? cs_inF =="709" || cs_inF =="170M" && !fc || cs_inF =="240M" || cs_inF =="Display-P3" || FindStr(cs_inF, "470")>0 && !fc || FindStr(cs_inF, "2020")>0 ? "1886" : fc ? "sRGB" : propIDs[5] : propIDs[5]
+    OETFid     = propIDs[5]!="linear" ? cs_inF =="709" || cs_inF =="170M" && !fc || cs_inF =="240M" || cs_inF =="Display-P3" || FindStr(cs_inF, "470")>0 && !fc || FindStr(cs_inF, "2020")>0 ? "1886" : cs_inF  =="ACEScg" || cs_inF  =="ACES2065" || cs_inF  =="XYZ" ? "linear" : fc ? "sRGB" : propIDs[5] : propIDs[5]
     OETFi      = Defined(OETFi) ? OETFi=="" ? OETFid : OETFi : OETFid # By default undoes encoded display referred transfer (1886 EOTFi) for consumer media instead of scene-referred camera transfer (OETFi)
-    EOTFid     =                        cs_outF=="709" || cs_outF=="170M" && !fc || cs_outF=="240M" || cs_outF=="Display-P3" || FindStr(cs_outF,"470")>0 && !fc || FindStr(cs_outF,"2020")>0 ? "1886" : fc ? "sRGB" : cs_outF
+    EOTFid     =                        cs_outF=="709" || cs_outF=="170M" && !fc || cs_outF=="240M" || cs_outF=="Display-P3" || FindStr(cs_outF,"470")>0 && !fc || FindStr(cs_outF,"2020")>0 ? "1886" : cs_outF =="ACEScg" || cs_outF =="ACES2065" || cs_outF =="XYZ" ? "linear" : fc ? "sRGB" : cs_outF
     EOTFi      = OETFd ? OETF : Defined(EOTFi) ? EOTFi =="" ? OETFi : EOTFi : EOTFid
        OETFi_i = color_Fuzzy_Search (OETFi)
        EOTFi_i = color_Fuzzy_Search (EOTFi)
