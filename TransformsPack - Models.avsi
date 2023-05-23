@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.9       (19-05-2023)   ##
+###   Transforms Pack - Models v1.9.1     (23-05-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -199,7 +199,7 @@
 # ICaCb+       - Precursor and arguably better color model than ICtCp which based on this.
 #-ICtCp+       - BT.2100 (HDR + Rec.2020) version of IPT. HDR version of YcCbcCrc but with Constant Intensity this time.
 # ITP*+        - Perceptually uniform color space version of ICtCp, used extensively in error metrics by scaling Ct by 0.5. This transformation is the basis of the Rec.2124 wide gamut color difference metric D.itp (simple scaled Euclidean distance: 720*sqrt(Di^2+D(t*0.5)^2+Dp^2) )
-#-IPTPQc2*+    - Improved HDR10 version of ICtCp. Since it's a propietary model not much information is known.
+#-IPT-PQc2*+   - Improved HDR10 version of ICtCp. Since it's a propietary model not much information is known.
 # CIECAM02*    - Improves on CIECAM97s and can be made uniform with CAM02-UCS. CIECAM02Jch is its cylindrical version.
 # OSA*         -
 # CIECAM16*    - Improves on CIECAM02 and can be made uniform with CAM16-UCS, which works "out-of-the-box" for Euclidean distance metrics.
@@ -1562,12 +1562,18 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 #     ICtCp_to_RGB("2020",4059 ,DoVi=false) # Mastered at 4059 nits
 #     RGB_to_ICtCp("2020",10000,DoVi=false) # round-trip
 #
-# Example for IPTPQc2:
+# Example 1 for IPT-PQ c2:
 #     YUV444PS IPTPQc2 source
-#     ICtCp_to_RGB("2020",10000,DoVi=true)  # Decode to 2020 or 709 optionally to RGB linear
+#     ICtCp_to_RGB("2020",10000,DoVi=true)  # Decode IPTPQc2 to 2020 (or optionally 709) as RGB linear
 #     EOTFi_PQ(1000,10000)                  # Reconstitute PQ gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 #     or
-#     TM_2446C("2020","709","1886",tv_out=false) # Tonemap and output RGB Rec709 in 1886 gamma for DVp8 and other profiles
+#     TM_2446C("2020","709","1886",tv_out=false) # Tonemap and output RGB Rec709 in 1886 gamma
+#
+# Example 2 for IPT-PQ c2:
+#     YUV444PS IPTPQc2 source
+#     ICtCp_to_RGB("709",10000,DoVi=true)   # Decode IPTPQc2 to 709 RGB linear
+#     TM_Hable(mode="Default",LinWh=11.2)   # Tonemap and output RGB in 1886 gamma
+#
 function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi", int "scale", bool "tv_out") {
 
     fs     = propNumElements (rgb,"_ColorRange")  > 0 ? \
@@ -1597,23 +1603,23 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     rgb = rgb.ConvertBits(32,fulls=fs,fulld=true)
     LMS = MatrixClip(rgb, MatrixTranspose(RtL), switch=false)
 
-    LMS_gam = EOTFi_PQ(LMS,RefWhite=203,MasterLevel=PL) # ICtCp uses ST 2084 for which 100 is the Reference White, but got less clipping with 203 (ITU)
+    LMS_gam = EOTFi_PQ(LMS,RefWhite=203,MasterLevel=PL) # ICtCp uses ST 2084 for which 100 is the Reference White, but got less clipping with 203 (ITU) for IPTPQc2 clips
 
     # Skin tones alignment
     alpha = 1.134464
-    cosa = cos(alpha)
-    sina = sin(alpha)
+    cosa  = cos(alpha)
+    sina  = sin(alpha)
     rot   = [ 1,    0,     0, \
               0, cosa, -sina, \
               0, sina,  cosa]
 
     # IPT by Ebner & Fairchild
-    mul = 1. / mul    # DVp5 reshaping. Write to RPU flag
-    IPT = [     0.4000,      0.4000,       0.2000, \
-            mul*4.4550, mul*-4.8510,  mul* 0.3960, \
-            mul*0.8056, mul* 0.3572,  mul*-1.1628]
+    mul   = 1. / mul    # DVp5 reshaping. Write to RPU flag
+    IPT   = [     0.4000,      0.4000,       0.2000, \
+              mul*4.4550, mul*-4.8510,  mul* 0.3960, \
+              mul*0.8056, mul* 0.3572,  mul*-1.1628]
 
-    # Fit chroma between -0.5 - 0.5
+    # Fits chroma between -0.5 - 0.5
     # First row weighted to yield 0.5 0.5 0 for I (Intensity) constant luminance coefficients
     sca   = [ 1.25, 1.25, 0.0, \
               1.40, 1.40, 1.4, \
@@ -1643,7 +1649,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 to 10000)
     DV     = Default (DoVi,   false)      # Set to true for IPTPQc2
     tvo    = Default (tv_out, false)
-    GC     = Default (GC,     false)      # Gamut Compression
+    GC     = Default (GC,mat=="709")      # Gamut Compression
     mul    = Default (scale,DoVi ? 2 : 1) # 'scaler_chroma' SEI. Chroma scale, may be read from the RPU
 
     ictcp
@@ -1660,7 +1666,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
 
     ictcp     = ictcp.ConvertBits(32,fulls=fs,fulld=true)
     LMS       = MatrixClip(ictcp, MatrixTranspose(DoVi ? LMS5 : LMS), switch=!isRGB(ictcp)) # Switch=true because ICtCp is packed into YCbCr format
-    LMS_gam   = EOTF_PQ(LMS,RefWhite=203,MasterLevel=PL)
+    LMS_gam   = EOTF_PQ(LMS,RefWhite=203,MasterLevel=PL) # ICtCp uses ST 2084 for which 100 is the Reference White, but got less clipping with 203 (ITU) for IPTPQc2 clips
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1676,7 +1682,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     MatrixClip(LMS_gam, LtR, switch=false)
 
     # RGB 'Desaturate' Gamut Compression (by Jed Smith: https://github.com/jedypod/gamut-compress)
-    GC ? GamutCompression(last,cs_in="2020",cs_out=mat) : last
+    GC ? GamutCompression(cs_in="2020",cs_out=mat) : last
 
     ConvertBits(bi,dither=bi==32?-1:1,fulls=true,fulld=!tvo)
     propSet("_Transfer",   8)
@@ -2013,8 +2019,8 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
 
     LMSm  = XYZ_to_LMS(c, LMS, true)
 
-    wpsn  = MatrixDot([wps[0]/wps[1],1.,wps[2]/wps[1]], LMSm)
-    wptn  = MatrixDot([wpt[0]/wpt[1],1.,wpt[2]/wpt[1]], LMSm)
+    wpsn  = MatrixDot([wps[0]/wps[1],1.,wps[2]/wps[1]], LMSm) # Source cone
+    wptn  = MatrixDot([wpt[0]/wpt[1],1.,wpt[2]/wpt[1]], LMSm) # Target cone
     vk    = Broadcast(same ? [1,1,1] : ArrayOp(wptn,wpsn,"/"), "vonKries")
 
     CAM   = !same ? MatrixDot(MatrixInvert(LMSm), MatrixDot(vk, LMSm)) : vk
@@ -2051,7 +2057,8 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
 
 
 
-#  GamutCompress v0.7 by Jed Smith (2021)
+#  GamutCompression()
+#  A modification of GamutCompress v0.7 by Jed Smith (2021)
 #  Gamut Compress is a tool to compress out of gamut colors back into gamut.
 #
 #     Out of gamut colors can ocurr with modern digital cinema cameras.
@@ -2078,7 +2085,10 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
 #  Ideally to minimize HUE skews for the whole path you should compress out-of-gamut values...
 #  under a perceptual model like OkLab/IPT/JzAzBz/IgPgTg/ICtCp etc  -> https://community.acescentral.com/t/output-transform-tone-scale/3498/158
 #
-#  Others GamutCompress methods that are not implemented: https://github.com/jedypod/gamut-compress/commit/5bf5db9380eaaf03ca8fa79a9b4e50d978092d61
+#  If the nature of the out-of-gamut is not color space conversion related (ie. saturation adjustments) then you
+#  can set CMYDist to equal values, for example [0.1,0.1,0.1] while the thresholds will auto-adjust to 0.125 for the three channels.
+#
+#  Others GamutCompress compression curves that are not implemented: https://github.com/jedypod/gamut-compress/commit/5bf5db9380eaaf03ca8fa79a9b4e50d978092d61
 #    pow      https://www.desmos.com/calculator/nvhp63hmtj (includes also parabolic; 'l' for Distance Limit, 't' for threshold)
 #    log      https://www.desmos.com/calculator/hmzirlw7tj
 #    reinhard https://www.desmos.com/calculator/lkhdtjbodx
@@ -2160,16 +2170,16 @@ function GamutCompression (clip RGB, clip "G", clip "B", float_array "CMYthres",
         ach  = Broadcast([mat[0],mat[4],mat[8]],"Right",true)
         Dist = ArrayOp(ach, mat,"-")
         DRat = ArrayOp(Dist,ach,"/")
-        CDis = cs_in!=cs_out ? max(DRat[0],DRat[1],DRat[2])-1 : 0.08 # for greens
-        MDis = cs_in!=cs_out ? max(DRat[3],DRat[4],DRat[5])-1 : 0.52 # for blues and reds
-        YDis = cs_in!=cs_out ? max(DRat[6],DRat[7],DRat[8])-1 : 0.07 # for yellows
+        CDis = cs_in!=cs_out ? max(DRat[0],DRat[1],DRat[2])-1 : 0.1 # for greens
+        MDis = cs_in!=cs_out ? max(DRat[3],DRat[4],DRat[5])-1 : 0.1 # for blues and reds
+        YDis = cs_in!=cs_out ? max(DRat[6],DRat[7],DRat[8])-1 : 0.1 # for yellows
         return [CDis,MDis,YDis]
     }
 
     CDis =                                       CSDist( cs_in[0], cs_out[0],  il_in[1], il_out[1])
     CDis = CDis[0]+CDis[1]+CDis[2] >= 0 ? CDis : CSDist(cs_out[0],  cs_in[0], il_out[1],  il_in[1])
-    CDis = ArrayOp(CDis,0,"max(x,y)")                               # Ensure only compression or only expansion
     cdi  = Default (CMYdist,    CDis)                               # 0.0 to 0.4. Thresholds for Cyan,Magenta,Yellow. Maximum distance beyond the green-blue,blue-red,red-green gamut boundary to compress to the gamut boundary
+    cdi  = ArrayOp(cdi,0,"max(x,y)")                                # Ensure only compression or only expansion
     CThr = ArrayOp(cdi,0,"x==0?0:0.085*log(x+0.0036)/log(10)+0.208")# non linear remap from  0-0.8 to 0-0.2
     cth  = Default (CMYthres,[CThr[0],CThr[1],CThr[2]])             # 0.0 to 0.3. Thresholds for Cyan,Magenta,Yellow. A value of 0.2 means 20% of the outer gamut will be utilized for gamut compression
 
@@ -2196,21 +2206,26 @@ function GamutCompression (clip RGB, clip "G", clip "B", float_array "CMYthres",
     # Norm MaxRGB (Achromatic axis)
     ac = "y z max x max A@ "
 
+    # Contribution of Negative values
+    nx = "y z min x min dup 0 < swap abs dup 5 > swap dup 1.756 ^ 0.296 * ? x + x ?"
+    ny = "y z min x min dup 0 < swap abs dup 5 > swap dup 1.756 ^ 0.296 * ? y + y ?"
+    nz = "y z min x min dup 0 < swap abs dup 5 > swap dup 1.756 ^ 0.296 * ? z + z ?"
+
     # Inverse RGB Ratios: distance from achromatic axis
-    dx = "swap 0 == 0 A x - A abs / ? D@ "
-    dy = "swap 0 == 0 A y - A abs / ? D@ "
-    dz = "swap 0 == 0 A z - A abs / ? D@ "
+    dx = "swap 0 == 0 A "+nx+" - A abs / ? D@ "
+    dy = "swap 0 == 0 A "+ny+" - A abs / ? D@ "
+    dz = "swap 0 == 0 A "+nz+" - A abs / ? D@ "
 
     # Compressed distance
     # Parabolic compression function: https://www.desmos.com/calculator/nvhp63hmtj
     if (!in) {
-        cdx  = dx+Format("dup {thr} < swap D {thr} - {sx2} + sqrt {sx} * {thr} {sx3} - + ?")
-        cdy  = dy+Format("dup {thg} < swap D {thg} - {sy2} + sqrt {sy} * {thg} {sy3} - + ?")
-        cdz  = dz+Format("dup {thb} < swap D {thb} - {sz2} + sqrt {sz} * {thb} {sz3} - + ?")
+        cdx  = dx+Format("dup {thr} < swap D {thr} - {sx2} + sqrt {sx} *     {thr} {sx3} - + ?")
+        cdy  = dy+Format("dup {thg} < swap D {thg} - {sy2} + sqrt {sy} *     {thg} {sy3} - + ?")
+        cdz  = dz+Format("dup {thb} < swap D {thb} - {sz2} + sqrt {sz} *     {thb} {sz3} - + ?")
     } else {
-        cdx  = dx+Format("dup {thr} < swap D {thr} - {sx3} + 2 ^ {sx} 2 ^ / {thr} {sx2} - + ?")
-        cdy  = dy+Format("dup {thg} < swap D {thg} - {sy3} + 2 ^ {sy} 2 ^ / {thg} {sy2} - + ?")
-        cdz  = dz+Format("dup {thb} < swap D {thb} - {sz3} + 2 ^ {sz} 2 ^ / {thb} {sz2} - + ?")
+        cdx  = dx+Format("dup {thr} < swap D {thr} - {sx3} + 2 ^  {sx} 2 ^ / {thr} {sx2} - + ?")
+        cdy  = dy+Format("dup {thg} < swap D {thg} - {sy3} + 2 ^  {sy} 2 ^ / {thg} {sy2} - + ?")
+        cdz  = dz+Format("dup {thb} < swap D {thb} - {sz3} + 2 ^  {sz} 2 ^ / {thb} {sz2} - + ?")
     }
 
     # Inverse RGB Ratios to RGB

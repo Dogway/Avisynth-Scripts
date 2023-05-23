@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.9    (19-05-2023)   ##
+###   Transforms Pack - Transfers v1.9.1  (23-05-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -343,8 +343,8 @@ function EOTF_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "bright
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
-    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m2)
-    wl      = Default (WhiteLevel, 100) # White level in nits (cd/m2)
+    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m²)
+    wl      = Default (WhiteLevel, 100) # White level in nits (cd/m²)
     l       = Default (brightness,  50) # CRT's 'brightness' control (aka 'lift') -0 to 100-
     g       = Default (contrast,    50) # CRT's 'contrast'   control (aka 'gain') -0 to 100-
     tv_in   = Default (tv_in,      !fs)
@@ -379,8 +379,8 @@ function EOTFi_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "brigh
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
-    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m2)
-    wl      = Default (WhiteLevel, 100) # White level in nits (cd/m2)
+    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m²)
+    wl      = Default (WhiteLevel, 100) # White level in nits (cd/m²)
     l       = Default (brightness,  50) # CRT's 'brightness' control (aka 'lift') -0 to 100-
     g       = Default (contrast,    50) # CRT's 'contrast'   control (aka 'gain') -0 to 100-
     tv_in   = Default (tv_in,    !fs)
@@ -420,7 +420,7 @@ function EOTF_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_in", bo
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
     gm      = Default (gamma,      461/256.)      # Set to ~1.800781255, an hexadecimal rounded value of the ideal 1.8 power gamma
-    bl      = Default (BlackLevel,   0.3473)/100. # Black level in nits (cd/m2)
+    bl      = Default (BlackLevel,   0.3473)/100. # Black level in nits (cd/m²)
     tv_in   = Default (tv_in,    !fs)
     tv_out  = Default (tv_out, tv_in)
 
@@ -441,7 +441,7 @@ function EOTFi_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_in", b
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
     gm      = 1./Default (gamma,      461/256.)
-    bl      =    Default (BlackLevel,   0.3473)/100. # Black level in nits (cd/m2)
+    bl      =    Default (BlackLevel,   0.3473)/100. # Black level in nits (cd/m²)
     tv_in   =    Default (tv_in,    !fs)
     tv_out  =    Default (tv_out, tv_in)
 
@@ -579,7 +579,7 @@ function EOTF_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool 
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : true
     RW      = Default (RefWhite,      203) # 100 for SMPTE ST 2084, 203 for ITU BT.2100/BT.2408
-    PL      = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m2- (1000 to 10000)
+    PL      = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m²- (1000 to 10000)
     tv_in   = Default (tv_in,         !fs)
     tv_out  = Default (tv_out,      tv_in)
     PL      = PL / float(RW) # (Mastering Level) / (Reference White) -> 10000 is imaginary Display assumed peak white (simulation of typical outdoors luminance)
@@ -614,7 +614,7 @@ function EOTFi_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : true
     RW      = Default (RefWhite,      203) # 100 for SMPTE ST 2084, 203 for ITU BT.2100/BT.2408
-    PL      = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m2- (1000 to 10000)
+    PL      = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m²- (1000 to 10000)
     tv_in   = Default (tv_in,         !fs)
     tv_out  = Default (tv_out,      tv_in)
     PL      = float(RW) / PL  # (Reference White) / (Mastering Level) -> 10000 is imaginary Display assumed peak white (simulation of typical outdoors luminance)
@@ -636,6 +636,7 @@ function EOTFi_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool
 
 
 # WIP: HLG BT.2100 (Reference White at 0.75)
+# HLG reference display = 1000 nits
 function EOTF_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
     c
     bi      = BitsPerComponent()
@@ -765,7 +766,7 @@ function EOTFi_PQtoHLG (clip c, int "RefWhite", int "MasterLevel", float "GrayLV
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : true
     RW      = Default (RefWhite,       203) # 100 for SMPTE ST 2084, 203 for ITU BT.2100/BT.2408
-    PL      = Default (MasterLevel,  10000) # Max Mastering Level in Nits -cd/m2- (1000 to 10000)
+    PL      = Default (MasterLevel,  10000) # Max Mastering Level in Nits -cd/m²- (1000 to 10000)
     glvl    = Default (GrayLVL, 0.17883277)
     tv_in   = Default (tv_in,          !fs)
     tv_out  = Default (tv_out,       tv_in)
@@ -816,15 +817,16 @@ function EOTFi_PQtoHLG (clip c, int "RefWhite", int "MasterLevel", float "GrayLV
 ### LMT_DCP()
 ###
 ### DCP Tone Curve - Adobe Lightroom Camera Raw's default fallback film curve when none is embedded.
+### Use over (Scene Referred) Linear space.
 ###
 ####################################
 
 function LMT_DCP  (clip c, bool "tv_range", int "UV", bool "show") {
-    ex_contrast(c, 0.786,pivot=83, tv_range, UV, show)
+    ex_contrast(c, 0.786, pivot=83, tv_range=tv_range, UV=UV, show=show)
     }
 
 function LMTi_DCP (clip c, bool "tv_range", int "UV", bool "show") {
-    ex_contrast(c,-0.786,pivot=83, tv_range, UV, show)
+    ex_contrast(c,-0.786, pivot=83, tv_range=tv_range, UV=UV, show=show)
     }
 
 
@@ -906,10 +908,10 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
     fs = propNumElements("_ColorRange")  > 0 ? \
          propGetInt     ("_ColorRange") == 0 : isRGB()
 
-    Lw = Default(Lw,        100.0) # Display peak white  given in nits, lux or cd/m2 (they are all same)
-    Lb = Default(Lb,          0.3) # Display black level given in nits, lux or cd/m2
+    Lw = Default(Lw,        100.0) # Display peak white  given in nits, lux or cd/m² (they are all same)
+    Lb = Default(Lb,          0.3) # Display black level given in nits, lux or cd/m²
     k  = Default(k,             1) # Panel reflectivity given in %
-    s  = Default(Surround,     50) # Surround viewing conditions given in nits, lux or cd/m2 (50 for dim, 400 for bright office, 32000 sunny outdoors)
+    s  = Default(Surround,     50) # Surround viewing conditions given in nits, lux or cd/m² (50 for dim, 400 for bright office, 32000 sunny outdoors)
     tr = Default(transfer, "sRGB") # Simulated EOTF
     tro= Default(EOTF,     "1886") # Viewing display EOTF
 
@@ -966,7 +968,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
     EOTF      = Defined (EOTF ) ? isString(EOTF ) ? color_Fuzzy_Search(EOTF ) : EOTF  : ["","",""]
     sh        = Default (show, false)
 
-    # '1886a' is with BlackLevel/Brightness set to 0, for the recommended 0.1 cd/m2 it's a practical match to regular '1886'
+    # '1886a' is with BlackLevel/Brightness set to 0, for the recommended 0.1 cd/m² it's a practical match to regular '1886'
     s_gam     = isFloat (OETF) ? [OETF,0] : OETF[2]=="1886a" ? [2.6133333,0] : OETF[2]=="Chrome" ? [2.4,0] : OETF[2]=="AppleRGB" ? [1.783333,0] : moncurve_coef(OETF[2])
     d_gam     = isFloat (EOTF) ? [EOTF,0] : EOTF[2]=="1886a" ? [2.6133333,0] : EOTF[2]=="Chrome" ? [2.4,0] : EOTF[2]=="AppleRGB" ? [1.783333,0] : moncurve_coef(EOTF[2])
 
@@ -1109,7 +1111,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 # Input must be HDR PC range (or set 'tv_in') linear RGB, output is SDR gamma encoded RGB ('EOTFi' gamma encoded)
 # WIP: Achromatic highlights algorithm hasn't been implemented
 # * Keep in mind that peak luminance in nits (or cd/m^2) relates to float pixel values 100:1. ie. pixel value of 1.0 is 100 nits, 10.0 is 1000 nits and so on.
-function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", float "k1", float "k3", bool "GC", bool "tv_in", bool "tv_out", bool "show") {
+function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", float "k1", float "k3", bool "tv_in", bool "tv_out", bool "show") {
     c
     isy    = isy()
     bi     = BitsPerComponent()
@@ -1122,7 +1124,6 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
     tv_in  = Default (tv_in,      !fs)
     tv_out = Default (tv_out,   tv_in)
     sh     = Default (show,     false)
-    GC     = Default (GC,       false) # Gamut Compression
     k1     = Default (k1,           1) # SDR white level to HDR reference white (diffuse white) ratio. Details on BT.2408 Annex 4
     k3     = Default (k3,        0.52) # How much bright detail you want to keep in
 
@@ -1164,16 +1165,6 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
     EOTF!="linear" ? CCTF(EOTF, false, false, tv_out)     : \
     tv_in!=tv_out  ? EOTF=="linear" && tv_out ? SMPTE_legal(true) : propSet("_ColorRange", tv_out?1:0) : last
 
-    if (GC) {
-
-        # 'Desaturate' Gamut Compression (by John Walker: https://www.fourmilab.ch/documents/specrend)
-        RGB = ExtractClip()
-        OF  = "x 0 min y min z min neg dup dup x +"
-        Expr(RGB[0], RGB[1], RGB[2], OF+" X@ swap2 y +    swap z +    max max dup 1 > X swap swap2 / X ?", \
-                                     OF+"    swap2 y + Y@ swap z +    max max dup 1 > Y swap swap2 / Y ?", \
-                                     OF+"    swap2 y    + swap z + Z@ max max dup 1 > Z swap swap2 / Z ?", Format="RGBPS", optSingleMode=true, clamp_float=false)
-    }
-
     if (sh) {
         w   = c.width()
         h   = c.height()
@@ -1200,12 +1191,12 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
 #     string "mode"="Default" ("Default"/ "Dark"/ "Bright"),
 #     bool "filmic"=false,
 #     float "LinWh"=11.2 (1.0 to 12.0),
-#     float "A"=0.0 (0.00 to 1.00),
-#     float "B"=0.0 (0.00 to 1.00),
-#     float "C"=0.0 (0.00 to 1.00),
-#     float "D"=0.0 (0.00 to 1.00),
-#     float "E"=0.0 (0.00 to 1.00),
-#     float "F"=0.0 (0.00 to 1.00),
+#     float "A"=0.150 (0.00 to 1.00),
+#     float "B"=0.500 (0.00 to 1.00),
+#     float "C"=0.100 (0.00 to 1.00),
+#     float "D"=0.200 (0.00 to 1.00),
+#     float "E"=0.020 (0.00 to 1.00),
+#     float "F"=0.300 (0.00 to 1.00),
 #     bool "show"=false
 #     )
 #
@@ -1213,7 +1204,7 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
     x
     isy    = isy()
     bi     = BitsPerComponent()
-    md     = Default (mode,   "Dark")  # 'Default', 'Dark' or 'Bright' preset
+    md     = Default (mode, "Default") # 'Default', 'Dark' or 'Bright' preset
     fm     = Default (filmic, false )  # 'Filmic' or 'Flat' tonemapping. Don't use Filmic for Display Referred linear (only for Scene Referred)
     sh     = Default (show,   false )
     df     = md=="Default"     dk = md=="Dark"
