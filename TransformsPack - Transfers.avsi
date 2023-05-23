@@ -321,9 +321,9 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 ### /*The EOTF specified for 1886 is considered to be a satisfactory, but not exact, match to the
 ###   characteristic of an actual CRT. When it is desired to match a CRT, the Lw and Lb parameters of the
 ###   EOTF can be set to the corresponding values of the CRT that are being matched. For moderate
-###   black level settings, e.g. 0.1 cd/m 2 , setting the Lb of the EOTF to 0.1 will give a satisfactory match
-###   to the CRT. In the event the CRT is operated at a lower black level, e.g. 0.01 cd/m 2 , the EOTF will
-###   provide a better match with Lb set to a lower value such as 0.0 cd/m 2 . When it is necessary to more
+###   black level settings, e.g. 0.1 cd/m² , setting the Lb of the EOTF to 0.1 will give a satisfactory match
+###   to the CRT. In the event the CRT is operated at a lower black level, e.g. 0.01 cd/m² , the EOTF will
+###   provide a better match with Lb set to a lower value such as 0.0 cd/m² . When it is necessary to more
 ###   precisely match a flat panel display characteristic to a CRT, the alternative 1886a EOTF formulation
 ###   may provide a solution. */
 ###
@@ -1110,7 +1110,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 # BT.2446 "Method C" tonemapper. Typically used for broadcast streams in HLG, although PQ is also allowed.
 # Input must be HDR PC range (or set 'tv_in') linear RGB, output is SDR gamma encoded RGB ('EOTFi' gamma encoded)
 # WIP: Achromatic highlights algorithm hasn't been implemented
-# * Keep in mind that peak luminance in nits (or cd/m^2) relates to float pixel values 100:1. ie. pixel value of 1.0 is 100 nits, 10.0 is 1000 nits and so on.
+# * Keep in mind that peak luminance in nits (or cd/m²) relates to float pixel values 100:1. ie. pixel value of 1.0 is 100 nits, 10.0 is 1000 nits and so on.
 function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", float "k1", float "k3", bool "tv_in", bool "tv_out", bool "show") {
     c
     isy    = isy()
