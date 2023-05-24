@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.9.1  (23-05-2023)   ##
+###   Transforms Pack - Transfers v1.9.2  (24-05-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1227,7 +1227,10 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
     DF  = D*F
     Div = 1./(((LinWh*(A*LinWh+CB)+DE) / (LinWh*(A*LinWh+B)+DF)) - E/F)
 
-    ex_lut(Format("x {A} * A@ {CB} + x * {DE} + A {B} + x * {DF} + / {E} {F} / - {Div} *"),UV=3)
+    str = dk ? Format(" x             {A} * A@ {CB} + x * {DE} +      A {B} + x *") : \
+               Format(" x 2 * dup dup {A} * A@ {CB} +   * {DE} + swap A {B} +   *")
+
+    ex_lut(str+Format(" {DF} + / {E} {F} / - {Div} *"),UV=3)
 
     if (sh) {
         w   = x.width()
