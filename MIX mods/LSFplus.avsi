@@ -212,6 +212,7 @@
 ###        - changed some code (cosmetic)
 ###        - added "defaults" parameter (to switch between original and modded version)
 ###        - added documentation
+###        - LSFmod: An update/mod of LimitedSharpen (20-06-2005) and LimitedSharpenFaster (29-10-2005) by Didée
 ###
 ###
 ###
@@ -222,8 +223,8 @@
 ### -> MaskTools2     (v2.2.30 or up)
 ### -> RgTools        (v1.2    or up)
 ### -> ExTools        (v10.2   or up)
-### -> ResizersPack   (v11.8   or up)
-### -> SMDegrain      (v4.3.0  or up)  [for preblur="ON"]
+### -> ResizersPack   (v11.9   or up)
+### -> SMDegrain      (v4.4.0  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v5.1    or up)  [for Smode=1, Smode=2 and Smode=3]
 ### -> CAS                             [for Smode=6]
