@@ -1,18 +1,19 @@
-#-------------------------------------------------------------------#
-#                                                                   #
-#     QTGMC 3.33       by Vit,   2012                               #
-#     QTGMC 3.34d  mod by Dogway 2015                               #
-#     QTGMC 3.382s mod by A.SONY 2021, based on 3.34d               #
-#     QTGMC 4.2  + mod by Dogway 2023, based on 3.382s              #
-#                                                                   #
-#     https://forum.doom9.org/showthread.php?t=156028               #
-#     https://avisynth.nl/index.php/QTGMC                           #
-#                                                                   #
-#   A high quality deinterlacer using motion-compensated temporal   #
-#  smoothing, with a range of features for quality and convenience  #
-#          Originally based on TempGaussMC_beta2 by Didée           #
-#                                                                   #
-#-------------------------------------------------------------------#
+#---------------------------------------------------------------------#
+#                                                                     #
+#   QTGMC 3.33       by Vit,   2012                                   #
+#   QTGMC 3.34d  mod by Dogway 2015                                   #
+#   QTGMC 3.382s mod by A.SONY 2021, based on 3.34d                   #
+#   QTGMC 4.2  + mod by Dogway 2023, based on 3.382s                  #
+#                                                                     #
+#   https://forum.doom9.org/showthread.php?t=156028                   #
+#   https://avisynth.nl/index.php/QTGMC                               #
+#                                                                     #
+#   Quasi Temporal Gauss Motion Compensation Plus:                    #
+#     Originally based on TempGaussMC_beta2 by Didée                  #
+#     A high quality deinterlacer using motion-compensated temporal   #
+#     smoothing, with a range of features for quality and convenience #
+#                                                                     #
+#---------------------------------------------------------------------#
 #
 # Acknowledgements by Vit:
 #   "Thanks go to Didée for the script from where this began.
@@ -44,8 +45,8 @@
 #
 # Core scripts:
 #   ExTools      (10.2   or above)
-#   ResizersPack (11.6   or above) (for nnedi3wrap() or EEDI3wrap() )
-#   SMDegrain    (4.3.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
+#   ResizersPack (11.9   or above) (for nnedi3wrap() or EEDI3wrap() )
+#   SMDegrain    (4.4.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
 #
 # Optional:
 #   TDeInt, NNEDI, NNEDI2, EEDI3/EEDI3CL, EEDI2/EEDI2CUDA (requires recent drivers) - if selected directly via EdiMode or a source-match preset
@@ -1685,5 +1686,8 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 # - Added Presets system and beginnings of Tunings
 #
 # v1.00 (05-08-2010)
-# - First draft - high speed basic TGMC algorithm only (based on original TempGaussMC_beta2 by Didée and Terranigma's MVTools2 update)
+# - First draft - high speed basic TGMC algorithm only (based on TempGaussMC_beta2 (27-02-2010 https://forum.doom9.org/showthread.php?p=1378526) by Didée and Terranigma's MVTools2 update)
+#
+# v0.00 (16-05-2008)
+# - Original TempGaussMC by Didée (https://forum.doom9.org/showthread.php?p=1138514)
 #
