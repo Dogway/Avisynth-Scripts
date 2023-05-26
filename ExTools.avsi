@@ -6313,7 +6313,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
 ##   ex_lutxyz(a, ex_inpand(n).ex_expand(n), ex_expand(n).ex_inpand(n), "x y -  z x -  -  x +") # faster
 ##   ex_lutxyz(a, ex_inpand(n).ex_expand(n), ex_expand(n).ex_inpand(n), "x 3 * y z + -")        # prolly faster
 ##
-## Limiting: ( max(min(a, expand), inpand) )  Limits the source to be within expand+inpand limits. Good for under/overshoots/ringing.
+## Limiting: ( max(min(a, expand), inpand) )  Limits the source to be within expand+inpand limits. Good for under/overshoots/ringing. 'a' is source, 'last' is modified version.
 ##   ex_logic(a,    a.ex_expand(n),"min")
 ##   ex_logic(last, a.ex_inpand(n),"max")
 ##   or
