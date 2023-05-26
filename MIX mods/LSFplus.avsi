@@ -223,7 +223,7 @@
 ### -> MaskTools2     (v2.2.30 or up)
 ### -> RgTools        (v1.2    or up)
 ### -> ExTools        (v10.2   or up)
-### -> ResizersPack   (v11.9   or up)
+### -> ResizersPack   (v12.0   or up)
 ### -> SMDegrain      (v4.4.0  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v5.1    or up)  [for Smode=1, Smode=2 and Smode=3]

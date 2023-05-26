@@ -45,7 +45,7 @@
 #
 # Core scripts:
 #   ExTools      (10.2   or above)
-#   ResizersPack (11.9   or above) (for nnedi3wrap() or EEDI3wrap() )
+#   ResizersPack (12.0   or above) (for nnedi3wrap() or EEDI3wrap() )
 #   SMDegrain    (4.4.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
 #
 # Optional:
