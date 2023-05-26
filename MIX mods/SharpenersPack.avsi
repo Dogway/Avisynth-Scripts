@@ -954,6 +954,7 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
 ###
 ###  https://forum.doom9.org/showthread.php?p=760935
 ###
+###    0.0  (02 Oct 2005) by Didée
 ###    0.3f (13 Dec 2006) by foxyshadis (port to masktools2)
 ###    0.3g (15 Dec 2015) by StainlessS (Force int call arguments to user script function float params to be explicit floats)
 ###    0.3h (31 Jan 2020) by real.finder (Update to avs+ and HBD)
