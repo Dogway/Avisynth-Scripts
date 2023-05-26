@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 11.9 (08-05-2023)     ##
+###   Resizers Functions Pack 12.0 (26-05-2023)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -35,7 +35,7 @@
 
 ##############################
 ###
-### deep_resize() - by Dogway (18-04-2023)
+### deep_resize() - by Dogway (26-05-2023)
 ###
 ### Convenient and high performance function to resize natural images (not cartoons) in high quality (different kernels for edge/flat areas).
 ### Defaults work pretty nice out-of-the-box so you don't need to spend time tweaking settings.
@@ -185,33 +185,33 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     factor =     mrat < 2.5 ? 2 : mrat < 6.0 ? 4 : 8
     rat    = abs(mrat-1)+1
 
-    rth    = Default(th_rat, 1.25)                                                            # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
-    krn1   = Default(edge, rat<=rth*0.95 ?                       "Didee" :                 /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR... or for downscaling: DPID, SSIM2, Zopti */
-           \                rw<1 && rh<1 ? isUHD ? "Zopti1080" : "SSIM2" :                 /* # By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value) */
-           \               rat<=rth      ?         "Blackman"  : "nnedi3")                 /* # By default, for big   upscales   -> "nnedi3"
-                                                                                              # By default, for small downscales -> "Didée"
-                                                                                              # By default, for big   downscales -> "Zopti1080"
-                                                                                              # By default, for mid   downscales -> "SSIM2" (DPID also fine for down to 720p) (Beware!! for UHD to HD against all logic I recommend going with Zopti1080 (b=-0.99,c=0.06) )  */
-    krn1c  = Default(chroma,rw<1 && rh<1 ? "Zopti"    : "Lanczos")                            # Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
-    krn2   = Default(flat,  rw<1 && rh<1 ? krn1       : isHD && isUHD2 ? "Sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' low taps -ie. 4- is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
-    etp    = Default(e_taps,   krn1 =="Blackman" ?  6 : krn1 =="Lanczos" ? 4 : 0)             # taps for edge   kernel (0 for undefined)
-    ftp    = Default(f_taps,   krn2 =="Blackman" ? 16 : krn2 =="Lanczos" ? 8 : 0)             # taps for flat   kernel (0 for undefined)
-    ctp    = Default(c_taps,   krn1c=="Blackman" ?  5 : krn1c=="Lanczos" ? 3 : 0)             # taps for chroma kernel (0 for undefined)
-    mul    = Default(sharpness,krn1 =="nnedi3"   ?  1 : 0)                                    # Add sharpness (only to nnedi3 based upscaling)
-    thr    = Default(th,           1.0)                                                       # 0-255 (normally up to 10)
-    ela    = Default(elast,        4.0)                                                       # 1-255 (normally up to 10)
-    qual   = Default(qual,           1)                                                       # nnedi3 qual argument
-    ssp    = Default(sspace,   "Gamma")                                                       # Scale space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog
+    rth    = Default(th_rat, 1.25)                                                                      # threshold for mix mode. Lower than this (target_size/source_size) will use only 'kernel1' kernel
+    krn1   = Default(edge, rw<1 && rh<1 ? rat<=rth*0.95 ? "Didee"    :                               /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR...or for downscaling: DPID, SSIM2, Zopti */
+           \                              isUHD         ? "Zopti1080": "SSIM2"                       /* # By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value) */
+           \                            : rat<=rth      ? "Blackman" : "nnedi3" )                    /* # By default, for big   upscales   -> "nnedi3"
+                                                                                                        # By default, for small downscales -> "Didée"
+                                                                                                        # By default, for big   downscales -> "Zopti1080"
+                                                                                                        # By default, for mid   downscales -> "SSIM2" (DPID also fine for down to 720p) (Beware!! for UHD to HD against all logic I recommend going with Zopti1080 (b=-0.99,c=0.06) )  */
+    krn1c  = Default(chroma,rat<=rth &&      krn1!="nnedi3"   ? krn1 : rw<1&&rh<1 ? "Zopti" : "Lanczos")# Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
+    krn2   = Default(flat,  rat<=rth &&      krn1!="nnedi3"   ? krn1 : rw<1&&rh<1 ? krn1 : isHD&&isUHD2 ? "Sinc" : "Lanczos" ) # Resize kernel for the flat area (noop when downscaling). Ringing kernels are ok here (specially when up ratio is <1.7) like SincLin, Blackman, Lanczos, Sinc... ('Sinc' low taps -ie. 4- is worth testing, creates some faints halos specially for SD to HD so see whether it's faint enough for you)
+    etp    = Default(e_taps,                 krn1=="Blackman" ?    6 : krn1 =="Lanczos" ? 4 : 0)        # taps for edge   kernel (0 for undefined)
+    ftp    = Default(f_taps,rat<=rth ? etp : krn2=="Blackman" ?   16 : krn2 =="Lanczos" ? 8 : 0)        # taps for flat   kernel (0 for undefined)
+    ctp    = Default(c_taps,   krn1c=="Blackman" ?  5 : krn1c=="Lanczos" ? 3 : 0)                       # taps for chroma kernel (0 for undefined)
+    mul    = Default(sharpness,krn1 =="nnedi3"   ?  1 : 0)                                              # Add sharpness (only to nnedi3 based upscaling)
+    thr    = Default(th,           1.0)                                                                 # 0-255 (normally up to 10)
+    ela    = Default(elast,        4.0)                                                                 # 1-255 (normally up to 10)
+    qual   = Default(qual,           1)                                                                 # nnedi3 'qual' argument
+    ssp    = Default(sspace,   "Gamma")                                                                 # Scale space: "gamma", "linear" (best for down), "sigmoid" (best for up) or "log" for quasilog
     nr     = Default(noring,     false)
     sh     = Default(show,       false)
     HBD    = Default(HBD, ssp!="Gamma" && krn1!="nnedi3")
-    threads= Default(threads,        8)                                                       # Only for gpuid=-1 ("cpu" nnedi3)
-    cores  = Default(cores,nmod(threads/2,2,4))                                               # Only for gpuid=-1 ("cpu" nnedi3)
+    threads= Default(threads,        8)                                                                 # Only for gpuid=-1 ("cpu" nnedi3)
+    cores  = Default(cores,nmod(threads/2,2,4))                                                         # Only for gpuid=-1 ("cpu" nnedi3)
     ddec   = Defined(deconv)
-    dec    = Default(deconv,     0)                                                           # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
-    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.3 : 0 )                               # Grain strength. >0 Add grain to big upscales as a mean of cheap detail hallucination
+    dec    = Default(deconv,     0)                                                                     # 0~10 (0 is disabled, raise to apply deconvolution when upscaling a very sharpened downscale -anything sharper than Catmull-Rom-)
+    gr     = Default(grain, rw>1 && rh>1 && rat>rth ? 0.3 : 0 )                                         # Grain strength. >0 Add grain to big upscales as a mean of cheap detail hallucination
     decs   = FindStr(LCase(krn2),"sinc")>0 && StrLen(krn2) < 7 ? dec+2 : dec
-    dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                       # higher deconvolution the higher the upscale
+    dec    = ddec && dec == 0 ? 0 : abs(0.00135*decs*(w*0.5*rat)-0.095)                                 # higher deconvolution the higher the upscale
     dec    = dec == 0.095 ? 0 : dec
     und    = Undefined()
     # gpuid=[0,-2,-1] means gpu for 'edge', auto for 'flat' and cpu for 'chroma'. If using int as gpuid=0, only 'edge' will run on gpu or the indicated value, the rest as auto (-2)
