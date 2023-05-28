@@ -3,7 +3,7 @@
 #   QTGMC 3.33       by Vit,   2012                                   #
 #   QTGMC 3.34d  mod by Dogway 2015                                   #
 #   QTGMC 3.382s mod by A.SONY 2021, based on 3.34d                   #
-#   QTGMC 4.2  + mod by Dogway 2023, based on 3.382s                  #
+#   QTGMC 4.3  + mod by Dogway 2023, based on 3.382s                  #
 #                                                                     #
 #   https://forum.doom9.org/showthread.php?t=156028                   #
 #   https://avisynth.nl/index.php/QTGMC                               #
@@ -96,6 +96,7 @@
 #     int "thSAD1"=640 (100 to 1000),
 #     int "thSAD2"=256 (100 to 1000),
 #     int "SourceMatch"=0 (0 to 3),
+#     bool "moiree"=false,
 #     string "EdiMode"="NNEDI3" ("Bob"/ "Yadif"/ "RepYadif"/ "TDeint"/ "BWDIF"/ "NNEDI"/ "NNEDI2"/ "NNEDI3"/ "EEDI2"/ "EEDI3"/ "EEDI3+NNEDI3"/ "BWDIF+NNEDI3"/ "BWDIF+EEDI3"/ "BOB+NNEDI3"/ "BWDIF+BOB"/ "BWDIF+BOB+NNEDI3"),
 #     string "MatchPreset"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
 #     string "MatchPreset2"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
@@ -123,7 +124,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
                     int "SMode", int "SLMode", int "SLRad", int "SOvs", float "SVThin", int "Sbb", int "SrchClipPP", int "SubPel", int "SubPelInterp", \
                     int "BlockSize", int "Overlap", int "Search", int "SearchParam", int "PelSearch", bool "ChromaMotion", bool "TrueMotion", int "Lambda", \
                     int "LSAD", int "PNew", int "PLevel", bool "GlobalMotion", int "DCT", int "ThSAD1", int "ThSAD2", int "ThSCD1", int "ThSCD2", \
-                    int "SourceMatch", string "MatchPreset", string "MatchEdi", string "MatchPreset2", string "MatchEdi2", int "MatchTR2", \
+                    bool "moiree", int "SourceMatch", string "MatchPreset", string "MatchEdi", string "MatchPreset2", string "MatchEdi2", int "MatchTR2", \
                     float "MatchEnhance", int "Lossless", int "NoiseProcess", float "EZDenoise", float "EZKeepGrain", string "NoisePreset", string "Denoiser", \
                     bool "DenoiseMC", int "NoiseTR", float "Sigma", bool "ChromaNoise", val "ShowNoise", float "GrainRestore", \
                     float "NoiseRestore", string "NoiseDeint", bool "StabilizeNoise", int "InputType", float "ProgSADMask", int "FPSDivisor", \
@@ -152,6 +153,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     # Presets
     n16       = Default( n16,       false)
     n16d      = Default( n16d,      false)
+    moiree    = Default( moiree,    false)
     UseEdiExt = Default( useEdiExt,    0 )
     St        = Default( Str,        5.0 )
     Amp       = Default( Amp,     0.0312 )
@@ -224,6 +226,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     # Tunings only affect blocksize in this version
     bs  = Select( tNum, 16, 16, 32 )
     bs2 = min(bs * 2, 32)
+    DEM = Defined(EdiMode)
 
     # EdiMode                                              BWDIF+BOB+NNEDI3        BWDIF+BOB          BWDIF+NNEDI3      NNEDI3    NNEDI3    BWDIF      BWDIF     BWDIF
     #                                                                 Very                                                        Very      Super      Ultra
@@ -236,6 +239,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     Rep1         = Default( Rep1,         Select( pNum,    0,         0,        0,        0,        0,        0,        0,        0,        0,         0,         0        ) )
     Rep2         = Default( Rep2,         Select( pNum,    4,         4,        4,        4,        4,        4,        4,        4,        3,         3,         0        ) )
     EdiMode      = Default( EdiMode,      Select( pNum,"BWDIF+BOB+NNEDI3","BWDIF+BOB+NNEDI3","BWDIF+BOB","BWDIF+BOB","BWDIF+NNEDI3","BWDIF+NNEDI3","NNEDI3","NNEDI3","BWDIF","BWDIF","BWDIF"))
+    EdiMode      = DEM ? EdiMode : !moiree && pnum < 7 ? "NNEDI3" : EdiMode
     NNSize       = Default( NNSize,       Select( pNum,    1,         1,        1,        1,        5,        5,        4,        4,        4,         4,         4        ) )
     NNeurons     = Default( NNeurons,     Select( pNum,    2,         2,        1,        1,        1,        0,        0,        0,        0,         0,         0        ) )
     EdiQual      = Default( EdiQual,      Select( pNum,    2,         1,        1,        1,        1,        1,        1,        1,        1,         1,         1        ) )
@@ -438,10 +442,10 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     CMrg = ChromaMotion ? 12  : -1
 
     # Bob the input as a starting point for motion search clip
-    bobbed = (InputType == 0) ? UseEdiExt > 0 ? EdiExt : clip.BWDIF(field=fb+1, thr=4, pass=true).vinverse(amnt=1,uv=CMmt) : \
-             (InputType == 1) ? clip                                        : \
+    bobbed = (InputType == 0) ? UseEdiExt > 0 ? EdiExt : clip.BWDIF(field=fb+1, thr=0, pass=true) : \
+             (InputType == 1) ? clip                                                              : \
                                 clip.ex_boxblur( 0, 1, "weighted", UV=CMmt)
-    bobbed = (InputType == 0) && UseEdiExt > 1 ? bobbed.vinverse(  uv=CMmt) : bobbed
+    bobbed = (InputType == 0) && (UseEdiExt > 1 || moiree) ? bobbed.vinverse(amnt=moiree?ex_bs(1,8,bi,fs):Undefined(),UV=CMmt) : bobbed
 
     # If required, get any existing global clips with a matching "GlobalNames" setting. Unmatched values get NOP (= 0)
     srchClip  = QTGMCp_GetUserGlobal( GlobalNames, "srchClip",  ReuseGlobals )
@@ -486,9 +490,9 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
 
     spatialBlur = (SrchClipPP > 1 && IsClip(spatialBlur)) ? (ChromaMotion ? spatialBlur.Merge( repair0, 0.1 ) : spatialBlur.MergeLuma( repair0, 0.1 )) : spatialBlur
 
-    srchClip    =  srchcheck        ? srchClip              : \
-                  (SrchClipPP == 0) ? repair0               : \
-                  (SrchClipPP  < 3) ? spatialBlur           : \
+    srchClip    =  srchcheck        ? srchClip            : \
+                  (SrchClipPP == 0) ? repair0             : \
+                  (SrchClipPP  < 3) ? spatialBlur         : \
                   (SrchClipPP  > 2) ? spatialBlur.ex_lutxyz( repair0, bobbed, "x 7 scalef + z y 3 scalef - y 3 scalef + clip Y@ < x 2 scalef + x 7 scalef - Y > x 2 scalef - Y x - 0.49 * x + ? ?", UV=CMmt, fulls=!tv ) : nop()
     srchClip    = !srchcheck        ? srchClip.ex_Luma_Rebuild(S0=St, c=Amp, tv_in=tv, tv_out=false, uv=CMmt, bits=8) : srchClip.ConvertBits(8,dither=-1)
 
@@ -1236,6 +1240,11 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 
 
 # --- CHANGELOG ---
+#
+# v4.3p (28-05-2023)
+# - Add 'moiree' argument
+# - Revert new default EdiModes and treat them as 'moiree' special modes
+# - Tweak default base BWDIF bob
 #
 # v4.2p (22-03-2023)
 # - Pass 'EdiQual' to "BOB+NNEDI3" EdiMode
