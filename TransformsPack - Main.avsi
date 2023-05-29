@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.9.1       (23-05-2023)   ##
+###   Transforms Pack - Main v1.9.2       (24-05-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -2216,12 +2216,12 @@ function color_coef (string "prims", string "mat", string "illu") {
                      0.300,  0.600,   \
                      0.150,  0.060]   # Fallback to 709 + D65 when no match
 
-####################################################
-###                                               ##
-### 'D65' family color spaces (6503.512K)         ##
-    wp = mat_wp==1 ? [0.31266142,0.3289589]  : wp ## From SPD converts to 6507.48K with 'mccamy', 6506.12K 'robertson' and 6506.62K with 'ohno' methods
-###                                               ##
-####################################################
+#####################################################
+###                                                ##
+### 'D65' family color spaces (6503.512K) Overcast ##
+    wp = mat_wp==1 ? [0.31266142,0.3289589]  : wp  ## From SPD converts to 6507.48K with 'mccamy', 6506.12K 'robertson' and 6506.62K with 'ohno' methods
+###                                                ##
+#####################################################
 
     # sRGB (IEC 61966-2-1) and ITU-R BT.709-6 (originally CCIR Rec.709)
     cs = mat_i==1 ? [0.640,  0.330, \
@@ -2317,9 +2317,9 @@ function color_coef (string "prims", string "mat", string "illu") {
 # * BT.2035 defines 'D93' as 0.28315, 0.29711 (actually 0.283064,0.297018), but this is a simple straight Daylight CCT derivation of 9300K not the illuminant used in standard consumer CRTs in Japan, which actually was 9300K+27 MPCD** (x=0.281 y=0.311)
 # * In contrast, Master CRT for studio monitors used 9300K+8 MPCD** (x=0.2838 y=0.2984) (9177.98K)
 # * A third set of primaries for Japanese NTSC (1987) simply uses 170M prims but with [0.2848, 0.2932] illuminant chromatic coordinates, which is also another (worse?) CCT derivation of 9300K.
-# * In [10] Mark Fairchild measured a 9300K Sony Trinitron CRT with coordinates x=0.2838, y=0.3290 (8229.87K)
+# * In [10] Mark Fairchild measured a 9300K Sony Trinitron CRT with illuminant coordinates x=0.2838, y=0.3290 (8229.87K)
 
-    # NTSC-J/P22 (loosely based on JEDEC-P22/EBU Tech-E)
+    # NTSC-J/P22 (loosely based on JEDEC-P22/EBU Tech-E) (per-phosphor IQM of [6], [7], [8] and [11])
     cs = mat_i==13 ? [0.625, 0.350, \
                       0.280, 0.605, \
                       0.152, 0.062] : cs
@@ -2335,7 +2335,7 @@ function color_coef (string "prims", string "mat", string "illu") {
     cs = mat_i==30 ? [0.6661, 0.3329, \
                       0.3134, 0.6310, \
                       0.1472, 0.0642] : cs
-    # P56,53,55-Projection3  (611,544,450) Y2O3:Eu (P56), Y3Al5O12:Tb (P53), ZnS:Ag,Al (P55)
+    # P56,53,55-Projection3     (611,544,450): Y2O3:Eu (P56), Y3Al5O12:Tb (P53), ZnS:Ag,Al (P55)
     cs = mat_i==30 ? [0.640, 0.335, \
                       0.341, 0.586, \
                       0.150, 0.070] : cs
@@ -2447,7 +2447,7 @@ function color_coef (string "prims", string "mat", string "illu") {
 
 ####################################################
 ###                                               ##
-### 'D75' illuminant (7504.052K) Light Overcast   ##
+### 'D75' illuminant (7504.052K) Shade on Sunlight##
     wp = mat_wp==7 ? [0.29897489,0.31479446] : wp ##
 ###                                               ##
 ####################################################
