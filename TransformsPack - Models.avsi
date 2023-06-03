@@ -1588,7 +1588,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 to 10000)
     DV     = Default (DoVi,   false)      # Set to true for IPTPQc2
     tvo    = Default (tv_out, false)
-    mul    = Default (scale,DoVi ? 2 : 1) # 'scaler_chroma' SEI. Chroma scale, may be read from the RPU
+    mul    = Default (scale,      1)      # 1 or 2. 'scaler_chroma' SEI. May be read from the RPU. Sometimes IPTPQc2 might need 2 (more color saturation)
 
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
@@ -1651,7 +1651,7 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     DV     = Default (DoVi,   false)      # Set to true for IPTPQc2
     tvo    = Default (tv_out, false)
     GC     = Default (GC,mat=="709")      # Gamut Compression
-    mul    = Default (scale,DoVi ? 2 : 1) # 'scaler_chroma' SEI. Chroma scale, may be read from the RPU
+    mul    = Default (scale,      1)      # 1 or 2. 'scaler_chroma' SEI. May be read from the RPU. Sometimes IPTPQc2 might need 2 (more color saturation)
 
     ictcp
     # ICtCp to LMS joint matrix
