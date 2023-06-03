@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v1.9.2       (24-05-2023)   ##
+###   Transforms Pack - Main v2.0.0       (03-06-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1367,7 +1367,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 1.9.1",                   size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 2.0.0",                   size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -2261,6 +2261,10 @@ function color_coef (string "prims", string "mat", string "illu") {
     cs = mat_i==30? [0.7347,  0.2653, \
                      0.1400,  0.8600, \
                      0.1000, -0.02985] : cs
+    # Canon Cinema Gamut
+    cs = mat_i==30? [0.740,  0.270, \
+                     0.170,  1.140, \
+                     0.080, -0.100] : cs
 
 ###################################################
 ###                                              ##
@@ -2270,11 +2274,16 @@ function color_coef (string "prims", string "mat", string "illu") {
 ###################################################
 
 
-    # SMPTE RP 432-1 (Display-P3 / D65P3)  (Display-P3 keeps the same primaries but over a D65 illuminant)
+    # SMPTE RP 432-1 (Display-P3 / P3-D65) (Display-P3 is Apple's take on P3, same primaries but with D65 and sRGB TRC. P3-D65 instead uses PQ for HDR and 1886 for SDR)
     # SMPTE RP 432-2 (DCI-P3)
     cs = mat_i==9 ? [0.680,  0.320, \
                      0.265,  0.690, \
                      0.150,  0.060] : cs
+
+    # DCI-P3+ (Also known asa CanonP3. Expanded DCI-P3 gamut from a compressed version of Canon Cinema Gamut)
+    cs = mat_i==30? [0.740,  0.270, \
+                     0.220,  0.780, \
+                     0.090, -0.090] : cs
 
 ###################################################
 ###                                              ##
@@ -2452,6 +2461,13 @@ function color_coef (string "prims", string "mat", string "illu") {
 ###                                               ##
 ####################################################
 
+###################################################################
+###                                                              ##
+### 'ICC' PCS illuminant. Based on D50 but with 16-bit precision ##
+    wp = mat_wp==30 ? [0.345704813278916,0.358539494271990] : wp ##
+###                                                              ##
+###################################################################
+
 ############################################################################
 ###                                                                       ##
 ### Illuminant 'A' (2855.496K) Tungsten incandescent bulb at ~100W        ##
@@ -2537,6 +2553,7 @@ function moncurve_coef (string transfer) {
 \   : (transfer == "470M"         ) ? 0
 \   : (transfer == "sRGB"         ) ? 1
 \   : (transfer == "Display-P3"   ) ? 1
+\   : (transfer == "P3-D65"       ) ? 7
 \   : (transfer == "170M"         ) ? 2
 \   : (transfer == "601"          ) ? 2
 \   : (transfer == "NTSC-J"       ) ? 2

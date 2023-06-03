@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v1.9.2  (24-05-2023)   ##
+###   Transforms Pack - Transfers v2.0.0  (03-06-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -1088,20 +1088,20 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###    iCAM06:
 ###    Insomniac:
 ###    BT.2390 EETF:      From "ITU-R BT.2390-8" 2020. Perceptual tone mapping curve. Might be flawed, and deprecated in favor of BT.2446
-###    BT.2446 Method A:  From "ITU-R BT.2446-0" 2019. Designed for well-mastered HDR sources
-###    BT.2446 Method B:  From "ITU-R BT.2446-0" 2019
-###   -BT.2446 Method C:  From "ITU-R BT.2446-0" 2019
-###    BT.2094_40:
-###    BT.2094_10:
+###    BT.2446 EETF A:    From "ITU-R BT.2446-0" 2019. Designed for well-mastered HDR sources
+###    BT.2446 EETF B:    From "ITU-R BT.2446-0" 2019
+###   -BT.2446 EETF C:    From "ITU-R BT.2446-0" 2019
+###    BT.2094_40 EETF:   From "ITU-R BT.2094-40 Annex B" 2016
+###    BT.2094_10 EETF:   From "ITU-R BT.2094-40 Annex B.2" 2016
 ###    Spline:            From ffmpeg.
-###    RRT:
+###    RRT:               From ACES
 ###    ZCAM:
 ###    AgX:
 ###    SSTS:              From ACES. B-Splines based tonemapper
 ###    Daniele:           Elegant tonescale in the style of Michaelis-Menten function. https://www.desmos.com/calculator/rboxfu8hjb and https://community.acescentral.com/t/output-transform-tone-scale/3498/14?u=dogway
 ###    OpenDRT:           Jed Smith's OpenDRT modification of Daniele Siragusano's tone scale inspired by "Michaelis-Menten Constrained" tonescale function.
 ###    JzDT:              Same as the OpenDRT tonescale but simplified (less control knobs). It's applied over a perceptual uniform model (JzAzBz)
-###    Sensitometric:     From Substance Painter YEBIS2 post-processor by Silicon Studio
+###    Sensitometric:     From Substance Painter's YEBIS2 post-processor by Silicon Studio
 
 
 
@@ -1130,7 +1130,7 @@ function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", floa
     cs_out = color_Fuzzy_Search (cs_out)[0]
     EOTF   = color_Fuzzy_Search (EOTF)[2]
 
-    # De-saturation coefficient to avoid hue shifts
+    # De-saturation coefficient to avoid hue shifts on monochromatic highlights
     a    = 0.04  # Should be between 0.01 and 0.33
     b    = 1-2*a
     Cross= [ b,  a,  a, \

@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v1.9.1     (23-05-2023)   ##
+###   Transforms Pack - Models v2.0.0     (03-06-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -65,17 +65,18 @@
 #-AdobeRGB               - IEC 61966-2-5:1999. Also known as opRGB (optional RGB). Designed to encompass most printers' gamuts and to be used as a working space in Photoshop, ideally at 16-bit. It's basically the 470BG primaries with greens from 470M allegedly after a sucessions of mistakes.
 #-Adobe Wide Gamut       - Adobe second and final wide gamut version of AdobeRGB with same transfer but in D50 illuminant.
 #-DCI-P3                 - SMPTE RP 432-2. Digital Cinema.
-#-Display-P3             - SMPTE RP 432-1.
+#-Display-P3/P3-D65      - SMPTE RP 432-1. Display-P3 is Apple's take on P3, same DCI-P3 primaries but with D65 illuminant and sRGB TRC. P3-D65 instead uses PQ for HDR and 1886 for SDR.
 #-AP0                    - ACES AP0 coefficients used for ACES2065 color space.
 #-AP1                    - ACES AP1 coefficients used for ACEScg   color space.
-# S-Gamut                -
-# S-Gamut3               -
-# S-Gamut3 (Venice)      -
-# S-Gamut3.Cine          - Sony Gamut Cinema. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film.
-# S-Gamut3.Cine (Venice) -
+# S-Gamut                - Sony Gamut
+# S-Gamut3               - Sony Gamut 3
+# S-Gamut3 (Venice)      - Sony Gamut Cinema 3 Venice
+# S-Gamut3.Cine          - Sony Gamut Cinema 3. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film.
+# S-Gamut3.Cine (Venice) - Sony Gamut Cinema 3 Venice
+#-Cinema Gamut           - Canon Cinema Gamut (D65)
 # CinemaDay              - Canon Cinema Gamut Daylight (5500K).
 # CinemaTungsten         - Canon Cinema Gamut Tungsten (3200K).
-# CanonP3                - Canon DCI-P3+.
+#-CanonP3                - Canon DCI-P3+. Expanded DCI-P3 gamut from a compressed version of Canon Cinema Gamut
 # D-Gamut                - DJI D-Gamut.
 # D-GamutM               - DJI D-GamutM.
 # DragonColor            - RED DragonColor
@@ -157,8 +158,8 @@
 # SO           - Biologically Inspired Color Image Descriptor.
 # c1c2c4       - Biologically Inspired Color Image Descriptor.
 # o1o2         - For Robust Image Detection in Scenes under Cast Shadows. https://digital.csic.es/bitstream/10261/30099/1/Combining%20color-based.pdf
-#-YCbCr        - Color format for digital systems roughly based on human perception of luma and chroma contribution (approximately perceptually uniform). Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green. It's a 45º skewed parallelogram relative to the square RGB box, therefore only 23.6% of its color volume matches RGB and 76.4% is out of RGB gamut.
-#-YPbPr        - A model for analogue signals. It's basically the same as YCbCr but with no definition for the SMPTE range.
+#-YPbPr        - A model for analogue signals. Has no definition for the SMPTE range so saturates full range. Roughly based on human perception of luma and chroma contribution (approximately perceptually uniform). Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green. It's a 45º skewed parallelogram relative to the square RGB box, therefore only 23.6% of its color volume matches RGB and 76.4% is out of RGB gamut.
+#-YCbCr        - YPbPr scaled to SMPTE legal range ((16,128,128) + (219*Y,224*Pb,224*Pr)). Format used for digital systems.
 # YUV          - Decorrelated Opponent color model for analogue system used in PAL territories and NTSC since 1979.
 # YIQ          - YUV with UV axes rotated 33º, used for old FCC 1953 NTSC TV analogue system until about 1979. Quote from avisynth.nl/index.php/Tweak: "In YIQ, orange and teal are along the in-phase (I) axis, while green and magenta are along the quadrature (Q) axis. The eye is far more sensitive to detail along the I axis than along the Q axis, and NTSC allocated more bandwidth for I than for Q."
 # YDbDr        - PAL-N and SECAM TV analogue format.
@@ -199,7 +200,7 @@
 # ICaCb+       - Precursor and arguably better color model than ICtCp which based on this.
 #-ICtCp+       - BT.2100 (HDR + Rec.2020) version of IPT. HDR version of YcCbcCrc but with Constant Intensity this time.
 # ITP*+        - Perceptually uniform color space version of ICtCp, used extensively in error metrics by scaling Ct by 0.5. This transformation is the basis of the Rec.2124 wide gamut color difference metric D.itp (simple scaled Euclidean distance: 720*sqrt(Di^2+D(t*0.5)^2+Dp^2) )
-#-IPT-PQc2*+   - Improved HDR10 version of ICtCp. Since it's a propietary model not much information is known.
+#-IPTPQc2*+    - Improved HDR10 version of ICtCp. Since it's a Dolby's propietary model all that is known is by means of reverse engineering.
 # CIECAM02*    - Improves on CIECAM97s and can be made uniform with CAM02-UCS. CIECAM02Jch is its cylindrical version.
 # OSA*         -
 # CIECAM16*    - Improves on CIECAM02 and can be made uniform with CAM16-UCS, which works "out-of-the-box" for Euclidean distance metrics.
@@ -1974,94 +1975,11 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 
 
 
-# Linear CAT (Chromatic Adaptation Transform):
-# Adapts colors (HUEs) to match those viewed under a different target illuminant.
-# To also match white point (aka White Balance or "Simulation") set mode="Simulation".
-# * This should always be used when converting between spaces of different illuminants.
-# (equi-appearance colorspace transformation: https://yuhaozhu.com/blog/chromatic-adaptation.html#3usecasebequiappearancecolorspacetransformation)
-# * "Zhai and Luo (2018) Chromatic Adaptation Model" is not implemented as it's not a linear transformation (involves two steps) -> https://github.com/colour-science/colour/blob/develop/colour/adaptation/zhai2018.py
-#
-# Transformation Method:
-#   Strong von Kries (von Kries-Ives) (used in ICC)
-#   Weak   von Kries (default in CAT() )
-#
-# 'source' and/or 'target' can be Primaries (Color Space ie. "sRGB"), Standard Illuminant (ie: "D65") or a white point tuplet [x,y]
-function CAT (clip c, val "source", val "target", string "LMS", string "mode", bool "tv_range", bool "list") {
-
-    rgb     = IsRGB(c)
-    propIDs = color_propGet(c)
-
-    src   = Default (source,   propIDs[3]) # Source illuminant
-    tgt   = Default (target,        "D65") # Target illuminant
-    LMS   = Default (LMS,         "CAT16")
-    tv    = Default (tv_range, propIDs[6])
-    list  = Default (list,          false)
-    md    = Default (mode,          "CAT") # 'CAT', 'Simulation' or 'Compensation'
-
-    Assert(!isFloat(src)&&!isFloat(src), "CAT: Only string or array type supported")
-
-    if (isArray(src)) {
-        wps = ArraySize(src)>2 ? src : [src[0],src[1],1-src[0]-src[1]]
-    } else {
-        src = color_Fuzzy_Search (src)
-        wps = color_coef(src[1],illu=src[1])
-        wps = [wps[3],wps[4],wps[5]]
-    }
-    if (isArray(tgt)) {
-        wpt = ArraySize(tgt)>2 ? tgt : [tgt[0],tgt[1],1-tgt[0]-tgt[1]]
-    } else {
-        tgt = color_Fuzzy_Search (tgt)
-        wpt = color_coef(tgt[1],illu=tgt[1])
-        wpt = [wpt[3],wpt[4],wpt[5]]
-    }
-
-    same  = wps[0]+wps[1]+wps[2] == wpt[0]+wpt[1]+wpt[2]
-
-    LMSm  = XYZ_to_LMS(c, LMS, true)
-
-    wpsn  = MatrixDot([wps[0]/wps[1],1.,wps[2]/wps[1]], LMSm) # Source cone
-    wptn  = MatrixDot([wpt[0]/wpt[1],1.,wpt[2]/wpt[1]], LMSm) # Target cone
-    vk    = Broadcast(same ? [1,1,1] : ArrayOp(wptn,wpsn,"/"), "vonKries")
-
-    CAM   = !same ? MatrixDot(MatrixInvert(LMSm), MatrixDot(vk, LMSm)) : vk
-
-    if (!list) {
-
-        c
-        s_pri  = src[0] == "" ? propIDs[2] : src[0]
-        s_gam  = src[2] == "" ? propIDs[5] : src[2]
-
-        RGBpln = rgb ? IsPlanar() : false
-
-        rgb ? RGBpln ? last : ConvertToPlanarRGB() : \
-        YUV_to_RGB(c, s_pri, tv_in=tv, tv_out=false, kernel="lanczos", b=3)
-
-        CCTF(s_gam, true, false, false)
-
-        mata = RGB_to_XYZ (s_pri, md=="Simulation" ? tgt[1] : src[1], LMS=LMS, list=true, adaptXYZ=md!="CAT")
-        matb = XYZ_to_RGB (s_pri, md=="Simulation" ? src[1] : tgt[1], LMS=LMS, list=true, adaptXYZ=md!="CAT")
-        scl  = src[1]!=tgt[1]  && md=="CAT"        ? MatrixDot(mata, MatrixTranspose(CAM)) : mata
-        MatrixClip(MatrixDot(scl, matb))
-
-        CCTF(s_gam, false, false, false)
-
-        rgb ? RGBpln ? last : MatchClip(c,internal=true) : \
-        RGB_to_YUV( s_pri, tv_in=false, tv_out=tv, kernel="bicubic", b=-0.5, c=0.25, Jab=PixelType(c))
-
-                           propCopy(c,true,props="_ChromaLocation")
-        isString(target) ? propSet("_Illuminant", color_Fuzzy_Search(target)[5]) : last
-        same ? c : last
-
-    } else { CAM } }
-
-
-
-
 #  GamutCompression()
 #  A modification of GamutCompress v0.7 by Jed Smith (2021)
 #  Gamut Compress is a tool to compress out of gamut colors back into gamut.
 #
-#     Out of gamut colors can ocurr with modern digital cinema cameras.
+#    "Out of gamut colors can ocurr with modern digital cinema cameras.
 #     Using the original camera gamut, there would be no problem, but often when doing visual effects
 #     or grading, we need to work in a different colorspace like ACEScg. Since ACEScg is designed
 #     to operate within the spectral locus, this is where out of gamut colors can appear.
@@ -2071,7 +1989,7 @@ function CAT (clip c, val "source", val "target", string "LMS", string "mode", b
 #     camera a non-colorimetric device which does not satisfy the Luther-Ives criterion.
 #
 #     Out of gamut colors often ocurr with highly saturated light sources like police lights, neon, or lasers.
-#     Re-mapping these colors back into gamut is necessary for pleasing color reproduction, and for working.
+#     Re-mapping these colors back into gamut is necessary for pleasing color reproduction, and for working."
 #
 #       * Written by Jed Smith with lots of help from the ACES Gamut Mapping VWG
 #     [1] https://github.com/jedypod/gamut-compress
@@ -2239,6 +2157,90 @@ function GamutCompression (clip RGB, clip "G", clip "B", float_array "CMYthres",
 
 
 
+
+# Linear CAT (Chromatic Adaptation Transform):
+# Adapts colors (HUEs) to match those viewed under a different target illuminant.
+# To also match white point (aka White Balance or "Simulation") set mode="Simulation".
+# * This should always be used when converting between spaces of different illuminants.
+# (equi-appearance colorspace transformation: https://yuhaozhu.com/blog/chromatic-adaptation.html#3usecasebequiappearancecolorspacetransformation)
+# * "Zhai and Luo (2018) Chromatic Adaptation Model" is not implemented as it's not a linear transformation (involves two steps) -> https://github.com/colour-science/colour/blob/develop/colour/adaptation/zhai2018.py
+#
+# Transformation Method:
+#   Strong von Kries (von Kries-Ives) (used in ICC)
+#   Weak   von Kries (default in CAT() )
+#
+# 'source' and/or 'target' can be Primaries (Color Space ie. "sRGB"), Standard Illuminant (ie: "D65") or a white point tuplet [x,y]
+function CAT (clip c, val "source", val "target", string "LMS", string "mode", bool "tv_range", bool "list") {
+
+    rgb     = IsRGB(c)
+    propIDs = color_propGet(c)
+
+    src   = Default (source,   propIDs[3]) # Source illuminant
+    tgt   = Default (target,        "D65") # Target illuminant
+    LMS   = Default (LMS,         "CAT16")
+    tv    = Default (tv_range, propIDs[6])
+    list  = Default (list,          false)
+    md    = Default (mode,          "CAT") # 'CAT', 'Simulation' or 'Compensation'
+
+    Assert(!isFloat(src)&&!isFloat(src), "CAT: Only string or array type supported")
+
+    if (isArray(src)) {
+        wps = ArraySize(src)>2 ? src : [src[0],src[1],1-src[0]-src[1]]
+    } else {
+        src = color_Fuzzy_Search (src)
+        wps = color_coef(src[1],illu=src[1])
+        wps = [wps[3],wps[4],wps[5]]
+    }
+    if (isArray(tgt)) {
+        wpt = ArraySize(tgt)>2 ? tgt : [tgt[0],tgt[1],1-tgt[0]-tgt[1]]
+    } else {
+        tgt = color_Fuzzy_Search (tgt)
+        wpt = color_coef(tgt[1],illu=tgt[1])
+        wpt = [wpt[3],wpt[4],wpt[5]]
+    }
+
+    same  = wps[0]==wpt[0] && wps[1]==wpt[1]
+
+    LMSm  = XYZ_to_LMS(c, LMS, true)
+
+    wpsn  = MatrixDot([wps[0]/wps[1],1.,wps[2]/wps[1]], LMSm) # Source cone
+    wptn  = MatrixDot([wpt[0]/wpt[1],1.,wpt[2]/wpt[1]], LMSm) # Target cone
+    vk    = Broadcast(same ? [1,1,1] : ArrayOp(wptn,wpsn,"/"), "vonKries")
+
+    CAM   = !same ? MatrixDot(MatrixInvert(LMSm), MatrixDot(vk, LMSm)) : vk
+
+    if (!list) {
+
+        c
+        s_pri  = src[0] == "" ? propIDs[2] : src[0]
+        s_gam  = src[2] == "" ? propIDs[5] : src[2]
+
+        RGBpln = rgb ? IsPlanar() : false
+
+        rgb ? RGBpln ? last : ConvertToPlanarRGB() : \
+        YUV_to_RGB(c, s_pri, tv_in=tv, tv_out=false, kernel="lanczos", b=3)
+
+        CCTF(s_gam, true, false, false)
+
+        mata = RGB_to_XYZ (s_pri, md=="Simulation" ? tgt[1] : src[1], LMS=LMS, list=true, adaptXYZ=md!="CAT")
+        matb = XYZ_to_RGB (s_pri, md=="Simulation" ? src[1] : tgt[1], LMS=LMS, list=true, adaptXYZ=md!="CAT")
+        scl  = src[1]!=tgt[1]  && md=="CAT"        ? MatrixDot(mata, MatrixTranspose(CAM)) : mata
+        MatrixClip(MatrixDot(scl, matb))
+
+        CCTF(s_gam, false, false, false)
+
+        rgb ? RGBpln ? last : MatchClip(c,internal=true) : \
+        RGB_to_YUV( s_pri, tv_in=false, tv_out=tv, kernel="bicubic", b=-0.5, c=0.25, Jab=PixelType(c))
+
+                           propCopy(c,true,props="_ChromaLocation")
+        isString(target) ? propSet("_Illuminant", color_Fuzzy_Search(target)[5]) : last
+        same ? c : last
+
+    } else { CAM } }
+
+
+
+
 # CIE XYZ Color Matching Functions approximations from tabulated data.
 # The sum of the corresponding CIE RGB CMF integrals define the white point energy.
 # Maps spectral observer sensitivity data into linear CIE tristimulus values X, Y and Z.
@@ -2254,8 +2256,8 @@ function GamutCompression (clip RGB, clip "G", clip "B", float_array "CMYthres",
 #  |_ 1993 2º  Stockman, MacLeod and Johnson (LMS based)
 # 1959 10º Stiles and Burch CMF
 #  |_ CIE 1964 10º Supplementary Standard Observer (conversion from 10º (1959) Stiles and Burch CMF)
-#  |_ CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 2º  Standard Observer
-#  |_ CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiological 10º Supplementary Standard Observer (ideal for CCFL, good for OLED)
+#  |_ CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiologically-relevant LMS 2º  Standard Observer
+#  |_ CIE 170-2 or CIE 2015/12/06 Stockman & Sharpe (2000) physiologically-relevant LMS 10º Supplementary Standard Observer (ideal for CCFL, good for OLED)
 #      |_ CIE 170-2 Schanda-Csuti   (2008) modified 2º Standard Observer (ideal for Plasma)
 #      |_ CIE 170-2 TUI (TU Ilmenau, 2008) modified 2º Standard Observer (ideal for OLED)
 #      |_ CIE 170-2 TUI (TU Ilmenau, 2008) modified 10º Supplementary Standard Observer
@@ -2471,8 +2473,8 @@ function Chromaticity_xy(clip a, int "Temp", string "CMF") {
     M1 = (-1.3515 - 1.7703  * wpx + 5.9114  * wpy) / M
     M2 = ( 0.0300 - 31.4424 * wpx + 30.0717 * wpy) / M
 
-    # Beware, some CMFs start at 360nm or 390nm
-    # Similarly some end at 830nm instead of 780nm (400-700nm is generally the limit for the HVS)
+    # Beware, some CMFs start at 360nm or 390nm. Similarly some end at 830nm instead of 780nm
+    # 400-700nm is generally the agreed limit for the HVS, while 380-780nm is the "optimistic range" of visible light including a portion of the UV wavelength (380-400nm)
     W = []
     for (i=380, 780, 5) {
 
