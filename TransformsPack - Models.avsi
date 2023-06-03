@@ -1569,6 +1569,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 #     EOTFi_PQ(1000,10000)                  # Reconstitute PQ gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 #     or
 #     TM_2446C("2020","709","1886",tv_out=false) # Tonemap and output RGB Rec709 in 1886 gamma
+#     RGB_to_YUV()                               # Optionally convert to YCbCr 420 (for either PQ or 1886)
 #
 # Example 2 for IPT-PQ c2:
 #     YUV444PS IPTPQc2 source
