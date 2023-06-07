@@ -7,6 +7,7 @@
 #                Dogway mod in 2021.12.11 Use old minblur() code path, update for HD and optimize with 'sgn' -faster and bugfix(?)-
 #                Dogway mod in 2022.01.31 Decoupled limiter from SPresso and Defaults for RGB inputs
 #                Dogway mod in 2022.03.05 Cosmetics
+#                Dogway mod in 2023.06.07 Default "RGmodeC" to 0 (Copy). Update AVS+ requirement.
 #
 # SPresso (Spatial Pressdown) is a purely spatial script designed to achieve better compressibility without doing too much harm to the original detail.
 # Original SPresso was not designed for 1080p processing/encoding; due to its 3x3 kernel it works better on standard definition (SD) content like DVDs and possibly on 720p.
@@ -27,7 +28,7 @@
 #    int "RGmode"=4 (1 to 27),
 #    [float "limitC"=4.0 (0.0 to 100.0 by 0.5)],
 #    [float "biasC"=50.0 (0.0 to 200.0 by 0.5)],
-#    [int "RGmodeC"=-1 (-1 to 27)],
+#    [int "RGmodeC"=0 (-1 to 27)],
 #    [int "radius"=4 (1 to 9)]
 #    )
 #
@@ -42,10 +43,10 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
     bias    = Default( bias,   25 )
     biasC   = Default( biasC,   rgb?bias : bias*2 )
     RGmode  = Default( RGmode,  4 )
-    RGmodeC = Default( RGmodeC,rgb?RGmode:-1 )
+    RGmodeC = Default( RGmodeC,rgb?RGmode: 0 )
     radius  = Default( radius,  round(h/540.0) )
 
-    Assert(IsVersionOrGreater(3,7,2), "SPresso: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "SPresso: Update AviSynth+ version")
 
     yy    =           (RGmode  < 1) ? 2 : 3
     uv    = rgb ? 3 : (RGmodeC < 1) ? 2 : 3
@@ -53,7 +54,7 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
     isHD   = (w  > 1099 || h > 599) && radius > 1
     RGmode = isHD ? yy == 3 ? RGmode : RGmodeC : RGmode
     bmode  = (10 < RGmode < 13) || (18 < RGmode < 21)
-    # For HD, RGmode and RGmodeC can't be >0 and distinct (falls back to RGmode when both luma and chroma are processed)
+    # For HD 'RGmode' and 'RGmodeC' can't be >0 AND distinct (falls back to 'RGmode' when both luma and chroma are processed)
     RGmode = RGmode == 1  ? isHD ? "unblob3" : 1  : \
              RGmode == 2  ? isHD ? "unblob3" : 2  : \
              RGmode == 3  ? isHD ? "unblob3" : 3  : \
