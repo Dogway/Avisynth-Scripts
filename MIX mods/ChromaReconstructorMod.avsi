@@ -1,10 +1,14 @@
-# ChromaReconstructor v4.0 HBD mod: restore 420/422 to (almost) native 444
+# ChromaReconstructor v4.1 HBD mod: restore 420/422 to (almost) native 444
 # by feisty2
 #
 # just convert 420/422 to 444 with any regular resampling filter, bicubic, spline, kind of stuff
 # and apply this filter, chroma planes will be reconstructed to 444 with high frequencies from luma (luma serves as the weighting reference to NLMeans both chroma planes)
 #
-
+# An old but fast alternative is:
+#   ConverttoYUV444(chromaresample="spline36")
+#   aWarpSharp2(thresh=128, blur=2, type=0, depth=16, chroma=6) # Luma guided chroma warp
+#
+#
 # v3.0 major update, new parameter "hipass" allows you to manipulate the strength of the high frequency extraction, a new less aggressive (and a lot slower) method could be enabled when luma is not stable enough (set "wild" to False)
 # v3.1 HBD mod and faster "faster" mod by Dogway
 # v3.2 Rebasing (some copy-pasta bugfixes)
@@ -13,10 +17,11 @@
 # v3.5 Pass 'gpuid' argument and allow CPU processing with gpuid=-1
 # v4.0 Update with nnedi3wrap (passed gpuid argument). Fix 'device_type' arg assignments
 #
-# Example:
 #
-# ConvertToYUV444()
-# ChromaReconstructor()
+# Example:
+#    ConvertToYUV444()
+#    ChromaReconstructor()
+#
 #
 function ChromaReconstructor(clip src, int "radius", float "str", int "hipass", int "mode", bool "wild", int "gpuid") {
 
@@ -98,6 +103,9 @@ function gauss_h(clip src, int "p")
 #    420_Source
 #    ChromaReconstructor_faster() # 444_Output
 #
+# but I recommend you to use ConvertFormat() to account for chroma placement and chroma shift
+#    ConvertFormat(fmt_in="420",fmt_out="444",cs_out="",UVrecon=true)
+
 function ChromaReconstructor_faster(clip src, int "radius", float "str", int "gpuid") {
 
         w       = src.width()
@@ -106,8 +114,8 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "gp
         fs      = propNumElements (src,"_ColorRange")  > 0 ? \
                   propGetInt      (src,"_ColorRange") == 0 : false
 
-        radius  = Default(radius, 16)
-        str     = Default(str,   6.4)
+        radius  = Default(radius, 12)
+        str     = Default(str,   9.0)
         gpuid   = Default(gpuid,   0)
         cpu     = gpuid < 0 ? "cpu" : "gpu"
         gpuCL   = max(0, gpuid)
@@ -117,12 +125,12 @@ function ChromaReconstructor_faster(clip src, int "radius", float "str", int "gp
         Vor = ExtractV(src)
 
         ref     =   Y.KNLMeansCL (0, radius, 0, pow(1.464968620512209618455732713658, str), wref=1, device_type=cpu, device_id=gpuCL)
-        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0,                                 cshift="spline16",gpuid=gpuid).ConvertBits(bi,fulls=fs)
-        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackman",gpuid=gpuid).ConvertBits(bi,fulls=fs)
-        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, ep0=6, cshift="blackman",gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Luma    = ref.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0,                          cshift="spline16" ,gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Uu      = Uor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, cshift="blackman6",gpuid=gpuid).ConvertBits(bi,fulls=fs)
+        Vu      = Vor.ConvertBits(8,dither=-1,fulls=fs).nnedi3wrap(2, nns=1, qual=1, etype=1, nsize=0, fwidth=w*2, fheight=h*2, cshift="blackman6",gpuid=gpuid).ConvertBits(bi,fulls=fs)
         Unew    = Uu.KNLMeansCL  (0, radius, 0, str, wref=0, rclip=Luma, device_type=cpu, device_id=gpuCL).BicubicResize(w, h, b=0.0, c=0.5)
         Vnew    = Vu.KNLMeansCL  (0, radius, 0, str, wref=0, rclip=Luma, device_type=cpu, device_id=gpuCL).BicubicResize(w, h, b=0.0, c=0.5)
-        U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
-        V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 20), Vu.BicubicResize(w, h, b=0.0, c=0.5))  # Sharpening
+        U       = ex_makeadddiff(Unew, Removegrain(Unew, 20), Uu.BicubicResize(w, h, b=0.0, c=0.5))  # Adding the sharpened result
+        V       = ex_makeadddiff(Vnew, Removegrain(Vnew, 20), Vu.BicubicResize(w, h, b=0.0, c=0.5))  # Adding the sharpened result
         return CombinePlanes(Y, U, V, planes="YUV")
 }
