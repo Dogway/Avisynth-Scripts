@@ -92,6 +92,12 @@
 ###   100.0% 100.0% deep_resize()      (8-bit 20.6fps, 16-bit 18.0fps)
 ###    94.7%  16.7% nnedi3_resize16()  (8-bit 19.5fps, 16-bit  3.0fps)
 ###
+###
+###  Info on scaling kernels:
+###     General:  https://github.com/Dogway/Avisynth-Scripts/blob/master/TransformsPack - Main.avsi#L340
+###     Bicubics: https://github.com/Dogway/Avisynth-Scripts/blob/master/TransformsPack - Main.avsi#L1939
+###
+###
 ### General resampling guidelines:
 ###   -Avoid bicubics for highly compressed images as it will amplify DCT blocks
 ###   -For downscaling use a 2-lobes sinc function (aka not bicubics)
@@ -579,7 +585,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
 # https://github.com/mpv-player/mpv/wiki/Interpolation#smoothmotion
 #
 # Port of SmoothMotion from MPV, also called "OverSample".
-# Converts 24fps or 23.976fps clips to 60fps or 54.940fps respectively.
+# Converts 24fps or 23.976fps clips to 60fps or 59.940fps respectively.
 # by displaying each frame exactly 2.5 times for real-time playback.
 # Note that it still might exhibit some judder on camera pans.
 #
