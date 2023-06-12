@@ -109,6 +109,7 @@
 #     [int "InputType"=0 (0 to 3)],
 #     [int "ShutterBlur"=0 (0 to 3)],
 #     [int "FPSDivisor"=1 (1 to 2)],
+#     [bool "moiree"=false],
 #     [bool "Precise"=false],
 #     [string "Tuning"="None" ("None"/ "DV-SD"/ "DV-HD")],
 #     bool "show"=false,
