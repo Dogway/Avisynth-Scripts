@@ -154,9 +154,9 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     dClip = !UV ? dClip.ExtractY().ConvertBits(8, dither=-1, fulls=fs, fulld=st ? fs : true) : dClip.ConvertBits(8, dither=-1, fulls=fs, fulld=fs)
     sClip =  UV && !Y  ?     vClip       :   dClip.RatioResize(0.5, "%"       ,2,"bicubic",b=-0.5,c=0.3)
     dClip = rn || mo ? width(dClip) > 1024 ? dClip.RatioResize(480, "adjust2w",2,"bicubic",b=-0.5,c=0.3) : dClip : dClip
-    uClip = YUV ? sClip.ExtractU()       : uClip
-    vClip = YUV ? sClip.ExtractV()       : vClip
-    dClip =  an ? dClip.Limiter(0,100)   : dClip       # AntiFlash & Anti-BiModal for Anime
+    uClip = YUV ? sClip.ExtractU()       :   uClip
+    vClip = YUV ? sClip.ExtractV()       :   vClip
+    dClip =  an ? dClip.Limiter(0,100)   :   dClip     # AntiFlash & Anti-BiModal for Anime
     oClip =       dClip.SelectEvery(1,-1)
     dClip =       dClip.SelectEvery(1, 1)
     tClip =  dt ? sClip.ex_edge("tritical",0) : nop()  # Sub with SVM()? Should be lightweight though since we're looking back+ahead
@@ -185,8 +185,8 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
         if (SC) {
         pDfp  = rn || mo ? !an ? dClip.YDifferenceFromPrevious() : dClip.YDifferenceToNext(-2) : 0
 
-        nDf0  = 0    nTh  = 0      nDf  = 0        avga  = []   sum = 0
-        avg   = 0    SE   = FC     divy = 0.000001 aarr  = []   divm  = divy
+        nDf0  = 0    nTh  = 0      nDf  = 0        avga  = []   sum  = 0
+        avg   = 0    SE   = FC     divy = 0.000001 aarr  = []   divm = divy
         avgt  = 0    pDf1 = n > 2 ? pDfp : 255
         arrz  = [0.0,0.0,0.0,0.0,0.0]
         stats = ArrayAdd(arrz,0.0)
@@ -392,7 +392,7 @@ function SceneStats(clip a, string "mode", float "interval", float "th", float "
     } )
 
 
-    wr    != "" ? WriteFile(wr, function[mo,ev,dt,st,Y,UV] () {
+    wr    != "" ?   WriteFile(wr, function[mo,ev,dt,st,Y,UV] () {
     range  =      " Range: "    + ArrayPrint(propGetAsArray("_SceneRange" ),true)
     motion = mo ? " Motion: "   + string(    propGetFloat  ("_SceneMotion"))      : ""
     if (Y)  {
