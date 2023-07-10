@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v2.0.0  (03-06-2023)   ##
+###   Transforms Pack - Transfers v2.1.0  (10-07-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -636,7 +636,7 @@ function EOTFi_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool
 
 
 # WIP: HLG BT.2100 (Reference White at 0.75)
-# HLG reference display = 1000 nits
+# HLG reference display Lw = 1000 nits
 function EOTF_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
     c
     bi      = BitsPerComponent()
@@ -658,7 +658,7 @@ function EOTF_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
     rangeTV = tv_out ? "ymax ymin - * ymin +"   : bi==32 ? " " : "  range_max *"
 
     # From BT.2124-0 Annex 2 Conversion 4
-    str     = Format(""+rangePC+" X@ 0.5 <= X dup * 0.333333333 * X {HLG_C} - {HLG_A} * exp {HLG_B} + {PW} * ? "+rangeTV+"")
+    str     = Format(""+rangePC+" X@ 0.5 <= X 2 ^ 0.333333333 * X {HLG_C} - {HLG_A} * exp {HLG_B} + {PW} * ? "+rangeTV+"")
 
     Expr(ex_dlut(str, bi, !tv_in), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi))
                     propSet("_Transfer",           8 )
