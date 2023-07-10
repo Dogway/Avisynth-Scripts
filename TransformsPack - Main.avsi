@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v2.0.0       (03-06-2023)   ##
+###   Transforms Pack - Main v2.1.0       (10-07-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -565,20 +565,20 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                  preset == "601"          ? 8  :  preset == "JPG"         ? 17 : 0
 
 
-    #                           Default  DoVi/DVp5/DVp7  PQ10/UHD/2100   HLG10    HD/1886  DVD-NTSC/601  DVD-PAL/470BG  DV-NTSC     CRT-NTSC     CRT-PAL     Master  GAM*/Archival    Grade     Theater     JPEG-XL    JPEG2000    JPG_old  JPG/sRGB
-    o_fmt0     = Select (num,   o_fmt[0],    "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",     "YCbCr",    "YCbCr",       "YIQ",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",      "XYB",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
-    cs_out     = Select (num,     cs_out,       "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",      "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old standardized decoding (PS, mozjpeg, cjxl, etc) is always treated as encoded with 170M (470M derived) matrix, regardless of image/profile primaries, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
-    o_fmt1     = Select (num,   o_fmt[1],        "420",       "420",      "420",     "420",      "420",       "420",      "410",       "411",     "411",     "444",       "444",      "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
-    tv_out     = Select (num,     tv_out,        false,        true,       true,      true,       true,        true,      false,        true,      true,     false,       false,      false,      false,      false,      false,    false,    false)
-    cplace_out = Select (num, cplace_out,   "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",    "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
-    D_out      = Select (num,      D_out,        "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",       "D65",     "D65",       "E",      "ACES",     "ACES",        "E",      "D65",      "D65",    "D65",    "D65")
-    EOTF       = Select (num,       EOTF,         "PQ",        "PQ",      "HLG",    "1886",     "1886",      "1886",     "170M",      "170M",    "170M",  "DCIXYZ",    "linear",  "ACESCCt",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB")
-    PAR        = Select (num,          1,            1,           1,          1,         1,      "601",       "470",      "601",       "601",     "601",         1,           1,          1,          1,          1,          1,        1,        1)
-    cdc        = Select (num,         "",       "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",          "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000",   "JPEGXL", "JPEG2000",    "JPG",    "JPG")
-    cont       = Select (num,         "",         "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",          "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jxl",      "jp2",    "jpg",    "jpg")
-    bit        = Select (num,         bi,           12,          10,         10,         8,          8,           8,          8,           0,         0,        16,          16,         32,         12,          8,          8,        8,        8)
+    #                           Default  DoVi/DVp5/DVp7  PQ10/UHD/2100   HLG10    HD/1886  DVD-NTSC/601  DVD-PAL/470BG  DV-NTSC    CRT-NTSC     CRT-PAL     Master  GAM*/Archival    Grade     Theater     JPEG-XL    JPEG2000    JPG_old  JPG/sRGB
+    o_fmt0     = Select (num,   o_fmt[0],    "IPTPQc2",     "YCbCr",    "YCbCr",   "YCbCr",    "YCbCr",     "YCbCr",    "YCbCr",      "YUV",     "YUV",     "RGB",       "RGB",      "RGB",     "YUVr",      "XYB",     "YUVr",  "YCbCr",   "sYCC") # Model. sYCC is basically sRGB (prims, transfer, range) over YCbCr, but uses true Rec709 derived matrix coeffs, not from 470M
+    cs_out     = Select (num,     cs_out,       "2020",      "2020",     "2020",     "709",     "170M",     "470BG",     "170M",     "170M",   "470BG",  "DCIXYZ",       "AP0",      "AP1",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB") # Primaries. JPG_old standardized decoding (PS, mozjpeg, cjxl, etc) is always treated as encoded with 170M (470M derived) matrix, regardless of image/profile primaries, a mess: https://en.wikipedia.org/wiki/YCbCr#Chromaticity-derived_luminance_systems
+    o_fmt1     = Select (num,   o_fmt[1],        "420",       "420",      "420",     "420",      "420",       "420",      "410",      "411",     "411",     "444",       "444",      "444",      "444",      "444",      "444",    "420",    "422") # [J:a:b]
+    tv_out     = Select (num,     tv_out,        false,        true,       true,      true,       true,        true,      false,       true,     false,     false,       false,      false,      false,      false,      false,    false,    false)
+    cplace_out = Select (num, cplace_out,   "top_left",  "top_left", "top_left",    "left",     "left",      "left",       "DV",   "center",  "center",        "",          "",         "",         "",         "",         "", "center", "center")
+    D_out      = Select (num,      D_out,        "D65",       "D65",      "D65",     "D65",      "D65",       "D65",      "D65",      "D65",     "D65",       "E",      "ACES",     "ACES",        "E",      "D65",      "D65",    "D65",    "D65")
+    EOTF       = Select (num,       EOTF,         "PQ",        "PQ",      "HLG",    "1886",     "1886",      "1886",     "170M",     "170M",    "170M",  "DCIXYZ",    "linear",  "ACESCCt",   "DCIXYZ",     "sRGB",     "sRGB",   "170M",   "sRGB")
+    PAR        = Select (num,          1,            1,           1,          1,         1,      "601",       "470",      "601",      "601",     "601",         1,           1,          1,          1,          1,          1,        1,        1)
+    cdc        = Select (num,         "",       "H265",      "H265",     "H265",    "H264",     "H262",      "H262",     "H261",         "",        "",    "TIFF",       "PIZ",      "PIZ","MJPEG2000",   "JPEGXL", "JPEG2000",    "JPG",    "JPG")
+    cont       = Select (num,         "",         "TS",        "TS",       "TS",      "TS",      "VOB",       "VOB",    "MPEG2",         "",        "",    "TIFF",       "EXR",      "EXR",      "mj2",      "jxl",      "jp2",    "jpg",    "jpg")
+    bit        = Select (num,         bi,           12,          10,         10,         8,          8,           8,          8,          0,         0,        16,          16,         32,         12,          8,          8,        8,        8)
 
-  # * DVD-PAL and DVD-NTSC employ 1886 as EOTFi since the dawn of digital mastering (early 2000s), otherwise used 170M.
+  # * DVD-PAL and DVD-NTSC employ 1886 as EOTFi since the start of digital mastering (early 2000s), until then 170M transfer function was prevalent.
   # * GAM (Graded Archival Master)
 
 
@@ -925,7 +925,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                   Cr      = ex_makeadddiff(Vnew, ex_boxblur(Vnew),      Vu.BicubicResize(nw, nh, b=0.0, c=0.5, src_left=c_cplace[0]+src_leftc, src_top=c_cplace[1]+src_topc))"""
 
 
-    # First block is basically scaling or any of the following:
+    # First block is for basic ops; everything except color model/space/illuminant change,
+    # in other words any of the following:
+    #                          scaling
     #                          color range
     #                          gamma
     #                          chroma placement
@@ -1367,7 +1369,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 2.0.0",                   size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 2.1.0",                   size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1870,39 +1872,42 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
 \   : FindStr(model, "YV"     )>0 ? ["YCbCr",    "YUV", 4]  :  FindStr(model, "DV"     )>0 ? ["YCbCr",    "YUV", 4]
 \   :         model=="YCC"        ? ["YCbCr",    "YUV", 4]  :          model=="sYCC"       ? ["sYCC",     "YUV", 8]
 \   :         model=="YPbPr"      ? ["YCbCr",    "YUV", 4]  :          model=="DVD"        ? ["YCbCr",    "YUV", 4]
-\   :         model=="NTSC"       ? ["YCbCr",    "YUV", 4]  :          model=="YIQ"        ? ["YIQ",      "YUV", 3]
-\   :         model=="CRT"        ? ["YIQ",      "YUV", 3]  :          model=="YDbDr"      ? ["YDbDr",    "YUV",41]
-\   :         model=="YUVr"       ? ["YUVr",     "YUV", 5]  :          model=="sYUV"       ? ["sYUV",     "YUV", 6]
-\   : FindStr(model, "SHARP"  )>0 ? ["sYUV",     "YUV", 6]  :          model=="YcCbcCr"    ? ["YcCbcCrc", "YUV",11]
-\   : FindStr(model, "YCCBC"  )>0 ? ["YcCbcCrc", "YUV",11]  :          model=="YCgCo"      ? ["YCoCg",    "YUV", 9]
-\   :         model=="YCgCoR"     ? ["YCoCgR",   "YUV",10]  :          model=="YCoCg"      ? ["YCoCg",    "YUV", 9]
-\   :         model=="YCoCgR"     ? ["YCoCgR",   "YUV",10]  :          model=="ICaCb"      ? ["ICaCb",    "YUV",19]
-\   :         model=="ICtCp"      ? ["ICtCp",    "YUV",21]  :          model=="IPT"        ? ["IPT",      "YUV",17]
-\   :         model=="IPTJch"     ? ["IPTJch",   "YUV",18]  :          model=="Dolby"      ? ["IPTPQc2",  "YUV",22]
-\   :         model=="Vision"     ? ["IPTPQc2",  "YUV",22]  :          model=="DoVi"       ? ["IPTPQc2",  "YUV",22]
-\   : FindStr(model, "DVP"    )>0 ? ["IPTPQc2",  "YUV",22]  :          model=="YDzDx"      ? ["YDzDx",    "YUV",15]
-\   :         model=="YCxCz"      ? ["YCxCz",    "YUV",16]  :          model=="xvYCC"      ? ["xvYCC",    "YUV",24]
-\   :         model=="Yxy"        ? ["Yxy",      "RGB",23]  :          model=="xyY"        ? ["Yxy",      "RGB",23]
-\   :         model=="XYZ"        ? ["XYZ",      "RGB", 0]  :          model=="CIEXYZ"     ? ["XYZ",      "RGB", 0]
-\   :         model=="YZX"        ? ["XYZ",      "RGB", 0]  :          model=="CMYK"       ? ["CMYK",     "RGBA",2]
-\   :         model=="OPP"        ? ["OPP",      "RGB",12]  :          model=="Jzazbz"     ? ["Jzazbz",   "YUV",13]
-\   :         model=="JzCzhz"     ? ["JzCzhz",   "YUV",14]  :          model=="HSV"        ? ["HSV",      "RGB",24]
-\   :         model=="CIEDuv"     ? ["Duv",      "YUV",35]  :          model=="Duv"        ? ["Duv",      "YUV",35]
-\   :         model=="OSA"        ? ["OSA",      "YUV",36]  :          model=="XYB"        ? ["XYB",      "YUV",40]
-\   : FindStr(model, "PAL"    )>0 ? ["YUV",      "YUV",42]  :  FindStr(model, "625"    )>0 ? ["YUV",      "YUV",42]
-\   : FindStr(model, "CAM97"  )>0 ? ["CIECAM97s","YUV",32]  :  FindStr(model, "CAM02"  )>0 ? ["CIECAM02", "YUV",33]
-\   : FindStr(model, "CAM16"  )>0 ? ["CAM16",    "YUV",34]  :  FindStr(model, "HUNTER" )>0 ? ["HunterLab","YUV",26]
-\   : FindStr(model, "OK"     )>0 ? ["OkLab",    "YUV",37]  :  FindStr(model, "LUV"    )>0 ? ["CIELuv",   "YUV",29]
-\   : FindStr(model, "LAB"    )>0 ? ["CIELab",   "YUV",27]  :  FindStr(model, "2000"   )>0 ? ["YUVr",     "YUV", 5]
-\   : FindStr(model, "GXL"    )>0 ? ["XYB",      "YUV",40]  :  FindStr(model, "-XL"    )>0 ? ["XYB",      "YUV",40]
-\   :         jab  =="420"        ? ["YCbCr",    "YUV", 4]  :          jab  =="422"        ? ["YCbCr",    "YUV", 4]
-\   :         format=="444"       ? ["YCbCr",    "YUV", 4]  : rgb ? ["RGB","RGB",1] : ["YCbCr","YUV",4]
+\   :         model=="CRT"        ? ["YUV",      "YUV",42]  :          model=="YIQ"        ? ["YIQ",      "YUV", 3]
+\   :         model=="YUVr"       ? ["YUVr",     "YUV", 5]  :          model=="YDbDr"      ? ["YDbDr",    "YUV",41]
+\   : FindStr(model, "SHARP"  )>0 ? ["sYUV",     "YUV", 6]  :          model=="sYUV"       ? ["sYUV",     "YUV", 6]
+\   : FindStr(model, "YCCBC"  )>0 ? ["YcCbcCrc", "YUV",11]  :          model=="YcCbcCr"    ? ["YcCbcCrc", "YUV",11]
+\   :         model=="YCgCoR"     ? ["YCoCgR",   "YUV",10]  :          model=="YCgCo"      ? ["YCoCg",    "YUV", 9]
+\   :         model=="YCoCgR"     ? ["YCoCgR",   "YUV",10]  :          model=="YCoCg"      ? ["YCoCg",    "YUV", 9]
+\   :         model=="ICtCp"      ? ["ICtCp",    "YUV",21]  :          model=="ICaCb"      ? ["ICaCb",    "YUV",19]
+\   :         model=="IPTJch"     ? ["IPTJch",   "YUV",18]  :          model=="IPT"        ? ["IPT",      "YUV",17]
+\   :         model=="Vision"     ? ["IPTPQc2",  "YUV",22]  :          model=="Dolby"      ? ["IPTPQc2",  "YUV",22]
+\   : FindStr(model, "DVP"    )>0 ? ["IPTPQc2",  "YUV",22]  :          model=="DoVi"       ? ["IPTPQc2",  "YUV",22]
+\   :         model=="YCxCz"      ? ["YCxCz",    "YUV",16]  :          model=="YDzDx"      ? ["YDzDx",    "YUV",15]
+\   :         model=="Yxy"        ? ["Yxy",      "RGB",23]  :          model=="xvYCC"      ? ["xvYCC",    "YUV",24]
+\   :         model=="XYZ"        ? ["XYZ",      "RGB", 0]  :          model=="xyY"        ? ["Yxy",      "RGB",23]
+\   :         model=="YZX"        ? ["XYZ",      "RGB", 0]  :          model=="CIEXYZ"     ? ["XYZ",      "RGB", 0]
+\   :         model=="OPP"        ? ["OPP",      "RGB",12]  :          model=="CMYK"       ? ["CMYK",     "RGBA",2]
+\   :         model=="JzCzhz"     ? ["JzCzhz",   "YUV",14]  :          model=="Jzazbz"     ? ["Jzazbz",   "YUV",13]
+\   :         model=="CIEDuv"     ? ["Duv",      "YUV",35]  :          model=="HSV"        ? ["HSV",      "RGB",24]
+\   :         model=="OSA"        ? ["OSA",      "YUV",36]  :          model=="Duv"        ? ["Duv",      "YUV",35]
+\   : FindStr(model, "NTSC"   )>0 ? ["YIQ",      "YUV", 3]  :          model=="XYB"        ? ["XYB",      "YUV",40]
+\   : FindStr(model, "PAL"    )>0 ? ["YUV",      "YUV",42]  :  FindStr(model, "525"    )>0 ? ["YIQ",      "YUV", 3]
+\   : FindStr(model, "CAM97"  )>0 ? ["CIECAM97s","YUV",32]  :  FindStr(model, "625"    )>0 ? ["YUV",      "YUV",42]
+\   : FindStr(model, "CAM16"  )>0 ? ["CAM16",    "YUV",34]  :  FindStr(model, "CAM02"  )>0 ? ["CIECAM02", "YUV",33]
+\   : FindStr(model, "OK"     )>0 ? ["OkLab",    "YUV",37]  :  FindStr(model, "HUNTER" )>0 ? ["HunterLab","YUV",26]
+\   : FindStr(model, "LAB"    )>0 ? ["CIELab",   "YUV",27]  :  FindStr(model, "LUV"    )>0 ? ["CIELuv",   "YUV",29]
+\   : FindStr(model, "GXL"    )>0 ? ["XYB",      "YUV",40]  :  FindStr(model, "2000"   )>0 ? ["YUVr",     "YUV", 5]
+\   :         jab   =="420"       ? ["YCbCr",    "YUV", 4]  :  FindStr(model, "-XL"    )>0 ? ["XYB",      "YUV",40]
+\   :         format=="444"       ? ["YCbCr",    "YUV", 4]  :          jab  =="422"        ? ["YCbCr",    "YUV", 4]
+\   :         rgb                 ? ["RGB","RGB",1]         :                                ["YCbCr",    "YUV", 4]
 
     cm0 = cm[0]
     # Color Model based Matrix constants (for frameprops)
     ma =
 \     (        cm0=="RGB"       ) ? 0
 \   : (        cm0=="XYZ"       ) ? 0
+\   : (        cm0=="YIQ"       ) ? 4
+\   : (        cm0=="YUV"       ) ? 5
 \   : (        cm0=="xvYCC"     ) ? 1
 \   : (        cm0=="YCoCg"     ) ? 8
 \   : (        cm0=="ICtCp"     ) ? 14 : -1
@@ -2313,7 +2318,7 @@ function color_coef (string "prims", string "mat", string "illu") {
                      0.2736751797, 0.7174317825, \
                      0.1665376306, 0.0088803172] : cs
     # XYZ
-    cs = mat_i==13? [1.0, 0.0, \
+    cs = mat_i==30? [1.0, 0.0, \
                      0.0, 1.0, \
                      0.0, 0.0] : cs
 
@@ -2329,22 +2334,22 @@ function color_coef (string "prims", string "mat", string "illu") {
 # * In [10] Mark Fairchild measured a 9300K Sony Trinitron CRT with illuminant coordinates x=0.2838, y=0.3290 (8229.87K)
 
     # NTSC-J/P22 (loosely based on JEDEC-P22/EBU Tech-E) (per-phosphor IQM of [6], [7], [8] and [11])
-    cs = mat_i==13 ? [0.625, 0.350, \
+    cs = mat_i==12 ? [0.625, 0.350, \
                       0.280, 0.605, \
                       0.152, 0.062] : cs
 #############
 ## P22 D65 ##
 #############
 
-    # P22 1st Gen - All Sulfide (627,530,440): Y2O2S:Eu (P22), ZnS:Cu,Al (P22/P54), ZnS:Ag (P22)
+    # P22 1st Gen 80s - All Sulfide (627,530,440): Y2O2S:Eu (P22), ZnS:Cu,Al (P22/P54), ZnS:Ag (P22)
     cs = mat_i==30 ? [0.6470, 0.3430, \
                       0.2820, 0.6200, \
                       0.1472, 0.0642] : cs
-    # P22 2nd Gen - All Sulfide (626,535,440): Y2O2S:Eu+Fe2O3 (P22), ZnS:Au,Cu,Al (P22/P54), ZnS:Ag (P22)
+    # P22 2nd Gen 90s - All Sulfide (626,535,440): Y2O2S:Eu+Fe2O3 (P22), ZnS:Au,Cu,Al (P22/P54), ZnS:Ag (P22)
     cs = mat_i==30 ? [0.6661, 0.3329, \
                       0.3134, 0.6310, \
                       0.1472, 0.0642] : cs
-    # P56,53,55-Projection3     (611,544,450): Y2O3:Eu (P56), Y3Al5O12:Tb (P53), ZnS:Ag,Al (P55)
+    # P56,P53,P55-RPTV              (611,544,450): Y2O3:Eu (P56), Y3Al5O12:Tb (P53), ZnS:Ag,Al (P55)
     cs = mat_i==30 ? [0.640, 0.335, \
                       0.341, 0.586, \
                       0.150, 0.070] : cs
@@ -2679,48 +2684,50 @@ function DotClipA ( clip_array clp, float_array vec) {
 function MatrixDot ( float_array mat1, \
                      float_array mat2) {
 
+    mat012=[mat1[0],mat1[1],mat1[2]]
+    mat210=[mat2[0],mat2[1],mat2[2]]
+
     # 1x3 · 3x3
     if (ArraySize(mat1) == 3) {
 
-        mat10=mat1[0]    mat11=mat1[1]    mat12=mat1[2]
-        ar1 = Dot([mat10,mat11,mat12],[mat2[0],mat2[1],mat2[2]])
-        ar2 = Dot([mat10,mat11,mat12],[mat2[3],mat2[4],mat2[5]])
-        ar3 = Dot([mat10,mat11,mat12],[mat2[6],mat2[7],mat2[8]])
+        ar1 = Dot(mat012,mat210)
+        ar2 = Dot(mat012,[mat2[3],mat2[4],mat2[5]])
+        ar3 = Dot(mat012,[mat2[6],mat2[7],mat2[8]])
 
        [ar1,ar2,ar3]
 
     # 3x3 · 1x3
-    } else if (ArraySize(mat2) == 3) {
+    } else {
 
-        mat20=mat2[0]    mat21=mat2[1]    mat22=mat2[2]
-        ar1 = Dot([mat1[0],mat1[1],mat1[2]],[mat20,mat21,mat22])
-        ar2 = Dot([mat1[3],mat1[4],mat1[5]],[mat20,mat21,mat22])
-        ar3 = Dot([mat1[6],mat1[7],mat1[8]],[mat20,mat21,mat22])
+        mat345=[mat1[3],mat1[4],mat1[5]]
+        mat678=[mat1[6],mat1[7],mat1[8]]
+
+    if (ArraySize(mat2) == 3) {
+
+        ar1 = Dot(mat012,mat210)
+        ar2 = Dot(mat345,mat210)
+        ar3 = Dot(mat678,mat210)
 
        [ar1,ar2,ar3]
 
     # 3x3 · 3x3
     } else {
 
-        mat10=mat1[0]    mat11=mat1[1]    mat12=mat1[2]
-        mat13=mat1[3]    mat14=mat1[4]    mat15=mat1[5]
-        mat16=mat1[6]    mat17=mat1[7]    mat18=mat1[8]
-
         mat20=mat2[0]    mat21=mat2[1]    mat22=mat2[2]
         mat23=mat2[3]    mat24=mat2[4]    mat25=mat2[5]
         mat26=mat2[6]    mat27=mat2[7]    mat28=mat2[8]
 
-        ar1 = Dot([mat10,mat11,mat12],[mat20,mat23,mat26])
-        ar2 = Dot([mat10,mat11,mat12],[mat21,mat24,mat27])
-        ar3 = Dot([mat10,mat11,mat12],[mat22,mat25,mat28])
-        ar4 = Dot([mat13,mat14,mat15],[mat20,mat23,mat26])
-        ar5 = Dot([mat13,mat14,mat15],[mat21,mat24,mat27])
-        ar6 = Dot([mat13,mat14,mat15],[mat22,mat25,mat28])
-        ar7 = Dot([mat16,mat17,mat18],[mat20,mat23,mat26])
-        ar8 = Dot([mat16,mat17,mat18],[mat21,mat24,mat27])
-        ar9 = Dot([mat16,mat17,mat18],[mat22,mat25,mat28])
+        ar1 = Dot(mat012,[mat20,mat23,mat26])
+        ar2 = Dot(mat012,[mat21,mat24,mat27])
+        ar3 = Dot(mat012,[mat22,mat25,mat28])
+        ar4 = Dot(mat345,[mat20,mat23,mat26])
+        ar5 = Dot(mat345,[mat21,mat24,mat27])
+        ar6 = Dot(mat345,[mat22,mat25,mat28])
+        ar7 = Dot(mat678,[mat20,mat23,mat26])
+        ar8 = Dot(mat678,[mat21,mat24,mat27])
+        ar9 = Dot(mat678,[mat22,mat25,mat28])
 
-       [ar1,ar2,ar3,ar4,ar5,ar6,ar7,ar8,ar9]  }  }
+       [ar1,ar2,ar3,ar4,ar5,ar6,ar7,ar8,ar9]  }  }  }
 
 
 # 3x3 matrix invert (for pseudo matrix division -> A/B = A * B^-1)
@@ -2765,7 +2772,7 @@ function Determinant (float_array mat) {
     crs2 = Cross(col2, col3)
     Det  = Dot  (col1, crs2)
 
-    Det }
+    return Det }
 
 
 # Convert a vector into a square matrix by filling with dups or zeroes
@@ -2819,9 +2826,9 @@ function Cross (float_array vec1, \
         cr1 = vec11 *  vec22 - vec12 * vec21
         cr2 = vec12 *  vec20 - vec10 * vec22
         cr3 = vec10 *  vec21 - vec11 * vec20
-        [cr1, cr2, cr3]
+       [cr1, cr2, cr3]
     } else {
     # 1x2 X 1x2
         cr1 = vec1[0] * vec2[1] - vec2[0] * vec1[1]
-        [cr1] } }
+       [cr1] } }
 
