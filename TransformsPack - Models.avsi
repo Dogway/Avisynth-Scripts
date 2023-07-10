@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v2.0.0     (03-06-2023)   ##
+###   Transforms Pack - Models v2.1.0     (10-07-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -11,6 +11,10 @@
 ### MODELS:                                              ##
 ###     RGB_to_YUV      /    YUV_to_RGB                  ##
 ###     RGB_to_YcCbcCrc /    YcCbcCrc_to_RGB             ##
+###     RGB_to_YUVp     /    YUVp_to_RGB                 ##
+###     YCC_to_YUVp     /    YUVp_to_YCC                 ##
+###     RGB_to_YIQ      /    YIQ_to_RGB                  ##
+###     YCC_to_YIQ      /    YIQ_to_YCC                  ##
 ###     RGB_to_YCoCg    /    YCoCg_to_RGB                ##
 ###     RGB_to_YCoCgR   /    YCoCgR_to_RGB               ##
 ###     RGB_to_YUVr     /    YUVr_to_RGB                 ##
@@ -60,12 +64,13 @@
 #-170M                   - ITU-R Rec. BT.1700 (or legacy ITU-R Rec. BT.601) (525-line = NTSC, SMPTE-C) (originally defined in "CCIR Recommendation 601-1 (1982-1986)").
 #-240M                   - SMPTE 240M.
 #-NTSC-J                 - ARIB TR-B9. Phosphor primaries used in Japan's consumer CRTs along 9300K + 27 MPCD illuminant.
-#-sRGB                   - IEC 61966-2. Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users. Comprises Primaries -derived from phosphors of calibrated consumer CRTs of the 90s-, Illuminant and Transfer Characteristics.
-#-2020                   - ITU-R Rec. BT.2020.
+#-sRGB                   - IEC 61966-2-1. Jointly developed by Microsoft and Hewlett-Packard as a color standard designed primarily for office, home and web users. Comprises Primaries -derived from phosphors of calibrated consumer CRTs of the 90s-, Illuminant and Transfer Characteristics.
+# scRGB                  - IEC 61966-2-2. Extended RGB. The scRGB colour space is an extension of sRGB and it is considered compatible with sRGB, designed to provide high bit precision, large colour gamut and extended dynamic range that is linear with respect to scene radiance.
 #-AdobeRGB               - IEC 61966-2-5:1999. Also known as opRGB (optional RGB). Designed to encompass most printers' gamuts and to be used as a working space in Photoshop, ideally at 16-bit. It's basically the 470BG primaries with greens from 470M allegedly after a sucessions of mistakes.
 #-Adobe Wide Gamut       - Adobe second and final wide gamut version of AdobeRGB with same transfer but in D50 illuminant.
 #-DCI-P3                 - SMPTE RP 432-2. Digital Cinema.
 #-Display-P3/P3-D65      - SMPTE RP 432-1. Display-P3 is Apple's take on P3, same DCI-P3 primaries but with D65 illuminant and sRGB TRC. P3-D65 instead uses PQ for HDR and 1886 for SDR.
+#-2020                   - ITU-R Rec. BT.2020.
 #-AP0                    - ACES AP0 coefficients used for ACES2065 color space.
 #-AP1                    - ACES AP1 coefficients used for ACEScg   color space.
 # S-Gamut                - Sony Gamut
@@ -160,8 +165,8 @@
 # o1o2         - For Robust Image Detection in Scenes under Cast Shadows. https://digital.csic.es/bitstream/10261/30099/1/Combining%20color-based.pdf
 #-YPbPr        - A model for analogue signals. Has no definition for the SMPTE range so saturates full range. Roughly based on human perception of luma and chroma contribution (approximately perceptually uniform). Uses 3 planes for Luma, opposing blue-yellow, and opposing red-green. It's a 45º skewed parallelogram relative to the square RGB box, therefore only 23.6% of its color volume matches RGB and 76.4% is out of RGB gamut.
 #-YCbCr        - YPbPr scaled to SMPTE legal range ((16,128,128) + (219*Y,224*Pb,224*Pr)). Format used for digital systems.
-# YUV          - Decorrelated Opponent color model for analogue system used in PAL territories and NTSC since 1979.
-# YIQ          - YUV with UV axes rotated 33º, used for old FCC 1953 NTSC TV analogue system until about 1979. Quote from avisynth.nl/index.php/Tweak: "In YIQ, orange and teal are along the in-phase (I) axis, while green and magenta are along the quadrature (Q) axis. The eye is far more sensitive to detail along the I axis than along the Q axis, and NTSC allocated more bandwidth for I than for Q."
+#-YUV          - Decorrelated Opponent color model for analogue system used in PAL territories and NTSC since 1979.
+#-YIQ          - YUV with UV axes rotated 33º, used for old FCC 1953 NTSC TV analogue systems until about 1979. Quote from avisynth.nl/index.php/Tweak: "In YIQ, orange and teal are along the in-phase (I) axis, while green and magenta are along the quadrature (Q) axis. The eye is far more sensitive to detail along the I axis than along the Q axis, and NTSC allocated more bandwidth for I than for Q."
 # YDbDr        - PAL-N and SECAM TV analogue format.
 #-YUVr         - "YUV RCT". Same as YCbCr but fully reversible to RGB.
 # sYUV         - "Sharp YUV". Same as YCbCr but luma-weighted chroma subsampling, retaining chroma fidelity.
@@ -211,6 +216,8 @@
 # iCAM06       - An image (not only color) appearance metric model to not only compute perceived difference in lightness, hue or chroma, but also contrast, sharpness or graininess. Involves converting to IPT, low-pass filtering in linear space, convert to non-linearity, then to Jch model and QM if necessary for the metrics.
 # Hellwig2022  - Hellwig and Fairchild (2022) CAM
 # Others not included: RLAB, Nayatani, LLAB, Kim, Weyrich and Kautz (2009)
+
+
 
 # YCbCr to RGB' standalone function (at least 10-bit precision recommended)
 function YUV_to_RGB (clip yuv, string "matrix", bool "tv_in", bool "tv_out", string "kernel", float "b", float "c", float "p", string "cplace", bool "UVrecon") {
@@ -549,7 +556,451 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
 
 
 
-# YCoCg, YCoCgR and YUVr compress better than plain YUV. YCoCg variants a tiny bit over YUVr, and YUVr and YCoCgR being losslessly reversible (RCT) with RGB
+##
+## Y'UV and Y'IQ analogue color models
+##
+## The chroma subcarriers were strictly defined by their
+## bandwidths so they were nor full nor narrow/legal range
+##
+## Luma in the other hand could be both, depending on region:
+##  0-235 Y'UV PAL
+##  0-235 Y'UV NTSC-J
+## 16-235 Y'UV NTSC
+##
+## * Since 1979 the barely used FCC NTSC primaries along its Y'IQ color model
+##   gave way to the then PAL-only Y'UV color model for all regions, therefore
+##   using the same bandwidths for both chroma subcarriers.
+##
+## * A few PAL regions though still used a different color model like Y'DbDr.
+##
+
+# Bymax 0.885515
+# Rymax 0.701088
+# R'G'B' full range to Decorrelated Intermediate (Y,B-Y,R-Y)
+# Rows should sum to 0, except first one which sums 1
+global g_Luma         = [0.298912, 0.586603, 0.114485]
+global g_RGB_to_YByRy = [g_Luma[0],  g_Luma[1],   g_Luma[2],\
+                        -g_Luma[0], -g_Luma[1], 1-g_Luma[2],\
+                       1-g_Luma[0], -g_Luma[1],  -g_Luma[2]]
+
+# Y'UV to Y'IQ. Y'IQ is the same as Y'UV but with chroma axes rotated 33º
+# The derivations of the coefficients are to be computed in radians
+# so it matches the known RGB_to_YIQ matrix coefficients we all know (and love).
+       toRad          = 33*(pi/180)
+global g_YUV_to_YIQ   = [1.0,  0.00000000, 0.00000000,\
+                         0.0, -sin(toRad), cos(toRad),\
+                         0.0,  cos(toRad), sin(toRad)]
+
+# R'G'B' to Y'UV (PAL -later also NTSC- analogue color model)
+# Chroma range (U: ±0.435812284313725, V: ±0.615857694117647)
+# Chroma range centered at unsigned range_size when not in float type, so V channel might clip when using 16-bit int and below
+function RGB_to_YUVp (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out", bool "Array") {
+
+    isy = isy(RGB)
+    bi  = BitsPerComponent(RGB)
+    fs  = propNumElements (RGB,"_ColorRange")  > 0 ? \
+          propGetInt      (RGB,"_ColorRange") == 0 : true
+    b32 = bi == 32
+    tvi = Default (tv_in,    !fs)
+    tvo = Default (tv_out,  true) # When 'True' 16-235 (NTSC-U),  when 'False' 0-235 (PAL, NTSC-J)
+    arc = Default (Array,    isy)
+
+    RGB =  tvi ? SMPTE_legal   (RGB,false) : RGB
+    clp = !isy ? ExtractClip   (RGB)       : nop()
+    R   = !isy ? clp[0] : tvi ? RGB.SMPTE_legal(false) : RGB
+    G   = !isy ? clp[1] :  tvi ? G. SMPTE_legal(false) :  G
+    B   = !isy ? clp[2] :   tvi ? B.SMPTE_legal(false) :   B
+
+    UVf     = b32 ? "" : "range_half + "
+    rangeTV = tvo ? " ymax ymin - range_max / * ymin +" : " ymax range_max / *"
+
+    sclU = ((0.5*(235-16)+16)/255.) # This yields Luma   grey  at around 0.49216 or 125.5 in 8-bit
+    sclV =       (240-16)    /255.  # This yields Chroma range at around 0.87843 or 224   in 8-bit
+
+    Yrow = g_Luma
+    Urow = ArrayOp(sclU,[g_RGB_to_YByRy[3],g_RGB_to_YByRy[4],g_RGB_to_YByRy[5]],"*")
+    Vrow = ArrayOp(sclV,[g_RGB_to_YByRy[6],g_RGB_to_YByRy[7],g_RGB_to_YByRy[8]],"*")
+
+    Y  = ex_dlut("x "+string(Yrow[0])+" * y "+string(Yrow[1])+" * + z "+string(Yrow[2])+" * + "+rangeTV+"", bi, false)
+    U  = ex_dlut("x "+string(Urow[0])+" * y "+string(Urow[1])+" * + z "+string(Urow[2])+" * + "+UVf       , bi, false)
+    V  = ex_dlut("x "+string(Vrow[0])+" * y "+string(Vrow[1])+" * + z "+string(Vrow[2])+" * + "+UVf       , bi, false)
+
+    if (arc) {
+
+        Y  = Expr(R, G, B, Y, optSingleMode=true).propSet("_Matrix", 5).propSet("_Model", 42)
+        U  = Expr(R, G, B, U, optSingleMode=true)
+        V  = Expr(R, G, B, V, optSingleMode=true)
+        [Y, U, V]
+
+    } else {
+
+        Expr(R, G, B, Y, U, V, optSingleMode=true, format=b32?"YUV444PS":"YUV444P"+string(bi))
+
+        propSet("_ColorRange", tvo ? 1 : 0)
+        propSet("_Matrix",     5)
+        propSet("_Model",     42) } }
+
+
+# Y'UV 444 (PAL -later also NTSC- analogue color model) to R'G'B'
+function YUVp_to_RGB (clip YUV, clip "U", clip "V", bool "tv_in", bool "tv_out", bool "Array") {
+
+    isy = isy(YUV)
+    bi  = BitsPerComponent(YUV)
+    fs  = propNumElements (YUV,"_ColorRange")  > 0 ? \
+          propGetInt      (YUV,"_ColorRange") == 0 : true
+    b32 = bi == 32
+    tvi = Default (tv_in,    !fs)
+    tvo = Default (tv_out, false)
+    arc = Default (Array,    isy)
+
+    clp = !isy ? ExtractClip(YUV) : nop()
+    Y   = !isy ? clp[0] :  YUV
+    U   = !isy ? clp[1] :  U
+    V   = !isy ? clp[2] :  V
+
+    UVf      = !b32 ? " range_half - "                    : ""
+    rangePC =   tvi ? " ymin - range_max ymax ymin - / *" : " range_max ymax / *"
+    rangeTV  =  tvo ? " ymax ymin - range_max / * ymin +" : ""
+
+    # Derived from inverting RGB_to_YUVp coeffs
+    YUVtoRGB = [1.0000000000000000,  1.00000000000000000, 1.000000000000000,\
+               -0.0000000293788260, -0.39655256271362305, 2.031872510910034,\
+                1.1383928060531616, -0.58008438348770140, 0.000000000000000]
+
+    R  = ex_dlut("x "+rangePC+" y "+UVf+string(YUVtoRGB[3])+" * + z "+UVf+string(YUVtoRGB[6])+" * + "+rangeTV, bi, false)
+    G  = ex_dlut("x "+rangePC+" y "+UVf+string(YUVtoRGB[4])+" * + z "+UVf+string(YUVtoRGB[7])+" * + "+rangeTV, bi, false)
+    B  = ex_dlut("x "+rangePC+" y "+UVf+string(YUVtoRGB[5])+" * + z "+UVf+string(YUVtoRGB[8])+" * + "+rangeTV, bi, false)
+
+    if (arc) {
+        R  = Expr(Y, U, V, R, optSingleMode=true).propSet("_Matrix", 0).propSet("_Model", 1)
+        G  = Expr(Y, U, V, G, optSingleMode=true)
+        B  = Expr(Y, U, V, B, optSingleMode=true)
+        [R, G, B]
+
+    } else {
+
+        Expr(Y, U, V, R, G, B, optSingleMode=true, format="RGBP"+(bi>16?"S":string(bi)))
+
+        propSet("_ColorRange", tvo ? 1 : 0)
+        propSet("_Matrix",     0)
+        propSet("_Model",      1) } }
+
+
+# Y'CbCr 444 to Y'UV 444 (PAL -later also NTSC- analogue color model)
+# Chroma range (U: ±0.435812284313725, V: ±0.615857694117647)
+# Chroma range centered at unsigned range_size when not in float type, so V channel might clip when using 16-bit int and below
+function YCC_to_YUVp (clip YCC, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out", bool "Array") {
+
+    isy = isy(YCC)
+    bi  = BitsPerComponent(YCC)
+    fs  = propNumElements (YCC,"_ColorRange")  > 0 ? \
+          propGetInt      (YCC,"_ColorRange") == 0 : true
+    b32 = bi == 32
+    lut = b32 || isRunTime(YCC,false) ? 0 : 1
+    tvi = Default (tv_in,    !fs)
+    tvo = Default (tv_out,  true) # When 'True' 16-235 (NTSC-U),  when 'False' 0-235 (PAL, NTSC-J)
+    arc = Default (Array,    isy)
+
+    if (!isy) {
+        clp = ExtractClip(YCC)
+        Yc  = clp[0]
+        Cb  = clp[1]
+        Cr  = clp[2] }
+
+    UVf        = !b32 ? " range_half - "              : ""
+    rangeC_PC  = tvi  ? " range_max cmax cmin - / * " : ""
+    rangeC_pos = !b32 ? " range_half +"               : ""
+
+    sclU = ((0.5*(235-16)+16)/255.) # This yields Luma   grey  at around 0.49216 or 125.5 in 8-bit
+    sclV =       (240-16)    /255.  # This yields Chroma range at around 0.87843 or 224   in 8-bit
+
+    Yrow = g_Luma
+    Cb_to_U = (sclU*g_RGB_to_YByRy[5]) / 0.5 # = 0.871624568627450
+    Cr_to_V = (sclV*g_RGB_to_YByRy[6]) / 0.5 # = 1.231715388235294
+
+    Y = ex_dlut(!tvi &&  tvo ? "x range_max ymax ymin - / * ymin +" : !tvi && !tvo ? "x ymax range_max / *" : \
+                 tvi && !tvo ? "x ymin - ymax range_max / *"        : "", bi, true)
+    U = ex_dlut("x "+UVf+string(Cb_to_U)+rangeC_PC+" * "+rangeC_pos,      bi, true)
+    V = ex_dlut("x "+UVf+string(Cr_to_V)+rangeC_PC+" * "+rangeC_pos,      bi, true)
+
+    if (arc) {
+        Y  = Expr(Yc, Y, optSingleMode=false, lut=lut).propSet("_Matrix", 5).propSet("_Model", 42)
+        U  = Expr(Cb, U, optSingleMode=false, lut=lut)
+        V  = Expr(Cr, V, optSingleMode=false, lut=lut)
+        [Y, U, V]
+
+    } else {
+
+        Expr(YCC, Y, U, V, optSingleMode=false, format=b32?"YUV444PS":"YUV444P"+string(bi))
+
+        propSet("_ColorRange", tvo ? 1 : 0)
+        propSet("_Matrix",     5)
+        propSet("_Model",     42) } }
+
+
+# Y'UV (PAL -later also NTSC- analogue color model) to Y'CbCr 444
+function YUVp_to_YCC (clip YUV, clip "U", clip "V", bool "tv_in", bool "tv_out", bool "Array") {
+
+    isy = isy(YUV)
+    bi  = BitsPerComponent(YUV)
+    fs  = propNumElements (YUV,"_ColorRange")  > 0 ? \
+          propGetInt      (YUV,"_ColorRange") == 0 : true
+    b32 = bi == 32
+    lut = b32 || isRunTime(YUV,false) ? 0 : 1
+    tvi = Default (tv_in,    !fs)
+    tvo = Default (tv_out,  true)
+    arc = Default (Array,    isy)
+
+    if (!isy) {
+        clp = ExtractClip(YUV)
+        Y   = clp[0]
+        U   = clp[1]
+        V   = clp[2] }
+
+    UVf        = !b32 ? " range_half - "              : ""
+    rangeC_PC  =  tvo ? " cmax cmin - range_max / * " : ""
+    rangeC_pos = !b32 ? " range_half +"               : ""
+
+    # Derived from inverting YCC_to_YUVp coeffs
+    YUVtoYCC = [1.0,  0.0000000000000000, 0.0000000000000000,\
+                0.0,  1.1472828388214111, 0.0000000000000000,\
+                0.0,  0.0000000000000000, 0.8118758201599121]
+
+    Yc = ex_dlut(!tvi &&  tvo ? "x ymax ymin - ymax / * ymin +" : !tvi && !tvo ? "x range_max ymax / *" : \
+                  tvi && !tvo ? "x ymin - range_max ymax / *"   : "",     bi, true)
+    Cb = ex_dlut("x "+UVf+string(YUVtoYCC[4])+rangeC_PC+" * "+rangeC_pos, bi, true)
+    Cr = ex_dlut("x "+UVf+string(YUVtoYCC[8])+rangeC_PC+" * "+rangeC_pos, bi, true)
+
+    if (arc) {
+
+        Yc = Expr(Y, Yc, optSingleMode=false, lut=lut).propSet("_Matrix", 5).propSet("_Model", 5)
+        Cb = Expr(U, Cb, optSingleMode=false, lut=lut)
+        Cr = Expr(V, Cr, optSingleMode=false, lut=lut)
+        [Yc, Cb, Cr]
+
+    } else {
+
+        Expr(YUV, Yc, Cb, Cr, optSingleMode=false, format=b32?"YUV444PS":"YUV444P"+string(bi))
+
+        propSet("_ColorRange", tvo ? 1 : 0)
+        propSet("_Matrix",     5)
+        propSet("_Model",      5) } }
+
+
+# R'G'B' to Y'IQ 444 (NTSC 1953 analogue color model)
+# Chroma range (I: ±0.59662443399429320, Q: ±0.52277213335037230)
+# Chroma range centered at range_size when not in float type, so I/Q channels might clip when using 16-bit int and below
+function RGB_to_YIQ (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out", bool "Array") {
+
+    isy = isy(RGB)
+    bi  = BitsPerComponent(RGB)
+    fs  = propNumElements (RGB,"_ColorRange")  > 0 ? \
+          propGetInt      (RGB,"_ColorRange") == 0 : true
+    b32 = bi == 32
+    tvi = Default (tv_in,    !fs)
+    tvo = Default (tv_out,  true) # When 'True' 16-235 (NTSC-U), when 'False' 0-255 (no standard)
+    arc = Default (Array,    isy)
+
+    RGB =  tvi ? SMPTE_legal   (RGB,false) : RGB
+    clp = !isy ? ExtractClip   (RGB)       : nop()
+    R   = !isy ? clp[0] : tvi ? RGB.SMPTE_legal(false) : RGB
+    G   = !isy ? clp[1] :  tvi ? G. SMPTE_legal(false) :  G
+    B   = !isy ? clp[2] :   tvi ? B.SMPTE_legal(false) :   B
+
+    UVf      = b32 ? "" : "range_half + "
+    rangeTV  = tvo ? " ymax ymin - range_max / * ymin +" : " range_max *"
+
+    sclU = ((0.5*(235-16)+16)/255.) # This yields Luma   grey  at around 0.49216 or 125.5 in 8-bit
+    sclV =       (240-16)    /255.  # This yields Chroma range at around 0.87843 or 224   in 8-bit
+
+    Yrow = g_Luma
+    Urow = ArrayOp(sclU,[g_RGB_to_YByRy[3],g_RGB_to_YByRy[4],g_RGB_to_YByRy[5]],"*")
+    Vrow = ArrayOp(sclV,[g_RGB_to_YByRy[6],g_RGB_to_YByRy[7],g_RGB_to_YByRy[8]],"*")
+
+    YUV  = ArrayAppend(ArrayAppend(Yrow, Urow), Vrow)
+    YIQ  = MatrixDot(g_YUV_to_YIQ, YUV) # Rotating Y'UV chroma axes by 33º
+
+    Y    = ex_dlut("x "+string(YIQ[0])+" * y "+string(YIQ[1])+" * + z "+string(YIQ[2])+" * + "+rangeTV+"", bi, false)
+    I    = ex_dlut("x "+string(YIQ[3])+" * y "+string(YIQ[4])+" * + z "+string(YIQ[5])+" * + "+UVf       , bi, false)
+    Q    = ex_dlut("x "+string(YIQ[6])+" * y "+string(YIQ[7])+" * + z "+string(YIQ[8])+" * + "+UVf       , bi, false)
+
+    if (arc) {
+
+        Y  = Expr(R, G, B, Y, optSingleMode=true).propSet("_Matrix", 4).propSet("_Model", 3)
+        I  = Expr(R, G, B, I, optSingleMode=true)
+        Q  = Expr(R, G, B, Q, optSingleMode=true)
+        [Y, I, Q]
+
+    } else {
+
+        Expr(R, G, B, Y, I, Q, optSingleMode=true, format=b32?"YUV444PS":"YUV444P"+string(bi))
+
+        propSet("_ColorRange", tvo ? 1 : 0)
+        propSet("_Matrix",     4)
+        propSet("_Model",      3) } }
+
+
+# Y'IQ 444 (NTSC 1953 analogue color model) to R'G'B'
+function YIQ_to_RGB (clip YIQ, clip "I", clip "Q", bool "tv_in", bool "tv_out", bool "Array") {
+
+    isy = isy(YIQ)
+    bi  = BitsPerComponent(YIQ)
+    fs  = propNumElements (YIQ,"_ColorRange")  > 0 ? \
+          propGetInt      (YIQ,"_ColorRange") == 0 : true
+    b32 = bi == 32
+    tvi = Default (tv_in,    !fs)
+    tvo = Default (tv_out, false)
+    arc = Default (Array,    isy)
+
+    clp = !isy ? ExtractClip(YIQ) : nop()
+    Y   = !isy ? clp[0] :  YIQ
+    I   = !isy ? clp[1] :  I
+    Q   = !isy ? clp[2] :  Q
+
+    UVf     = !b32 ? " range_half - "                    : ""
+    rangePC =  tvi ? " ymin - range_max ymax ymin - / *" : ""
+    rangeTV =  tvo ? " ymax ymin - range_max / * ymin +" : ""
+
+    # Derived from inverting RGB_to_YIQ coeffs
+    YIQtoRGB = [1.0000000000000000,  1.00000000000000000,  1.0000000000000000,\
+                0.9547365307807922, -0.27052170038223267, -1.1066371202468872,\
+                0.6200131177902222, -0.64851361513137820,  1.7040715217590332]
+
+    R  = ex_dlut("x "+rangePC+" y "+UVf+string(YIQtoRGB[3])+" * + z "+UVf+string(YIQtoRGB[6])+" * + "+rangeTV, bi, false)
+    G  = ex_dlut("x "+rangePC+" y "+UVf+string(YIQtoRGB[4])+" * + z "+UVf+string(YIQtoRGB[7])+" * + "+rangeTV, bi, false)
+    B  = ex_dlut("x "+rangePC+" y "+UVf+string(YIQtoRGB[5])+" * + z "+UVf+string(YIQtoRGB[8])+" * + "+rangeTV, bi, false)
+
+    if (arc) {
+        R  = Expr(Y, I, Q, R, optSingleMode=true).propSet("_Matrix", 0).propSet("_Model", 1)
+        G  = Expr(Y, I, Q, G, optSingleMode=true)
+        B  = Expr(Y, I, Q, B, optSingleMode=true)
+        [R, G, B]
+
+    } else {
+
+        Expr(Y, I, Q, R, G, B, optSingleMode=true, format="RGBP"+(bi>16?"S":string(bi)))
+
+        propSet("_ColorRange", tvo ? 1 : 0)
+        propSet("_Matrix",     0)
+        propSet("_Model",      1) } }
+
+
+# Y'CbCr 444 to Y'IQ 444 (NTSC 1953 analogue color model)
+# Chroma range (I: ±0.59662443399429320, Q: ±0.52277213335037230)
+# Chroma range centered at range_size when not in float type, so I/Q channels might clip when using 16-bit int and below
+function YCC_to_YIQ (clip YCC, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out", bool "Array") {
+
+    isy = isy(YCC)
+    bi  = BitsPerComponent(YCC)
+    fs  = propNumElements (YCC,"_ColorRange")  > 0 ? \
+          propGetInt      (YCC,"_ColorRange") == 0 : true
+    b32 = bi == 32
+    iRn = isRunTime(YCC,false)
+    lt1 = b32     || iRn ? 0 : 1
+    lt2 = bi > 12 || iRn ? 0 : 2
+    tvi = Default (tv_in,    !fs)
+    tvo = Default (tv_out,  true) # When 'True' 16-235 (NTSC-U), when 'False' 0-255 (no standard)
+    arc = Default (Array,    isy)
+
+    clp = !isy ? ExtractClip(YCC) : nop()
+    Yc  = !isy ? clp[0] : YCC
+    Cb  = !isy ? clp[1] :  Cb
+    Cr  = !isy ? clp[2] :   Cr
+
+    UVf        = !b32 ? " range_half - "              : ""
+    rangeC_PC  = tvi  ? " range_max cmax cmin - / * " : ""
+    rangeC_pos = !b32 ? " range_half +"               : ""
+
+    # Derivation
+    #    YCbCr->YUV
+    #        Cb->U = 0.435812284313725 / 0.5 = 0.87162456862745
+    #        Cr->V = 0.615857694117647 / 0.5 = 1.231715388235294
+    #
+    #    YCbCr->YUV->YIQ
+    #        Cb->I = 0.871624568627450 *-sin(33) =-0.474720768297668
+    #        Cb->Q = 0.871624568627450 * cos(33) = 0.731005873796788
+    #        Cr->I = 1.231715388235294 * cos(33) = 1.033003446729065
+    #        Cr->Q = 1.231715388235294 * sin(33) = 0.670840286601698
+
+    YCCtoYIQ = [1.0,  0.0000000000000000, 0.0000000000000000,\
+                0.0, -0.4747207760810852, 0.7310058474540710,\
+                0.0,  1.0330034494400024, 0.6708403229713440]
+
+    Y = ex_dlut(!tvi &&  tvo ? "x ymax ymin - range_max / * ymin +" : \
+                 tvi && !tvo ? "x ymin - range_max ymax ymin - / *" : "", bi, true)
+    I = ex_dlut("x "+UVf+string(YCCtoYIQ[4])+rangeC_PC+" * y "+UVf+string(YCCtoYIQ[7])+rangeC_PC+" * + "+rangeC_pos, bi, true)
+    Q = ex_dlut("x "+UVf+string(YCCtoYIQ[5])+rangeC_PC+" * y "+UVf+string(YCCtoYIQ[8])+rangeC_PC+" * + "+rangeC_pos, bi, true)
+
+    if (arc) {
+        Y  = Expr(Yc,     Y, optSingleMode=false, lut=lt1).propSet("_Matrix", 4).propSet("_Model", 3)
+        I  = Expr(Cb, Cr, I, optSingleMode=false, lut=lt2)
+        Q  = Expr(Cb, Cr, Q, optSingleMode=false, lut=lt2)
+        [Y, I, Q]
+
+    } else {
+
+        I = ReplaceStr(ReplaceStr(I,"y ","z "),"x ","y ")
+        Q = ReplaceStr(ReplaceStr(Q,"y ","z "),"x ","y ")
+        Expr(Yc, Cb, Cr, Y, I, Q, optSingleMode=true, format=b32?"YUV444PS":"YUV444P"+string(bi))
+
+        propSet("_ColorRange", tvo ? 1 : 0)
+        propSet("_Matrix",     4)
+        propSet("_Model",      3) } }
+
+
+# Y'IQ 444 (NTSC 1953 analogue color model) to Y'CbCr 444
+function YIQ_to_YCC (clip YIQ, clip "I", clip "Q", bool "tv_in", bool "tv_out", bool "Array") {
+
+    isy = isy(YIQ)
+    bi  = BitsPerComponent(YIQ)
+    fs  = propNumElements (YIQ,"_ColorRange")  > 0 ? \
+          propGetInt      (YIQ,"_ColorRange") == 0 : true
+    b32 = bi == 32
+    iRn = isRunTime(YIQ,false)
+    lt1 = b32     || iRn ? 0 : 1
+    lt2 = bi > 12 || iRn ? 0 : 2
+    tvi = Default (tv_in,    !fs)
+    tvo = Default (tv_out,  true)
+    arc = Default (Array,    isy)
+
+    clp = !isy ? ExtractClip(YIQ) : nop()
+    Y   = !isy ? clp[0] :  YIQ
+    I   = !isy ? clp[1] :  I
+    Q   = !isy ? clp[2] :  Q
+
+    UVf        = !b32 ? " range_half - "              : ""
+    rangeC_PC  =  tvo ? " cmax cmin - range_max / * " : ""
+    rangeC_pos = !b32 ? " range_half +"               : ""
+
+    # Derived from inverting YCC_to_YIQ coeffs
+    YIQtoYCC = [1.0,  0.0000000000000000, 0.00000000000000000,\
+                0.0, -0.6248551011085510, 0.68089640140533450,\
+                0.0,  0.9621924757957458, 0.44217929244041443]
+
+    Yc = ex_dlut(!tvi &&  tvo ? "x ymax ymin - range_max / * ymin +" : \
+                  tvi && !tvo ? "x ymin - range_max ymax ymin - / *" : "", bi, true)
+    Cb = ex_dlut("x "+UVf+string(YIQtoYCC[4])+rangeC_PC+" * y "+UVf+string(YIQtoYCC[7])+rangeC_PC+" * + "+rangeC_pos, bi, true)
+    Cr = ex_dlut("x "+UVf+string(YIQtoYCC[5])+rangeC_PC+" * y "+UVf+string(YIQtoYCC[8])+rangeC_PC+" * + "+rangeC_pos, bi, true)
+
+    if (arc) {
+        Yc = Expr(Y,    Yc, optSingleMode=false, lut=lt1).propSet("_Matrix", 4).propSet("_Model", 5)
+        Cb = Expr(I, Q, Cb, optSingleMode=false, lut=lt2)
+        Cr = Expr(I, Q, Cr, optSingleMode=false, lut=lt2)
+        [Yc, Cb, Cr]
+
+    } else {
+
+        Cb = ReplaceStr(ReplaceStr(Cb,"y ","z "),"x ","y ")
+        Cr = ReplaceStr(ReplaceStr(Cr,"y ","z "),"x ","y ")
+        Expr(Y, I, Q, Yc, Cb, Cr, optSingleMode=true, format=b32?"YUV444PS":"YUV444P"+string(bi))
+
+        propSet("_ColorRange", tvo ? 1 : 0)
+        propSet("_Matrix",     4)
+        propSet("_Model",      5) } }
+
+
+
+# YCoCg, YCoCgR and YUVr compress better than plain YCbCr. YCoCg variants a tiny bit over YUVr, and YUVr and YCoCgR being losslessly reversible (RCT) with RGB
 # These formats are ColorSpace and Chroma Subsampling independent, as well as signal range (full or legal), although specification defines it as full range.
 # Originally called YCoCg, was later renamed and standardized to YCgCo, since the Co channel corresponds better to Cr from YCbCr
 
@@ -656,9 +1107,9 @@ function RGB_to_YCoCgR (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out
     b32i = bi == 32 ? "" : "range_half +"
     b32f = bi == 32 ? "" : "range_half -"
 
-    Co = Expr(R,      B, ex_dlut("x 0.5  * y 0.5  * - "+b32i,            bi, true), optSingleMode=false, lut=lut)
-    Cg = Expr(Co, G,  B, ex_dlut("y z x "+b32f+" 0.5 * + - 0.5 * "+b32i, bi, true), optSingleMode=false, lut=  0)
-    Y  = Expr(Co, Cg, B, ex_dlut("  z x "+b32f+" 0.5 * + y "+b32f+" +",  bi, true), optSingleMode=false, lut=  0).propSet("_Matrix", 2).propSet("_Model", 10)
+    Co = Expr(R,      B, ex_dlut("x              0.5 *   y 0.5 * - "+b32i, bi, true), optSingleMode=false, lut=lut)
+    Cg = Expr(Co, G,  B, ex_dlut("y z x "+b32f+" 0.5 * + - 0.5 *   "+b32i, bi, true), optSingleMode=false, lut=  0)
+    Y  = Expr(Co, Cg, B, ex_dlut("  z x "+b32f+" 0.5 * + y "+b32f+" +",    bi, true), optSingleMode=false, lut=  0).propSet("_Matrix", 2).propSet("_Model", 10)
 
     if (arc) {
         tvo ? CombinePlanes(Y, Cg, Co, planes="YUV").SMPTE_legal(true).ExtractClip() : [Y, Cg, Co]
@@ -2017,7 +2468,7 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 #
 #   These curves are sorted by slope. Log is less steep and doesn't get as flat,
 #   which results in more desaturation in compressed colors at the same threshold.
-#   Tanh is more steep and gets flatter soonerwhich causes colors to be more saturated
+#   Tanh is more steep and gets flatter sooner which causes colors to be more saturated
 #   at the same threshold. You may need to boost the threshold to get
 #   the desired color appearance with tanh.
 #
@@ -2039,7 +2490,7 @@ function LMS_to_XYZ (clip lms, string "mode", bool "list", bool "transpose") {
 #      When Distance is at 1, out of gamut colors are compressed to the gamut boundary on the achromatic path.
 #      When Distance is >  1, will compress more than the gamut boundary.
 #
-#  Direction:
+#  Invert:
 #      Specifies whether to apply or inverse the gamut compression operation.
 #      Inverting the gamut compression is possible but should be used
 #      with an excess of caution, because saturated values can be pushed
