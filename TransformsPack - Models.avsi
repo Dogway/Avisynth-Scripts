@@ -573,6 +573,9 @@ function YcCbcCrc_to_RGB (clip YUV, clip "Cb", clip "Cr", string "matrix", strin
 ##
 ## * A few PAL regions though still used a different color model like Y'DbDr.
 ##
+## For a summary of the explicitly used matrices and explanations check this post:
+##   https://forum.doom9.org/showthread.php?p=1989126
+##
 
 # Bymax 0.885515
 # Rymax 0.701088
