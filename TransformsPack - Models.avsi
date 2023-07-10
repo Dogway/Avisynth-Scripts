@@ -675,6 +675,7 @@ function YUVp_to_RGB (clip YUV, clip "U", clip "V", bool "tv_in", bool "tv_out",
     B  = ex_dlut("x "+rangePC+" y "+UVf+string(YUVtoRGB[5])+" * + z "+UVf+string(YUVtoRGB[8])+" * + "+rangeTV, bi, false)
 
     if (arc) {
+
         R  = Expr(Y, U, V, R, optSingleMode=true).propSet("_Matrix", 0).propSet("_Model", 1)
         G  = Expr(Y, U, V, G, optSingleMode=true)
         B  = Expr(Y, U, V, B, optSingleMode=true)
@@ -727,6 +728,7 @@ function YCC_to_YUVp (clip YCC, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out
     V = ex_dlut("x "+UVf+string(Cr_to_V)+rangeC_PC+" * "+rangeC_pos,      bi, true)
 
     if (arc) {
+
         Y  = Expr(Yc, Y, optSingleMode=false, lut=lut).propSet("_Matrix", 5).propSet("_Model", 42)
         U  = Expr(Cb, U, optSingleMode=false, lut=lut)
         V  = Expr(Cr, V, optSingleMode=false, lut=lut)
@@ -874,6 +876,7 @@ function YIQ_to_RGB (clip YIQ, clip "I", clip "Q", bool "tv_in", bool "tv_out", 
     B  = ex_dlut("x "+rangePC+" y "+UVf+string(YIQtoRGB[5])+" * + z "+UVf+string(YIQtoRGB[8])+" * + "+rangeTV, bi, false)
 
     if (arc) {
+
         R  = Expr(Y, I, Q, R, optSingleMode=true).propSet("_Matrix", 0).propSet("_Model", 1)
         G  = Expr(Y, I, Q, G, optSingleMode=true)
         B  = Expr(Y, I, Q, B, optSingleMode=true)
@@ -935,6 +938,7 @@ function YCC_to_YIQ (clip YCC, clip "Cb", clip "Cr", bool "tv_in", bool "tv_out"
     Q = ex_dlut("x "+UVf+string(YCCtoYIQ[5])+rangeC_PC+" * y "+UVf+string(YCCtoYIQ[8])+rangeC_PC+" * + "+rangeC_pos, bi, true)
 
     if (arc) {
+
         Y  = Expr(Yc,     Y, optSingleMode=false, lut=lt1).propSet("_Matrix", 4).propSet("_Model", 3)
         I  = Expr(Cb, Cr, I, optSingleMode=false, lut=lt2)
         Q  = Expr(Cb, Cr, Q, optSingleMode=false, lut=lt2)
@@ -986,6 +990,7 @@ function YIQ_to_YCC (clip YIQ, clip "I", clip "Q", bool "tv_in", bool "tv_out", 
     Cr = ex_dlut("x "+UVf+string(YIQtoYCC[5])+rangeC_PC+" * y "+UVf+string(YIQtoYCC[8])+rangeC_PC+" * + "+rangeC_pos, bi, true)
 
     if (arc) {
+
         Yc = Expr(Y,    Yc, optSingleMode=false, lut=lt1).propSet("_Matrix", 4).propSet("_Model", 5)
         Cb = Expr(I, Q, Cb, optSingleMode=false, lut=lt2)
         Cr = Expr(I, Q, Cr, optSingleMode=false, lut=lt2)
@@ -1031,6 +1036,7 @@ function RGB_to_YCoCg (clip RGB, clip "G", clip "B", bool "tv_in", bool "tv_out"
     rangeC_TV = tvo ? " cmax cmin - range_max / * "+(bi==32 ? "" : "cmin +") : ""
 
     if (arc) {
+
         Y  = Expr(R, G, B, ex_dlut("x z + 0.25 * y 0.5  * + "    +rangeTV,   bi, true), optSingleMode=true,  lut=  0).propSet("_Matrix", 2).propSet("_Model", 9)
         Cg = Expr(R, G, B, ex_dlut("y 0.5  * x z + 0.25 * - "+b32+rangeC_TV, bi, true), optSingleMode=true,  lut=  0)
         Co = Expr(R,    B, ex_dlut("x y - 0.5  *            "+b32+rangeC_TV, bi, true), optSingleMode=false, lut=lut)
