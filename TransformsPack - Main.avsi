@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v2.1.0       (10-07-2023)   ##
+###   Transforms Pack - Main v2.1.0       (11-07-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
@@ -747,9 +747,9 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                         kernel == "Nuttall"      || kernel == "BlackmanMinLobe"                              ? \
                                                    """fmtc_resample({nw},{nh},kernel="blackmanminlobe"    """: \
                         kernel == "SincLin"      || kernel == "SincLin2ResizeMT"                             ? \
-                                                 "SincLin2Resize({nw},{nh},range=1,taps={pd}?int({p}):15"    : \
+                                                 "SincLin2Resize({nw},{nh},taps={pd}?int({p}):15"            : \
                         kernel == "SinPow"      || kernel == "SinPowResizeMT"                                ? \
-                                                 "SinPowerResize({nw},{nh},range=1,p={pd}?{p}:2.5"           : \
+                                                 "SinPowerResize({nw},{nh},p={pd}?{p}:2.5"                   : \
                         kernel == "SSIM"        || kernel == "ResizeShader"                                  ? \
                                                    """ResizeShader({nw},{nh},kernel="SSIM",b=0.1"""          : \
                         kernel == "SSIM2"                                                                    ? \
