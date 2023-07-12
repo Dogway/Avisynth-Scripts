@@ -17,11 +17,11 @@
 
 <p>
 <b>Author: </b>Dogway<br/>
-<b>Version: </b>v4.4.0d<br/>
+<b>Version: </b>v4.5.0d<br/>
 <b>Download: </b><a href="https://github.com/Dogway/Avisynth-Scripts/tree/master/SMDegrain" target="_blank">https://github.com/Dogway/Avisynth-Scripts/SMDegrain</a><br/>
 <b>Discussion: </b><a href="https://forum.doom9.org/showthread.php?t=182881" target="_blank">https://forum.doom9.org/showthread.php?t=182881</a><br/>
 <b>Category: </b>Temporal Denoiser<br/>
-<b>Date:</b> 16-May-2023
+<b>Date:</b> 12-Jul-2023
 </p>
 <p>&nbsp;</p>
 <h2><a id="up"></a>Table of contents</h2>
@@ -54,13 +54,13 @@
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MIX%20mods/SharpenersPack.avsi" target="_blank">SharpenersPack</a></b></li></td><td>&nbsp;&nbsp;(v5.1 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or LFR)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/GradePack.avsi" target="_blank">GradePack</a></b></li></td><td>&nbsp;&nbsp;(v9.0 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ or show)</td></tr>
     <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/ScenesPack.avsi" target="_blank">ScenesPack</a></b></li></td><td>&nbsp;&nbsp;(v4.5 or higher)</td><td>&nbsp;&nbsp;(for Str=0.1 to 1.0 ~ex_retinex()~ if '_SceneRange' frameprops exist)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MasksPack.avsi" target="_blank">MasksPack</a></b></li></td><td>&nbsp;&nbsp;(v6.6 or higher)</td><td>&nbsp;&nbsp;(for show)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts/blob/master/MasksPack.avsi" target="_blank">MasksPack</a></b></li></td><td>&nbsp;&nbsp;(v6.7 or higher)</td><td>&nbsp;&nbsp;(for show)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/RgTools" target="_blank">RgTools</a></b></li></td><td>&nbsp;&nbsp;(v1.2 or higher)</td><td>&nbsp;&nbsp;(for Contrasharp or prefilter=0~3)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Dfttest" target="_blank">DFTTest</a></b></li></td><td>&nbsp;&nbsp;(v1.9.7 or higher)</td><td>&nbsp;&nbsp;(for prefilter=5)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/KNLMeansCL" target="_blank">KNLMeansCL</a></b></li></td><td>&nbsp;&nbsp;(v1.1.1e or higher)</td><td>&nbsp;&nbsp;(for prefilter=6)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/DGDecNV" target="_blank">DGDecNV</a></b></li></td><td>&nbsp;&nbsp;(v246 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/BM3DCUDA" target="_blank">BM3D</a></b></li></td><td>&nbsp;&nbsp;(test10 or higher)</td><td>&nbsp;&nbsp;(for prefilter=8)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v1.9 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v2.1 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Neo_TMedian" target="_blank">neo_tmedian</a></b></li></td><td>&nbsp;&nbsp;(r2 or higher)</td><td>&nbsp;&nbsp;(for mode="medianT") (broken for interlaced inputs)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/VsTTempSmooth" target="_blank">vsTTempSmooth</a></b></li></td><td>&nbsp;&nbsp;(v1.2.3 or higher)</td><td>&nbsp;&nbsp;(for mode="TemporalSmooth")</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.7 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
@@ -504,7 +504,7 @@ The integers define what to do with the global variables. Default is 0.<br/>
 Some parameters MUST MATCH those from the processed vectors stage (e.g. <var>Globals=</var>2 or 3) and the read vectors stage (e.g. <var>Globals=</var>1).
 <var>pel=</var>, <var>subpixel=</var>, <var>chroma=</var> and <var>vpad/hpad</var>.<br/>
 Other than that the only settings that work when reading (<var>Globals=</var>1) are: <var>tr=</var>, <var>thSAD=</var>, <var>plane</var>, <var>limit</var>, <var>limitc</var>, <var>contrasharp</var>, <var>CClip</var> and the <var>interlaced</var> parameters. Others are ignored.<br/>
-Global names that can be reused are: <var>Super</var>, <var>bv1</var>, <var>fv1</var>, <var>bv2</var>, <var>fv2</var>, <var>bv3</var>, <var>fv3</var>, <var>bv4</var>, <var>fv4</var>, <var>bv6</var>, <var>fv6</var>, <var>vmulti</var>.<br/>
+Global names that can be reused are: <var>srchSuper</var>, <var>bVec1</var>, <var>fVec1</var>, <var>bVec2</var>, <var>fVec2</var>, <var>bVec3</var>, <var>fVec3</var>, <var>bVec4</var>, <var>fVec4</var>, <var>bVec5</var>, <var>fVec5</var>, <var>bVec6</var>, <var>fVec6</var>, <var>vmulti</var>.<br/>
 <br/>
 e.g.:<pre>
                          SMDegrain(tr=3,thSAD=400,globals=3)    <font style="color:Green;"><b># Outputs vectors</b></font>
@@ -515,7 +515,7 @@ or<pre>
                          SMDegrain(tr=3,thSAD=400,globals=3)    <font style="color:Green;"><b># Outputs vectors</b></font>
 
                          Super = MSuper(levels=1)               <font style="color:Green;"><b># Add this line just before if you have some processing between Globals Output and Input.</b></font>
-                         MDegrain3(Super, bv1, fv1, bv2, fv2, bv3, fv3, thSAD=400)</pre>
+                         MDegrain3(Super, bVec1, fVec1, bVec2, fVec2, bVec3, fVec3, thSAD=400)</pre>
 <br/>
 <h4><a id="Show"></a>Show</h4>
 <i>[bool: true, "false" ] or [string: "Speed", "Memory", "Quality" ]</i><br/>
@@ -573,7 +573,7 @@ SMDegrain(tr=3,thSAD=300,prefilter=pre,UHDHalf=true)                      <font 
 <br/>
 (Re)using motion vectors <var>globals</var>.
 <pre>SMDegrain(tr=1,thSAD=400,prefilter=3,str=1.4,globals=3) <font style="color:Green;"><b># Output vectors only</b></font>
-MFlowFps(Super, bv1, fv1, num=60,den=1)</pre>
+MFlowFps(Super, bVec1, fVec1, num=60,den=1)</pre>
 <br/>
 <p>&nbsp;</p>
 <h2><a id="finalnotes"></a>Final Notes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
@@ -590,6 +590,11 @@ Machine learning is also getting its way into AviSynth+ thanks<br/>
 to the work of Asd-g and other active members, so the future is bright.<br/>
 <p>&nbsp;</p>
 <h2><a id="changelog"></a>Changelog&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#up"><b>▲</b></a></h2>
+<p><b>v4.5.0d</b> (12-07-2023)</p>
+    <ul>
+        <li>Match global variable names to those of QTGMC</li>
+        <li>Fix check of vector vars when doing vector output</li>
+    </ul>
 <p><b>v4.4.0d</b> (16-05-2023)</p>
     <ul>
         <li>Change back default for 'limit'</li>

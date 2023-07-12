@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.4.0d      by Dogway    - 16 May  2023                           ###
+###                       v4.5.0d      by Dogway    - 12 Jul  2023                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -362,7 +362,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 if (i!=0) {
                     ia  = abs(i)
-                    vst = Format(i < 0 ? "bv{ia}" : "fv{ia}")
+                    vst = Format(i < 0 ? "bVec{ia}" : "fVec{ia}")
                     Eval(vst+Format(" = tr > {ia}-1 ?                 (!GlobalR ? super_search.MAnalyse    (delta = {ia}, isb = {i}<0, overlap=    overlap, blksize=    blksize, search=search,  chroma=chroma, truemotion=truemotion, dct=dct,  searchparam=searchparam,  temporal=TS,     scaleCSAD=scaleCSAD, mt=true, pelsearch=pelsearch, plevel=0, pglobal=pglobal) : "+vst+") : nop()
                        "+vst+"        = tr > {ia}-1 && RefineMotion && !GlobalR ?  Recalculate.MRecalculate("+vst+",                   overlap=halfoverlap, blksize=halfblksize, search=searchr, chroma=chroma, truemotion=truemotion, dct=dctr, searchparam=searchparamr, thSAD=halfthSAD, scaleCSAD=scaleCSAD, mt=true) :                                                 "+vst+""))
                     }
@@ -372,12 +372,12 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
                 if (UHDhalf) {
 
-                bv1  =          !GlobalR ?  bv1.MScaleVect() :  bv1                     fv1  =          !GlobalR ?  fv1.MScaleVect() :  fv1
-                bv2  = tr > 1 ? !GlobalR ?  bv2.MScaleVect() :  bv2 : nop()             fv2  = tr > 1 ? !GlobalR ?  fv2.MScaleVect() :  fv2 : nop()
-                bv3  = tr > 2 ? !GlobalR ?  bv3.MScaleVect() :  bv3 : nop()             fv3  = tr > 2 ? !GlobalR ?  fv3.MScaleVect() :  fv3 : nop()
-                bv4  = tr > 3 ? !GlobalR ?  bv4.MScaleVect() :  bv4 : nop()             fv4  = tr > 3 ? !GlobalR ?  fv4.MScaleVect() :  fv4 : nop()
-                bv5  = tr > 4 ? !GlobalR ?  bv5.MScaleVect() :  bv5 : nop()             fv5  = tr > 4 ? !GlobalR ?  fv5.MScaleVect() :  fv5 : nop()
-                bv6  = tr > 5 ? !GlobalR ?  bv6.MScaleVect() :  bv6 : nop()             fv6  = tr > 5 ? !GlobalR ?  fv6.MScaleVect() :  fv6 : nop()
+                bVec1  =          !GlobalR ?  bVec1.MScaleVect() :  bVec1               fVec1  =          !GlobalR ?  fVec1.MScaleVect() :  fVec1
+                bVec2  = tr > 1 ? !GlobalR ?  bVec2.MScaleVect() :  bVec2 : nop()       fVec2  = tr > 1 ? !GlobalR ?  fVec2.MScaleVect() :  fVec2 : nop()
+                bVec3  = tr > 2 ? !GlobalR ?  bVec3.MScaleVect() :  bVec3 : nop()       fVec3  = tr > 2 ? !GlobalR ?  fVec3.MScaleVect() :  fVec3 : nop()
+                bVec4  = tr > 3 ? !GlobalR ?  bVec4.MScaleVect() :  bVec4 : nop()       fVec4  = tr > 3 ? !GlobalR ?  fVec4.MScaleVect() :  fVec4 : nop()
+                bVec5  = tr > 4 ? !GlobalR ?  bVec5.MScaleVect() :  bVec5 : nop()       fVec5  = tr > 4 ? !GlobalR ?  fVec5.MScaleVect() :  fVec5 : nop()
+                bVec6  = tr > 5 ? !GlobalR ?  bVec6.MScaleVect() :  bVec6 : nop()       fVec6  = tr > 5 ? !GlobalR ?  fVec6.MScaleVect() :  fVec6 : nop()
 
                             }
 
@@ -399,8 +399,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
             if (isMult && (VAR || md != "MDegrain")) {
 
                 for(i = 1, tr, 1) {
-                    Eval(Format("bv{i} = vmulti.SelectEvery (tr2,  i*2-2)
-                                 fv{i} = vmulti.SelectEvery (tr2,  i*2-1)"))
+                    Eval(Format("bVec{i} = vmulti.SelectEvery (tr2,  i*2-2)
+                                 fVec{i} = vmulti.SelectEvery (tr2,  i*2-1)"))
                 } }
 
             # Masking when 'LFR' or 'mfilter' are used
@@ -410,9 +410,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
                                MMsk   = ""
                                gm     = !LFRB || DCTF ? 2.222 : 0.5
                 for (i = 1, tr, 1) {
-                    Eval(      Format(  "Mb{i}c = MMask(MMin, bv{i}, ml=50, gamma=gm, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
-                    Eval(      Format(  "Mf{i}c = MMask(MMin, fv{i}, ml=50, gamma=gm, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
-                    Eval(      Format("""MMsk   = MMsk + ({i}!=1 ? "," : "") + string(Format("Mb{i}c, 1./(tr2), Mf{i}c, 1./(tr2)"))"""))
+                    Eval(      Format(  "Mb{i}c = MMask(MMin, bVec{i}, ml=50, gamma=gm, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
+                    Eval(      Format(  "Mf{i}c = MMask(MMin, fVec{i}, ml=50, gamma=gm, kind=1, Ysc=255, thSCD1=thSCD1, thSCD2=thSCD2)"))
+                    Eval(      Format("""MMsk   = MMsk + ({i}!=1 ? "," : "") + string(Format("Mb{i}c, 1./(tr2), Mf{i}c, 1./(tr2)")) """))
                 }
 
                 Mavg   = Eval("Average("+MMsk+")")
@@ -421,17 +421,17 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
             if (md != "MDegrain") {
 
+
                 for (i = 1, tr, 1) {
 
                     gcv = i==1 && isShrp && isCntr && !SLimit ? "global " : ""
 
-                    Eval(      Format(        "b{i}c = inputP.MCompensate(super_render, bv{i}, thSAD=thSAD, thSAD2=thSAD/2, thSCD1=thSCD1, thSCD2=thSCD2, mt=true)"))
-                    Eval(      Format(        "f{i}c = inputP.MCompensate(super_render, fv{i}, thSAD=thSAD, thSAD2=thSAD/2, thSCD1=thSCD1, thSCD2=thSCD2, mt=true)"))
+                    Eval(      Format(        "b{i}c = inputP.MCompensate(super_render, bVec{i}, thSAD=thSAD, thSAD2=thSAD/2, thSCD1=thSCD1, thSCD2=thSCD2, mt=true)"))
+                    Eval(      Format(        "f{i}c = inputP.MCompensate(super_render, fVec{i}, thSAD=thSAD, thSAD2=thSAD/2, thSCD1=thSCD1, thSCD2=thSCD2, mt=true)"))
                     Eval(gcv + Format(TS||T7? "b{i}c = b{i}c" : """b{i}c = ex_repair(b{i}c, inputP, "undot3", UV=U!=2||V!=2 ? 3 : 1)"""))
                     Eval(gcv + Format(TS||T7? "f{i}c = f{i}c" : """f{i}c = ex_repair(f{i}c, inputP, "undot3", UV=U!=2||V!=2 ? 3 : 1)"""))
 
                 }
-
 
                 inter =  isMult ? inputP.MCompensate(super_render, vmulti, thSAD=thSAD, thSCD1=thSCD1, thSCD2=thSCD2, mt=true, center=true, tr=tr)
                 \ :     (tr==6) ? interleave( f6c, f5c, f4c, f3c, f2c, f1c, inputP, b1c, b2c, b3c, b4c, b5c, b6c )
@@ -477,13 +477,13 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
             # Finally, MDegrain
 
-            MDe= "output  = ( isMult  ? mfilter.MDegrainN(super_render, vmulti, tr, thSAD2=thSAD/2, thSADC2=halfthSADC,             thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-                \           (tr == 6) ? mfilter.MDegrain6(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5, bv6, fv6, thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-                \           (tr == 5) ? mfilter.MDegrain5(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4, bv5, fv5,           thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-                \           (tr == 4) ? mfilter.MDegrain4(super_render, bv1, fv1, bv2, fv2, bv3, fv3, bv4, fv4,                     thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-                \           (tr == 3) ? mfilter.MDegrain3(super_render, bv1, fv1, bv2, fv2, bv3, fv3,                               thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-                \           (tr == 2) ? mfilter.MDegrain2(super_render, bv1, fv1, bv2, fv2,                                         thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
-                \                       mfilter.MDegrain1(super_render, bv1, fv1,                                                   thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true))"
+            MDe= "output  = ( isMult  ? mfilter.MDegrainN(super_render, vmulti, tr, thSAD2=thSAD/2, thSADC2=halfthSADC,                                     thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \           (tr == 6) ? mfilter.MDegrain6(super_render, bVec1, fVec1, bVec2, fVec2, bVec3, fVec3, bVec4, fVec4, bVec5, fVec5, bVec6, fVec6, thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \           (tr == 5) ? mfilter.MDegrain5(super_render, bVec1, fVec1, bVec2, fVec2, bVec3, fVec3, bVec4, fVec4, bVec5, fVec5,               thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \           (tr == 4) ? mfilter.MDegrain4(super_render, bVec1, fVec1, bVec2, fVec2, bVec3, fVec3, bVec4, fVec4,                             thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \           (tr == 3) ? mfilter.MDegrain3(super_render, bVec1, fVec1, bVec2, fVec2, bVec3, fVec3,                                           thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \           (tr == 2) ? mfilter.MDegrain2(super_render, bVec1, fVec1, bVec2, fVec2,                                                         thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true) :
+                \                       mfilter.MDegrain1(super_render, bVec1, fVec1,                                                                       thSAD=thSAD, thSADC=thSADC, thSCD1=thSCD1, thSCD2=thSCD2, limit=limit, limitc=limitc, plane=plane, mt=true))"
 
             Eval(MDe)
             rc ? Eval(ReplaceStr(MDe, "mfilter", "output")) : last
@@ -505,9 +505,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
             !SLimit && (!isCntr || (isCntr && md == "MDegrain")) ? Eval("""
 
-                global Super           = super_render
-                global cb1             = !isMult ? bv1 : vmulti.SelectEvery (tr2, 0)
-                global cf1             = !isMult ? fv1 : vmulti.SelectEvery (tr2, 1)""") : nop()
+                global srchSuper       = super_render
+                global cb1             = !isMult ? bVec1 : vmulti.SelectEvery (tr2, 0)
+                global cf1             = !isMult ? fVec1 : vmulti.SelectEvery (tr2, 1)""") : nop()
 
                 if (isCClip) {
                 CClip = isYUY2(CClip) ? ConvertToYUV422(CClip,interlaced=IsInter)        : CClip
@@ -520,44 +520,44 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
 
         # Globals Output
 
-        GlobalO || Globals == 2  ? (!isMult ? Eval("
-        global Super           = super_render # But not required for SMDegrain(Globals=1)
-        global bv6             = bv6
-        global bv5             = bv5
-        global bv4             = bv4
-        global bv3             = bv3
-        global bv2             = bv2
-        global bv1             = bv1
+        GlobalO || Globals == 2  ? (!isMult ? Eval("""
+        global srchSuper     = super_render # But not required for SMDegrain(Globals=1)
+        global bVec6         = VarExist("bVec6") ? bVec6 : nop()
+        global bVec5         = VarExist("bVec5") ? bVec5 : nop()
+        global bVec4         = VarExist("bVec4") ? bVec4 : nop()
+        global bVec3         = VarExist("bVec3") ? bVec3 : nop()
+        global bVec2         = VarExist("bVec2") ? bVec2 : nop()
+        global bVec1         = VarExist("bVec1") ? bVec1 : nop()
 
-        global fv1             = fv1
-        global fv2             = fv2
-        global fv3             = fv3
-        global fv4             = fv4
-        global fv5             = fv5
-        global fv6             = fv6
-        ") : Eval("""
-        global bv1             = VarExist("bv1") ? bv1 : vmulti.SelectEvery (tr2,  0)
-        global bv2             = VarExist("bv2") ? bv2 : vmulti.SelectEvery (tr2,  2)
-        global bv3             = VarExist("bv3") ? bv3 : vmulti.SelectEvery (tr2,  4)
-        global bv4             = VarExist("bv4") ? bv4 : vmulti.SelectEvery (tr2,  6)
-        global bv5             = VarExist("bv5") ? bv5 : vmulti.SelectEvery (tr2,  8)
-        global bv6             = VarExist("bv6") ? bv6 : vmulti.SelectEvery (tr2, 10)
-        global bv7             = VarExist("bv7") ? bv7 : vmulti.SelectEvery (tr2, 12)
-        global bv8             = VarExist("bv8") ? bv8 : vmulti.SelectEvery (tr2, 14)
-        global bv9             = VarExist("bv9") ? bv9 : vmulti.SelectEvery (tr2, 16)
+        global fVec1         = VarExist("fVec1") ? fVec1 : nop()
+        global fVec2         = VarExist("fVec2") ? fVec2 : nop()
+        global fVec3         = VarExist("fVec3") ? fVec3 : nop()
+        global fVec4         = VarExist("fVec4") ? fVec4 : nop()
+        global fVec5         = VarExist("fVec5") ? fVec5 : nop()
+        global fVec6         = VarExist("fVec6") ? fVec6 : nop()
+        """) : Eval("""
+        global bVec1         =           vmulti.SelectEvery (tr2,  0)
+        global bVec2         =           vmulti.SelectEvery (tr2,  2)
+        global bVec3         =           vmulti.SelectEvery (tr2,  4)
+        global bVec4         =           vmulti.SelectEvery (tr2,  6)
+        global bVec5         = tr == 5 ? vmulti.SelectEvery (tr2,  8) : nop()
+        global bVec6         = tr == 6 ? vmulti.SelectEvery (tr2, 10) : nop()
+        global bVec7         = tr == 7 ? vmulti.SelectEvery (tr2, 12) : nop()
+        global bVec8         = tr == 8 ? vmulti.SelectEvery (tr2, 14) : nop()
+        global bVec9         = tr == 9 ? vmulti.SelectEvery (tr2, 16) : nop()
 
-        global fv1             = VarExist("fv1") ? fv1 : vmulti.SelectEvery (tr2,  1)
-        global fv2             = VarExist("fv2") ? fv2 : vmulti.SelectEvery (tr2,  3)
-        global fv3             = VarExist("fv3") ? fv3 : vmulti.SelectEvery (tr2,  5)
-        global fv4             = VarExist("fv4") ? fv4 : vmulti.SelectEvery (tr2,  7)
-        global fv5             = VarExist("fv5") ? fv5 : vmulti.SelectEvery (tr2,  9)
-        global fv6             = VarExist("fv6") ? fv6 : vmulti.SelectEvery (tr2, 11)
-        global fv7             = VarExist("fv7") ? fv7 : vmulti.SelectEvery (tr2, 13)
-        global fv8             = VarExist("fv8") ? fv8 : vmulti.SelectEvery (tr2, 15)
-        global fv9             = VarExist("fv9") ? fv9 : vmulti.SelectEvery (tr2, 17)
-        global Super           = super_render
-        global vmulti          = vmulti
-        global Rtr             = tr
+        global fVec1         =           vmulti.SelectEvery (tr2,  1)
+        global fVec2         =           vmulti.SelectEvery (tr2,  3)
+        global fVec3         =           vmulti.SelectEvery (tr2,  5)
+        global fVec4         =           vmulti.SelectEvery (tr2,  7)
+        global fVec5         = tr == 5 ? vmulti.SelectEvery (tr2,  9) : nop()
+        global fVec6         = tr == 6 ? vmulti.SelectEvery (tr2, 11) : nop()
+        global fVec7         = tr == 7 ? vmulti.SelectEvery (tr2, 13) : nop()
+        global fVec8         = tr == 8 ? vmulti.SelectEvery (tr2, 15) : nop()
+        global fVec9         = tr == 9 ? vmulti.SelectEvery (tr2, 17) : nop()
+        global srchSuper     = super_render
+        global vmulti        = vmulti
+        global Rtr           = tr
         """)) : nop()
 
 
@@ -655,7 +655,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v4.4.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=h/round(25/dbl))
+        Subtitle("SMDegrain Mod v4.5.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=h/round(25/dbl))
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(round(tr/dbl))                                                                   + \
