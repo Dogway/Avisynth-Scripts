@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v6.0 mix - 24 February 2023                               ###
+###                                v6.0 mix - 12 July 2023                                   ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -224,7 +224,7 @@
 ### -> RgTools        (v1.2    or up)
 ### -> ExTools        (v10.2   or up)
 ### -> ResizersPack   (v12.0   or up)
-### -> SMDegrain      (v4.4.0  or up)  [for preblur="ON"]
+### -> SMDegrain      (v4.5.0  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v5.1    or up)  [for Smode=1, Smode=2 and Smode=3]
 ### -> CAS                             [for Smode=6]
@@ -770,7 +770,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
     if (Lmode==6) {
 
         isg   = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
-        super = isg && VarExist("super") ? isy(super) ? super : super.ExtractY() : nop()
+        super = isg && VarExist("srchSuper") ? isy(super) ? super : super.ExtractY() : nop()
 
         if (!isg || SS) {
 
@@ -782,8 +782,8 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
             cb1 = superfilt.MAnalyse(isb = false, chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0, search=4, pglobal=13, temporal=true, global=true, plevel=0)
             cf1 = superfilt.MAnalyse(isb = true,  chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0, search=4, pglobal=13, temporal=true, global=true, plevel=0)
-            cb1 =     super.Mrecalculate(cb1,     chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
-            cf1 =     super.Mrecalculate(cf1,     chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
+            cb1 =     super.MRecalculate(cb1,     chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
+            cf1 =     super.MRecalculate(cf1,     chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
             }
 
         cb1     = repair(pre.MCompensate(super, cb1, thSAD=220, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), pre, 3, -1).ConvertBits(bi, fulls=!tv)
