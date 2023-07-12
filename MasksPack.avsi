@@ -1,6 +1,6 @@
 ###                                                            ##
 ###                                                            ##
-###           MasksPack 6.6 by Dogway  (26-08-2022)            ##
+###           MasksPack 6.7 by Dogway  (12-07-2023)            ##
 ###                    Masks + Limiters                        ##
 ###                                                            ##
 ###      https://forum.doom9.org/showthread.php?t=182881       ##
@@ -331,7 +331,7 @@ function CornerMask(clip a, float "th", float "sigma", bool "show") {
     or = last
     ex_median("medianT5")
     # Fix for Motion
-    mm = MotionMask(a,lo=30,hi=255,dir=20,scale=2) # for anime, dir=20 (radius 2) is a must
+    mm = MotionMask(a,lo=30,hi=255,dir=20,scale=2,edgebased=false) # for anime, dir=20 (radius 2) is a must
     ex_merge(or,mm,UV=1)
     # Smooth PP
     ex_deflate(UV=128)
@@ -356,7 +356,7 @@ function CornerMask(clip a, float "th", float "sigma", bool "show") {
 #    [int "sharpness"=0 (0 to 10)]
 #    )
 #
-function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", int "dir", int "UV") {
+function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", int "dir", bool "edgebased", int "UV", bool "show") {
 
     rgb  = isRGB(a)
     isy  = isy(a)
@@ -364,12 +364,14 @@ function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", 
     h    = height(a)
     bi   = BitsPerComponent(a)
 
-    lo   = Default(lo,       30)
-    hi   = Default(hi,      255)
-    sh   = Default(sharpness, 0)
-    sc   = Default(scale,     2)
-    dr   = Default(dir,      20) # Direction of the motion mask, -2 for previous+before, -1 for previous, 0 for both, 1 for next, 2 for next+following, 20 for both radius=2
+    eb   = Default(edgebased,  true) # True by default, delivers better motion vectors for live action. Disable for 2D animation.
+    lo   = Default(lo,           30)
+    hi   = Default(hi,          255)
+    sh   = Default(sharpness,     0)
+    sc   = Default(scale,eb ? 1 : 2)
+    dr   = Default(dir,          20) # Direction of the motion mask, -2 for previous+before, -1 for previous, 0 for both, 1 for next, 2 for next+following, 20 for both radius=2
     UV   = Default(UV,  rgb ? 3 : 2)
+    show = Default(show,      false) # Enable to visually adjust settings, motion mask will show as green "smoke"
 
     dr   = dr>2?20:dr
     sc   = max(1,sc)
@@ -382,6 +384,10 @@ function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", 
 
     UV = UV!=3 ? 1 : UV
     UV==3 || isy ? a : a.ExtractY()
+
+    ex_Luma_Rebuild(5.0, 0.03)
+    eb ? ex_edge("kroon") : last
+
     # 20x20 macroblocks (at 1080p)
     RatioResize(96,"adjust2w",kernel="bicubic",b=-0.6,c=0.4)
     # Temporal Stabilization
@@ -397,7 +403,11 @@ function MotionMask(clip a, int "lo", int "hi", float "scale", int "sharpness", 
     # Blur
     GaussResize(w,h,p=round(w/213.33)+sh)
     propDelete(["_Matrix","_Primaries","_Transfer","_PictType"])
-    propSet("_ColorRange", 0) }
+    propSet("_ColorRange", 0)
+
+    msk = isy ? mskY_to_YYY(a, rgb=false, bits=bi, Jab="444") : a
+    show ? ex_merge(a,Expr(msk,"range_half",ex_dlut("50",bi,true),ex_dlut("120",bi,true)),last,luma=true) : last
+ }
 
 
 
