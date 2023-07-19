@@ -1,9 +1,8 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v2.1.0     (10-07-2023)   ##
+###   Transforms Pack - Models v2.2.0     (19-07-2023)   ##
 ###                                                      ##
-###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
@@ -2023,18 +2022,17 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 #     ICtCp_to_RGB("2020",4059 ,DoVi=false) # Mastered at 4059 nits
 #     RGB_to_ICtCp("2020",10000,DoVi=false) # round-trip
 #
-# Example 1 for IPT-PQ c2:
+# Example 1 for IPT-PQ c2 to RGB 2020 PQ:
 #     YUV444PS IPTPQc2 source
-#     ICtCp_to_RGB("2020",10000,DoVi=true)  # Decode IPTPQc2 to 2020 (or optionally 709) as RGB linear
-#     EOTFi_PQ(1000,10000)                  # Reconstitute PQ gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
-#     or
-#     TM_2446C("2020","709","1886",tv_out=false) # Tonemap and output RGB Rec709 in 1886 gamma
-#     RGB_to_YUV()                               # Optionally convert to YCbCr 420 (for either PQ or 1886)
+#     ICtCp_to_RGB("2020",10000,DoVi=true)       # Decode IPTPQc2 to 2020 (or optionally 709) as RGB linear
+#     EOTFi_PQ(1000,10000)                       # Reconstitute PQ gamma (until polynomial reshaping is implemented for DVp5 or MMR for DVp8)
 #
-# Example 2 for IPT-PQ c2:
+# Example 2 for IPT-PQ c2 to YUV420 709 SDR:
 #     YUV444PS IPTPQc2 source
-#     ICtCp_to_RGB("709",10000,DoVi=true)   # Decode IPTPQc2 to 709 RGB linear
-#     TM_Hable(mode="Default",LinWh=11.2)   # Tonemap and output RGB in 1886 gamma
+#     ICtCp_to_RGB("709",10000,DoVi=true)        # Decode IPTPQc2 to 709 RGB linear (with Gamut Compression by default)
+#     TM_DRT(Peak=200)                           # Tonemap and output RGB SDR linear
+#     CCTF("1886",false)                         # Convert from linear to 1886 gamma
+#     RGB_to_YUV()                               # Optionally convert to YCbCr 420
 #
 function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi", int "scale", bool "tv_out") {
 
@@ -2051,6 +2049,7 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     tvo    = Default (tv_out, false)
     mul    = Default (scale,      1)      # 1 or 2. 'scaler_chroma' SEI. May be read from the RPU. Sometimes IPTPQc2 might need 2 (more color saturation)
 
+    rgb
     # Crosstalk 4% for ICtCp, 2% for Dolby Vision (IPTPQc2)
     xt        =       DV ? 0.02 : 0.04
     Crosstalk = [ 1-2*xt,     xt,     xt, \
@@ -2091,14 +2090,15 @@ function RGB_to_ICtCp (clip rgb, string "matrix", int "MasterLevel", bool "DoVi"
     fit   = ArrayOp  (skin, sca, "*")
 
     MatrixClip (LMS_gam, MatrixTranspose(DoVi ? IPT : fit), switch=true)
-    ConvertBits(bi,dither=bi==32?-1:1,fulls=true,fulld=!tvo)
+    ConvertBits(32,fulls=true,fulld=!tvo)
+    propSet("_ColorRange", tvo ? 1 : 0)
     propSet("_Transfer",           16)
     propSet("_Matrix", DoVi ?  2 : 14)
     propSet("_Model",  DoVi ? 22 : 21) }
 
 
 # ICtCp PQ to RGB linear
-function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi", int "scale", bool "GC", bool "tv_out") {
+function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoVi", int "scale", bool "GC", bool "Fix", bool "tv_out") {
 
     fs     = propNumElements (ictcp,"_ColorRange")  > 0 ? \
              propGetInt      (ictcp,"_ColorRange") == 0 : true
@@ -2110,9 +2110,10 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     mat    = Defined (matrix) ? mat[0] : color_propGet(ictcp)[2]
     PL     = Default (MasterLevel, 10000) # Max Mastering Level in Nits (1000 to 10000)
     DV     = Default (DoVi,   false)      # Set to true for IPTPQc2
+    Fix    = Default (Fix,    false)      # Some sources are encoded with inverted LMS matrix, if that's the case (output too blue/pale) enable this option
     tvo    = Default (tv_out, false)
     GC     = Default (GC,mat=="709")      # Gamut Compression
-    mul    = Default (scale,      1)      # 1 or 2. 'scaler_chroma' SEI. May be read from the RPU. Sometimes IPTPQc2 might need 2 (more color saturation)
+    mul    = Default (scale,Fix ? 2 : 1)  # 1 or 2. 'scaler_chroma' SEI. May be read from the RPU. Sometimes IPTPQc2 might need 2 (more color saturation)
 
     ictcp
     # ICtCp to LMS joint matrix
@@ -2139,14 +2140,15 @@ function ICtCp_to_RGB (clip ictcp, string "matrix", int "MasterLevel", bool "DoV
     LMS = XYZ_to_LMS("HPE",       list=true)
     LMX = MatrixDot(Crosstalk, LMS)
     RGB = XYZ_to_RGB(mat,props[3],list=true)
-    LtR = MatrixDot(MatrixTranspose(MatrixInvert(LMX)), RGB) # LMS to RGB joint matrix
+    LtR = MatrixDot(MatrixTranspose(Fix ? LMX : MatrixInvert(LMX)), RGB) # LMS to RGB joint matrix
 
     MatrixClip(LMS_gam, LtR, switch=false)
 
     # RGB 'Desaturate' Gamut Compression (by Jed Smith: https://github.com/jedypod/gamut-compress)
     GC ? GamutCompression(cs_in="2020",cs_out=mat) : last
 
-    ConvertBits(bi,dither=bi==32?-1:1,fulls=true,fulld=!tvo)
+    ConvertBits(32,fulls=true,fulld=!tvo)
+    propSet("_ColorRange", tvo ? 1 : 0)
     propSet("_Transfer",   8)
     propSet("_Matrix",     0)
     propSet("_Model",      1) }
