@@ -1,9 +1,8 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v2.1.0  (10-07-2023)   ##
+###   Transforms Pack - Transfers v2.2.0  (19-07-2023)   ##
 ###                                                      ##
-###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
@@ -28,6 +27,7 @@
 ### TONEMAPPERS:                                         ##
 ###     TM_2446C                                         ##
 ###     TM_Hable                                         ##
+###     TM_DRT                                           ##
 ### RANGE:                                               ##
 ###     SMPTE_legal                                      ##
 ###     Full_scale                                       ##
@@ -717,7 +717,7 @@ function OOTF_HLG (clip c, float "Lb", float "Lw", int "surround", string "matri
 
     Expr(A,RGB[0],RGB[1],RGB[2],Format("x 2000 * {y} 1 - ^ {Lpw} * y * {Lb} +"),\
                                 Format("x 2000 * {y} 1 - ^ {Lpw} * z * {Lb} +"),\
-                                Format("x 2000 * {y} 1 - ^ {Lpw} * a * {Lb} +"), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi))
+                                Format("x 2000 * {y} 1 - ^ {Lpw} * a * {Lb} +"), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi), optSingleMode=true)
 }
 
 # WIP: Apply as follows: OOTFi_HLG().EOTFi_HLG()
@@ -746,7 +746,7 @@ function OOTFi_HLG (clip c, float "Lb", float "Lw", int "surround", string "matr
 
     Expr(A,RGB[0],RGB[1],RGB[2],Format("x {Lb} - {Lb} max 2000 * {Lpw} * {y} ^ y {Lpw} * *"),\
                                 Format("x {Lb} - {Lb} max 2000 * {Lpw} * {y} ^ z {Lpw} * *"),\
-                                Format("x {Lb} - {Lb} max 2000 * {Lpw} * {y} ^ a {Lpw} * *"), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi))
+                                Format("x {Lb} - {Lb} max 2000 * {Lpw} * {y} ^ a {Lpw} * *"), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi), optSingleMode=true)
 }
 
 
@@ -1099,7 +1099,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###    AgX:
 ###    SSTS:              From ACES. B-Splines based tonemapper
 ###    Daniele:           Elegant tonescale in the style of Michaelis-Menten function. https://www.desmos.com/calculator/rboxfu8hjb and https://community.acescentral.com/t/output-transform-tone-scale/3498/14?u=dogway
-###    OpenDRT:           Jed Smith's OpenDRT modification of Daniele Siragusano's tone scale inspired by "Michaelis-Menten Constrained" tonescale function.
+###   -OpenDRT:           Jed Smith's OpenDRT modification of Daniele Siragusano's tone scale inspired by "Michaelis-Menten Constrained" tonescale function.
 ###    JzDT:              Same as the OpenDRT tonescale but simplified (less control knobs). It's applied over a perceptual uniform model (JzAzBz)
 ###    Sensitometric:     From Substance Painter's YEBIS2 post-processor by Silicon Studio
 
@@ -1243,6 +1243,120 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
         plt = Merge(PadBorders(plt.subtitle("Hable ("+md+(fm?"-Filmic)":"-Flat)"),size=w/64),w-sw,0,0,h-sh))
         ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
     } }
+
+
+# TM - OpenDRT
+# Jed Smith's OpenDRT modification of Daniele Siragusano's tone scale
+# inspired by "Michaelis-Menten Constrained" tonescale function.
+#
+# AVS+ port under GPL3 compliant license
+# Input must be 32-bit RGB linear in PC range
+#
+# Example:
+#   TM_DRT(Peak=200)
+#
+# Function Definition:
+#     (
+#     clip,
+#     float "Peak"=100.0 (100.0 to 1000.0 by 1.0),
+#     float "Contrast"=0.75 (0.70 to 1.30),
+#     float "Grey"=0.117 (0.00 to 1.00),
+#     float "Flare"=0.01 (0.00 to 0.02),
+#     bool "show"=false
+#     )
+#
+  /*
+    For the tonescale compression function, we use one inspired by the wisdom shared by Daniele Siragusano
+    on the tonescale thread on acescentral: https://community.acescentral.com/t/output-transform-tone-scale/3498/224
+
+    This is a variation which puts the power function _after_ the display-linear scale, which allows a simpler and exact
+    solution for the intersection constraints. The resulting function is pretty much identical.
+    Here is a desmos graph with the math. https://www.desmos.com/calculator/pmf3qc47v0
+
+    And for more info on the derivation, see the "Michaelis-Menten Constrained" Tonescale Function here:
+    https://colab.research.google.com/drive/1aEjQDPlPveWPvhNoEfK4vGH5Tet8y1EB#scrollTo=Fb_8dwycyhlQ
+
+    For the user parameter space, we include the following creative controls:
+    - Peak: display peak luminance. This sets the display device peak luminance and allows rendering for HDR.
+    - Contrast: This is a pivoted power function applied after the hyperbolic compress function,
+        which keeps middle grey and peak white the same but increases contrast in between.
+    - Flare: Applies a parabolic toe compression function after the hyperbolic compression function.
+        This compresses values near zero without clipping. Used for flare or glare compensation.
+    - Grey: Grey Boost. This parameter controls how many stops to boost middle grey per stop of peak luminance increase.
+
+    Notes on the other non user-facing parameters:
+    - (px, py): This is the peak luminance intersection constraint for the compression function.
+        px is the input scene-linear x-intersection constraint. That is, the scene-linear input value
+        which is mapped to py through the compression function. By default this is set to 64 at Peak=100, and 128 at Peak=1000.
+        Here is the regression calculation using a logarithmic function to match: https://www.desmos.com/calculator/d0jcaa8xzt
+    - (gx, gy): This is the middle grey intersection constraint for the compression function.
+        Scene-linear input value gx is mapped to display-linear output gy through the function.
+        Why is gy set to 0.11696 at Peak=100? This matches the position of middle grey through in the Rec709 system.
+        We use this value for consistency with the Arri and TCAM Rec.1886 display rendering transforms.
+  */
+
+function TM_DRT (clip x, float "Peak", float "Contrast", float "Grey", float "flare", float "Rw", float "Bw", bool "invert", bool "show") {
+
+    isy    = isy(x)
+    bi     = BitsPerComponent(x)
+    Pk     = Default (Peak,     100. )  # 100  to 1000
+    Ct     = Default (Contrast, 0.75 )  # 0.7  to 1.3  (original was 1.1 but deemed too strong for display referred content)
+    Gr     = Default (Grey,     0.117)  # 0.0  to 1.0
+    Fl     = Default (flare,    0.01 )  # 0.0  to 0.02
+    Rw     = Default (Rw,       0.20 )  # 0.05 to 0.6  (Red  contribution to Luma)
+    Bw     = Default (Bw,       0.25 )  # 0.05 to 0.6  (Blue contribution to Luma)
+    in     = Default (invert,  false )
+    sh     = Default (show,    false )
+
+    # input scene-linear peak 'x' intercept (fit for 64 at Peak=100, and 128 at Peak=1000)
+    px = 128.0*(log(Pk)/log(100.0)) - 64.0
+    # output display-linear peak 'y' intercept
+    py = Pk/100.0
+    # input scene-linear middle grey 'x' intercept
+    gx = 0.18
+    # output display-linear middle grey 'y' intercept (11.696 is middle grey luminance in nits)
+    gy = 11.696/100.0*(1.0 + Gr*(log(py)/log(2.0)))
+    # s0 and s are input  'x' scale for middle grey intersection constraint
+    # m0 and m are output 'y' scale for peak white  intersection constraint
+    s0 = (gy + sqrt(gy*(4.0*Fl + gy)))/2.0
+    m0 = (py + sqrt(py*(4.0*Fl + py)))/2.0
+    ip = 1.0/Ct
+    pm = pow(m0, ip)
+    s  = (px*gx*(pm - pow(s0, ip)))/(px*pow(s0, ip) - gx*pm)
+    m  = (pm*(s + px))/px
+
+    RGB = isy ? x : ExtractClip(x)
+
+    /* Take the "Luminance" of RGB.
+      This is not classical luminance, but rather a weighted sum of RGB,
+      with the weights creatively controlled by the user. The user specifies the Red and Blue weights,
+      the Green weight is automatically calculated so that the total sums to 1.0.
+    */
+    Gw = 1.0 - (Rw + Bw)
+
+    Rx = isy ? Format("x                              0.00001 max                  {m} *  x {s} + / 0 max {Ct} ^ dup 2 ^ swap {Fl} + /      100 {Pk} / *") : \
+               Format("x {Rw} * y {Gw} * z {Bw} * + + 0.00001 max dup  x swap / R^ {m} *  x {s} + / 0 max {Ct} ^ dup 2 ^ swap {Fl} + /  R * 100 {Pk} / *")
+
+    Gx = ReplaceStr(Rx, "  x", "  y")
+    Bx = ReplaceStr(Rx, "  x", "  z")
+
+
+    isy ? ex_lut(x,Rx) : \
+          Expr(RGB[0],RGB[1],RGB[2],Rx,Gx,Bx, format="RGBPS", optSingleMode=true)
+
+    if (sh) {
+        w   = x.width()
+        h   = x.height()
+        sw  = nmod(w/5.)   sh = min(h,sw)
+        plt = GradientLinear(last,zoom=1, precision=4, positive=true, smooth=true, tv_range=false)
+        plt = plt.ExtractY().TM_DRT(Pk,Ct,Gr,Fl,Rw,Bw,in)
+        plt = HistoCurve(plt,size=2,gradient=false).BicubicResize(sw,sh,0.262015,0.368993)
+        plt = plt.ConvertToPlanarRGB()
+        plt = Merge(PadBorders(plt.subtitle("OpenDRT",size=w/64),w-sw,0,0,h-sh))
+        ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
+    } }
+
+
 
 
 
