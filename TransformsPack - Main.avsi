@@ -1,9 +1,8 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v2.1.0       (11-07-2023)   ##
+###   Transforms Pack - Main v2.2.0       (19-07-2023)   ##
 ###                                                      ##
-###   https://forum.doom9.org/showthread.php?t=182825    ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
 ###                             by Dogway (Jose Linares) ##
