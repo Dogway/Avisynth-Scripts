@@ -3,10 +3,13 @@
 #   QTGMC 3.33       by Vit,   2012                                   #
 #   QTGMC 3.34d  mod by Dogway 2015                                   #
 #   QTGMC 3.382s mod by A.SONY 2021, based on 3.34d                   #
-#   QTGMC 4.4  + mod by Dogway 2023, based on 3.382s                  #
+#   QTGMC 4.5  + mod by Dogway 2023, based on 3.382s                  #
 #                                                                     #
-#   https://forum.doom9.org/showthread.php?t=156028                   #
-#   https://avisynth.nl/index.php/QTGMC                               #
+#   https://forum.doom9.org/showthread.php?t=182881                   #
+#                                                                     #
+#   Original Thread and AviSynth docs:                                #
+#      https://forum.doom9.org/showthread.php?t=156028                #
+#      https://avisynth.nl/index.php/QTGMC                            #
 #                                                                     #
 #   Quasi Temporal Gauss Motion Compensation Plus:                    #
 #     Originally based on TempGaussMC_beta2 by Didée                  #
@@ -64,7 +67,7 @@
 # Install AviSynth and ensure you have at least the core plugins listed in the requirements section above. Put them in the plugins autoload folder.
 #
 # To use QTGMC+ write a script like this:
-#   YourSource("yourfile")                 # Mainly DGSource or FFVideoSource
+#   SourceLoader("yourfile")               # Mainly DGSource() or FFVideoSource()
 #   QTGMCp( Preset="Slow", FPSDivisor=1 )  # FPSDivisor=1 for double (frame)rate, =2 for half-rate
 #   Prefetch(8)                            # Add SourceMatch>0 to QTGMCp() if dealing with Anime to avoid ghosting artifacts
 #
@@ -96,7 +99,6 @@
 #     int "thSAD1"=640 (100 to 1000),
 #     int "thSAD2"=256 (100 to 1000),
 #     int "SourceMatch"=0 (0 to 3),
-#     bool "moiree"=false,
 #     string "EdiMode"="NNEDI3" ("Bob"/ "Yadif"/ "RepYadif"/ "TDeint"/ "BWDIF"/ "NNEDI"/ "NNEDI2"/ "NNEDI3"/ "EEDI2"/ "EEDI3"/ "EEDI3+NNEDI3"/ "BWDIF+NNEDI3"/ "BWDIF+EEDI3"/ "Yadif+NNEDI3"/ "BOB+NNEDI3"/ "BWDIF+BOB"/ "BWDIF+BOB+NNEDI3"),
 #     string "MatchPreset"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
 #     string "MatchPreset2"="Slow" ("Placebo"/ "Very Slow"/ "Slower"/ "Slow"/ "Medium"/ "Fast"/ "Faster"/ "Very Fast"/ "Super Fast"/ "Ultra Fast"/ "Draft"),
@@ -120,18 +122,18 @@
 # Preset call:
 #     QTGMCp(thSAD1=640, thSAD2=256, Preset="slower", SourceMatch=0, MatchPreset="slow", MatchPreset2="slow", MatchEnhance=0.5, Lossless=0, EZDenoise=0.0, EZKeepGrain=1.0, NoisePreset="Faster", FPSDivisor=1, threads=4, show=false)
 #
-function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
-                    int "NNSize", int "NNeurons", int "EdiQual", int "EdiMaxD", string "ChromaEdi", clip "EdiExt", float "Sharpness", \
-                    int "SMode", int "SLMode", int "SLRad", int "SOvs", float "SVThin", int "Sbb", int "SrchClipPP", int "SubPel", int "SubPelInterp", \
-                    int "BlockSize", int "Overlap", int "Search", int "SearchParam", int "PelSearch", bool "ChromaMotion", bool "TrueMotion", int "Lambda", \
-                    int "LSAD", int "PNew", int "PLevel", bool "GlobalMotion", int "DCT", int "ThSAD1", int "ThSAD2", int "ThSCD1", int "ThSCD2", \
-                    bool "moiree", int "SourceMatch", string "MatchPreset", string "MatchEdi", string "MatchPreset2", string "MatchEdi2", int "MatchTR2", \
-                    float "MatchEnhance", int "Lossless", int "NoiseProcess", float "EZDenoise", float "EZKeepGrain", string "NoisePreset", string "Denoiser", \
-                    bool "DenoiseMC", int "NoiseTR", float "Sigma", bool "ChromaNoise", val "ShowNoise", float "GrainRestore", \
-                    float "NoiseRestore", string "NoiseDeint", bool "StabilizeNoise", int "InputType", float "ProgSADMask", int "FPSDivisor", \
-                    int "ShutterBlur", float "ShutterAngleSrc", float "ShutterAngleOut", int "SBlurLimit", bool "Border", bool "Precise", string "Tuning", \
-                    bool "Show", string "GlobalNames", string "PrevGlobals", int "ForceTR", int "UseEdiExt", \
-                    float "Str", float "Amp", bool "tv_range", bool "n16", bool "n16d", int "gpuid", int "Threads", bool "Refinemotion" )
+function QTGMCp( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", int "Rep0", int "Rep1", int "Rep2", string "EdiMode", bool "RepChroma", \
+                 int "NNSize", int "NNeurons", int "EdiQual", int "EdiMaxD", string "ChromaEdi", clip "EdiExt", float "Sharpness", \
+                 int "SMode", int "SLMode", int "SLRad", int "SOvs", float "SVThin", int "Sbb", int "SrchClipPP", int "SubPel", int "SubPelInterp", \
+                 int "BlockSize", int "Overlap", int "Search", int "SearchParam", int "PelSearch", bool "ChromaMotion", bool "TrueMotion", int "Lambda", \
+                 int "LSAD", int "PNew", int "PLevel", bool "GlobalMotion", int "DCT", int "ThSAD1", int "ThSAD2", int "ThSCD1", int "ThSCD2", \
+                 bool "moiree", int "SourceMatch", string "MatchPreset", string "MatchEdi", string "MatchPreset2", string "MatchEdi2", int "MatchTR2", \
+                 float "MatchEnhance", int "Lossless", int "NoiseProcess", float "EZDenoise", float "EZKeepGrain", string "NoisePreset", string "Denoiser", \
+                 bool "DenoiseMC", int "NoiseTR", float "Sigma", bool "ChromaNoise", val "ShowNoise", float "GrainRestore", \
+                 float "NoiseRestore", string "NoiseDeint", bool "StabilizeNoise", int "InputType", float "ProgSADMask", int "FPSDivisor", \
+                 int "ShutterBlur", float "ShutterAngleSrc", float "ShutterAngleOut", int "SBlurLimit", bool "Border", bool "Precise", string "Tuning", \
+                 bool "Show", string "GlobalNames", string "PrevGlobals", int "ForceTR", int "UseEdiExt", \
+                 float "Str", float "Amp", bool "tv_range", bool "n16", bool "n16d", int "gpuid", int "Threads", bool "Refinemotion" )
 {
 
     rgb       = Input.isRGB()
@@ -148,7 +150,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     input     = propNumElements(Input, "_DurationNum") > 0 ? input : \
                 propSet        (Input, "_DurationNum", FrameRateDenominator(input))
     input     = propNumElements(Input, "_DurationDen") > 0 ? input : \
-                propSet        (Input, "_DurationDen", FrameRateNumerator(input))
+                propSet        (Input, "_DurationDen", FrameRateNumerator  (input))
 
     #---------------------------------------
     # Presets
@@ -399,7 +401,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     EdiExt         = Defined(EdiExt) ? isYUY2(EdiExt) ? ConvertToYUV422(EdiExt)                       : EdiExt : Undefined()
 
 
-    # RefineMotion Defaults (Beware 8x8 blocks blur out output in QTGMC)
+    # RefineMotion Defaults (Beware 8x8 blocks blur out output in QTGMC+)
     halfoverlap = Overlap  /2
     halfblksize = BlockSize/2
     halfthSAD   = round(thSAD2/2.)
@@ -591,7 +593,7 @@ function QTGMCp(    clip Input, string "Preset", int "TR0", int "TR1", int "TR2"
     #---------------------------------------
     # Interpolation
 
-    # Support badly deinterlaced progressive content - drop half the fields and reweave to get 1/2fps interlaced stream appropriate for QTGMC processing
+    # Support badly deinterlaced progressive content - drop half the fields and reweave to get 1/2fps interlaced stream appropriate for QTGMC+ processing
     ediInput = (InputType > 1) ? innerClip.SeparateFields().SelectEvery(4,0,3).Weave() : innerClip
 
     # Create interpolated image as starting point for output. Below same as but in one step: PadBorders(0,0,0,(EdiExt.Height()-h)/2,"Dilate").crop(0,(EdiExt.Height()-h)/2,0,0)
@@ -917,7 +919,7 @@ function QTGMCp_Generate2ndFieldNoise( clip Input, clip InterleavedClip, bool "C
 
     origNoise = Input.SeparateFields()
     noiseMax  = bi != 16 ? origNoise.ex_luts(mode="max",pixels=ex_shape(2,1),UV=CNmt1)                            : \
-                           origNoise.ex_expand(2,mode="horizontal",UV=CNmt1).ex_expand(1,mode="vertical",UV=CNmt1) # ex_luts(...) is faster in all terms except in 16-bit P(8) (within QTGMC scope, not standalone)
+                           origNoise.ex_expand(2,mode="horizontal",UV=CNmt1).ex_expand(1,mode="vertical",UV=CNmt1) # ex_luts(...) is faster in all terms except in 16-bit P(8) (within QTGMC+ scope, not standalone)
     noiseMin  = bi != 16 ? origNoise.ex_luts(mode="min",pixels=ex_shape(2,1),UV=CNmt1)                            : \
                            origNoise.ex_inpand(2,mode="horizontal",UV=CNmt1).ex_inpand(1,mode="vertical",UV=CNmt1)
     random    = BlankClip( InterleavedClip.SeparateFields(), color_yuv=$808080 ).AddGrainC( var=1800, uvar=ChromaNoise ? 1800 : 0 )
@@ -1007,7 +1009,7 @@ function QTGMCp_ApplySourceMatch(clip Deinterlace, int InputType, val Source, va
                      (MatchTR2 == 0)   ? (SourceMatch < 3) ? match1Shp.ex_adddiff(     match2Edi, UV=3, fulls=fs )                                                            : match2Edi         : \
                      (MatchTR2 == 1)   ? (SourceMatch < 3) ? match2Degrain1.ex_lutxyz( match2Edi,match1Shp,"x dup y - 0.25 * - z + range_half -", UV=3) : match2Degrain1.Merge( match2Edi, 0.25 ) : \
                                          (SourceMatch < 3) ? ex_lutxyza(match2Degrain1,match2Degrain2,match2Edi,match1Shp,"x 0.75 * y 0.1875 * z 0.0625 * a + + + range_half -", UV=3)            : \
-					                                         ex_lutxyz (match2Degrain1,match2Degrain2,match2Edi,          "x 0.75 * y 0.1875 * z 0.0625 * + +"                 , UV=3)
+					                     ex_lutxyz (match2Degrain1,match2Degrain2,match2Edi,          "x 0.75 * y 0.1875 * z 0.0625 * + +"      , UV=3)
 
     # Source-match second refinement - correct error introduced in the refined difference by temporal smoothing. Similar to error correction from basic step
     errorAdjust2   = Select( MatchTR2, 1.0, 2.0 / (1.0 + errorTemporalSimilarity), 8.0 / (3.0 + 5.0 * errorTemporalSimilarity) )
@@ -1038,7 +1040,7 @@ function QTGMCp_SetUserGlobal( string Prefix, string Name, val Value, bool "Repl
     {
         Eval( "global " + globalName + " = Value" )
 
-    } else { Assert( false, """QTGMC+: Multiple calls to QTGMC, set PrevGlobals="Replace" or read documentation on 'Multiple QTGMC Calls'""" ) }
+    } else { Assert( false, """QTGMC+: Multiple calls to QTGMC+, set PrevGlobals="Replace" or read documentation on 'Multiple QTGMC+ Calls'""" ) }
 }
 
 # Return value of global variable called "Prefix_Name". Returns nop() if it doesn't exist or Reuse is false
@@ -1089,11 +1091,12 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
     bi   = BitsPerComponent(clp)
 
     sstr = Default(sstr, 2.7)       # strength of contra sharpening
-    amnt = Default(amnt, 255)       # change no pixel by more than this (Default=255: unrestricted)
+    amnt = Default(amnt, 255)       # change no pixel by more than this (8-bit scale) (Default=255: unrestricted)
     dcus = Defined(clip2)           # clip for the contrasharpening
     UV   = Default(UV,    rgb ? 3 : 1)
     fs   = Default(fulls, rgb)
 
+    mxm    = ex_bs(255,  8, bi, fulls=fs)-1
     amntb  = ex_bs(amnt, 8, bi, fulls=fs)
 
     bi32m  = bi == 32 ? "" : "range_half -"
@@ -1105,7 +1108,7 @@ function ex_vinverse (clip clp, float "sstr", int "amnt", int "UV", clip "clip2"
     VshrpD = !dcus ? ex_lutxy(vblur, vblur.ex_boxblur(0, 2, "weighted", UV=uv), Format("x y - {sstr} * "+bi32p), UV=uv, fulls=fs) : nop()
 
     # Take the less sharp variant and if they're same sharpness reduce its strength 1/4
-    sl     = (amnt > 254) ? "" : Format(" x {amntb} - x {amntb} + clip")
+    sl     = (amnt > mxm) ? "" : Format(" x {amntb} - x {amntb} + clip")
     VlimD  =  dcus ? ex_lutxyz(clp, VblurD, clip2,  "x z -          A@ y "+bi32m+" B@ * 0 < A abs B abs < A B ? dup 0.25 * swap ? z +" + sl, UV=uv, fulls=fs) : \
                      ex_lutxyz(clp, VshrpD, Vblur,  "y "+bi32m+" A@ x z -          B@ * 0 < A abs B abs < A B ? dup 0.25 * swap ? z +" + sl, UV=uv, fulls=fs)
 
@@ -1247,6 +1250,10 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 
 
 # --- CHANGELOG ---
+#
+# v4.5p (25-07-2023)
+# - ex_vinverse() - small fix for HBD
+# - Cosmetics
 #
 # v4.4p (07-07-2023)
 # - Add 'Yadif+NNEDI3' mode
