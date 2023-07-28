@@ -527,9 +527,9 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         global bVec4         = VarExist("bVec4") ? bVec4 : nop()
         global bVec3         = VarExist("bVec3") ? bVec3 : nop()
         global bVec2         = VarExist("bVec2") ? bVec2 : nop()
-        global bVec1         = VarExist("bVec1") ? bVec1 : nop()
+        global bVec1         =                     bVec1
 
-        global fVec1         = VarExist("fVec1") ? fVec1 : nop()
+        global fVec1         =                     fVec1
         global fVec2         = VarExist("fVec2") ? fVec2 : nop()
         global fVec3         = VarExist("fVec3") ? fVec3 : nop()
         global fVec4         = VarExist("fVec4") ? fVec4 : nop()
