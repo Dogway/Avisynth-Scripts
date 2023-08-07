@@ -3,7 +3,7 @@
 ###                                                            #
 ###                          2.1   by Dogway  (16-09-2015)     #
 ###                      mod 2.533 by A.SONY  (29-11-2020)     #
-### Stabilization Tools Pack 3.5   by Dogway  (26-04-2023)     #
+### Stabilization Tools Pack 3.6   by Dogway  (17-07-2023)     #
 ###                                                            #
 ###   https://forum.doom9.org/showthread.php?t=182881          #
 ###                                                            #
@@ -325,15 +325,13 @@ function FindBlackBorders(clip c, int "width", int "thr", string "path", string 
         x2 = AverageLuma(R1) < thr
         y1 = AverageLuma(T1) < thr
         y2 = AverageLuma(B1) < thr
-        IsBorder(x1,y1,x2,y2)},
+        x1||y1||x2||y2 },
         \ function() {"CHAPTER00="},
         \ function() {stab_FFFormatTime(round((current_frame * 1000) / framerate()))},
         \ append=false)
 
     # Here I need to retrieve the clip passed through WriteFileIf, so it is evaluated (or use Echo() ?)
     return last }
-
-function IsBorder(clip c, bool x1, bool x2, bool y1, bool y2) {return (x1||y1||x2||y2)}
 
 
 ####################################
