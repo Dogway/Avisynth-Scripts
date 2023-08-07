@@ -60,7 +60,7 @@
     <tr><td><li><b><a href="http://avisynth.nl/index.php/KNLMeansCL" target="_blank">KNLMeansCL</a></b></li></td><td>&nbsp;&nbsp;(v1.1.1e or higher)</td><td>&nbsp;&nbsp;(for prefilter=6)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/DGDecNV" target="_blank">DGDecNV</a></b></li></td><td>&nbsp;&nbsp;(v246 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/BM3DCUDA" target="_blank">BM3D</a></b></li></td><td>&nbsp;&nbsp;(test10 or higher)</td><td>&nbsp;&nbsp;(for prefilter=8)</td></tr>
-    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v2.1 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
+    <tr><td><li><b><a href="https://github.com/Dogway/Avisynth-Scripts" target="_blank">TransformsPack</a></b></li></td><td>&nbsp;&nbsp;(v2.2 or higher)</td><td>&nbsp;&nbsp;(for prefilter=7 or prefilter=8)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/Neo_TMedian" target="_blank">neo_tmedian</a></b></li></td><td>&nbsp;&nbsp;(r2 or higher)</td><td>&nbsp;&nbsp;(for mode="medianT") (broken for interlaced inputs)</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/VsTTempSmooth" target="_blank">vsTTempSmooth</a></b></li></td><td>&nbsp;&nbsp;(v1.2.3 or higher)</td><td>&nbsp;&nbsp;(for mode="TemporalSmooth")</td></tr>
     <tr><td><li><b><a href="http://avisynth.nl/index.php/NNEDI3CL" target="_blank">NNEDI3CL</a></b></li></td><td>&nbsp;&nbsp;(v1.0.7 or higher)</td><td>&nbsp;&nbsp;(for subpixel=4)</td></tr>
@@ -331,12 +331,12 @@ Some (very) old examples of custom <var>prefilter</var>ing, for history:<br/>
     <li><a href="https://forum.doom9.org/showthread.php?p=1367709" target="_blank">https://forum.doom9.org/showthread.php?p=1367709</a></li>
 </li>
 </ul>
-<br/>This last example is a function called Calm(), wrapped by Terka but it's basically QTGMC's default prefiltering from line <a href="https://github.com/Dogway/Avisynth-Scripts/blob/f2d777aadaa7915edc73ba07f2ffd749429cf116/MIX%20mods/QTGMC%2B.avsi#L460" target="_blank">460</a> to <a href="https://github.com/Dogway/Avisynth-Scripts/blob/f2d777aadaa7915edc73ba07f2ffd749429cf116/MIX%20mods/QTGMC%2B.avsi#L492" target="_blank">492</a> using TR0=2 and SrchClipPP=3.<br/>
+<br/>This last example is a function called Calm(), wrapped by Terka but it's basically QTGMC's default prefiltering from line <a href="https://github.com/Dogway/Avisynth-Scripts/blob/013cd48baac92dfd1c343afdf66b5ece38745924/MIX%20mods/QTGMC%2B.avsi#L467" target="_blank">467</a> to <a href="https://github.com/Dogway/Avisynth-Scripts/blob/013cd48baac92dfd1c343afdf66b5ece38745924/MIX%20mods/QTGMC%2B.avsi#L499" target="_blank">499</a> using TR0=2 and SrchClipPP=3.<br/>
 It's basically a TemporalGauss, with some limiting and a gaussian blur. What he missed was adding KeepOnlyBobShimmerFixes() which removes <i>"most"</i> TemporalSoften frame blending artifacts.<br/>
 My improved alternative was already given above, but adding ex_sbr() instead of a gaussian blur:<br/>
 <pre>pre=SMDegrain(2,thSAD=1600,mode="TemporalGauss",pel=1,rfilter=0,str=0,tv_range=false,plane=0,truemotion=true) <font style="color:Green;"><b># Tuned for speed or "dumb" MV</b></font>
 pre=pre.ex_sbr(3,UV=3)</pre>
-*You can read more about this and a stronger alternative more similar to Calm() for DeWobble on this <a href="https://forum.doom9.org/showthread.php?p=1984051" target="_blank">post and following pages.</a><br/>
+*You can read more about this and a stronger alternative more similar to Calm() for (film) de-wobble purposes on this <a href="https://forum.doom9.org/showthread.php?p=1984051" target="_blank">post and following pages.</a><br/>
 <br/>Notes:
 To sum it up; generally in denoising, temporal filters are always preferred due to its natural look (versus spatial filters).<br/>
 But more often than not for good results <var>prefilter</var>ing plays a key role on the output quality, and setting it up nicely can be looked as an art by itself.<br/>
