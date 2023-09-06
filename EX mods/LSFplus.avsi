@@ -230,7 +230,7 @@
 ### -> ResizersPack   (v12.0   or up)
 ### -> SMDegrain      (v4.5.0  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
-### -> SharpenersPack (v5.1    or up)  [for Smode=1, Smode=2, Smode=3 and Smode=6]
+### -> SharpenersPack (v5.2    or up)  [for Smode=1, Smode=2, Smode=3 and Smode=6]
 ###
 ###
 ###
