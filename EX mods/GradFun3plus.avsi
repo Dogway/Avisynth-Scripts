@@ -124,7 +124,7 @@ function GradFun3plus (clip src, float "thr", int "radius", float "elast", int "
 #                        2160p -> 32
 
     # Input range check.
-    Assert (IsVersionOrGreater(3,7,2), "GradFun3plus: Update AviSynth+ version")
+    Assert (IsVersionOrGreater(3,7,3), "GradFun3plus: Update AviSynth+ version")
     Assert (radius  > 0,               "GradFun3plus: "+chr(34)+"radius" +chr(34)+" must be strictly positive.")
     Assert (radiusc > 0,               "GradFun3plus: "+chr(34)+"radiusc"+chr(34)+" must be strictly positive.")
     Assert (thr     > 0,               "GradFun3plus: "+chr(34)+"thr"    +chr(34)+" must be strictly positive.")
@@ -233,7 +233,7 @@ function SmoothGradPlus(clip a, int "radius", float "thr", float "elast", clip "
     Y   = Default(Y,       3)
     UV  = Default(UV,      3)
 
-    Assert(IsVersionOrGreater(3,7,2), "SmoothGradPlus: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "SmoothGradPlus: Update AviSynth+ version")
     Assert(rad <=  156,               "SmoothGradPlus: max "+chr(34)+"radius" +chr(34)+" value is 156.")
 
     rad   = max(rad, 2)

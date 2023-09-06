@@ -48,8 +48,8 @@ function SPresso(clip clp, float "limit", float "bias", int "RGmode", float "lim
 
     Assert(IsVersionOrGreater(3,7,3), "SPresso: Update AviSynth+ version")
 
-    yy    =           (RGmode  < 1) ? 2 : 3
-    uv    = rgb ? 3 : (RGmodeC < 1) ? 2 : 3
+    yy     =           (RGmode  < 1) ? 2 : 3
+    uv     = rgb ? 3 : (RGmodeC < 1) ? 2 : 3
 
     isHD   = (w  > 1099 || h > 599) && radius > 1
     RGmode = isHD ? yy == 3 ? RGmode : RGmodeC : RGmode
