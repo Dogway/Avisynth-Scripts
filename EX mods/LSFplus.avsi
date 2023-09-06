@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v6.0 ex - 12 July 2023                                    ###
+###                                v6.0 ex - 06 Sept 2023                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -773,8 +773,8 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
     ### Temporal limiting
     if (Lmode==6) {
 
-        isg   = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
-        super = isg && VarExist("srchSuper") ? isy(super) ? super : super.ExtractY() : nop()
+        isg       = VarExist("cb1") && VarExist("cf1") # if Lmode=6; reuse MAnalyze'd global vectors if exist (and SS is not used) otherwise create them below
+        srchSuper = isg && VarExist("srchSuper") ? isy(srchSuper) ? srchSuper : srchSuper.ExtractY() : nop()
 
         if (!isg || SS) {
 
@@ -782,16 +782,16 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
             pre       = pre.ConvertBits(8, dither=-1, fulls=!tv)
 
             superfilt = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=false, mt=true)
-            super     = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=false, mt=true, levels=1)
+            srchSuper = MSuper(pre, pel=isHD?1:2, hpad = 0, vpad = 0, sharp=2, rfilter=3, chroma=false, mt=true, levels=1)
 
             cb1 = superfilt.MAnalyse(isb = false, chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0, search=4, pglobal=13, temporal=true, global=true, plevel=0)
             cf1 = superfilt.MAnalyse(isb = true,  chroma=false, blksize = blksize,   overlap=blksize/2, delta = 1, truemotion=true, mt=true, dct=0, search=4, pglobal=13, temporal=true, global=true, plevel=0)
-            cb1 =     super.MRecalculate(cb1,     chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
-            cf1 =     super.MRecalculate(cf1,     chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
+            cb1 =     srchSuper.MRecalculate(cb1, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
+            cf1 =     srchSuper.MRecalculate(cf1, chroma=false, blksize = blksize/2, overlap=blksize/4, thSAD=190, truemotion=true, mt=true, dct=5, search=0)
             }
 
-        cb1     = ex_repair(pre.MCompensate(super, cb1, thSAD=220, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), pre, "undot3", UV=1).ConvertBits(bi, fulls=!tv)
-        cf1     = ex_repair(pre.MCompensate(super, cf1, thSAD=220, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), pre, "undot3", UV=1).ConvertBits(bi, fulls=!tv)
+        cb1     = ex_repair(pre.MCompensate(srchSuper, cb1, thSAD=220, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), pre, "undot3", UV=1).ConvertBits(bi, fulls=!tv)
+        cf1     = ex_repair(pre.MCompensate(srchSuper, cf1, thSAD=220, thSCD1=round(6.25*8*8), thSCD2=round(2.03*8*8), mt=true), pre, "undot3", UV=1).ConvertBits(bi, fulls=!tv)
         os      = ex_bs(overshoot, 8, bi, fulls=!tv, flt=true)   us = ex_bs(undershoot, 8, bi, fulls=!tv, flt=true)
         os      = os  == 0 ? "" : Format("{os}  +")              us = us  == 0 ? "" : Format("{us}  -")
         normalT = ex_lutxyza(tmp,normsharp,cb1,cf1,Format("y x z max a max "+os+" min x z min a min "+us+" max"),UV=1)
