@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v5.1  (20-03-2023)                             ###
+###        Sharpeners Pack v5.2  (06-09-2023)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -933,8 +933,8 @@ function ex_ContraSharpening(clip denoised, clip original, bool "HD", bool "MC",
                                                                                                               # Apply the limited difference " x +" (Sharpening is just inverse blurring)
     } else {
 
-        cb1  = isc ? b1c.ConvertBits(bi, fulls=fs) : original.MCompensate(Super, cb1, mt=true).ConvertBits(bi, fulls=fs)
-        cf1  = isc ? f1c.ConvertBits(bi, fulls=fs) : original.MCompensate(Super, cf1, mt=true).ConvertBits(bi, fulls=fs)
+        cb1  = isc ? b1c.ConvertBits(bi, fulls=fs) : original.MCompensate(srchSuper, cb1, mt=true).ConvertBits(bi, fulls=fs)
+        cf1  = isc ? f1c.ConvertBits(bi, fulls=fs) : original.MCompensate(srchSuper, cf1, mt=true).ConvertBits(bi, fulls=fs)
 
         addif = " x y + range_half - "
         pmax  = " z a max b max "
@@ -2282,6 +2282,7 @@ function RegularSharp (clip src, bool "median", int "lowpass", int "a", float "h
 
     u2x             = med  ? nop() : genpelclip (src, pel=2)
     mul             = isHD ? 4 : 8 # original was 8, reduced for sanity on HD
+
     for (i=4, 0, -1) {
         clp         = u2x
         blur        = BicubicResize(clp, w*mul, h*mul, b= 1, c=0)
@@ -2291,10 +2292,13 @@ function RegularSharp (clip src, bool "median", int "lowpass", int "a", float "h
         clp         = ex_adddiff (clp, dif, fulls=fs)
         ublur       = clp  }
 
-    cdif            =  med ? nop() : BicubicResize(ex_makediff (u2x, ublur, fulls=fs), w, h, -4, -2, -0.5, -0.5)
-    csharp          =  med ? nop() : HaloNR (hipass (src, ex_adddiff (src, cdif, fulls=fs), lp), a, h, thr, ela, lp/2, UV=1)
-    msharp          = !med ? nop() : ex_makeadddiff (src, RemoveGrain(src,4,-1))
-    clp             =  med ? msharp : csharp
+    if (med) {
+        clp         =  ex_makeadddiff (src, RemoveGrain(src,4,-1))
+    } else {
+        cdif        =  BicubicResize(ex_makediff (u2x, ublur, fulls=fs), w, h, -4, -2, -0.5, -0.5)
+        clp         =  HaloNR (hipass (src, ex_adddiff (src, cdif, fulls=fs), lp), a, h, thr, ela, lp/2, UV=1)
+    }
+
     return MergeChroma(clp,src) }
 
 
