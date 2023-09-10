@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v10.2    (24-03-2023)                 ##
+###        ExTools v10.3    (10-09-2023)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -297,7 +297,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
     mcf  = Default(metric,        met)   # "ALL", "none" or "metric_name".
     mcf  = mcf=="--" || mcf=="" ? "none" : mcf
     sh   = Default(show,            2)   # Output clip to return when 'metric' is defined. 0: clip 'a'  1: clip 'b'  2: diff  3: diff subtitled (no frameprops)
-    aug  = Daug ? Baug ? aug ? 50 : -1 : aug == -1 ? 50 : aug : mcf == "none" ? 0 : 50
+    aug  = Daug ? Baug ? aug ? 50 :-1 : aug == -1 ? 50 : aug : mcf == "none" ? 0 : 50
     Y    = Default(Y,               3)
     UV   = Default(UV,        rgb ? 3 : aug > 0 ? 128 : 1)
     si   = Default(scale_inputs, ex_UVf(rgb, bi))
@@ -337,7 +337,7 @@ function ex_makediff(clip a, clip b, bool "dif", val "aug", bool "tv_range", str
               mcf == "OkLab"       ? "OkMSE"  : UCase(mcf)
 
         mcfa  =  mcf == "ALL"
-        mPLUG = (mcf == "BSSIM"   || mcf == "GMSD" || mcf == "MDSI" || mcf == "SSIM")
+        mPLUG = (mcf == "BSSIM"   || mcf == "GMSD"      || mcf == "MDSI" || mcf == "SSIM")
         mVMAF =  mcf == "MS_SSIM" || mcf == "CIEDE2000"
         RGBm  =  mcf == "OkMSE"   || mcf == "CIEDE2000" || mcf == "rMEA" || mcf == "MDSI" || mcf == "BUTT"
 
@@ -2235,7 +2235,7 @@ function STTWM(clip a, int "sw", int "tw", int "aw", int "sthres", int "tthres",
     wa  = min(aw,100)/100.
     wr  = 1 - wa
 
-    Assert(IsVersionOrGreater(3,7,2), "STTWM: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "STTWM: Update AviSynth+ version")
 
     str =  Format(                                         \
            "x[-1,1]  x[1,1]       dup1 dup1 min K^ max P^
@@ -2487,7 +2487,7 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
     ths = mode!="EMF" && mode!="SNN" && !smart && !DGM && thr != 255 ?                                      \
           Format(" x swap - dup abs {thr1} - {thrd} * range_max swap - 0 range_max clip "+mx+" * x swap -") : ""
 
-    Assert(IsVersionOrGreater(3,7,2), "ex_median: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "ex_median: Update AviSynth+ version")
 
     str =                                                                                                                                                                       \
         mode == "--"     ? "x"                                                                                                                                                : \
@@ -5545,14 +5545,14 @@ function ex_median(clip a, string "mode", float "thres", bool "recursion", int "
                           D F                                    max F^
                           G H                             min G^
                           E F                                    max
-                            G                             min W^
+                            G                             min
 
 
                            X Y dup1 dup1 min swap2 max swap1 Z max min
 
-                            T                   dup1 dup1 min swap2 max
+                                                dup1 dup1 min swap2 max
                           U V                   dup1 dup1 min swap2 max
-                          swap3  W              dup1 dup1 min swap2 max
+                          swap3  T              dup1 dup1 min swap2 max
                           swap2  swap1  swap3   dup1 dup1 min swap2 max
                           swap3                                     max
                           swap3                 dup1 dup1 min swap2 max
@@ -5897,7 +5897,7 @@ function ex_repair(clip a, clip b, string "mode", int "UV") {
          md == "undot19"   ? "cartoonc"     : \
          md == "undot22"   ? "cartoon"      : md
 
-    Assert(IsVersionOrGreater(3,7,2), "ex_repair: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "ex_repair: Update AviSynth+ version")
 
     str =                                                                                                                                                            \
                                                                                                                                                                      \
@@ -6567,7 +6567,7 @@ function ex_hitormiss(clip a, int "iter", string "mode", int "UV") {
     UV  = Default(UV,    rgb ? 3 : 1)
     un  = Undefined()
 
-    Assert(IsVersionOrGreater(3,7,2), "ex_hitormiss: Update AviSynth+ version")
+    Assert(IsVersionOrGreater(3,7,3), "ex_hitormiss: Update AviSynth+ version")
 
     md == "thin"           || \
     md == "thicken"        || \
