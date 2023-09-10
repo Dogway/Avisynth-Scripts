@@ -275,11 +275,11 @@ function QTGMCp( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", i
     StabilizeNoise = Default( StabilizeNoise,                     Select( npNum,       true,      true,      true,    false,     false ) )
 
     # The basic source-match step corrects and re-runs the interpolation of the input clip. So it initially uses same interpolation settings as the main preset
-    SourceMatch   = Default( SourceMatch, 0 )
-    MatchNNSize   = NNSize
-    MatchNNeurons = NNeurons
-    MatchEdiMaxD  = EdiMaxD
-    MatchEdiQual  = EdiQual
+    SourceMatch    = Default( SourceMatch, 0 )
+    MatchNNSize    = NNSize
+    MatchNNeurons  = NNeurons
+    MatchEdiMaxD   = EdiMaxD
+    MatchEdiQual   = EdiQual
 
     # However, can use a faster initial interpolation when using source-match allowing the basic source-match step to "correct" it with higher quality settings
     Assert( SourceMatch == 0 || mpNum1 >= pNum, "QTGMC+: 'MatchPreset' cannot use a slower setting than 'Preset'" )
@@ -306,14 +306,14 @@ function QTGMCp( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", i
     # Settings
 
     # Core and Interpolation defaults
-    TR2        = (SourceMatch > 0) ? Default(TR2, ((TR2X == 0) ? 1 : TR2X)) : TR2X  # ***TR2 defaults always at least 1 when using source-match***
-    RepChroma  = Default( RepChroma,  true )
-    Threads    = Default( Threads,       8 )
-    gpuid      = Default( gpuid,         0 )
-    bomt       = Threads != 1
-    ChromaEdi  = Default( ChromaEdi,  ""   )
-    NNeurons   = (EdiMode == "NNEDI2" && NNeurons > 2) ? 2 : NNeurons # Smaller range for NNeurons in NNEDI2 (which calls it nsize)
-    EdiQual    = (EdiMode == "NNEDI3" || FindStr(UCase(EdiMode),"+NNEDI3")>0 || FindStr(UCase(EdiMode),"+EEDI3")>0) && EdiQual > 2 ? 2 : EdiQual  # Capping to 2 max
+    TR2          = (SourceMatch > 0) ? Default(TR2, ((TR2X == 0) ? 1 : TR2X)) : TR2X  # ***TR2 defaults always at least 1 when using source-match***
+    RepChroma    = Default( RepChroma,  true )
+    Threads      = Default( Threads,       8 )
+    gpuid        = Default( gpuid,         0 )
+    bomt         = Threads != 1
+    ChromaEdi    = Default( ChromaEdi,  ""   )
+    NNeurons     = (EdiMode == "NNEDI2" && NNeurons > 2) ? 2 : NNeurons # Smaller range for NNeurons in NNEDI2 (which calls it nsize)
+    EdiQual      = (EdiMode == "NNEDI3" || FindStr(UCase(EdiMode),"+NNEDI3")>0 || FindStr(UCase(EdiMode),"+EEDI3")>0) && EdiQual > 2 ? 2 : EdiQual  # Capping to 2 max
 
     # Source-match / lossless defaults
     MatchTR1     = TR1
@@ -323,61 +323,61 @@ function QTGMCp( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", i
     Assert( Lossless <= 2, "QTGMC+: Lossless setting only supports mode 1 ('true lossless') and mode 2 ('fake lossless') - see documentation in script and consider source-match settings" )
 
     # Sharpness defaults. Sharpness default is always 1.0 (0.2 with source-match), but adjusted to give roughly same sharpness for all settings
-    SMode      = (Defined(Sharpness) && Sharpness == 0.0) ? 0 : SMode
-    SLMode     = (SourceMatch > 0) ? Default(SLMode, 0)       : SLModeX  # ***Sharpness limiting disabled by default for source-match***
-    SLMode     = (SLRad      <= 0) ? 0 : SLMode
-    spatialSL  = (SLMode%2   != 0)
-    temporalSL = (SLMode%2   == 0) && SLMode > 0
-    Sharpness  = Default( Sharpness, (SMode == 0) ? 0.0 : ((SourceMatch > 0) ? 0.2 : 1.0) )      # Default sharpness is 1.0, or 0.2 if using source-match
-    sharpMul   = (temporalSL) ? 2 : (spatialSL) ? 1.5 : 1                                        # Adjust sharpness based on other settings
-    sharpAdj   = Sharpness * (sharpMul * (0.2 + TR1*0.15 + TR2*0.25) + ((SMode == 1) ? 0.1 : 0)) # [This needs a bit more refinement]
-    Sbb        = (SMode == 0) ? 0 : Sbb
-    SOvs       = Default( SOvs,   0   )
-    SVThin     = Default( SVThin, 0.0 )
+    SMode        = (Defined(Sharpness) && Sharpness == 0.0) ? 0 : SMode
+    SLMode       = (SourceMatch > 0) ? Default(SLMode, 0)       : SLModeX  # ***Sharpness limiting disabled by default for source-match***
+    SLMode       = (SLRad      <= 0) ? 0 : SLMode
+    spatialSL    = (SLMode%2   != 0)
+    temporalSL   = (SLMode%2   == 0) && SLMode > 0
+    Sharpness    = Default( Sharpness, (SMode == 0) ? 0.0 : ((SourceMatch > 0) ? 0.2 : 1.0) )      # Default sharpness is 1.0, or 0.2 if using source-match
+    sharpMul     = (temporalSL) ? 2 : (spatialSL) ? 1.5 : 1                                        # Adjust sharpness based on other settings
+    sharpAdj     = Sharpness * (sharpMul * (0.2 + TR1*0.15 + TR2*0.25) + ((SMode == 1) ? 0.1 : 0)) # [This needs a bit more refinement]
+    Sbb          = (SMode == 0) ? 0 : Sbb
+    SOvs         = Default( SOvs,   0   )
+    SVThin       = Default( SVThin, 0.0 )
 
     # Noise processing settings
     Assert( !Defined(EZDenoise) || EZDenoise <= 0.0 || !Defined(EZKeepGrain) || EZKeepGrain <= 0.0, "QTGMC+: EZDenoise and EZKeepGrain cannot be used together" )
-    NoiseProcess =  Defined(NoiseProcess) ? NoiseProcess              : \
-                   (Defined(EZDenoise)   && EZDenoise   > 0.0)    ? 1 : \
-                   (Defined(EZKeepGrain) && EZKeepGrain > 0.0)    ? 2 : \
-                   (Preset == "Placebo" || Preset == "Very Slow") ? 2 : 0
-    GrainRestore =  Defined(GrainRestore) ? GrainRestore              : \
-                   (Defined(EZDenoise)   && EZDenoise   > 0.0) ? 0.0  : \
-                   (Defined(EZKeepGrain) && EZKeepGrain > 0.0) ? 0.3 * sqrt(EZKeepGrain) : \
-                                                                Select( NoiseProcess, 0.0, 0.7, 0.3 )
-    NoiseRestore =  Defined(NoiseRestore) ? NoiseRestore              : \
-                   (Defined(EZDenoise)   && EZDenoise   > 0.0) ? 0.0  : \
-                   (Defined(EZKeepGrain) && EZKeepGrain > 0.0) ? 0.1 * sqrt(EZKeepGrain) : \
-                                                                Select( NoiseProcess, 0.0, 0.3, 0.1 )
-    Sigma        =  Defined(Sigma)        ? Sigma                     : \
-                   (Defined(EZDenoise)   && EZDenoise   > 0.0) ?       EZDenoise   : \
-                   (Defined(EZKeepGrain) && EZKeepGrain > 0.0) ? 4.0 * EZKeepGrain : 2.0
-    ChromaNoise  = Default( ChromaNoise, false )
-    ShowNoise    = Default( ShowNoise,   0.0 )
-    ShowNoise    = IsBool(  ShowNoise) ? (ShowNoise ? 10.0 : 0.0) : ShowNoise
-    NoiseProcess = (ShowNoise   > 0.0) ? 2   : NoiseProcess
-    NoiseRestore = (ShowNoise   > 0.0) ? 1.0 : NoiseRestore
-    NoiseTR      = (NoiseProcess == 0) ? 0   : NoiseTR
-    GrainRestore = (NoiseProcess == 0) ? 0.0 : GrainRestore
-    NoiseRestore = (NoiseProcess == 0) ? 0.0 : NoiseRestore
-    totalRestore = GrainRestore + NoiseRestore
-    StabilizeNoise = (totalRestore <= 0) ? false : StabilizeNoise
-    noiseTD      = Select( NoiseTR, 1, 3, 5 )
-    noiseCentre  = ex_bs((Denoiser == "DFTTest") ? 128 : 128.5, 8, bi, fulls=!tv, flt=true)
+    NoiseProcess    =  Defined(NoiseProcess) ? NoiseProcess              : \
+                      (Defined(EZDenoise)   && EZDenoise   > 0.0)    ? 1 : \
+                      (Defined(EZKeepGrain) && EZKeepGrain > 0.0)    ? 2 : \
+                      (Preset == "Placebo" || Preset == "Very Slow") ? 2 : 0
+    GrainRestore    =  Defined(GrainRestore) ? GrainRestore              : \
+                      (Defined(EZDenoise)   && EZDenoise   > 0.0) ? 0.0  : \
+                      (Defined(EZKeepGrain) && EZKeepGrain > 0.0) ? 0.3 * sqrt(EZKeepGrain) : \
+                                                                   Select( NoiseProcess, 0.0, 0.7, 0.3 )
+    NoiseRestore    =  Defined(NoiseRestore) ? NoiseRestore              : \
+                      (Defined(EZDenoise)   && EZDenoise   > 0.0) ? 0.0  : \
+                      (Defined(EZKeepGrain) && EZKeepGrain > 0.0) ? 0.1 * sqrt(EZKeepGrain) : \
+                                                                   Select( NoiseProcess, 0.0, 0.3, 0.1 )
+    Sigma           =  Defined(Sigma)        ? Sigma                     : \
+                      (Defined(EZDenoise)   && EZDenoise   > 0.0) ?       EZDenoise   : \
+                      (Defined(EZKeepGrain) && EZKeepGrain > 0.0) ? 4.0 * EZKeepGrain : 2.0
+    ChromaNoise     = Default( ChromaNoise, false )
+    ShowNoise       = Default( ShowNoise,   0.0 )
+    ShowNoise       = IsBool(  ShowNoise) ? (ShowNoise ? 10.0 : 0.0) : ShowNoise
+    NoiseProcess    = (ShowNoise   > 0.0) ? 2   : NoiseProcess
+    NoiseRestore    = (ShowNoise   > 0.0) ? 1.0 : NoiseRestore
+    NoiseTR         = (NoiseProcess == 0) ? 0   : NoiseTR
+    GrainRestore    = (NoiseProcess == 0) ? 0.0 : GrainRestore
+    NoiseRestore    = (NoiseProcess == 0) ? 0.0 : NoiseRestore
+    totalRestore    = GrainRestore + NoiseRestore
+    StabilizeNoise  = (totalRestore <= 0) ? false : StabilizeNoise
+    noiseTD         = Select( NoiseTR, 1, 3, 5 )
+    noiseCentre     = ex_bs((Denoiser == "DFTTest") ? 128 : 128.5, 8, bi, fulls=!tv, flt=true)
 
     # MVTools settings
-    SubPelInterp = Default( SubPelInterp, 2     )
-    TrueMotion   = Default( TrueMotion,   false )
-    GlobalMotion = Default( GlobalMotion, true  )
-    Lambda       = Default( Lambda, (TrueMotion ? 1000 : 100 ) * (BlockSize*BlockSize)/(8*8) )
-    LSAD         = Default( LSAD,    TrueMotion ? 1200 : 400 )
-    PNew         = Default( PNew,    TrueMotion ? 50   : 25  )
-    PLevel       = Default( PLevel,  TrueMotion ? 1    : 0   )
-    DCT          = Default( DCT,                         0   )
-    ThSAD1       = Default( ThSAD1,               10 * 8*8   )
-    ThSAD2       = Default( ThSAD2,                4 * 8*8   )
-    ThSCD1       = Default( ThSCD1,      round(  2.8 * 8*8)  )
-    ThSCD2       = Default( ThSCD2,      round( 1.53 * 8*8)  )
+    SubPelInterp    = Default( SubPelInterp, 2     )
+    TrueMotion      = Default( TrueMotion,   false )
+    GlobalMotion    = Default( GlobalMotion, true  )
+    Lambda          = Default( Lambda, (TrueMotion ? 1000 : 100 ) * (BlockSize*BlockSize)/(8*8) )
+    LSAD            = Default( LSAD,    TrueMotion ? 1200 : 400 )
+    PNew            = Default( PNew,    TrueMotion ? 50   : 25  )
+    PLevel          = Default( PLevel,  TrueMotion ? 1    : 0   )
+    DCT             = Default( DCT,                         0   )
+    ThSAD1          = Default( ThSAD1,               10 * 8*8   )
+    ThSAD2          = Default( ThSAD2,                4 * 8*8   )
+    ThSCD1          = Default( ThSCD1,      round(  2.8 * 8*8)  )
+    ThSCD2          = Default( ThSCD2,      round( 1.53 * 8*8)  )
 
     # Motion blur settings
     FPSDivisor      = Default( FPSDivisor,          1 )
@@ -388,17 +388,17 @@ function QTGMCp( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", i
     ShutterBlur     = (ShutterAngleOut * FPSDivisor == ShutterAngleSrc) ? 0 : ShutterBlur  # If motion blur output is same as input
 
     # Miscellaneous
-    InputType      = Default( InputType,     0        )
-    Border         = Default( Border,        false    )
-    ShowSettings   = Default( Show,          false    )
-    GlobalNames    = Default( GlobalNames,  "QTGMCp"  )
-    PrevGlobals    = Default( PrevGlobals,  "Replace" )
-    ForceTR        = Default( ForceTR,       0        )
-    ReplaceGlobals = (PrevGlobals == "Replace" || PrevGlobals == "Reuse") # If reusing existing globals put them back afterwards - simplifies logic later
-    ReuseGlobals   = (PrevGlobals == "Reuse")
-    ProgSADMask    = (InputType < 2) ? 0.0 : ProgSADMask
-    input          =                            yuy2  ? ConvertToYUV422(input,interlaced=InputType>0) : input
-    EdiExt         = Defined(EdiExt) ? isYUY2(EdiExt) ? ConvertToYUV422(EdiExt)                       : EdiExt : Undefined()
+    InputType       = Default( InputType,     0        )
+    Border          = Default( Border,        false    )
+    ShowSettings    = Default( Show,          false    )
+    GlobalNames     = Default( GlobalNames,  "QTGMCp"  )
+    PrevGlobals     = Default( PrevGlobals,  "Replace" )
+    ForceTR         = Default( ForceTR,       0        )
+    ReplaceGlobals  = (PrevGlobals == "Replace" || PrevGlobals == "Reuse") # If reusing existing globals put them back afterwards - simplifies logic later
+    ReuseGlobals    = (PrevGlobals == "Reuse")
+    ProgSADMask     = (InputType < 2) ? 0.0 : ProgSADMask
+    input           =                            yuy2  ? ConvertToYUV422(input,interlaced=InputType>0) : input
+    EdiExt          = Defined(EdiExt) ? isYUY2(EdiExt) ? ConvertToYUV422(EdiExt)                       : EdiExt : Undefined()
 
 
     # RefineMotion Defaults (Beware 8x8 blocks blur out output in QTGMC+)
@@ -809,7 +809,7 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
                 propGetInt       (Input,"_FieldBased")     : 0
     fb        = fb==0 ? GetParity(Input) ? 3 : 2 : fb + 1
 
-    NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || "Yadif+NNEDI3" || \
+    NNEDI3clp = EdiMode == "NNEDI3"       || EdiMode == "EEDI3+NNEDI3" || EdiMode == "Yadif+NNEDI3" || \
                 EdiMode == "BWDIF+NNEDI3" || EdiMode == "BWDIF+EEDI3" ? Input.nnedi3wrap( field=fb, nsize=NNSize, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, qual=EdiQual, nns=NNeurons, threads=threads) : Undefined()
     EEDI3clp  = EdiMode == "BWDIF+EEDI3" ?                              Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, sclip=NNEDI3clp ).QTGMCp_slimit_dif2(NNEDI3clp,thr=4,UV=CEed?3:2) : \
                 EdiMode == "EEDI3" || EdiMode == "EEDI3+NNEDI3"       ? Input. EEDI3wrap( field=fb, mdis=EdiMaxD, planes=CEed ? [0,1,2] : [0], gpuid=id, props=false, sclip=NNEDI3clp )                            : nop()
@@ -835,8 +835,8 @@ function QTGMCp_Interpolate( clip Input, int InputType, string EdiMode, int NNSi
                                             Default(Fallback,        ex_bob(Input,0,0.5,props=1) )
 
     interp    = InputType == 1            ? Input                                                                                                    : \
-                EdiMode == "BWDIF+NNEDI3" || EdiMode == "Yadif+NNEDI3" || \
-                EdiMode == "BWDIF+EEDI3"  ? interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2)                                                             : \
+                EdiMode   =="BWDIF+NNEDI3"||EdiMode == "Yadif+NNEDI3" || \
+                EdiMode   =="BWDIF+EEDI3" ? interp.vinverse(clip2=NNEDI3clp,UV=CEed?3:2)                                                             : \
                                             interp
 
     interpuv  = InputType == 1            ? nop()                                                                                                    : \
@@ -1253,6 +1253,7 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 #
 # v4.5p (25-07-2023)
 # - ex_vinverse() - small fix for HBD
+# - Fix 'moiree' option (10-09-2023 update)
 # - Cosmetics
 #
 # v4.4p (07-07-2023)
