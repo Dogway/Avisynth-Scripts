@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v2.2.0       (19-07-2023)   ##
+###   Transforms Pack - Main v2.2.1       (19-10-2023)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
@@ -963,9 +963,13 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
                     Eval(c_recon)
 
                 } else {
-
+                    if (kernel_c == "SSIM") {
+                        Cb  = ExtractY(Eval("ConvertToYUV420(Cb)." + resampler_c + cplaceC1))
+                        Cr  = ExtractY(Eval("ConvertToYUV420(Cr)." + resampler_c + cplaceC1))
+                    } else {
                     Cb  = Eval("Cb." + resampler_c + cplaceC1)
                     Cr  = Eval("Cr." + resampler_c + cplaceC1)
+                    }
                 }
                 } else { Y } }
 
