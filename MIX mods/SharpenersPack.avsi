@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Sharpeners Pack v5.2  (06-09-2023)                             ###
+###        Sharpeners Pack v5.2  (26-10-2023)                             ###
 ###                                                                       ###
 ###        Collection of high quality sharpeners for AviSynth+            ###
 ###                                                                       ###
@@ -1283,7 +1283,7 @@ function FineSharpPlus(clip c, float "sstr", int "mode", float "cstr", float "xs
     mode  = Default(mode,clamp(round(2*sstr-1),1,3)) #  1 to 3, weakest to strongest. When negative -1 to -3, a broader kernel for equalisation is used.
 
     _cstr = spline(sstr, 0,0, 0.5,0.1, 1.0,0.6, 2.0,0.9, 2.5,1.00, 3.0,1.09, 3.5,1.15, 4.0,1.19, 8.0,1.249, 255.0,1.5)
-    _cstr = (mode>0) ? _cstr : pow(_cstr,1/1.25)
+    _cstr = (mode>0) ? max(0,_cstr) : pow(max(0,_cstr),1/1.25)
 
     cstr  = Default(cstr, _cstr)                     #  strength of equalisation (recommended 0.5 to 1.25)
     xstr  = Default(xstr, 0.00 )                     #  strength of XSharpen-style final sharpening, 0.0 to 1.0 (but, better don't go beyond 0.249 ...)
