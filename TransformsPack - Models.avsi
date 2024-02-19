@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Models v2.2.0     (19-07-2023)   ##
+###   Transforms Pack - Models v2.2.1     (19-02-2024)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
@@ -72,10 +72,10 @@
 #-2020                   - ITU-R Rec. BT.2020.
 #-AP0                    - ACES AP0 coefficients used for ACES2065 color space.
 #-AP1                    - ACES AP1 coefficients used for ACEScg   color space.
-# S-Gamut                - Sony Gamut
+#-S-Gamut                - Sony Gamut
 # S-Gamut3               - Sony Gamut 3
 # S-Gamut3 (Venice)      - Sony Gamut Cinema 3 Venice
-# S-Gamut3.Cine          - Sony Gamut Cinema 3. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film.
+#-S-Gamut3.Cine          - Sony Gamut Cinema 3. A little over DCI-P3 gamut in size, paired with S-Log3 it reproduces a scanned negative film.
 # S-Gamut3.Cine (Venice) - Sony Gamut Cinema 3 Venice
 #-Cinema Gamut           - Canon Cinema Gamut (D65)
 # CinemaDay              - Canon Cinema Gamut Daylight (5500K).
@@ -2030,7 +2030,7 @@ function Oklab_to_RGB (clip Lab, clip "a", clip "b", bool "Jch", string "matrix"
 # Example 2 for IPT-PQ c2 to YUV420 709 SDR:
 #     YUV444PS IPTPQc2 source
 #     ICtCp_to_RGB("709",10000,DoVi=true)        # Decode IPTPQc2 to 709 RGB linear (with Gamut Compression by default)
-#     TM_DRT(Peak=200)                           # Tonemap and output RGB SDR linear
+#     TM_Daniele()                               # Tonemap and output RGB SDR linear
 #     CCTF("1886",false)                         # Convert from linear to 1886 gamma
 #     RGB_to_YUV()                               # Optionally convert to YCbCr 420
 #
@@ -2258,7 +2258,15 @@ function XYZ_to_RGB (clip xyz, string cspace, val "illuminant", string "LMS", bo
 #    Sharp Spherical with HUE uniformity
 #
 # Recommended: CAT16, CAT02B, CAT02CRA, SharpSphere and CIE 2015
-
+#
+# Function Definition:
+#    (
+#    clip,
+#    [string "mode"="CAT16" ("XYZ"/ "HPE -Hunt-Pointer-Estevez-"/ "HPE-E"/ "HPE-IPT"/ "HPE-DV"/ "CAT97/Bradford"/ "CAT00"/ "CAT00 Fairchild"/ "CAT02"/ "CAT02B"/ "CAT02CRA"/ "CAT16"/ "OkLab"/ "Sharp"/ "SharpSphere"/ "SharpSphereHUE"/ "Stockman"/ "Stockman10"/ "Cat5"/ "Cat9"/ "Bianco"/ "BiancoPC"/ "OPP")],
+#    [bool "list"=false],
+#    [bool "transpose"=false]
+#    )
+#
 function XYZ_to_LMS (clip xyz, string "mode", bool "list", bool "transpose") {
 
     md    = Default (mode,    "CAT16")
@@ -2965,4 +2973,4 @@ function SPD_D(int i) {
                    575,-2.69, 580,-3.5, 585,-3.46, 590,-3.5, 595,-4.52, 600,-5.8, 605,-6.59, 610,-7.2, 615,-7.93, 620,-8.6, 625,-9.03, 630,-9.5, 635,-10.29, 640,-10.9, 645,-10.82, 650,-10.7, 655,-11.14, 660,-12.0, 665,-13.13, 670,-14.0, 675,-14.11, 680,-13.6, 685,-12.63, 690,-12.0, 695,-12.52, 700,-13.3, 705,-13.44, 710,-12.9, 715,-11.62, 720,-10.6, 725,-10.83, 730,-11.6, 735,-12.16, 740,-12.2, 745,-11.49, 750,-10.2, 755,-8.52, 760,-7.8, 765,-9.39, 770,-11.2, 775,-11.09, 780,-10.4, 785,-10.45, 790,-10.6, 795,-10.31, 800,-9.7, 805,-8.84, 810,-8.3, 815,-8.63, 820,-9.3, 825,-9.66, 830,-9.8)
     S2 = spline(i, 300,0.0, 305,1.08, 310,2.0, 315,2.7, 320,4.0, 325,6.45, 330,8.5, 335,8.59, 340,7.8, 345,7.27, 350,6.7, 355,5.81, 360,5.3, 365,5.84, 370,6.1, 375,4.76, 380,3.0, 385,2.03, 390,1.2, 395,-0.12, 400,-1.1, 405,-0.97, 410,-0.5, 415,-0.49, 420,-0.7, 425,-0.86, 430,-1.2, 435,-1.91, 440,-2.6, 445,-2.87, 450,-2.9, 455,-2.88, 460,-2.8, 465,-2.68, 470,-2.6, 475,-2.65, 480,-2.6, 485,-2.23, 490,-1.8, 495,-1.6, 500,-1.5, 505,-1.39, 510,-1.3, 515,-1.25, 520,-1.2, 525,-1.13, 530,-1.0, 535,-0.75, 540,-0.5, 545,-0.38, 550,-0.3, 555,-0.15, \
                    560,0.0, 565,0.12, 570,0.2, 575,0.24, 580,0.5, 585,1.24, 590,2.1, 595,2.71, 600,3.2, 605,3.68, 610,4.1, 615,4.45, 620,4.7, 625,4.81, 630,5.1, 635,5.89, 640,6.7, 645,7.04, 650,7.3, 655,7.88, 660,8.6, 665,9.25, 670,9.8, 675,10.27, 680,10.2, 685,9.15, 690,8.3, 695,8.86, 700,9.6, 705,9.32, 710,8.5, 715,7.59, 720,7.0, 725,7.13, 730,7.6, 735,7.96, 740,8.0, 745,7.53, 750,6.7, 755,5.64, 760,5.2, 765,6.24, 770,7.4, 775,7.28, 780,6.8, 785,6.86, 790,7.0, 795,6.81, 800,6.4, 805,5.85, 810,5.5, 815,5.69, 820,6.1, 825,6.36, 830,6.5)
-    [S0,S1,S2] }
+    [S0,S1,S2]  }
