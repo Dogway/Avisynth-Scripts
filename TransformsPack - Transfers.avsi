@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Transfers v2.2.0  (19-07-2023)   ##
+###   Transforms Pack - Transfers v2.2.1  (19-02-2024)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
@@ -14,6 +14,7 @@
 ###     EOTF_1886a   /   EOTFi_1886a                     ##
 ###     EOTF_Apple   /   EOTFi_Apple                     ##
 ###     EOTF_Chrome  /   EOTFi_Chrome                    ##
+###     EOTF_SLOG2   /   EOTFi_SLOG2                     ##
 ###     EOTF_XYB     /   EOTFi_XYB                       ##
 ###     EOTF_PQ      /   EOTFi_PQ                        ##
 ###     EOTF_HLG     /   EOTFi_HLG                       ##
@@ -28,6 +29,7 @@
 ###     TM_2446C                                         ##
 ###     TM_Hable                                         ##
 ###     TM_DRT                                           ##
+###     TM_Daniele                                       ##
 ### RANGE:                                               ##
 ###     SMPTE_legal                                      ##
 ###     Full_scale                                       ##
@@ -44,12 +46,13 @@
 ##########################################
 ###
 ### Known by many names;
-###                      Gamma
+###                      Gamma -Î³-
 ###                      Conversion Function -CF-
 ###                      Tone Response Curve -TRC-
 ###                      Tone Response Functions -TRF-
 ###                      Transfer Function -TF-
 ###                      Color Component Transfer Function -CCTF-
+###                      Rendering Transform -RT-
 ###                      Tone Scale (like the Single-Stage Tone Scale -SSTS-)
 
 # -linear
@@ -96,12 +99,12 @@
 #  Log316
 #  FS-Log
 #  Sony S-Log
-#  Sony S-Log2
+# -Sony S-Log2
 #  Sony S-Log3
 #  logc2
 #  logc3
 #  ZLog2
-#  OpenDRT
+# -OpenDRT
 #  JzDT
 #  AgX
 
@@ -321,9 +324,9 @@ function ACEScct_r (clip c, bool "tv_range_in", bool "tv_range_out", int "UV") {
 ### /*The EOTF specified for 1886 is considered to be a satisfactory, but not exact, match to the
 ###   characteristic of an actual CRT. When it is desired to match a CRT, the Lw and Lb parameters of the
 ###   EOTF can be set to the corresponding values of the CRT that are being matched. For moderate
-###   black level settings, e.g. 0.1 cd/m² , setting the Lb of the EOTF to 0.1 will give a satisfactory match
-###   to the CRT. In the event the CRT is operated at a lower black level, e.g. 0.01 cd/m² , the EOTF will
-###   provide a better match with Lb set to a lower value such as 0.0 cd/m² . When it is necessary to more
+###   black level settings, e.g. 0.1 cd/mÂ² , setting the Lb of the EOTF to 0.1 will give a satisfactory match
+###   to the CRT. In the event the CRT is operated at a lower black level, e.g. 0.01 cd/mÂ² , the EOTF will
+###   provide a better match with Lb set to a lower value such as 0.0 cd/mÂ² . When it is necessary to more
 ###   precisely match a flat panel display characteristic to a CRT, the alternative 1886a EOTF formulation
 ###   may provide a solution. */
 ###
@@ -343,8 +346,8 @@ function EOTF_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "bright
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
-    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m²)
-    wl      = Default (WhiteLevel, 100) # White level in nits (cd/m²)
+    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/mÂ²)
+    wl      = Default (WhiteLevel, 100) # White level in nits (cd/mÂ²)
     l       = Default (brightness,  50) # CRT's 'brightness' control (aka 'lift') -0 to 100-
     g       = Default (contrast,    50) # CRT's 'contrast'   control (aka 'gain') -0 to 100-
     tv_in   = Default (tv_in,      !fs)
@@ -379,8 +382,8 @@ function EOTFi_1886a (clip c, float "BlackLevel", float "WhiteLevel", int "brigh
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
-    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/m²)
-    wl      = Default (WhiteLevel, 100) # White level in nits (cd/m²)
+    bl      = Default (BlackLevel, 0.1) # Black level in nits (cd/mÂ²)
+    wl      = Default (WhiteLevel, 100) # White level in nits (cd/mÂ²)
     l       = Default (brightness,  50) # CRT's 'brightness' control (aka 'lift') -0 to 100-
     g       = Default (contrast,    50) # CRT's 'contrast'   control (aka 'gain') -0 to 100-
     tv_in   = Default (tv_in,    !fs)
@@ -420,7 +423,7 @@ function EOTF_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_in", bo
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
     gm      = Default (gamma,      461/256.)      # Set to ~1.800781255, an hexadecimal rounded value of the ideal 1.8 power gamma
-    bl      = Default (BlackLevel,   0.3473)/100. # Black level in nits (cd/m²)
+    bl      = Default (BlackLevel,   0.3473)/100. # Black level in nits (cd/mÂ²)
     tv_in   = Default (tv_in,    !fs)
     tv_out  = Default (tv_out, tv_in)
 
@@ -441,7 +444,7 @@ function EOTFi_Apple (clip c, float "gamma", float "BlackLevel", bool "tv_in", b
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : rgb
     gm      = 1./Default (gamma,      461/256.)
-    bl      =    Default (BlackLevel,   0.3473)/100. # Black level in nits (cd/m²)
+    bl      =    Default (BlackLevel,   0.3473)/100. # Black level in nits (cd/mÂ²)
     tv_in   =    Default (tv_in,    !fs)
     tv_out  =    Default (tv_out, tv_in)
 
@@ -565,21 +568,34 @@ function EOTFi_XYB (clip c, float "gamma", float "bias", bool "tv_in", bool "tv_
 
 # ST.2084/BT.2100 (PQ to display-referred linear HDR)
 # WIP SMPTE ST 2084
+# PQ assumes a reference viewing condition of 5 cd/mÂ²
 # Requires planar RGB input (output is always 32-bit float)
+#
+# Typical MaxCLL:
+#   HDR PQ 400
+#   HDR PQ 600
+#   HDR PQ 1000
+#   HDR PQ 2000
+#   HDR PQ 4000
+#   HDR PQ 8000
 #
 # Example:
 #
 #   32-bit RGB
-#   EOTF_PQ(203,10000) # Or 100 depending on standard
+#   EOTF_PQ(203.1521,10000) # Or 100 depending on standard
 #   TM_2446C("2020","709",k1=1,k3=0.52,EOTFi="1886",tv_in=false,tv_out=false) # Tonemapping
+#   or
+#   TM_DRT() # Tonemapping
 #
-function EOTF_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool "tv_out") {
+function EOTF_PQ (clip c, float "RefWhite", int "MasterLevel", bool "tv_in", bool "tv_out") {
     c
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : true
-    RW      = Default (RefWhite,      203) # 100 for SMPTE ST 2084, 203 for ITU BT.2100/BT.2408
-    PL      = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m²- (1000 to 10000)
+    RW      = Default (RefWhite, 203.1521) # 100 for SMPTE ST 2084, 107 in original Dolby PQ docs, 203.1521 for ITU BT.2100/BT.2408-3 (HLG compliant)
+    PL      = Default (MasterLevel, 10000) # MaxDLP (Max Display Mastering Luminance) or Peak/Mastering Display Luminance (1000 to 10000nits)
+                                           # This is different from MaxCLL (Maximum Content Light Level) which typically spans 1000-4000nits
+                                           # MaxCLL has a typical relationship with Reference White such that MaxCLL 1000 usually has a RefWhite of 203 and MaxCLL 4000 a RefWhite 581. A linear fit being (0.042*MaxCLL+161)
     tv_in   = Default (tv_in,         !fs)
     tv_out  = Default (tv_out,      tv_in)
     PL      = PL / float(RW) # (Mastering Level) / (Reference White) -> 10000 is imaginary Display assumed peak white (simulation of typical outdoors luminance)
@@ -606,15 +622,18 @@ function EOTF_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool 
 # PQ (BT.2100) transfer function (display-referred linear HDR to PQ)
 # PQ is basically a curve-fit to the Barten model over HDR luminance...
 # ...optimized for bit allocation (quantization) but not HVS (human visual system)
+# PQ assumes a reference viewing condition where the screen surround is at 5 cd/mÂ²
 # WIP: SMPTE ST 2084
 # Requires 32-bit float planar RGB input
-function EOTFi_PQ (clip c, int "RefWhite", int "MasterLevel", bool "tv_in", bool "tv_out") {
+function EOTFi_PQ (clip c, float "RefWhite", int "MasterLevel", bool "tv_in", bool "tv_out") {
     c
     bi      = BitsPerComponent()
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : true
-    RW      = Default (RefWhite,      203) # 100 for SMPTE ST 2084, 203 for ITU BT.2100/BT.2408
-    PL      = Default (MasterLevel, 10000) # Max Mastering Level in Nits -cd/m²- (1000 to 10000)
+    RW      = Default (RefWhite, 203.1521) # 100 for SMPTE ST 2084, 107 in original Dolby PQ docs, 203.1521 for ITU BT.2100/BT.2408-3 (HLG compliant)
+    PL      = Default (MasterLevel, 10000) # MaxDLP (Max Display Mastering Luminance) or Peak/Mastering Display Luminance (1000 to 10000nits)
+                                           # This is different from MaxCLL (Maximum Content Light Level) which typically spans 1000-4000nits
+                                           # MaxCLL has a typical relationship with Reference White such that MaxCLL 1000 usually has a RefWhite of 203 and MaxCLL 4000 a RefWhite 581. A linear fit being (0.042*MaxCLL+161)
     tv_in   = Default (tv_in,         !fs)
     tv_out  = Default (tv_out,      tv_in)
     PL      = float(RW) / PL  # (Reference White) / (Mastering Level) -> 10000 is imaginary Display assumed peak white (simulation of typical outdoors luminance)
@@ -689,7 +708,56 @@ function EOTFi_HLG (clip c, float "GrayLVL", bool "tv_in", bool "tv_out") {
     str     = Format(""+rangePC+" X@ {PW} <= X 3 * sqrt X 12 * {HLG_B} - log {HLG_A} * {HLG_C} + ? "+rangeTV+"")
 
     Expr(ex_dlut(str, bi, !tv_in), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi))
-                    propSet("_Transfer",          19 )
+                    propSet("_Transfer",          19 ) # This should be 18 as in the H.265 paper
+    tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
+
+
+# S-Log2 to Linear (requires RGB input)
+function EOTF_SLOG2 (clip c, bool "tv_in", bool "tv_out") {
+    c
+    bi      = BitsPerComponent()
+    fs      = propNumElements("_ColorRange")  > 0 ? \
+              propGetInt     ("_ColorRange") == 0 : true
+    tv_in   = Default (tv_in,          !fs)
+    tv_out  = Default (tv_out,       tv_in)
+
+    B  = ex_bs(16,   8, bi, fulls=true, fulld=false, flt=true)
+    AB = ex_bs(22.5, 8, bi, fulls=true, fulld=false, flt=true)
+    W  = ex_bs(235,  8, bi, fulls=true, fulld=false, flt=true)
+    WB = 1. / (W - B)
+
+    rangePC = tv_in  ? "x ymin - ymax ymin - /" : bi==32 ? "x" : "x range_max /"
+    rangeTV = tv_out ? "ymax ymin - * ymin +"   : bi==32 ? " " : "  range_max *"
+
+    str     = Format(""+rangePC+" X@ dup {B} - {WB} * WB^ {AB} >= 10 WB 0.616596 0.03 - - 2.311075366 * ^ 0.037584 - 219 0.9 * 155 / * 
+                                                                     WB 0.030001222851889303 -  0.254322581 * ? "+rangeTV+"")
+
+    Expr(ex_dlut(str, bi, !tv_in), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi))
+                    propSet("_Transfer",          8 )
+    tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
+
+
+function EOTFi_SLOG2 (clip c, bool "tv_in", bool "tv_out") {
+    c
+    bi      = BitsPerComponent()
+    fs      = propNumElements("_ColorRange")  > 0 ? \
+              propGetInt     ("_ColorRange") == 0 : true
+    tv_in   = Default (tv_in,          !fs)
+    tv_out  = Default (tv_out,       tv_in)
+
+    B  = ex_bs(16,   8, bi, fulls=true, fulld=false, flt=true)
+    AB = ex_bs(22.5, 8, bi, fulls=true, fulld=false, flt=true)
+    W  = ex_bs(235,  8, bi, fulls=true, fulld=false, flt=true)
+    WB = 1. / (W - B)
+
+    rangePC = tv_in  ? "x ymin - ymax ymin - /" : bi==32 ? "x" : "x range_max /"
+    rangeTV = tv_out ? "ymax ymin - * ymin +"   : bi==32 ? " " : "  range_max *"
+
+#    str     = Format(""+rangePC+" X@ dup {B} - {WB} * WB^ {AB} >= 10 WB 0.616596 0.03 - - 2.311075366 * ^ 0.037584 - 219 0.9 * 155 / * 
+#                                                                     WB 0.030001222851889303 -  0.254322581 * ? "+rangeTV+"")
+
+    Expr(ex_dlut(str, bi, !tv_in), format=isy() ? "Y"+string(bi) : "RGBP"+string(bi==32?"S":bi))
+                    propSet("_Transfer",          30 )
     tv_in!=tv_out ? propSet("_ColorRange", tv_out?1:0) : last }
 
 
@@ -766,7 +834,7 @@ function EOTFi_PQtoHLG (clip c, int "RefWhite", int "MasterLevel", float "GrayLV
     fs      = propNumElements("_ColorRange")  > 0 ? \
               propGetInt     ("_ColorRange") == 0 : true
     RW      = Default (RefWhite,       203) # 100 for SMPTE ST 2084, 203 for ITU BT.2100/BT.2408
-    PL      = Default (MasterLevel,  10000) # Max Mastering Level in Nits -cd/m²- (1000 to 10000)
+    PL      = Default (MasterLevel,  10000) # Max Mastering Level in Nits -cd/mÂ²- (1000 to 10000)
     glvl    = Default (GrayLVL, 0.17883277)
     tv_in   = Default (tv_in,          !fs)
     tv_out  = Default (tv_out,       tv_in)
@@ -908,10 +976,10 @@ function Display_Sim(clip a, float "Lw", float "Lb", float "k", float "surround"
     fs = propNumElements("_ColorRange")  > 0 ? \
          propGetInt     ("_ColorRange") == 0 : isRGB()
 
-    Lw = Default(Lw,        100.0) # Display peak white  given in nits, lux or cd/m² (they are all same)
-    Lb = Default(Lb,          0.3) # Display black level given in nits, lux or cd/m²
+    Lw = Default(Lw,        100.0) # Display peak white  given in nits, lux or cd/mÂ² (they are all same)
+    Lb = Default(Lb,          0.3) # Display black level given in nits, lux or cd/mÂ²
     k  = Default(k,             1) # Panel reflectivity given in %
-    s  = Default(Surround,     50) # Surround viewing conditions given in nits, lux or cd/m² (50 for dim, 400 for bright office, 32000 sunny outdoors)
+    s  = Default(Surround,     50) # Surround viewing conditions given in nits, lux or cd/mÂ² (50 for dim, 400 for bright office, 32000 sunny outdoors)
     tr = Default(transfer, "sRGB") # Simulated EOTF
     tro= Default(EOTF,     "1886") # Viewing display EOTF
 
@@ -968,7 +1036,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
     EOTF      = Defined (EOTF ) ? isString(EOTF ) ? color_Fuzzy_Search(EOTF ) : EOTF  : ["","",""]
     sh        = Default (show, false)
 
-    # '1886a' is with BlackLevel/Brightness set to 0, for the recommended 0.1 cd/m² it's a practical match to regular '1886'
+    # '1886a' is with BlackLevel/Brightness set to 0, for the recommended 0.1 cd/mÂ² it's a practical match to regular '1886'
     s_gam     = isFloat (OETF) ? [OETF,0] : OETF[2]=="1886a" ? [2.6133333,0] : OETF[2]=="Chrome" ? [2.4,0] : OETF[2]=="AppleRGB" ? [1.783333,0] : moncurve_coef(OETF[2])
     d_gam     = isFloat (EOTF) ? [EOTF,0] : EOTF[2]=="1886a" ? [2.6133333,0] : EOTF[2]=="Chrome" ? [2.4,0] : EOTF[2]=="AppleRGB" ? [1.783333,0] : moncurve_coef(EOTF[2])
 
@@ -1067,7 +1135,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###    Durand Dorsey:       From "Interactive Tone Mapping" by Durand and Dorsey 2000
 ###    Reinhard:            From "Photographic Tone Reproduction For Digital Images" by Reinhard et al. 2002
 ###    Reinhard (Extended): From "Photographic Tone Reproduction For Digital Images" by Reinhard et al. 2002
-###    Möbius:              Generalization of Reinhard to a Möbius transform with linear section. Smoothly maps out-of-range values while retaining contrast and colors for in-range material as much as possible. Use this when you care about color accuracy more than detail preservation. This is somewhere in between clip and reinhard.
+###    MÃ¶bius:              Generalization of Reinhard to a MÃ¶bius transform with linear section. Smoothly maps out-of-range values while retaining contrast and colors for in-range material as much as possible. Use this when you care about color accuracy more than detail preservation. This is somewhere in between clip and reinhard.
 ###    Ashikhmin:           From "A Tone Mapping Algorithm for High Contrast Images" by M. Ashikhmin 2002
 ###    Drago:               From "Adaptive Logarithmic Mapping For Displaying High Contrast Scenes" by Drago et al. 2003
 ###    Reinhard Devlin:     From "Dynamic Range Reduction Inspired by Photoreceptor Physiology" by Reinhard and Devlin 2005
@@ -1094,11 +1162,12 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 ###    BT.2094_40 EETF:   From "ITU-R BT.2094-40 Annex B" 2016
 ###    BT.2094_10 EETF:   From "ITU-R BT.2094-40 Annex B.2" 2016
 ###    Spline:            From ffmpeg.
-###    RRT:               From ACES
+###    RRT:               From ACES with an embedded look
 ###    ZCAM:
 ###    AgX:
-###    SSTS:              From ACES. B-Splines based tonemapper
-###    Daniele:           Elegant tonescale in the style of Michaelis-Menten function. https://www.desmos.com/calculator/rboxfu8hjb and https://community.acescentral.com/t/output-transform-tone-scale/3498/14?u=dogway
+###    SSTS:              From ACES. B-Splines based tonemapper for >100 nit peak whites
+###    Daniele:           Elegant tonescale in the style of Michaelis-Menten function. https://www.desmos.com/calculator/rboxfu8hjb and https://community.acescentral.com/t/output-transform-tone-scale/3498/14
+###   -DanieleTuned:      Daniele Siragusano Tuned ToneScale: https://community.acescentral.com/t/output-transform-tone-scale/3498/227 and 239
 ###   -OpenDRT:           Jed Smith's OpenDRT modification of Daniele Siragusano's tone scale inspired by "Michaelis-Menten Constrained" tonescale function.
 ###    JzDT:              Same as the OpenDRT tonescale but simplified (less control knobs). It's applied over a perceptual uniform model (JzAzBz)
 ###    Sensitometric:     From Substance Painter's YEBIS2 post-processor by Silicon Studio
@@ -1110,7 +1179,7 @@ function OOTF (clip a, float "OOTF", val "OETFi", val "EOTF", bool "show") {
 # BT.2446 "Method C" tonemapper. Typically used for broadcast streams in HLG, although PQ is also allowed.
 # Input must be HDR PC range (or set 'tv_in') linear RGB, output is SDR gamma encoded RGB ('EOTFi' gamma encoded)
 # WIP: Achromatic highlights algorithm hasn't been implemented
-# * Keep in mind that peak luminance in nits (or cd/m²) relates to float pixel values 100:1. ie. pixel value of 1.0 is 100 nits, 10.0 is 1000 nits and so on.
+# * Keep in mind that peak luminance in nits (or cd/mÂ²) relates to float pixel values 100:1. ie. pixel value of 1.0 is 100 nits, 10.0 is 1000 nits and so on.
 function TM_2446C (clip c, string "cs_in", string "cs_out", string "EOTFi", float "k1", float "k3", bool "tv_in", bool "tv_out", bool "show") {
     c
     isy    = isy()
@@ -1246,10 +1315,11 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
 
 
 # TM - OpenDRT
-# Jed Smith's OpenDRT modification of Daniele Siragusano's tone scale
-# inspired by "Michaelis-Menten Constrained" tonescale function.
+# Jed Smith's OpenDRT modification of Daniele Siragusano's Michaelis-Menten based tone scale
+# called "Michaelis-Menten Constrained Post-Tonemap Contrast".
 #
 # AVS+ port under GPL3 compliant license
+# Some internal and default values have been changed from original
 # Input must be 32-bit RGB linear in PC range
 #
 # Example:
@@ -1259,10 +1329,10 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
 #     (
 #     clip,
 #     float "Peak"=100.0 (100.0 to 1000.0 by 1.0),
-#     float "Contrast"=0.75 (0.70 to 1.30),
-#     float "Grey"=0.117 (0.00 to 1.00),
-#     float "Flare"=0.01 (0.00 to 0.02),
-#     bool "show"=false
+#     float "Contrast"=0.80 (0.70 to 1.30),
+#     float "Grey"=0.119 (0.00 to 1.00),
+#     float "Flare"=0.001 (0.00 to 0.01),
+#     [bool "show"=false]
 #     )
 #
   /*
@@ -1277,45 +1347,47 @@ function TM_Hable (clip x, string "mode", bool "filmic", float "A", float "B", f
     https://colab.research.google.com/drive/1aEjQDPlPveWPvhNoEfK4vGH5Tet8y1EB#scrollTo=Fb_8dwycyhlQ
 
     For the user parameter space, we include the following creative controls:
-    - Peak: display peak luminance. This sets the display device peak luminance and allows rendering for HDR.
+    - PeakIn:  'Lp' display peak luminance. This sets the display device peak luminance and allows rendering for HDR.
+    - PeakOut: 'Lw' display peak luminance. This sets the display device peak luminance and allows rendering for HDR.
     - Contrast: This is a pivoted power function applied after the hyperbolic compress function,
-        which keeps middle grey and peak white the same but increases contrast in between.
+        which keeps middle grey and peak white the same but increases contrast in between. Works as a Surround compensation.
     - Flare: Applies a parabolic toe compression function after the hyperbolic compression function.
         This compresses values near zero without clipping. Used for flare or glare compensation.
     - Grey: Grey Boost. This parameter controls how many stops to boost middle grey per stop of peak luminance increase.
 
     Notes on the other non user-facing parameters:
     - (px, py): This is the peak luminance intersection constraint for the compression function.
-        px is the input scene-linear x-intersection constraint. That is, the scene-linear input value
-        which is mapped to py through the compression function. By default this is set to 64 at Peak=100, and 128 at Peak=1000.
+        'px' is the input scene-linear x-intersection constraint. That is, the scene-linear input value
+        which is mapped to 'py' through the compression function. By default this is set to 64 at Peak=100, and 128 at Peak=1000.
         Here is the regression calculation using a logarithmic function to match: https://www.desmos.com/calculator/d0jcaa8xzt
     - (gx, gy): This is the middle grey intersection constraint for the compression function.
-        Scene-linear input value gx is mapped to display-linear output gy through the function.
-        Why is gy set to 0.11696 at Peak=100? This matches the position of middle grey through in the Rec709 system.
+        Scene-linear input value 'gx' is mapped to display-linear output 'gy' through the function.
+        Why is 'gy' set to 0.11696 at Peak=100? This matches the position of middle grey through in the Rec709 system.
         We use this value for consistency with the Arri and TCAM Rec.1886 display rendering transforms.
   */
 
-function TM_DRT (clip x, float "Peak", float "Contrast", float "Grey", float "flare", float "Rw", float "Bw", bool "invert", bool "show") {
+function TM_DRT (clip x, float "PeakIn", float "PeakOut", float "Contrast", float "GreyExp", float "flare", float "Rw", float "Bw", bool "invert", bool "show") {
 
     isy    = isy(x)
-    bi     = BitsPerComponent(x)
-    Pk     = Default (Peak,     100. )  # 100  to 1000
-    Ct     = Default (Contrast, 0.75 )  # 0.7  to 1.3  (original was 1.1 but deemed too strong for display referred content)
-    Gr     = Default (Grey,     0.117)  # 0.0  to 1.0
-    Fl     = Default (flare,    0.01 )  # 0.0  to 0.02
-    Rw     = Default (Rw,       0.20 )  # 0.05 to 0.6  (Red  contribution to Luma)
-    Bw     = Default (Bw,       0.25 )  # 0.05 to 0.6  (Blue contribution to Luma)
+    Lp     = Default (PeakIn,   100. )            # 100  to 1000
+    Lw     = Default (PeakOut,  100. )            # 48   to 1000
+    Ct     = Default (Contrast, 0.85 )            # 0.7  to 1.3  (original was 1.1 but deemed too strong for display referred content)
+    Gr     = Default (GreyExp,7.5/Lw*pow(Lw,0.1)) # 0.0  to 1.0  (grey change between different peak luminance)
+    Fl     = Default (flare,    0.001)            # 0.0  to 0.01 (original was 0.01 (1/Lw) but deemed too strong for display referred content)
+    Rw     = Default (Rw,       0.20 )            # 0.05 to 0.6  (Red  contribution to "Luminance")
+    Bw     = Default (Bw,       0.25 )            # 0.05 to 0.6  (Blue contribution to "Luminance")
     in     = Default (invert,  false )
     sh     = Default (show,    false )
 
-    # input scene-linear peak 'x' intercept (fit for 64 at Peak=100, and 128 at Peak=1000)
-    px = 128.0*(log(Pk)/log(100.0)) - 64.0
+    # input scene-linear    peak 'x' intercept (fit for 64 at Peak=100, and 128 at Peak=1000)
+    px = 128.0*(log(Lp)/log(100.0)) - 64.0
     # output display-linear peak 'y' intercept
-    py = Pk/100.0
-    # input scene-linear middle grey 'x' intercept
-    gx = 0.18
-    # output display-linear middle grey 'y' intercept (11.696 is middle grey luminance in nits)
-    gy = 11.696/100.0*(1.0 + Gr*(log(py)/log(2.0)))
+    py = Lp/Lw
+    # input  scene-linear   middle grey 'x' intercept
+    gx = 0.17883277
+    # output display-linear middle grey 'y' intercept
+    # Derived from output display peak luminance 'Lw'; Lg=14.4+1.436*log(Lw/1000) (ie. 6.733 for 48nits, 7.786 for 100nits, etc)
+    gy = (14.4+1.436*log(Lw/1000))/Lw*(1.0 + Gr*(log(py)/log(2.0)))
     # s0 and s are input  'x' scale for middle grey intersection constraint
     # m0 and m are output 'y' scale for peak white  intersection constraint
     s0 = (gy + sqrt(gy*(4.0*Fl + gy)))/2.0
@@ -1334,8 +1406,8 @@ function TM_DRT (clip x, float "Peak", float "Contrast", float "Grey", float "fl
     */
     Gw = 1.0 - (Rw + Bw)
 
-    Rx = isy ? Format("x                              0.00001 max                  {m} *  x {s} + / 0 max {Ct} ^ dup 2 ^ swap {Fl} + /      100 {Pk} / *") : \
-               Format("x {Rw} * y {Gw} * z {Bw} * + + 0.00001 max dup  x swap / R^ {m} *  x {s} + / 0 max {Ct} ^ dup 2 ^ swap {Fl} + /  R * 100 {Pk} / *")
+    Rx = isy ? Format("x                              0.00001 max                  {m} *  x {s} + / {Ct} ^ dup 2 ^ swap {Fl} + /      {Lw} {Lp} / *") : \
+               Format("x {Rw} * y {Gw} * z {Bw} * + + 0.00001 max dup  x swap / R^ {m} *  x {s} + / {Ct} ^ dup 2 ^ swap {Fl} + /  R * {Lw} {Lp} / *")
 
     Gx = ReplaceStr(Rx, "  x", "  y")
     Bx = ReplaceStr(Rx, "  x", "  z")
@@ -1349,10 +1421,70 @@ function TM_DRT (clip x, float "Peak", float "Contrast", float "Grey", float "fl
         h   = x.height()
         sw  = nmod(w/5.)   sh = min(h,sw)
         plt = GradientLinear(last,zoom=1, precision=4, positive=true, smooth=true, tv_range=false)
-        plt = plt.ExtractY().TM_DRT(Pk,Ct,Gr,Fl,Rw,Bw,in)
+        plt = plt.ExtractY().TM_DRT(Lp,Lw,Ct,Gr,Fl,Rw,Bw,in)
         plt = HistoCurve(plt,size=2,gradient=false).BicubicResize(sw,sh,0.262015,0.368993)
         plt = plt.ConvertToPlanarRGB()
-        plt = Merge(PadBorders(plt.subtitle("OpenDRT",size=w/64),w-sw,0,0,h-sh))
+        plt = Merge(PadBorders(plt.subtitle("TM - OpenDRT",size=w/64),w-sw,0,0,h-sh))
+        ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
+    } }
+
+
+# TM_Daniele()
+# Daniele Siragusano Tuned ToneScale:
+# https://community.acescentral.com/t/output-transform-tone-scale/3498/227 and 239
+#
+# The original (slightly tuned) Daniele Siragusano tone scale from which TM_DRT() was based on.
+# Curiously not only this is a faster operator, but has a natural path-to-white color rendition.
+# Still it is recommended to raise saturation about 1.2 when tonemapping to SDR.
+#
+# Either this and the TM_DRT() tonemappers were designed for scene-referred sources, but they have
+# sufficient controls to make it work on graded content for which I defaulted the functions for (Contrast, GreyExp and Flare)
+#
+function TM_Daniele (clip x, float "PeakIn", float "PeakOut", float "Contrast", float "GreyExp", float "flare", float "Rw", float "Bw", bool "invert", bool "show") {
+
+    isy    = isy(x)
+    Lp     = Default (PeakIn,   100. )            # 100  to 1000
+    Lw     = Default (PeakOut,  100. )            # 48   to 1000
+    g      = Default (Contrast, 0.8  )            # 0.7  to 1.3  (original was 1.15  but deemed too strong for display referred content)
+    wg     = Default (GreyExp,7.5/Lw*pow(Lw,0.2)) # 0.0  to 1.0  (grey change between different peak luminance)
+    t1     = Default (flare,    0.002)            # 0.0  to 0.01 (original was 0.041 but deemed too strong for display referred content)
+    in     = Default (invert,  false )
+    sh     = Default (show,    false )
+
+    m0 = Lp/Lw
+    # input scene-linear    peak 'x' intercept (fit for 128 at Peak=100, and 256 at Peak=1000)
+    rh = 128.0+768.*(log(m0)/log(10000./100.))
+    # input  scene-linear   middle grey 'x' intercept
+    gx = 0.18
+    # output display-linear middle grey 'y' intercept
+    gr = 10.0 # Display Referred Grey (in Nits)
+    m1 = 0.5 * (m0 + sqrt(m0*(m0+4*t1)))
+    u  = pow((rh/m1)/(rh/m1+1) ,g)
+    m  = m1/u
+
+    wi = log(Lp/100.0)/log(2.)
+    ct = (gr/Lw)*(1+wi*wg)
+
+    gi = 0.5*(ct+sqrt(ct*(ct+4*t1)))
+    gi2= abs((m1*pow(gi/m,1/g))/(pow(gi/m,1/g)-1))
+    w2 = gx/gi2
+    u2 = pow((rh/m1)/(rh/m1+w2),g)
+    s2 = w2*m1
+    m2 = m1/u2
+    # Derived outputs are: s2 and m2
+
+    ex_lut(x,Format("x 0 max dup {s2} + / {g} ^ {m2} * dup dup * swap {t1} + / 0 max {Lw} {Lp} / *"))
+
+
+    if (sh) {
+        w   = x.width()
+        h   = x.height()
+        sw  = nmod(w/5.)   sh = min(h,sw)
+        plt = GradientLinear(last,zoom=1, precision=4, positive=true, smooth=true, tv_range=false)
+        plt = plt.ExtractY().TM_Daniele(Lp,Lw,g,wg,t1,Rw,Bw,in)
+        plt = HistoCurve(plt,size=2,gradient=false).BicubicResize(sw,sh,0.262015,0.368993)
+        plt = plt.ConvertToPlanarRGB()
+        plt = Merge(PadBorders(plt.subtitle("TM - Daniele",size=w/64),w-sw,0,0,h-sh))
         ex_merge(plt,BoxMask(w-sw,w,0,sh),UV=3)
     } }
 
