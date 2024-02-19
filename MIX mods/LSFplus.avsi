@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v6.0 mix - 19 Feb 2024                                    ###
+###                                v6.1 mix - 19 Feb 2024                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -612,7 +612,7 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
 
 
     ### PRESETS
-    version = "v6.0mix"
+    version = "v6.1mix"
 
     rgb    = isRGB(inclip)
     ox     = inclip.width()
