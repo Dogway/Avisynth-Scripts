@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 12.0 (26-05-2023)     ##
+###   Resizers Functions Pack 12.1 (19-02-2024)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -26,6 +26,7 @@
 ###      nmod                                       ##
 ###      mmod                                       ##
 ###      ColortoHex                                 ##
+###      bicubic_coeffs                             ##
 ###      MatteCrop                                  ##
 ###                                                 ##
 ###                                                 ##
@@ -576,7 +577,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     size  = 1.5 * ( 0.000173*w2 + 0.667 )
     grain = gr  * ( 0.000260*w2 + 0.500 )
     sharp = min   (-0.000156*w2 + 1.3,1 )
-    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Undefined(),sharpness=sharp,lo=0.7,hi=0.9,preblur=0,temp=0.2,tv_range=!fs) : last
+    gr > 0 ? FilmGrainPlus(size=size,str=grain,strc=isUHD2?0:Undefined(),sharpness=sharp,lo=0.7,hi=0.9,preblur=0,temp=0.2,tv_range=tv) : last
     }
 
 
@@ -618,7 +619,7 @@ function SmoothMotion (clip a) {
 #       ExTools
 #       TransformsPack
 #
-function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "FrameDouble", bool "Anime", int "gpuid") {
+function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "FrameDouble", bool "Anime", bool "sc", int "gpuid") {
 
     isy    = isy  (a)
     rgb    = isRGB(a)
@@ -655,6 +656,7 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     fd     = Default(FrameDouble, !(numD || denD))
     an     = Default(Anime,        false)
     gid    = Default(gpuid,            0)
+    sc     = Default(sc,            true)
     nfps   = (float(num)/den)/fps
     fd     = fd || string(nfps,"%.1f")=="2.0"
 
@@ -662,7 +664,7 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     rgb  ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="Precise")
      isy ? last : ConvertBits(   32, fulls=true, fulld=true)
 
-    RIFE(model=fd ? md : max(md,9), sc=true, skip=an, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2, UHD=UHD)
+    RIFE(model=fd ? md : max(md,9), sc=sc, skip=an, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2, UHD=UHD)
 
     isy   ? ExtractR().ConvertBits(bi, dither=1, fulls=true, fulld=!tv) : \
     !rgb  ? MatchClip (a,matrix=pri,size=false,props=false)             : last
@@ -1375,6 +1377,78 @@ function ColortoHex(string color) {
     U  = clamp(cl[1],0,255)
     V  = clamp(cl[2],0,255)
     Return "$"+string(Hex(Y,2))+string(Hex(U,2))+string(Hex(V,2)) }
+
+
+
+# Bicubic kernels are very performant but tends to create 'blocking' in upscales compared to more advanced kernels
+function bicubic_coeffs (string kernel) {
+
+    # info: Keys Cubics family of filters are BC-splines that exactly reproduce affine gradients, those that satisfy 2C+B = 1 (along the dotted line in the Cubic filters diagram)
+    # Examples are Mitchell-Netravali, Robidoux (and its flavours), Catmull-Rom, Cub-grange and Spline.
+    # For downscaling you can follow a different formula: B+2C  =  0 (Didée, ZoptiN)...
+    # The next is sharper albeit more haloing    (Zopti): 3B+2C = -1 , but neither will produce affine gradients.
+
+    # Robidoux coeffs follow the rule B+2C = 1
+    rb  = 12. /(19.  +9.*sqrt(2))    # 0.378216
+    rc  = 113./(58.+216.*sqrt(2))    # 0.310892
+    rsb = 6.  /(13.  +7.*sqrt(2))    # 0.262015
+    rsc = 7.  /(2.  +12.*sqrt(2))    # 0.368993
+    rbb =      (9   -3. *sqrt(2))/7. # 0.679623
+    rbc =      (1   -    rbb    )/2. # 0.160189
+
+    # From blurrier to sharper
+    c = [-2.,-2.]
+    c = kernel == "Notch"             ? [1.5, -0.25] : c
+    c = kernel == "SoftCubic100"      ? [1.0,   0.0] : c  # Also called Spline (same as GaussResize(p=21))
+    c = kernel == "Robidoux Soft"     ? [rbb,   rbc] : c  # up,dw BC-spline soft approximation to EWA affine scaling. Close to a 'Quadratic' kernel.
+    c = kernel == "SoftCubic75"       ? [0.75, 0.25] : c
+    c = kernel == "BilcubicD"         ? [1/3.,  0.0] : c  # dw Bicubic practical match to Bilinear.
+    c = kernel == "BilcubicU"         ? [0.5,   0.2] : c  # up Bicubic practical match to Bilinear.
+    c = kernel == "Hermite"           ? [0.0,   0.0] : c  # up,dw Canonical Bicubic approximation to Bilinear (a bit sharper than it)
+    c = kernel == "Robidoux"          ? [rb,     rc] : c  # up,dw Derived from EWA considerations, the values that "minimize the maximum possible change in vertical or horizontal straight lines (Robidoux) or any image (RobidouxSharp) under no-op" while satisfying Keys Cubics (affine gradients)
+    c = kernel == "Centroid"          ? [0.37, 0.35] : c  # up Arithmetic mean of the satisfactory zone (by Dogway)
+    c = kernel == "Mitchell-Netravali"? [1/3., 1/3.] : c  # up Canonical Bicubic (roughly equivalent to EWA Robidoux, a little softer though)
+    c = kernel == "Robidoux Sharp"    ? [rsb,   rsc] : c  # up,dw
+    c = kernel == "SoftCubic50"       ? [0.5,   0.5] : c
+    c = kernel == "Catmule-Dog"       ? [0.1750,0.4125]:c # up Sharp while orthogonally furthest key cubic coefficients from Blocking and Ringing zones in Cubics diagram (between CatRom and RobiSharp) (by Dogway)
+    c = kernel == "Cub-grange"        ? [0.0308,0.4846]:c # up but also dw. Bicubic approximation to Lagrange scaling (a bit sharper than it)
+    c = kernel == "Catmull-Rom"       ? [ 0.0,  0.5] : c  # up Canonical sharp Bicubic (roughly equivalent to spline16resize() and EWA RobidouxSharp)
+    c = kernel == "Didee"             ? [-0.5, 0.25] : c  # dw Didée's downscaling sharp coefficients for 1080p to 720p. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
+    c = kernel == "Zopti"             ? [-0.6,  0.4] : c  # dw 2160p to 720p Zopti optimized (by Boulder) (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218
+    c = kernel == "ZoptiN"            ? [-0.6,  0.3] : c  # dw Like Zopti but more neutral (better over/undershoot normalization). Good for final resizing.
+    c = kernel == "ZoptiH"            ? [-0.83,0.14] : c  # dw 1080 to half optimized (for 1080p and smaller clips)
+    c = kernel == "Zopti720"          ? [-1.00,0.16] : c  # dw 1080p to 720p (for upscaling it always optimized to Catmull-Rom, although I visually prefer Precise)
+    c = kernel == "Zopti720U"         ? [-0.99,0.26] : c  # dw 2160p to 720p. This is my optimization for going straight from UHD to 720p, but I still recommend going first "Zopti1080" to 1080p and then "SSIM2" to 720p.
+    c = kernel == "Zopti1080"         ? [-0.99,0.06] : c  # dw 2160p to 1080p. Suprisingly better than using "SSIM2". If you want to skip halos but retain the great texture rendition use deep_resize(1080,edge="Didee",flat="Zopti1080")
+    c = kernel == "Precise"           ? [ 0.0, 0.75] : c  # up Almost identical to spline36 but a bit more halo. Very good cheap upscaler.
+    c = kernel == "Sharp"             ? [ 0.0,  1.0] : c  # dw Good alternative for dw. Less aliasing and sharper edges but softer textures.
+    c = kernel == "Hatch"             ? [ 0.0, -5.0] : c
+
+    # Aliases
+  # c = kernel == "Spline"            ? [1.0,0.0]    : c # Commented as to not conflict with SplinexxResize kernel.
+    c = kernel == "SoftCubic"         ? [0.75,0.25]  : c
+    c = kernel == "Precise Bicubic"   ? [0.0,0.75]   : c
+    c = kernel == "Catrom"            ? [0.0,0.5]    : c
+    c = kernel == "Catmull"           ? [0.0,0.5]    : c
+    c = kernel == "Mitchell"          ? [1/3.,1/3.]  : c
+    c = kernel == "Mitchel"           ? [1/3.,1/3.]  : c
+    c = kernel == "RobiSoft"          ? [rbb,rbc]    : c
+    c = kernel == "RobiSharp"         ? [rsb,rsc]    : c
+    c = kernel == "Robi"              ? [rb,  rc]    : c
+    c = kernel == "RobidouxSoft"      ? [rbb,rbc]    : c
+    c = kernel == "RobidouxSharp"     ? [rsb,rsc]    : c
+    c = kernel == "B-Spline"          ? [1.0,0.0]    : c
+    c = kernel == "BSpline"           ? [1.0,0.0]    : c
+    c = kernel == "BCSpline"          ? [0.5,0.5]    : c
+    c = kernel == "BC-Spline"         ? [0.5,0.5]    : c
+    c = kernel == "CSpline"           ? [0.0,1.0]    : c
+    c = kernel == "C-Spline"          ? [0.0,1.0]    : c
+    c = kernel == "Didée"             ? [-0.5,0.25]  : c
+    c = kernel == "Dide"              ? [-0.5,0.25]  : c
+    c = kernel == "lagrange"          ? [0.0308,0.4846] : c
+    c = kernel == "cubgrange"         ? [0.0308,0.4846] : c
+
+    c }
 
 
 
