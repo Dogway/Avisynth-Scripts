@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v10.3    (10-09-2023)                 ##
+###        ExTools v10.4    (09-01-2024)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -1518,7 +1518,8 @@ function ex_blur3D(clip a, int "x", int "y", int "z", string "mode", int "UV") {
           md == "average" ? "mean" : \
           md == "mean"    ? "mean" : "weighted"
     a
-    x+y!=0 ? ex_boxblur(x,y, mode=md, UV=uv) : last
+    x+y!=0 ? md == "weighted" && x+y > 5 ? ex_GaussianBlur(sqrt(x)/2.*sqrt(2),sqrt(y)/2.*sqrt(2),pad=true,UV=uv) : \
+                                           ex_boxblur(x,y, mode=md, UV=uv) : last
 
     TG = z == 1 ? "                                                                                             y z                 x 2           * + + 0.25 * " : \
          z == 2 ? "y z + 4           *                                                                          a b                 x 6           * + + + 0.0625 * " : \
