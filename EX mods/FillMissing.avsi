@@ -11,6 +11,7 @@
 # v1.40 - BWmask bugfixes                            by Dogway on   Oct 28, 2021
 # v1.41 - Rebase with latest FrameRateConverter      by Dogway on   Jan 10, 2022
 # v2.00 - Replace with RIFEwrap and hence an EX mod  by Dogway on   Feb 18, 2023
+# v2.01 - Add 'sc=false' to RIFEwrap to force MI     by Dogway on   Feb 18, 2024
 #
 #
 # Dependencies:
@@ -32,7 +33,7 @@
 #   unchanged video.
 
 
-function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle", bool "Show", bool "debug") {
+function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle", bool "Show", int "gpuid", bool "debug") {
 
     source
 
@@ -43,9 +44,10 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
     Fast       = Default(Fast,     true)   # true for fast mode
     dcycle     = Default(dcycle,     20)   # Decimation cycle
     showdot    = Default(Show,    false)   # true for troubleshooting; otherwise, false
+    gpuid      = Default(gpuid,       0)   # ID for the GPU to use
     Debug      = Default(Debug,   false)   # true for troubleshooting; otherwise, false
 
-    double = RIFEwrap(showdot ? Subtitle("***") : last, model=Fast ? 22 : 23)
+    double = RIFEwrap(showdot ? Subtitle("***") : last, model=Fast ? 22 : 23, sc=false, gpu_id=gpuid)
 
     # Remove comment from ShowMetrics, and change "return final" to "return test" to look at metrics in order to determine proper JumpThresh
     src8   = ConvertBits(8, dither=-1, fulls=fs)
