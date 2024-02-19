@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###   Transforms Pack - Main v2.2.1       (19-10-2023)   ##
+###   Transforms Pack - Main v2.2.1       (13-02-2024)   ##
 ###                                                      ##
 ###   https://forum.doom9.org/showthread.php?t=182881    ##
 ###                                                      ##
@@ -15,7 +15,6 @@
 ###     color_Fuzzy_Search                               ##
 ###     color_propGet                                    ##
 ###     format_Fuzzy_Search                              ##
-###     bicubic_coeffs                                   ##
 ###     chroma_placement                                 ##
 ###     color_coef                                       ##
 ###     moncurve_coef                                    ##
@@ -1372,7 +1371,7 @@ function ConvertFormat (clip clp, val "width", val       "height", string   "fmt
             bg     = BoxMask(0,round(msize/1.55),0,round(msize/1.15),invert=true, tv_out=tv_out)
             ex_blend(bg,"multiply",opacity=0.5,tv_range=tv_out)
 
-            Subtitle("ConvertFormat() 2.2.0",                   size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
+            Subtitle("ConvertFormat() 2.2.1",                   size=msize/16,lsp=4,text_color=$00aef0,font="Segoe UI")
             Subtitle("\n\n SETTINGS:",                          size=msize/25,lsp=4)
             Subtitle(Format("\n\n\n\n\n "       \
                            +"width:\n "         \
@@ -1465,10 +1464,11 @@ function color_Fuzzy_Search (string matrix) {
 \   : FindStr(matrix,   "VISION")>0? "2020DV5"    : FindStr(matrix,   "2085" )>0 ? "YDzDx"
 \   :         matrix == "AdobeWideGamut" ? "AWG"  :         matrix == "AWG"      ? "AWG"
 \   : FindStr(matrix,   "ADOBE")>0 ? "AdobeRGB"   :         matrix == "opRGB"    ? "AdobeRGB"
-\   :         matrix == "opYCC"    ? "AdobeRGB"   : FindStr(matrix,   "DCI"  )>0 ? "DCI-P3"
-\   : FindStr(matrix,   "CLAY" )>0 ? "AdobeRGB"   :         matrix == "P3D65"    ? "Display-P3"
-\   :         matrix == "P3"       ? "Display-P3" :         matrix == "AP1"      ? "ACEScg"
-\   : FindStr(matrix,   "DISPLAY")>0?"Display-P3" :         matrix == "ACEScg"   ? "ACEScg"
+\   :         matrix == "opYCC"    ? "AdobeRGB"   : FindStr(matrix,   "FS"   )>0 ? "FS-Gamut"
+\   : FindStr(matrix,   "CLAY" )>0 ? "AdobeRGB"   :         matrix == "AP1"      ? "ACEScg"
+\   :         matrix == "P3"       ? "Display-P3" :         matrix == "ACEScg"   ? "ACEScg"
+\   : FindStr(matrix,   "DISPLAY")>0?"Display-P3" : FindStr(matrix,   "P3+"  )>0 ? "CanonP3"
+\   :         matrix == "P3D65"    ? "Display-P3" : FindStr(matrix,   "DCI"  )>0 ? "DCI-P3"
 \   :         matrix == "AP0"      ? "ACES2065"   : FindStr(matrix,   "ACES2")>0 ? "ACES2065"
 \   :         matrix == "ACESCCt"  ? "ACESCCt"    :         matrix == "PAL"      ? "470BG"
 \   : FindStr(matrix,   "240"  )>0 ? "240M"       :         matrix == "NTSC-M"   ? "470M"
@@ -1487,7 +1487,7 @@ function color_Fuzzy_Search (string matrix) {
 \   : FindStr(matrix,   "MAX"  )>0 ? "MaxRGB"     : FindStr(matrix,   "EKTA" )>0 ? "EktaSpacePS5"
 \   : FindStr(matrix,   "XTREM")>0 ? "xTremeRGB"  : FindStr(matrix,  "CHROME")>0 ? "ChromeSpace100"
 \   : FindStr(matrix,    "3213")>0 ? "470BG"      : FindStr(matrix,   "JEDEC")>0 ? "EBU 3213-E"
-\   : FindStr(matrix,      "-E")>0 ? "EBU 3213-E" : ""
+\   : FindStr(matrix,      "-E")>0 ? "EBU 3213-E" : matrix
 
 
 # * 'Melissa' is ProPhoto with sRGB transfer as defined in Adobe Lightroom
@@ -1510,7 +1510,7 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrixn== "ACES2065"   ? "linear"   :         matrixn== "709"        ? "1886"
 \   :         matrixn== "ACESCCt"    ? "ACESCCt"  :         matrixn== "ACEScg"     ? "linear"
 \   :         matrixn== "AWG"        ? "AdobeRGB" :         matrixn== "AdobeRGB"   ? "AdobeRGB"
-\   :         matrixn== "Display-P3" ? "sRGB"     :         matrixn== "DCI-P3"     ? "DCIXYZ"
+\   :         matrixn== "Display-P3" ? "sRGB"     :         matrixn== "CanonP3"    ? "DCIXYZ"
 \   :         matrixn== "sRGB"       ? "sRGB"     :         matrixn== "OPP"        ? "sRGB"
 \   :         matrixn== "BestRGB"    ? "AdobeRGB" :         matrixn== "RussellRGB" ? "AdobeRGB"
 \   :         matrixn== "DonRGB4"    ? "AdobeRGB" :         matrixn== "BruceRGB"   ? "AdobeRGB"
@@ -1521,7 +1521,10 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrixn== "YDzDx"      ? "PQ"       :         matrixn=="AllColorsRGB"? "linear"
 \   :         matrixn== "MaxRGB"     ? "AdobeRGB" :         matrixn=="EktaSpacePS5"? "AdobeRGB"
 \   :         matrixn== "ChromeSpace100"?"Chrome" :         matrixn=="xTremeRGB"   ? "AdobeRGB"
-\   :         matrix == "XYB"        ? "XYB"      :         matrixn=="EBU 3213-E"  ? "470BG"  : matrixn
+\   :         matrix == "XYB"        ? "XYB"      :         matrixn=="EBU 3213-E"  ? "470BG"
+\   :         matrixn== "C-Gamut"    ? "C-Log2"   :         matrixn== "V-Gamut"    ? "V-Log"
+\   :         matrixn== "S-Gamut"    ? "S-Log2"   : FindStr(matrix,   "S-Gamut3")>0? "S-Log3"
+\   :         matrixn== "DCI-P3"     ? "DCIXYZ"   : matrixn
 
     illuminant =
 \             matrix == "50"         ? "D50"      :         matrix == "D50"        ? "D50"
@@ -1554,7 +1557,8 @@ function color_Fuzzy_Search (string matrix) {
 \   :         matrixn== "XYZ"        ? "E"        :         matrixn=="AllColorsRGB"? "D50"
 \   :         matrixn== "YDzDx"      ? "E"        :         matrixn=="EktaSpacePS5"? "D50"
 \   :         matrixn== "MaxRGB"     ? "D50"      :         matrixn== "EBU 3213-E" ? "D65"
-\   :         matrixn== "xTremeRGB"  ? "D50"      :         matrixn=="ChromeSpace100"?"D50" : matrixn
+\   :         matrixn== "xTremeRGB"  ? "D50"      : FindStr(matrix,   "-GAMUT")>0  ? "D65"
+\   :         matrixn== "CanonP3"    ? "DCI"      :         matrixn=="ChromeSpace100"?"D50" : matrixn
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
     idm =
@@ -1629,7 +1633,14 @@ function color_Fuzzy_Search (string matrix) {
 \   : (transfer   == "AppleRGB"    ) ? 22
 \   : (transfer   == "CIELab"      ) ? 23
 \   : (transfer   == "Chrome"      ) ? 24
-\   : (transfer   == "XYB"         ) ? 25 : -1
+\   : (transfer   == "XYB"         ) ? 25
+\   : (transfer   == "C-log"       ) ? 26
+\   : (transfer   == "C-log2"      ) ? 27
+\   : (transfer   == "C-log3"      ) ? 28
+\   : (transfer   == "S-log"       ) ? 29
+\   : (transfer   == "S-log2"      ) ? 30
+\   : (transfer   == "S-log3"      ) ? 31
+\   : (transfer   == "V-log"       ) ? 32 : -1
 # * DCIXYZ is defined in smpte428-1. It's XYZ space with DCI white point for cinema distribution in DCDM format
 
     [matrixn,illuminant,transfer,idm,ids,idi,idt] }
@@ -1706,8 +1717,10 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
     tv_range  = propNumElements(a,"_ColorRange") > 0 ? propGetInt(a, "_ColorRange") == 1 : cm_id[1] == "YCbCr"
 
     # ID for _Primaries frame properties (BT.2380-2. Table 2.6)
+    # "0" (illegal ID) falls back to 709 
     prim_i =
-\     (prim_i == 1    ) ? "709"
+\     (prim_i == 0    ) ? "709"
+\   : (prim_i == 1    ) ? "709"
 \   : (prim_i == 4    ) ? "470M"
 \   : (prim_i == 5    ) ? "470BG"
 \   : (prim_i == 6    ) ? "170M"
@@ -1739,6 +1752,12 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (prim_i == 33   ) ? "EktaSpacePS5"
 \   : (prim_i == 34   ) ? "ChromeSpace100"
 \   : (prim_i == 35   ) ? "CIE RGB"
+\   : (prim_i == 36   ) ? "C-Gamut"
+\   : (prim_i == 37   ) ? "S-Gamut"
+\   : (prim_i == 38   ) ? "S-Gamut3.Cine"
+\   : (prim_i == 39   ) ? "V-Gamut"
+\   : (prim_i == 40   ) ? "FS-Gamut"
+\   : (prim_i == 41   ) ? "CanonP3"
 \   : Assert (false, "color_propGet: Unknown _Primaries ID.")
 
     # ID for _Matrix frame properties (BT.2380-2. Table 2.8)
@@ -1802,6 +1821,13 @@ function color_propGet (clip a, int "prim_i", int "illu_i", int "mat_i", int "t_
 \   : (t_i == 23      ) ? "CIELab"
 \   : (t_i == 24      ) ? "Chrome"
 \   : (t_i == 25      ) ? "XYB"
+\   : (t_i == 26      ) ? "C-log"
+\   : (t_i == 27      ) ? "C-log2"
+\   : (t_i == 28      ) ? "C-log3"
+\   : (t_i == 29      ) ? "S-log"
+\   : (t_i == 30      ) ? "S-log2"
+\   : (t_i == 31      ) ? "S-log3"
+\   : (t_i == 32      ) ? "V-log"
 \   : Assert (false, "color_propGet: Unknown _Transfer ID.")
 # * 1, 14, and 15 share the same transfer
 
@@ -1926,77 +1952,6 @@ function format_Fuzzy_Search (clip c, string format, int bits) {
     #model, jab, bitdepth string, packing, model ID, matrix ID override, prim ID override
     [cm0, jab, bdpth, cm[1], cm[2], ma, pr] }
 
-
-
-# Bicubic kernels are very performant but tends to create 'blocking' in upscales compared to more advanced kernels
-function bicubic_coeffs (string kernel) {
-
-    # info: Keys Cubics family of filters are BC-splines that exactly reproduce affine gradients, those that satisfy 2C+B = 1 (along the dotted line in the Cubic filters diagram)
-    # Examples are Mitchell-Netravali, Robidoux (and its flavours), Catmull-Rom, Cub-grange and Spline.
-    # For downscaling you can follow a different formula: B+2C  =  0 (Didée, ZoptiN)...
-    # The next is sharper albeit more haloing    (Zopti): 3B+2C = -1 , but neither will produce affine gradients.
-
-    # Robidoux coeffs follow the rule B+2C = 1
-    rb  = 12. /(19.  +9.*sqrt(2))    # 0.378216
-    rc  = 113./(58.+216.*sqrt(2))    # 0.310892
-    rsb = 6.  /(13.  +7.*sqrt(2))    # 0.262015
-    rsc = 7.  /(2.  +12.*sqrt(2))    # 0.368993
-    rbb =      (9   -3. *sqrt(2))/7. # 0.679623
-    rbc =      (1   -    rbb    )/2. # 0.160189
-
-    # From blurrier to sharper
-    c = [-2.,-2.]
-    c = kernel == "Notch"             ? [1.5, -0.25] : c
-    c = kernel == "SoftCubic100"      ? [1.0,   0.0] : c  # Also called Spline (same as GaussResize(p=21))
-    c = kernel == "Robidoux Soft"     ? [rbb,   rbc] : c  # up,dw BC-spline soft approximation to EWA affine scaling. Close to a 'Quadratic' kernel.
-    c = kernel == "SoftCubic75"       ? [0.75, 0.25] : c
-    c = kernel == "BilcubicD"         ? [1/3.,  0.0] : c  # dw Bicubic practical match to Bilinear.
-    c = kernel == "BilcubicU"         ? [0.5,   0.2] : c  # up Bicubic practical match to Bilinear.
-    c = kernel == "Hermite"           ? [0.0,   0.0] : c  # up,dw Canonical Bicubic approximation to Bilinear (a bit sharper than it)
-    c = kernel == "Robidoux"          ? [rb,     rc] : c  # up,dw Derived from EWA considerations, the values that "minimize the maximum possible change in vertical or horizontal straight lines (Robidoux) or any image (RobidouxSharp) under no-op" while satisfying Keys Cubics (affine gradients)
-    c = kernel == "Centroid"          ? [0.37, 0.35] : c  # up Arithmetic mean of the satisfactory zone (by Dogway)
-    c = kernel == "Mitchell-Netravali"? [1/3., 1/3.] : c  # up Canonical Bicubic (roughly equivalent to EWA Robidoux, a little softer though)
-    c = kernel == "Robidoux Sharp"    ? [rsb,   rsc] : c  # up,dw
-    c = kernel == "SoftCubic50"       ? [0.5,   0.5] : c
-    c = kernel == "Catmule-Dog"       ? [0.1750,0.4125]:c # up Sharp while orthogonally furthest key cubic coefficients from Blocking and Ringing zones in Cubics diagram (between CatRom and RobiSharp) (by Dogway)
-    c = kernel == "Cub-grange"        ? [0.0308,0.4846]:c # up but also dw. Bicubic approximation to Lagrange scaling (a bit sharper than it)
-    c = kernel == "Catmull-Rom"       ? [ 0.0,  0.5] : c  # up Canonical sharp Bicubic (roughly equivalent to spline16resize() and EWA RobidouxSharp)
-    c = kernel == "Didee"             ? [-0.5, 0.25] : c  # dw Didée's downscaling sharp coefficients for 1080p to 720p. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
-    c = kernel == "Zopti"             ? [-0.6,  0.4] : c  # dw 2160p to 720p Zopti optimized (by Boulder) (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218
-    c = kernel == "ZoptiN"            ? [-0.6,  0.3] : c  # dw Like Zopti but more neutral (better over/undershoot normalization). Good for final resizing.
-    c = kernel == "ZoptiH"            ? [-0.83,0.14] : c  # dw 1080 to half optimized (for 1080p and smaller clips)
-    c = kernel == "Zopti720"          ? [-1.00,0.16] : c  # dw 1080p to 720p (for upscaling it always optimized to Catmull-Rom, although I visually prefer Precise)
-    c = kernel == "Zopti720U"         ? [-0.99,0.26] : c  # dw 2160p to 720p. This is my optimization for going straight from UHD to 720p, but I still recommend going first "Zopti1080" to 1080p and then "SSIM2" to 720p.
-    c = kernel == "Zopti1080"         ? [-0.99,0.06] : c  # dw 2160p to 1080p. Suprisingly better than using "SSIM2". If you want to skip halos but retain the great texture rendition use deep_resize(1080,edge="Didee",flat="Zopti1080")
-    c = kernel == "Precise"           ? [ 0.0, 0.75] : c  # up Almost identical to spline36 but a bit more halo. Very good cheap upscaler.
-    c = kernel == "Sharp"             ? [ 0.0,  1.0] : c  # dw Good alternative for dw. Less aliasing and sharper edges but softer textures.
-    c = kernel == "Hatch"             ? [ 0.0, -5.0] : c
-
-    # Aliases
-  # c = kernel == "Spline"            ? [1.0,0.0]    : c # Commented as to not conflict with SplinexxResize kernel.
-    c = kernel == "SoftCubic"         ? [0.75,0.25]  : c
-    c = kernel == "Precise Bicubic"   ? [0.0,0.75]   : c
-    c = kernel == "Catrom"            ? [0.0,0.5]    : c
-    c = kernel == "Catmull"           ? [0.0,0.5]    : c
-    c = kernel == "Mitchell"          ? [1/3.,1/3.]  : c
-    c = kernel == "Mitchel"           ? [1/3.,1/3.]  : c
-    c = kernel == "RobiSoft"          ? [rbb,rbc]    : c
-    c = kernel == "RobiSharp"         ? [rsb,rsc]    : c
-    c = kernel == "Robi"              ? [rb,  rc]    : c
-    c = kernel == "RobidouxSoft"      ? [rbb,rbc]    : c
-    c = kernel == "RobidouxSharp"     ? [rsb,rsc]    : c
-    c = kernel == "B-Spline"          ? [1.0,0.0]    : c
-    c = kernel == "BSpline"           ? [1.0,0.0]    : c
-    c = kernel == "BCSpline"          ? [0.5,0.5]    : c
-    c = kernel == "BC-Spline"         ? [0.5,0.5]    : c
-    c = kernel == "CSpline"           ? [0.0,1.0]    : c
-    c = kernel == "C-Spline"          ? [0.0,1.0]    : c
-    c = kernel == "Didée"             ? [-0.5,0.25]  : c
-    c = kernel == "Dide"              ? [-0.5,0.25]  : c
-    c = kernel == "lagrange"          ? [0.0308,0.4846] : c
-    c = kernel == "cubgrange"         ? [0.0308,0.4846] : c
-
-    c }
 
 
 # chroma_placement() - helper function to calculate chroma location coefficient values.
@@ -2141,6 +2096,9 @@ function color_coef (string "prims", string "mat", string "illu") {
 \   : (mat    == "240M"           ) ? 2              : (mat    == "MaxRGB"         ) ? 26
 \   : (mat    == "470BG"          ) ? primd ? 4  : 0 : (mat    == "xTremeRGB"      ) ? 27
 \   : (mat    == "EBU 3213-E"     ) ? primd ? 28 : 0 : (mat    == "ChromeSpace100" ) ? 24
+\   : (mat    == "C-Gamut"        ) ? 28             : (mat    == "V-Gamut"        ) ? 29
+\   : (mat    == "S-Gamut"        ) ? 30             : (mat    == "S-Gamut3.Cine"  ) ? 31
+\   : (mat    == "CanonP3"        ) ? 32             : (mat    == "FS-Gamut"       ) ? 33
 \   : (mat    == "NTSC-J"         ) ? 12             : 1
 # * Deriving Rec709 matrix coefficients from its primaries is noted as BT.709-2, in contrast to older and slightly different BT.709-1
 
@@ -2266,13 +2224,25 @@ function color_coef (string "prims", string "mat", string "illu") {
                      0.2800,  0.6500, \
                      0.1500,  0.0600] : cs
     # Free Scale Gamut (FS-Gamut) (uses D65 defined as 0.31272,0.32903, to use with Free Scale Log)
-    cs = mat_i==30? [0.7347,  0.2653, \
+    cs = mat_i==33? [0.7347,  0.2653, \
                      0.1400,  0.8600, \
                      0.1000, -0.02985] : cs
-    # Canon Cinema Gamut
-    cs = mat_i==30? [0.740,  0.270, \
+    # Canon Cinema Gamut (C-Gamut)
+    cs = mat_i==28? [0.740,  0.270, \
                      0.170,  1.140, \
                      0.080, -0.100] : cs
+    # Sony Gamut (S-Gamut)
+    cs = mat_i==30? [0.730,  0.280, \
+                     0.140,  0.855, \
+                     0.100, -0.050] : cs
+    # Sony Gamut3 Cine (S-Gamut3.Cine)
+    cs = mat_i==31? [0.766,  0.275, \
+                     0.225,  0.800, \
+                     0.089, -0.087] : cs
+    # Panasonic Varicam Gamut (V-Gamut)
+    cs = mat_i==29? [0.730,  0.280, \
+                     0.165,  0.840, \
+                     0.100, -0.030] : cs
 
 ###################################################
 ###                                              ##
@@ -2289,7 +2259,7 @@ function color_coef (string "prims", string "mat", string "illu") {
                      0.150,  0.060] : cs
 
     # DCI-P3+ (Also known asa CanonP3. Expanded DCI-P3 gamut from a compressed version of Canon Cinema Gamut)
-    cs = mat_i==30? [0.740,  0.270, \
+    cs = mat_i==32? [0.740,  0.270, \
                      0.220,  0.780, \
                      0.090, -0.090] : cs
 
@@ -2321,7 +2291,7 @@ function color_coef (string "prims", string "mat", string "illu") {
                      0.2736751797, 0.7174317825, \
                      0.1665376306, 0.0088803172] : cs
     # XYZ
-    cs = mat_i==30? [1.0, 0.0, \
+    cs = mat_i==99? [1.0, 0.0, \
                      0.0, 1.0, \
                      0.0, 0.0] : cs
 
@@ -2345,15 +2315,15 @@ function color_coef (string "prims", string "mat", string "illu") {
 #############
 
     # P22 1st Gen 80s - All Sulfide (627,530,440): Y2O2S:Eu (P22), ZnS:Cu,Al (P22/P54), ZnS:Ag (P22)
-    cs = mat_i==30 ? [0.6470, 0.3430, \
+    cs = mat_i==99 ? [0.6470, 0.3430, \
                       0.2820, 0.6200, \
                       0.1472, 0.0642] : cs
     # P22 2nd Gen 90s - All Sulfide (626,535,440): Y2O2S:Eu+Fe2O3 (P22), ZnS:Au,Cu,Al (P22/P54), ZnS:Ag (P22)
-    cs = mat_i==30 ? [0.6661, 0.3329, \
+    cs = mat_i==99 ? [0.6661, 0.3329, \
                       0.3134, 0.6310, \
                       0.1472, 0.0642] : cs
-    # P56,P53,P55-RPTV              (611,544,450): Y2O3:Eu (P56), Y3Al5O12:Tb (P53), ZnS:Ag,Al (P55)
-    cs = mat_i==30 ? [0.640, 0.335, \
+    # P56,P53,P55-RPTV              (611,544,450): Y2O3:Eu (P56), Y3Al5O12:Tb (P53), ZnS:Ag,Al (P55) (Green can also be Y2SiO5:Tb a narrow 543nm)
+    cs = mat_i==99 ? [0.640, 0.335, \
                       0.341, 0.586, \
                       0.150, 0.070] : cs
 
@@ -2431,15 +2401,15 @@ function color_coef (string "prims", string "mat", string "illu") {
                      0.0001, 0.9999, \
                      0.0001, 0.0001] : cs
     # "Gamut A" - Philips LivingColors gamut
-    cs = mat_i==30? [0.7040, 0.2960, \
+    cs = mat_i==99? [0.7040, 0.2960, \
                      0.2151, 0.7106, \
                      0.1380, 0.0800] : cs
     # "Gamut B" - Philips HUE Gen1 & Gen2 (uses the sRGB transfer) Illuminant Unknown (D50 assumed)
-    cs = mat_i==30? [0.6750, 0.322, \
+    cs = mat_i==99? [0.6750, 0.322, \
                      0.4091, 0.518, \
                      0.1670, 0.040] : cs
     # "Gamut C" - Philips HUE Gen3+, HUE Go, and Lightstrip Plus
-    cs = mat_i==30? [0.692, 0.308, \
+    cs = mat_i==99? [0.692, 0.308, \
                      0.170, 0.700, \
                      0.153, 0.048] : cs
 
@@ -2497,31 +2467,31 @@ function color_coef (string "prims", string "mat", string "illu") {
     wp = mat_wp==12 ? [0.3134, 0.3275]  : wp                              ##
 ###                                                                       ##
 ### LED-B1   (CCT of 2733.41K)                                            ##
-    wp = mat_wp==30 ? [0.45595087,0.40779804] : wp                        ##
+    wp = mat_wp==99 ? [0.45595087,0.40779804] : wp                        ##
 ###                                                                       ##
 ### LED-B2   (CCT of 2997.70K)                                            ##
-    wp = mat_wp==30 ? [0.43566143,0.40117991] : wp                        ##
+    wp = mat_wp==99 ? [0.43566143,0.40117991] : wp                        ##
 ###                                                                       ##
 ### LED-B3   (CCT of 4102.43K)                                            ##
-    wp = mat_wp==30 ? [0.37561412,0.37228699] : wp                        ##
+    wp = mat_wp==99 ? [0.37561412,0.37228699] : wp                        ##
 ###                                                                       ##
 ### LED-B4   (CCT of 5108.79K)                                            ##
-    wp = mat_wp==30 ? [0.34218376,0.35015381] : wp                        ##
+    wp = mat_wp==99 ? [0.34218376,0.35015381] : wp                        ##
 ###                                                                       ##
 ### LED-B5   (CCT of 6597.46K)                                            ##
-    wp = mat_wp==30 ? [0.3118073,0.32363414]  : wp                        ##
+    wp = mat_wp==99 ? [0.3118073,0.32363414]  : wp                        ##
 ###                                                                       ##
 ### LED-BH1  (CCT of 2851.22K)                                            ##
-    wp = mat_wp==30 ? [0.44740999,0.40659402] : wp                        ##
+    wp = mat_wp==99 ? [0.44740999,0.40659402] : wp                        ##
 ###                                                                       ##
 ### LED-RGB1 (CCT of 2839.75K)                                            ##
-    wp = mat_wp==30 ? [0.45574636,0.42111994] : wp                        ##
+    wp = mat_wp==99 ? [0.45574636,0.42111994] : wp                        ##
 ###                                                                       ##
 ### LED-V1   (CCT of 2723.62K)                                            ##
-    wp = mat_wp==30 ? [0.45476074,0.40440401] : wp                        ##
+    wp = mat_wp==99 ? [0.45476074,0.40440401] : wp                        ##
 ###                                                                       ##
 ### LED-V2   (CCT of 4069.47K)                                            ##
-    wp = mat_wp==30 ? [0.37811096,0.37749661] : wp                        ##
+    wp = mat_wp==99 ? [0.37811096,0.37749661] : wp                        ##
 ###                                                                       ##
 ############################################################################
 
