@@ -413,14 +413,16 @@ function StabPlus(clip clp, int "ts", int "range", int "dxmax", int "dymax", boo
 
 # Wrapper for videoFred stabilize function. Works so good that it replaces StabPlus(), me thinks.
 # https://forum.doom9.org/showthread.php?p=1981048
-function Stabilize(clip c, int "offset", bool "info") {
+function Stabilize(clip c, int "offset", bool "rot", bool "zoom", bool "info") {
 
     in = Default(info, false)
+    ro = Default(rot,  false)
+    zm = Default(zoom, false)
     of = Default(offset, 40)
 
     c
     vectors = MSuper().MAnalyse(isb=false)
-    mdata   = MDepan(vectors, rot=false, zoom=false, error= 65)
+    mdata   = MDepan(vectors, rot=ro, zoom=zm, error= 65)
 
     DePanStabilize(data=mdata,dxmax=of, dymax=of, zoommax=0, rotmax=0, method=1, mirror=15, prev=1, next=1, info=in)
     }
