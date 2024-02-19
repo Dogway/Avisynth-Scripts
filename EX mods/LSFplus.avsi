@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v6.0 ex - 06 Sept 2023                                    ###
+###                                v6.1 ex - 19 Feb 2023                                     ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -33,6 +33,8 @@
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v6.1ex : - Fix call from ex_CAS() to CASP()
 ###
 ### v6.0ex : - Revert 5.6ex as handling of interlaced content is better dealt as stacked fields
 ###          - Promote to 6.0ex and wrap up
@@ -764,10 +766,10 @@ function LSFplus(clip inclip, float "strength", int "Smode", int "Smethod",
     \                                                  +"{Szrp2} {SdmpLo} + * C {SdmpLo} + {Szrp2} * / * "+SdmpHr+" "+SdmpHs+" x + ?"), UV=1, fulls=!tv, scale_inputs=!tv ? "allf" : "all")
     \         :                                      ex_lutxy (tmp, method,      Format(      "    x dup     y == swap dup y - A@ abs B@ {Szrpr} * {Spwrr} ^ {Szrp} {str} * * A sgn * A dup * C@ "
     \                                                  +"{Szrp2} {SdmpLo} + * C {SdmpLo} + {Szrp2} * / * "+SdmpHr+" "+SdmpHs+" x + ?"), UV=1, fulls=!tv, scale_inputs=!tv ? "allf" : "all")
-    \         :            preblur!="OFF" ? secure ? tmp.ex_lutxyz(pre,pre.ex_CAS(min(Str, 1)).ex_lutxy(pre,secstr, UV=1, fulls=!tv), "x y z - "+bi32p+" - "+bi32p, UV=1, fulls=!tv)
-    \         :                                      tmp.ex_lutxyz(pre,pre.ex_CAS(min(Str, 1)), "x y z - "+bi32p+" - "+bi32p, UV=1, fulls=!tv)
-    \         :                             secure ? pre.ex_CAS(min(Str, 1)).ex_lutxy(pre,secstr, UV=1, fulls=!tv)
-    \         :                                      pre.ex_CAS(min(Str, 1))
+    \         :            preblur!="OFF" ? secure ? tmp.ex_lutxyz(pre,pre.CASP(min(Str, 1)).ex_lutxy(pre,secstr, UV=1, fulls=!tv), "x y z - "+bi32p+" - "+bi32p, UV=1, fulls=!tv)
+    \         :                                      tmp.ex_lutxyz(pre,pre.CASP(min(Str, 1)), "x y z - "+bi32p+" - "+bi32p, UV=1, fulls=!tv)
+    \         :                             secure ? pre.CASP(min(Str, 1)).ex_lutxy(pre,secstr, UV=1, fulls=!tv)
+    \         :                                      pre.CASP(min(Str, 1))
 
 
     ### Temporal limiting

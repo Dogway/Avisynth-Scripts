@@ -12,7 +12,7 @@
 ###                                                                                          ###
 ###                             HBD Performance mod by Dogway                                ###
 ###                                                                                          ###
-###                                v6.0 mix - 06 Sept 2023                                   ###
+###                                v6.0 mix - 19 Feb 2024                                    ###
 ###                                                                                          ###
 ################################################################################################
 ###
@@ -33,6 +33,8 @@
 ### +-----------+
 ### | CHANGELOG |
 ### +-----------+
+###
+### v6.1mx : - Parity with EX mod
 ###
 ### v6.0mx : - Revert 5.6mx as handling of interlaced content is better dealt as stacked fields
 ###          - Promote to 6.0mx and wrap up
@@ -227,7 +229,7 @@
 ### -> SMDegrain      (v4.5.0  or up)  [for preblur="ON"]
 ### -> MVTools        (v2.7.45 or up)  [for preblur="ON" or Lmode=6]
 ### -> SharpenersPack (v5.2    or up)  [for Smode=1, Smode=2 and Smode=3]
-### -> CAS                             [for Smode=6]
+### -> CAS            (v1.0.1  or up)  [for Smode=6]
 ###
 ###
 ###
