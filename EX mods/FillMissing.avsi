@@ -3,15 +3,7 @@
 # Modified by John Meyer on June 29, 2011
 # Further modification on June 8, 2013
 # Tdecimate modifications on October 26, 2021
-# v1.10 - Updated and Sanitized                      by Dogway on   Mar 05, 2019
-# v1.21 - Updated and Sanitized                      by Dogway on   May 18, 2021
-# v1.30 - Further optimized (dcycle from DeJump)     by Dogway on   Jul 15, 2021
-# v1.31 - Optimize for HBD                           by Dogway on   Aug 15, 2021
-# v1.32 - Remove GrunT dependency                    by Dogway on   Oct 02, 2021
-# v1.40 - BWmask bugfixes                            by Dogway on   Oct 28, 2021
-# v1.41 - Rebase with latest FrameRateConverter      by Dogway on   Jan 10, 2022
-# v2.00 - Replace with RIFEwrap and hence an EX mod  by Dogway on   Feb 18, 2023
-# v2.01 - Add 'sc=false' to RIFEwrap to force MI     by Dogway on   Feb 18, 2024
+# v2.1 Modernized by Dogway on March 29, 2024
 #
 #
 # Dependencies:
@@ -47,7 +39,7 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
     gpuid      = Default(gpuid,       0)   # ID for the GPU to use
     Debug      = Default(Debug,   false)   # true for troubleshooting; otherwise, false
 
-    double = RIFEwrap(showdot ? Subtitle("***") : last, model=Fast ? 22 : 23, sc=false, gpu_id=gpuid)
+    double = RIFEwrap(showdot ? Subtitle("***") : last, model=Fast ? 22 : 23, sc=false, gpuid=gpuid)
 
     # Remove comment from ShowMetrics, and change "return final" to "return test" to look at metrics in order to determine proper JumpThresh
     src8   = ConvertBits(8, dither=-1, fulls=fs)
