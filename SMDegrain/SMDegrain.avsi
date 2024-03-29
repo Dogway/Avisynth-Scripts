@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.5.1d      by Dogway    - 19 Feb  2024                           ###
+###                       v4.5.2d      by Dogway    - 29 Mar  2024                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -1138,9 +1138,9 @@ function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "OPP
     bi   = BitsPerComponent(a)
     pID  = color_propGet   (a)
 
-    s    = Default(sigma,      3)  # Denoising strength
-    md   = Default(preset, "Low")  # Fast, Low, Normal, High, Noisy
-    OPP  = Default(OPP,      rgb)  # RGB clips hard-coded to OPP=true
+    s    = Default(sigma,      3)         # Denoising strength
+    md   = LCase(Default(preset, "Low"))  # Fast, Low, Normal, High, Noisy
+    OPP  = Default(OPP,      rgb)         # RGB clips hard-coded to OPP=true
     UV   = Default(UV,    rgb ? 3 : 1)
     tv   = Default(tv_range, pID[6])
     gid  = Default(gpuid,      0)
@@ -1148,11 +1148,11 @@ function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "OPP
     pri  = pID[2]
     mat  = pri+(tv?":l":":f")
 
-    pr   = md == "Fast"   ? 0 : \
-           md == "Low"    ? 1 : \
-           md == "Normal" ? 2 : \
-           md == "High"   ? 3 : \
-           md == "Noisy"  ? 4 : \
+    pr   = md == "fast"   ? 0 : \
+           md == "low"    ? 1 : \
+           md == "normal" ? 2 : \
+           md == "high"   ? 3 : \
+           md == "noisy"  ? 4 : \
            Assert(false, "ex_BM3D: Wrong 'preset' mode")
 
     #                                         fast      lc          np            high           vn
