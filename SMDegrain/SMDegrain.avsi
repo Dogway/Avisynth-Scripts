@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.5.2d      by Dogway    - 29 Mar  2024                           ###
+###                       v4.6.0d      by Dogway    - 30 Mar  2024                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -58,7 +58,7 @@
 ###                                      or  prefilter=0~3)
 ###              DFTTest                (for prefilter=5)
 ###              KNLMeansCL             (for prefilter=6)
-###              DGDecNV                (for prefilter=7)
+###              DGDecNV v254 or higher (for prefilter=7)
 ###              BM3D                   (for prefilter=8)
 ###                 TransformsPack      (for prefilter=7 or prefilter=8)
 ###              neo_tmedian            (for mode="medianT")  (crashes for interlaced clips, even when set '_FieldBased' to 0 and AssumeFrameBased() )
@@ -656,7 +656,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v4.5.1",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=h/round(25/dbl))
+        Subtitle("SMDegrain Mod v4.6.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=h/round(25/dbl))
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(round(tr/dbl))                                                                   + \
@@ -1199,13 +1199,13 @@ function ex_BM3D(clip a, float "sigma", int "radius", string "preset", bool "OPP
 ##    clip,
 ##    float str=0.10 (0.00 to 1.00),
 ##    [float strc=0.05 (0.00 to 1.00)],
-##    float "bl"=0.00 (0.00 to 1.00),
-##    [float "blc"=0.00 (0.00 to 1.00)],
-##    int "searchw"=9 (5 to 9 by 2),
+##    int "md"=0 (0 to 3),
+##    string "qual"="good" ("good"/ "better"/ "best"),
+##    float "tthr"=0.75 (0.00 to 1.00),
 ##    int "UV"=1 (1 to 3)
 ##    )
 ##
-function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "blendc", int "searchw", float "LFR", bool "DCT", int "UV") {
+function ex_DGDenoise(clip a, float "str", float "strc", int "mode", string "qual", float "tthr", float "LFR", bool "DCT", int "UV") {
 
     w   = width (a)
     h   = height(a)
@@ -1217,9 +1217,9 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
 
     str  = Default(str,      0.10)
     strc = Default(strc,   str/2.)
-    bl   = Default(blend,       0)
-    blc  = Default(blendc,      0)
-    srch = Default(searchw,  min(9,max(5,round(w/1.51>h?0.375*w+1.8:0.667*h+1.8))))
+    qual = Default(qual,   "good") # search window size. "good" is 9 pixels, can't go lower.
+    md   = Default(mode,        1) # 1: spatial 2: temporal 3: spatial+temporal
+    tthr = Default(tthr,     0.75) # temporal motion threshold
     LFR  = Default(LFR,         0)
     DCT  = Default(DCT,      true)
     UV   = Default(UV,rgb ? 3 : 1)
@@ -1233,7 +1233,7 @@ function ex_DGDenoise(clip a, float "str", float "strc", float "blend", float "b
     bi>8 && bi!= 16 ? ConvertBits(16, fulls=!tv, fulld=!tv)                                                 : last
     al = last
 
-    DGDenoise(str,strc,bl,blc,srch)
+    DGDenoise(md,str,strc,qual,tthr)
 
     LFR > 0 ? ex_LFR(al,LFR,DCT,UV=UV) : last
     ConvertBits(bi, dither=bi==32?-1:1, fulls=!tv, fulld=!tv)
