@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v2.5  (26-04-2023)             ###
+###      FilmGrain+  v2.6  (31-03-2023)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -150,7 +150,7 @@ function FilmGrainPlus(clip a,                                                  
     pbl   = Default( preblur,     1.0  ) # 0.0 - 2.0. Multiplier for internal blur. Lower or disable by setting it to 0.0 if coming from an upscale for example
     sxmm  = Default( s16mm,       false) # Enable to choose the 16mm version of the film stock in the Kodak 7000 series
     pth   = Default( PTH,          true) # Path to White for chroma grain. Disable if you run out of performance
-    det   = Default( deterministic,true) # Set to false when rendering/encoding. This is to have a fixed preview of the look when modelling the grain
+    det   = Default( deterministic,true) # Set to false when rendering/encoding. This is to have a fixed preview of the look while modelling the grain
     fast  = Default( fast,         true) # Generally with 'true' an overlay is applied which is faster. With 'false' you do get some natural convolution from AddGrainC. Use it when high 'str' or 'size' to blend in grain better
     md    = Default( mode,      "gamma") # Add grain in "log", "linear" or "gamma" space
     sh    = Default( show,           0 ) # 1. Show grain matte centered at 126 if tv_range=true or 128 otherwise, 2. Show output with settings overlay
@@ -200,6 +200,7 @@ function FilmGrainPlus(clip a,                                                  
     # Volumetric grain
     bmp  > 1.0 ? ex_lut(Format("x[-1,1] x - {bmp} * x +"), UV=2) : last
 
+    # Back to original size, Jab and blur chroma + adds temporal coherence
     if (Chr && !is44) {
 
         is22 = is422(a) ? 1 : 2
@@ -207,18 +208,18 @@ function FilmGrainPlus(clip a,                                                  
         Y    = temp > 0.0 ? Merge(Y,Y.TemporalSoften(1,255,0,255,2),temp/2 ) : Y
         U    = ExtractU().BicubicResize(w/2,h/is22,b=shrpL,c=(1.0-shrpL)/2.)
         V    = ExtractV().BicubicResize(w/2,h/is22,b=shrpC,c=(1.0-shrpC)/2.) # Red channel is typically blurrier
-        eml>0 && sh==1 ? last : CombinePlanes(Y,U,V, planes="YUV", sample_clip=a)
+        eml>0 && sh==1 ? last : CombinePlanes(Y,U,V, planes="YUV", pixel_type="YUV4"+(is422(a)?"22":"20")+"P"+string(bi))
 
     } else { # For performance reasons in 444 red channel is not blurred
-                          BicubicResize(w,  h,     b=shrpL,c=(1.0-shrpL)/2.)
-        temp > 0.0 ? last.MergeLuma(  TemporalSoften(1,255,0,255,2),temp/2 ) : last
+                                 BicubicResize(w,h, b=shrpL,c=(1.0-shrpL)/2.)
+        temp > 0.0 ? last.MergeLuma(   TemporalSoften(1,255,0,255,2),temp/2 ) : last
+        is44       ? last : ConvertFormat(fmt_out="YCbCr4"+(is422(a)?"22":"20"),cs_out="",EOTFi="",kernel="RobiSharp",tv_in=tv,gpuid=-1)
     }
-
-        fast || sh==1  ? last : ConvertBits(bi)
-
 
 
     if (sh==1) {
+
+	fast || Chr ? last : ConvertBits(bi)
 
         if (eml>0 && !isy) {
 
@@ -237,10 +238,9 @@ function FilmGrainPlus(clip a,                                                  
             CombinePlanes(Y,Unew,V, planes="YUV", sample_clip=a)
         }
 
-    fast ? last : ConvertBits(bi)
-
     } else {
 
+    fast || Chr ? last : ConvertBits(bi)
 
     expr   = binom*(pow(str,0.318)-0.61)*(pow(w/1920.-0.46,0.4)+0.2)*pbl
     pbl    =                        expr > 0.35 ? a.vsTCanny(expr                ,mode=-1,u=Chr32,v=Chr32) : \
