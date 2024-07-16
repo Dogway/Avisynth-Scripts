@@ -1,7 +1,7 @@
 ###
-### Logo v16.1  (https://forum.doom9.org/showthread.php?t=182881)
+### Logo v1.70  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (24-06-2024) by Dogway
+###  (16-07-2024) by Dogway
 ###
 ### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
 ### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465)
@@ -22,14 +22,14 @@
 ### Usage:
 ###
 ###      Logo("C:\MyLogo.png",x=30,y=30,start=200,end=300)
-###      Logo("C:\MyAnimatedLogo00%02d.png",30,30,1510,2000,30,30,Opac=0.8,blur=0.2,mode="Screen",chr=true,PAR=0.911)
+###      Logo("C:\MyAnimatedLogo00%02d.png",30,30,1510,2000,30,30,Opac=0.8,blur=0.2,mode="Screen",ratio=0.8,chr=true,PAR=0.911)
 ###
 ###
 ########################################################################
 
 
 function Logo (clip c, string path, int "x", int "y", int "start", int "end", int "I", int "O", float "Opac",
-\              string "mode", float "Wstr", bool "Chr", float "blur", bool "matte", float "PAR", bool "anim_gif") {
+\              string "mode", float "ratio", float "Wstr", bool "Chr", float "blur", bool "matte", float "PAR", bool "anim_gif") {
 
     w  = c.Width ()
     h  = c.Height()
@@ -46,6 +46,7 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     O        = Default(O, I)           # Length in frames for your logo FadeOut
     Opac     = Default(Opac, 1.0)      # Opacity for your logo
     mode     = Default(mode,"Over")    # Blending mode, it can be Screen, Multiply, Over and Watermark (using alpha)
+    rat      = Default(ratio, 1.0)     # Resize the logo by this ratio
     Wstr     = Default(Wstr, 1.2)      # Intensity of Watermark, over 1.0 for bright, and below for dark watermaks
     Ch       = Default(Chr,mode=="Over")# Forces displaying chroma in Screen and Multiply mode, it is just copied not processed
     Sblur    = Default(blur, 0.0)      # Post-blur your logo for better integration
@@ -69,6 +70,7 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     logo0 = gif ? ImmaRead(   path, start=start, end= end == -1 ? start : end2, animation=true)
     \           : ImageSource(path, start=start, end= end == -1 ? start : end2, use_Devil=true, pixel_type="RGB32")
 
+    logo0 = logo0.RatioResize(rat,"%",1,"hermite")
 
     logo0 = isRGB(logo0) ? isPlanar(logo0) ? logo0 : HasAlpha(logo0) ? logo0.ConvertToPlanarRGBA() : logo0.ConvertToPlanarRGB() : logo0
 
@@ -111,10 +113,12 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
 ###   -Replace frames with seconds (or add option)
 ###   -Add option to load an external mask
 ###   -Add horizontal and vertical logo panning option
-###   -Add ability to resize logo internally
 ###   -Better matte workaround
 ###
 ### Changelog:
+###
+### 1.70 -Add 'ratio' argument to rescale logo
+###      -Change versioning format
 ###
 ### 16.1 -Default Chroma=True for "Over" mode
 ###
