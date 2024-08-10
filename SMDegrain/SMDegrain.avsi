@@ -1346,7 +1346,7 @@ function SMD_UnfoldFieldsVertical(clip c, bool "flip", bool "TFF") {
 
     flip   = Default(flip, false)
     TFF    = Default(TFF,   true)
-    c      = c.AssumeTFF().SeparateFields()
+    c      = (TFF ? c.AssumeTFF() : c.AssumeBFF()).SeparateFields()
     top    = c.SelectEven()
     bottom = c.SelectOdd()
     StackVertical(top, flip ? bottom.FlipVertical()
