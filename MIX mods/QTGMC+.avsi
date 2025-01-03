@@ -47,7 +47,7 @@
 #   Vinverse     (0.9.4  or above)
 #
 # Core scripts:
-#   ExTools      (10.4   or above)
+#   ExTools      (10.5   or above)
 #   ResizersPack (12.1   or above) (for nnedi3wrap() or EEDI3wrap() )
 #   SMDegrain    (4.7.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
 #
