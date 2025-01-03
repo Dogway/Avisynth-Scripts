@@ -3,7 +3,7 @@
 #   QTGMC 3.33       by Vit,   2012                                   #
 #   QTGMC 3.34d  mod by Dogway 2015                                   #
 #   QTGMC 3.382s mod by A.SONY 2021, based on 3.34d                   #
-#   QTGMC 4.5  + mod by Dogway 2023, based on 3.382s                  #
+#   QTGMC 4.6  + mod by Dogway 2025, based on 3.382s                  #
 #                                                                     #
 #   https://forum.doom9.org/showthread.php?t=182881                   #
 #                                                                     #
@@ -47,9 +47,9 @@
 #   Vinverse     (0.9.4  or above)
 #
 # Core scripts:
-#   ExTools      (10.2   or above)
-#   ResizersPack (12.0   or above) (for nnedi3wrap() or EEDI3wrap() )
-#   SMDegrain    (4.5.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
+#   ExTools      (10.5   or above)
+#   ResizersPack (12.1   or above) (for nnedi3wrap() or EEDI3wrap() )
+#   SMDegrain    (4.7.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
 #
 # Optional:
 #   TDeInt, NNEDI, NNEDI2, EEDI3/EEDI3CL, EEDI2/EEDI2CUDA (requires recent drivers) - if selected directly via EdiMode or a source-match preset
@@ -337,10 +337,11 @@ function QTGMCp( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", i
 
     # Noise processing settings
     Assert( !Defined(EZDenoise) || EZDenoise <= 0.0 || !Defined(EZKeepGrain) || EZKeepGrain <= 0.0, "QTGMC+: EZDenoise and EZKeepGrain cannot be used together" )
+    ChromaNoise     =  Default( ChromaNoise, false )
     NoiseProcess    =  Defined(NoiseProcess) ? NoiseProcess              : \
                       (Defined(EZDenoise)   && EZDenoise   > 0.0)    ? 1 : \
                       (Defined(EZKeepGrain) && EZKeepGrain > 0.0)    ? 2 : \
-                      (Preset == "Placebo" || Preset == "Very Slow") ? 2 : 0
+                      (Preset == "Placebo" || Preset == "Very Slow") ? 2 : ChromaNoise ? 1 : 0
     GrainRestore    =  Defined(GrainRestore) ? GrainRestore              : \
                       (Defined(EZDenoise)   && EZDenoise   > 0.0) ? 0.0  : \
                       (Defined(EZKeepGrain) && EZKeepGrain > 0.0) ? 0.3 * sqrt(EZKeepGrain) : \
@@ -352,7 +353,6 @@ function QTGMCp( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", i
     Sigma           =  Defined(Sigma)        ? Sigma                     : \
                       (Defined(EZDenoise)   && EZDenoise   > 0.0) ?       EZDenoise   : \
                       (Defined(EZKeepGrain) && EZKeepGrain > 0.0) ? 4.0 * EZKeepGrain : 2.0
-    ChromaNoise     = Default( ChromaNoise, false )
     ShowNoise       = Default( ShowNoise,   0.0 )
     ShowNoise       = IsBool(  ShowNoise) ? (ShowNoise ? 10.0 : 0.0) : ShowNoise
     NoiseProcess    = (ShowNoise   > 0.0) ? 2   : NoiseProcess
@@ -689,7 +689,7 @@ function QTGMCp( clip Input, string "Preset", int "TR0", int "TR1", int "TR2", i
 
     # Add back any extracted noise, prior to final temporal smooth - this will restore detail that was removed as "noise" without restoring the noise itself
     # Average luma of FFT3DFilter extracted noise is 128.5, so deal with that too
-    addNoise1 = (GrainRestore  > 0.0) && (Sbb > 1) ? sharpLimit1.ex_lutxyz(ex_makediff( sharpLimit1, lossed1, UV=1, fulls=!tv ).vsTCanny(1.4,mode=-1,u=1,v=1), finalNoise,              \
+    addNoise1 = (GrainRestore  > 0.0) && (Sbb > 1) ? sharpLimit1.ex_lutxyz(ex_makediff( sharpLimit1, lossed1, UV=1, fulls=!tv ).vsTCanny(1.4,mode=-1,u=2,v=2), finalNoise,              \
                                                                          Format("z {noiseCentre} - {GrainRestore} * {noiseCentre} + 0 range_max clip x y - +"), UV=CNmt1, fulls=!tv ) : \
                 (GrainRestore <= 0.0) ? backBlend2                                                                                                                                    : \
                                         backBlend2.ex_lutxy( finalNoise, Format("y {noiseCentre} - {GrainRestore} * range_half neg range_half   clip x     +"), UV=CNmt1, fulls=!tv )
@@ -1250,6 +1250,10 @@ function ex_ReduceFlicker(clip a, int "strength", bool "aggressive", int "UV") {
 
 
 # --- CHANGELOG ---
+#
+# v4.6p (03-01-2025)
+# - Fixed ChromaNoise due to vsTCanny outputting garbage chroma -mode 1-
+# - ChromaNoise now activates NoiseProcess
 #
 # v4.5p (25-07-2023)
 # - ex_vinverse() - small fix for HBD
