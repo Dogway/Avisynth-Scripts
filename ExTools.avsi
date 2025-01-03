@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v10.4    (03-01-2025)                 ##
+###        ExTools v10.5    (03-01-2025)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -6864,7 +6864,7 @@ function ex_dedither(clip a, float "blend", int "UV") {
 # LoG       - zero-cross (of the 2nd derivative) of a Laplacian of Gaussian. Also called Marr-Hildreth detector
 # laplace   - Laplace
 # Std       - Standard Deviation
-# min/max   - Gradient magnitude. zero-cross (of the 2nd derivative) of: (dilation - erosion)
+# minmax    - Gradient magnitude. zero-cross (of the 2nd derivative) of: (dilation - erosion)
 # max       - MAE (Maximum Absolute Error)
 # SG        - Savitzky-Golay (?) first derivative
 # SGDD      - (2d) Savitzky-Golay Digital Differentiator cubic first derivative with 5x5 kernel
@@ -6873,7 +6873,7 @@ function ex_dedither(clip a, float "blend", int "UV") {
 # Function Definition:
 #    (
 #    clip,
-#    string "mode"="kroon" ("prewitt"/ "hprewitt"/ "qprewitt"/ "tritical"/ "hotdog"/ "kayyali"/ "mt_sobel"/ "sobel"/ "sobel5"/ "scharr"/ "pscharr"/ "kroon"/ "farid"/ "farid5"/ "frei-chen / "roberts"/ "robinson"/ "FDoG"/ "DoG"/ "DoB"/ "LoG"/ "SGDD"/ "SGDD7"/ "Std"/ "laplace"/ "cartoon"/ "TEdge"/ "min/max"/ "max"/ "SG"/ "kirsch"),
+#    string "mode"="kroon" ("prewitt"/ "hprewitt"/ "qprewitt"/ "tritical"/ "hotdog"/ "kayyali"/ "mt_sobel"/ "sobel"/ "sobel5"/ "scharr"/ "pscharr"/ "kroon"/ "farid"/ "farid5"/ "frei-chen / "roberts"/ "robinson"/ "FDoG"/ "DoG"/ "DoB"/ "LoG"/ "SGDD"/ "SGDD7"/ "Std"/ "laplace"/ "cartoon"/ "TEdge"/ "minmax"/ "max"/ "SG"/ "kirsch"),
 #    [int "lo"=10 (0 to 30)],
 #    [int "hi"=150 (100 to 255)],
 #    float "scale"=1.0 (0.0 to 25.0),
@@ -6920,7 +6920,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
            mode=="laplace"   ?  [ 5,   6, 0.12]: \
            mode=="cartoon"   ?  [10,  20, 1.0] : \
            mode=="TEdge"     ?  [50, 255, 0.5] : \
-           mode=="min/max"   ?  [10,  60, 1.0] : \
+           mode=="minmax"    ?  [10,  60, 1.0] : \
            mode=="max"       ?  [ 5,  45, 1.0] : \
            mode=="SG"        ?  [10, 165, 0.2] : \
            mode=="kirsch"    ?  [10, 150, 1.0] : \
@@ -7008,7 +7008,7 @@ function ex_edge(clip a, string "mode", int "lo", int "hi", float "scale", bool 
                                                                                                                                                                                                        \
           mode=="TEdge"     ? "x[-2,0] x[1,0] x[-1,0] - 6.166666666 * + x[2,0] - 2 * dup * x[0,-2] x[0,1] x[0,-1] - 6.166666666 * + x[0,2] - 2 * dup * + sqrt "+th                                   : \
                                                                                                                                                                                                        \
-          mode=="min/max"   ? "x[1,1] A@ x[1,0] B@ max x[1,-1] C@ max x[-1,1] D@ max x[-1,0] E@ max x[-1,-1] F@ max x[0,1] G@ max x[0,-1] H@ max x[0,0] O@ max "                                       \
+          mode=="minmax"    ? "x[1,1] A@ x[1,0] B@ max x[1,-1] C@ max x[-1,1] D@ max x[-1,0] E@ max x[-1,-1] F@ max x[0,1] G@ max x[0,-1] H@ max x[0,0] O@ max "                                       \
                              +"A B min C min G min O min H min D min E min F min - "+th                                                                                                              : \
                                                                                                                                                                                                        \
           mode=="max"       ? "x[0,0] O@ x[1,1] - abs O x[1,0] - abs max O x[1,-1] - abs max O x[-1,1] - abs max O x[-1,0] - abs max O x[-1,-1] - abs max O x[0,1] - abs max O x[0,-1] - abs max "+th: \
