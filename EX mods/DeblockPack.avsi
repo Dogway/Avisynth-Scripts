@@ -1,6 +1,6 @@
 #############################################################################
 ###                                                                       ###
-###        Deblock Pack v2.8  (18-02-2023)                                ###
+###        Deblock Pack v2.8  (03-01-2025)                                ###
 ###                                                                       ###
 ###        Collection of deblocking solutions for AviSynth+               ###
 ###                                                                       ###
@@ -465,6 +465,7 @@ function oyster_Deringing(clip src, clip ref, int "radius", float "h", float "si
 #    ps_step     = Default(ps_step,     1)
     lowpass     = Default(lowpass, Format("0.0:{sigma} 0.48:1024.0 1.0:1024.0"))
     color       = Default(color, !isy(src))
+    UV          = color ? 3 : 2         # Emulgator 2024 10 16: Missing line added
 
     rgb = isRGB(src)
     bi  = BitsPerComponent(src)
