@@ -1,7 +1,7 @@
 ###########################################################
 ###                                                      ##
 ###                                                      ##
-###        ExTools v10.4    (19-02-2024)                 ##
+###        ExTools v10.4    (03-01-2025)                 ##
 ###                                                      ##
 ###                          by Dogway (Jose Linares)    ##
 ###                                                      ##
@@ -1857,6 +1857,9 @@ function ex_kawase(clip a, int "radius", string "mode", int "UV") {
 ##    100% ex_gaussianblur(6,UV=2)  (396fps)      (gaussian approximation, fastest for large sigma)
 ##     47% vsTCanny(6,mode=-1,u=1,v=1)            (true gaussian,          fastest for mid   sigma)
 ##     21% ex_blur (6,mode="gaussian",UV=1)       (true gaussian,          best    for low   sigma)
+
+
+# BUG, when ex_GaussianBlur(0,10)
 
 function ex_GaussianBlur(clip a, float "sigma", float "sigmaV", bool "pad", bool "mblur", int "Y", int "UV") {
 
@@ -11146,48 +11149,41 @@ function sel_med(int n) {
                 RR SS                 dup1 dup1 min RR^ max SS^
                 TT UU                 dup1 dup1 min TT^ max UU^
                 VV WW                 dup1 dup1 min VV^ max WW^
-                A II                                    max II^
-                Q II                                    max II^
-                I QQ                                    max QQ^
-                AA QQ                           min AA^
-                AA II                           min AA^
-                E MM                                    max MM^
-                U MM                            min U^
-                M UU                            min M^
-                M U                                     max U^
-                U AA                                    max AA^
-                C KK                                    max KK^
-                S KK                                    max KK^
+                A II                                    max
+                  Q                                     max II^
+                I QQ                                    max
+                  AA                            min
+                   II                           min AA^
+                E MM                                    max
+                  U                             min U^
+                M UU                            min
+                  U                                     max
+                  AA                                    max AA^
+                C KK                                    max
+                S                                       max KK^
                 K SS                                    max SS^
-                CC SS                           min CC^
-                CC KK                           min CC^
-                G OO                                    max OO^
-                W OO                            min W^
-                O WW                            min O^
-                O W                                     max W^
-                W CC                            min W^
-                W AA                                    max AA^
-                B JJ                                    max JJ^
-                R JJ                                    max JJ^
-                J RR                                    max RR^
-                BB RR                           min BB^
-                BB JJ                           min BB^
-                F NN                                    max NN^
-                V NN                            min V^
-                N VV                            min N^
-                N V                                     max V^
-                V BB                                    max BB^
-                D LL                                    max LL^
-                T LL                                    max LL^
+                CC SS                           min KK  min CC^
+                G OO                                    max
+                W                               min
+                O WW                            min
+                                                max CC  min
+                  AA                                    max AA^
+                B JJ                            max R   max JJ^
+                J RR                                    max
+                  BB                            min  JJ min BB^
+                F NN                                    max
+                V                               min
+                N VV                            min
+                                                        max
+                  BB                                    max BB^
+                D LL                            max T   max LL^
                 L TT                                    max TT^
                 DD FF min EE min TT min LL      min DD^
-                H PP                                    max PP^
-                Z PP                            min Z^
-                P YY                            min P^
-                P Z                                     max Z^
-                Z DD                            min Z^
-                Z BB                            min Z^
-                Z AA                  dup1 dup1 max swap2 min
+                H PP                                    max
+                Z                               min
+                P YY                            min
+                                  max DD min BB min
+                  AA                  dup1 dup1 max swap2 min
 
                 X swap2 clip "                               : \
                                                                \
