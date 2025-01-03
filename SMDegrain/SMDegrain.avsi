@@ -10,7 +10,7 @@
 ###                       v0.4.0d      by Dogway    - 03 Sep  2011                           ###
 ###                       v3.1.2d      by Dogway    - 21 Jul  2015                           ###
 ###                       v3.1.2.111s  by A.SONY.   - 09 Feb  2021                           ###
-###                       v4.6.0d      by Dogway    - 30 Mar  2024                           ###
+###                       v4.7.0d      by Dogway    - 03 Jan  2025                           ###
 ###                                                                                          ###
 ###                                                                                          ###
 ### Main:                                                                                    ###
@@ -317,8 +317,8 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
     pref    = !GlobalR ? preclip ?                  pref                                                                                                                                                     : \
                                   (prefilter==-1) ? pref                                                                                                                                                     : \
                                   (prefilter== 0) ? !isInter ? pref.ex_sbr(1, Y=Lum,UV=Chr) : pref.ex_boxblur(0.3,0,"weighted",Lum,Chr)                                                                      : \
-                                  (prefilter== 1) ?            pref.ex_MinBlur(1,Chr,isInter ? """ex_Median(mode="horizontal" ,Y=Lum,UV=uv)""" : "median",Y=Lum)                                             : \
-                                  (prefilter== 2) ?            pref.ex_MinBlur(2,Chr,isInter ? """ex_Median(mode="horizontalS",Y=Lum,UV=uv)""" : "median",Y=Lum)                                             : \
+                                  (prefilter== 1) ?            pref.ex_MinBlur(1,Chr,isInter ? """ex_Median(mode="horizontal" ,Y=y,UV=uv)""" : "median",Y=Lum)                                               : \
+                                  (prefilter== 2) ?            pref.ex_MinBlur(2,Chr,isInter ? """ex_Median(mode="horizontalS",Y=y,UV=uv)""" : "median",Y=Lum)                                               : \
                                   (prefilter== 3) ? !isInter ? pref.ex_Median(mode="IQMV" ,Y=Lum,UV=Chr) : pref.ex_Median(mode="IQM",Y=Lum,UV=Chr)                                                           : \
                                   (prefilter== 4) ?            pref.ex_Median(mode="IQMST",Y=Lum,UV=Chr, thres=255).ex_sbr(3,Y=Lum,UV=Chr)                                                                   : \
                                   (prefilter== 5) ? ex_merge(DFTTest(pref,sstring="0.0:4.0 0.2:9.0 1.0:15.0",tbsize=1,Y=Lum==3,U=chroma,V=chroma,dither=1,threads=1,sbsize=12,sosize=6,swin=2),pref,           \
@@ -528,34 +528,34 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         global bVec4         = VarExist("bVec4") ? bVec4 : nop()
         global bVec3         = VarExist("bVec3") ? bVec3 : nop()
         global bVec2         = VarExist("bVec2") ? bVec2 : nop()
-        global bVec1         =                     bVec1
+        global bVec1         = VarExist("bVec1") ? bVec1 : nop()
 
-        global fVec1         =                     fVec1
+        global fVec1         = VarExist("fVec1") ? fVec1 : nop()
         global fVec2         = VarExist("fVec2") ? fVec2 : nop()
         global fVec3         = VarExist("fVec3") ? fVec3 : nop()
         global fVec4         = VarExist("fVec4") ? fVec4 : nop()
         global fVec5         = VarExist("fVec5") ? fVec5 : nop()
         global fVec6         = VarExist("fVec6") ? fVec6 : nop()
         """) : Eval("""
-        global bVec1         =          vmulti.SelectEvery (tr2,  0)
-        global bVec2         =          vmulti.SelectEvery (tr2,  2)
-        global bVec3         =          vmulti.SelectEvery (tr2,  4)
-        global bVec4         =          vmulti.SelectEvery (tr2,  6)
-        global bVec5         = tr > 4 ? vmulti.SelectEvery (tr2,  8) : nop()
-        global bVec6         = tr > 5 ? vmulti.SelectEvery (tr2, 10) : nop()
-        global bVec7         = tr > 6 ? vmulti.SelectEvery (tr2, 12) : nop()
-        global bVec8         = tr > 7 ? vmulti.SelectEvery (tr2, 14) : nop()
-        global bVec9         = tr > 8 ? vmulti.SelectEvery (tr2, 16) : nop()
+        global bVec1         = VarExist("bVec1") ? bVec1 : vmulti.SelectEvery (tr2,  0)
+        global bVec2         = VarExist("bVec2") ? bVec2 : vmulti.SelectEvery (tr2,  2)
+        global bVec3         = VarExist("bVec3") ? bVec3 : vmulti.SelectEvery (tr2,  4)
+        global bVec4         = VarExist("bVec4") ? bVec4 : vmulti.SelectEvery (tr2,  6)
+        global bVec5         = VarExist("bVec5") ? bVec5 : vmulti.SelectEvery (tr2,  8)
+        global bVec6         = VarExist("bVec6") ? bVec6 : vmulti.SelectEvery (tr2, 10)
+        global bVec7         = VarExist("bVec7") ? bVec7 : vmulti.SelectEvery (tr2, 12)
+        global bVec8         = VarExist("bVec8") ? bVec8 : vmulti.SelectEvery (tr2, 14)
+        global bVec9         = VarExist("bVec9") ? bVec9 : vmulti.SelectEvery (tr2, 16)
 
-        global fVec1         =          vmulti.SelectEvery (tr2,  1)
-        global fVec2         =          vmulti.SelectEvery (tr2,  3)
-        global fVec3         =          vmulti.SelectEvery (tr2,  5)
-        global fVec4         =          vmulti.SelectEvery (tr2,  7)
-        global fVec5         = tr > 4 ? vmulti.SelectEvery (tr2,  9) : nop()
-        global fVec6         = tr > 5 ? vmulti.SelectEvery (tr2, 11) : nop()
-        global fVec7         = tr > 6 ? vmulti.SelectEvery (tr2, 13) : nop()
-        global fVec8         = tr > 7 ? vmulti.SelectEvery (tr2, 15) : nop()
-        global fVec9         = tr > 8 ? vmulti.SelectEvery (tr2, 17) : nop()
+        global fVec1         = VarExist("fVec1") ? fVec1 : vmulti.SelectEvery (tr2,  1)
+        global fVec2         = VarExist("fVec2") ? fVec2 : vmulti.SelectEvery (tr2,  3)
+        global fVec3         = VarExist("fVec3") ? fVec3 : vmulti.SelectEvery (tr2,  5)
+        global fVec4         = VarExist("fVec4") ? fVec4 : vmulti.SelectEvery (tr2,  7)
+        global fVec5         = VarExist("fVec5") ? fVec5 : vmulti.SelectEvery (tr2,  9)
+        global fVec6         = VarExist("fVec6") ? fVec6 : vmulti.SelectEvery (tr2, 11)
+        global fVec7         = VarExist("fVec7") ? fVec7 : vmulti.SelectEvery (tr2, 13)
+        global fVec8         = VarExist("fVec8") ? fVec8 : vmulti.SelectEvery (tr2, 15)
+        global fVec9         = VarExist("fVec9") ? fVec9 : vmulti.SelectEvery (tr2, 17)
         global srchSuper     = super_render
         global vmulti        = vmulti
         global Rtr           = tr
@@ -656,7 +656,7 @@ function SMDegrain (clip input   , int "tr"      , int "thSAD"    , int  "thSADC
         varn = "\n\n\n\n\n"
         sp   = !GlobalR && str==1.0 ? "  " : ""
 
-        Subtitle("SMDegrain Mod v4.6.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=h/round(25/dbl))
+        Subtitle("SMDegrain Mod v4.7.0",text_color=red||blue||yellow?Color:$7f7f7f,halo_color=$000000,font="VERDANA",size=s*2,x=w1,y=h/round(25/dbl))
 
         Subtitle("BASIC"   ,lsp=lsp,text_color=$ffffff,font="COURIER NEW",size=s,x=w1,y=ys)
         Subtitle(            "\n\ntr           = " + string(round(tr/dbl))                                                                   + \
