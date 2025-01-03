@@ -38,16 +38,16 @@
 # Input formats: YUV, YUY2, between 8-bit and 16-bit
 #
 # Core plugins:
-#   MVTools2     (2.7.45 or above)
+#   MVTools2     (2.7.46 or above)
 #   MaskTools2   (2.2.30 or above)
 #   RgTools      (1.2    or above)
 #   vsTCanny     (1.1.8  or above) (for gaussian blur)
-#   NNEDI3CL     (1.0.7  or above) (for gpuid=0)
-#   BWDIF        (1.2.5  or above)
+#   NNEDI3CL     (1.0.8  or above) (for gpuid=0)
+#   BWDIF        (1.2.5          )
 #   Vinverse     (0.9.4  or above)
 #
 # Core scripts:
-#   ExTools      (10.5   or above)
+#   ExTools      (10.4   or above)
 #   ResizersPack (12.1   or above) (for nnedi3wrap() or EEDI3wrap() )
 #   SMDegrain    (4.7.0  or above) (for ex_luma_rebuild() or KNLMeansCL/BM3D denoiser types)
 #
