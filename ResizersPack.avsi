@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 12.1 (19-02-2024)     ##
+###   Resizers Functions Pack 12.1 (04-01-2025)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -196,7 +196,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     krn1   = Default(edge, rw<1 && rh<1 ? rat<=rth*0.95 ? "Didee"    :                               /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR...or for downscaling: DPID, SSIM2, Zopti */
            \                              isUHD         ? "Zopti1080": "SSIM2"                       /* # By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value) */
            \                            : rat<=rth      ? "Blackman" : "nnedi3" )                    /* # By default, for big   upscales   -> "nnedi3"
-                                                                                                        # By default, for small downscales -> "Didée"
+                                                                                                        # By default, for small downscales -> "DidÃ©e"
                                                                                                         # By default, for big   downscales -> "Zopti1080"
                                                                                                         # By default, for mid   downscales -> "SSIM2" (DPID also fine for down to 720p) (Beware!! for UHD to HD against all logic I recommend going with Zopti1080 (b=-0.99,c=0.06) )  */
     krn1c  = Default(chroma,rat<=rth &&      krn1!="nnedi3"   ? krn1 : rw<1&&rh<1 ? "Zopti" : "Lanczos")# Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
@@ -544,7 +544,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     rh     = h2/float(h)
     factor = max(rw,rh) < 3 ? 2 : 4
     rfactor= rw<factor && rh<factor
-    krnn   = rfactor ? "Didee" : "Blackman6" # hard coded final resize: 'Didée' for down 'Blackman6' for up
+    krnn   = rfactor ? "Didee" : "Blackman6" # hard coded final resize: 'DidÃ©e' for down 'Blackman6' for up
 
     isHD   = (w  > 1099 || h  >  599)
     isUHD  = (w  > 2599 || h  > 1499)
@@ -1036,7 +1036,7 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
 ###    float ratio=1.0 (0.0 to 2.0),
 ###    string mode="%" ("adjust2w"/ "adjust2h"/ "DAR"/ "DARconform"/ "PAR"/ "%"),
 ###    [int mod=2 (1 to 16)],
-###    string kernel="Catmull-Rom" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "SincLin2"/ "SinPower"/ "Point"/ "bilinear"/ "deep"/ "nnedi3"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    string kernel="spline16" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "SincLin2"/ "SinPower"/ "Point"/ "bilinear"/ "deep"/ "nnedi3"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
 ###    [float b=0.00 (-1.00 to 1.00)],
 ###    [float c=0.50 (0.00 to 1.00)]
 ###    )
@@ -1054,7 +1054,7 @@ function RatioResize(clip s, float "ratio", string "mode", int "mod", string "ke
     h     = Default(PreH,  s.height())
     src_l = Default(src_left,  0)
     src_t = Default(src_top,   0)
-    kernel= Default(kernel,"bicubic")
+    kernel= Default(kernel,"spline16")
     bc    = bicubic_coeffs (kernel)
     kernel= bc[0]>-2 ?     "bicubic"        : kernel
     b     = bc[0]>-2 && !Defined(b) ? bc[0] : Default(b,   0)
@@ -1165,13 +1165,13 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###
 ### PadBorders()
 ###
-### Superseeds AddBorders(), Crop(), old PadMirror() and Didée's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804)
+### Superseeds AddBorders(), Crop(), old PadMirror() and DidÃ©e's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804)
 ### in one single filter.
 ### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (https://avisynth.nl/index.php/Color_presets).
 ###
 ### 'Dilate' is slightly faster than 'Mirror' (and probably filtering friendlier)
 ### 'Fill' requires FillBorders plugin, and mostly works at low units (1 or 2 pixels max)
-###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131)
+###  Old PadMirror() itself was inspired by DidÃ©e's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131)
 ###
 ### You can also crop at the same time, let's say crop sides, pad vertically:
 ###     PadBorders(-10,20,-10,20,"Dilate")
@@ -1385,7 +1385,7 @@ function bicubic_coeffs (string kernel) {
 
     # info: Keys Cubics family of filters are BC-splines that exactly reproduce affine gradients, those that satisfy 2C+B = 1 (along the dotted line in the Cubic filters diagram)
     # Examples are Mitchell-Netravali, Robidoux (and its flavours), Catmull-Rom, Cub-grange and Spline.
-    # For downscaling you can follow a different formula: B+2C  =  0 (Didée, ZoptiN)...
+    # For downscaling you can follow a different formula: B+2C  =  0 (DidÃ©e, ZoptiN)...
     # The next is sharper albeit more haloing    (Zopti): 3B+2C = -1 , but neither will produce affine gradients.
 
     # Robidoux coeffs follow the rule B+2C = 1
@@ -1413,7 +1413,7 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "Catmule-Dog"       ? [0.1750,0.4125]:c # up Sharp while orthogonally furthest key cubic coefficients from Blocking and Ringing zones in Cubics diagram (between CatRom and RobiSharp) (by Dogway)
     c = kernel == "Cub-grange"        ? [0.0308,0.4846]:c # up but also dw. Bicubic approximation to Lagrange scaling (a bit sharper than it)
     c = kernel == "Catmull-Rom"       ? [ 0.0,  0.5] : c  # up Canonical sharp Bicubic (roughly equivalent to spline16resize() and EWA RobidouxSharp)
-    c = kernel == "Didee"             ? [-0.5, 0.25] : c  # dw Didée's downscaling sharp coefficients for 1080p to 720p. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
+    c = kernel == "Didee"             ? [-0.5, 0.25] : c  # dw DidÃ©e's downscaling sharp coefficients for 1080p to 720p. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
     c = kernel == "Zopti"             ? [-0.6,  0.4] : c  # dw 2160p to 720p Zopti optimized (by Boulder) (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218
     c = kernel == "ZoptiN"            ? [-0.6,  0.3] : c  # dw Like Zopti but more neutral (better over/undershoot normalization). Good for final resizing.
     c = kernel == "ZoptiH"            ? [-0.83,0.14] : c  # dw 1080 to half optimized (for 1080p and smaller clips)
@@ -1443,7 +1443,7 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "BC-Spline"         ? [0.5,0.5]    : c
     c = kernel == "CSpline"           ? [0.0,1.0]    : c
     c = kernel == "C-Spline"          ? [0.0,1.0]    : c
-    c = kernel == "Didée"             ? [-0.5,0.25]  : c
+    c = kernel == "DidÃ©e"             ? [-0.5,0.25]  : c
     c = kernel == "Dide"              ? [-0.5,0.25]  : c
     c = kernel == "lagrange"          ? [0.0308,0.4846] : c
     c = kernel == "cubgrange"         ? [0.0308,0.4846] : c
