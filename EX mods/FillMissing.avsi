@@ -1,4 +1,4 @@
-# FillMissing v2.2 (03-01-2025)
+# FillMissing v2.2 (06-01-2025)
 #
 # Based on a script created by Didée
 # Check Changelog and contributors at the bottom
@@ -6,7 +6,7 @@
 #
 # Dependencies:
 #   ExTools 10.5
-#   ResizersPack 12.1
+#   ResizersPack 12.2
 #   TransformsPack 2.2.1
 #   TIVTC 1.0.29
 #
@@ -36,7 +36,7 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
     showdot    = Default(Show,    false)   # true for troubleshooting; otherwise, false
     Debug      = Default(Debug,   false)   # true for debugging;       otherwise, false
 
-    double = RIFEwrap(showdot ? Subtitle("***") : last, model=Fast ? 22 : 46, sc=false, gpuid=gpuid)
+    double = RIFEwrap(showdot ? Subtitle("***") : last, model=Fast ? "4.9" : "4.18", sc=false, gpuid=gpuid)
 
     # Remove comment from ShowMetrics, and change "return final" to "return test" to look at metrics in order to determine proper JumpThresh
     src8   = ConvertBits(8, dither=-1, fulls=fs)
@@ -75,7 +75,6 @@ function FillMissing(clip source, float "JumpThresh", bool "Fast", int "dcycle",
     RequestLinear(clim=100)
     dcycle = dcycle+dcycle%2
     final  = TDecimate(display=false, mode=1, cycleR=dcycle/2, cycle=dcycle, vfrDec=1, sdlim=0 )
-
 
     return debug ? test : final }
 
