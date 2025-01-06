@@ -1,7 +1,7 @@
 ######################################################
 ###                                                 ##
 ###                                                 ##
-###   Resizers Functions Pack 12.1 (04-01-2025)     ##
+###   Resizers Functions Pack 12.2 (05-01-2025)     ##
 ###                                                 ##
 ###                   by Dogway (Jose Linares)      ##
 ###                                                 ##
@@ -196,7 +196,7 @@ function deep_resize(clip a, val "width", val "height", string "edge", string "f
     krn1   = Default(edge, rw<1 && rh<1 ? rat<=rth*0.95 ? "Didee"    :                               /* # Resize kernel for the edge area. AI upscalers recommended here: nnedi3, FSRCNN, FCBI, SuperResXBR...or for downscaling: DPID, SSIM2, Zopti */
            \                              isUHD         ? "Zopti1080": "SSIM2"                       /* # By default, for small upscales   -> "blackman" (define *small* with 'th_rat' value) */
            \                            : rat<=rth      ? "Blackman" : "nnedi3" )                    /* # By default, for big   upscales   -> "nnedi3"
-                                                                                                        # By default, for small downscales -> "DidÃ©e"
+                                                                                                        # By default, for small downscales -> "Didée"
                                                                                                         # By default, for big   downscales -> "Zopti1080"
                                                                                                         # By default, for mid   downscales -> "SSIM2" (DPID also fine for down to 720p) (Beware!! for UHD to HD against all logic I recommend going with Zopti1080 (b=-0.99,c=0.06) )  */
     krn1c  = Default(chroma,rat<=rth &&      krn1!="nnedi3"   ? krn1 : rw<1&&rh<1 ? "Zopti" : "Lanczos")# Chroma resizing kernel (no edge/flat discretion) *Remember you can directly call "kernel + taps". ie. Blackman6, Lanczos4
@@ -544,7 +544,7 @@ function waifu2xresize(clip a, val "width", val "height", int "model", int "nois
     rh     = h2/float(h)
     factor = max(rw,rh) < 3 ? 2 : 4
     rfactor= rw<factor && rh<factor
-    krnn   = rfactor ? "Didee" : "Blackman6" # hard coded final resize: 'DidÃ©e' for down 'Blackman6' for up
+    krnn   = rfactor ? "Didee" : "Blackman6" # hard coded final resize: 'Didée' for down 'Blackman6' for up
 
     isHD   = (w  > 1099 || h  >  599)
     isUHD  = (w  > 2599 || h  > 1499)
@@ -611,15 +611,15 @@ function SmoothMotion (clip a) {
 # Wrapper around RIFE port by Asd-g
 #
 # Examples:
-#   RIFEwrap()                    # Default for doubling framerate for live action
-#   RIFEwrap(model=3, anime=true) # for 2D animation
+#   RIFEwrap()                        # Default for doubling framerate for live action (model="4.18")
+#   RIFEwrap(model="4.15",anime=true) # for 2D animation
 #
 # Dependencies:
 #       RIFE
 #       ExTools
 #       TransformsPack
 #
-function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "FrameDouble", bool "Anime", bool "sc", int "gpuid") {
+function RIFEwrap(clip a, string "model", int "FrameNum", int "FrameDen", bool "FrameDouble", bool "ensemble", bool "fast", bool "Anime", bool "sc", bool "UHD", int "gpuid") {
 
     isy    = isy  (a)
     rgb    = isRGB(a)
@@ -648,23 +648,87 @@ function RIFEwrap(clip a, int "model", int "FrameNum", int "FrameDen", bool "Fra
     "The rife architecture has two parameters called ensembling and fastmode integrated.
      You can't just export rife into one single model without such parameters.
      Nihui always just exports the fastest model (ensemble False, Fast True), while the other ones can result in a better image.
-     Ensembling combines the flow of two different interpolations within the model and if fastmode is false it calls contextnet" */
+     Ensembling combines the flow of two different interpolations within the model and if fastmode is false it calls contextnet"
+     4.9 good all around for weak GPUs or UHD
+     4.18 > 4.15 (and lite) for live action
+     4.25 > 4.15 > 4.6 Live or Anime  */
 
-    md     = Default(model, UHD ? 2 : 22) # model: 3 - for Anime or lineart, 17,6,22 - for photos or live action (in ascending order of qual/speed), model: 2 for UHD
-    num    = Default(FrameNum,       num)
+    tta    = Default(Anime,        false)
+    md     = Default(model,tta?"4.15":"4.18") # 'anime', 4.6<4.15<4.25 - for Anime or lineart; 4.9<4.15<4.18 - for live action
+    num    = Default(FrameNum,       num) # models folder must be located in the same folder as RIFE.dll.
     den    = Default(FrameDen,       den)
     fd     = Default(FrameDouble, !(numD || denD))
-    an     = Default(Anime,        false)
+    ens    = Default(ensemble,     false) # Ensembling combines the flow of 2 different interpolations within the model. Allows smooth predictions in areas where the estimation fails.
+    fst    = Default(fast,          true) # Use the lite model (disables contextnet) for faster inference.
+    UHD    = Default(UHD,            UHD) # Downcales the to-be-interpolated frames for UHD inputs
     gid    = Default(gpuid,            0)
-    sc     = Default(sc,            true)
+    sc     = Default(sc,            true) # Avoid interpolating frames over scene changes.
     nfps   = (float(num)/den)/fps
     fd     = fd || string(nfps,"%.1f")=="2.0"
 
+    md = LCase(md)
+    md = md == "1.2"||md=="rife"            ?  0 : \
+         md == "1.5"||FindStr(md,"hd")   >0 ?  1 : \
+         md == "1.6"||FindStr(md,"uhd")  >0 ?  2 : \
+         md == "1.8"||FindStr(md,"anime")>0 ?  3 : \
+         md == "2.0"         ?                 4 : \
+         md == "2.3"         ?                 5 : \
+         md == "2.4"         ?                 6 : \
+         md == "3.0"         ?                 7 : \
+         md == "3.1"         ?                 8 : \
+         md == "3.9"        && !ens &&  fst ?  9 : \
+         md == "3.9"        &&  ens && !fst ? 10 : \
+         md == "4.0"        && !ens &&  fst ? 11 : \
+         md == "4.0"        &&  ens && !fst ? 12 : \
+         md == "4.1"        && !ens &&  fst ? 13 : \
+         md == "4.1"        &&  ens && !fst ? 14 : \
+         md == "4.2"        && !ens &&  fst ? 15 : \
+         md == "4.2"        &&  ens && !fst ? 16 : \
+         md == "4.3"        && !ens &&  fst ? 17 : \
+         md == "4.3"        &&  ens && !fst ? 18 : \
+         md == "4.4"        && !ens &&  fst ? 19 : \
+         md == "4.4"        &&  ens && !fst ? 20 : \
+         md == "4.5"         ? !ens ||  fst ? 21 : 22 : \
+         md == "4.6"         ? !ens ||  fst ? 23 : 24 : \
+         md == "4.7"         ? !ens ||  fst ? 25 : 26 : \
+         md == "4.8"         ? !ens ||  fst ? 27 : 28 : \
+         md == "4.9"         ? !ens ||  fst ? 29 : 30 : \
+         md == "4.10"        ? !ens ||  fst ? 31 : 32 : \
+         md == "4.11"        ? !ens ||  fst ? 33 : 34 : \
+         md == "4.12"        ? !fst  ? !ens ? 35 : 36 : !ens ? 37 : 38 : \
+         md == "4.13"        ? !fst  ? !ens ? 39 : 40 : !ens ? 41 : 42 : \
+         md == "4.14"        ? !fst  ? !ens ? 43 : 44 : !ens ? 45 : 46 : \
+         md == "4.15"        ? !fst  ? !ens ? 47 : 48 : !ens ? 49 : 50 : \
+         md == "4.16_lite"   ? !ens ||  fst ? 51 : 52 : \
+         md == "4.17"        ? !fst  ? !ens ? 53 : 54 : !ens ? 55 : 56 : \
+         md == "4.18"        ? !ens ||  fst ? 57 : 58 : \
+         md == "4.19-beta"   ? !ens ||  fst ? 59 : 60 : \
+         md == "4.20"        ? !ens ||  fst ? 61 : 62 : \
+         md == "4.21"        ? !ens ||  fst ? 63 : 64 : \
+         md == "4.22"       && !ens  ? !fst ? 69 : 65 : \
+         md == "4.23"       && !ens ||  fst ? 70 :      \
+         md == "4.24"       && !ens ||  fst ? 71 :      \
+         md == "4.25"       && !ens  ? !fst ? 72 : 73 : \
+         md == "4.26"       && !ens  ? !fst ? 74 : 75 : \
+         md == "sudo_rife4" && !ens &&  fst ? 66 : \
+         md == "sudo_rife4" &&  ens && !fst ? 67 : \
+         md == "sudo_rife4" &&  ens &&  fst ? 68 : Assert(true, "RIFEwrap: Invalid mode")
+
+        # Asd-g needs to implement the following:
+#        69 rife-v4.22_ensembleFalse
+#        70 rife-v4.23_ensembleFalse
+#        71 rife-v4.24_ensembleFalse
+#        72 rife-v4.25_ensembleFalse
+#           rife-v4.25-heavy_ensembleFalse
+#        73 rife-v4.25-lite_ensembleFalse
+#        74 rife-v4.26-large_ensembleFalse
+#        75 rife-v4.26_ensembleFalse
+
     !isy ? a    : ConvertBits(a, 32, fulls=!tv,  fulld=true)
-    rgb  ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="Precise")
+     rgb ? rgbp ? last : ConvertToPlanarRGB() : isy ? MergeRGB(last,last,last) : ConvertFormat(1,1,"YUV","RGB",cs_in=pri,kernel_c="Precise")
      isy ? last : ConvertBits(   32, fulls=true, fulld=true)
 
-    RIFE(model=fd ? md : max(md,9), sc=sc, skip=an, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=false, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2, UHD=UHD)
+    RIFE(model=fd ? md : max(md,9), sc=sc, sc_threshold=0.15, skip=tta, fps_num=fd ? Undefined() : num, fps_den=fd ? Undefined() : den, tta=tta, gpu_id=max(0,gid), gpu_thread=isHD ? 4 : 2, UHD=UHD)
 
     isy   ? ExtractR().ConvertBits(bi, dither=1, fulls=true, fulld=!tv) : \
     !rgb  ? MatchClip (a,matrix=pri,size=false,props=false)             : last
@@ -1036,7 +1100,7 @@ function EEDI3wrap(clip a, int "xfactor", int "yfactor", int "field", float "alp
 ###    float ratio=1.0 (0.0 to 2.0),
 ###    string mode="%" ("adjust2w"/ "adjust2h"/ "DAR"/ "DARconform"/ "PAR"/ "%"),
 ###    [int mod=2 (1 to 16)],
-###    string kernel="spline16" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "SincLin2"/ "SinPower"/ "Point"/ "bilinear"/ "deep"/ "nnedi3"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
+###    string kernel="Catmull-Rom" ("spline16"/ "spline36"/ "spline64"/ "lanczos"/ "lanczos4"/ "blackman"/ "Sinc"/ "SincLin2"/ "SinPower"/ "Point"/ "bilinear"/ "deep"/ "nnedi3"/ "--"/ "Notch"/ "SoftCubic100"/ "Robidoux Soft"/ "SoftCubic75"/ "BilcubicD"/ "BilcubicU"/ "Hermite"/ "Robidoux"/ "EWA_Robidoux"/ "Centroid"/ "Mitchell-Netravali"/ "Robidoux Sharp"/ "EWA_RobidouxSharp"/ "SoftCubic50"/ "CatMule-Dog"/ "Cub-grange"/ "Catmull-Rom"/ "Didee"/ "Zopti"/ "ZoptiN"/ "ZoptiH"/ "Zopti720"/ "Zopti720U"/ "Zopti1080"/ "Precise"/ "Sharp"/ "Hatch"),
 ###    [float b=0.00 (-1.00 to 1.00)],
 ###    [float c=0.50 (0.00 to 1.00)]
 ###    )
@@ -1165,13 +1229,13 @@ function PadResize(clip c, int "width", int "height", int "mod", string "mode", 
 ###
 ### PadBorders()
 ###
-### Superseeds AddBorders(), Crop(), old PadMirror() and DidÃ©e's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804)
+### Superseeds AddBorders(), Crop(), old PadMirror() and Didée's Padding() (21-10-2012) (https://forum.doom9.org/showthread.php?p=1596804)
 ### in one single filter.
 ### In other words, with "mode" option you can dilate (extend), mirror, or add colored borders (https://avisynth.nl/index.php/Color_presets).
 ###
 ### 'Dilate' is slightly faster than 'Mirror' (and probably filtering friendlier)
 ### 'Fill' requires FillBorders plugin, and mostly works at low units (1 or 2 pixels max)
-###  Old PadMirror() itself was inspired by DidÃ©e's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131)
+###  Old PadMirror() itself was inspired by Didée's BorderMirror() (30-06-2004) (https://forum.doom9.org/showthread.php?p=518131)
 ###
 ### You can also crop at the same time, let's say crop sides, pad vertically:
 ###     PadBorders(-10,20,-10,20,"Dilate")
@@ -1385,7 +1449,7 @@ function bicubic_coeffs (string kernel) {
 
     # info: Keys Cubics family of filters are BC-splines that exactly reproduce affine gradients, those that satisfy 2C+B = 1 (along the dotted line in the Cubic filters diagram)
     # Examples are Mitchell-Netravali, Robidoux (and its flavours), Catmull-Rom, Cub-grange and Spline.
-    # For downscaling you can follow a different formula: B+2C  =  0 (DidÃ©e, ZoptiN)...
+    # For downscaling you can follow a different formula: B+2C  =  0 (Didée, ZoptiN)...
     # The next is sharper albeit more haloing    (Zopti): 3B+2C = -1 , but neither will produce affine gradients.
 
     # Robidoux coeffs follow the rule B+2C = 1
@@ -1413,7 +1477,7 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "Catmule-Dog"       ? [0.1750,0.4125]:c # up Sharp while orthogonally furthest key cubic coefficients from Blocking and Ringing zones in Cubics diagram (between CatRom and RobiSharp) (by Dogway)
     c = kernel == "Cub-grange"        ? [0.0308,0.4846]:c # up but also dw. Bicubic approximation to Lagrange scaling (a bit sharper than it)
     c = kernel == "Catmull-Rom"       ? [ 0.0,  0.5] : c  # up Canonical sharp Bicubic (roughly equivalent to spline16resize() and EWA RobidouxSharp)
-    c = kernel == "Didee"             ? [-0.5, 0.25] : c  # dw DidÃ©e's downscaling sharp coefficients for 1080p to 720p. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
+    c = kernel == "Didee"             ? [-0.5, 0.25] : c  # dw Didée's downscaling sharp coefficients for 1080p to 720p. More neutral in medium to low frequencies than Zopti. Good for intermediate resizings.
     c = kernel == "Zopti"             ? [-0.6,  0.4] : c  # dw 2160p to 720p Zopti optimized (by Boulder) (beware, not neutral, adds some local contrast): https://forum.doom9.org/showthread.php?p=1865218
     c = kernel == "ZoptiN"            ? [-0.6,  0.3] : c  # dw Like Zopti but more neutral (better over/undershoot normalization). Good for final resizing.
     c = kernel == "ZoptiH"            ? [-0.83,0.14] : c  # dw 1080 to half optimized (for 1080p and smaller clips)
@@ -1443,7 +1507,7 @@ function bicubic_coeffs (string kernel) {
     c = kernel == "BC-Spline"         ? [0.5,0.5]    : c
     c = kernel == "CSpline"           ? [0.0,1.0]    : c
     c = kernel == "C-Spline"          ? [0.0,1.0]    : c
-    c = kernel == "DidÃ©e"             ? [-0.5,0.25]  : c
+    c = kernel == "Didée"             ? [-0.5,0.25]  : c
     c = kernel == "Dide"              ? [-0.5,0.25]  : c
     c = kernel == "lagrange"          ? [0.0308,0.4846] : c
     c = kernel == "cubgrange"         ? [0.0308,0.4846] : c
