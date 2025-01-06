@@ -1,7 +1,7 @@
 ###
-### Logo v1.70  (https://forum.doom9.org/showthread.php?t=182881)
+### Logo v1.80  (https://forum.doom9.org/showthread.php?t=182881)
 ###
-###  (16-07-2024) by Dogway
+###  (06-01-2025) by Dogway
 ###
 ### With help from Gavino and Didée             (https://forum.doom9.org/showthread.php?t=160285)
 ### Watermark code adapted from:Didée's Ylevels (https://forum.doom9.org/showthread.php?p=525465)
@@ -29,7 +29,7 @@
 
 
 function Logo (clip c, string path, int "x", int "y", int "start", int "end", int "I", int "O", float "Opac",
-\              string "mode", float "ratio", float "Wstr", bool "Chr", float "blur", bool "matte", float "PAR", bool "anim_gif") {
+\              string "mode", float "ratio", float "Wstr", bool "Chr", float "blur", bool "matte", bool "invert", float "PAR", bool "anim_gif") {
 
     w  = c.Width ()
     h  = c.Height()
@@ -50,6 +50,7 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     Wstr     = Default(Wstr, 1.2)      # Intensity of Watermark, over 1.0 for bright, and below for dark watermaks
     Ch       = Default(Chr,mode=="Over")# Forces displaying chroma in Screen and Multiply mode, it is just copied not processed
     Sblur    = Default(blur, 0.0)      # Post-blur your logo for better integration
+    inv      = Default(invert,false)   # Invert colors
     mat      = Default(matte,false)    # Matte carving for better masking at edges of images with alpha
     PAR      = Default(PAR,1.0)        # Indicate the PAR of your source, if anamorphic output, so logo will show correct at display
     gif      = Default(anim_gif,false) # Is your logo a packed animated gif?
@@ -86,7 +87,7 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
     \           : ExtractA(logo0.FadeIn0(I).FadeOut0(O)).AssumeFPS(fps)
     logo0 = logo0.MatchClip(c,internal=true).AssumeFPS(fps)
     logo0 = HasAlpha(logo0) ? logo0.RemoveAlphaPlane() : logo0
-
+    logo0 = inv ? invert(logo0) : logo0
 
     V = c.trim(start,end)
     V =
@@ -116,6 +117,8 @@ function Logo (clip c, string path, int "x", int "y", int "start", int "end", in
 ###   -Better matte workaround
 ###
 ### Changelog:
+###
+### 1.80 -Add 'invert' argument to invert greyscale logos
 ###
 ### 1.70 -Add 'ratio' argument to rescale logo
 ###      -Change versioning format
