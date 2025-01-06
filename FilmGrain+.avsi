@@ -1,7 +1,7 @@
 #######################################################
 ###                                                 ###
 ###                                                 ###
-###      FilmGrain+  v2.6  (31-03-2023)             ###
+###      FilmGrain+  v2.7  (06-01-2025)             ###
 ###                                                 ###
 ###                   by Dogway (Jose Linares)      ###
 ###                                                 ###
@@ -317,9 +317,10 @@ function FilmGrainPlus(clip a,                                                  
 
     if (eml>0 && !isy) {
 
-        is22   = is422(a) ? 1 : 2
+        is22   = is422(a) || is44 ? 2 : 4
+        is44   = is44             ? 2 : 4
         sample = padresize(GL.ExtractY(),w/16,h/16).TemporalSoften(1,255,0,255,2)
-        UP     = BilinearResize(sample,  w/4, h/is22/2)
+        UP     = BilinearResize(sample,  w/is44, h/is22)
         Y      = ExtractY()
         U      = ExtractU()
         V      = ExtractV()
